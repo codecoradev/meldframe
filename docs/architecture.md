@@ -172,7 +172,7 @@ Carry as is: the document core with its tests, the protocol types and generation
 | R7 | One solo owner is the bottleneck | High | Medium | Small scope (W1), docs before code, agents do bounded work and the owner reviews | Review queue grows |
 | R8 | Name or trademark conflict | Unknown | High | Trademark search by the owner before any public use | Before any domain, account or package |
 | R9 | Gatehouse OAuth for MCP clients is not yet proven end to end | Medium | Medium | Build the MCP OAuth flow as the first platform slice in the repository (no separate spike) | First failed MCP client login |
-| R10 | The WASM boundary makes UI state exchange too costly | Medium | Medium | Exchange coarse snapshots plus events; build the agent activity panel first with written exit criteria; fall back to a TypeScript app layer if needed (ADR-0008) | First slice misses its frame-time criteria |
+| R10 | The WASM boundary makes UI state exchange too costly | Medium | Medium | Exchange coarse snapshots plus events; build the editor shell (M1) first with written exit criteria; fall back to a TypeScript app layer if needed (ADR-0008) | First slice misses its frame-time criteria |
 | R11 | The layering checker slows early work or is skipped | Medium | Medium | Add the checker, build matrix and size ceilings in E0 before feature code; keep rules as a tested pure function | CI exceptions grow |
 
 ## 13. Epic structure (feeds the roadmap)
@@ -181,7 +181,7 @@ Carry as is: the document core with its tests, the protocol types and generation
 - **E1 Core and render model:** seed the core; build the render model; model round 2 properties.
 - **E2 Variables:** model, commands, resolution, canvas rendering, import, export.
 - **E3 Agent surface:** admission gate (ADR-0010), module registry, MCP tools with risk tiers, actor profiles, batch notes, change queries, durable and ephemeral frames (ADR-0009).
-- **E4 Editor:** `meldframe-app` layer (ADR-0008) with the agent activity panel as the first vertical slice, then layers, properties, variables panel, review and revert.
+- **E4 Editor:** `meldframe-app` layer (ADR-0008) with the editor shell (layers, canvas, properties) as the first vertical slice in M1, then the variables panel (M3), the activity panel, review and revert (M5). Milestones and acceptance criteria: `docs/epics.md`.
 - **E5 Export and oracle:** HTML/Tailwind/CSS variables, oracle gate in CI.
 - **E6 Platform:** Gatehouse login, workspaces, quotas, local asset storage.
 - **E7 Evaluation:** V2 against Wonder on four real screens.

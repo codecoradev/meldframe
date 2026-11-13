@@ -9,7 +9,7 @@ Closed-source design canvas for humans and AI agents. Pre-alpha; docs first, no 
 - Requirements, before scoping a change: `docs/prd.md`.
 - Structure and seams, before adding a module or changing an interface: `docs/architecture.md`.
 - Why a hard-to-reverse choice was made, before reopening it: `docs/adr/`.
-- Open decisions and order of work: `docs/roadmap.md`. Owner decisions: `docs/decisions.md`.
+- Open decisions and order of work: `docs/roadmap.md`. Milestones, epics, acceptance and exit criteria, before starting any work item: `docs/epics.md`. Owner decisions: `docs/decisions.md`.
 - Layering, detachable modules, the app layer, the gate and live events, before adding a crate, module or transport: `docs/standards/modular-thin-ui.md` and ADR-0007 to ADR-0010.
 
 ## Workflow

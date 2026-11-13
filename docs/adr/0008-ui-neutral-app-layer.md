@@ -5,7 +5,7 @@ status: accepted
 
 Editor behaviour lives in a `meldframe-app` layer: state, actions, effects and events as plain serialisable data, with no UI toolkit. The web client (Svelte and PixiJS) reads state, dispatches actions and carries out effects. Selection, tools, panel state, the agent activity panel, review and revert, and the variables panel keep their rules here, so they are written and tested once and a later desktop or mobile front end reuses them. Complex screens split into a plain-data model and a view that only draws.
 
-The owner accepted this on 13 Nov 2026 and ruled out separate spikes: the layer is built directly in the product repository, starting with one real vertical slice (the agent activity panel), with exit criteria written before the work starts.
+The owner accepted this on 13 Nov 2026 and ruled out separate spikes: the layer is built directly in the product repository, starting with one real vertical slice (the editor shell: layers, canvas and properties, milestone M1), with exit criteria written before the work starts.
 
 ## Considered options
 

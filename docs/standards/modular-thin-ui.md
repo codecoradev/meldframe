@@ -133,7 +133,7 @@ Write the layering rules as a pure function over package data so they are unit-t
 
 ## 6. Checklists
 
-**Kickoff:** declare kinds; write the matrix; name the core and what is inner; define the registry; define the gate and risk tiers; define the app layer state, actions, effects; pick the event model; add the six commands to CI; write the first slice or spike plan with exit criteria.
+**Kickoff:** declare kinds; write the matrix; name the core and what is inner; define the registry; define the gate and risk tiers; define the app layer state, actions, effects; pick the event model; add the six commands to CI; write the first slice or spike plan with exit criteria; write milestones with epics, acceptance criteria and exit criteria before building (Meldframe: `docs/epics.md`).
 
 **Is it a module?** Deletion test: delete it; if complexity vanishes it was a pass-through, if it reappears in many callers it earns its keep. Detach test: does the product build and pass tests without it? If not, it is core or it is wrongly coupled.
 
@@ -155,7 +155,7 @@ Write the layering rules as a pure function over package data so they are unit-t
 |---|---|
 | Crastu | Full and enforced: kinds, deps-check, build-matrix, mobile-check, size-check, ui-literals, licences, vendor-check |
 | Tole | Partial: platform-agnostic kernel, host traits, single gate with permit, durable/ephemeral SSE; no crate-kind lint; app layer extraction tracked (epic #523) |
-| Meldframe | Adopted 13 Nov 2026 as ADR-0007 to ADR-0010 (layers and registry; UI-neutral app layer built directly in the repository, starting with the agent activity panel, no separate spike; durable and ephemeral events; single admission gate) |
+| Meldframe | Adopted 13 Nov 2026 as ADR-0007 to ADR-0010 (layers and registry; UI-neutral app layer built directly in the repository, starting with the editor shell, no separate spike; durable and ephemeral events; single admission gate) |
 | Others | Not assessed |
 
 ## 9. Known gaps and exceptions

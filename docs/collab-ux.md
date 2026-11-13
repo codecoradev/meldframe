@@ -359,7 +359,7 @@ Web (accessed 13 Nov 2026). The sandbox blocked direct page fetches (`help.figma
 
 Decisions made after this draft (`docs/decisions.md` items 20 to 24; ADR-0007 to ADR-0010):
 
-- **Where the panels live.** The activity panel, review and revert state and the follow or touch hints are rules of the UI-neutral app layer (`meldframe-app`, ADR-0008), not of the Svelte client. The web client only renders that state and dispatches actions. The agent activity panel is the first vertical slice built in the repository.
+- **Where the panels live.** The activity panel, review and revert state and the follow or touch hints are rules of the UI-neutral app layer (`meldframe-app`, ADR-0008), not of the Svelte client. The web client only renders that state and dispatches actions. The editor shell is the first app-layer slice (M1); the activity panel follows in M5 (`docs/epics.md`).
 - **Touch rings and `userFocus` are ephemeral events** (ADR-0009): best-effort, no sequence number, never replayed, and a full client queue drops them and sends a resync marker. Accepted ops and batch notes are durable frames with sequence numbers.
 - **Risk tiers and the gate (ADR-0010).** Every agent change passes one admission gate with risk tiers Read, Change and Delete. This draft assumes live apply for all agent changes (P-1) and does not say what Delete means for an agent that removes a whole frame or a large subtree. That mapping is open and is asked in `docs/owner-questionnaire.md` section 4.
 - **Agent pairing.** Sessions pair through a token shown once and stored as a hash; the stop button (Q3) revokes that pairing. Actor profiles are derived from the paired agent.

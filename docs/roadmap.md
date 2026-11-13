@@ -4,7 +4,7 @@ Planning map in the wayfinder shape: a destination, decisions so far, the fronti
 
 ## Destination
 
-Documents approved by the owner (PRODUCT, GLOSSARY, PRD, architecture, ADRs) and a W1 build plan that an agent can implement test-first. After that, the repository starts the W1 build from the spike seed.
+W1 built and through its gate (owner score 4/5 or better on 3 of 4 real screens), following the milestones and epics in `docs/epics.md`. First goal: milestone M1, backend, basic web editor and MCP connected end to end.
 
 ## Notes
 
@@ -14,18 +14,18 @@ Documents approved by the owner (PRODUCT, GLOSSARY, PRD, architecture, ADRs) and
 
 ## Decisions so far
 
-See `docs/decisions.md` (items 1 to 14 and 20 to 24) and accepted ADRs 0001, 0002, 0006, 0007, 0008, 0009, 0010.
+See `docs/decisions.md` (items 1 to 14 and 20 to 26), the working defaults in `docs/owner-questionnaire.md`, and accepted ADRs 0001, 0002, 0006, 0007, 0008, 0009, 0010.
 
 ## Frontier (open decisions, takeable now)
 
 | Ticket | Type | Needs |
 |---|---|---|
-| Approve PRD scope and priorities (P0 list) | grilling (owner) | owner |
+| Approve the milestones and epics in `docs/epics.md` | review (owner) | owner |
 | Approve ADR-0003 fidelity contract and tolerances | grilling (owner) | owner; questionnaire section 2 |
 | Approve ADR-0004 variable model | grilling (owner) | owner; questionnaire section 3 |
 | Approve ADR-0005 review and revert model | grilling (owner) | owner; questionnaire section 4 |
 | Decide headless capture | decision (in the repository, when a real workflow needs it) | no separate spike |
-| Build the MCP OAuth flow through Gatehouse | first platform slice in the repository | Gatehouse access |
+| Confirm Gatehouse client type and scopes for MCP | decision during E2.2 | Gatehouse access |
 | Choose the editor UI direction (`DESIGN.md`) | prototype (owner) | owner; after PRD approval |
 | Define the document model round 2 (components, variants, schema version) | grilling (owner) | after ADR-0004 |
 
@@ -43,11 +43,15 @@ See `docs/decisions.md` (items 1 to 14 and 20 to 24) and accepted ADRs 0001, 000
 
 Live multi-human collaboration; HTML import; Figma import; PPTX; Flutter and Dart; marketplace of variables or templates.
 
-## W1 build order (proposed, after approvals)
+## Milestones
+
+M0 Foundation, M1 Connected skeleton (first goal), M2 Platform and agent identity, M3 Model round 2 and variables, M4 Export and fidelity, M5 Agent review and design quality, M6 V2 and the W1 gate. Epics, acceptance criteria and exit criteria: `docs/epics.md`.
+
+## Earlier build order (superseded by the milestones)
 
 1. E0 Foundation: workspace layout by kind, CI checks (`deps-check`, `build-matrix`, `portable-check` for wasm32, `size-check`, `ui-literals`, `licences`), schema version, protocol pipeline.
 2. E1 Core and render model: seed the core; build the render model; model round 2.
 3. E2 Variables, E5 Export and oracle (in step, because export proves the model).
-4. E3 Agent surface (admission gate, module registry, durable and ephemeral frames), then E4 Editor: the `meldframe-app` layer with the agent activity panel as the first vertical slice, then review and revert.
+4. E3 Agent surface (admission gate, module registry, durable and ephemeral frames), then E4 Editor: the `meldframe-app` layer with the editor shell as the first vertical slice, then review and revert.
 5. E6 Platform (Gatehouse, workspaces, quotas) alongside E3.
 6. E7 V2 evaluation.

@@ -1,0 +1,238 @@
+# Epics and milestones
+
+Plan of record for building W1. Status: draft for owner review, 13 Nov 2026. Requirements are in `docs/prd.md` (FR and NFR ids), structure in `docs/architecture.md`, decisions in `docs/decisions.md` and `docs/adr/`. Code is authoritative over this document once building starts; status syncs are dated.
+
+## How the plan works
+
+- **Milestones end on exit criteria, not dates.** A milestone is done when every exit criterion is demonstrated, not when its epics are merged.
+- **Epics are vertical where possible.** Each epic lists acceptance criteria that a test or a demonstration can check. Epics become tracker issues when the owner approves this plan; the issue links back here instead of copying the criteria.
+- **No separate spikes** (decision 24). An unknown is resolved by the first slice of the epic that meets it, with its exit criteria written before the work starts.
+- **Every feature module ships its agent tools** with risk tiers (ADR-0007, ADR-0010). A feature is not done until an agent can use it through MCP.
+- **Sizes** are rough: S (a few days of agent work, one or two pull requests), M (about a week, several pull requests), L (more than a week, split before starting).
+
+## Definition of done (every epic)
+
+1. Behaviour is covered by tests at the agreed seam: the core's submit-a-command interface, the MCP surface with a real client and Postgres, the app layer driven by a test harness, or a browser end-to-end test. A failing test comes first for behaviour changes.
+2. CI is green: format, lint, tests, layering checks, size ceilings, UI literal lint, licence check, Cora review with no major or critical finding left.
+3. Docs touched by the change are updated in the same pull request (architecture, ADR, glossary, MCP tool catalogue).
+4. Agent-facing text and errors are English with stable codes.
+5. Commits are signed off and carry no AI attribution; pull requests stay around 1,000 lines or less.
+
+## Milestones at a glance
+
+| Milestone | Outcome | Epics | Exit criteria (summary) |
+|---|---|---|---|
+| M0 Foundation | A repository an agent can build in safely | E0.1 to E0.4 | CI enforces the standard on an empty workspace |
+| **M1 Connected skeleton** (owner's first goal) | Backend, basic web editor and MCP connected end to end | E1.1 to E1.7 | An external agent and a person edit one file live, through one gate |
+| M2 Platform and agent identity | Real login, workspaces, quotas, paired agents, assets | E2.1 to E2.5 | Gatehouse login and MCP OAuth work; data is tenant-scoped |
+| M3 Model round 2 and variables | The layout and paint model of W1, with variables rendered | E3.1 to E3.5 | A Tailwind design system is imported and rendered on the canvas |
+| M4 Export and fidelity | HTML/Tailwind with CSS variables that match the canvas | E4.1 to E4.3 | The oracle gate runs in CI and passes |
+| M5 Agent review and design quality | People can see, review and revert agent work | E5.1 to E5.5 | The review loop works on a real agent run |
+| M6 V2 and the W1 gate | Evidence that the product is good enough | E6.1 to E6.2 | Owner score 4/5 or better on 3 of 4 real screens |
+
+## M0 Foundation
+
+Goal: the skeleton every feature plugs into, with the standard enforced from the first commit.
+
+### E0.1 Workspace layout by kind (S)
+Crates under `crates/{core,engines,integrations,features,app,ui}`, apps under `apps/{server,web}`, each crate declaring its kind (ADR-0007).
+- [ ] Every crate declares `kind` (and `group` for features) in its manifest; a crate without one fails the check.
+- [ ] `cargo xtask deps-check` enforces the matrix in `docs/architecture.md` section 3b; its rules are a pure function with unit tests, including one failing case per rule.
+- [ ] `cargo xtask build-matrix` builds the product with no features and with each feature alone.
+- [ ] `cargo xtask portable-check` compiles core, engine, integration, feature and app crates for `wasm32-unknown-unknown`.
+- [ ] `unsafe` is denied workspace-wide.
+
+### E0.2 CI and review gates (S)
+- [ ] CI runs format, lint (warnings as errors), tests, `deps-check`, `build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences --check`.
+- [ ] `size-check` enforces 500 lines per file and 2,000 per crate with an allow-list that only shrinks.
+- [ ] Cora Review runs on every pull request; branch-name and message-standard checks reject AI attribution and wrong prefixes.
+- [ ] `develop` requires CI to pass before merge; `main` exists and receives release tags only.
+
+### E0.3 Protocol and schema pipeline (S)
+- [ ] Wire and model types live in `meldframe-protocol`; TypeScript types are generated and a CI check fails on drift.
+- [ ] Every stored document and snapshot carries a schema version from the first migration.
+- [ ] Postgres migrations run from a clean database in CI.
+
+### E0.4 Local development environment (S)
+- [ ] One command starts Postgres and the server for development; one command starts the web client against it.
+- [ ] A seeded development workspace, file and token exist for agents and tests (development only, never in a release build).
+- [ ] `AGENTS.md` lists the commands; a new session can run the full test suite from a fresh clone.
+
+**M0 exit criteria:** a pull request that breaks a layering rule, a size ceiling or a UI literal is rejected by CI; a fresh clone builds and tests green with one command.
+
+## M1 Connected skeleton (owner's first goal)
+
+Goal: backend, a basic web editor and MCP connected end to end on the carried spike core. Authentication uses development tokens behind the gate's principal interface; Gatehouse arrives in M2 without changing callers.
+
+### E1.1 Core seed (M)
+Carry the document core from the spike (decision 14, survey section 6.1): `Command`, validation, history with per-actor undo, replica with rebase and op dependencies, fractional order, layout with the text measurer seam.
+- [ ] The spike's property tests (convergence, undo, rebase, dependencies) run in this repository and pass with at least 600 seeds per run in CI and more nightly.
+- [ ] Mutation check: disabling the dependency rule or the per-actor undo rule makes a test fail.
+- [ ] Names follow `GLOSSARY.md`; no spike ids remain in file or type names; comments are English.
+- [ ] The core compiles natively and to WASM with the same tests.
+
+### E1.2 Room, persistence and snapshots (M)
+- [ ] One room per file accepts ops in one total order, persists them append-only with actor, idempotency key and sequence number, and snapshots periodically.
+- [ ] Restarting the server restores every file from snapshot plus log with no change in content (test).
+- [ ] A retried op with the same key returns the same sequence number and writes nothing (test).
+- [ ] A dependent op is accepted only if every dependency was applied (carried F3 behaviour, test).
+
+### E1.3 Admission gate (M)
+ADR-0010; the survey's candidate 2.
+- [ ] WebSocket, MCP and REST submit through one gate; the room accepts a write only with a permit the gate creates, so a path that skips the gate does not compile.
+- [ ] Refusals have stable codes and English messages (`forbidden`, `quota_exceeded`, `conflict`, `invalid`, `dependency_rejected`, ...), listed in one table that a test checks against the code.
+- [ ] Rate limiting happens before parsing; per-call timeouts apply (carried H1 behaviour, tests).
+- [ ] The principal comes from development tokens through an interface that Gatehouse implements in M2.
+
+### E1.4 Live events (S)
+ADR-0009.
+- [ ] Accepted ops reach every open client as durable frames with sequence numbers; a client that reconnects with its last sequence number receives exactly the missed frames.
+- [ ] Ephemeral frames (capture requests, touch hints) carry no sequence number and are never replayed.
+- [ ] A slow client whose queue is full gets a resync marker and recovers; the room never waits for it (test with a stalled client).
+- [ ] Concurrent streams are capped; heartbeats are tested against a real clock.
+
+### E1.5 MCP surface v1 (M)
+- [ ] Tools: read the file tree and nodes, apply commands (atomic by default for multi-command calls), report limits (`whoami`), batch status. Descriptions are English and name the batch limit.
+- [ ] Idempotency keys work in both spellings; `ifSeq` rejects a stale edit with `conflict` and says what changed.
+- [ ] A real MCP client (the rmcp client in tests, and Claude Code by hand) completes the M1 demonstration below.
+- [ ] Tool text and schemas are listed in a catalogue that a test compares with the server.
+
+### E1.6 App layer and basic web editor (L, split into slices)
+ADR-0008. First vertical slice of the app layer: the editor shell.
+- [ ] `meldframe-app` holds selection, current tool, panel state, connection state and the history buttons as plain data with actions, effects and events; a test harness drives it without the web client.
+- [ ] The web client (Svelte 5 + PixiJS) shows layers on the left, the canvas in the centre and properties on the right, and only renders app state and dispatches actions.
+- [ ] A person can create a frame, a rectangle and a text node, move and resize them, edit text and basic properties, and undo or redo their own changes.
+- [ ] UI colours, fonts and sizes come from the tokens module; the literal lint passes.
+- [ ] Changes from an agent appear without reload and are labelled with the actor in the layers panel.
+- [ ] Browser end-to-end tests cover create, edit, undo, a dropped connection and the reconnect.
+
+### E1.7 Capture relay (S)
+Carried from the spike (S13); headless capture waits for a real need (decision 18).
+- [ ] An agent can capture a node or a frame as PNG while an editor has the file open; without one it gets `no_capable_client`.
+- [ ] Capture uses the file bound to the session; a different file is refused with `room_mismatch`.
+- [ ] Capture is a feature module that registers its tool with a Read risk tier.
+
+**M1 exit criteria (demonstration, recorded in the pull request that closes the milestone):**
+1. Claude Code, connected through MCP, builds a landing hero (a frame with heading, text and a button) in one atomic batch; the open editor shows it without reload.
+2. The person moves the heading; the agent's next read shows the new position; the agent's stale edit of the heading is rejected with `conflict`.
+3. The person presses undo: only their move is undone; the agent's work stays.
+4. The browser drops its connection and reconnects: it receives exactly the missed changes.
+5. The agent captures the frame and receives a PNG.
+6. Every write in the run passed the one gate (log shows actor and decision for each).
+
+## M2 Platform and agent identity
+
+Goal: real users, tenants and agents (decisions 10 to 12; ADR-0006, ADR-0010).
+
+### E2.1 Gatehouse login (M)
+- [ ] People sign in with Gatehouse (OIDC); the principal carries user and workspace.
+- [ ] Sessions are revocable; logout ends the WebSocket.
+- [ ] Development tokens are disabled in release builds.
+
+### E2.2 MCP OAuth through Gatehouse (M)
+First platform slice (risk R9).
+- [ ] Claude Code connects to the MCP endpoint through an OAuth flow with Gatehouse and acts as a paired agent of the signed-in user.
+- [ ] The client type and scopes chosen in the questionnaire are documented in an ADR.
+
+### E2.3 Workspaces and quotas (M)
+- [ ] Every file, variable collection, asset and counter belongs to one workspace; a query without the workspace in the principal returns nothing (tests per table).
+- [ ] Quotas per workspace (ops per minute, batch size, storage) with stable refusal codes; counters survive a restart.
+
+### E2.4 Agent pairing, risk tiers and activity log (M)
+- [ ] An agent session pairs with a token shown once and stored as a hash; it is revocable at once and the next call is refused.
+- [ ] Calls carry risk tiers (Read, Change, Delete) with the default policy from the questionnaire; an agent deleting a whole frame or a large subtree is asked first.
+- [ ] Every call is logged with actor, tool, risk, decision and outcome; logs carry no content.
+
+### E2.5 Assets on local disk (S)
+- [ ] Upload png, jpeg, webp or gif (SVG refused); content-addressed; stored on local disk behind a blob interface.
+- [ ] Image fills (cover, contain, fill) render on the canvas; a missing asset is reported as `asset_not_found`.
+
+**M2 exit criteria:** a signed-in person and a paired Claude Code session work in one workspace; another workspace cannot see that file; revoking the agent stops it on its next call.
+
+## M3 Model round 2 and variables
+
+Goal: the layout and paint model of W1 and the design system on the canvas (FR-4, FR-5, FR-9 to FR-11; ADR-0003, ADR-0004).
+
+### E3.1 Render model (M)
+The survey's candidate 1.
+- [ ] One `resolve` step turns nodes and variables into painted boxes; the canvas and export both consume it.
+- [ ] A coverage test fails when a node field is rendered by one consumer and not the other, unless it is marked unsupported.
+
+### E3.2 Layout and paint round 2 (M)
+- [ ] Margin, padding per side, absolute children inside auto layout, gradients, opacity and no-fill are commands, validated, undoable and rendered.
+- [ ] The validator normalises fill under hug and warns on overflow (contract rules G1 to G3).
+- [ ] Frame presets Desktop, Tablet and Mobile.
+
+### E3.3 Variables in the core (M)
+- [ ] Collections, modes, variables and aliases with stable ids; bindings `T | {var: id}`; alias cycles and missing variables are refused at command time.
+- [ ] Variable commands use the same undo, `ifSeq` and atomic batches as nodes.
+- [ ] The canvas renders resolved variables; switching mode re-renders without changing the document.
+
+### E3.4 Variables feature: import and panel (M)
+- [ ] Import from CSS variables and Tailwind v4 `@theme` text produces collections, modes and aliases with an import report; no user code runs on the server.
+- [ ] An agent tool `import_tokens` (Change tier) accepts text that the agent read locally.
+- [ ] The Variables panel lists, searches, edits and binds variables; its rules live in the app layer.
+- [ ] A real Tailwind design system (the Uteke Cloud theme) is the import test corpus.
+
+### E3.5 Layer names (S)
+- [ ] A lint flags default layer names; MCP descriptions ask agents for semantic names.
+
+**M3 exit criteria:** the Uteke Cloud design system is imported, its variables are bound to a frame by an agent, and switching light and dark mode re-renders the frame on the canvas.
+
+## M4 Export and fidelity
+
+Goal: exported HTML/Tailwind that matches the canvas (FR-12, FR-13, NFR-2; ADR-0003).
+
+### E4.1 Export feature (M)
+- [ ] HTML and Tailwind v4 with CSS variables, generated from the render model, with `var(--...)` for bound fields and an unsupported-property report.
+- [ ] Every M3 property is in the supported table of the fidelity contract with a fixture and a probe.
+- [ ] An agent tool exports a frame (Read tier).
+
+### E4.2 Oracle gate in CI (M)
+- [ ] The harness from `experiments/fidelity-oracle` runs against the product export in CI: geometry within 0.05 px, text ink within 1 px, paint probes, Tailwind equal to plain CSS.
+- [ ] Pull requests run fixtures plus 50 fuzz seeds; nightly runs 500 or more; a known-gap fixture that starts passing fails the job.
+
+### E4.3 PNG export (S)
+- [ ] A frame exports to PNG at 1x and 2x from the editor and through MCP.
+
+**M4 exit criteria:** the oracle gate is required on `develop` and passes; a landing frame exported to HTML/Tailwind renders the same boxes as the canvas within the contract.
+
+## M5 Agent review and design quality
+
+Goal: people can follow, review and revert agent work (FR-16 to FR-18, FR-21; ADR-0005).
+
+### E5.1 Activity panel (M)
+- [ ] One lane per agent session with batches, notes (plain text, length-limited) and status; its rules live in the app layer.
+- [ ] Touch hints show which nodes an agent is changing (ephemeral frames).
+
+### E5.2 Review and revert (M)
+- [ ] Reverting a batch restores only the fields whose last writer is still that agent, as one atomic change authored by the person, which the person can undo.
+- [ ] A test fails if the "still last writer" check is removed.
+
+### E5.3 Checkpoints (S)
+- [ ] Automatic checkpoint at the start of an agent run and before a revert; restore appends a change and never rewrites history.
+
+### E5.4 Design review and variants (M)
+- [ ] A `design_review` tool stores a numbered critique list per file and links items to the batches that address them.
+- [ ] Frame duplication as a variant from the editor and through MCP.
+
+### E5.5 Agent guidance (S)
+- [ ] A shipped skill or prompt tells agents to use small top-down batches, semantic names, notes, `atomic` for multi-command edits and `ifSeq` for edits of existing nodes, and to duplicate a frame before a large rewrite.
+
+**M5 exit criteria:** on a real Claude Code run, the person sees each batch with its note, reverts one batch, and the rest of the agent's work stays intact.
+
+## M6 V2 and the W1 gate
+
+### E6.1 V2 evaluation (M)
+- [ ] Four real screens (proposed: Uteke Cloud landing, pricing, compare page, and one Uteke Mobile screen) are designed through MCP and compared blind with Wonder output.
+- [ ] The owner scores each; results and the runs are recorded in `docs/evaluations/`.
+
+### E6.2 Fix round and release (M)
+- [ ] Findings from V2 are triaged into issues; blocking ones are fixed.
+- [ ] `main` receives the first tag (v0.1.0) with a changelog.
+
+**W1 gate:** owner score 4/5 or better on 3 of 4 screens (decision 9).
+
+## After W1 (not planned in detail)
+
+Carousel and slides (C1), motion (Mo1), headless capture (decision 18), components and instances (decision 19), desktop with a local agent over ACP (phase D), brand memory through Uteke, PDF export, responsive export.
