@@ -1,0 +1,516 @@
+[
+ {
+  "id": "border inside: stripe",
+  "at": [
+   43,
+   80
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true,
+  "note": "x0..x0+8 red"
+ },
+ {
+  "id": "border inside: below stripe is fill",
+  "at": [
+   52,
+   80
+  ],
+  "want": "green",
+  "got": [
+   0,
+   255,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "border inside: never outside the box",
+  "at": [
+   37,
+   80
+  ],
+  "want": "white",
+  "got": [
+   255,
+   255,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "border center: outer half",
+  "at": [
+   237,
+   80
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "border center: inner half",
+  "at": [
+   241,
+   80
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "border center: fill after stripe",
+  "at": [
+   247,
+   80
+  ],
+  "want": "green",
+  "got": [
+   0,
+   255,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "border center: beyond outer edge",
+  "at": [
+   233,
+   80
+  ],
+  "want": "white",
+  "got": [
+   255,
+   255,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "border outside: stripe",
+  "at": [
+   435,
+   80
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "border outside: box itself is fill",
+  "at": [
+   443,
+   80
+  ],
+  "want": "green",
+  "got": [
+   0,
+   255,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "border outside: beyond",
+  "at": [
+   429,
+   80
+  ],
+  "want": "white",
+  "got": [
+   255,
+   255,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "rounded corner clipped",
+  "at": [
+   641,
+   41
+  ],
+  "want": "white",
+  "got": [
+   255,
+   255,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "rounded border on the straight edge",
+  "at": [
+   642,
+   80
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "hard shadow x+20: visible right of box",
+  "at": [
+   170,
+   240
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "hard shadow: absent beyond offset",
+  "at": [
+   185,
+   240
+  ],
+  "want": "white",
+  "got": [
+   255,
+   255,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "hard shadow: absent opposite side",
+  "at": [
+   30,
+   240
+  ],
+  "want": "white",
+  "got": [
+   255,
+   255,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "hard shadow: box fill above shadow",
+  "at": [
+   100,
+   240
+  ],
+  "want": "green",
+  "got": [
+   0,
+   255,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "spread 10: right",
+  "at": [
+   365,
+   240
+  ],
+  "want": "blue",
+  "got": [
+   0,
+   0,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "spread 10: top",
+  "at": [
+   300,
+   195
+  ],
+  "want": "blue",
+  "got": [
+   0,
+   0,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "spread 10: beyond",
+  "at": [
+   375,
+   240
+  ],
+  "want": "white",
+  "got": [
+   255,
+   255,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "two shadows same offset: last in list is on top",
+  "at": [
+   770,
+   240
+  ],
+  "want": "blue",
+  "got": [
+   0,
+   0,
+   255
+  ],
+  "ok": true,
+  "note": "model: first = bottom; CSS list is reversed by the overlay"
+ },
+ {
+  "id": "shadow blur falloff vs Gaussian sigma=blur/2",
+  "falloff": [
+   {
+    "distance": 1,
+    "got": 132,
+    "gaussian": 138,
+    "delta": -6
+   },
+   {
+    "distance": 5,
+    "got": 169,
+    "gaussian": 176,
+    "delta": -7
+   },
+   {
+    "distance": 10,
+    "got": 209,
+    "gaussian": 215,
+    "delta": -6
+   },
+   {
+    "distance": 20,
+    "got": 248,
+    "gaussian": 249,
+    "delta": -1
+   },
+   {
+    "distance": 30,
+    "got": 254,
+    "gaussian": 255,
+    "delta": -1
+   }
+  ],
+  "ok": true
+ },
+ {
+  "id": "cover: left half red",
+  "at": [
+   60,
+   90
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "cover: right half blue",
+  "at": [
+   120,
+   90
+  ],
+  "want": "blue",
+  "got": [
+   0,
+   0,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "contain: letterbox top shows fill",
+  "at": [
+   260,
+   50
+  ],
+  "want": "green",
+  "got": [
+   0,
+   255,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "contain: image row left",
+  "at": [
+   260,
+   90
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "contain: image row right",
+  "at": [
+   320,
+   90
+  ],
+  "want": "blue",
+  "got": [
+   0,
+   0,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "contain: letterbox bottom shows fill",
+  "at": [
+   260,
+   130
+  ],
+  "want": "green",
+  "got": [
+   0,
+   255,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "fill: stretched top-left",
+  "at": [
+   460,
+   50
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "fill: stretched top-right",
+  "at": [
+   520,
+   50
+  ],
+  "want": "blue",
+  "got": [
+   0,
+   0,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "fill: stretched bottom-left",
+  "at": [
+   460,
+   130
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "cover on 160x100 box: crop edges, red side",
+  "at": [
+   680,
+   90
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true
+ },
+ {
+  "id": "cover on 160x100 box: blue side",
+  "at": [
+   760,
+   90
+  ],
+  "want": "blue",
+  "got": [
+   0,
+   0,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "radius clips image corner",
+  "at": [
+   641,
+   41
+  ],
+  "want": "white",
+  "got": [
+   255,
+   255,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "ellipse clips image corner",
+  "at": [
+   841,
+   41
+  ],
+  "want": "white",
+  "got": [
+   255,
+   255,
+   255
+  ],
+  "ok": true
+ },
+ {
+  "id": "ellipse image centre-left is red",
+  "at": [
+   880,
+   90
+  ],
+  "want": "red",
+  "got": [
+   255,
+   0,
+   0
+  ],
+  "ok": true
+ }
+]

@@ -1,0 +1,182 @@
+[
+ {
+  "blur": 8,
+  "maxAbs": 19,
+  "rows": [
+   {
+    "d": 1,
+    "pixi": 136,
+    "css": 139,
+    "delta": 3
+   },
+   {
+    "d": 3,
+    "pixi": 170,
+    "css": 184,
+    "delta": 14
+   },
+   {
+    "d": 5,
+    "pixi": 200,
+    "css": 219,
+    "delta": 19
+   },
+   {
+    "d": 8,
+    "pixi": 234,
+    "css": 247,
+    "delta": 13
+   },
+   {
+    "d": 12,
+    "pixi": 254,
+    "css": 254,
+    "delta": 0
+   },
+   {
+    "d": 16,
+    "pixi": 255,
+    "css": 255,
+    "delta": 0
+   },
+   {
+    "d": 20,
+    "pixi": 255,
+    "css": 255,
+    "delta": 0
+   },
+   {
+    "d": 30,
+    "pixi": 255,
+    "css": 255,
+    "delta": 0
+   }
+  ],
+  "edge": {
+   "pixiAtEdge": 136,
+   "cssAtEdge": 139,
+   "pixiInside": 4,
+   "cssInside": 0
+  }
+ },
+ {
+  "blur": 20,
+  "maxAbs": 19,
+  "rows": [
+   {
+    "d": 1,
+    "pixi": 131,
+    "css": 132,
+    "delta": 1
+   },
+   {
+    "d": 3,
+    "pixi": 145,
+    "css": 151,
+    "delta": 6
+   },
+   {
+    "d": 5,
+    "pixi": 158,
+    "css": 169,
+    "delta": 11
+   },
+   {
+    "d": 8,
+    "pixi": 178,
+    "css": 194,
+    "delta": 16
+   },
+   {
+    "d": 12,
+    "pixi": 202,
+    "css": 221,
+    "delta": 19
+   },
+   {
+    "d": 16,
+    "pixi": 222,
+    "css": 238,
+    "delta": 16
+   },
+   {
+    "d": 20,
+    "pixi": 237,
+    "css": 248,
+    "delta": 11
+   },
+   {
+    "d": 30,
+    "pixi": 254,
+    "css": 254,
+    "delta": 0
+   }
+  ],
+  "edge": {
+   "pixiAtEdge": 131,
+   "cssAtEdge": 132,
+   "pixiInside": 59,
+   "cssInside": 0
+  }
+ },
+ {
+  "blur": 40,
+  "maxAbs": 15,
+  "rows": [
+   {
+    "d": 1,
+    "pixi": 146,
+    "css": 134,
+    "delta": -12
+   },
+   {
+    "d": 3,
+    "pixi": 151,
+    "css": 144,
+    "delta": -7
+   },
+   {
+    "d": 5,
+    "pixi": 157,
+    "css": 153,
+    "delta": -4
+   },
+   {
+    "d": 8,
+    "pixi": 166,
+    "css": 167,
+    "delta": 1
+   },
+   {
+    "d": 12,
+    "pixi": 177,
+    "css": 185,
+    "delta": 8
+   },
+   {
+    "d": 16,
+    "pixi": 190,
+    "css": 201,
+    "delta": 11
+   },
+   {
+    "d": 20,
+    "pixi": 200,
+    "css": 215,
+    "delta": 15
+   },
+   {
+    "d": 30,
+    "pixi": 224,
+    "css": 239,
+    "delta": 15
+   }
+  ],
+  "edge": {
+   "pixiAtEdge": 146,
+   "cssAtEdge": 134,
+   "pixiInside": 112,
+   "cssInside": 0
+  }
+ }
+]

@@ -1,0 +1,90 @@
+[
+ {
+  "variant": "fuzz",
+  "fits": {
+   "docs": 105,
+   "ok": 97,
+   "nodes": 409,
+   "bad": 26
+  },
+  "notfit": {
+   "docs": 93,
+   "ok": 23,
+   "nodes": 1039,
+   "bad": 524
+  },
+  "errors": [
+   {
+    "name": "fz-87",
+    "error": "rects: GALAT: 1 kueri ukur teks tidak ada di tabel, mis. \"subtitle subtitle\" fs=14 wrap=Some(119.33333333333333)"
+   },
+   {
+    "name": "fz-141",
+    "error": "rects: GALAT: 2 kueri ukur teks tidak ada di tabel, mis. \"button system design browser frame fill layout hug export engine render design align gap\" fs=13 wrap=S"
+   }
+  ]
+ },
+ {
+  "variant": "fuzz.norm",
+  "fits": {
+   "docs": 104,
+   "ok": 104,
+   "nodes": 399,
+   "bad": 0
+  },
+  "notfit": {
+   "docs": 95,
+   "ok": 33,
+   "nodes": 1065,
+   "bad": 311
+  },
+  "errors": [
+   {
+    "name": "fz-141",
+    "error": "rects: GALAT: 2 kueri ukur teks tidak ada di tabel, mis. \"button system design browser frame fill layout hug export engine render design align gap\" fs=13 wrap=S"
+   }
+  ]
+ },
+ {
+  "variant": "fuzz.norm.safe",
+  "fits": {
+   "docs": 104,
+   "ok": 104,
+   "nodes": 399,
+   "bad": 0
+  },
+  "notfit": {
+   "docs": 95,
+   "ok": 50,
+   "nodes": 1065,
+   "bad": 161
+  },
+  "errors": [
+   {
+    "name": "fz-141",
+    "error": "rects: GALAT: 2 kueri ukur teks tidak ada di tabel, mis. \"button system design browser frame fill layout hug export engine render design align gap\" fs=13 wrap=S"
+   }
+  ]
+ },
+ {
+  "variant": "fuzz.norm.safe.ws",
+  "fits": {
+   "docs": 104,
+   "ok": 104,
+   "nodes": 399,
+   "bad": 0
+  },
+  "notfit": {
+   "docs": 95,
+   "ok": 50,
+   "nodes": 1065,
+   "bad": 161
+  },
+  "errors": [
+   {
+    "name": "fz-141",
+    "error": "rects: GALAT: 2 kueri ukur teks tidak ada di tabel, mis. \"button system design browser frame fill layout hug export engine render design align gap\" fs=13 wrap=S"
+   }
+  ]
+ }
+]

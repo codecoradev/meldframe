@@ -1,0 +1,32 @@
+[
+ {
+  "nodes": 1002,
+  "tableEntries": 48,
+  "rustCliWallMs": 6.3,
+  "rustCliMinusBaselineMs": 3,
+  "baselineMs": 3.3,
+  "domLoadMs": 46,
+  "domForcedFullRelayoutPlusReadMs": 1.2,
+  "tsOraclePlusPixiMeasureMs": 412
+ },
+ {
+  "nodes": 5006,
+  "tableEntries": 48,
+  "rustCliWallMs": 20.3,
+  "rustCliMinusBaselineMs": 17,
+  "baselineMs": 3.3,
+  "domLoadMs": 154,
+  "domForcedFullRelayoutPlusReadMs": 5.9,
+  "tsOraclePlusPixiMeasureMs": 1835
+ },
+ {
+  "nodes": 20008,
+  "tableEntries": 48,
+  "rustCliWallMs": 84.4,
+  "rustCliMinusBaselineMs": 81.2,
+  "baselineMs": 3.3,
+  "domLoadMs": 418,
+  "domForcedFullRelayoutPlusReadMs": 22.9,
+  "tsOraclePlusPixiMeasureMs": 7071
+ }
+]

@@ -1,0 +1,46 @@
+{
+ "buckets": {
+  "text fill resolved to ~0 width (zero free space): wrap behaviour at width 0 differs": 5,
+  "main-axis overflow in the parent (children + gaps exceed the content box)": 21,
+  "other": 20,
+  "other, parent is an auto layout frame": 24,
+  "core box smaller than its own padding (CSS floors a box at padding+border)": 8
+ },
+ "examples": {
+  "text fill resolved to ~0 width (zero free space): wrap behaviour at width 0 differs": [
+   "fz-01:n0",
+   "fz-24:n5",
+   "fz-150:n1",
+   "fz-152:n0",
+   "fz-184:n5"
+  ],
+  "main-axis overflow in the parent (children + gaps exceed the content box)": [
+   "fz-07:n8",
+   "fz-13:n4",
+   "fz-26:n1",
+   "fz-36:n4",
+   "fz-38:n4"
+  ],
+  "other": [
+   "fz-09:root",
+   "fz-14:root",
+   "fz-18:root",
+   "fz-20:root",
+   "fz-29:root"
+  ],
+  "other, parent is an auto layout frame": [
+   "fz-11:n1",
+   "fz-16:n5",
+   "fz-17:n8",
+   "fz-19:n1",
+   "fz-39:n5"
+  ],
+  "core box smaller than its own padding (CSS floors a box at padding+border)": [
+   "fz-22:n4",
+   "fz-32:n4",
+   "fz-37:n4",
+   "fz-41:n3",
+   "fz-106:n3"
+  ]
+ }
+}
