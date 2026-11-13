@@ -33,8 +33,18 @@ Status of each item: **decided** (owner confirmed), **proposed** (needs owner co
 | 15 | HTML/Tailwind fidelity is verified by an oracle test: render the export in Chromium and compare with the canvas. The supported CSS subset is defined in a fidelity contract. | proposed, doc pending |
 | 16 | Human and agent collaboration UX (attribution, review, accept/revert) needs its own design, built on the existing per-actor undo, `ifSeq` and op dependencies. | open, doc pending |
 | 17 | Token and variable system: reference Wonder's Variables and brand panels; define modes, aliases, scales and Tailwind import. | open, doc pending |
-| 18 | Headless capture (render without an open UI) is likely required for agents running without a browser. Decide after the cost comparison (relay vs native renderer vs headless Chromium). | open |
+| 18 | Headless capture (render without an open UI) may be needed for agents running without a browser. Start with the browser relay; decide on a second renderer in the repository when a real agent workflow needs it. No separate spike. | open |
 | 19 | Document model: schema versioning and migrations, components and instances with overrides, variants as duplicated frames or branches. | open |
+
+## Structure (owner decisions, 13 Nov 2026)
+
+| # | Decision | Status |
+|---|---|---|
+| 20 | Layered crates with kinds and enforced dependency rules; feature modules that never import each other (except composite), one registry read by editor, MCP and REST, a build per feature alone. See ADR-0007 and `docs/standards/modular-thin-ui.md`. | decided |
+| 21 | One admission gate in front of every change, with a permit, risk tiers and agent pairing. See ADR-0010. | decided |
+| 22 | UI-neutral app layer in Rust compiled to WASM; the web client only renders. See ADR-0008. | decided |
+| 23 | Live events are durable (sequence numbers, replay) or ephemeral (best-effort). See ADR-0009. | decided |
+| 24 | No new spikes. The first vertical slice (the agent activity panel for the app layer) is built directly in the product repository with exit criteria written first. | decided |
 
 ## Workflow
 

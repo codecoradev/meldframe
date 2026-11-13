@@ -1,0 +1,53 @@
+# Roadmap
+
+Planning map in the wayfinder shape: a destination, decisions so far, the frontier of open decisions, fog that cannot be specified yet, and what is out of scope. This map plans; it does not build.
+
+## Destination
+
+Documents approved by the owner (PRODUCT, GLOSSARY, PRD, architecture, ADRs) and a W1 build plan that an agent can implement test-first. After that, the repository starts the W1 build from the spike seed.
+
+## Notes
+
+- W1 means web editor plus MCP: model round 2, variables, export with oracle, agent review UX, V2 against Wonder.
+- Carousel, slides, motion, desktop (ACP) and PPTX stay out until W1 passes its gate.
+- Each decision ticket below is resolved with the owner, then recorded in `docs/decisions.md` or an ADR.
+
+## Decisions so far
+
+See `docs/decisions.md` (items 1 to 14 and 20 to 24) and accepted ADRs 0001, 0002, 0006, 0007, 0008, 0009, 0010.
+
+## Frontier (open decisions, takeable now)
+
+| Ticket | Type | Needs |
+|---|---|---|
+| Approve PRD scope and priorities (P0 list) | grilling (owner) | owner |
+| Approve ADR-0003 fidelity contract and tolerances | grilling (owner) | owner; questionnaire section 2 |
+| Approve ADR-0004 variable model | grilling (owner) | owner; questionnaire section 3 |
+| Approve ADR-0005 review and revert model | grilling (owner) | owner; questionnaire section 4 |
+| Decide headless capture | decision (in the repository, when a real workflow needs it) | no separate spike |
+| Build the MCP OAuth flow through Gatehouse | first platform slice in the repository | Gatehouse access |
+| Choose the editor UI direction (`DESIGN.md`) | prototype (owner) | owner; after PRD approval |
+| Define the document model round 2 (components, variants, schema version) | grilling (owner) | after ADR-0004 |
+
+## Not yet specified (fog)
+
+- Component and instance model and overrides.
+- Responsive export and breakpoints.
+- Brand memory through Uteke: what is stored and how agents read it.
+- Mobile app presets beyond frames.
+- Desktop shell and local agent (ACP) boundaries.
+- Carousel, slides and motion design system.
+- Pricing, hosting and billing (deferred by the owner).
+
+## Out of scope
+
+Live multi-human collaboration; HTML import; Figma import; PPTX; Flutter and Dart; marketplace of variables or templates.
+
+## W1 build order (proposed, after approvals)
+
+1. E0 Foundation: workspace layout by kind, CI checks (`deps-check`, `build-matrix`, `portable-check` for wasm32, `size-check`, `ui-literals`, `licences`), schema version, protocol pipeline.
+2. E1 Core and render model: seed the core; build the render model; model round 2.
+3. E2 Variables, E5 Export and oracle (in step, because export proves the model).
+4. E3 Agent surface (admission gate, module registry, durable and ephemeral frames), then E4 Editor: the `meldframe-app` layer with the agent activity panel as the first vertical slice, then review and revert.
+5. E6 Platform (Gatehouse, workspaces, quotas) alongside E3.
+6. E7 V2 evaluation.

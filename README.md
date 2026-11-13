@@ -15,8 +15,13 @@ Carousel, slides and motion are planned extensions and are on hold until the cor
 
 ## Docs
 
-- [docs/decisions.md](docs/decisions.md): decisions and open questions.
-- [docs/concept.md](docs/concept.md): concept v1.
+- [PRODUCT.md](PRODUCT.md), [GLOSSARY.md](GLOSSARY.md), [AGENTS.md](AGENTS.md)
+- [docs/prd.md](docs/prd.md): requirements.
+- [docs/architecture.md](docs/architecture.md) and [docs/adr/](docs/adr/): structure and decisions.
+- [docs/standards/modular-thin-ui.md](docs/standards/modular-thin-ui.md): CodeCora standard for modules, thin UI, gate and events (mirror).
+- [docs/roadmap.md](docs/roadmap.md): open decisions and order of work.
+- [docs/owner-questionnaire.md](docs/owner-questionnaire.md): questions for the owner.
+- [docs/decisions.md](docs/decisions.md): decision register. [docs/concept.md](docs/concept.md): original concept.
 
 ## License
 

@@ -1,0 +1,169 @@
+# Standard: modular architecture with a thin UI
+
+Version 1.1, 13 Nov 2026. Mirror: the source of truth is the uteke document `standard-modular-thin-ui-v1` in room `standard:modular-thin-ui` (evidence and source pointers: `standard-modular-thin-ui-evidence`). Edit the source first, then update this copy and its version.
+
+Status: adopted for Meldframe (owner decision 13 Nov 2026, ADR-0007 to ADR-0010). Derived from Crastu (primary source, enforced in CI) and Tole (kernel, gate and event patterns). Keywords MUST, SHOULD and MAY are used in the usual sense.
+
+Changes in 1.1: D7 allows replacing spikes with first vertical slices in the product repository (Meldframe does); adoption row and known gaps updated.
+
+## 1. Purpose and scope
+
+Give every CodeCora product with a user interface and an agent surface the same shape: logic in modules that can be built and tested alone, one thin layer between logic and any screen, one gate in front of every change, and one event model for live clients. Use it at project kickoff and in architecture review. It does not choose languages or UI toolkits.
+
+Use it when the product has a UI and an MCP or API surface, or will get a second front end later (web, desktop, mobile, CLI). Do not use it for single-purpose libraries and scripts.
+
+## 2. Vocabulary
+
+- **Module:** anything with an interface and an implementation (function, crate, slice).
+- **Feature module:** a user-visible capability (dictation, variables, export) that can be left out of a build.
+- **Core:** shared types, the document or domain model, validation, history. Not detachable.
+- **Engine / integration / os:** adapters to models, media, services, operating system.
+- **App layer:** UI-neutral state, actions, effects and events. No UI toolkit.
+- **Front end:** renders app state and dispatches actions (web UI, GPUI, TUI, mobile, CLI, test harness).
+- **Host:** the process that owns modules, storage and jobs.
+- **Gate:** the single decision point that authorises a change.
+- **Seam, interface, depth, adapter:** as in the `codebase-design` skill. One adapter is a hypothetical seam; two is a real one.
+
+## 3. Rules
+
+### L Layering
+
+- **L1** Every crate MUST declare its kind: `core`, `engine`, `integration`, `os`, `feature`, `app`, `ffi`, `ui`, `feature-ui`, `bin`, `tool`. Feature crates MUST also declare a `group` and, if allowed to use another group, `composite = [..]`.
+- **L2** A CI tool MUST enforce this dependency matrix (a crate may depend only on the listed kinds):
+
+| Kind | May depend on |
+|---|---|
+| core | core |
+| engine, integration | core, engine |
+| os | core |
+| feature | core, engine, integration, os, feature (other group only if `composite`) |
+| app | core, engine, integration, os, feature |
+| ffi | core, app |
+| ui, feature-ui | core, app, ui |
+| bin, tool | everything |
+
+- **L3** Domain crates and the app layer MUST NOT depend on a UI toolkit. Only `ui`, `feature-ui` and `bin` crates may.
+- **L4** Feature modules MUST NOT import each other, except crates marked `composite`.
+- **L5** Portable kinds (core, engine, integration, os, feature, app, ffi) MUST compile for every target platform the product plans, checked in CI (for example `wasm32` for web; iOS and Android where mobile is planned; include 32-bit targets to catch 64-bit assumptions).
+- **L6** Operating-system code MUST sit behind a trait with a per-platform adapter and a null adapter for tests.
+
+### M Modules and detachability
+
+- **M1** A module MUST contribute everything through one registration call: commands, settings, job kinds, agent tools, panels or intents.
+- **M2** There MUST be one registry. Every front end (UI, CLI, MCP, REST) reads it. Removing a module from a build removes its commands, tools and settings everywhere.
+- **M3** "Detachable" means: CI builds the product with each feature alone and with none, and tests pass.
+- **M4** Every feature module MUST ship its agent tools, each with a risk tier (Read, Change, Delete). A feature is not done until an agent can use it under the approval policy.
+- **M5** Detaching SHOULD have three layers: build time (Cargo features), runtime (disable in settings, lazy load), and later third party (WASM components or command engines).
+- **M6** The core is not a module. A design MUST name what is inner and not detachable, and say where a concept is split (for example: bindings in core, import, export and panels in a feature).
+
+### U Thin UI
+
+- **U1** The app layer MUST hold screen state, rules, actions, effects and events as plain serialisable data. A front end does three things only: read state, dispatch actions, carry out effects.
+- **U2** UI crates MUST hold no business state and no rules.
+- **U3** A complex screen SHOULD split into a `*-model` crate (plain data and button rules) and a `*-ui` crate (drawing only).
+- **U4** UI MUST read colours, fonts, sizes and durations from one tokens module. A lint MUST reject literals. A test MUST compare the tokens module with the design file.
+- **U5** Replies from host to UI MUST be data. User-visible wording belongs to the UI, so a remote adapter writes no text.
+- **U6** Input to the app layer MUST be UI-neutral (a key press with modifiers, a pasted block), not a toolkit event.
+- **U7** A pending approval is source-agnostic UI state. A request that is dropped unanswered (turn ended, replaced, UI gone) MUST be treated as denied. The rule "never allow always for a Delete-tier call" lives in one place.
+- **U8** The test of thinness: a second front end (a CLI or a test harness) can drive the same state machine without moving logic.
+
+### G Gate
+
+- **G1** Every change, from every transport (WebSocket, MCP, REST, UI), MUST pass one authorisation decision point. Policy MUST NOT be re-implemented per transport.
+- **G2** The enforcement point SHOULD prove passage with a value only the gate can construct (a permit with a private constructor), so executing a change without the gate does not compile.
+- **G3** Calls have risk tiers (Read, Change, Delete). Policy is per tier, and MAY be overridden per agent. Read is always allowed; Change is Ask or Auto; Delete is Ask, Auto or Deny. Deleted data goes to trash first.
+- **G4** Agents pair with a random token shown once. The host stores only its hash. The token travels in an environment variable, never an argument. Unpaired callers get the stricter of the default and any override under their declared name; a bad token is an error, never a downgrade.
+- **G5** An approval queue entry expires to denied. If policy cannot be read or a row is not understood, only Read calls proceed.
+- **G6** Every action is logged with its actor, tool, risk, decision and outcome. Logs carry structured fields, not content, and redaction is a safety net only.
+
+### E Events for live clients
+
+- **E1** Durable frames carry a monotonically increasing sequence number and can be replayed from a cursor (`after=seq`, or `Last-Event-ID`; the explicit parameter wins).
+- **E2** Ephemeral frames (progress deltas, touch hints, capture requests) carry no id, are best-effort and are never replayed.
+- **E3** Each stream has a bounded, non-blocking queue. When full: drop the frame, send a resync marker, and never slow the producer.
+- **E4** The number of concurrent streams is capped and counted in the connection cap.
+- **E5** Heartbeats MUST be tested against a real clock. (Tole's first heartbeat never fired because the timer reset on every loop; a pure Heartbeat type plus an end-to-end test fixed it.)
+
+### D Discipline
+
+- **D1** A file stays under 500 lines and a crate under 2,000. An allow-list records what is over today; entries only go down.
+- **D2** Everything shipped or downloaded passes a licence gate (code and model weights). New model entries carry a licence id and a commercial flag.
+- **D3** No telemetry unless the owner decides otherwise. All outbound requests go through one gate with an Offline switch; refusals name what and the host, never the full URL.
+- **D4** `unsafe` is denied workspace-wide. A named crate may opt in with one commented module.
+- **D5** Keep a local flight recorder per run (events, performance, panic and fatal-signal reports), with caps and retention, free of secrets.
+- **D6** Secrets never appear in arguments, logs or tool output.
+- **D7** Design before code. An unknown that could change the architecture is resolved by a time-boxed spike with a written result in `docs/spikes/`, or, when the owner rules spikes out, by building the first vertical slice in the product repository with exit criteria written first (Meldframe, 13 Nov 2026). Phases end on exit criteria, not dates.
+- **D8** Pull requests stay small (about 1,000 lines). Use an independent review and CI together; each has found real defects the other missed.
+- **D9** Status syncs are dated, and code is authoritative over docs. A parked design carries Status, un-park triggers and an anti-goal ("do not build from this note alone").
+
+## 4. Reference structure
+
+```
+repo/
+├─ apps/            bin: composition roots; Cargo features pick modules
+├─ crates/
+│  ├─ core/         shared types, module registry, host, store, settings, jobs
+│  ├─ engines/      models, media, text, rasterisers (traits + adapters)
+│  ├─ integrations/ MCP, memory, sync, auth providers
+│  ├─ os/           hotkeys, permissions, crash, process memory (unsafe only here)
+│  ├─ features/<g>/ <g> (domain), <g>-ui (view), optional composite
+│  ├─ app/          UI-neutral view models: state, actions, effects, events
+│  └─ ui/           tokens, components, shell; plain-data *-model beside *-ui
+└─ xtask/           deps-check, build-matrix, portable-check, size-check, ui-literals, licences
+```
+
+```
+apps -> features/*-ui -> ui/* -> toolkit
+features/*-ui -> app
+app -> features/* (domain) -> engines | integrations | os -> core
+```
+
+## 5. Enforcement tooling
+
+Write the layering rules as a pure function over package data so they are unit-testable. Provide these commands and run them in CI and before commits:
+
+| Command | Checks |
+|---|---|
+| `deps-check` | Kind and group rules (L1 to L4), UI toolkit usage (L3) |
+| `build-matrix` | Product builds with no features and with each feature alone (M3) |
+| `portable-check` | Portable kinds compile for each planned target (L5) |
+| `size-check` | File and crate ceilings against the allow-list (D1) |
+| `ui-literals` | No colour, font, size or duration literals in UI crates (U4) |
+| `licences --check` | Dependency and model licences (D2) |
+
+## 6. Checklists
+
+**Kickoff:** declare kinds; write the matrix; name the core and what is inner; define the registry; define the gate and risk tiers; define the app layer state, actions, effects; pick the event model; add the six commands to CI; write the first slice or spike plan with exit criteria.
+
+**Is it a module?** Deletion test: delete it; if complexity vanishes it was a pass-through, if it reappears in many callers it earns its keep. Detach test: does the product build and pass tests without it? If not, it is core or it is wrongly coupled.
+
+**Review:** any new path that changes data without the gate? any UI crate with rules or state? any feature importing another? any literal in UI? any host trait with many default-unsupported methods (a sign the seam is too wide)? any seam with one adapter introduced early? any secret in an argument?
+
+## 7. Anti-patterns seen in this ecosystem
+
+- Admission policy copied per transport (Meldframe spike: WebSocket, MCP and a third partial copy).
+- A UI that holds the rules (Meldframe spike: a 787-line canvas component and three document modes in the client).
+- A wide host trait with most methods defaulting to unsupported (Tole TUI audit, 10 Nov 2026), later narrowed to three data-only methods.
+- Session management hidden in a CLI crate instead of a reusable module (Tole audit; extraction tracked).
+- A seam with one adapter introduced before a second consumer exists.
+- A heartbeat clock reset on every loop.
+- A token passed on a command line.
+
+## 8. Adoption
+
+| Project | State |
+|---|---|
+| Crastu | Full and enforced: kinds, deps-check, build-matrix, mobile-check, size-check, ui-literals, licences, vendor-check |
+| Tole | Partial: platform-agnostic kernel, host traits, single gate with permit, durable/ephemeral SSE; no crate-kind lint; app layer extraction tracked (epic #523) |
+| Meldframe | Adopted 13 Nov 2026 as ADR-0007 to ADR-0010 (layers and registry; UI-neutral app layer built directly in the repository, starting with the agent activity panel, no separate spike; durable and ephemeral events; single admission gate) |
+| Others | Not assessed |
+
+## 9. Known gaps and exceptions
+
+- Web front ends are written in TypeScript. Whether the app layer is Rust compiled to WASM or TypeScript is a decision per project (Meldframe: Rust and WASM, revisited if the first slice misses its criteria).
+- This standard comes from desktop and CLI products. Where a rule fits a web service differently, record the deviation as an ADR.
+- Discord's approach (shared Rust core, thin native UI per platform) is reported by secondary sources only.
+
+## 10. Changing this standard
+
+A change needs an owner decision recorded as a memory in room `standard:modular-thin-ui`. Bump the version and note what changed and why. Projects record their own deviations in their ADRs.

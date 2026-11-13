@@ -1,5 +1,7 @@
 # Meldframe concept v1 (13 Nov 2026)
 
+> Superseded for requirements by `prd.md` and for structure by `architecture.md`. Kept as the origin of the decisions in `decisions.md`.
+
 ## One sentence
 An agent-first design canvas: you and AI agents design on one canvas, the result is faithful HTML/Tailwind, and the same design system can later drive carousels, slides and motion.
 
