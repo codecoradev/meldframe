@@ -24,6 +24,11 @@ Closed-source design canvas for humans and AI agents. Pre-alpha; docs first, no 
 
 Every crate declares its kind (core, engine, integration, os, feature, app, ffi, ui, feature-ui, bin, tool); the checker (`cargo xtask deps-check`, from E0) enforces the matrix in `docs/architecture.md` section 3b. Feature modules never import each other except composite crates; UI crates hold no business state and use tokens only; every change passes the admission gate. A file stays under 500 lines and a crate under 2,000; ceilings only go down.
 
+## Commands
+
+- `cargo xtask deps-check`: reads `cargo metadata` and enforces crate kinds and the dependency matrix (`docs/standards/modular-thin-ui.md` L1 to L4). Each crate declares `[package.metadata.meldframe] kind = "..."` (feature crates also `group`, and `composite = ["group"]` to import another group). Prints every violation and exits non-zero on any.
+- Before a pull request: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo xtask deps-check`.
+
 ## Rules that are easy to break
 
 - Nothing public is created (accounts, domains, packages, registries) without an owner order.
