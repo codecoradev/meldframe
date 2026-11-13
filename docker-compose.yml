@@ -1,0 +1,28 @@
+# Postgres for development and tests. Development only: fsync is off for speed and the
+# password is public. Never reuse this configuration for a deployed database.
+#
+#   docker compose up -d --wait postgres
+#
+# Without Docker, `scripts/pg-start.sh` starts a local Postgres on the same port with the
+# same databases, so DATABASE_URL in .env.example works for both.
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "127.0.0.1:${MELDFRAME_PG_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: meldframe_dev
+    command: ["postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "max_connections=200"]
+    volumes:
+      - meldframe-pg:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d meldframe_dev"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  meldframe-pg:

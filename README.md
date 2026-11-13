@@ -23,6 +23,19 @@ Carousel, slides and motion are planned extensions and are on hold until the cor
 - [docs/owner-questionnaire.md](docs/owner-questionnaire.md): questions for the owner.
 - [docs/decisions.md](docs/decisions.md): decision register. [docs/concept.md](docs/concept.md): original concept.
 
+## Run locally
+
+```sh
+cp .env.example .env
+just dev-db       # Postgres on 127.0.0.1:5433 (Docker or no-Docker script) plus the development seed
+just dev-server   # arrives in E1.x
+just dev-web      # arrives in E1.x
+just test
+just check
+```
+
+See the Development section of [AGENTS.md](AGENTS.md) for ports, URLs and the seed.
+
 ## License
 
 Proprietary. All rights reserved. See [NOTICE](NOTICE).

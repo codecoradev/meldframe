@@ -42,6 +42,16 @@ Gitea Actions in `.gitea/workflows/`: `ci.yml` (format, lint with warnings as er
 - Do not start new spikes; build the first vertical slice in this repository with exit criteria written first.
 - Never invent users, metrics, testimonials or prices.
 
+## Development
+
+Needs `just`, `psql` and either Docker or local Postgres 16 binaries. Copy `.env.example` to `.env` (development values only).
+
+- `just dev-db`: start Postgres on `127.0.0.1:5433` (databases `meldframe_dev`, `meldframe_test`) and load the development seed. Uses `docker compose` when a Docker daemon is reachable, otherwise `scripts/pg-start.sh` starts a local cluster without Docker (idempotent; run it again after a sandbox or machine restart).
+- `just dev-server`, `just dev-web`: start the server and the web client; they print "arrives in E1.x" until those apps exist.
+- `just test`: run the test suite. `just check`: run the CI checks that exist locally and skip those whose tooling has not landed.
+- `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5433/meldframe_dev` and `TEST_DATABASE_URL=...meldframe_test`; override the port with `MELDFRAME_PG_PORT`.
+- Development seed (`scripts/dev-seed.sh`): workspace `ws_dev`, file `file_dev` and the public token `mf_dev_token_do_not_use_in_production`. It is idempotent and refuses to run when `MELDFRAME_ENV` is `release`, `production` or `prod`, `MELDFRAME_RELEASE` is `1`, or `PROFILE` is `release`. The server must never load it in a release build.
+
 ## Knowledge
 
 Team notes live in uteke room `project:meldframe`; the spike history and its docs live in the `rust-core-spikes` repository.
