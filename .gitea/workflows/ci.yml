@@ -1,0 +1,179 @@
+# CI for pull requests (docs/epics.md E0.2, docs/standards/modular-thin-ui.md section 5).
+#
+# Runs on pull requests only: a branch is checked once, through its pull request, and a newer push
+# to the same pull request cancels the run in progress. `develop` receives changes only through a
+# pull request that already ran this workflow.
+#
+# PENDING GATES. Some commands do not exist yet (the Cargo workspace is T0.1, #37; `deps-check` is
+# T0.2, #38; the other xtask commands are T0.3, #39). A gate listed in `.gitea/ci-pending.txt`
+# reports success without running and prints a notice, so the check name exists for branch
+# protection and no check is red for a missing command. The pull request that adds a command
+# removes its line from that file; from then on the gate runs for real. A gate that is not listed
+# is never skipped.
+#
+# Required contexts (branch protection, set by the owner): every job `name` below, shown by Gitea
+# as `ci / <name> (pull_request)`, plus the contexts of pr-checks.yml and cora-review.yml.
+name: ci
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # The check scripts themselves: good and bad examples for the branch, message and description
+  # checks and for the pending list. Needs nothing but a shell.
+  ci-scripts:
+    name: ci scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/ci/selftest.sh
+
+  fmt:
+    name: format
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: sh scripts/ci/gate.sh fmt
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo fmt --all --check
+
+  clippy:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: sh scripts/ci/gate.sh clippy
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: sh scripts/ci/gate.sh test
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo test --workspace
+
+  deps-check:
+    name: deps-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: sh scripts/ci/gate.sh deps-check
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask deps-check
+
+  build-matrix:
+    name: build-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: sh scripts/ci/gate.sh build-matrix
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask build-matrix
+
+  portable-check:
+    name: portable-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: sh scripts/ci/gate.sh portable-check
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask portable-check
+
+  size-check:
+    name: size-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: sh scripts/ci/gate.sh size-check
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask size-check
+
+  ui-literals:
+    name: ui-literals
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: sh scripts/ci/gate.sh ui-literals
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask ui-literals
+
+  licences:
+    name: licences
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: sh scripts/ci/gate.sh licences
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask licences --check

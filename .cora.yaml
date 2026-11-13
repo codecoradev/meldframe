@@ -1,0 +1,27 @@
+# Cora Code Review configuration (cora-cli, https://github.com/codecoradev/cora-cli).
+# Runs on every pull request through .gitea/workflows/cora-review.yml.
+
+focus:
+  - security
+  - bugs
+  - performance
+
+rules:
+  - "Layering is enforced by `cargo xtask deps-check` (docs/architecture.md section 3b, ADR-0007): flag a crate that depends on a kind it may not, a feature crate that imports another feature crate (unless it is a composite crate), and a UI toolkit used outside ui and bin crates."
+  - "Every change to a document goes through the single admission gate (ADR-0010). Flag any new path, in any transport (WebSocket, MCP, REST), that applies a command or writes document data without calling the gate."
+  - "UI crates hold no business state and no rules, and use design tokens only: flag a colour, font, size or duration literal in a ui or feature-ui crate."
+  - "The inner core (document model, `Command` interface, render model) stays portable and pure: flag I/O, clocks, randomness or platform calls inside it. Time and randomness are passed in as parameters."
+  - "A file stays under 500 lines and a crate under 2,000; the size allow-list only shrinks. Flag a pull request that grows a ceiling or adds to the allow-list."
+  - "Agent-facing text and errors are English with stable codes. Names follow GLOSSARY.md; the words it marks _Avoid_ do not appear in code, docs or tool text."
+  - "No AI attribution (Co-Authored-By, session links, generated-with footers) in code, comments, docs, commit messages or pull request text."
+  - "No secret, token or credential in an argument, a log line, a fixture or a comment."
+
+ignore:
+  files:
+    - "*.lock"
+    - "*.png"
+    - "*.svg"
+
+hook:
+  mode: block
+  min_severity: major
