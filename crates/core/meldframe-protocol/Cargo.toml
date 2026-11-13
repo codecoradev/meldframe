@@ -1,0 +1,13 @@
+[package]
+name = "meldframe-protocol"
+description = "Wire and model types shared by server, client and agents."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[lints]
+workspace = true

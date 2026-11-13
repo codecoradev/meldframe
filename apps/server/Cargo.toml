@@ -1,0 +1,13 @@
+[package]
+name = "meldframe-server"
+description = "Server composition root: HTTP, MCP, REST and WebSocket."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "bin"
+
+[lints]
+workspace = true

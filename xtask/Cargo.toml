@@ -1,0 +1,13 @@
+[package]
+name = "xtask"
+description = "Repository checks: layering rules and, later, build and size gates."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[lints]
+workspace = true

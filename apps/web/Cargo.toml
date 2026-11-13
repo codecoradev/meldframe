@@ -1,0 +1,13 @@
+[package]
+name = "meldframe-web"
+description = "Web front end host; renders meldframe-app state."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "bin"
+
+[lints]
+workspace = true

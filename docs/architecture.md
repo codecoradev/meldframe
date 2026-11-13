@@ -78,6 +78,7 @@ crates/
   engines/                text measurer, rasteriser (traits and adapters)
   integrations/           MCP (rmcp), Gatehouse OIDC/OAuth, Uteke memory
   features/<name>/        <name> (domain) and <name>-ui (view): variables, export, review, capture, assets, import-tokens
+                          today only the placeholder `example/` (`example`, `example-ui`) exists
   app/
     meldframe-app         UI-neutral state, actions, effects, events (compiled to WASM)
     meldframe-wasm        thin wasm-bindgen glue over core and app

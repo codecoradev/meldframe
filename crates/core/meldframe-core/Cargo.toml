@@ -1,0 +1,13 @@
+[package]
+name = "meldframe-core"
+description = "Document model, commands, history and the render model."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[lints]
+workspace = true

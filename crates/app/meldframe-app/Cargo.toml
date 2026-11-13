@@ -1,0 +1,13 @@
+[package]
+name = "meldframe-app"
+description = "UI-neutral state, actions, effects and events."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "app"
+
+[lints]
+workspace = true

@@ -1,0 +1,13 @@
+[package]
+name = "meldframe-module"
+description = "Module trait, registry and risk tiers."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[lints]
+workspace = true
