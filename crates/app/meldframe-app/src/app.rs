@@ -1,15 +1,27 @@
 //! The state machine: one action in, state changes, events and effects out. No I/O, clock or randomness.
 
-use crate::action::Action;
+use crate::action::{Action, Outcome};
 use crate::effect::Effect;
 use crate::event::Event;
-use crate::state::{AppState, Connection, Panel};
+use crate::state::{AppState, Connection, History, Panel};
 
 /// Owns the [`AppState`] and applies actions to it.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct App {
     state: AppState,
     events: Vec<Event>,
+    /// The number the next submitted command gets.
+    next_op: u64,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            state: AppState::default(),
+            events: Vec::new(),
+            next_op: 1,
+        }
+    }
 }
 
 impl App {
@@ -57,8 +69,42 @@ impl App {
             Action::ConnectionChanged { connection } => {
                 self.set_connection(connection, &mut effects);
             }
-            // Undo, redo, submit and their results are added in the next change.
-            _ => {}
+            Action::Undo {} => {
+                if self.state.history.can_undo {
+                    effects.push(Effect::RequestUndo {});
+                }
+            }
+            Action::Redo {} => {
+                if self.state.history.can_redo {
+                    effects.push(Effect::RequestRedo {});
+                }
+            }
+            Action::HistoryChanged { can_undo, can_redo } => {
+                let history = History { can_undo, can_redo };
+                if self.state.history != history {
+                    self.state.history = history;
+                    self.events
+                        .push(Event::HistoryChanged { can_undo, can_redo });
+                }
+            }
+            Action::Submit { command } => {
+                let op = self.next_op;
+                self.next_op += 1;
+                self.state.pending.push(op);
+                effects.push(Effect::SendCommand { op, command });
+            }
+            Action::CommandResult { op, outcome } => {
+                if let Some(at) = self.state.pending.iter().position(|p| *p == op) {
+                    self.state.pending.remove(at);
+                    if let Outcome::Rejected { code, retryable } = outcome {
+                        self.events.push(Event::CommandRejected {
+                            op,
+                            code,
+                            retryable,
+                        });
+                    }
+                }
+            }
         }
         effects
     }
