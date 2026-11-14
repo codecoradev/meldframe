@@ -3,6 +3,7 @@
 //! The core's result is the source of truth for geometry (ADR-0003); export translates it to CSS.
 //! Text sizes come through the [`TextMeasurer`] seam so the core stays free of I/O.
 
+mod fill;
 mod measure;
 mod place;
 mod rect;
@@ -15,12 +16,15 @@ pub use rect::Rect;
 use meldframe_protocol::Node;
 use std::collections::HashMap;
 
+/// A node index with the fill sizes its parent gave it (as bit patterns).
+type MemoKey = (usize, Option<u64>, Option<u64>);
+
 /// One layout pass over a flat node list.
 struct Layout<'a> {
     nodes: &'a [Node],
     measurer: &'a dyn TextMeasurer,
     kids: HashMap<Option<&'a str>, Vec<usize>>,
-    memo: HashMap<usize, (f64, f64)>,
+    memo: HashMap<MemoKey, (f64, f64)>,
     out: Vec<(usize, Rect)>,
 }
 
