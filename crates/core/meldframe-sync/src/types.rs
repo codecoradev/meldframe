@@ -29,6 +29,9 @@ pub struct Outgoing {
 pub enum EventOutcome {
     /// My own pending op came back: it is confirmed.
     Confirmed,
+    /// Another actor's op: the confirmed state moved on and my pending ops were applied again on top of
+    /// it. `dropped` is how many of them were no longer valid and were removed.
+    Rebased { dropped: usize },
     /// The sequence number was applied before: ignored.
     Duplicate,
 }

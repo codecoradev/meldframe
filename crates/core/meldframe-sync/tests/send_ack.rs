@@ -124,10 +124,3 @@ fn undo_with_nothing_to_undo_sends_nothing() {
     assert_eq!(r.redo(), Ok(false));
     assert!(r.take_outbox().is_empty());
 }
-
-#[test]
-fn an_event_of_another_actor_is_not_handled_yet() {
-    let mut r = replica();
-    let e = r.on_event(1, "user:b", &upd("a", |p| p.x = Some(1.0)));
-    assert!(matches!(e, Err(ReplicaError::Diverged(_))), "{e:?}");
-}

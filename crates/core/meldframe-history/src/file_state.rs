@@ -18,6 +18,10 @@ pub struct FileState {
     /// The key of the edit that was recorded last, while it is still the top step: only that step takes
     /// a later edit with the same key. An undo, a redo or a group boundary closes it.
     pub(crate) merge_key: Option<String>,
+    /// The id of the last rec made (ids start at 1).
+    pub(crate) next_rec: u64,
+    /// New recs are marked pending until confirmed (set by a replica that waits for the server).
+    pub(crate) optimistic: bool,
 }
 
 impl FileState {
@@ -71,6 +75,25 @@ impl FileState {
     pub fn apply_keyed(&mut self, cmd: &Command, key: Option<&str>) -> Result<(), ApplyError> {
         let inverse = self.run(cmd)?;
         self.record(cmd, inverse, key);
+        Ok(())
+    }
+
+    /// Replace the tree with the result of a rebase and keep the history as it is.
+    pub fn reset_nodes(&mut self, nodes: Vec<Node>) {
+        self.nodes = nodes;
+        self.version += 1;
+    }
+
+    /// Apply my pending command again on a new tree. When it has a rec, the rec's undo is worked out
+    /// again, so it holds the value that is right in the server's order. A command that no longer
+    /// applies returns the error and changes nothing.
+    pub fn replay_pending(&mut self, cmd: &Command, rec: Option<u64>) -> Result<(), ApplyError> {
+        let inverse = self.run(cmd)?;
+        if let Some(id) = rec {
+            for r in self.recs_mut().filter(|r| r.id == id) {
+                r.undo_ = inverse.clone();
+            }
+        }
         Ok(())
     }
 

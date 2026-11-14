@@ -4,6 +4,9 @@
 //! - `pending` holds my ops that are applied locally but have not come back from the server yet.
 //! - The view (`nodes()`) is always `base` plus `pending`; `check_consistency` verifies it.
 //!
+//! When another actor's event arrives, `base` moves on, my history is rewritten against it, and the view is
+//! built again: start from `base` and apply the pending ops one by one; an op that is no longer valid is dropped.
+//!
 //! Undo and redo are worked out by the `FileState` and sent as ordinary ops with an idempotency key.
 //! One replica is one actor.
 
@@ -18,6 +21,8 @@ struct Pending {
     out: Outgoing,
     /// The command as text: how an event of mine is recognised when it comes back.
     json: String,
+    /// The history rec of an edit (undo and redo ops have none).
+    rec: Option<u64>,
 }
 
 fn cmd_json(c: &Command) -> String {
@@ -42,7 +47,8 @@ impl Replica {
     /// `actor` is the name the server puts on my events (such as `user:alice`); `key_prefix` must be
     /// unique per replica. `nodes` and `seq` come from a snapshot.
     pub fn new(actor: &str, key_prefix: &str, nodes: Vec<Node>, seq: u64) -> Self {
-        let view = FileState::from_nodes(nodes);
+        let mut view = FileState::from_nodes(nodes);
+        view.set_optimistic(true);
         Replica {
             actor: actor.to_string(),
             prefix: key_prefix.to_string(),
@@ -87,7 +93,7 @@ impl Replica {
         self.view.can_redo()
     }
 
-    fn enqueue(&mut self, command: Command, kind: OpKind) {
+    fn enqueue(&mut self, command: Command, kind: OpKind, rec: Option<u64>) {
         self.counter += 1;
         let out = Outgoing {
             key: format!("{}-{}", self.prefix, self.counter),
@@ -99,6 +105,7 @@ impl Replica {
         self.pending.push_back(Pending {
             json: cmd_json(&out.command),
             out,
+            rec,
         });
     }
 
@@ -110,7 +117,8 @@ impl Replica {
     /// Like [`Replica::apply`]; edits with the same `key` join one history step.
     pub fn apply_keyed(&mut self, cmd: &Command, key: Option<&str>) -> Result<(), ApplyError> {
         self.view.apply_keyed(cmd, key)?;
-        self.enqueue(cmd.clone(), OpKind::Edit);
+        let rec = self.view.last_rec();
+        self.enqueue(cmd.clone(), OpKind::Edit, Some(rec));
         Ok(())
     }
 
@@ -138,7 +146,7 @@ impl Replica {
     fn send_step(&mut self, cmds: Option<Vec<Command>>, kind: OpKind) -> bool {
         let Some(cmds) = cmds else { return false };
         for c in cmds {
-            self.enqueue(c, kind);
+            self.enqueue(c, kind, None);
         }
         true
     }
@@ -175,16 +183,46 @@ impl Replica {
                 .pending
                 .front()
                 .is_some_and(|p| p.json == cmd_json(cmd));
-        if !own {
-            return Err(ReplicaError::Diverged(
-                "an event of another actor is not handled yet".into(),
-            ));
+        if own {
+            apply_command(&mut self.base, cmd, &self.limits)
+                .map_err(|e| ReplicaError::Diverged(e.to_string()))?;
+            let p = self.pending.pop_front().expect("checked above");
+            if let Some(r) = p.rec {
+                self.view.confirm_rec(r);
+            }
+            self.seq = seq;
+            return Ok(EventOutcome::Confirmed);
         }
-        apply_command(&mut self.base, cmd, &self.limits)
+        let mut next = self.base.clone();
+        apply_command(&mut next, cmd, &self.limits)
             .map_err(|e| ReplicaError::Diverged(e.to_string()))?;
-        self.pending.pop_front();
+        // Another actor (or an op of mine that was dropped): my history is rewritten against it, the
+        // confirmed state moves on and the view is built again from it.
+        self.view.transform_remote(cmd, &self.base);
+        self.base = next;
         self.seq = seq;
-        Ok(EventOutcome::Confirmed)
+        Ok(EventOutcome::Rebased {
+            dropped: self.rebuild(),
+        })
+    }
+
+    /// Build the view again: start from `base` and apply the pending ops one by one. An op that no
+    /// longer applies is dropped, with its history. Returns how many were dropped.
+    fn rebuild(&mut self) -> usize {
+        self.view.reset_nodes(self.base.clone());
+        let mut dropped = 0;
+        for p in std::mem::take(&mut self.pending) {
+            if self.view.replay_pending(&p.out.command, p.rec).is_ok() {
+                self.pending.push_back(p);
+                continue;
+            }
+            if let Some(r) = p.rec {
+                self.view.forget_rec(r);
+            }
+            self.outbox.retain(|o| o.key != p.out.key);
+            dropped += 1;
+        }
+        dropped
     }
 
     /// The internal invariant: the view equals `base` plus `pending`, and every pending op is valid.

@@ -6,7 +6,9 @@
 //! - A command on a node the remote command deleted, or whose id the remote command created again
 //!   (my steps belong to the old node), goes.
 //! - `AddNode` (the undo of a delete): a node whose parent the remote command deleted is attached to
-//!   the nearest ancestor that survives.
+//!   the nearest ancestor that survives. A remote `UpdateNode`, `Reparent` or `Reorder` of that node
+//!   is written into the snapshot: the node comes back with the other actor's edit. This only happens
+//!   in a replica, whose confirmed state still holds the node while my delete is pending.
 //! - `Reparent` writes the parent and the `pos` together, so a remote `Reparent` or `Reorder` of the
 //!   same node beats my `Reorder`, and a remote `Reparent` beats my `Reparent`. A remote `Reorder` writes
 //!   only `pos`: my `Reparent` keeps its parent and loses its `pos`, but only when the remote `pos` was
@@ -78,6 +80,25 @@ fn xform_list(list: &mut Vec<Command>, r: &Command, ctx: &RemoteCtx) {
             Command::AddNode { mut node, index } => {
                 match r {
                     Command::AddNode { node: rn, .. } if rn.id == node.id => continue,
+                    // The snapshot is the node as I will add it again: it takes the remote write too.
+                    Command::UpdateNode { id: rid, patch: rp } if *rid == node.id => {
+                        node.apply_patch(rp)
+                    }
+                    Command::Reparent {
+                        id: rid,
+                        parent_id,
+                        pos,
+                    } if *rid == node.id => {
+                        node.parent_id = parent_id.clone();
+                        if let Some(p) = pos {
+                            node.pos = p.clone();
+                        }
+                    }
+                    Command::Reorder {
+                        id: rid,
+                        pos: Some(p),
+                        ..
+                    } if *rid == node.id => node.pos = p.clone(),
                     Command::RemoveNode { .. } => {
                         if ctx.removed.contains(&node.id) {
                             continue;
@@ -140,18 +161,28 @@ fn xform_list(list: &mut Vec<Command>, r: &Command, ctx: &RemoteCtx) {
 }
 
 impl FileState {
+    /// Rewrite my steps against a remote command that is ordered after them. A pending rec is skipped.
+    fn xform_history(&mut self, cmd: &Command, ctx: &RemoteCtx) {
+        for rec in self.recs_mut().filter(|r| !r.pending) {
+            xform_list(&mut rec.do_, cmd, ctx);
+            xform_list(&mut rec.undo_, cmd, ctx);
+        }
+        self.prune();
+    }
+
+    /// Rewrite my undo and redo steps against a remote command without applying it. `before` is the
+    /// tree the remote command applies to (a replica's confirmed state, not its view).
+    pub fn transform_remote(&mut self, cmd: &Command, before: &[Node]) {
+        let ctx = RemoteCtx::new(before, cmd);
+        self.xform_history(cmd, &ctx);
+    }
+
     /// Apply a command of another actor (already put in order by the server) without recording it, and
     /// rewrite my undo and redo steps against it. A refused command changes nothing, history included.
     pub fn apply_remote(&mut self, cmd: &Command) -> Result<(), ApplyError> {
         let pos = plan_command(&self.nodes, cmd, &self.limits)?;
         let ctx = RemoteCtx::new(&self.nodes, cmd);
-        for e in self.entries_mut() {
-            for rec in &mut e.recs {
-                xform_list(&mut rec.do_, cmd, &ctx);
-                xform_list(&mut rec.undo_, cmd, &ctx);
-            }
-        }
-        self.prune();
+        self.xform_history(cmd, &ctx);
         // A remote edit closes any keyed merge run: the step it would join may have been pruned or changed.
         self.merge_key = None;
         apply_planned(&mut self.nodes, cmd, pos);

@@ -10,6 +10,10 @@ use meldframe_protocol::Command;
 /// One command with its inverse; both lists are in the order they are applied.
 #[derive(Debug, Clone)]
 pub(crate) struct Rec {
+    pub(crate) id: u64,
+    /// The op of this rec has not come back from the server yet. A remote command is ordered before
+    /// it, so the rec is not rewritten against that command; its undo is worked out again on replay.
+    pub(crate) pending: bool,
     pub(crate) do_: Vec<Command>,
     pub(crate) undo_: Vec<Command>,
 }
@@ -44,6 +48,8 @@ impl FileState {
     pub(crate) fn record(&mut self, cmd: &Command, inverse: Vec<Command>, key: Option<&str>) {
         self.redo.clear();
         let rec = Rec {
+            id: self.new_rec_id(),
+            pending: self.optimistic,
             do_: vec![cmd.clone()],
             undo_: inverse,
         };
@@ -104,6 +110,42 @@ impl FileState {
         Ok(cmds.len())
     }
 
+    fn new_rec_id(&mut self) -> u64 {
+        self.next_rec += 1;
+        self.next_rec
+    }
+
+    /// The id of the rec made by the last `apply`.
+    pub fn last_rec(&self) -> u64 {
+        self.next_rec
+    }
+
+    /// Mark new recs as pending until `confirm_rec`. For a replica that waits for the server.
+    pub fn set_optimistic(&mut self, on: bool) {
+        self.optimistic = on;
+    }
+
+    /// The op of this rec came back from the server.
+    pub fn confirm_rec(&mut self, id: u64) {
+        for r in self.recs_mut().filter(|r| r.id == id) {
+            r.pending = false;
+        }
+    }
+
+    /// The op of this rec will never take effect: drop its commands, and the steps left empty.
+    pub fn forget_rec(&mut self, id: u64) {
+        for r in self.recs_mut().filter(|r| r.id == id) {
+            r.do_.clear();
+            r.undo_.clear();
+        }
+        self.prune();
+    }
+
+    /// Every rec of every step.
+    pub(crate) fn recs_mut(&mut self) -> impl Iterator<Item = &mut Rec> {
+        self.entries_mut().flat_map(|e| e.recs.iter_mut())
+    }
+
     /// Every step that can hold commands: both stacks and the open group.
     pub(crate) fn entries_mut(&mut self) -> impl Iterator<Item = &mut Entry> {
         self.undo
@@ -155,7 +197,12 @@ impl FileState {
             (done.clone(), opposite)
         };
         let step = Entry {
-            recs: vec![Rec { do_, undo_ }],
+            recs: vec![Rec {
+                id: self.new_rec_id(),
+                pending: false,
+                do_,
+                undo_,
+            }],
         };
         Some((done, step))
     }
