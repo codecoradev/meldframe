@@ -27,10 +27,12 @@ fn index(e: &ApplyError) -> usize {
         ApplyError::BadReorder(_) => 14,
         ApplyError::TooMany { .. } => 15,
         ApplyError::InvalidFontWeight(_) => 16,
+        ApplyError::InvalidAssetId => 17,
+        ApplyError::ImageOnText => 18,
     }
 }
 
-const VARIANTS: usize = 17;
+const VARIANTS: usize = 19;
 
 fn samples() -> Vec<ApplyError> {
     vec![
@@ -57,6 +59,8 @@ fn samples() -> Vec<ApplyError> {
             max: 1,
         },
         ApplyError::InvalidFontWeight(450),
+        ApplyError::InvalidAssetId,
+        ApplyError::ImageOnText,
     ]
 }
 

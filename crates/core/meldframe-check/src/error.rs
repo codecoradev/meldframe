@@ -34,6 +34,10 @@ pub enum ApplyError {
     TooMany { field: &'static str, max: usize },
     /// `fontWeight` is not 100..=900 in steps of 100.
     InvalidFontWeight(u16),
+    /// `image.assetId` is not a lowercase hex SHA-256 (64 characters).
+    InvalidAssetId,
+    /// A text node cannot hold an image fill.
+    ImageOnText,
     /// A `pos` from a client has bad characters or a bad shape.
     InvalidPos(String),
     /// A `pos` (sent or computed) is longer than `Limits::max_pos`: the gap is too crowded.
@@ -65,6 +69,8 @@ impl ApplyError {
             ApplyError::BadReorder(_) => "E_BAD_REORDER",
             ApplyError::TooMany { .. } => "E_TOO_MANY_ENTRIES",
             ApplyError::InvalidFontWeight(_) => "E_INVALID_FONT_WEIGHT",
+            ApplyError::InvalidAssetId => "E_INVALID_ASSET_ID",
+            ApplyError::ImageOnText => "E_IMAGE_ON_TEXT",
         }
     }
 }
@@ -96,6 +102,18 @@ impl fmt::Display for ApplyError {
             }
             ApplyError::InvalidFontWeight(w) => {
                 write!(f, "fontWeight must be 100..=900 in steps of 100, got {w}")
+            }
+            ApplyError::InvalidAssetId => {
+                write!(
+                    f,
+                    "image.assetId must be a lowercase hex SHA-256 (64 characters)"
+                )
+            }
+            ApplyError::ImageOnText => {
+                write!(
+                    f,
+                    "image does not apply to text nodes (use frame, rect, ellipse or shader)"
+                )
             }
             ApplyError::InvalidPos(p) => write!(f, "invalid pos: {p:?}"),
             ApplyError::BadReorder(m) => write!(f, "invalid reorder: {m}"),

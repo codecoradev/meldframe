@@ -2,7 +2,7 @@
 
 use crate::{ApplyError, Limits};
 use meldframe_order::fracindex;
-use meldframe_protocol::{Border, Node, NodePatch, Shadow};
+use meldframe_protocol::{Border, ImageFill, Node, NodeKind, NodePatch, Shadow};
 
 fn num(field: &'static str, v: f64, lo: f64, hi: f64) -> Result<(), ApplyError> {
     if !v.is_finite() {
@@ -45,6 +45,21 @@ fn valid_id(id: &str, l: &Limits) -> bool {
         && id
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.'))
+}
+
+/// The canonical form of an asset id (lowercase hex SHA-256). Whether the asset exists is checked by the
+/// server, not here.
+fn check_image(im: &ImageFill) -> Result<(), ApplyError> {
+    let canonical = im.asset_id.len() == 64
+        && im
+            .asset_id
+            .bytes()
+            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'));
+    if canonical {
+        Ok(())
+    } else {
+        Err(ApplyError::InvalidAssetId)
+    }
 }
 
 fn font_weight(w: u16) -> Result<(), ApplyError> {
@@ -107,6 +122,12 @@ fn check_numbers(
 
 /// Validate a whole node (as sent by `AddNode`).
 pub fn check_node(n: &Node, l: &Limits) -> Result<(), ApplyError> {
+    if let Some(im) = &n.image {
+        check_image(im)?;
+        if n.kind == NodeKind::Text {
+            return Err(ApplyError::ImageOnText);
+        }
+    }
     if !valid_id(&n.id, l) {
         return Err(ApplyError::InvalidId(n.id.clone()));
     }
@@ -135,6 +156,9 @@ pub fn check_node(n: &Node, l: &Limits) -> Result<(), ApplyError> {
 
 /// Validate a patch: only the fields present are checked.
 pub fn check_patch(p: &NodePatch, l: &Limits) -> Result<(), ApplyError> {
+    if let Some(Some(im)) = &p.image {
+        check_image(im)?;
+    }
     if let Some(s) = &p.name {
         strlen("name", s, l.max_name)?;
     }

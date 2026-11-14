@@ -113,7 +113,10 @@ fn check_reorder(
 pub fn check_command(nodes: &[Node], cmd: &Command, l: &Limits) -> Result<(), ApplyError> {
     match cmd {
         Command::UpdateNode { id, patch } => {
-            position(nodes, id).ok_or_else(|| ApplyError::NotFound(id.clone()))?;
+            let i = position(nodes, id).ok_or_else(|| ApplyError::NotFound(id.clone()))?;
+            if matches!(patch.image, Some(Some(_))) && nodes[i].kind == NodeKind::Text {
+                return Err(ApplyError::ImageOnText);
+            }
             check_patch(patch, l)
         }
         Command::AddNode { node, .. } => {
