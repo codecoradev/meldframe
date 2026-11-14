@@ -74,6 +74,10 @@ name = "meldframe-module"
 version = "0.0.0"
 
 [[package]]
+name = "meldframe-order"
+version = "0.0.0"
+
+[[package]]
 name = "meldframe-protocol"
 version = "0.0.0"
 dependencies = [

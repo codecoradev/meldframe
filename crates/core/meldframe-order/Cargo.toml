@@ -1,0 +1,13 @@
+[package]
+name = "meldframe-order"
+description = "Fractional index and sibling order helpers."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[lints]
+workspace = true
