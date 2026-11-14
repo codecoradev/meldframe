@@ -13,6 +13,11 @@ pub struct FileState {
     version: u64,
     pub(crate) undo: Vec<Entry>,
     pub(crate) redo: Vec<Entry>,
+    /// The step being built by `begin_group`, if any.
+    pub(crate) group: Option<Entry>,
+    /// The key of the edit that was recorded last, while it is still the top step: only that step takes
+    /// a later edit with the same key. An undo, a redo or a group boundary closes it.
+    pub(crate) merge_key: Option<String>,
 }
 
 impl FileState {
@@ -55,8 +60,14 @@ impl FileState {
     /// Validate and apply a command and record it in the history (a new edit discards redo). A refused
     /// command changes nothing, not even the version.
     pub fn apply(&mut self, cmd: &Command) -> Result<(), ApplyError> {
+        self.apply_keyed(cmd, None)
+    }
+
+    /// Like [`FileState::apply`]. When `key` equals the key of the edit recorded just before (no group,
+    /// undo or redo in between), the command joins that step, so typing into one text is one step to undo.
+    pub fn apply_keyed(&mut self, cmd: &Command, key: Option<&str>) -> Result<(), ApplyError> {
         let inverse = self.run(cmd)?;
-        self.record(cmd, inverse);
+        self.record(cmd, inverse, key);
         Ok(())
     }
 

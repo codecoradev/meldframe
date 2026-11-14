@@ -3,6 +3,7 @@
 //! undo followed by redo leaves the tree as it was.
 
 use crate::file_state::FileState;
+use crate::patch_ops::compact;
 use meldframe_protocol::Command;
 
 /// One command with its inverse; both lists are in the order they are applied.
@@ -23,7 +24,7 @@ const MAX_HISTORY: usize = 500;
 
 impl FileState {
     pub fn can_undo(&self) -> bool {
-        !self.undo.is_empty()
+        !self.undo.is_empty() || self.group.as_ref().is_some_and(|g| !g.recs.is_empty())
     }
 
     pub fn can_redo(&self) -> bool {
@@ -39,13 +40,42 @@ impl FileState {
     }
 
     /// Record a command that was just applied. A new edit discards redo.
-    pub(crate) fn record(&mut self, cmd: &Command, inverse: Vec<Command>) {
+    pub(crate) fn record(&mut self, cmd: &Command, inverse: Vec<Command>, key: Option<&str>) {
         self.redo.clear();
         let rec = Rec {
             do_: vec![cmd.clone()],
             undo_: inverse,
         };
-        self.push(Entry { recs: vec![rec] });
+        if let Some(g) = self.group.as_mut() {
+            g.recs.push(rec);
+            self.merge_key = None;
+        } else if let (Some(k), Some(top)) = (key, self.undo.last_mut())
+            && self.merge_key.as_deref() == Some(k)
+        {
+            top.recs.push(rec);
+        } else {
+            self.push(Entry { recs: vec![rec] });
+            self.merge_key = key.map(String::from);
+        }
+    }
+
+    /// Start one history step that covers many commands (one gesture). A second call while a group is
+    /// open does nothing.
+    pub fn begin_group(&mut self) {
+        if self.group.is_none() {
+            self.merge_key = None;
+            self.group = Some(Entry { recs: Vec::new() });
+        }
+    }
+
+    /// Close the open group. A group with no command makes no step.
+    pub fn end_group(&mut self) {
+        self.merge_key = None;
+        if let Some(g) = self.group.take()
+            && !g.recs.is_empty()
+        {
+            self.push(g);
+        }
     }
 
     fn push(&mut self, e: Entry) {
@@ -64,6 +94,7 @@ impl FileState {
         } else {
             e.recs.iter().flat_map(|r| r.do_.clone()).collect()
         };
+        let cmds = compact(cmds);
         let mut applied: Vec<(Command, Vec<Command>)> = Vec::new();
         for c in cmds {
             if let Ok(inv) = self.run(&c) {
@@ -80,17 +111,16 @@ impl FileState {
         } else {
             (done.clone(), opposite)
         };
-        Some((
-            done,
-            Entry {
-                recs: vec![Rec { do_, undo_ }],
-            },
-        ))
+        let step = Entry {
+            recs: vec![Rec { do_, undo_ }],
+        };
+        Some((done, step))
     }
 
     /// Undo the last step. Returns the commands that were applied, or `None` when there is nothing to
     /// undo. A step that can no longer apply anything is dropped and the one below it is tried.
     pub fn undo(&mut self) -> Option<Vec<Command>> {
+        self.end_group();
         while let Some(e) = self.undo.pop() {
             if let Some((done, opposite)) = self.exec_entry(&e, true) {
                 self.redo.push(opposite);
@@ -102,6 +132,8 @@ impl FileState {
 
     /// Redo the last undone step.
     pub fn redo(&mut self) -> Option<Vec<Command>> {
+        self.merge_key = None;
+        self.end_group();
         while let Some(e) = self.redo.pop() {
             if let Some((done, opposite)) = self.exec_entry(&e, false) {
                 self.undo.push(opposite);
