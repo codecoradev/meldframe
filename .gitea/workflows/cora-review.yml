@@ -81,19 +81,25 @@ jobs:
             exit 1
           fi
 
-          # Up to 3 attempts, each capped at 9 minutes, with a short backoff. The review model
-          # sometimes returns empty output (finish_reason=length) or the gateway answers 504 or
-          # 429; a retry usually gets a real verdict. A run that fails every attempt is still a
-          # merge blocker.
+          # One time budget of 25 minutes for the whole review, shared by up to 3 attempts. The model
+          # sometimes returns empty output (finish_reason=length) or the gateway answers 504 or 429; a
+          # quick failure is retried. Some reviews simply take 10 to 20 minutes, so an attempt may use
+          # all the time left, and a timeout (exit 124) is not retried. A run that fails every attempt
+          # is still a merge blocker.
+          BUDGET=1500
+          START=$(date +%s)
           set +e
           for ATTEMPT in 1 2 3; do
-            timeout 540 cora review --base "origin/$BASE_REF" --format pretty > /tmp/cora-review.md 2> /tmp/cora-review-stderr.log
+            LEFT=$((BUDGET - ($(date +%s) - START)))
+            [ "$LEFT" -lt 120 ] && break
+            timeout "$LEFT" cora review --base "origin/$BASE_REF" --format pretty > /tmp/cora-review.md 2> /tmp/cora-review-stderr.log
             EXIT_CODE=$?
             [ $EXIT_CODE -eq 0 ] && break
             # Exit 2 with a report means blocking findings: that is a verdict, not a failure to
             # review, and a retry would only repeat it.
             [ $EXIT_CODE -eq 2 ] && [ -s /tmp/cora-review.md ] && break
             echo "cora review attempt $ATTEMPT exited $EXIT_CODE: $(tail -1 /tmp/cora-review-stderr.log)"
+            [ $EXIT_CODE -eq 124 ] && break
             case "$ATTEMPT" in 1) sleep 30 ;; 2) sleep 60 ;; esac
           done
           set -e
