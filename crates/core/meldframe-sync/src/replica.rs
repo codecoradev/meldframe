@@ -10,11 +10,12 @@
 //! Undo and redo are worked out by the `FileState` and sent as ordinary ops with an idempotency key.
 //! One replica is one actor.
 
+use crate::footprint::{Pairs, footprint, premise};
 use crate::types::{EventOutcome, OpKind, Outgoing, ReplicaError};
 use meldframe_core::{ApplyError, Limits, apply_command};
 use meldframe_history::FileState;
-use meldframe_protocol::{Command, Node};
-use std::collections::VecDeque;
+use meldframe_protocol::{Command, MAX_OP_DEPS, Node};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(Debug, Clone)]
 struct Pending {
@@ -23,6 +24,8 @@ struct Pending {
     json: String,
     /// The history rec of an edit (undo and redo ops have none).
     rec: Option<u64>,
+    /// What this op writes, worked out when it was made.
+    writes: Pairs,
 }
 
 fn cmd_json(c: &Command) -> String {
@@ -93,19 +96,60 @@ impl Replica {
         self.view.can_redo()
     }
 
-    fn enqueue(&mut self, command: Command, kind: OpKind, rec: Option<u64>) {
+    /// The keys of the pending ops (oldest first, at most `MAX_OP_DEPS`, the newest kept) that an undo or
+    /// redo reading `reads` was built on: the ops that wrote something it reads, and the earlier ops of
+    /// the same step (`chain_from` is the index of the first pending op of that step). An edit has none:
+    /// it carries the person's intent as it is.
+    fn deps_for(&self, kind: OpKind, reads: &Pairs, chain_from: usize) -> Vec<String> {
+        if kind == OpKind::Edit {
+            return vec![];
+        }
+        let mut by_node: HashMap<&str, Vec<&str>> = HashMap::new();
+        for (n, f) in reads {
+            by_node.entry(n.as_str()).or_default().push(f.as_str());
+        }
+        let hit = |p: &Pending| {
+            p.writes.iter().any(|(n, w)| {
+                by_node
+                    .get(n.as_str())
+                    .is_some_and(|rs| rs.iter().any(|r| premise(r, w)))
+            })
+        };
+        let all: Vec<String> = self
+            .pending
+            .iter()
+            .enumerate()
+            .filter(|(i, p)| *i >= chain_from || hit(p))
+            .map(|(_, p)| p.out.key.clone())
+            .collect();
+        all[all.len().saturating_sub(MAX_OP_DEPS)..].to_vec()
+    }
+
+    /// `foot` is `(reads, writes)` of the op against the view before it was applied.
+    fn enqueue(
+        &mut self,
+        command: Command,
+        kind: OpKind,
+        rec: Option<u64>,
+        foot: (Pairs, Pairs),
+        chain_from: usize,
+        forced_deps: Option<Vec<String>>,
+    ) {
         self.counter += 1;
+        let deps = forced_deps.unwrap_or_else(|| self.deps_for(kind, &foot.0, chain_from));
         let out = Outgoing {
             key: format!("{}-{}", self.prefix, self.counter),
             command,
             kind,
             seen_seq: self.seq,
+            deps,
         };
         self.outbox.push(out.clone());
         self.pending.push_back(Pending {
             json: cmd_json(&out.command),
             out,
             rec,
+            writes: foot.1,
         });
     }
 
@@ -116,9 +160,32 @@ impl Replica {
 
     /// Like [`Replica::apply`]; edits with the same `key` join one history step.
     pub fn apply_keyed(&mut self, cmd: &Command, key: Option<&str>) -> Result<(), ApplyError> {
+        self.apply_inner(cmd, key, None)
+    }
+
+    /// Like [`Replica::apply`], but the op names the given keys of my pending ops as its dependencies.
+    /// A caller that applies an undo or redo again on a new snapshot uses it, so the op falls with its
+    /// premise. A key that is no longer pending is ignored.
+    pub fn apply_dependent(&mut self, cmd: &Command, deps: &[String]) -> Result<(), ApplyError> {
+        let live = deps
+            .iter()
+            .filter(|d| self.pending.iter().any(|p| &p.out.key == *d))
+            .cloned()
+            .collect();
+        self.apply_inner(cmd, None, Some(live))
+    }
+
+    fn apply_inner(
+        &mut self,
+        cmd: &Command,
+        key: Option<&str>,
+        forced: Option<Vec<String>>,
+    ) -> Result<(), ApplyError> {
+        let foot = footprint(self.view.nodes(), cmd);
         self.view.apply_keyed(cmd, key)?;
         let rec = self.view.last_rec();
-        self.enqueue(cmd.clone(), OpKind::Edit, Some(rec));
+        let at = self.pending.len();
+        self.enqueue(cmd.clone(), OpKind::Edit, Some(rec), foot, at, forced);
         Ok(())
     }
 
@@ -134,19 +201,28 @@ impl Replica {
     /// Undo my last step; each command that was applied is sent as an op. `false` when there is
     /// nothing to undo.
     pub fn undo(&mut self) -> Result<bool, ApplyError> {
+        let before = self.view.nodes().to_vec();
         let cmds = self.view.undo();
-        Ok(self.send_step(cmds, OpKind::Undo))
+        Ok(self.send_step(before, cmds, OpKind::Undo))
     }
 
     pub fn redo(&mut self) -> Result<bool, ApplyError> {
+        let before = self.view.nodes().to_vec();
         let cmds = self.view.redo();
-        Ok(self.send_step(cmds, OpKind::Redo))
+        Ok(self.send_step(before, cmds, OpKind::Redo))
     }
 
-    fn send_step(&mut self, cmds: Option<Vec<Command>>, kind: OpKind) -> bool {
+    /// Queue every command of one undo or redo step. The footprint of each command is worked out
+    /// against the view just before it was applied (`before` is the view before the step, advanced
+    /// command by command).
+    fn send_step(&mut self, before: Vec<Node>, cmds: Option<Vec<Command>>, kind: OpKind) -> bool {
         let Some(cmds) = cmds else { return false };
+        let chain_from = self.pending.len();
+        let mut view = before;
         for c in cmds {
-            self.enqueue(c, kind, None);
+            let foot = footprint(&view, &c);
+            let _ = apply_command(&mut view, &c, &self.limits);
+            self.enqueue(c, kind, None, foot, chain_from, None);
         }
         true
     }
@@ -202,20 +278,27 @@ impl Replica {
         self.base = next;
         self.seq = seq;
         Ok(EventOutcome::Rebased {
-            dropped: self.rebuild(),
+            dropped: self.rebuild(HashSet::new()),
         })
     }
 
-    /// Build the view again: start from `base` and apply the pending ops one by one. An op that no
-    /// longer applies is dropped, with its history. Returns how many were dropped.
-    fn rebuild(&mut self) -> usize {
+    /// Build the view again: start from `base` and apply the pending ops one by one. `dead` holds keys
+    /// of ops that are known to be gone (refused by the server). A pending op that names a dead key is
+    /// dropped without a try, and its own key becomes dead (the server does the same: it refuses an op
+    /// whose dependency was not applied). An op that no longer applies is dropped too, with its history.
+    /// Pending ops are in creation order and deps point to older ops, so one pass is enough. Returns
+    /// how many were dropped.
+    fn rebuild(&mut self, mut dead: HashSet<String>) -> usize {
         self.view.reset_nodes(self.base.clone());
         let mut dropped = 0;
         for p in std::mem::take(&mut self.pending) {
-            if self.view.replay_pending(&p.out.command, p.rec).is_ok() {
+            let alive = !p.out.deps.iter().any(|d| dead.contains(d))
+                && self.view.replay_pending(&p.out.command, p.rec).is_ok();
+            if alive {
                 self.pending.push_back(p);
                 continue;
             }
+            dead.insert(p.out.key.clone());
             if let Some(r) = p.rec {
                 self.view.forget_rec(r);
             }
@@ -237,7 +320,7 @@ impl Replica {
             self.view.forget_rec(r);
         }
         self.outbox.retain(|o| o.key != key);
-        self.rebuild();
+        self.rebuild(HashSet::from([key.to_string()]));
         true
     }
 

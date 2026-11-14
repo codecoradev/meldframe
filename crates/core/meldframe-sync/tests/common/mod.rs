@@ -48,3 +48,32 @@ pub fn snap(nodes: &[Node]) -> String {
 pub fn x_of(nodes: &[Node], id: &str) -> f64 {
     nodes.iter().find(|n| n.id == id).unwrap().x
 }
+
+/// The server's rule for ops that name dependencies, in its smallest form: an op is refused when a
+/// dependency was not applied, or when it fails validation.
+pub struct ServerRule {
+    pub nodes: Vec<Node>,
+    pub applied: std::collections::HashSet<String>,
+}
+
+impl ServerRule {
+    pub fn new(mut nodes: Vec<Node>) -> Self {
+        meldframe_core::normalize_positions(&mut nodes);
+        ServerRule {
+            nodes,
+            applied: Default::default(),
+        }
+    }
+
+    pub fn submit(&mut self, o: &meldframe_sync::Outgoing) -> Result<(), &'static str> {
+        if o.deps.iter().any(|d| !self.applied.contains(d)) {
+            return Err("dependency_rejected");
+        }
+        let lim = meldframe_core::Limits::default();
+        if meldframe_core::apply_command(&mut self.nodes, &o.command, &lim).is_err() {
+            return Err("invalid");
+        }
+        self.applied.insert(o.key.clone());
+        Ok(())
+    }
+}

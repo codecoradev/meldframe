@@ -22,6 +22,9 @@ pub struct Outgoing {
     pub kind: OpKind,
     /// The highest server sequence number the replica knew when it made this op.
     pub seen_seq: u64,
+    /// Keys of my own ops that were still pending when this op was made and that it was built on
+    /// (only for undo and redo). The server accepts the op only if every one of them was applied.
+    pub deps: Vec<String>,
 }
 
 /// What the replica did with a server event.
