@@ -31,7 +31,7 @@ git log origin/develop..HEAD --format=%B | sh scripts/ci/message-patterns.sh
 
 ## Checks
 
-Run all of these yourself before you open a pull request. Pull request CI runs only the fast set (format, lint, tests, `deps-check`, the protocol and migrations checks, and the pull request checks); the heavier ones (`build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences`) run on every push to `develop` and nightly, so a gap in local checking is caught within a day:
+Run all of these yourself before you open a pull request. Pull request CI runs only the fast set (format, lint, tests, `deps-check`, the protocol and migrations checks, and the pull request checks); the heavier ones (`build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences`) run nightly, so a gap in local checking is caught within a day:
 
 ```sh
 cargo fmt --all --check

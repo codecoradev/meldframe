@@ -1,10 +1,11 @@
 # Pull request hygiene: branch name, Message Standard and description sections.
 #
-# Required contexts (branch protection, set by the owner), shown by Gitea as
-# `pr-checks / <name> (pull_request)`: branch name, message standard, pr description.
+# Required context (branch protection): `pr-checks / pr checks (pull_request)`. One job runs the
+# three checks one after another (branch name, message standard, pr description) so that a runner
+# with little capacity is not flooded.
 #
 # `edited` is in the trigger list so that fixing the description re-runs these checks. The scripts
-# live in scripts/ci/ and are tested by `ci / ci scripts`. Text from the pull request (branch,
+# live in scripts/ci/ and are tested by the `checks` job in ci.yml. Text from the pull request (branch,
 # title, body) reaches the shell only through environment variables, never through a
 # ${{ }} expression inside a script, so it cannot inject commands.
 name: pr-checks
@@ -19,25 +20,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  branch-name:
-    name: branch name
+  pr-checks:
+    name: pr checks
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - env:
-          HEAD_REF: ${{ github.head_ref }}
-        run: sh scripts/ci/branch-name.sh "$HEAD_REF"
-
-  message-standard:
-    name: message standard
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Title, description and every commit message
+      - name: Branch name
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: sh scripts/ci/branch-name.sh "$HEAD_REF"
+      - name: Title, description and every commit message (Message Standard)
         env:
           TITLE: ${{ github.event.pull_request.title }}
           BODY: ${{ github.event.pull_request.body }}
@@ -63,13 +58,7 @@ jobs:
             check "commit $sha" "$(git log -1 --format=%B "$sha")"
           done
           exit "$bad"
-
-  pr-description:
-    name: pr description
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - env:
+      - name: Description sections (What, Why, Changes, Testing)
+        env:
           BODY: ${{ github.event.pull_request.body }}
         run: printf '%s\n' "$BODY" | sh scripts/ci/pr-body.sh -

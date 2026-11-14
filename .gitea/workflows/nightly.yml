@@ -1,13 +1,12 @@
 # The heavier gates, kept off the pull request path so reviews stay quick (docs/epics.md E0.2).
-# Run them locally before opening a pull request: `just check`. They run here on every push to
-# `develop` (what was merged) and nightly, so a gap in local checking is caught within a day.
+# Run them locally before opening a pull request: `just check`. They run here
+# nightly and on demand, so a gap in local checking is caught within a day. They no longer run on
+# every push to `develop`: with several pull requests merging per hour that flooded the runner.
 # A gate whose command is not merged yet is listed in `.gitea/ci-pending.txt` and passes without
 # running (scripts/ci/gate.sh).
 name: nightly
 
 on:
-  push:
-    branches: [develop]
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
