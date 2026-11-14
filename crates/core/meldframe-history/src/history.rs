@@ -4,6 +4,7 @@
 
 use crate::file_state::FileState;
 use crate::patch_ops::compact;
+use meldframe_core::{ApplyError, rebalance_commands};
 use meldframe_protocol::Command;
 
 /// One command with its inverse; both lists are in the order they are applied.
@@ -76,6 +77,31 @@ impl FileState {
         {
             self.push(g);
         }
+    }
+
+    /// Give the children of `parent` fresh `pos` keys in their current order, as one history step (or part
+    /// of the caller's open group). Use it
+    /// when repeated inserts into one gap have made the keys long. Returns how many children were
+    /// processed.
+    pub fn rebalance(&mut self, parent: Option<&str>) -> Result<usize, ApplyError> {
+        let cmds = rebalance_commands(&self.nodes, parent);
+        // Inside a group the caller opened, the commands join it and the caller closes it.
+        let opened = self.group.is_none();
+        if opened {
+            self.begin_group();
+        }
+        for c in &cmds {
+            if let Err(e) = self.apply(c) {
+                if opened {
+                    self.end_group();
+                }
+                return Err(e);
+            }
+        }
+        if opened {
+            self.end_group();
+        }
+        Ok(cmds.len())
     }
 
     /// Every step that can hold commands: both stacks and the open group.

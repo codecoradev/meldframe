@@ -1,7 +1,7 @@
 //! The state of one file in memory.
 
 use crate::history::Entry;
-use meldframe_core::{ApplyError, Limits, apply_planned, plan_command};
+use meldframe_core::{ApplyError, Limits, apply_planned, normalize_positions, plan_command};
 use meldframe_protocol::{Command, Node};
 
 /// The in-memory tree of one file. Every change goes through [`FileState::apply`], which validates first
@@ -34,8 +34,11 @@ impl FileState {
         }
     }
 
-    /// A file that starts from a loaded tree (a snapshot). The nodes must already carry their `pos`.
-    pub fn from_nodes(nodes: Vec<Node>) -> Self {
+    /// A file that starts from a loaded tree (a snapshot). An old file whose siblings have no valid or
+    /// unique `pos` is migrated by list order; a file that is already in order is not touched. The
+    /// history starts empty.
+    pub fn from_nodes(mut nodes: Vec<Node>) -> Self {
+        normalize_positions(&mut nodes);
         FileState {
             nodes,
             ..Self::default()
