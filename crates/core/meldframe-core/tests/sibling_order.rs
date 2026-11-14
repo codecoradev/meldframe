@@ -1,5 +1,6 @@
 //! Sibling order: effective order is `(pos, id)`, never the position in the list. Covers add,
-//! reorder, reparent, colliding positions and refused positions.
+//! reorder, reparent, colliding positions, refused positions,
+//! the deprecated `index` and the `pos` length limit.
 
 use meldframe_core::{ApplyError, Limits, apply_command};
 use meldframe_order::{children_map, fracindex::between};
@@ -184,4 +185,113 @@ fn a_bad_client_pos_is_refused_everywhere_it_can_arrive() {
         assert!(apply(&mut ns, &to_root).is_err(), "{pos:?}");
     }
     assert_eq!(order(&ns, Some("root")), ["a", "b", "c"]);
+}
+
+#[test]
+fn the_deprecated_index_becomes_a_pos_and_pos_wins_over_it() {
+    let mut ns = base_doc(); // draw order: root a b c
+    let at = |id: &str, index: usize| Command::AddNode {
+        node: node(id, "rect", Some("root")),
+        index: Some(index),
+    };
+    apply(&mut ns, &at("m", 2)).unwrap(); // index 2 = between a and b
+    assert_eq!(order(&ns, Some("root")), ["a", "m", "b", "c"]);
+    apply(&mut ns, &at("z", 999)).unwrap();
+    assert_eq!(order(&ns, Some("root")), ["a", "m", "b", "c", "z"]);
+    apply(&mut ns, &at("q", 0)).unwrap();
+    assert_eq!(order(&ns, Some("root")), ["q", "a", "m", "b", "c", "z"]);
+    let pz = pos_of(&ns, "z");
+    let with_pos = Command::AddNode {
+        node: node_pos("w", Some("root"), &pz),
+        index: Some(0),
+    };
+    apply(&mut ns, &with_pos).unwrap();
+    assert_eq!(order(&ns, Some("root")).last().unwrap(), "w");
+}
+
+#[test]
+fn repeated_inserts_into_one_gap_stop_at_the_pos_length_limit() {
+    let l = Limits {
+        max_pos: 12,
+        ..Limits::default()
+    };
+    let mut ns = vec![];
+    apply_command(&mut ns, &add(node("root", "frame", None)), &l).unwrap();
+    apply_command(&mut ns, &add(node("hi", "rect", Some("root"))), &l).unwrap();
+    // `lo` goes in front of `hi` through the deprecated index. Each new node then goes right in front of
+    // the previous one, between `lo` and the previous node, so the gap keeps narrowing.
+    let lo = Command::AddNode {
+        node: node("lo", "rect", Some("root")),
+        index: Some(1),
+    };
+    apply_command(&mut ns, &lo, &l).unwrap();
+    let mut prev = "hi".to_string();
+    let mut n = 0;
+    let err = loop {
+        let id = format!("x{n}");
+        apply_command(&mut ns, &add(node(&id, "rect", Some("root"))), &l).unwrap();
+        match apply_command(&mut ns, &reorder(&id, Some(&prev), None, None), &l) {
+            Ok(()) => {
+                prev = id;
+                n += 1;
+            }
+            Err(e) => break e,
+        }
+        assert!(n < 500, "the limit was never reached");
+    };
+    assert_eq!(err, ApplyError::PosTooLong { max: 12 });
+    assert!(n > 10, "only {n} inserts fit");
+    assert!(ns.iter().all(|x| x.pos.len() <= 12));
+}
+
+#[test]
+fn random_commands_keep_sibling_positions_valid_and_unique() {
+    let l = Limits::default();
+    for seed in 1..=300u64 {
+        let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+        let mut next = |n: usize| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state % n as u64) as usize
+        };
+        let mut ns = vec![];
+        apply_command(&mut ns, &add(node("root", "frame", None)), &l).unwrap();
+        let mut serial = 0;
+        for _ in 0..40 {
+            let ids: Vec<String> = ns.iter().map(|n| n.id.clone()).collect();
+            let pick = |i: usize| ids[i % ids.len()].clone();
+            let cmd = match next(4) {
+                0 | 1 => {
+                    serial += 1;
+                    add(node(&format!("n{serial}"), "rect", Some(&pick(next(99)))))
+                }
+                2 => reorder(&pick(next(99)), Some(&pick(next(99))), None, None),
+                _ => Command::Reparent {
+                    id: pick(next(99)),
+                    parent_id: Some(pick(next(99))),
+                    pos: None,
+                },
+            };
+            let before = serde_json::to_string(&ns).unwrap();
+            if apply_command(&mut ns, &cmd, &l).is_err() {
+                assert_eq!(
+                    serde_json::to_string(&ns).unwrap(),
+                    before,
+                    "seed {seed}: {cmd:?}"
+                );
+            }
+            let mut seen = std::collections::HashSet::new();
+            for n in &ns {
+                assert!(
+                    meldframe_core::check_pos(&n.pos, &l).is_ok(),
+                    "seed {seed}: {n:?}"
+                );
+                assert!(
+                    seen.insert((n.parent_id.clone(), n.pos.clone())),
+                    "seed {seed}: duplicate pos"
+                );
+            }
+        }
+    }
 }

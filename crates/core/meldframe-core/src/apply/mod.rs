@@ -10,6 +10,8 @@ use meldframe_protocol::{Command, Node};
 use order::{Want, resolve_pos};
 use std::collections::HashSet;
 
+pub use order::{normalize_positions, rebalance_commands};
+
 /// The final `pos` of the node a command touches (`None` = unchanged), worked out against the current
 /// nodes. Fails if the command is refused.
 pub fn plan_command(
@@ -19,11 +21,14 @@ pub fn plan_command(
 ) -> Result<Option<String>, ApplyError> {
     check_command(nodes, cmd, l)?;
     Ok(match cmd {
-        Command::AddNode { node, .. } => {
-            let want = if node.pos.is_empty() {
-                Want::End
-            } else {
+        Command::AddNode { node, index } => {
+            // An explicit pos wins over the deprecated index.
+            let want = if !node.pos.is_empty() {
                 Want::Pos(&node.pos)
+            } else if let Some(i) = index {
+                Want::Index(*i)
+            } else {
+                Want::End
             };
             Some(resolve_pos(
                 nodes,

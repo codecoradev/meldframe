@@ -1,9 +1,11 @@
 //! Sibling order: the effective order is `(pos, id)`. Resolving the `pos` a command wants into the
 //! `pos` the node gets, against the current nodes.
 
-use meldframe_check::{ApplyError, Limits, position};
-use meldframe_order::fracindex;
-use meldframe_protocol::Node;
+use meldframe_check::{ApplyError, Limits, check_pos, position};
+use meldframe_order::{children_map, fracindex, sib_cmp};
+use meldframe_protocol::{Command, Node};
+use std::cmp::Ordering;
+use std::collections::HashMap;
 
 /// Where a command wants a node among its siblings.
 pub(super) enum Want<'a> {
@@ -15,6 +17,8 @@ pub(super) enum Want<'a> {
     Before(&'a str),
     /// Right behind (above in order) this sibling.
     After(&'a str),
+    /// The deprecated index into the flat draw list.
+    Index(usize),
 }
 
 fn within_limit(k: String, l: &Limits) -> Result<String, ApplyError> {
@@ -75,5 +79,92 @@ pub(super) fn resolve_pos(
             let xp = anchor_pos(nodes, x)?;
             mid(Some(xp), next_above(xp), l)
         }
+        Want::Index(i) => {
+            // Deprecated path: the index counts the flat draw list (pre-order walk by `(pos, id)`).
+            // Insert before the first sibling whose draw index is at least `i`.
+            let kids = children_map(nodes);
+            let mut draw: HashMap<&str, usize> = HashMap::new();
+            let mut stack: Vec<usize> = kids
+                .get(&None)
+                .map(|v| v.iter().rev().copied().collect())
+                .unwrap_or_default();
+            while let Some(k) = stack.pop() {
+                draw.insert(nodes[k].id.as_str(), draw.len());
+                if let Some(c) = kids.get(&Some(nodes[k].id.as_str())) {
+                    stack.extend(c.iter().rev().copied());
+                }
+            }
+            let mut ordered: Vec<&Node> = sibs().collect();
+            ordered.sort_by(|a, b| sib_cmp(a, b));
+            match ordered
+                .iter()
+                .find(|n| draw.get(n.id.as_str()).is_some_and(|&p| p >= i))
+            {
+                Some(n) => mid(prev_below(&n.pos), Some(&n.pos), l),
+                None => mid(ordered.last().map(|n| n.pos.as_str()), None, l),
+            }
+        }
     }
+}
+
+/// Migrate an old file: give every sibling group that is not in order (an empty, invalid or duplicate
+/// `pos`) a `pos` by list order. A group that is already valid and unique is not touched. Deterministic: the
+/// server and a client that migrate the same file get the same positions. Returns how many nodes changed.
+pub fn normalize_positions(nodes: &mut [Node]) -> usize {
+    let l = Limits::default();
+    let usable = |n: &Node| !n.pos.is_empty() && check_pos(&n.pos, &l).is_ok();
+    let kids = children_map(nodes);
+    let mut todo: Vec<(Vec<usize>, Vec<String>)> = Vec::new();
+    for (_, group) in kids {
+        let mut last: Option<&str> = None;
+        let in_order = group.iter().all(|&i| {
+            let p = nodes[i].pos.as_str();
+            let ok = usable(&nodes[i]) && last.is_none_or(|q| q < p);
+            last = Some(p);
+            ok
+        });
+        if !in_order {
+            // Nodes with a usable pos first (by pos, id), then the others by list order.
+            let mut ordered = group.clone();
+            ordered.sort_by(|&a, &b| match (usable(&nodes[a]), usable(&nodes[b])) {
+                (true, true) => sib_cmp(&nodes[a], &nodes[b]),
+                (false, false) => a.cmp(&b),
+                (false, true) => Ordering::Less,
+                (true, false) => Ordering::Greater,
+            });
+            let keys = fracindex::n_between(None, None, ordered.len()).expect("n keys");
+            todo.push((ordered, keys));
+        }
+    }
+    let mut changed = 0;
+    for (ordered, keys) in todo {
+        for (i, k) in ordered.into_iter().zip(keys) {
+            nodes[i].pos = k;
+            changed += 1;
+        }
+    }
+    changed
+}
+
+/// Commands that rebalance the children of `parent`: one plain `Reorder` to "after the last sibling" for each
+/// child, from the one at the front to the one at the back of the current order, so the relative order is
+/// kept. Each child gets a key after the current largest one; keys therefore keep climbing across rebalances
+/// and are not reset to `a1`, `a2`, ... They are ordinary commands (with inverses, safe to send as ops). They are not atomic across
+/// ops: a concurrent insert by a client that has not seen the rebalance stays valid and converges, but its
+/// old pos now lies behind every child that was moved (the relative order of the moved children is kept;
+/// only that insert shifts).
+pub fn rebalance_commands(nodes: &[Node], parent: Option<&str>) -> Vec<Command> {
+    let kids = children_map(nodes);
+    kids.get(&parent)
+        .map(|v| {
+            v.iter()
+                .map(|&i| Command::Reorder {
+                    id: nodes[i].id.clone(),
+                    before: None,
+                    after: None,
+                    pos: None,
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
