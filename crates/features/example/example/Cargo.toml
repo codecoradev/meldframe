@@ -12,3 +12,6 @@ group = "example"
 
 [lints]
 workspace = true
+
+[dependencies]
+meldframe-module = { path = "../../../core/meldframe-module" }
