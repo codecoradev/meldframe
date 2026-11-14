@@ -2,6 +2,10 @@
 //! `apply_remote` applies another actor's command (already put in order by the server) without recording
 //! it in my history, and rewrites my history so it stays valid.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{add, base, upd};

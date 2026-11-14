@@ -1,5 +1,9 @@
 //! Loading an old file (nodes without a `pos`) and rebalancing the siblings of one parent.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{add, node, order_under, snap};

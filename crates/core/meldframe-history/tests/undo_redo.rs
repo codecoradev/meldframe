@@ -1,5 +1,9 @@
 //! Undo and redo of one actor: the inverse of each kind of command, and what a new edit does to redo.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{add, base, order_under, snap, upd};

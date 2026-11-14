@@ -1,6 +1,10 @@
 //! `check_file` is the strict whole-file check: it refuses what `check_command` would never let in, and
 //! it never repairs. A missing or repeated `pos` is refused here; the loader migrates it first.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_check::{Limits, check_file};
 use meldframe_protocol::Node;
 

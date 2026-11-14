@@ -2,6 +2,10 @@
 //! tried again. Nothing is left on the wrong stack and an undo is never stuck on a step the server
 //! always refuses.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{base, upd, x_of};

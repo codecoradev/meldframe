@@ -1,6 +1,10 @@
 //! The server refuses one of my ops: the replica takes its result out of the view, applies the ops
 //! that came after it again and forgets its history step.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{add, base, snap, upd, x_of};

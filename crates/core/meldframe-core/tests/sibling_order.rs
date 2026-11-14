@@ -2,6 +2,10 @@
 //! reorder, reparent, colliding positions, refused positions,
 //! the deprecated `index` and the `pos` length limit.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_core::{ApplyError, Limits, apply_command};
 use meldframe_order::{children_map, fracindex::between};
 use meldframe_protocol::{Command, Node};

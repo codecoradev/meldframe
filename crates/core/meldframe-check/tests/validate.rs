@@ -1,6 +1,10 @@
 //! Validation of untrusted node values: numbers, strings, ids, colours and `pos` are checked
 //! against `Limits`, and every refusal names the field.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_check::{ApplyError, Limits, check_node, check_patch, check_pos};
 use meldframe_protocol::{Node, NodePatch};
 

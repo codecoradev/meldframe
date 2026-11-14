@@ -1,6 +1,10 @@
 //! Fill sizes: children that share the free space on the main axis and stretch across.
 //! Every expected number is worked out by hand in the comments.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{node, r, rect_of};

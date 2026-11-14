@@ -1,6 +1,10 @@
 //! Keeping sibling positions healthy: migrating files without positions, and rebalancing a parent
 //! whose gaps grew crowded.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_core::{ApplyError, Limits, apply_command, normalize_positions, rebalance_commands};
 use meldframe_order::{children_map, fracindex::is_valid};
 use meldframe_protocol::{Command, Node};

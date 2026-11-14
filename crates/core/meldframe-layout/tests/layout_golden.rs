@@ -5,6 +5,10 @@
 //! regimes the fidelity contract leaves unspecified (rule G3); there the core and the oracle
 //! implement the same arithmetic and still agree.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_layout::{StubMeasurer, compute_rects};
 use meldframe_protocol::Node;
 use serde::Deserialize;

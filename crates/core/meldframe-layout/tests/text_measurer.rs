@@ -2,6 +2,10 @@
 //! Expected numbers are worked out by hand from the stub's rule: character width is half the
 //! font size, line height is the font size times 1.2 rounded up.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_layout::{Rect, StubMeasurer, TextMeasurer};
 use meldframe_protocol::Node;
 
