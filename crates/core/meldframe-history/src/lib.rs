@@ -5,6 +5,7 @@ mod history;
 mod inverse;
 mod patch_fields;
 mod patch_ops;
+mod remote;
 
 pub use file_state::FileState;
 pub use meldframe_core::{ApplyError, Limits};

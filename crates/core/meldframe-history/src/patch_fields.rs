@@ -34,3 +34,17 @@ macro_rules! patch_fields {
 }
 
 pub(crate) use patch_fields;
+
+/// Compile-time guard: destructures `NodePatch` with every field named and no `..`, so a field added to
+/// `NodePatch` and missing from `patch_fields!` is a compile error, not a silently dropped field.
+const _: () = {
+    macro_rules! destructure_all {
+        ($($f:ident),*) => {
+            #[allow(dead_code)]
+            fn every_patch_field_is_listed(p: meldframe_protocol::NodePatch) {
+                let meldframe_protocol::NodePatch { $($f: _,)* image: _ } = p;
+            }
+        };
+    }
+    patch_fields!(destructure_all);
+};

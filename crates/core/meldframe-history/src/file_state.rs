@@ -9,8 +9,8 @@ use meldframe_protocol::{Command, Node};
 #[derive(Debug, Clone, Default)]
 pub struct FileState {
     pub(crate) nodes: Vec<Node>,
-    limits: Limits,
-    version: u64,
+    pub(crate) limits: Limits,
+    pub(crate) version: u64,
     pub(crate) undo: Vec<Entry>,
     pub(crate) redo: Vec<Entry>,
     /// The step being built by `begin_group`, if any.

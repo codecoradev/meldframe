@@ -25,8 +25,8 @@ fn inverse_patch(old: &Node, p: &NodePatch) -> NodePatch {
     r
 }
 
-/// The node `id` and all its descendants, parents before children.
-fn subtree(nodes: &[Node], id: &str) -> Vec<Node> {
+/// The ids of node `id` and all its descendants.
+pub(crate) fn descendants<'a>(nodes: &'a [Node], id: &'a str) -> HashSet<&'a str> {
     let mut set: HashSet<&str> = HashSet::from([id]);
     let mut grew = true;
     while grew {
@@ -38,6 +38,12 @@ fn subtree(nodes: &[Node], id: &str) -> Vec<Node> {
             }
         }
     }
+    set
+}
+
+/// The node `id` and all its descendants, parents before children.
+fn subtree(nodes: &[Node], id: &str) -> Vec<Node> {
+    let set = descendants(nodes, id);
     // The list order is not the tree order (a reparent keeps the list position), so place parents first.
     let mut rest: Vec<&Node> = nodes
         .iter()

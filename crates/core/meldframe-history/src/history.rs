@@ -78,6 +78,23 @@ impl FileState {
         }
     }
 
+    /// Every step that can hold commands: both stacks and the open group.
+    pub(crate) fn entries_mut(&mut self) -> impl Iterator<Item = &mut Entry> {
+        self.undo
+            .iter_mut()
+            .chain(self.redo.iter_mut())
+            .chain(self.group.iter_mut())
+    }
+
+    /// Drop recs and steps that no longer hold a command.
+    pub(crate) fn prune(&mut self) {
+        for e in self.entries_mut() {
+            e.recs.retain(|r| !(r.do_.is_empty() && r.undo_.is_empty()));
+        }
+        self.undo.retain(|e| !e.recs.is_empty());
+        self.redo.retain(|e| !e.recs.is_empty());
+    }
+
     fn push(&mut self, e: Entry) {
         self.undo.push(e);
         if self.undo.len() > MAX_HISTORY {
