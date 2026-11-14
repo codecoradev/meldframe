@@ -35,6 +35,7 @@ Every crate declares its kind (core, engine, integration, os, feature, app, ffi,
 - `tools/check-migrations.sh`: creates a scratch database on the Postgres at `ADMIN_DATABASE_URL` (default `postgres://postgres@127.0.0.1:5433/postgres`), applies `migrations/*.sql` to it from empty, asserts the schema version and append-only rules, then drops it.
 - `cargo xtask size-check [--base <git-ref>]`: 500 lines per file and 2,000 per crate (D1). `xtask/size-allow.toml` lists what is over; an entry must equal the current size, so entries only go down. With `--base` (use `origin/develop` in CI) an entry that is new or higher than on the base fails.
 - `cargo xtask ui-literals`: rejects colour, font-size and duration literals in `ui` and `feature-ui` crates and in `apps/web` styles (U4). Read values from the tokens module (`crates/ui/meldframe-ui/src/tokens.rs`); `tokens.rs` and `tokens.css` are exempt.
+- `cargo xtask licences --check`: every third-party crate's licence expression must be allowed by `[licenses] allow` in `deny.toml` (D2). The same list drives `cargo deny check` (install with `cargo install cargo-deny --locked`). Model weights have no check yet (no models are shipped).
 - Before a pull request: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo xtask deps-check`.
 
 ## CI

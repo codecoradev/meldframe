@@ -1,0 +1,31 @@
+# Licence, source and ban policy for third-party crates. `cargo deny check` and
+# `cargo xtask licences --check` both read this file; the allow list is the single source.
+
+[graph]
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "wasm32-unknown-unknown",
+]
+
+[licenses]
+# Permissive licences only (the product is closed source). Add an entry only after the owner
+# agrees; copyleft licences are not on this list on purpose.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Unicode-3.0",
+]
+confidence-threshold = 0.93
+unused-allowed-license = "allow"
+# Workspace crates are `publish = false`, so they carry no licence field.
+private = { ignore = true }
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

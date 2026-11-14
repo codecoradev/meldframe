@@ -3,9 +3,17 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::path::Path;
+
+use crate::rules::Package;
+use crate::scan;
 
 pub const FILE_LIMIT: usize = 500;
 pub const CRATE_LIMIT: usize = 2000;
+/// Source extensions that count towards the ceilings.
+pub const EXTENSIONS: &[&str] = &["rs", "ts", "tsx", "js", "css"];
+/// Path of the allow-list, relative to the workspace root.
+pub const ALLOW_FILE: &str = "xtask/size-allow.toml";
 
 /// Parsed `xtask/size-allow.toml`: path or crate name to the line count allowed today.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -14,85 +22,39 @@ pub struct Allow {
     pub crates: BTreeMap<String, usize>,
 }
 
-/// A source file and its line count.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Source {
-    pub path: String,
-    pub lines: usize,
-}
+/// A crate name with its source files as (path, line count).
+pub type Sized = (String, Vec<(String, usize)>);
 
-/// A crate with its source files.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Sized {
-    pub name: String,
-    pub files: Vec<Source>,
-}
-
+/// A broken ceiling or allow-list rule. The first field is the file path or crate name.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Violation {
-    /// Over the ceiling with no allow-list entry.
-    OverLimit {
-        what: String,
-        lines: usize,
-        limit: usize,
-    },
-    /// Larger than its allow-list entry.
-    Grew {
-        what: String,
-        lines: usize,
-        allowed: usize,
-    },
-    /// Entry is higher than the current size: lower it to the size.
-    EntryNotLowered {
-        what: String,
-        lines: usize,
-        allowed: usize,
-    },
-    /// Entry for something now within the ceiling or gone: remove it.
-    StaleEntry { what: String, allowed: usize },
-    /// Compared with the base list: an entry was added or raised.
-    EntryRaised {
-        what: String,
-        old: Option<usize>,
-        new: usize,
-    },
+    /// (what, lines, limit): over the ceiling with no allow-list entry.
+    OverLimit(String, usize, usize),
+    /// (what, lines, entry): larger than its allow-list entry.
+    Grew(String, usize, usize),
+    /// (what, lines, entry): entry above the current size; lower it.
+    NotLowered(String, usize, usize),
+    /// (what, entry): entry for something within the ceiling or gone; remove it.
+    Stale(String, usize),
+    /// (what, old, new): compared with the base list, an entry was added or raised.
+    Raised(String, Option<usize>, usize),
 }
 
 impl fmt::Display for Violation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Violation::OverLimit { what, lines, limit } => {
-                write!(f, "{what}: {lines} lines, over the {limit} ceiling")
+            Self::OverLimit(w, l, max) => write!(f, "{w}: {l} lines, over the {max} ceiling"),
+            Self::Grew(w, l, e) => write!(f, "{w}: {l} lines, grew past its allow-list entry {e}"),
+            Self::NotLowered(w, l, e) => {
+                write!(f, "{w}: allow-list entry {e} is above {l}; lower it")
             }
-            Violation::Grew {
-                what,
-                lines,
-                allowed,
-            } => {
-                write!(
-                    f,
-                    "{what}: {lines} lines, grew past its allow-list entry {allowed}"
-                )
+            Self::Stale(w, e) => write!(f, "{w}: allow-list entry {e} is not needed; remove it"),
+            Self::Raised(w, Some(o), n) => {
+                write!(f, "{w}: allow-list entry raised from {o} to {n}")
             }
-            Violation::EntryNotLowered {
-                what,
-                lines,
-                allowed,
-            } => write!(
-                f,
-                "{what}: allow-list entry {allowed} is above the current {lines}; lower it"
-            ),
-            Violation::StaleEntry { what, allowed } => write!(
-                f,
-                "{what}: allow-list entry {allowed} is no longer needed; remove it"
-            ),
-            Violation::EntryRaised { what, old, new } => match old {
-                Some(o) => write!(f, "{what}: allow-list entry raised from {o} to {new}"),
-                None => write!(
-                    f,
-                    "{what}: new allow-list entry ({new}); entries only go down"
-                ),
-            },
+            Self::Raised(w, None, n) => {
+                write!(f, "{w}: new allow-list entry ({n}); entries only go down")
+            }
         }
     }
 }
@@ -107,47 +69,28 @@ pub fn parse_allow(text: &str) -> Result<Allow, String> {
             "crates" => &mut allow.crates,
             other => return Err(format!("size allow-list: unknown table [{other}]")),
         };
-        let entries = value
+        for (key, v) in value
             .as_table()
-            .ok_or("size allow-list: expected a table")?;
-        for (key, v) in entries {
-            let n = v
-                .as_integer()
-                .and_then(|n| usize::try_from(n).ok())
-                .ok_or_else(|| format!("size allow-list: `{key}` must be a line count"))?;
-            target.insert(key.clone(), n);
+            .ok_or("size allow-list: expected a table")?
+        {
+            let n = v.as_integer().and_then(|n| usize::try_from(n).ok());
+            target.insert(
+                key.clone(),
+                n.ok_or(format!("size allow-list: `{key}` must be a line count"))?,
+            );
         }
     }
     Ok(allow)
 }
 
 /// One measured item against its ceiling and optional entry.
-fn judge(
-    what: &str,
-    lines: Option<usize>,
-    limit: usize,
-    entry: Option<usize>,
-) -> Option<Violation> {
-    let what = what.to_string();
-    match (lines, entry) {
-        (Some(l), None) if l > limit => Some(Violation::OverLimit {
-            what,
-            lines: l,
-            limit,
-        }),
-        (Some(l), Some(e)) if l > limit && l > e => Some(Violation::Grew {
-            what,
-            lines: l,
-            allowed: e,
-        }),
-        (Some(l), Some(e)) if l > limit && l < e => Some(Violation::EntryNotLowered {
-            what,
-            lines: l,
-            allowed: e,
-        }),
-        (_, Some(e)) if lines.is_none_or(|l| l <= limit) => {
-            Some(Violation::StaleEntry { what, allowed: e })
-        }
+fn judge(what: &str, lines: usize, limit: usize, entry: Option<usize>) -> Option<Violation> {
+    let w = what.to_string();
+    match entry {
+        None if lines > limit => Some(Violation::OverLimit(w, lines, limit)),
+        Some(e) if lines <= limit => Some(Violation::Stale(w, e)),
+        Some(e) if lines > e => Some(Violation::Grew(w, lines, e)),
+        Some(e) if lines < e => Some(Violation::NotLowered(w, lines, e)),
         _ => None,
     }
 }
@@ -156,40 +99,40 @@ fn judge(
 /// current size, so growing or leaving slack both fail and the list can only shrink.
 pub fn check(crates: &[Sized], allow: &Allow) -> Vec<Violation> {
     let mut out = Vec::new();
-    let mut seen_files = Vec::new();
-    for c in crates {
-        let total: usize = c.files.iter().map(|f| f.lines).sum();
+    let mut seen = Vec::new();
+    for (name, files) in crates {
+        let total = files.iter().map(|f| f.1).sum();
         out.extend(judge(
-            &c.name,
-            Some(total),
+            name,
+            total,
             CRATE_LIMIT,
-            allow.crates.get(&c.name).copied(),
+            allow.crates.get(name).copied(),
         ));
-        for f in &c.files {
-            seen_files.push(f.path.as_str());
+        for (path, lines) in files {
+            seen.push(path.as_str());
             out.extend(judge(
-                &f.path,
-                Some(f.lines),
+                path,
+                *lines,
                 FILE_LIMIT,
-                allow.files.get(&f.path).copied(),
+                allow.files.get(path).copied(),
             ));
         }
     }
-    let names: Vec<&str> = crates.iter().map(|c| c.name.as_str()).collect();
-    let missing = allow
-        .files
-        .iter()
-        .filter(|(k, _)| !seen_files.contains(&k.as_str()))
-        .chain(
-            allow
-                .crates
-                .iter()
-                .filter(|(k, _)| !names.contains(&k.as_str())),
-        );
-    out.extend(missing.map(|(k, e)| Violation::StaleEntry {
-        what: k.clone(),
-        allowed: *e,
-    }));
+    let gone = |(k, e): (&String, &usize)| Violation::Stale(k.clone(), *e);
+    out.extend(
+        allow
+            .files
+            .iter()
+            .filter(|(k, _)| !seen.contains(&k.as_str()))
+            .map(gone),
+    );
+    out.extend(
+        allow
+            .crates
+            .iter()
+            .filter(|(k, _)| !crates.iter().any(|c| c.0 == **k))
+            .map(gone),
+    );
     out.sort();
     out
 }
@@ -201,11 +144,7 @@ pub fn check_not_raised(base: &Allow, now: &Allow) -> Vec<Violation> {
         for (k, &n) in now_map {
             let old = base_map.get(k).copied();
             if old.is_none_or(|o| n > o) {
-                out.push(Violation::EntryRaised {
-                    what: k.clone(),
-                    old,
-                    new: n,
-                });
+                out.push(Violation::Raised(k.clone(), old, n));
             }
         }
     }
@@ -213,51 +152,48 @@ pub fn check_not_raised(base: &Allow, now: &Allow) -> Vec<Violation> {
     out
 }
 
-/// Source extensions that count towards the ceilings.
-pub const EXTENSIONS: &[&str] = &["rs", "ts", "tsx", "js", "css"];
-
-/// Path of the allow-list, relative to the workspace root.
-pub const ALLOW_FILE: &str = "xtask/size-allow.toml";
-
 /// Measure every package's source files.
-pub fn measure(root: &std::path::Path, packages: &[crate::rules::Package]) -> Vec<Sized> {
+pub fn measure(root: &Path, packages: &[Package]) -> Vec<Sized> {
+    let count = |path: String| {
+        let lines = scan::read(root, &path).lines().count();
+        (path, lines)
+    };
+    let files = |p: &Package| {
+        scan::files(root, &p.dir, EXTENSIONS)
+            .into_iter()
+            .map(count)
+            .collect()
+    };
     packages
         .iter()
-        .map(|p| Sized {
-            name: p.name.clone(),
-            files: crate::scan::files(root, &p.dir, EXTENSIONS)
-                .into_iter()
-                .map(|path| {
-                    let lines = crate::scan::read(root, &path).lines().count();
-                    Source { path, lines }
-                })
-                .collect(),
-        })
+        .map(|p| (p.name.clone(), files(p)))
         .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use Violation::*;
 
     fn krate(name: &str, files: &[(&str, usize)]) -> Sized {
-        Sized {
-            name: name.into(),
-            files: files
-                .iter()
-                .map(|(p, l)| Source {
-                    path: (*p).into(),
-                    lines: *l,
-                })
-                .collect(),
-        }
+        (
+            name.into(),
+            files.iter().map(|(p, l)| ((*p).into(), *l)).collect(),
+        )
     }
 
     fn allow(files: &[(&str, usize)], crates: &[(&str, usize)]) -> Allow {
+        let map = |m: &[(&str, usize)]| m.iter().map(|(k, v)| ((*k).into(), *v)).collect();
         Allow {
-            files: files.iter().map(|(k, v)| ((*k).into(), *v)).collect(),
-            crates: crates.iter().map(|(k, v)| ((*k).into(), *v)).collect(),
+            files: map(files),
+            crates: map(crates),
         }
+    }
+
+    /// A crate of five 410-line files: 2,050 lines, over the crate ceiling only.
+    fn big() -> Sized {
+        let files: Vec<(String, usize)> = (0..5).map(|i| (format!("a/{i}.rs"), 410)).collect();
+        ("a".into(), files)
     }
 
     #[test]
@@ -271,26 +207,15 @@ mod tests {
         let c = krate("a", &[("a/x.rs", 501)]);
         assert_eq!(
             check(&[c], &Allow::default()),
-            vec![Violation::OverLimit {
-                what: "a/x.rs".into(),
-                lines: 501,
-                limit: 500
-            }]
+            vec![OverLimit("a/x.rs".into(), 501, 500)]
         );
     }
 
     #[test]
     fn crate_over_2000_without_entry_fails() {
-        let files: Vec<(String, usize)> = (0..5).map(|i| (format!("a/{i}.rs"), 410)).collect();
-        let refs: Vec<(&str, usize)> = files.iter().map(|(p, l)| (p.as_str(), *l)).collect();
-        let v = check(&[krate("a", &refs)], &Allow::default());
         assert_eq!(
-            v,
-            vec![Violation::OverLimit {
-                what: "a".into(),
-                lines: 2050,
-                limit: 2000
-            }]
+            check(&[big()], &Allow::default()),
+            vec![OverLimit("a".into(), 2050, 2000)]
         );
     }
 
@@ -305,25 +230,15 @@ mod tests {
         let c = krate("a", &[("a/x.rs", 610)]);
         assert_eq!(
             check(&[c], &allow(&[("a/x.rs", 600)], &[])),
-            vec![Violation::Grew {
-                what: "a/x.rs".into(),
-                lines: 610,
-                allowed: 600
-            }]
+            vec![Grew("a/x.rs".into(), 610, 600)]
         );
     }
 
     #[test]
     fn an_entry_above_the_current_size_fails_so_it_must_be_lowered() {
         let c = krate("a", &[("a/x.rs", 550)]);
-        assert_eq!(
-            check(&[c], &allow(&[("a/x.rs", 600)], &[])),
-            vec![Violation::EntryNotLowered {
-                what: "a/x.rs".into(),
-                lines: 550,
-                allowed: 600
-            }]
-        );
+        let v = check(&[c], &allow(&[("a/x.rs", 600)], &[]));
+        assert_eq!(v, vec![NotLowered("a/x.rs".into(), 550, 600)]);
     }
 
     #[test]
@@ -334,46 +249,28 @@ mod tests {
             &allow(&[("a/x.rs", 600), ("a/gone.rs", 700)], &[("a", 3000)]),
         );
         assert_eq!(v.len(), 3);
-        assert!(v.iter().all(|v| matches!(v, Violation::StaleEntry { .. })));
+        assert!(v.iter().all(|v| matches!(v, Stale(..))));
     }
 
     #[test]
     fn crate_entries_follow_the_same_rules() {
-        let files: Vec<(String, usize)> = (0..5).map(|i| (format!("a/{i}.rs"), 410)).collect();
-        let refs: Vec<(&str, usize)> = files.iter().map(|(p, l)| (p.as_str(), *l)).collect();
-        let c = krate("a", &refs);
-        assert_eq!(
-            check(std::slice::from_ref(&c), &allow(&[], &[("a", 2050)])),
-            vec![]
-        );
-        assert_eq!(check(&[c], &allow(&[], &[("a", 2100)])).len(), 1);
+        assert_eq!(check(&[big()], &allow(&[], &[("a", 2050)])), vec![]);
+        assert_eq!(check(&[big()], &allow(&[], &[("a", 2100)])).len(), 1);
     }
 
     #[test]
     fn raising_an_entry_against_the_base_list_fails() {
-        let base = allow(&[("a/x.rs", 600)], &[]);
-        let raised = allow(&[("a/x.rs", 650)], &[]);
-        assert_eq!(
-            check_not_raised(&base, &raised),
-            vec![Violation::EntryRaised {
-                what: "a/x.rs".into(),
-                old: Some(600),
-                new: 650
-            }]
+        let v = check_not_raised(
+            &allow(&[("a/x.rs", 600)], &[]),
+            &allow(&[("a/x.rs", 650)], &[]),
         );
+        assert_eq!(v, vec![Raised("a/x.rs".into(), Some(600), 650)]);
     }
 
     #[test]
     fn adding_an_entry_against_the_base_list_fails() {
         let v = check_not_raised(&Allow::default(), &allow(&[("a/new.rs", 501)], &[]));
-        assert_eq!(
-            v,
-            vec![Violation::EntryRaised {
-                what: "a/new.rs".into(),
-                old: None,
-                new: 501
-            }]
-        );
+        assert_eq!(v, vec![Raised("a/new.rs".into(), None, 501)]);
     }
 
     #[test]
