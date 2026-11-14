@@ -130,7 +130,7 @@ impl Gate {
         let admitted = ops
             .into_iter()
             .map(|op| Admission {
-                permit: Permit::new(&who.actor, &who.workspace, &op.key),
+                permit: Permit::new(&who.actor, &who.workspace, &op.key, op.tier()),
                 op,
             })
             .collect();
