@@ -1,0 +1,20 @@
+[package]
+name = "meldframe-check"
+description = "Limits and validation of node values and commands."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dependencies]
+meldframe-order = { path = "../meldframe-order" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+
+[dev-dependencies]
+serde_json = "1"
+
+[lints]
+workspace = true
