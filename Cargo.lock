@@ -137,6 +137,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-sync-props"
+version = "0.0.0"
+dependencies = [
+ "meldframe-core",
+ "meldframe-order",
+ "meldframe-protocol",
+ "meldframe-sync",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-ui"
 version = "0.0.0"
 

@@ -1,0 +1,20 @@
+[package]
+name = "meldframe-sync-props"
+description = "Property tests for meldframe-sync: random runs of several replicas against an in-memory server. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-core = { path = "../meldframe-core" }
+meldframe-order = { path = "../meldframe-order" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-sync = { path = "../meldframe-sync" }
+serde_json = "1"
+
+[lints]
+workspace = true

@@ -28,3 +28,24 @@ todo = "warn"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# The property tests in meldframe-sync-props run hundreds of seeds, each many times through the core
+# and serde_json. Optimise those crates in dev and test builds so a default run stays short.
+[profile.dev.package.meldframe-sync-props]
+opt-level = 2
+[profile.dev.package.meldframe-sync]
+opt-level = 2
+[profile.dev.package.meldframe-history]
+opt-level = 2
+[profile.dev.package.meldframe-core]
+opt-level = 2
+[profile.dev.package.meldframe-check]
+opt-level = 2
+[profile.dev.package.meldframe-order]
+opt-level = 2
+[profile.dev.package.meldframe-protocol]
+opt-level = 2
+[profile.dev.package.serde_json]
+opt-level = 2
+[profile.dev.package.serde]
+opt-level = 2
