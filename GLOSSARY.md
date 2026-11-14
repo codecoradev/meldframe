@@ -140,6 +140,10 @@ _Avoid_: Middleware, guard
 How much a call can change user data: Read, Change or Delete. Policy is set per tier and may be overridden per agent.
 _Avoid_: Permission level, scope
 
+**Policy**:
+What the gate does with a call of a given risk tier: Auto (let it through), Ask (the owner must confirm) or Deny (refuse). The defaults are Read Auto, Change Auto and Delete Ask.
+_Avoid_: Permission, rule
+
 **Durable event**:
 A live message that is an accepted change, numbered and replayable after a reconnect.
 _Avoid_: Persistent message

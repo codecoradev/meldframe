@@ -21,12 +21,17 @@ fn unreadable_policy_means_reads_only() {
 }
 
 #[test]
-fn read_is_never_denied_or_asked_by_any_default() {
+fn the_fallback_is_never_more_permissive_than_the_default() {
+    let rank = |p: Policy| match p {
+        Policy::Auto => 0,
+        Policy::Ask => 1,
+        Policy::Deny => 2,
+    };
     for tier in RiskTier::ALL {
-        if tier == RiskTier::Read {
-            assert_eq!(default_policy(tier), Policy::Auto);
-            assert_eq!(fallback_policy(tier), Policy::Auto);
-        }
+        assert!(
+            rank(fallback_policy(tier)) >= rank(default_policy(tier)),
+            "{tier:?}"
+        );
     }
 }
 
