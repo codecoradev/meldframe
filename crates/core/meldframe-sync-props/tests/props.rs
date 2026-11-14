@@ -3,13 +3,19 @@
 //! server and of events to the replicas, and refused ops. Not modelled yet: a lost or reordered event on
 //! the way to a replica, which needs the resync entry point (issue 90).
 //!
-//! Checked on every seed (I1, convergence): when the queues are empty every replica equals the server,
-//! nothing is pending, the view is `base + pending` after every event, and sibling order is valid and
-//! equal everywhere. The server enforces the dependency rule: an op is accepted only if every
-//! dependency was applied.
+//! Checked on every seed:
+//! - I1 convergence: when the queues are empty every replica equals the server, nothing is pending, the
+//!   view is `base + pending` after every event, and sibling order is valid and equal everywhere.
+//! - I3 and I5: undo, and redo, of a step that nobody else touched give the tree back exactly.
+//! - I4: an undo or redo never overwrites a field another actor wrote and the author had seen.
+//! - I7: an undo or redo the server refuses leaves history and view as they were; an undo and redo on
+//!   a quiet replica are accepted.
+//! - I8: a value an undo or redo writes was once the field's value (an inverse worked out from a
+//!   refused premise would write a value that never was).
+//! - The server enforces the dependency rule: an op is accepted only if every dependency was applied.
 //!
 //! Seeds per run: 600 by default (the per-run floor of the epic); set `MELDFRAME_SEEDS` for more (the
-//! nightly run). `MELDFRAME_SEED=n` replays one seed.
+//! nightly run). `MELDFRAME_SEED=n` replays one seed. The mutation check is in `tools/mutation-check-sync.sh`.
 
 mod sim;
 
@@ -27,7 +33,7 @@ fn seeds() -> std::ops::Range<u64> {
 }
 
 #[test]
-fn replicas_converge_to_the_server() {
+fn replicas_converge_and_undo_stays_per_actor() {
     let mut st = Stats::default();
     let range = seeds();
     let full = range.end - range.start >= 600;
@@ -35,12 +41,41 @@ fn replicas_converge_to_the_server() {
         let n = 3 + (seed % 3) as usize;
         run_seed(seed, n, 300, seed % 2 == 0, &mut st);
     }
-    println!("replicas_converge_to_the_server: {st:?}");
+    println!("replicas_converge_and_undo_stays_per_actor: {st:?}");
     if full {
         // The run must not be idle.
         assert!(st.rejects > 0 && st.dep_rejects > 0, "{st:?}");
         assert!(st.dropped_on_rebase > 0 && st.resent > 0, "{st:?}");
         // A server event delivered again must reach the replica and be ignored.
         assert!(st.duplicated > 0 && st.duplicates_ignored > 0, "{st:?}");
+        // The undo and redo checks must not be idle either.
+        assert!(
+            st.undos > 1000 && st.redos > 300,
+            "too little undo and redo: {st:?}"
+        );
+        assert!(st.exact_checks > 200, "{st:?}");
+        assert!(st.i4_checked > 200, "{st:?}");
+        assert!(st.i8_checked > 500, "{st:?}");
+        assert!(st.sim_reject_checks > 500, "{st:?}");
+        // A quiet replica that undoes and redoes with the server answering gets its tree back; the
+        // counters are asserted, so the drill cannot pass by skipping every case.
+        assert!(
+            st.quiet_pairs > 1000,
+            "too few quiet undo/redo pairs: {st:?}"
+        );
+        assert_eq!(
+            st.quiet_pair_diffs, 0,
+            "undo then redo changed the tree: {st:?}"
+        );
     }
+}
+
+#[test]
+fn a_single_writer_gets_every_step_back_exactly() {
+    let mut st = Stats::default();
+    for seed in 1000..1200u64 {
+        run_seed(seed, 1, 400, false, &mut st);
+    }
+    println!("a_single_writer_gets_every_step_back_exactly: {st:?}");
+    assert!(st.exact_checks > 500, "{st:?}");
 }

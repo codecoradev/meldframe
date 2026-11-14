@@ -30,14 +30,24 @@ pub enum Msg {
 #[derive(Default, Debug)]
 pub struct Stats {
     pub seeds: u64,
+    pub undos: u64,
+    pub redos: u64,
     pub dropped_on_rebase: u64,
     pub resent: u64,
+    pub exact_checks: u64,
+    pub sim_reject_checks: u64,
+    pub quiet_pairs: u64,
+    pub quiet_pair_diffs: u64,
     pub rejects: u64,
     pub dep_rejects: u64,
     /// Events delivered to a replica a second time.
     pub duplicated: u64,
     /// Of those, the ones the replica ignored as a duplicate.
     pub duplicates_ignored: u64,
+    pub ur_accepted: u64,
+    pub i4_checked: u64,
+    pub i4_concurrent: u64,
+    pub i8_checked: u64,
 }
 
 /// The tree in a canonical form (list order has no meaning), `pos` included.
@@ -66,12 +76,28 @@ fn check_pos(n: &[Node], what: &str, seed: u64) {
     }
 }
 
+/// For I3 and I5: the tree before each step that nobody else touched, so an undo or redo of it must
+/// give that tree back exactly.
+#[derive(Default)]
+struct Mirror {
+    clean_undo: Vec<String>,
+    clean_redo: Vec<String>,
+}
+
+impl Mirror {
+    fn clear(&mut self) {
+        self.clean_undo.clear();
+        self.clean_redo.clear();
+    }
+}
+
 pub struct Net {
     pub server: Server,
     pub reps: Vec<Replica>,
     names: Vec<String>,
     up: Vec<VecDeque<Outgoing>>,
     down: Vec<VecDeque<Msg>>,
+    mirrors: Vec<Mirror>,
     pub stats: Stats,
     seed: u64,
     next_id: Vec<u32>,
@@ -93,6 +119,7 @@ impl Net {
             names,
             up: (0..n).map(|_| VecDeque::new()).collect(),
             down: (0..n).map(|_| VecDeque::new()).collect(),
+            mirrors: (0..n).map(|_| Mirror::default()).collect(),
             stats: Stats::default(),
             seed,
             next_id: vec![0; n],
@@ -145,7 +172,9 @@ impl Net {
         };
         match m {
             Msg::Reject { key } => {
-                self.reps[i].on_reject(&key);
+                if self.reps[i].on_reject(&key) {
+                    self.mirrors[i].clear();
+                }
             }
             Msg::Event { seq, actor, cmd } => {
                 let res = self.reps[i]
@@ -154,7 +183,8 @@ impl Net {
                 self.trace[i].push(format!("EV seq{seq} {actor} -> {res:?}"));
                 match res {
                     EventOutcome::Rebased { dropped } => {
-                        self.stats.dropped_on_rebase += dropped as u64
+                        self.stats.dropped_on_rebase += dropped as u64;
+                        self.mirrors[i].clear();
                     }
                     EventOutcome::Duplicate => self.stats.duplicates_ignored += 1,
                     _ => {}
@@ -180,26 +210,74 @@ impl Net {
 
     /// Replica `i` edits (one command or one gesture), undoes or redoes.
     pub fn act(&mut self, i: usize, r: &mut Rng) {
+        let before = snap(self.reps[i].nodes());
         match r.below(20) {
             0..=10 => {
                 let grouped = r.below(4) == 0;
                 if grouped {
                     self.reps[i].begin_group();
                 }
+                let mut ok = 0;
                 for _ in 0..(if grouped { 2 + r.below(3) } else { 1 }) {
                     let nodes = self.reps[i].nodes().to_vec();
                     let c = rand_edit(&nodes, i, &mut self.next_id[i], r);
-                    let _ = self.reps[i].apply(&c);
+                    ok += usize::from(self.reps[i].apply(&c).is_ok());
                 }
                 if grouped {
                     self.reps[i].end_group();
                 }
+                if ok > 0 {
+                    let m = &mut self.mirrors[i];
+                    m.clean_undo.push(before);
+                    m.clean_redo.clear();
+                }
             }
             11..=15 => {
-                self.reps[i].undo().unwrap();
+                let clean = self.mirrors[i].clean_undo.pop();
+                let did = self.reps[i].undo().unwrap();
+                self.trace[i].push(format!("UNDO did={did}"));
+                if did {
+                    self.stats.undos += 1;
+                    match clean {
+                        Some(s) => {
+                            self.stats.exact_checks += 1;
+                            if snap(self.reps[i].nodes()) != s {
+                                self.fail(
+                                    i,
+                                    "I3: an undo of an untouched step did not restore the tree",
+                                );
+                            }
+                            self.mirrors[i].clean_redo.push(before);
+                        }
+                        None => self.mirrors[i].clear(),
+                    }
+                } else if clean.is_some() {
+                    self.fail(i, "undo failed although a clean step exists");
+                }
             }
             _ => {
-                self.reps[i].redo().unwrap();
+                let redo_before = self.reps[i].redo_depth();
+                let did = self.reps[i].redo().unwrap();
+                self.trace[i].push(format!("REDO did={did}"));
+                if did {
+                    self.stats.redos += 1;
+                    let m = &mut self.mirrors[i];
+                    if redo_before - self.reps[i].redo_depth() != 1 {
+                        m.clear();
+                    }
+                    if let Some(s) = self.mirrors[i].clean_redo.pop() {
+                        self.stats.exact_checks += 1;
+                        if snap(self.reps[i].nodes()) != s {
+                            self.fail(
+                                i,
+                                "I5: a redo of an untouched step did not give the tree back",
+                            );
+                        }
+                    }
+                    self.mirrors[i].clean_undo.clear();
+                } else {
+                    self.mirrors[i].clear();
+                }
             }
         }
         self.flush(i);
@@ -234,6 +312,10 @@ impl Net {
             self.stats.resent += 1;
         }
     }
+
+    pub fn flush_all(&mut self, i: usize) {
+        self.flush(i);
+    }
 }
 
 /// I1: every replica equals the server, nothing is pending, sibling order is valid and equal.
@@ -266,6 +348,91 @@ fn check_converged(net: &Net, when: &str) {
     }
 }
 
+/// I7 (simulated): on a quiet replica an undo or redo that the server refuses leaves the history and
+/// the view exactly as they were.
+fn drill_refused_step(net: &mut Net, stats: &mut Stats) {
+    for i in 0..net.reps.len() {
+        for undoing in [true, false] {
+            let r = &mut net.reps[i];
+            if !(if undoing { r.can_undo() } else { r.can_redo() }) {
+                continue;
+            }
+            let (d0, s0) = ((r.undo_depth(), r.redo_depth()), snap(r.nodes()));
+            let did = if undoing {
+                r.undo().unwrap()
+            } else {
+                r.redo().unwrap()
+            };
+            if !did {
+                continue;
+            }
+            let ops = r.take_outbox();
+            let d1 = (r.undo_depth(), r.redo_depth());
+            let moved_one = if undoing {
+                d1 == (d0.0 - 1, d0.1 + 1)
+            } else {
+                d1 == (d0.0 + 1, d0.1 - 1)
+            };
+            assert!(
+                r.on_reject(&ops[0].key),
+                "seed {}: the first op of a step is pending",
+                net.seed
+            );
+            assert_eq!(
+                r.pending_len(),
+                0,
+                "seed {}: a refused step falls whole",
+                net.seed
+            );
+            r.check_consistency().unwrap();
+            if moved_one {
+                stats.sim_reject_checks += 1;
+                let d2 = (r.undo_depth(), r.redo_depth());
+                assert!(
+                    d2 == d0 && snap(r.nodes()) == s0,
+                    "seed {}: replica {i}: a refused {} changed history {d2:?} vs {d0:?} or the view",
+                    net.seed,
+                    if undoing { "undo" } else { "redo" }
+                );
+            }
+        }
+    }
+}
+
+/// Undo then redo on a quiet replica with the server answering: both are accepted and the pair
+/// gives the tree back (no one else writes).
+fn drill_quiet_pair(net: &mut Net) {
+    for i in 0..net.reps.len() {
+        for _ in 0..3 {
+            if !net.reps[i].can_undo() {
+                break;
+            }
+            let s0 = snap(net.reps[i].nodes());
+            let rejects = net.server.counts.rejects;
+            if !net.reps[i].undo().unwrap() {
+                break;
+            }
+            net.flush_all(i);
+            net.quiesce();
+            if net.server.counts.rejects != rejects || !net.reps[i].can_redo() {
+                continue;
+            }
+            let rejects = net.server.counts.rejects;
+            assert!(
+                net.reps[i].redo().unwrap(),
+                "seed {}: can_redo but redo failed",
+                net.seed
+            );
+            net.flush_all(i);
+            net.quiesce();
+            if net.server.counts.rejects == rejects {
+                net.stats.quiet_pairs += 1;
+                net.stats.quiet_pair_diffs += u64::from(snap(net.reps[i].nodes()) != s0);
+            }
+        }
+    }
+}
+
 /// One run: random steps, then the checks.
 pub fn run_seed(seed: u64, n: usize, steps: usize, quiet_windows: bool, stats: &mut Stats) {
     let mut r = Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1);
@@ -289,13 +456,25 @@ pub fn run_seed(seed: u64, n: usize, steps: usize, quiet_windows: bool, stats: &
     }
     net.quiesce();
     check_converged(&net, "after the run");
+    drill_refused_step(&mut net, stats);
+    drill_quiet_pair(&mut net);
+    check_converged(&net, "after the drills");
     let c = &net.server.counts;
     let s = &net.stats;
     stats.seeds += 1;
+    stats.undos += s.undos;
+    stats.redos += s.redos;
     stats.dropped_on_rebase += s.dropped_on_rebase;
     stats.resent += s.resent;
     stats.duplicated += s.duplicated;
     stats.duplicates_ignored += s.duplicates_ignored;
+    stats.exact_checks += s.exact_checks;
+    stats.quiet_pairs += s.quiet_pairs;
+    stats.quiet_pair_diffs += s.quiet_pair_diffs;
     stats.rejects += c.rejects;
     stats.dep_rejects += c.dep_rejects;
+    stats.ur_accepted += c.ur_accepted;
+    stats.i4_checked += c.i4_checked;
+    stats.i4_concurrent += c.i4_concurrent;
+    stats.i8_checked += c.i8_checked;
 }
