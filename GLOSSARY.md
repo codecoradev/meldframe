@@ -14,6 +14,10 @@ _Avoid_: Team, organization, account
 One design document inside a workspace. It is the unit that is opened, shared with an agent, exported and edited live.
 _Avoid_: Project, document, board
 
+**FileState**:
+The in-memory tree of one **File** that commands are applied to. It is the planned code name (in `meldframe-history`) for what a File holds while it is open; it is not a second kind of file.
+_Avoid_: Document, model
+
 **Page**:
 A named canvas inside a file that holds frames.
 _Avoid_: Sheet, screen

@@ -16,7 +16,7 @@ Meldframe is a closed-source design canvas for people and AI agents. The reposit
 3. Commit with [Conventional Commits](https://www.conventionalcommits.org/) (`feat(core): ...`) and sign off every commit: `git commit -s`.
 4. Rebase onto `develop` (no merge commits) and push with `--force-with-lease`.
 5. Open a pull request into `develop` with the template. It needs four sections, each with text: **What**, **Why**, **Changes**, **Testing**. Link the issue (`Refs #n`).
-6. Keep a pull request small: one logical change, one kind of content (workflow, shell scripts, Rust code, documentation), about 400 changed lines and 10 files at most. Split anything larger. Small pull requests get a quick, real Cora verdict; large mixed ones can end without one.
+6. Keep a pull request small: one logical change, one kind of content (workflow, shell scripts, Rust code, documentation), about 400 changed lines and 10 files at most. Split anything larger. Small pull requests are quick to review; large mixed ones are slow to review and can exhaust the CI Cora time budget.
 7. A pull request is squash-merged with a clean message, and only after the owner approves.
 
 ## Message Standard
@@ -47,7 +47,9 @@ cargo xtask licences --check  # dependency and model licences
 
 These commands arrive with the workspace and the `xtask` crate (T0.1 to T0.3). Until then the matching CI jobs are listed in `.gitea/ci-pending.txt`: they report success without running, and the pull request that adds a command removes its line so the job starts to count. The CI check scripts live in `scripts/ci/`; `sh scripts/ci/selftest.sh` runs their good and bad examples.
 
-Every pull request also gets a Cora review (`.cora.yaml`). A pull request merges with no major or critical finding left.
+Before you open a pull request, run Cora as an agent reviewer on the whole diff (`git diff origin/develop...HEAD`): `cora mcp` gives `cora.review_prepare`, an independent reviewer judges the prepared prompt and opens the real files, then `cora.review_finalize` with `min_severity=major` gives the verdict. Fix every major or critical finding and review again. Write the verdict in the Testing section when you open the pull request: editing the description afterwards cancels and restarts the CI runs.
+
+The CI Cora review (`.cora.yaml`) still runs on every pull request but is not a required check, because it can exceed its time budget on the shared runner. A pull request merges with the fast CI checks green, the local agent review clean and no major or critical finding left.
 
 ## Reporting problems
 

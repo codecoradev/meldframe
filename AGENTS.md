@@ -20,6 +20,7 @@ Full contributor rules: `CONTRIBUTING.md`.
 - Sign off commits (`git commit -s`). Write repository artifacts in English.
 - Test first for behaviour changes: a failing test at the agreed seam, then the minimal change.
 - Put no AI attribution in commits, pull requests, docs or comments.
+- Before opening a pull request, run Cora as an agent reviewer on the full diff and put the verdict in the description (`CONTRIBUTING.md`). The CI Cora review is not a required check. Do not edit a description after opening: it restarts CI.
 - Merge only after the owner approves.
 
 ## Layers
@@ -44,7 +45,7 @@ Gitea Actions in `.gitea/workflows/`: `ci.yml` (the fast set in two jobs, `check
 
 ## Rules that are easy to break
 
-- Keep pull requests small: about 400 changed lines and 10 files, one kind of content. A large or mixed pull request can end its Cora review without a verdict; split it by kind (workflow, scripts, code, docs).
+- Keep pull requests small: about 400 changed lines and 10 files, one kind of content. A large or mixed pull request is slow to review and can exhaust the CI Cora time budget; split it by kind (workflow, scripts, code, docs).
 - Nothing public is created (accounts, domains, packages, registries) without an owner order.
 - Do not carry PPTX, Flutter or Dart.
 - Do not start new spikes; build the first vertical slice in this repository with exit criteria written first.

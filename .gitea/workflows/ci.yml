@@ -18,8 +18,8 @@
 # removes its line from that file; from then on the gate runs for real. A gate that is not listed
 # is never skipped.
 #
-# Required contexts (branch protection): `ci / checks (pull_request)`, `ci / migrations (pull_request)`,
-# plus the contexts of pr-checks.yml and cora-review.yml.
+# Contexts to require in branch protection: `ci / checks (pull_request)`, `ci / migrations (pull_request)`
+# and the context of pr-checks.yml. The Cora review is not required.
 name: ci
 
 on:

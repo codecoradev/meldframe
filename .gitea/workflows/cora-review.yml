@@ -1,6 +1,7 @@
 # Cora Review on every pull request (CodeCora workflow standard, merge gate). Configuration: .cora.yaml.
 #
-# Required context (branch protection, set by the owner): `cora-review / Cora Review (pull_request)`.
+# Not a required check: it can exceed its time budget on the shared runner (owner decision, 14 Nov 2026).
+# Pull requests are also reviewed locally with Cora as an agent reviewer (CONTRIBUTING.md).
 #
 # The verdict is the pull request COMMENT (marker `<!-- cora-review -->`, updated in place), not
 # this check: a green check next to "Review could not complete" is a merge blocker. The job fails

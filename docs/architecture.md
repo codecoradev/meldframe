@@ -72,7 +72,12 @@ apps/
 crates/
   core/
     meldframe-protocol    wire and model types (TypeScript generated from Rust)
-    meldframe-core        document, Command, history, concurrency rules, layout, resolve (render model)
+    meldframe-order       fractional index and sibling order helpers
+    meldframe-check       limits, ApplyError and every check on a value or a command (structure, decoration, image)
+    meldframe-layout      text measurer seam, Rect and layout
+    meldframe-core        applying a command to the file tree (`apply_command`, `plan_command`, `apply_planned`); re-exports the check API; the render model comes later
+    meldframe-history     (planned) undo and redo over the file tree (`FileState`)
+    meldframe-sync        (planned) replica and convergence rules
     meldframe-module      Module trait, registry, risk tiers
     meldframe-host        rooms, jobs, store, admission gate, activity log
   engines/                text measurer, rasteriser (traits and adapters)
@@ -87,6 +92,8 @@ xtask/                    deps-check, build-matrix, portable-check, size-check, 
 ```
 
 Allowed dependencies: core to core; engine and integration to core and engine; feature to core, engine, integration and (only if marked composite) other features; app to core, engine, integration and feature; ui to core, app and ui. UI toolkits are allowed only in ui, feature-ui and bin crates. Core, engine, integration, feature and app crates must compile for `wasm32`. A product build with each feature alone, and with none, must pass its tests.
+
+The document model was one crate in the first plan. It is now several small core crates (ADR-0011) so that each stays under the 2,000-line ceiling with its tests. The in-memory tree of one File will be named `FileState` (see GLOSSARY), because the glossary keeps "document" out of the vocabulary for a File.
 
 Not detachable (inner): the document model, the `Command` interface and the render model. Split concepts: variable bindings are in core; import, export and the panel are the `variables` feature. Server internals (admission, room, sessions) stay modules inside the server crates until a second binary needs them.
 
