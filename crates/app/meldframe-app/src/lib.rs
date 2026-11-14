@@ -8,11 +8,13 @@
 //! change to the file, and the app layer only wraps one in [`Action::Submit`].
 
 mod action;
+mod app;
 mod effect;
 mod event;
 mod state;
 
 pub use action::{Action, Outcome};
+pub use app::App;
 pub use effect::Effect;
 pub use event::Event;
 pub use state::{AppState, Connection, History, Panel, Panels, Tool};
