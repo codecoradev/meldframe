@@ -27,10 +27,11 @@ fn single_line_width_is_chars_times_half_font_size_rounded_up() {
 
 #[test]
 fn empty_text_measures_as_one_space() {
-    // One space at 10 px: width 5, height 12.
+    // One space at 10 px on one line: width 5, height 12.
     let n = text_node("", 10.0);
     assert_eq!(StubMeasurer.measure(&n, None), (5.0, 12.0));
-    assert_eq!(StubMeasurer.measure(&n, Some(100.0)), (5.0, 12.0));
+    // Wrapped, the space is a break, so the line is empty: width 0, still one line high.
+    assert_eq!(StubMeasurer.measure(&n, Some(100.0)), (0.0, 12.0));
 }
 
 #[test]
@@ -65,7 +66,12 @@ fn explicit_newlines_are_not_line_breaks_in_the_stub() {
 
 #[test]
 fn rect_round_trips_through_json() {
-    let r = Rect { x: 1.5, y: -2.0, w: 30.0, h: 4.25 };
+    let r = Rect {
+        x: 1.5,
+        y: -2.0,
+        w: 30.0,
+        h: 4.25,
+    };
     let json = serde_json::to_string(&r).unwrap();
     assert_eq!(json, r#"{"x":1.5,"y":-2.0,"w":30.0,"h":4.25}"#);
     assert_eq!(serde_json::from_str::<Rect>(&json).unwrap(), r);
