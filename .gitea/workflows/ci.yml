@@ -1,5 +1,10 @@
 # CI for pull requests (docs/epics.md E0.2, docs/standards/modular-thin-ui.md section 5).
 #
+# This is the FAST set that every pull request must pass: scripts self-test, format, lint, tests,
+# deps-check, the protocol drift check and the migrations check. The heavier gates (build-matrix,
+# portable-check, size-check, ui-literals, licences) run on every push to `develop` and nightly in
+# .gitea/workflows/nightly.yml, and locally with `just check` before a pull request is opened.
+#
 # Runs on pull requests only: a branch is checked once, through its pull request, and a newer push
 # to the same pull request cancels the run in progress. `develop` receives changes only through a
 # pull request that already ran this workflow.
@@ -101,38 +106,6 @@ jobs:
       - if: steps.gate.outputs.pending != 'true'
         run: cargo xtask deps-check
 
-  build-matrix:
-    name: build-matrix
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - id: gate
-        run: sh scripts/ci/gate.sh build-matrix
-      - if: steps.gate.outputs.pending != 'true'
-        uses: dtolnay/rust-toolchain@stable
-      - if: steps.gate.outputs.pending != 'true'
-        uses: Swatinem/rust-cache@v2
-      - if: steps.gate.outputs.pending != 'true'
-        run: cargo xtask build-matrix
-
-  portable-check:
-    name: portable-check
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - id: gate
-        run: sh scripts/ci/gate.sh portable-check
-      - if: steps.gate.outputs.pending != 'true'
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-      - if: steps.gate.outputs.pending != 'true'
-        uses: Swatinem/rust-cache@v2
-      - if: steps.gate.outputs.pending != 'true'
-        run: cargo xtask portable-check
-
   # Generated TypeScript types must match the committed ones and type-check (tools/check-protocol.sh).
   protocol:
     name: protocol
@@ -176,47 +149,3 @@ jobs:
           fi
       - run: bash tools/check-migrations.sh
 
-  size-check:
-    name: size-check
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - id: gate
-        run: sh scripts/ci/gate.sh size-check
-      - if: steps.gate.outputs.pending != 'true'
-        uses: dtolnay/rust-toolchain@stable
-      - if: steps.gate.outputs.pending != 'true'
-        uses: Swatinem/rust-cache@v2
-      - if: steps.gate.outputs.pending != 'true'
-        run: cargo xtask size-check
-
-  ui-literals:
-    name: ui-literals
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - id: gate
-        run: sh scripts/ci/gate.sh ui-literals
-      - if: steps.gate.outputs.pending != 'true'
-        uses: dtolnay/rust-toolchain@stable
-      - if: steps.gate.outputs.pending != 'true'
-        uses: Swatinem/rust-cache@v2
-      - if: steps.gate.outputs.pending != 'true'
-        run: cargo xtask ui-literals
-
-  licences:
-    name: licences
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - id: gate
-        run: sh scripts/ci/gate.sh licences
-      - if: steps.gate.outputs.pending != 'true'
-        uses: dtolnay/rust-toolchain@stable
-      - if: steps.gate.outputs.pending != 'true'
-        uses: Swatinem/rust-cache@v2
-      - if: steps.gate.outputs.pending != 'true'
-        run: cargo xtask licences --check

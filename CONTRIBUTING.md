@@ -16,7 +16,7 @@ Meldframe is a closed-source design canvas for people and AI agents. The reposit
 3. Commit with [Conventional Commits](https://www.conventionalcommits.org/) (`feat(core): ...`) and sign off every commit: `git commit -s`.
 4. Rebase onto `develop` (no merge commits) and push with `--force-with-lease`.
 5. Open a pull request into `develop` with the template. It needs four sections, each with text: **What**, **Why**, **Changes**, **Testing**. Link the issue (`Refs #n`).
-6. Keep a pull request to one logical change, around 1,000 changed lines or fewer. Split anything larger.
+6. Keep a pull request small: one logical change, one kind of content (workflow, shell scripts, Rust code, documentation), about 400 changed lines and 10 files at most. Split anything larger. Small pull requests get a quick, real Cora verdict; large mixed ones can end without one.
 7. A pull request is squash-merged with a clean message, and only after the owner approves.
 
 ## Message Standard
@@ -31,7 +31,7 @@ git log origin/develop..HEAD --format=%B | sh scripts/ci/message-patterns.sh
 
 ## Checks
 
-CI runs these on every pull request, and you run them before pushing:
+Run all of these yourself before you open a pull request. Pull request CI runs only the fast set (format, lint, tests, `deps-check`, the protocol and migrations checks, and the pull request checks); the heavier ones (`build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences`) run on every push to `develop` and nightly, so a gap in local checking is caught within a day:
 
 ```sh
 cargo fmt --all --check

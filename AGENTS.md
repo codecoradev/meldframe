@@ -39,10 +39,11 @@ Every crate declares its kind (core, engine, integration, os, feature, app, ffi,
 
 ## CI
 
-Gitea Actions in `.gitea/workflows/`: `ci.yml` (format, lint with warnings as errors, tests, the six xtask checks), `pr-checks.yml` (branch prefix, Message Standard, description sections What, Why, Changes, Testing) and `cora-review.yml` (config in `.cora.yaml`). A gate whose command does not exist yet is listed in `.gitea/ci-pending.txt` and passes without running; remove its line in the pull request that adds the command. Check scripts live in `scripts/ci/` (`sh scripts/ci/selftest.sh`).
+Gitea Actions in `.gitea/workflows/`: `ci.yml` (the fast set: scripts self-test, format, lint with warnings as errors, tests, `deps-check`, the protocol and migrations checks; every pull request must pass it), `nightly.yml` (the heavier gates `build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences`, on every push to `develop` and nightly; run them yourself before a pull request), `pr-checks.yml` (branch prefix, Message Standard, description sections What, Why, Changes, Testing) and `cora-review.yml` (config in `.cora.yaml`). A gate whose command does not exist yet is listed in `.gitea/ci-pending.txt` and passes without running; remove its line in the pull request that adds the command. Check scripts live in `scripts/ci/` (`sh scripts/ci/selftest.sh`).
 
 ## Rules that are easy to break
 
+- Keep pull requests small: about 400 changed lines and 10 files, one kind of content. A large or mixed pull request can end its Cora review without a verdict; split it by kind (workflow, scripts, code, docs).
 - Nothing public is created (accounts, domains, packages, registries) without an owner order.
 - Do not carry PPTX, Flutter or Dart.
 - Do not start new spikes; build the first vertical slice in this repository with exit criteria written first.
