@@ -2,20 +2,9 @@
 
 mod common;
 
-use common::{add, base, snap, upd};
+use common::{add, base, order_under, snap, upd};
 use meldframe_history::FileState;
-use meldframe_order::sib_cmp;
-use meldframe_protocol::{Command, ImageFill, Node};
-
-fn order_under(s: &FileState, parent: &str) -> Vec<String> {
-    let mut v: Vec<&Node> = s
-        .nodes()
-        .iter()
-        .filter(|n| n.parent_id.as_deref() == Some(parent))
-        .collect();
-    v.sort_by(|a, b| sib_cmp(a, b));
-    v.into_iter().map(|n| n.id.clone()).collect()
-}
+use meldframe_protocol::{Command, ImageFill};
 
 fn with_three_children() -> FileState {
     let mut s = base();

@@ -7,6 +7,10 @@
 //!   (my steps belong to the old node), goes.
 //! - `AddNode` (the undo of a delete): a node whose parent the remote command deleted is attached to
 //!   the nearest ancestor that survives.
+//! - `Reparent` writes the parent and the `pos` together, so a remote `Reparent` or `Reorder` of the
+//!   same node beats my `Reorder`, and a remote `Reparent` beats my `Reparent`. A remote `Reorder` writes
+//!   only `pos`: my `Reparent` keeps its parent and loses its `pos`, but only when the remote `pos` was
+//!   written among the siblings of the same parent (`pos` has no meaning across parents).
 
 use crate::file_state::FileState;
 use crate::inverse::descendants;
@@ -21,6 +25,8 @@ struct RemoteCtx {
     removed: HashSet<String>,
     /// The parent of the deleted node: the nearest ancestor that survives.
     survivor: Option<String>,
+    /// For a remote `Reorder`: the node and the parent it was reordered in (where its `pos` was written).
+    reorder_space: Option<(String, Option<String>)>,
 }
 
 impl RemoteCtx {
@@ -35,10 +41,20 @@ impl RemoteCtx {
                     .iter()
                     .find(|n| n.id == *id)
                     .and_then(|n| n.parent_id.clone()),
+                reorder_space: None,
+            },
+            Command::Reorder { id, .. } => RemoteCtx {
+                removed: HashSet::new(),
+                survivor: None,
+                reorder_space: nodes
+                    .iter()
+                    .find(|n| n.id == *id)
+                    .map(|n| (n.id.clone(), n.parent_id.clone())),
             },
             _ => RemoteCtx {
                 removed: HashSet::new(),
                 survivor: None,
+                reorder_space: None,
             },
         }
     }
@@ -86,7 +102,39 @@ fn xform_list(list: &mut Vec<Command>, r: &Command, ctx: &RemoteCtx) {
                     list.push(Command::RemoveNode { id });
                 }
             }
-            other => list.push(other),
+            Command::Reparent { id, parent_id, pos } => match r {
+                Command::Reparent { id: rid, .. } if *rid == id => {}
+                Command::Reorder { id: rid, .. } if *rid == id => {
+                    let same_space = ctx
+                        .reorder_space
+                        .as_ref()
+                        .is_some_and(|(sid, space)| *sid == id && *space == parent_id);
+                    let pos = if same_space { None } else { pos };
+                    list.push(Command::Reparent { id, parent_id, pos });
+                }
+                Command::AddNode { node, .. } if node.id == id => {}
+                Command::RemoveNode { .. }
+                    if ctx.removed.contains(&id)
+                        || parent_id.as_ref().is_some_and(|p| ctx.removed.contains(p)) => {}
+                _ => list.push(Command::Reparent { id, parent_id, pos }),
+            },
+            Command::Reorder {
+                id,
+                before,
+                after,
+                pos,
+            } => match r {
+                Command::Reparent { id: rid, .. } | Command::Reorder { id: rid, .. }
+                    if *rid == id => {}
+                Command::AddNode { node, .. } if node.id == id => {}
+                Command::RemoveNode { .. } if ctx.removed.contains(&id) => {}
+                _ => list.push(Command::Reorder {
+                    id,
+                    before,
+                    after,
+                    pos,
+                }),
+            },
         }
     }
 }

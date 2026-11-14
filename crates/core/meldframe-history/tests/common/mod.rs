@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 use meldframe_history::FileState;
+use meldframe_order::sib_cmp;
 use meldframe_protocol::{Command, Node, NodePatch};
 
 pub fn node(id: &str, kind: &str, parent: Option<&str>) -> Node {
@@ -37,6 +38,17 @@ pub fn base() -> FileState {
         s.apply(&add(id, kind, parent)).unwrap();
     }
     s
+}
+
+/// Ids of the children of `parent` in sibling order.
+pub fn order_under(s: &FileState, parent: &str) -> Vec<String> {
+    let mut v: Vec<&Node> = s
+        .nodes()
+        .iter()
+        .filter(|n| n.parent_id.as_deref() == Some(parent))
+        .collect();
+    v.sort_by(|a, b| sib_cmp(a, b));
+    v.into_iter().map(|n| n.id.clone()).collect()
 }
 
 /// The tree in a canonical form: list order carries no meaning, so sort by id. `pos` is included, so
