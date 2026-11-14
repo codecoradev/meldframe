@@ -2,7 +2,7 @@
 //! Expected numbers are worked out by hand from the stub's rule: character width is half the
 //! font size, line height is the font size times 1.2 rounded up.
 
-use meldframe_core::{Rect, StubMeasurer, TextMeasurer};
+use meldframe_layout::{Rect, StubMeasurer, TextMeasurer};
 use meldframe_protocol::Node;
 
 fn text_node(text: &str, font_size: f64) -> Node {

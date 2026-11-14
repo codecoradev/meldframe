@@ -61,6 +61,15 @@ name = "meldframe-host"
 version = "0.0.0"
 
 [[package]]
+name = "meldframe-layout"
+version = "0.0.0"
+dependencies = [
+ "meldframe-protocol",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-module"
 version = "0.0.0"
 
