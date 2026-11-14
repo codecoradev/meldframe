@@ -32,7 +32,7 @@ jobs:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     # Review time grows with the diff; a short timeout cancels reviews with no verdict.
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout (full history, the review diffs against the base branch)
         uses: actions/checkout@v4
@@ -81,18 +81,37 @@ jobs:
             exit 1
           fi
 
+          # Up to 3 attempts, each capped at 9 minutes, with a short backoff. The review model
+          # sometimes returns empty output (finish_reason=length) or the gateway answers 504 or
+          # 429; a retry usually gets a real verdict. A run that fails every attempt is still a
+          # merge blocker.
           set +e
-          cora review --base "origin/$BASE_REF" --format pretty > /tmp/cora-review.md 2> /tmp/cora-review-stderr.log
-          EXIT_CODE=$?
+          for ATTEMPT in 1 2 3; do
+            timeout 540 cora review --base "origin/$BASE_REF" --format pretty > /tmp/cora-review.md 2> /tmp/cora-review-stderr.log
+            EXIT_CODE=$?
+            [ $EXIT_CODE -eq 0 ] && break
+            # Exit 2 with a report means blocking findings: that is a verdict, not a failure to
+            # review, and a retry would only repeat it.
+            [ $EXIT_CODE -eq 2 ] && [ -s /tmp/cora-review.md ] && break
+            echo "cora review attempt $ATTEMPT exited $EXIT_CODE: $(tail -1 /tmp/cora-review-stderr.log)"
+            case "$ATTEMPT" in 1) sleep 30 ;; 2) sleep 60 ;; esac
+          done
           set -e
           # Job log only: Actions masks secret values here.
-          [ $EXIT_CODE -eq 0 ] || tail -20 /tmp/cora-review-stderr.log
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "--- cora stderr (tail) ---"; tail -20 /tmp/cora-review-stderr.log
+            echo "--- cora stdout (head) ---"; head -60 /tmp/cora-review.md
+          fi
 
           COMMENT_FILE=/tmp/comment-body.md
           {
             echo "<!-- cora-review -->"
             if [ $EXIT_CODE -eq 0 ]; then
               echo "## Cora AI Code Review"
+              echo ""
+              cat /tmp/cora-review.md
+            elif [ $EXIT_CODE -eq 2 ] && [ -s /tmp/cora-review.md ]; then
+              echo "## Cora AI Code Review: blocking findings"
               echo ""
               cat /tmp/cora-review.md
             else
