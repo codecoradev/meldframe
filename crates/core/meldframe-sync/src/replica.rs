@@ -225,6 +225,22 @@ impl Replica {
         dropped
     }
 
+    /// The server refused op `key`: it leaves the pending queue and its history step is forgotten, and
+    /// the view is built again without its result. Returns `false` when the op is not pending (it was
+    /// dropped before, or confirmed).
+    pub fn on_reject(&mut self, key: &str) -> bool {
+        let Some(i) = self.pending.iter().position(|p| p.out.key == key) else {
+            return false;
+        };
+        let p = self.pending.remove(i).expect("position found");
+        if let Some(r) = p.rec {
+            self.view.forget_rec(r);
+        }
+        self.outbox.retain(|o| o.key != key);
+        self.rebuild();
+        true
+    }
+
     /// The internal invariant: the view equals `base` plus `pending`, and every pending op is valid.
     pub fn check_consistency(&self) -> Result<(), String> {
         let mut n = self.base.clone();
