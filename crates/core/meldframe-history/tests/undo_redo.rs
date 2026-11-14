@@ -138,3 +138,43 @@ fn undo_and_redo_each_bump_the_version() {
     assert_eq!(s.version(), 3);
     assert_eq!((s.undo_depth(), s.redo_depth()), (1, 0));
 }
+
+#[test]
+fn history_keeps_the_newest_five_hundred_steps() {
+    let mut s = FileState::new();
+    s.apply(&add("a", "rect", None)).unwrap();
+    for i in 0..500 {
+        s.apply(&upd("a", |p| p.x = Some(f64::from(i)))).unwrap();
+    }
+    assert_eq!(s.undo_depth(), 500);
+    let mut undone = 0;
+    while s.undo().is_some() {
+        undone += 1;
+    }
+    assert_eq!(undone, 500);
+    assert!(
+        s.node("a").is_some(),
+        "the oldest step (the add) was dropped"
+    );
+}
+
+#[test]
+fn undo_of_remove_works_when_a_child_is_listed_before_its_parent() {
+    // Reparent keeps the list position, so after moving `a` under the later `late` the list order is
+    // `a, late` while the tree order is `late, a`. The adds that undo the remove must go parent first.
+    let mut s = FileState::new();
+    s.apply(&add("a", "frame", None)).unwrap();
+    s.apply(&add("late", "frame", None)).unwrap();
+    s.apply(&Command::Reparent {
+        id: "a".into(),
+        parent_id: Some("late".into()),
+        pos: None,
+    })
+    .unwrap();
+    let start = snap(&s);
+    s.apply(&Command::RemoveNode { id: "late".into() }).unwrap();
+    assert!(s.nodes().is_empty());
+    let restored = s.undo().unwrap();
+    assert_eq!(restored.len(), 2);
+    assert_eq!(snap(&s), start);
+}

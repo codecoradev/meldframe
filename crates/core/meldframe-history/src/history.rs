@@ -18,6 +18,9 @@ pub(crate) struct Entry {
     pub(crate) recs: Vec<Rec>,
 }
 
+/// Steps kept on the undo stack; the oldest is dropped beyond this.
+const MAX_HISTORY: usize = 500;
+
 impl FileState {
     pub fn can_undo(&self) -> bool {
         !self.undo.is_empty()
@@ -42,7 +45,14 @@ impl FileState {
             do_: vec![cmd.clone()],
             undo_: inverse,
         };
-        self.undo.push(Entry { recs: vec![rec] });
+        self.push(Entry { recs: vec![rec] });
+    }
+
+    fn push(&mut self, e: Entry) {
+        self.undo.push(e);
+        if self.undo.len() > MAX_HISTORY {
+            self.undo.remove(0);
+        }
     }
 
     /// Run one step (undo when `undoing`). A command that no longer applies is skipped, because the tree

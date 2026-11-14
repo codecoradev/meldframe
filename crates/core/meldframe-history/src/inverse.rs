@@ -25,7 +25,7 @@ fn inverse_patch(old: &Node, p: &NodePatch) -> NodePatch {
     r
 }
 
-/// The node `id` and all its descendants.
+/// The node `id` and all its descendants, parents before children.
 fn subtree(nodes: &[Node], id: &str) -> Vec<Node> {
     let mut set: HashSet<&str> = HashSet::from([id]);
     let mut grew = true;
@@ -38,11 +38,36 @@ fn subtree(nodes: &[Node], id: &str) -> Vec<Node> {
             }
         }
     }
-    nodes
+    // The list order is not the tree order (a reparent keeps the list position), so place parents first.
+    let mut rest: Vec<&Node> = nodes
         .iter()
         .filter(|n| set.contains(n.id.as_str()))
-        .cloned()
-        .collect()
+        .collect();
+    let mut placed: HashSet<&str> = HashSet::new();
+    let mut ordered: Vec<Node> = Vec::with_capacity(rest.len());
+    while !rest.is_empty() {
+        let before = rest.len();
+        let mut later = Vec::new();
+        for n in rest {
+            let ready = n.id == id
+                || n.parent_id
+                    .as_deref()
+                    .is_none_or(|p| placed.contains(p) || !set.contains(p));
+            if ready {
+                placed.insert(n.id.as_str());
+                ordered.push(n.clone());
+            } else {
+                later.push(n);
+            }
+        }
+        if later.len() == before {
+            // Corrupt data (a cycle): keep what is left rather than hang.
+            ordered.extend(later.into_iter().cloned());
+            break;
+        }
+        rest = later;
+    }
+    ordered
 }
 
 impl FileState {

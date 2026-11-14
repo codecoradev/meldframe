@@ -46,3 +46,20 @@ pub fn snap(s: &FileState) -> String {
     v.sort_by(|a, b| a.id.cmp(&b.id));
     serde_json::to_string(&v).unwrap()
 }
+
+/// Small deterministic generator, so a failing seed can be replayed.
+pub struct Rng(pub u64);
+
+impl Rng {
+    pub fn next(&mut self) -> u64 {
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        self.0 >> 33
+    }
+
+    pub fn below(&mut self, n: usize) -> usize {
+        (self.next() as usize) % n.max(1)
+    }
+}
