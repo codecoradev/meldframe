@@ -1,1 +1,6 @@
 //! Document model, commands, history and the render model.
+
+pub mod apply;
+
+pub use apply::{apply_command, apply_planned, plan_command};
+pub use meldframe_check::{ApplyError, Limits, check_command, check_node, check_patch, check_pos};

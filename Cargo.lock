@@ -60,6 +60,8 @@ dependencies = [
 name = "meldframe-core"
 version = "0.0.0"
 dependencies = [
+ "meldframe-check",
+ "meldframe-order",
  "meldframe-protocol",
  "serde",
  "serde_json",
@@ -85,6 +87,10 @@ version = "0.0.0"
 [[package]]
 name = "meldframe-order"
 version = "0.0.0"
+dependencies = [
+ "meldframe-protocol",
+ "serde_json",
+]
 
 [[package]]
 name = "meldframe-protocol"

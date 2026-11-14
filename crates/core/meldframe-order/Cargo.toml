@@ -9,5 +9,11 @@ publish.workspace = true
 [package.metadata.meldframe]
 kind = "core"
 
+[dependencies]
+meldframe-protocol = { path = "../meldframe-protocol" }
+
+[dev-dependencies]
+serde_json = "1"
+
 [lints]
 workspace = true
