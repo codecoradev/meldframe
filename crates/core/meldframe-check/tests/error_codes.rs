@@ -25,10 +25,12 @@ fn index(e: &ApplyError) -> usize {
         ApplyError::InvalidPos(_) => 12,
         ApplyError::PosTooLong { .. } => 13,
         ApplyError::BadReorder(_) => 14,
+        ApplyError::TooMany { .. } => 15,
+        ApplyError::InvalidFontWeight(_) => 16,
     }
 }
 
-const VARIANTS: usize = 15;
+const VARIANTS: usize = 17;
 
 fn samples() -> Vec<ApplyError> {
     vec![
@@ -50,6 +52,11 @@ fn samples() -> Vec<ApplyError> {
         ApplyError::InvalidPos("a".into()),
         ApplyError::PosTooLong { max: 1 },
         ApplyError::BadReorder("a".into()),
+        ApplyError::TooMany {
+            field: "shadows",
+            max: 1,
+        },
+        ApplyError::InvalidFontWeight(450),
     ]
 }
 

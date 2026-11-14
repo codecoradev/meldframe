@@ -30,6 +30,10 @@ pub enum ApplyError {
     /// A colour is not hex (`#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`). A free-form value would stop the
     /// front end from rendering.
     InvalidColor { field: &'static str },
+    /// A list field has more entries than allowed (`shadows`).
+    TooMany { field: &'static str, max: usize },
+    /// `fontWeight` is not 100..=900 in steps of 100.
+    InvalidFontWeight(u16),
     /// A `pos` from a client has bad characters or a bad shape.
     InvalidPos(String),
     /// A `pos` (sent or computed) is longer than `Limits::max_pos`: the gap is too crowded.
@@ -59,6 +63,8 @@ impl ApplyError {
             ApplyError::InvalidPos(_) => "E_INVALID_POS",
             ApplyError::PosTooLong { .. } => "E_POS_TOO_LONG",
             ApplyError::BadReorder(_) => "E_BAD_REORDER",
+            ApplyError::TooMany { .. } => "E_TOO_MANY_ENTRIES",
+            ApplyError::InvalidFontWeight(_) => "E_INVALID_FONT_WEIGHT",
         }
     }
 }
@@ -84,6 +90,12 @@ impl fmt::Display for ApplyError {
                     f,
                     "{field} must be a hex colour (#rgb, #rgba, #rrggbb or #rrggbbaa)"
                 )
+            }
+            ApplyError::TooMany { field, max } => {
+                write!(f, "{field} has too many entries (max {max})")
+            }
+            ApplyError::InvalidFontWeight(w) => {
+                write!(f, "fontWeight must be 100..=900 in steps of 100, got {w}")
             }
             ApplyError::InvalidPos(p) => write!(f, "invalid pos: {p:?}"),
             ApplyError::BadReorder(m) => write!(f, "invalid reorder: {m}"),

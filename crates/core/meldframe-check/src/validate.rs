@@ -2,7 +2,7 @@
 
 use crate::{ApplyError, Limits};
 use meldframe_order::fracindex;
-use meldframe_protocol::{Node, NodePatch};
+use meldframe_protocol::{Border, Node, NodePatch, Shadow};
 
 fn num(field: &'static str, v: f64, lo: f64, hi: f64) -> Result<(), ApplyError> {
     if !v.is_finite() {
@@ -47,6 +47,36 @@ fn valid_id(id: &str, l: &Limits) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.'))
 }
 
+fn font_weight(w: u16) -> Result<(), ApplyError> {
+    if (100..=900).contains(&w) && w.is_multiple_of(100) {
+        Ok(())
+    } else {
+        Err(ApplyError::InvalidFontWeight(w))
+    }
+}
+
+fn check_border(b: &Border, l: &Limits) -> Result<(), ApplyError> {
+    num("border.width", b.width, 0.0, l.max_size)?;
+    color("border.color", &b.color)
+}
+
+fn check_shadows(v: &[Shadow], l: &Limits) -> Result<(), ApplyError> {
+    if v.len() > l.max_shadows {
+        return Err(ApplyError::TooMany {
+            field: "shadows",
+            max: l.max_shadows,
+        });
+    }
+    for s in v {
+        num("shadows.x", s.x, -l.max_size, l.max_size)?;
+        num("shadows.y", s.y, -l.max_size, l.max_size)?;
+        num("shadows.blur", s.blur, 0.0, l.max_size)?;
+        num("shadows.spread", s.spread, -l.max_size, l.max_size)?;
+        color("shadows.color", &s.color)?;
+    }
+    Ok(())
+}
+
 type Fields<'a> = &'a [(&'static str, Option<f64>)];
 
 /// The numeric fields shared by nodes and patches. `fontSize` must be at least 1, the others at least 0.
@@ -87,6 +117,9 @@ pub fn check_node(n: &Node, l: &Limits) -> Result<(), ApplyError> {
     if !n.pos.is_empty() {
         check_pos(&n.pos, l)?;
     }
+    font_weight(n.font_weight)?;
+    check_border(&n.border, l)?;
+    check_shadows(&n.shadows, l)?;
     check_numbers(
         l,
         [Some(n.x), Some(n.y)],
@@ -113,6 +146,15 @@ pub fn check_patch(p: &NodePatch, l: &Limits) -> Result<(), ApplyError> {
     }
     if let Some(s) = &p.fill2 {
         color("fill2", s)?;
+    }
+    if let Some(w) = p.font_weight {
+        font_weight(w)?;
+    }
+    if let Some(b) = &p.border {
+        check_border(b, l)?;
+    }
+    if let Some(s) = &p.shadows {
+        check_shadows(s, l)?;
     }
     check_numbers(
         l,
