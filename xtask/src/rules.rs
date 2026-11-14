@@ -20,6 +20,8 @@ pub struct Package {
     pub uses_ui_toolkit: bool,
     /// Feature names declared in the manifest (including `default`).
     pub features: Vec<String>,
+    /// Manifest directory relative to the workspace root, with `/` separators.
+    pub dir: String,
 }
 
 /// A crate kind (L1).

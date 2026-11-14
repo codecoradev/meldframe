@@ -33,6 +33,8 @@ Every crate declares its kind (core, engine, integration, os, feature, app, ffi,
 - `cargo xtask portable-check`: builds every portable-kind crate (core, engine, integration, os, feature, app, ffi) for `wasm32-unknown-unknown` (L5). `rust-toolchain.toml` installs the target; otherwise run `rustup target add wasm32-unknown-unknown`.
 - `tools/check-protocol.sh`: regenerates the TypeScript types in `packages/protocol/src/generated` from `meldframe-protocol`, compiles a sample consumer with `tsc` and fails if the generated files differ from the committed ones. Run it and commit the result after any change to the protocol types.
 - `tools/check-migrations.sh`: creates a scratch database on the Postgres at `ADMIN_DATABASE_URL` (default `postgres://postgres@127.0.0.1:5433/postgres`), applies `migrations/*.sql` to it from empty, asserts the schema version and append-only rules, then drops it.
+- `cargo xtask size-check [--base <git-ref>]`: 500 lines per file and 2,000 per crate (D1). `xtask/size-allow.toml` lists what is over; an entry must equal the current size, so entries only go down. With `--base` (use `origin/develop` in CI) an entry that is new or higher than on the base fails.
+- `cargo xtask ui-literals`: rejects colour, font-size and duration literals in `ui` and `feature-ui` crates and in `apps/web` styles (U4). Read values from the tokens module (`crates/ui/meldframe-ui/src/tokens.rs`); `tokens.rs` and `tokens.css` are exempt.
 - Before a pull request: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo xtask deps-check`.
 
 ## CI

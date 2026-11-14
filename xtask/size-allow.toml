@@ -1,0 +1,8 @@
+# Files and crates allowed to exceed the ceilings (500 lines per file, 2,000 per crate).
+# An entry must equal the current line count, so it can only go down; delete it once the file
+# or crate is back under its ceiling. `cargo xtask size-check --base <ref>` also rejects any
+# entry that is new or higher than on the base branch. Do not add entries to make a check pass.
+
+[files]
+
+[crates]

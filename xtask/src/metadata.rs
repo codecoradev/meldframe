@@ -10,10 +10,11 @@ pub fn parse(json: &str) -> Result<Vec<Package>, String> {
     let packages = root["packages"]
         .as_array()
         .ok_or("metadata has no `packages` array")?;
-    Ok(packages.iter().map(package).collect())
+    let root_dir = root["workspace_root"].as_str().unwrap_or_default();
+    Ok(packages.iter().map(|p| package(p, root_dir)).collect())
 }
 
-fn package(p: &Value) -> Package {
+fn package(p: &Value, root_dir: &str) -> Package {
     let meta = &p["metadata"]["meldframe"];
     let mut dependencies = Vec::new();
     let mut uses_ui_toolkit = false;
@@ -26,7 +27,15 @@ fn package(p: &Value) -> Package {
         uses_ui_toolkit |= is_ui_toolkit(name);
         dependencies.push(name.to_string());
     }
+    let manifest = p["manifest_path"].as_str().unwrap_or_default();
+    let dir = manifest
+        .strip_suffix("/Cargo.toml")
+        .unwrap_or(manifest)
+        .strip_prefix(root_dir)
+        .unwrap_or_default()
+        .trim_start_matches('/');
     Package {
+        dir: dir.to_string(),
         name: p["name"].as_str().unwrap_or_default().to_string(),
         kind: string_field(&meta["kind"]),
         group: string_field(&meta["group"]),
@@ -58,8 +67,8 @@ fn string_field(v: &Value) -> Option<String> {
 mod tests {
     use super::*;
 
-    const SAMPLE: &str = r#"{"packages":[
-      {"name":"a","metadata":{"meldframe":{"kind":"feature","group":"g","composite":["h"]}},
+    const SAMPLE: &str = r#"{"workspace_root":"/w","packages":[
+      {"name":"a","manifest_path":"/w/crates/a/Cargo.toml","metadata":{"meldframe":{"kind":"feature","group":"g","composite":["h"]}},
        "features":{"fast":[],"default":["fast"]},
        "dependencies":[{"name":"b","kind":null},{"name":"egui","kind":null},{"name":"serde","kind":"dev"}]},
       {"name":"b","metadata":null,"dependencies":[]},
@@ -76,6 +85,12 @@ mod tests {
         assert_eq!(a.composite, vec!["h".to_string()]);
         assert_eq!(a.dependencies, vec!["b".to_string(), "egui".to_string()]);
         assert!(a.uses_ui_toolkit);
+    }
+
+    #[test]
+    fn dir_is_relative_to_the_workspace_root() {
+        let pkgs = parse(SAMPLE).unwrap();
+        assert_eq!(pkgs[0].dir, "crates/a");
     }
 
     #[test]

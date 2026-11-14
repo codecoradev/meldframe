@@ -13,4 +13,5 @@ kind = "tool"
 workspace = true
 
 [dependencies]
+toml = "1"
 serde_json = "1"
