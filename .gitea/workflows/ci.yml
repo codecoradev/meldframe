@@ -147,6 +147,35 @@ jobs:
           node-version: "22"
       - run: bash tools/check-protocol.sh
 
+  # Migrations apply from an empty database and keep the schema_version rules (tools/check-migrations.sh).
+  # The service alias is unique on purpose: a generic alias can collide with other containers on the
+  # runner's shared job network (see the same note in gatehouse). No `ports:` publish.
+  migrations:
+    name: migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      meldframe-pg:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      ADMIN_DATABASE_URL: postgres://postgres:postgres@meldframe-pg:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: install the PostgreSQL client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          fi
+      - run: bash tools/check-migrations.sh
+
   size-check:
     name: size-check
     runs-on: ubuntu-latest

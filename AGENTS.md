@@ -32,6 +32,7 @@ Every crate declares its kind (core, engine, integration, os, feature, app, ffi,
 - `cargo xtask build-matrix`: builds the workspace with default features off, then each declared feature of each crate alone (M3). Fails if any build fails.
 - `cargo xtask portable-check`: builds every portable-kind crate (core, engine, integration, os, feature, app, ffi) for `wasm32-unknown-unknown` (L5). `rust-toolchain.toml` installs the target; otherwise run `rustup target add wasm32-unknown-unknown`.
 - `tools/check-protocol.sh`: regenerates the TypeScript types in `packages/protocol/src/generated` from `meldframe-protocol`, compiles a sample consumer with `tsc` and fails if the generated files differ from the committed ones. Run it and commit the result after any change to the protocol types.
+- `tools/check-migrations.sh`: creates a scratch database on the Postgres at `ADMIN_DATABASE_URL` (default `postgres://postgres@127.0.0.1:5433/postgres`), applies `migrations/*.sql` to it from empty, asserts the schema version and append-only rules, then drops it.
 - Before a pull request: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo xtask deps-check`.
 
 ## CI

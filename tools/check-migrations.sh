@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Migration check: apply every file in migrations/ in order to a brand-new empty database and assert the schema
+# contract (schema version on every stored file, op and snapshot; append-only ops). Needs a Postgres server.
+#   ADMIN_DATABASE_URL  connection to any database on the server, used to create and drop the scratch database
+#                       (default postgres://postgres@127.0.0.1:5433/postgres, see scripts/pg-start.sh).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+ADMIN_URL=${ADMIN_DATABASE_URL:-postgres://postgres@127.0.0.1:5433/postgres}
+DB="meldframe_migrate_$$"
+# Same host and credentials as the admin URL, other database name.
+URL="${ADMIN_URL%/*}/$DB"
+VERSION=$(grep -oE 'SCHEMA_VERSION: u32 = [0-9]+' crates/core/meldframe-protocol/src/version.rs | grep -oE '[0-9]+$')
+[ -n "$VERSION" ] || { echo "FAIL: cannot read SCHEMA_VERSION from the protocol crate" >&2; exit 1; }
+
+psql "$ADMIN_URL" -q -v ON_ERROR_STOP=1 -c "create database $DB"
+trap 'psql "$ADMIN_URL" -q -c "drop database if exists $DB" >/dev/null 2>&1 || true' EXIT
+
+echo "[1/3] migrations apply to an empty database"
+shopt -s nullglob
+FILES=(migrations/*.sql)
+[ ${#FILES[@]} -gt 0 ] || { echo "FAIL: no migrations found" >&2; exit 1; }
+for f in "${FILES[@]}"; do
+  echo "  $f"
+  psql "$URL" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
+done
+
+echo "[2/3] every stored file, op and snapshot carries a schema version"
+psql "$URL" -q -v ON_ERROR_STOP=1 -v v="$VERSION" <<'SQL'
+do $$
+declare t text;
+begin
+  foreach t in array array['files', 'ops', 'snapshots'] loop
+    if not exists (
+      select 1 from information_schema.columns
+      where table_name = t and column_name = 'schema_version' and is_nullable = 'NO' and data_type = 'integer'
+    ) then
+      raise exception 'table % has no NOT NULL integer schema_version column', t;
+    end if;
+  end loop;
+end $$;
+
+-- The version the protocol crate declares is accepted.
+insert into files (id, schema_version) values ('f1', :v);
+insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
+  values ('f1', 1, 'k1', 'a1', '{"type":"removeNode","id":"n"}', :v);
+insert into snapshots (file_id, seq, state, schema_version) values ('f1', 1, '{}', :v);
+
+-- A missing or non-positive version is refused.
+do $$
+begin
+  begin insert into files (id) values ('f2'); raise exception 'files accepted a missing schema_version';
+  exception when not_null_violation then null; end;
+  begin insert into files (id, schema_version) values ('f2', 0); raise exception 'files accepted version 0';
+  exception when check_violation then null; end;
+  begin
+    insert into ops (file_id, seq, idempotency_key, actor, command, schema_version) values ('f1', 2, 'k2', 'a', '{}', 0);
+    raise exception 'ops accepted version 0';
+  exception when check_violation then null; end;
+  begin insert into snapshots (file_id, seq, state, schema_version) values ('f1', 2, '{}', 0);
+    raise exception 'snapshots accepted version 0';
+  exception when check_violation then null; end;
+end $$;
+SQL
+
+echo "[3/3] ops are append-only and idempotent per file"
+psql "$URL" -q -v ON_ERROR_STOP=1 <<'SQL'
+do $$
+begin
+  begin update ops set actor = 'b' where file_id = 'f1' and seq = 1;
+    raise exception 'an op was updated';
+  exception when others then
+    if sqlerrm not like 'ops are append-only%' then raise; end if;
+  end;
+  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
+      values ('f1', 3, 'k1', 'a1', '{}', 1);
+    raise exception 'a repeated idempotency key was accepted';
+  exception when unique_violation then null; end;
+  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
+      values ('f1', 1, 'k9', 'a1', '{}', 1);
+    raise exception 'a repeated seq was accepted';
+  exception when unique_violation then null; end;
+  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
+      values ('missing', 1, 'k1', 'a1', '{}', 1);
+    raise exception 'an op for an unknown file was accepted';
+  exception when foreign_key_violation then null; end;
+  -- Deleting a file removes its history with it.
+  delete from files where id = 'f1';
+  if exists (select 1 from ops) or exists (select 1 from snapshots) then raise exception 'history outlived its file'; end if;
+end $$;
+SQL
+echo "OK: migrations apply from an empty database and hold the schema contract"
