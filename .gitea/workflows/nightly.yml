@@ -103,7 +103,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: more seeds
-        run: MELDFRAME_SEEDS=6000 cargo test --release -p meldframe-history -p meldframe-sync-props
+        run: MELDFRAME_SEEDS=6000 cargo test --release -p meldframe-history -p meldframe-history-props -p meldframe-sync-props
       # Runs even if the seeds step failed, so one failure does not hide the other.
       - name: mutation check
         if: always()

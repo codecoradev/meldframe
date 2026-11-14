@@ -43,6 +43,14 @@ See `docs/decisions.md` (items 1 to 14 and 20 to 26), the working defaults in `d
 
 Live multi-human collaboration; HTML import; Figma import; PPTX; Flutter and Dart; marketplace of variables or templates.
 
+## Follow-ups from E1.1 (14 Nov 2026)
+
+Tracked as issues; priorities are labels (`priority:P0` first). The alignment work (issues 108 to 111) comes before the server and client tracks (issue 115).
+
+- Alignment: close-out of E1.1 (108), `meldframe-module` (109), `meldframe-host` (110), the `apps/server` composition root (111), repository hygiene (112), validation of a file at load (113), the core tests under WASM (114).
+- Replica and history: undo of a reparent into a deleted parent (107), a pending undo against an earlier remote value (94), matching own ops by idempotency key, resync and an outbox cap (90), the dependency rule in the room (96), `rebalance` cost (91).
+- Owner decisions: GitHub backup mirror, `Signed-off-by` in squash messages, runner capacity (116).
+
 ## Milestones
 
 M0 Foundation, M1 Connected skeleton (first goal), M2 Platform and agent identity, M3 Model round 2 and variables, M4 Export and fidelity, M5 Agent review and design quality, M6 V2 and the W1 gate. Epics, acceptance criteria and exit criteria: `docs/epics.md`.

@@ -36,27 +36,27 @@ Goal: the skeleton every feature plugs into, with the standard enforced from the
 
 ### E0.1 Workspace layout by kind (S)
 Crates under `crates/{core,engines,integrations,features,app,ui}`, apps under `apps/{server,web}`, each crate declaring its kind (ADR-0007).
-- [ ] Every crate declares `kind` (and `group` for features) in its manifest; a crate without one fails the check.
-- [ ] `cargo xtask deps-check` enforces the matrix in `docs/architecture.md` section 3b; its rules are a pure function with unit tests, including one failing case per rule.
-- [ ] `cargo xtask build-matrix` builds the product with no features and with each feature alone.
-- [ ] `cargo xtask portable-check` compiles core, engine, integration, feature and app crates for `wasm32-unknown-unknown`.
-- [ ] `unsafe` is denied workspace-wide.
+- [x] Every crate declares `kind` (and `group` for features) in its manifest; a crate without one fails the check.
+- [x] `cargo xtask deps-check` enforces the matrix in `docs/architecture.md` section 3b; its rules are a pure function with unit tests, including one failing case per rule.
+- [x] `cargo xtask build-matrix` builds the product with no features and with each feature alone.
+- [x] `cargo xtask portable-check` compiles core, engine, integration, feature and app crates for `wasm32-unknown-unknown`.
+- [x] `unsafe` is denied workspace-wide.
 
 ### E0.2 CI and review gates (S)
-- [ ] CI runs format, lint (warnings as errors), tests, `deps-check`, `build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences --check`.
-- [ ] `size-check` enforces 500 lines per file and 2,000 per crate with an allow-list that only shrinks.
-- [ ] A local Cora agent review is run and recorded for every pull request (CI Cora is disabled); branch-name and message-standard checks reject AI attribution and wrong prefixes.
-- [ ] `develop` requires CI to pass before merge; `main` exists and receives release tags only.
+- [x] CI runs format, lint (warnings as errors), tests, `deps-check`, `build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences --check`. (The fast set runs on every pull request; `build-matrix`, `portable-check`, `size-check`, `ui-literals` and `licences --check` run nightly and on demand; `just check` runs all of them except `licences --check`, which is run as `cargo xtask licences --check`.)
+- [x] `size-check` enforces 500 lines per file and 2,000 per crate with an allow-list that only shrinks.
+- [x] A local Cora agent review is run and recorded for every pull request (CI Cora is disabled); branch-name and message-standard checks reject AI attribution and wrong prefixes.
+- [x] `develop` requires CI to pass before merge; `main` exists and receives release tags only.
 
 ### E0.3 Protocol and schema pipeline (S)
-- [ ] Wire and model types live in `meldframe-protocol`; TypeScript types are generated and a CI check fails on drift.
-- [ ] Every stored document and snapshot carries a schema version from the first migration.
-- [ ] Postgres migrations run from a clean database in CI.
+- [x] Wire and model types live in `meldframe-protocol`; TypeScript types are generated and a CI check fails on drift.
+- [x] Every stored document and snapshot carries a schema version from the first migration.
+- [x] Postgres migrations run from a clean database in CI.
 
 ### E0.4 Local development environment (S)
 - [ ] One command starts Postgres and the server for development; one command starts the web client against it.
-- [ ] A seeded development workspace, file and token exist for agents and tests (development only, never in a release build).
-- [ ] `AGENTS.md` lists the commands; a new session can run the full test suite from a fresh clone.
+- [x] A seeded development workspace, file and token exist for agents and tests (development only, never in a release build).
+- [x] `AGENTS.md` lists the commands; a new session can run the full test suite from a fresh clone.
 
 **M0 exit criteria:** a pull request that breaks a layering rule, a size ceiling or a UI literal is rejected by CI; a fresh clone builds and tests green with one command.
 
@@ -66,9 +66,9 @@ Goal: backend, a basic web editor and MCP connected end to end on the carried sp
 
 ### E1.1 Core seed (M)
 Carry the document core from the spike (decision 14, survey section 6.1): `Command`, validation, history with per-actor undo, replica with rebase and op dependencies, fractional order, layout with the text measurer seam.
-- [ ] The spike's property tests (convergence, undo, rebase, dependencies) run in this repository and pass with at least 600 seeds per run in CI and more nightly.
-- [ ] Mutation check: disabling the dependency rule or the per-actor undo rule makes a test fail.
-- [ ] Names follow `GLOSSARY.md`; no spike ids remain in file or type names; comments are English.
+- [x] The spike's property tests (convergence, undo, rebase, dependencies) run in this repository and pass with at least 600 seeds per run in CI and more nightly. (600 seeds per run in `cargo test --workspace`; 6,000 in the nightly `property-tests` job.)
+- [x] Mutation check: disabling the dependency rule or the per-actor undo rule makes a test fail. (`tools/mutation-check-sync.sh`: nine mutations, all killed.)
+- [x] Names follow `GLOSSARY.md`; no spike ids remain in file or type names; comments are English.
 - [ ] The core compiles natively and to WASM with the same tests.
 
 ### E1.2 Room, persistence and snapshots (M)
