@@ -21,11 +21,15 @@ pub(crate) struct Rec {
 /// One step of history: what one undo or redo moves over.
 #[derive(Debug, Clone)]
 pub(crate) struct Entry {
+    /// Goes up in creation order, so a stack is ordered by id (`put_back_run` relies on it).
+    pub(crate) id: u64,
     pub(crate) recs: Vec<Rec>,
+    /// How many times the server refused an op of this step outright (see `put_back_run`).
+    pub(crate) strikes: u8,
 }
 
 /// Steps kept on the undo stack; the oldest is dropped beyond this.
-const MAX_HISTORY: usize = 500;
+pub(crate) const MAX_HISTORY: usize = 500;
 
 impl FileState {
     pub fn can_undo(&self) -> bool {
@@ -46,6 +50,9 @@ impl FileState {
 
     /// Record a command that was just applied. A new edit discards redo.
     pub(crate) fn record(&mut self, cmd: &Command, inverse: Vec<Command>, key: Option<&str>) {
+        if !self.redo.is_empty() {
+            self.redo_epoch += 1;
+        }
         self.redo.clear();
         let rec = Rec {
             id: self.new_rec_id(),
@@ -61,7 +68,12 @@ impl FileState {
         {
             top.recs.push(rec);
         } else {
-            self.push(Entry { recs: vec![rec] });
+            let id = self.new_entry_id();
+            self.push(Entry {
+                id,
+                recs: vec![rec],
+                strikes: 0,
+            });
             self.merge_key = key.map(String::from);
         }
     }
@@ -71,7 +83,12 @@ impl FileState {
     pub fn begin_group(&mut self) {
         if self.group.is_none() {
             self.merge_key = None;
-            self.group = Some(Entry { recs: Vec::new() });
+            let id = self.new_entry_id();
+            self.group = Some(Entry {
+                id,
+                recs: Vec::new(),
+                strikes: 0,
+            });
         }
     }
 
@@ -108,6 +125,11 @@ impl FileState {
             self.end_group();
         }
         Ok(cmds.len())
+    }
+
+    fn new_entry_id(&mut self) -> u64 {
+        self.next_entry += 1;
+        self.next_entry
     }
 
     fn new_rec_id(&mut self) -> u64 {
@@ -152,6 +174,7 @@ impl FileState {
             .iter_mut()
             .chain(self.redo.iter_mut())
             .chain(self.group.iter_mut())
+            .chain(self.runs.iter_mut().map(|m| &mut m.shadow))
     }
 
     /// Drop recs and steps that no longer hold a command.
@@ -197,6 +220,8 @@ impl FileState {
             (done.clone(), opposite)
         };
         let step = Entry {
+            id: self.new_entry_id(),
+            strikes: 0,
             recs: vec![Rec {
                 id: self.new_rec_id(),
                 pending: false,
@@ -213,6 +238,7 @@ impl FileState {
         self.end_group();
         while let Some(e) = self.undo.pop() {
             if let Some((done, opposite)) = self.exec_entry(&e, true) {
+                self.note_run(true, e, opposite.id);
                 self.redo.push(opposite);
                 return Some(done);
             }
@@ -226,6 +252,7 @@ impl FileState {
         self.end_group();
         while let Some(e) = self.redo.pop() {
             if let Some((done, opposite)) = self.exec_entry(&e, false) {
+                self.note_run(false, e, opposite.id);
                 self.undo.push(opposite);
                 return Some(done);
             }

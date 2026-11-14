@@ -24,8 +24,17 @@ struct Pending {
     json: String,
     /// The history rec of an edit (undo and redo ops have none).
     rec: Option<u64>,
+    /// The undo or redo step (a run of the history) that made this op; none for an edit.
+    run: Option<u64>,
     /// What this op writes, worked out when it was made.
     writes: Pairs,
+}
+
+/// Where an op comes from in the history: the rec of an edit, or the step of an undo or redo.
+#[derive(Default)]
+struct Source {
+    rec: Option<u64>,
+    run: Option<u64>,
 }
 
 fn cmd_json(c: &Command) -> String {
@@ -42,6 +51,8 @@ pub struct Replica {
     view: FileState,
     pending: VecDeque<Pending>,
     outbox: Vec<Outgoing>,
+    /// Undo and redo steps: how many of their ops are still pending. At zero the step is finished.
+    run_left: HashMap<u64, usize>,
     counter: u64,
     limits: Limits,
 }
@@ -60,6 +71,7 @@ impl Replica {
             view,
             pending: VecDeque::new(),
             outbox: Vec::new(),
+            run_left: HashMap::new(),
             counter: 0,
             limits: Limits::default(),
         }
@@ -96,6 +108,16 @@ impl Replica {
         self.view.can_redo()
     }
 
+    /// How many steps undo can go back.
+    pub fn undo_depth(&self) -> usize {
+        self.view.undo_depth()
+    }
+
+    /// How many steps redo can go forward.
+    pub fn redo_depth(&self) -> usize {
+        self.view.redo_depth()
+    }
+
     /// The keys of the pending ops (oldest first, at most `MAX_OP_DEPS`, the newest kept) that an undo or
     /// redo reading `reads` was built on: the ops that wrote something it reads, and the earlier ops of
     /// the same step (`chain_from` is the index of the first pending op of that step). An edit has none:
@@ -130,7 +152,7 @@ impl Replica {
         &mut self,
         command: Command,
         kind: OpKind,
-        rec: Option<u64>,
+        from: Source,
         foot: (Pairs, Pairs),
         chain_from: usize,
         forced_deps: Option<Vec<String>>,
@@ -148,7 +170,8 @@ impl Replica {
         self.pending.push_back(Pending {
             json: cmd_json(&out.command),
             out,
-            rec,
+            rec: from.rec,
+            run: from.run,
             writes: foot.1,
         });
     }
@@ -185,7 +208,11 @@ impl Replica {
         self.view.apply_keyed(cmd, key)?;
         let rec = self.view.last_rec();
         let at = self.pending.len();
-        self.enqueue(cmd.clone(), OpKind::Edit, Some(rec), foot, at, forced);
+        let from = Source {
+            rec: Some(rec),
+            run: None,
+        };
+        self.enqueue(cmd.clone(), OpKind::Edit, from, foot, at, forced);
         Ok(())
     }
 
@@ -218,11 +245,16 @@ impl Replica {
     fn send_step(&mut self, before: Vec<Node>, cmds: Option<Vec<Command>>, kind: OpKind) -> bool {
         let Some(cmds) = cmds else { return false };
         let chain_from = self.pending.len();
+        let run = self.view.take_last_run();
+        if let Some(m) = run {
+            self.run_left.insert(m, cmds.len());
+        }
         let mut view = before;
         for c in cmds {
             let foot = footprint(&view, &c);
             let _ = apply_command(&mut view, &c, &self.limits);
-            self.enqueue(c, kind, None, foot, chain_from, None);
+            let from = Source { rec: None, run };
+            self.enqueue(c, kind, from, foot, chain_from, None);
         }
         true
     }
@@ -266,6 +298,7 @@ impl Replica {
             if let Some(r) = p.rec {
                 self.view.confirm_rec(r);
             }
+            self.settle_run(p.run);
             self.seq = seq;
             return Ok(EventOutcome::Confirmed);
         }
@@ -278,8 +311,30 @@ impl Replica {
         self.base = next;
         self.seq = seq;
         Ok(EventOutcome::Rebased {
-            dropped: self.rebuild(HashSet::new()),
+            dropped: self.rebuild(HashSet::new(), None),
         })
+    }
+
+    /// One op of the step `run` is confirmed; when it was the last one, the step is finished.
+    fn settle_run(&mut self, run: Option<u64>) {
+        let Some(m) = run else { return };
+        if let Some(n) = self.run_left.get_mut(&m) {
+            *n -= 1;
+            if *n == 0 {
+                self.run_left.remove(&m);
+                self.view.finish_run(m);
+            }
+        }
+    }
+
+    /// Steps whose ops fell: the history goes back, newest step first, so a step built on the result
+    /// of another is put back before the step it used.
+    fn put_back_runs(&mut self, mut runs: Vec<u64>, direct: Option<u64>) {
+        runs.sort_unstable_by(|a, b| b.cmp(a));
+        for m in runs {
+            self.run_left.remove(&m);
+            self.view.put_back_run(m, direct == Some(m));
+        }
     }
 
     /// Build the view again: start from `base` and apply the pending ops one by one. `dead` holds keys
@@ -287,8 +342,10 @@ impl Replica {
     /// dropped without a try, and its own key becomes dead (the server does the same: it refuses an op
     /// whose dependency was not applied). An op that no longer applies is dropped too, with its history.
     /// Pending ops are in creation order and deps point to older ops, so one pass is enough. Returns
-    /// how many were dropped.
-    fn rebuild(&mut self, mut dead: HashSet<String>) -> usize {
+    /// how many were dropped. `direct_run` is the step whose op the server refused itself; the steps
+    /// of the ops dropped here join it, and the history of all of them is put back.
+    fn rebuild(&mut self, mut dead: HashSet<String>, direct_run: Option<u64>) -> usize {
+        let mut dead_runs: Vec<u64> = direct_run.into_iter().collect();
         self.view.reset_nodes(self.base.clone());
         let mut dropped = 0;
         for p in std::mem::take(&mut self.pending) {
@@ -302,9 +359,13 @@ impl Replica {
             if let Some(r) = p.rec {
                 self.view.forget_rec(r);
             }
+            if let Some(m) = p.run.filter(|m| !dead_runs.contains(m)) {
+                dead_runs.push(m);
+            }
             self.outbox.retain(|o| o.key != p.out.key);
             dropped += 1;
         }
+        self.put_back_runs(dead_runs, direct_run);
         dropped
     }
 
@@ -320,7 +381,7 @@ impl Replica {
             self.view.forget_rec(r);
         }
         self.outbox.retain(|o| o.key != key);
-        self.rebuild(HashSet::from([key.to_string()]));
+        self.rebuild(HashSet::from([key.to_string()]), p.run);
         true
     }
 

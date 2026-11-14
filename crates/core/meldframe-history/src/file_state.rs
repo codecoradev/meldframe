@@ -1,6 +1,7 @@
 //! The state of one file in memory.
 
 use crate::history::Entry;
+use crate::runs::Run;
 use meldframe_core::{ApplyError, Limits, apply_planned, normalize_positions, plan_command};
 use meldframe_protocol::{Command, Node};
 
@@ -22,6 +23,14 @@ pub struct FileState {
     pub(crate) next_rec: u64,
     /// New recs are marked pending until confirmed (set by a replica that waits for the server).
     pub(crate) optimistic: bool,
+    /// The id of the last step made (ids start at 1).
+    pub(crate) next_entry: u64,
+    /// Undo and redo steps whose ops have not been confirmed yet (optimistic mode only).
+    pub(crate) runs: Vec<Run>,
+    pub(crate) next_run: u64,
+    pub(crate) last_run: Option<u64>,
+    /// Goes up each time an edit discards a redo stack that was not empty.
+    pub(crate) redo_epoch: u64,
 }
 
 impl FileState {
