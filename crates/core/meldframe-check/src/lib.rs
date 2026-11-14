@@ -3,8 +3,10 @@
 
 mod error;
 mod limits;
+mod structure;
 mod validate;
 
 pub use error::ApplyError;
 pub use limits::Limits;
+pub use structure::{check_command, position};
 pub use validate::{check_node, check_patch, check_pos};
