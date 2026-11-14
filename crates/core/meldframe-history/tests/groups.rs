@@ -1,5 +1,9 @@
 //! Groups (one step for many commands, such as a drag) and keyed edits (typing merges into one step).
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{add, base, snap, upd};

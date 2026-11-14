@@ -1,6 +1,10 @@
 //! Loading a stored file checks it: a bad file is refused with a typed error and a stable code, never
 //! repaired. A good file loads unchanged.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{add, node, snap};

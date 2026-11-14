@@ -1,18 +1,27 @@
 //! Property test: for a random run of commands, undoing every step restores each earlier tree exactly
 //! (sibling order included), and redoing every step gives the same trees again.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{Rng, add, node, snap};
 use meldframe_history::FileState;
 use meldframe_protocol::{Command, NodeKind, NodePatch};
 
-/// Seeds per run: 600 by default, more with `MELDFRAME_SEEDS` (nightly).
+/// Seeds per run: 600 by default, more with `MELDFRAME_SEEDS` (nightly). Under WASM the environment
+/// does not reach the test, and the default is 20.
 fn seeds() -> u64 {
     std::env::var("MELDFRAME_SEEDS")
         .ok()
         .and_then(|v| v.parse().ok())
-        .unwrap_or(600)
+        .unwrap_or(if cfg!(target_arch = "wasm32") {
+            20
+        } else {
+            600
+        })
 }
 
 fn random_cmd(r: &mut Rng, s: &FileState, next_id: &mut u32) -> Command {

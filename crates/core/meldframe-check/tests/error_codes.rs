@@ -1,5 +1,9 @@
 //! Every `ApplyError` has a stable machine code, and `docs/error-codes.md` lists exactly those codes.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use std::collections::BTreeSet;
 
 use meldframe_check::{ApplyError, LoadError};

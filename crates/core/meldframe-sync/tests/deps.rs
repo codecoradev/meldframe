@@ -2,6 +2,10 @@
 //! the pending ops it was built on as `deps`. The server accepts it only if every dependency was
 //! applied; when one is refused, the replica drops its dependents the same way, down the chain.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{ServerRule, add, base, node, remove, snap, upd, x_of};

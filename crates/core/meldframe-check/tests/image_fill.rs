@@ -1,6 +1,10 @@
 //! Validation of the image fill: the asset id must be a lowercase SHA-256 hex string, and text
 //! nodes take no image. Whether the asset exists is the server's business, not the core's.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_check::{ApplyError, Limits, check_command, check_node, check_patch};
 use meldframe_protocol::{Command, Node, NodePatch};
 use serde_json::{Value, json};

@@ -1,6 +1,10 @@
 //! Properties of the fractional index used for sibling order (`Node.pos`): keys come out strictly
 //! between their neighbours, stay valid, and grow slowly.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_order::fracindex::{FracError, between, is_valid, n_between};
 
 struct Rng(u64);

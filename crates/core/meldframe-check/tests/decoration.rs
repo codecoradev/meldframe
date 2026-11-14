@@ -1,5 +1,9 @@
 //! Validation of font weight, border and shadows. Every refusal names the field it refused.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_check::{ApplyError, Limits, check_node, check_patch};
 use meldframe_protocol::{Node, NodePatch};
 use serde_json::{Value, json};

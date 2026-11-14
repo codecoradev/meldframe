@@ -1,6 +1,10 @@
 //! `apply_command`: validate, then change. A refused command leaves the nodes untouched, and the
 //! same commands in the same order always give the same nodes.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_core::{ApplyError, Limits, apply_command};
 use meldframe_protocol::{Command, Node, NodePatch};
 

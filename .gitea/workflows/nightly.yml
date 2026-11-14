@@ -92,6 +92,28 @@ jobs:
       - if: steps.gate.outputs.pending != 'true'
         run: cargo xtask licences --check
 
+  # The E1.1 "same tests natively and under WASM" criterion: the core crates' tests run in Node
+  # through wasm-bindgen-test-runner (`just wasm-test`). The runner must match the
+  # `wasm-bindgen` version in Cargo.lock, so the step installs exactly that version.
+  wasm-test:
+    name: wasm-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: Swatinem/rust-cache@v2
+      - name: wasm-bindgen test runner
+        run: |
+          v=$(cargo metadata --format-version 1 | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"]=="wasm-bindgen"))')
+          cargo install wasm-bindgen-cli --version "$v" --locked
+      - run: cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-history -p meldframe-sync -p meldframe-history-props -p meldframe-sync-props
+
   # More seeds than a pull request run (600, the default of `cargo test --workspace`), and the E1.1
   # mutation check: each rule switched off must make a test fail (tools/mutation-check-sync.sh).
   property-tests:

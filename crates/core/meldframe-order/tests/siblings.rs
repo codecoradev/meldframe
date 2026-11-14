@@ -1,5 +1,9 @@
 //! Sibling order helpers: `(pos, id)` order, with unpositioned nodes first in list order.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_order::{children_map, sib_cmp};
 use meldframe_protocol::Node;
 use std::cmp::Ordering;

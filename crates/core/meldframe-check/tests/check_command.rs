@@ -1,6 +1,10 @@
 //! Semantic validation of a command against the nodes it would change. `check_command` never changes
 //! the nodes; a refusal names its reason.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_check::{ApplyError, Limits, check_command};
 use meldframe_protocol::{Command, Node, NodePatch};
 

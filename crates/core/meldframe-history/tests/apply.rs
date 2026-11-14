@@ -1,6 +1,10 @@
 //! `FileState::apply`: a command that passes validation changes the tree and bumps the version; a
 //! refused command changes nothing.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_history::{ApplyError, FileState, Limits};
 use meldframe_protocol::{Command, Node, NodePatch};
 

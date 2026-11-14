@@ -15,11 +15,24 @@
 //! - The server enforces the dependency rule: an op is accepted only if every dependency was applied.
 //!
 //! Seeds per run: 600 by default (the per-run floor of the epic); set `MELDFRAME_SEEDS` for more (the
-//! nightly run). `MELDFRAME_SEED=n` replays one seed. The mutation check is in `tools/mutation-check-sync.sh`.
+//! nightly run). `MELDFRAME_SEED=n` replays one seed. Under WASM the default is 20 seeds (`just wasm-test`;
+//! the environment does not reach a WASM test, so the count cannot be raised there). The mutation check is in `tools/mutation-check-sync.sh`.
+
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod sim;
 
 use sim::{Stats, run_seed};
+
+/// 600 natively (the per-run floor of the epic); few under WASM, which only checks that the same
+/// arithmetic behaves the same and runs several times slower.
+const DEFAULT_SEEDS: u64 = if cfg!(target_arch = "wasm32") {
+    20
+} else {
+    600
+};
 
 fn env(name: &str) -> Option<u64> {
     std::env::var(name).ok().and_then(|v| v.parse().ok())
@@ -28,7 +41,7 @@ fn env(name: &str) -> Option<u64> {
 fn seeds() -> std::ops::Range<u64> {
     match env("MELDFRAME_SEED") {
         Some(s) => s..s + 1,
-        None => 0..env("MELDFRAME_SEEDS").unwrap_or(600),
+        None => 0..env("MELDFRAME_SEEDS").unwrap_or(DEFAULT_SEEDS),
     }
 }
 

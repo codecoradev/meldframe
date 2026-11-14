@@ -2,6 +2,10 @@
 //! pending ops are applied again on top of it, and my undo history is rewritten so that undo and
 //! redo never overwrite what the other actor did.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{add, base, node, remove, snap, upd, x_of};

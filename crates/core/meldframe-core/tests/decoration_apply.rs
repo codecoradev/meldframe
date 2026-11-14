@@ -1,6 +1,10 @@
 //! Font weight, text alignment, border and shadows through the core's submit-a-command interface
 //! (wire JSON + `apply_command`). Expected values are literals, not recomputed.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_core::{Limits, apply_command};
 use meldframe_protocol::{Command, Node};
 use serde_json::{Value, json};

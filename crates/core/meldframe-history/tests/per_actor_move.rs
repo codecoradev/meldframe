@@ -1,6 +1,10 @@
 //! Undo against the current state for moves: reparent and reorder are written together with `pos`,
 //! which only means something among the siblings of one parent.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{add, order_under};
