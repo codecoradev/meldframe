@@ -1,6 +1,6 @@
 [package]
 name = "xtask"
-description = "Repository checks: layering rules and, later, build and size gates."
+description = "Repository checks: layering rules, build matrix, portability and other gates."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

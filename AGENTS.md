@@ -29,6 +29,8 @@ Every crate declares its kind (core, engine, integration, os, feature, app, ffi,
 ## Commands
 
 - `cargo xtask deps-check`: reads `cargo metadata` and enforces crate kinds and the dependency matrix (`docs/standards/modular-thin-ui.md` L1 to L4). Each crate declares `[package.metadata.meldframe] kind = "..."` (feature crates also `group`, and `composite = ["group"]` to import another group). Prints every violation and exits non-zero on any.
+- `cargo xtask build-matrix`: builds the workspace with default features off, then each declared feature of each crate alone (M3). Fails if any build fails.
+- `cargo xtask portable-check`: builds every portable-kind crate (core, engine, integration, os, feature, app, ffi) for `wasm32-unknown-unknown` (L5). `rust-toolchain.toml` installs the target; otherwise run `rustup target add wasm32-unknown-unknown`.
 - Before a pull request: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo xtask deps-check`.
 
 ## CI

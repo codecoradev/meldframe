@@ -38,6 +38,10 @@ fn package(p: &Value) -> Package {
             .collect(),
         dependencies,
         uses_ui_toolkit,
+        features: p["features"]
+            .as_object()
+            .map(|f| f.keys().cloned().collect())
+            .unwrap_or_default(),
     }
 }
 
@@ -56,6 +60,7 @@ mod tests {
 
     const SAMPLE: &str = r#"{"packages":[
       {"name":"a","metadata":{"meldframe":{"kind":"feature","group":"g","composite":["h"]}},
+       "features":{"fast":[],"default":["fast"]},
        "dependencies":[{"name":"b","kind":null},{"name":"egui","kind":null},{"name":"serde","kind":"dev"}]},
       {"name":"b","metadata":null,"dependencies":[]},
       {"name":"c","metadata":{"meldframe":{"kind":7}},"dependencies":[]}
@@ -71,6 +76,16 @@ mod tests {
         assert_eq!(a.composite, vec!["h".to_string()]);
         assert_eq!(a.dependencies, vec!["b".to_string(), "egui".to_string()]);
         assert!(a.uses_ui_toolkit);
+    }
+
+    #[test]
+    fn reads_feature_names() {
+        let pkgs = parse(SAMPLE).unwrap();
+        assert_eq!(
+            pkgs[0].features,
+            vec!["default".to_string(), "fast".to_string()]
+        );
+        assert!(pkgs[1].features.is_empty());
     }
 
     #[test]

@@ -3,8 +3,6 @@
 # line in the pull request that adds the command, and the gate then runs and can fail.
 #
 # Pending until T0.3 (#39), the other xtask commands:
-build-matrix
-portable-check
 size-check
 ui-literals
 licences

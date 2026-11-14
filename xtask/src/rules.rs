@@ -18,6 +18,8 @@ pub struct Package {
     pub dependencies: Vec<String>,
     /// True when any dependency is a UI toolkit.
     pub uses_ui_toolkit: bool,
+    /// Feature names declared in the manifest (including `default`).
+    pub features: Vec<String>,
 }
 
 /// A crate kind (L1).
