@@ -9,7 +9,9 @@
 mod gate;
 mod op;
 mod refusal;
+mod store;
 
 pub use gate::{Admission, Gate, Permit, Principal, Report};
 pub use op::Op;
 pub use refusal::Refusal;
+pub use store::{Appended, MemoryStore, NewOp, Snapshot, Store, StoreError, StoredOp};

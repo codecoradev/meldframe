@@ -13,8 +13,6 @@ kind = "core"
 meldframe-check = { path = "../meldframe-check" }
 meldframe-module = { path = "../meldframe-module" }
 meldframe-protocol = { path = "../meldframe-protocol" }
-
-[dev-dependencies]
 serde_json = "1"
 
 [lints]
