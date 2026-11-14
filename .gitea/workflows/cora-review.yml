@@ -1,0 +1,123 @@
+# Cora Review on every pull request (CodeCora workflow standard, merge gate). Configuration: .cora.yaml.
+#
+# Required context (branch protection, set by the owner): `cora-review / Cora Review (pull_request)`.
+#
+# The verdict is the pull request COMMENT (marker `<!-- cora-review -->`, updated in place), not
+# this check: a green check next to "Review could not complete" is a merge blocker. The job fails
+# when the review itself cannot complete, and when the CORA_* secrets are empty (an empty-secret
+# run would silently degrade the review to the static tier). The secrets and GITEA_TOKEN are set
+# at the organisation level. Findings are triaged at merge time: no major or critical finding may
+# be left (docs/epics.md, definition of done).
+#
+# Nothing here uses actions/cache: the shared runner clone of that action races when several jobs
+# start together. The Cora binary is downloaded on every run and checked against a pinned
+# checksum. Upgrading Cora means editing V and both checksums (from the release's
+# checksums-sha256.txt).
+name: cora-review
+
+on:
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, ready_for_review, reopened]
+
+concurrency:
+  group: cora-review-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cora-review:
+    name: Cora Review
+    # A pull request from a fork gets no secrets, so the review cannot run there; skipping beats a
+    # red check the contributor cannot fix. A maintainer can push the branch here to get it reviewed.
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    # Review time grows with the diff; a short timeout cancels reviews with no verdict.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout (full history, the review diffs against the base branch)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Cora (prebuilt, pinned, checksum verified)
+        run: |
+          V=v0.20.0
+          case "$(uname -m)" in
+            aarch64) SHA=0e65a874286c4288e12870e937d9275910ef4ec4610ba1736633d069f8c32c76 ;;
+            x86_64)  SHA=6080dada5b01876cc62e777798b18ad479aa8beb819fd2338972cfd62f8d43dd ;;
+            *) echo "::error::Unsupported runner architecture $(uname -m): add its Cora release asset and checksum"; exit 1 ;;
+          esac
+          curl -sSL --retry 2 -o "$RUNNER_TEMP/cora.tgz" \
+            "https://github.com/codecoradev/cora-code/releases/download/$V/cora-$(uname -m)-unknown-linux-gnu-$V.tar.gz"
+          echo "$SHA  $RUNNER_TEMP/cora.tgz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/cora-bin"
+          tar -xzf "$RUNNER_TEMP/cora.tgz" -C "$RUNNER_TEMP/cora-bin"
+          "$RUNNER_TEMP/cora-bin/cora" --version
+          echo "$RUNNER_TEMP/cora-bin" >> "$GITHUB_PATH"
+
+      - name: Review the pull request and post the verdict comment
+        env:
+          CORA_API_KEY: ${{ secrets.CORA_API_KEY }}
+          CORA_BASE_URL: ${{ secrets.CORA_BASE_URL }}
+          CORA_MODEL: ${{ secrets.CORA_MODEL }}
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          SERVER_URL: ${{ github.server_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          missing=""
+          [ -n "$CORA_API_KEY" ]  || missing="$missing CORA_API_KEY"
+          [ -n "$CORA_BASE_URL" ] || missing="$missing CORA_BASE_URL"
+          [ -n "$CORA_MODEL" ]    || missing="$missing CORA_MODEL"
+          if [ -n "$missing" ]; then
+            echo "::error::Cora review secrets empty or unset:$missing. Set them in the organisation Settings, Actions, Secrets. A skipped review must not pass."
+            exit 1
+          fi
+          if [ -z "$GITEA_TOKEN" ]; then
+            echo "::error::GITEA_TOKEN is empty: the review verdict cannot be posted"
+            exit 1
+          fi
+
+          set +e
+          cora review --base "origin/$BASE_REF" --format pretty > /tmp/cora-review.md 2> /tmp/cora-review-stderr.log
+          EXIT_CODE=$?
+          set -e
+          # Job log only: Actions masks secret values here.
+          [ $EXIT_CODE -eq 0 ] || tail -20 /tmp/cora-review-stderr.log
+
+          COMMENT_FILE=/tmp/comment-body.md
+          {
+            echo "<!-- cora-review -->"
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "## Cora AI Code Review"
+              echo ""
+              cat /tmp/cora-review.md
+            else
+              echo "## Cora AI Code Review: review could not complete"
+              echo ""
+              echo "\`cora review\` exited $EXIT_CODE. This is a merge BLOCKER: re-run the job until a real verdict appears. Details are in the job log (stderr is not posted here, to keep secrets out of comments)."
+            fi
+            echo ""
+            echo "<sub>commit ${HEAD_SHA:0:8} · [run #$RUN_ID]($SERVER_URL/$REPO/actions/runs/$RUN_ID)</sub>"
+          } > "$COMMENT_FILE"
+
+          AUTH="Authorization: token $GITEA_TOKEN"
+          API="$SERVER_URL/api/v1/repos/$REPO"
+          python3 -c "import json; print(json.dumps({'body': open('$COMMENT_FILE').read()}))" > /tmp/payload.json
+          MARKER='<!-- cora-review -->'
+          EXISTING=$(curl -s -H "$AUTH" "$API/issues/$PR_NUMBER/comments" | python3 -c "import json,sys; d=json.load(sys.stdin); print(next((c['id'] for c in d if c.get('user',{}).get('login') == 'gitea-actions' and c.get('body','').startswith('$MARKER')), ''))")
+          if [ -n "$EXISTING" ]; then
+            METHOD=PATCH; URL="$API/issues/comments/$EXISTING"; LABEL="updated"
+          else
+            METHOD=POST; URL="$API/issues/$PR_NUMBER/comments"; LABEL="posted"
+          fi
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X "$METHOD" -H "$AUTH" -H "Content-Type: application/json" -d @/tmp/payload.json "$URL")
+          echo "verdict comment $LABEL -> HTTP $HTTP"
+          if [ "$HTTP" != "200" ] && [ "$HTTP" != "201" ]; then
+            echo "::error::Failed to post the verdict comment (HTTP $HTTP)"
+            exit 1
+          fi
+          exit $EXIT_CODE

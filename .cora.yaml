@@ -1,0 +1,21 @@
+# Cora Code Review configuration (cora-cli, https://github.com/codecoradev/cora-cli).
+# Runs on every pull request through .gitea/workflows/cora-review.yml.
+
+focus:
+  - security
+  - bugs
+  - performance
+
+rules:
+  - "Layering is enforced by `cargo xtask deps-check`; flag a feature crate that imports another feature crate unless it is composite, and a UI toolkit used outside ui and bin crates."
+  - "Every change to a document must pass the single admission gate; flag a new path that writes document data without it."
+
+ignore:
+  files:
+    - "*.lock"
+    - "*.png"
+    - "*.svg"
+
+hook:
+  mode: block
+  min_severity: major
