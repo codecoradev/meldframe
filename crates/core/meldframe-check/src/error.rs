@@ -38,6 +38,31 @@ pub enum ApplyError {
     BadReorder(String),
 }
 
+impl ApplyError {
+    /// The stable machine code of this error (`E_PARENT_NOT_FOUND`, ...). It never changes once released
+    /// and does not depend on the details; `docs/error-codes.md` lists every code. The match has no
+    /// wildcard, so a new variant cannot be added without a code.
+    pub fn code(&self) -> &'static str {
+        match self {
+            ApplyError::NotFound(_) => "E_NODE_NOT_FOUND",
+            ApplyError::DuplicateId(_) => "E_DUPLICATE_ID",
+            ApplyError::ParentNotFound(_) => "E_PARENT_NOT_FOUND",
+            ApplyError::ParentNotFrame(_) => "E_PARENT_NOT_FRAME",
+            ApplyError::Cycle => "E_CYCLE",
+            ApplyError::TooManyNodes(_) => "E_TOO_MANY_NODES",
+            ApplyError::TooDeep(_) => "E_TOO_DEEP",
+            ApplyError::InvalidId(_) => "E_INVALID_ID",
+            ApplyError::NotFinite(_) => "E_NOT_FINITE",
+            ApplyError::OutOfRange { .. } => "E_OUT_OF_RANGE",
+            ApplyError::TooLong { .. } => "E_TOO_LONG",
+            ApplyError::InvalidColor { .. } => "E_INVALID_COLOR",
+            ApplyError::InvalidPos(_) => "E_INVALID_POS",
+            ApplyError::PosTooLong { .. } => "E_POS_TOO_LONG",
+            ApplyError::BadReorder(_) => "E_BAD_REORDER",
+        }
+    }
+}
+
 impl fmt::Display for ApplyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
