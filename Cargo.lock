@@ -82,6 +82,7 @@ dependencies = [
 name = "meldframe-history-props"
 version = "0.0.0"
 dependencies = [
+ "meldframe-check",
  "meldframe-history",
  "meldframe-protocol",
  "serde_json",

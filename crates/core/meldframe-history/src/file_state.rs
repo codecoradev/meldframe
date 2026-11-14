@@ -2,7 +2,10 @@
 
 use crate::history::Entry;
 use crate::runs::Run;
-use meldframe_core::{ApplyError, Limits, apply_planned, normalize_positions, plan_command};
+use meldframe_check::{LoadError, check_file};
+use meldframe_core::{
+    ApplyError, Limits, apply_planned, normalize_positions, normalize_positions_with, plan_command,
+};
 use meldframe_protocol::{Command, Node};
 
 /// The in-memory tree of one file. Every change goes through [`FileState::apply`], which validates first
@@ -47,10 +50,24 @@ impl FileState {
         }
     }
 
-    /// A file that starts from a loaded tree (a snapshot). An old file whose siblings have no valid or
-    /// unique `pos` is migrated by list order; a file that is already in order is not touched. The
-    /// history starts empty.
-    pub fn from_nodes(mut nodes: Vec<Node>) -> Self {
+    /// Load a stored file. The old-file migration runs first (siblings without a valid or unique `pos` get
+    /// one by list order; a file already in order is not touched), then the whole file is checked with
+    /// `check_file`. A bad file is refused with a typed error and nothing is repaired. The history starts
+    /// empty.
+    pub fn try_from_nodes(mut nodes: Vec<Node>, limits: Limits) -> Result<Self, LoadError> {
+        normalize_positions_with(&mut nodes, &limits);
+        check_file(&nodes, &limits)?;
+        Ok(FileState {
+            nodes,
+            limits,
+            ..Self::default()
+        })
+    }
+
+    /// Like [`FileState::try_from_nodes`] with the default limits, but without the check: for a tree this
+    /// process already holds as valid (a replica's snapshot from its own server). Never use it on bytes
+    /// read from a store; that is what `try_from_nodes` is for.
+    pub fn from_nodes_unchecked(mut nodes: Vec<Node>) -> Self {
         normalize_positions(&mut nodes);
         FileState {
             nodes,

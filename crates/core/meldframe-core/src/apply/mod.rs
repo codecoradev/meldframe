@@ -10,7 +10,7 @@ use meldframe_protocol::{Command, Node};
 use order::{Want, resolve_pos};
 use std::collections::HashSet;
 
-pub use order::{normalize_positions, rebalance_commands};
+pub use order::{normalize_positions, normalize_positions_with, rebalance_commands};
 
 /// The final `pos` of the node a command touches (`None` = unchanged), worked out against the current
 /// nodes. Fails if the command is refused.

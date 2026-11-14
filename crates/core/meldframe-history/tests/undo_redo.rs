@@ -110,7 +110,7 @@ fn a_new_edit_discards_redo() {
 
 #[test]
 fn a_refused_command_leaves_no_history() {
-    let mut s = FileState::from_nodes(vec![]);
+    let mut s = FileState::from_nodes_unchecked(vec![]);
     assert!(s.apply(&Command::RemoveNode { id: "nope".into() }).is_err());
     assert!(!s.can_undo() && !s.can_redo());
     assert!(s.undo().is_none() && s.redo().is_none());

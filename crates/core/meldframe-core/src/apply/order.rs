@@ -111,8 +111,12 @@ pub(super) fn resolve_pos(
 /// `pos`) a `pos` by list order. A group that is already valid and unique is not touched. Deterministic: the
 /// server and a client that migrate the same file get the same positions. Returns how many nodes changed.
 pub fn normalize_positions(nodes: &mut [Node]) -> usize {
-    let l = Limits::default();
-    let usable = |n: &Node| !n.pos.is_empty() && check_pos(&n.pos, &l).is_ok();
+    normalize_positions_with(nodes, &Limits::default())
+}
+
+/// [`normalize_positions`] with the limits of the caller: a `pos` longer than `l.max_pos` counts as unusable.
+pub fn normalize_positions_with(nodes: &mut [Node], l: &Limits) -> usize {
+    let usable = |n: &Node| !n.pos.is_empty() && check_pos(&n.pos, l).is_ok();
     let kids = children_map(nodes);
     let mut todo: Vec<(Vec<usize>, Vec<String>)> = Vec::new();
     for (_, group) in kids {

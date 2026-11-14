@@ -61,7 +61,7 @@ impl Replica {
     /// `actor` is the name the server puts on my events (such as `user:alice`); `key_prefix` must be
     /// unique per replica. `nodes` and `seq` come from a snapshot.
     pub fn new(actor: &str, key_prefix: &str, nodes: Vec<Node>, seq: u64) -> Self {
-        let mut view = FileState::from_nodes(nodes);
+        let mut view = FileState::from_nodes_unchecked(nodes);
         view.set_optimistic(true);
         Replica {
             actor: actor.to_string(),

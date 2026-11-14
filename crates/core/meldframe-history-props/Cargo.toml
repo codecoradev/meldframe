@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-history-props"
-description = "Property tests for meldframe-history: random runs of undo and redo. No library code."
+description = "Property and load-boundary tests for meldframe-history: random runs of undo and redo, and refusal of bad stored files. No library code."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,6 +10,7 @@ publish.workspace = true
 kind = "tool"
 
 [dev-dependencies]
+meldframe-check = { path = "../meldframe-check" }
 meldframe-history = { path = "../meldframe-history" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 serde_json = "1"

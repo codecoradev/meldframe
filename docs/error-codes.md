@@ -1,13 +1,13 @@
 # Error codes of `meldframe-check`
 
-Every `ApplyError` has a stable machine code, returned by `ApplyError::code()`. A code is a
+Every `ApplyError` has a stable machine code, returned by `ApplyError::code()`. A `LoadError` (a stored file refused when it is loaded) has a code too: it reuses the code of the `ApplyError` it wraps, and adds the two codes at the end of the table. A code is a
 SCREAMING_SNAKE string that starts with `E_`. Once released, a code never changes meaning and is never
 reused; a variant may gain details, but its code stays. The English message may be reworded; match on the
 code, not on the message.
 
 A refused command leaves the file unchanged, so an agent can always correct the command and send it again.
 
-A test in `crates/core/meldframe-check/tests/error_codes.rs` reads this table and fails if a variant has no
+A test in `crates/core/meldframe-check/tests/error_codes.rs` reads this table and fails if a variant (of either type) has no
 row, a row has no variant, or two variants share a code. Add the row in the same change that adds the
 variant.
 
@@ -32,3 +32,5 @@ variant.
 | `E_INVALID_FONT_WEIGHT` | `fontWeight` is not 100 to 900 in steps of 100. | Send one of 100, 200, 300, 400, 500, 600, 700, 800 or 900. |
 | `E_INVALID_ASSET_ID` | `image.assetId` is not a lowercase hex SHA-256 (64 characters). | Upload the image first and use the asset id the upload returned. |
 | `E_IMAGE_ON_TEXT` | An image fill was set on a text node; a text node cannot hold one. | Put the image on a frame or shape behind the text, or remove the fill. |
+| `E_MISSING_POS` | A stored node has no `pos`, so its place among its siblings is undefined. Load only: the loader migrates an old file first, so this means a caller used `check_file` without migrating. | Not for an agent. The server refuses to open the file and keeps its bytes; an operator migrates or repairs the stored file. |
+| `E_DUPLICATE_POS` | Two stored siblings have the same `pos`, so their order is undefined. Load only: the loader migrates an old file first, so this means a caller used `check_file` without migrating, or on a live tree where concurrent edits made equal `pos` values. | Not for an agent. The server refuses to open the file and keeps its bytes; an operator repairs the stored file. |

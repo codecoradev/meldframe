@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use meldframe_check::ApplyError;
+use meldframe_check::{ApplyError, LoadError};
 
 const DOC: &str = include_str!("../../../../docs/error-codes.md");
 
@@ -33,6 +33,30 @@ fn index(e: &ApplyError) -> usize {
 }
 
 const VARIANTS: usize = 19;
+
+/// The same for `LoadError`. Its `Node` variant carries an `ApplyError` and has that error's code, so it
+/// adds no row of its own; every other variant needs one.
+fn load_index(e: &LoadError) -> usize {
+    match e {
+        LoadError::Node { .. } => 0,
+        LoadError::MissingPos(_) => 1,
+        LoadError::DuplicatePos { .. } => 2,
+    }
+}
+
+fn load_samples() -> Vec<LoadError> {
+    vec![
+        LoadError::Node {
+            node: Some("a".into()),
+            error: ApplyError::Cycle,
+        },
+        LoadError::MissingPos("a".into()),
+        LoadError::DuplicatePos {
+            parent: None,
+            pos: "a0".into(),
+        },
+    ]
+}
 
 fn samples() -> Vec<ApplyError> {
     vec![
@@ -121,9 +145,31 @@ fn the_code_does_not_depend_on_the_details() {
 
 #[test]
 fn the_docs_table_lists_exactly_the_codes_in_the_code() {
-    let in_code: BTreeSet<String> = samples().iter().map(|e| e.code().to_string()).collect();
+    let in_code: BTreeSet<String> = samples()
+        .iter()
+        .map(|e| e.code().to_string())
+        .chain(
+            load_samples()
+                .iter()
+                .filter(|e| !matches!(e, LoadError::Node { .. }))
+                .map(|e| e.code().to_string()),
+        )
+        .collect();
     let docs = documented();
     let in_docs: BTreeSet<String> = docs.iter().cloned().collect();
     assert_eq!(docs.len(), in_docs.len(), "a code is listed twice");
     assert_eq!(in_docs, in_code);
+}
+
+#[test]
+fn the_load_samples_cover_every_variant() {
+    let seen: BTreeSet<usize> = load_samples().iter().map(load_index).collect();
+    assert_eq!(seen, (0..3).collect());
+}
+
+#[test]
+fn a_load_error_that_wraps_an_apply_error_has_its_code() {
+    assert_eq!(load_samples()[0].code(), "E_CYCLE");
+    assert_eq!(load_samples()[1].code(), "E_MISSING_POS");
+    assert_eq!(load_samples()[2].code(), "E_DUPLICATE_POS");
 }

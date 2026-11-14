@@ -71,11 +71,11 @@ fn a_refused_command_changes_neither_the_tree_nor_the_version() {
 }
 
 #[test]
-fn from_nodes_starts_at_version_zero_with_the_given_tree() {
+fn from_nodes_unchecked_starts_at_version_zero_with_the_given_tree() {
     let mut seed = FileState::new();
     seed.apply(&add(node("root", "frame", None))).unwrap();
     seed.apply(&add(node("a", "rect", Some("root")))).unwrap();
-    let loaded = FileState::from_nodes(seed.nodes().to_vec());
+    let loaded = FileState::from_nodes_unchecked(seed.nodes().to_vec());
     assert_eq!(json(&loaded), json(&seed));
     assert_eq!(loaded.version(), 0);
 }
