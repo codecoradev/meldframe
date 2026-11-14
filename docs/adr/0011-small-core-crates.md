@@ -3,7 +3,7 @@ status: accepted
 ---
 # The core is several small crates
 
-The file model, its checks, its layout and its sibling order live in separate core crates: `meldframe-order`, `meldframe-check`, `meldframe-layout` and `meldframe-core`, with `meldframe-history` and `meldframe-sync` to follow. Each has one reason to change and stays under the 2,000-line crate ceiling with its tests counted. `meldframe-core` re-exports the check API, so callers keep one import path.
+The file model, its checks, its layout and its sibling order live in separate core crates: `meldframe-order`, `meldframe-check`, `meldframe-layout` and `meldframe-core`, with `meldframe-history` and `meldframe-sync` built on them (and two tool crates that hold their property tests). Each has one reason to change and stays under the 2,000-line crate ceiling with its tests counted. `meldframe-core` re-exports the check API, so callers keep one import path.
 
 ## Why
 

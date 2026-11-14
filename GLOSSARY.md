@@ -74,6 +74,18 @@ _Avoid_: Mutation, action, edit event
 A command submitted by one actor, with an idempotency key, accepted or rejected as a whole and given a place in the file's total order.
 _Avoid_: Operation, request
 
+**Replica**:
+One actor's working copy of a file: the last state the server confirmed plus that actor's pending ops, so an edit shows at once and the copy still ends equal to the server's order.
+_Avoid_: Mirror, local copy, cache
+
+**Pending op**:
+An op that its actor has applied and sent but the server has not confirmed or refused yet. A remote op that is ordered before it makes the replica apply it again on the new state.
+_Avoid_: Queued op, optimistic op
+
+**Dependency**:
+A pending op of the same actor that another op was built on, such as the edit an undo reverses. The server accepts the op only if every dependency was applied, so an undo never lands on a premise the server refused.
+_Avoid_: Prerequisite, parent op
+
 **Batch**:
 A group of ops submitted together, optionally all-or-nothing. A batch is the unit of review and revert.
 _Avoid_: Transaction, changeset
@@ -163,4 +175,5 @@ _Avoid_: Audit, feedback
 - A **Workspace** has many **Files**; a **File** has **Pages**; a **Page** has **Frames**; a **Frame** is a tree of **Nodes**.
 - A **Collection** has **Modes** and **Variables**; a **Binding** ties a **Node** property to a **Variable**.
 - An **Actor** submits **Ops**; **Ops** travel in **Batches**; a **Batch** can be reviewed and **Reverted**.
+- An **Actor** edits through a **Replica**; its **Pending ops** wait for the **Room**, and an **Op** names its **Dependencies**.
 - A **File** has one **Room**; the **Room** gives every **Op** one place in a single order.
