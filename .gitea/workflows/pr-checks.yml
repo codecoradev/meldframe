@@ -1,0 +1,75 @@
+# Pull request hygiene: branch name, Message Standard and description sections.
+#
+# Required contexts (branch protection, set by the owner), shown by Gitea as
+# `pr-checks / <name> (pull_request)`: branch name, message standard, pr description.
+#
+# `edited` is in the trigger list so that fixing the description re-runs these checks. The scripts
+# live in scripts/ci/ and are tested by `ci / ci scripts`. Text from the pull request (branch,
+# title, body) reaches the shell only through environment variables, never through a
+# ${{ }} expression inside a script, so it cannot inject commands.
+name: pr-checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [develop, main]
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  branch-name:
+    name: branch name
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: sh scripts/ci/branch-name.sh "$HEAD_REF"
+
+  message-standard:
+    name: message standard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Title, description and every commit message
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # The patterns come from the base branch, so a pull request cannot loosen its own gate
+          # (the first pull request that adds the script falls back to its own copy).
+          patterns="$RUNNER_TEMP/message-patterns.sh"
+          git show "$BASE:scripts/ci/message-patterns.sh" > "$patterns" 2>/dev/null \
+            || cp scripts/ci/message-patterns.sh "$patterns"
+          bad=0
+          check() {
+            found="$(printf '%s\n' "$2" | sh "$patterns")"
+            if [ -n "$found" ]; then
+              echo "::error::message-standard: $1 has a line that is not allowed (see the team message standard and CONTRIBUTING.md)"
+              bad=1
+            fi
+          }
+          check "the pull request title" "$TITLE"
+          check "the pull request description" "$BODY"
+          for sha in $(git rev-list "$BASE..$HEAD"); do
+            check "commit $sha" "$(git log -1 --format=%B "$sha")"
+          done
+          exit "$bad"
+
+  pr-description:
+    name: pr description
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n' "$BODY" | sh scripts/ci/pr-body.sh -
