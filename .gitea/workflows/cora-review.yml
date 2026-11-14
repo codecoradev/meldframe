@@ -1,7 +1,7 @@
-# Cora Review on every pull request (CodeCora workflow standard, merge gate). Configuration: .cora.yaml.
-#
-# Not a required check: it can exceed its time budget on the shared runner (owner decision, 14 Nov 2026).
-# Pull requests are also reviewed locally with Cora as an agent reviewer (CONTRIBUTING.md).
+# Cora Review in CI is DISABLED (owner decision, 14 Nov 2026): it exceeded its time budget on the shared
+# runner and made the other checks of the same pull request wait. Every pull request is reviewed locally with
+# Cora as an agent reviewer before it is opened, and the verdict goes in its description (CONTRIBUTING.md).
+# A manual dispatch is skipped (the job reads the pull request payload). To enable it again, restore the `pull_request` trigger below. Configuration: .cora.yaml.
 #
 # The verdict is the pull request COMMENT (marker `<!-- cora-review -->`, updated in place), not
 # this check: a green check next to "Review could not complete" is a merge blocker. The job fails
@@ -17,9 +17,10 @@
 name: cora-review
 
 on:
-  pull_request:
-    branches: [develop, main]
-    types: [opened, synchronize, ready_for_review, reopened]
+  workflow_dispatch:
+  # pull_request:
+  #   branches: [develop, main]
+  #   types: [opened, synchronize, ready_for_review, reopened]
 
 concurrency:
   group: cora-review-${{ github.event.pull_request.number || github.ref }}

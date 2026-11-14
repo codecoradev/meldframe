@@ -13,7 +13,7 @@ Plan of record for building W1. Status: draft for owner review, 13 Nov 2026. Req
 ## Definition of done (every epic)
 
 1. Behaviour is covered by tests at the agreed seam: the core's submit-a-command interface, the MCP surface with a real client and Postgres, the app layer driven by a test harness, or a browser end-to-end test. A failing test comes first for behaviour changes.
-2. CI is green: format, lint, tests, layering checks, size ceilings, UI literal lint, licence check, Cora review with no major or critical finding left.
+2. CI is green: format, lint, tests, layering checks, size ceilings, UI literal lint, licence check, a local Cora agent review of the whole diff, recorded in the pull request, with no major or critical finding left.
 3. Docs touched by the change are updated in the same pull request (architecture, ADR, glossary, MCP tool catalogue).
 4. Agent-facing text and errors are English with stable codes.
 5. Commits are signed off and carry no AI attribution; pull requests stay small (about 400 changed lines and 10 files, one kind of content) and the heavier gates are run locally before the pull request.
@@ -45,7 +45,7 @@ Crates under `crates/{core,engines,integrations,features,app,ui}`, apps under `a
 ### E0.2 CI and review gates (S)
 - [ ] CI runs format, lint (warnings as errors), tests, `deps-check`, `build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences --check`.
 - [ ] `size-check` enforces 500 lines per file and 2,000 per crate with an allow-list that only shrinks.
-- [ ] Cora Review runs on every pull request; branch-name and message-standard checks reject AI attribution and wrong prefixes.
+- [ ] A local Cora agent review is run and recorded for every pull request (CI Cora is disabled); branch-name and message-standard checks reject AI attribution and wrong prefixes.
 - [ ] `develop` requires CI to pass before merge; `main` exists and receives release tags only.
 
 ### E0.3 Protocol and schema pipeline (S)

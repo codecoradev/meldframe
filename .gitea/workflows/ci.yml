@@ -19,7 +19,7 @@
 # is never skipped.
 #
 # Contexts to require in branch protection: `ci / checks (pull_request)`, `ci / migrations (pull_request)`
-# and the context of pr-checks.yml. The Cora review is not required.
+# and the context of pr-checks.yml. The Cora review in CI is disabled.
 name: ci
 
 on:

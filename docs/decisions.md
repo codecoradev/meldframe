@@ -50,4 +50,4 @@ Status of each item: **decided** (owner confirmed), **proposed** (needs owner co
 
 ## Workflow
 
-Branches `feat/`, `fix/`, `docs/`, `chore/` from `develop`; rebase onto `develop`; squash merge with a clean message; commits signed off (DCO); Cora Review CI; all git artifacts in English.
+Branches `feat/`, `fix/`, `docs/`, `chore/` from `develop`; rebase onto `develop`; squash merge with a clean message; commits signed off (DCO); a local Cora agent review before every pull request (Cora Review in CI is disabled); all git artifacts in English.

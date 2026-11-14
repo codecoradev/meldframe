@@ -1,5 +1,5 @@
 # Cora Code Review configuration (cora-cli, https://github.com/codecoradev/cora-cli).
-# Runs on every pull request through .gitea/workflows/cora-review.yml.
+# The CI workflow .gitea/workflows/cora-review.yml is disabled; this file configures the local Cora agent review and any manual run.
 
 focus:
   - security
