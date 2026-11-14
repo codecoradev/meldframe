@@ -68,6 +68,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-history"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-core",
+ "meldframe-protocol",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-host"
 version = "0.0.0"
 
