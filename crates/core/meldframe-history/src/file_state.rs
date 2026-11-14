@@ -1,5 +1,6 @@
 //! The state of one file in memory.
 
+use crate::history::Entry;
 use meldframe_core::{ApplyError, Limits, apply_planned, plan_command};
 use meldframe_protocol::{Command, Node};
 
@@ -7,9 +8,11 @@ use meldframe_protocol::{Command, Node};
 /// and changes after, so a refused command leaves the tree as it was.
 #[derive(Debug, Clone, Default)]
 pub struct FileState {
-    nodes: Vec<Node>,
+    pub(crate) nodes: Vec<Node>,
     limits: Limits,
     version: u64,
+    pub(crate) undo: Vec<Entry>,
+    pub(crate) redo: Vec<Entry>,
 }
 
 impl FileState {
@@ -49,11 +52,20 @@ impl FileState {
         self.version
     }
 
-    /// Validate and apply a command. A refused command changes nothing, not even the version.
+    /// Validate and apply a command and record it in the history (a new edit discards redo). A refused
+    /// command changes nothing, not even the version.
     pub fn apply(&mut self, cmd: &Command) -> Result<(), ApplyError> {
+        let inverse = self.run(cmd)?;
+        self.record(cmd, inverse);
+        Ok(())
+    }
+
+    /// Apply without touching the history; returns the inverse, worked out before the change.
+    pub(crate) fn run(&mut self, cmd: &Command) -> Result<Vec<Command>, ApplyError> {
         let pos = plan_command(&self.nodes, cmd, &self.limits)?;
+        let inverse = self.invert(cmd);
         apply_planned(&mut self.nodes, cmd, pos);
         self.version += 1;
-        Ok(())
+        Ok(inverse)
     }
 }
