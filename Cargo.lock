@@ -117,6 +117,17 @@ name = "meldframe-server"
 version = "0.0.0"
 
 [[package]]
+name = "meldframe-sync"
+version = "0.0.0"
+dependencies = [
+ "meldframe-core",
+ "meldframe-history",
+ "meldframe-order",
+ "meldframe-protocol",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-ui"
 version = "0.0.0"
 
