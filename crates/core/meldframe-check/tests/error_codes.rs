@@ -92,7 +92,9 @@ fn samples() -> Vec<ApplyError> {
 /// not (an extra or malformed one) fails the test instead of being skipped.
 fn documented() -> Vec<String> {
     let mut codes = Vec::new();
-    for l in DOC.lines().filter(|l| l.starts_with('|')) {
+    // The gate table below the heading belongs to `meldframe-host`, which tests it.
+    let apply_part = DOC.split("\n## Gate refusal codes\n").next().unwrap();
+    for l in apply_part.lines().filter(|l| l.starts_with('|')) {
         if l.starts_with("| Code ") || l.starts_with("| ---") {
             continue;
         }

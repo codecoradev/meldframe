@@ -34,3 +34,21 @@ variant.
 | `E_IMAGE_ON_TEXT` | An image fill was set on a text node; a text node cannot hold one. | Put the image on a frame or shape behind the text, or remove the fill. |
 | `E_MISSING_POS` | A stored node has no `pos`, so its place among its siblings is undefined. Load only: the loader migrates an old file first, so this means a caller used `check_file` without migrating. | Not for an agent. The server refuses to open the file and keeps its bytes; an operator migrates or repairs the stored file. |
 | `E_DUPLICATE_POS` | Two stored siblings have the same `pos`, so their order is undefined. Load only: the loader migrates an old file first, so this means a caller used `check_file` without migrating, or on a live tree where concurrent edits made equal `pos` values. | Not for an agent. The server refuses to open the file and keeps its bytes; an operator repairs the stored file. |
+
+## Gate refusal codes
+
+The admission gate and the room refuse an op with a typed `Refusal` (`crates/core/meldframe-host`). A refusal
+whose cause is the command itself carries the `E_` code of its `ApplyError` from the table above. The refusals
+below are the gate's own: lower-case strings, as `ServerMsg::Error.code` carries them on the wire. They follow
+the same rules: a code never changes meaning and is never reused, and a refused op writes nothing.
+
+A test in `crates/core/meldframe-host/tests/refusal_codes.rs` reads this table and fails if a variant has no
+row, a row has no variant, or two variants share a code.
+
+| Code | Meaning and typical cause | What an agent should do next |
+| --- | --- | --- |
+| `forbidden` | The policy for the call's risk tier does not let this principal do it. Today a delete is `Ask`, which is refused until approval exists; with no readable policy only reads pass. | Do not retry the same call. Use a lower-risk call, or ask the owner to approve or change the policy. |
+| `quota_exceeded` | The workspace used up its quota of ops. Retryable. | Wait, then send the same batch again; the refused batch was not counted. |
+| `conflict` | A node the command touches was changed by another op after the `ifSeq` the caller sent. | Read the node again, rework the command on the new state, and send it with a fresh `ifSeq`. |
+| `invalid` | The op is malformed before it is applied: an empty batch, an empty or repeated idempotency key, an op that depends on itself, an empty or repeated dependency key, or more than 512 dependencies. | Fix the op as the message says and send it again. |
+| `dependency_rejected` | A dependency was not applied for this actor: it was refused, never sent, or belongs to another actor. | Resend the dependency first, or send the op without it. |

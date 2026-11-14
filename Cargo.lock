@@ -94,6 +94,12 @@ dependencies = [
 [[package]]
 name = "meldframe-host"
 version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-module",
+ "meldframe-protocol",
+ "serde_json",
+]
 
 [[package]]
 name = "meldframe-layout"
