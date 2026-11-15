@@ -4,8 +4,7 @@
 //! other. If the server refuses the op of that step, `put_back_run` puts the history back where it
 //! was, so the step can be tried again.
 
-use crate::file_state::FileState;
-use crate::history::{Entry, MAX_HISTORY, Rec};
+use crate::history::{Entry, History, MAX_HISTORY, Rec};
 use crate::patch_ops::compact;
 use meldframe_protocol::Command;
 
@@ -23,7 +22,7 @@ pub(crate) struct Run {
     epoch: u64,
 }
 
-impl FileState {
+impl History {
     /// Keep a copy of the step that just ran (optimistic mode only).
     pub(crate) fn note_run(&mut self, undoing: bool, original: Entry, produced: &Entry) {
         self.last_run = None;
@@ -91,10 +90,10 @@ impl FileState {
     /// `direct` is true when the server refused an op of this step itself, not a cascade or a rebase.
     /// Such a step comes back once to be tried again; refused outright a second time it is dropped, so
     /// undo is never stuck on a step the server always refuses. Call it for the newest step first when
-    /// several fall together.
-    pub fn put_back_run(&mut self, id: u64, direct: bool) {
+    /// several fall together. Returns false when there is no such run (nothing changed).
+    pub fn put_back_run(&mut self, id: u64, direct: bool) -> bool {
         let Some(i) = self.runs.iter().position(|m| m.id == id) else {
-            return;
+            return false;
         };
         let mut m = self.runs.remove(i);
         m.shadow.strikes += u8::from(direct);
@@ -134,6 +133,6 @@ impl FileState {
                 origin.remove(0);
             }
         }
-        self.version += 1;
+        true
     }
 }

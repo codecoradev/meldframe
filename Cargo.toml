@@ -35,6 +35,8 @@ codegen-units = 1
 opt-level = 2
 [profile.dev.package.meldframe-sync]
 opt-level = 2
+[profile.dev.package.meldframe-undo]
+opt-level = 2
 [profile.dev.package.meldframe-history]
 opt-level = 2
 [profile.dev.package.meldframe-core]

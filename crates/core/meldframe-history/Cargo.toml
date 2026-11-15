@@ -13,6 +13,7 @@ kind = "core"
 meldframe-check = { path = "../meldframe-check" }
 meldframe-core = { path = "../meldframe-core" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-undo = { path = "../meldframe-undo" }
 
 [dev-dependencies]
 meldframe-order = { path = "../meldframe-order" }

@@ -2,27 +2,13 @@
 //! the command is applied. Undo travels the same path as an ordinary edit, so it can be sent to peers.
 
 use crate::file_state::FileState;
-use crate::patch_fields::patch_fields;
 use meldframe_check::position;
-use meldframe_protocol::{Command, Node, NodePatch};
+use meldframe_protocol::{Command, Node};
+use meldframe_undo::inverse_patch;
 use std::collections::HashSet;
 
 fn some_pos(n: &Node) -> Option<String> {
     (!n.pos.is_empty()).then(|| n.pos.clone())
-}
-
-/// A patch that holds the old value of every field `p` touches.
-fn inverse_patch(old: &Node, p: &NodePatch) -> NodePatch {
-    let mut r = NodePatch::default();
-    if p.image.is_some() {
-        // The old value: `None` (no image) becomes the patch `null`.
-        r.image = Some(old.image.clone());
-    }
-    macro_rules! copy {
-        ($($f:ident),*) => { $( if p.$f.is_some() { r.$f = Some(old.$f.clone()); } )* };
-    }
-    patch_fields!(copy);
-    r
 }
 
 /// The ids of node `id` and all its descendants.

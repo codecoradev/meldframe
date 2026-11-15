@@ -1,0 +1,16 @@
+[package]
+name = "meldframe-undo"
+description = "The bookkeeping of undo and redo: steps, recs, runs, and the rules that rewrite them against a remote command."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dependencies]
+meldframe-protocol = { path = "../meldframe-protocol" }
+
+[lints]
+workspace = true

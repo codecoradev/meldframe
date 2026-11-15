@@ -1,10 +1,10 @@
-//! Helpers over `NodePatch`: merge, drop fields, and compact a command list.
+//! Helpers over `NodePatch`: merge, drop fields, invert, and compact a command list.
 
 use crate::patch_fields::patch_fields;
-use meldframe_protocol::{Command, NodePatch};
+use meldframe_protocol::{Command, Node, NodePatch};
 
 /// Copy into `into` every field that `later` sets; `later` wins.
-pub(crate) fn merge_patch(into: &mut NodePatch, later: &NodePatch) {
+pub fn merge_patch(into: &mut NodePatch, later: &NodePatch) {
     if later.image.is_some() {
         into.image = later.image.clone();
     }
@@ -15,7 +15,7 @@ pub(crate) fn merge_patch(into: &mut NodePatch, later: &NodePatch) {
 }
 
 /// Remove from `q` every field that `p` sets.
-pub(crate) fn drop_fields(q: &mut NodePatch, p: &NodePatch) {
+pub fn drop_fields(q: &mut NodePatch, p: &NodePatch) {
     if p.image.is_some() {
         q.image = None;
     }
@@ -26,16 +26,30 @@ pub(crate) fn drop_fields(q: &mut NodePatch, p: &NodePatch) {
 }
 
 /// A patch that sets nothing.
-pub(crate) fn patch_is_empty(p: &NodePatch) -> bool {
+pub fn patch_is_empty(p: &NodePatch) -> bool {
     macro_rules! none {
         ($($f:ident),*) => { true $( && p.$f.is_none() )* };
     }
     p.image.is_none() && patch_fields!(none)
 }
 
+/// A patch that holds the old value of every field `p` touches.
+pub fn inverse_patch(old: &Node, p: &NodePatch) -> NodePatch {
+    let mut r = NodePatch::default();
+    if p.image.is_some() {
+        // The old value: `None` (no image) becomes the patch `null`.
+        r.image = Some(old.image.clone());
+    }
+    macro_rules! copy {
+        ($($f:ident),*) => { $( if p.$f.is_some() { r.$f = Some(old.$f.clone()); } )* };
+    }
+    patch_fields!(copy);
+    r
+}
+
 /// Join runs of `UpdateNode` on the same id into one; a later value for a field wins. Other commands
 /// keep their place, so the order they apply in does not change.
-pub(crate) fn compact(list: Vec<Command>) -> Vec<Command> {
+pub fn compact(list: Vec<Command>) -> Vec<Command> {
     let mut out: Vec<Command> = Vec::with_capacity(list.len());
     for c in list {
         if let (

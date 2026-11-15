@@ -1,12 +1,11 @@
 //! The state of one file in memory.
 
-use crate::history::Entry;
-use crate::runs::Run;
 use meldframe_check::{LoadError, check_file};
 use meldframe_core::{
     ApplyError, Limits, apply_planned, normalize_positions, normalize_positions_with, plan_command,
 };
 use meldframe_protocol::{Command, Node};
+use meldframe_undo::History;
 
 /// The in-memory tree of one file. Every change goes through [`FileState::apply`], which validates first
 /// and changes after, so a refused command leaves the tree as it was.
@@ -15,25 +14,8 @@ pub struct FileState {
     pub(crate) nodes: Vec<Node>,
     pub(crate) limits: Limits,
     pub(crate) version: u64,
-    pub(crate) undo: Vec<Entry>,
-    pub(crate) redo: Vec<Entry>,
-    /// The step being built by `begin_group`, if any.
-    pub(crate) group: Option<Entry>,
-    /// The key of the edit that was recorded last, while it is still the top step: only that step takes
-    /// a later edit with the same key. An undo, a redo or a group boundary closes it.
-    pub(crate) merge_key: Option<String>,
-    /// The id of the last rec made (ids start at 1).
-    pub(crate) next_rec: u64,
-    /// New recs are marked pending until confirmed (set by a replica that waits for the server).
-    pub(crate) optimistic: bool,
-    /// The id of the last step made (ids start at 1).
-    pub(crate) next_entry: u64,
-    /// Undo and redo steps whose ops have not been confirmed yet (optimistic mode only).
-    pub(crate) runs: Vec<Run>,
-    pub(crate) next_run: u64,
-    pub(crate) last_run: Option<u64>,
-    /// Goes up each time an edit discards a redo stack that was not empty.
-    pub(crate) redo_epoch: u64,
+    /// Undo and redo steps, the open group and the runs that wait for the server.
+    pub(crate) hist: History,
 }
 
 impl FileState {
@@ -100,7 +82,7 @@ impl FileState {
     /// undo or redo in between), the command joins that step, so typing into one text is one step to undo.
     pub fn apply_keyed(&mut self, cmd: &Command, key: Option<&str>) -> Result<(), ApplyError> {
         let inverse = self.run(cmd)?;
-        self.record(cmd, inverse, key);
+        self.hist.record(cmd, inverse, key);
         Ok(())
     }
 
@@ -118,9 +100,7 @@ impl FileState {
 
     /// Give the rec this undo, so it holds the value that is right in the server's order.
     pub fn set_undo(&mut self, id: u64, undo: Vec<Command>) {
-        for r in self.recs_mut().filter(|r| r.id == id) {
-            r.undo_ = undo.clone();
-        }
+        self.hist.set_undo(id, undo);
     }
 
     /// Apply without touching the history; returns the inverse, worked out before the change.

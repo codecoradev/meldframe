@@ -20,3 +20,5 @@ The first vertical slice of the apply path did not fit in one crate: with its te
 A new crate means a new kind declaration and a place in `docs/architecture.md`; `cargo xtask deps-check` enforces the edges. Callers of the apply path depend on `meldframe-core` only.
 
 The same reasoning applied later to the host: `meldframe-host` (room, store seam, gate) reached its ceiling, so the activity log and the room registry live in `meldframe-rooms`, a core crate that depends on the host.
+
+`meldframe-history` reached its ceiling too, so the bookkeeping of undo and redo (steps, recs, runs, the rules that rewrite them against a remote command) lives in `meldframe-undo`, a core crate that depends only on the protocol. The seam is the tree: `FileState` stays in history and drives the stacks that `meldframe-undo` owns, and history re-exports nothing that callers did not already use.

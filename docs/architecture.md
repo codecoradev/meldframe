@@ -76,6 +76,7 @@ crates/
     meldframe-check       limits, ApplyError and every check on a value or a command (structure, decoration, image)
     meldframe-layout      text measurer seam, Rect and layout
     meldframe-core        applying a command to the file tree (`apply_command`, `plan_command`, `apply_planned`); re-exports the check API; the render model comes later
+    meldframe-undo        undo and redo bookkeeping with no tree in it: the steps of a history, their runs, and the rules that rewrite them against a remote command; split from history
     meldframe-history     `FileState` (the in-memory tree of one File) with validated apply, undo and redo per actor, groups and remote ops
     meldframe-history-props (tool) property tests of random undo and redo runs and of undo against a deleted parent; no library code
     meldframe-sync        `Replica`: the optimistic layer over a `FileState` (pending ops, the server's order, rebase, op dependencies)

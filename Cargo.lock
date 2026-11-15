@@ -178,6 +178,7 @@ dependencies = [
  "meldframe-core",
  "meldframe-order",
  "meldframe-protocol",
+ "meldframe-undo",
  "serde_json",
  "wasm-bindgen-test",
 ]
@@ -289,6 +290,13 @@ dependencies = [
 [[package]]
 name = "meldframe-ui"
 version = "0.0.0"
+
+[[package]]
+name = "meldframe-undo"
+version = "0.0.0"
+dependencies = [
+ "meldframe-protocol",
+]
 
 [[package]]
 name = "meldframe-wasm"
