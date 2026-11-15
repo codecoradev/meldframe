@@ -38,6 +38,8 @@ struct Pending {
     /// a later remote op wrote. The op already sent or queued is not changed; a later correction restores
     /// the remote value.
     intent: Option<Command>,
+    /// A correction only: it was sent again after a refusal; a second refusal ends it.
+    resent: bool,
     /// What this op adds to the state the rebuilt steps give (`Replica::ideal`), as of the last rebuild;
     /// none until a rebuild has worked it out (then the op itself).
     ideal_cmds: Option<Vec<Command>>,
@@ -206,6 +208,7 @@ impl Replica {
             run: from.run,
             writes: foot.1,
             intent: None,
+            resent: false,
             ideal_cmds: None,
         });
     }
@@ -349,7 +352,7 @@ impl Replica {
         self.base = next;
         self.seq = seq;
         Ok(EventOutcome::Rebased {
-            dropped: self.rebuild(HashSet::new(), None, Some(cmd), true),
+            dropped: self.rebuild(HashSet::new(), None, Some(cmd), true, None),
         })
     }
 
@@ -387,13 +390,14 @@ impl Replica {
             self.view.forget_rec(r);
         }
         self.outbox.retain(|o| o.key != key);
-        // A refused correction is not sent again. Nothing works it out afresh when the queue is empty: the
-        // stale value then stays in `base` (a known limit).
+        // A refused correction is sent once more (a second refusal ends it) so `base` keeps no stale value.
+        let lost = (p.is_correction() && !p.resent).then(|| p.intent.iter().cloned().collect());
         self.rebuild(
             HashSet::from([key.to_string()]),
             p.run,
             None,
             !p.is_correction(),
+            lost,
         );
         true
     }

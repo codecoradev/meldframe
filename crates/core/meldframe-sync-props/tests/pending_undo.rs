@@ -187,7 +187,7 @@ fn an_edit_made_after_a_stale_undo_undoes_to_the_other_actors_value() {
 }
 
 #[test]
-fn a_refused_correction_is_not_sent_again() {
+fn a_refused_correction_is_sent_once_more_and_then_never() {
     let mut a = replica();
     a.apply(&upd("a", |p| p.x = Some(10.0))).unwrap();
     assert!(a.undo().unwrap());
@@ -196,18 +196,18 @@ fn a_refused_correction_is_not_sent_again() {
         .unwrap();
     let mut open = a.take_outbox();
     assert_eq!(open.len(), 1, "one correction");
-    // A server that refuses every correction: the replica must stop after the first refusal.
+    // A server that refuses every correction: the replica sends it once more and stops after the second refusal.
     let mut refusals = 0;
     while let Some(o) = open.pop() {
         refusals += 1;
         assert!(
-            refusals < 5,
+            refusals < 4,
             "the refused correction is sent again and again"
         );
         assert!(a.on_reject(&o.key));
         open = a.take_outbox();
     }
-    assert_eq!(refusals, 1);
+    assert_eq!(refusals, 2, "once more, then never");
     a.check_consistency().unwrap();
 }
 

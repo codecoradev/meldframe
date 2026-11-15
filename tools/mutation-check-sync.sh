@@ -28,12 +28,17 @@ seq-guard	crates/core/meldframe-sync/src/replica.rs	if seq <= self.seq {	if fals
 reparent-survivor	crates/core/meldframe-undo/src/remote.rs	let parent_id = ctx\.survivor\.clone();	let parent_id: Option<String> = None;	undo of a move into a deleted parent goes to the top instead of the nearest surviving ancestor
 held-recs	crates/core/meldframe-undo/src/runs.rs	let hit = |r: &Rec| r\.pending || held\.contains(&r\.id);	let hit = |r: \&Rec| false \&\& r.pending;	the step an undo or redo made from a pending edit is rewritten against a remote op that is ordered before the edit (the redo loses its field)
 refresh-run	crates/core/meldframe-undo/src/runs.rs	if self\.held_recs()\.contains(&rec) {	if false {	the step an undo or redo made keeps the stale value its op carried
-correction	crates/core/meldframe-sync/src/replica/rebuild.rs	self\.correct(&w);	let _ = \&w;	a stale undo or redo that is already on its way is not set right
+correction	crates/core/meldframe-sync/src/replica/rebuild.rs	Some(w) => self\.correct(&w, &lost),	Some(w) => { let _ = \&w; },	a stale undo or redo that is already on its way is not set right
 strip-remote	crates/core/meldframe-sync/src/replica/rebuild.rs	p\.intent = p\.intent\.take()\.and_then(|i| without_fields(&i, r));	let _ = r;	a correction is kept for a field another actor wrote after it was made
 want-undo	crates/core/meldframe-sync/src/replica/rebuild.rs	self\.view\.set_undo(r, own\.unwrap_or(inverse));	self.view.set_undo(r, inverse);	the undo of an edit made after a stale undo is worked out in the stale view
 refused-correction	crates/core/meldframe-sync/src/replica.rs	!p\.is_correction(),	true,	a refused correction is sent again without end
 ideal-persist	crates/core/meldframe-sync/src/replica/rebuild.rs	self\.ideal = Some(w);	drop(w);	a stale undo that the server applied is forgotten while a later edit is still pending
 ideal-reset	crates/core/meldframe-sync/src/replica/rebuild.rs	if dropped > 0 || self\.pending\.is_empty() {	if self.pending.is_empty() {	a refused or dropped op leaves ideal and the correction with what its step would have added
+refused-resend	crates/core/meldframe-sync/src/replica.rs	(p\.is_correction() && !p\.resent)\.then(	(false \&\& p.is_correction() \&\& !p.resent).then(	a refused correction is not sent once more, so the stale value stays in the confirmed state
+resent-flag	crates/core/meldframe-sync/src/replica/rebuild.rs	last\.resent = resent;	let _ = resent;	a correction that was sent once more is sent again after its refusal, without end
+lost-base	crates/core/meldframe-sync/src/replica/rebuild.rs	\.filter_map(|c| left_in_base(&self\.base, self\.view\.nodes(), &pend, c))	.filter_map(|_| None::<Command>)	a refused correction whose dependent ops fell is not sent once more
+lost-cascade	crates/core/meldframe-sync/src/replica/rebuild.rs	if chain && p\.is_correction() && !p\.resent {	if false \&\& chain \&\& p.is_correction() \&\& !p.resent {	a correction that falls with a refused correction is not sent once more
+pending-written	crates/core/meldframe-sync/src/correction.rs	!written\.contains(k) && 	true \&\&	a resend overwrites a pending edit of the field that holds the same value as the stale one
 TABLE
 )
 
@@ -53,13 +58,13 @@ while IFS=$'\t' read -r name file from to what; do
   sed -i "s#$from#$to#" "$file"
   if git diff --quiet -- "$file"; then echo "FAIL: $name: the pattern was not found in $file"; exit 2; fi
   # A mutant that does not compile, or a cargo failure unrelated to it, is not a kill: build first.
-  if ! cargo test -p meldframe-history -p meldframe-sync -p meldframe-sync-props --no-run >"/tmp/mutation-$name.build.log" 2>&1; then
+  if ! cargo test -p meldframe-history -p meldframe-sync -p meldframe-sync-scenarios -p meldframe-sync-props --no-run >"/tmp/mutation-$name.build.log" 2>&1; then
     git checkout -- "$file"
     current=""
     echo "BROKEN:   $name does not build (see /tmp/mutation-$name.build.log)"
     exit 2
   fi
-  cargo test -p meldframe-history -p meldframe-sync -p meldframe-sync-props --no-fail-fast >"/tmp/mutation-$name.log" 2>&1
+  cargo test -p meldframe-history -p meldframe-sync -p meldframe-sync-scenarios -p meldframe-sync-props --no-fail-fast >"/tmp/mutation-$name.log" 2>&1
   status=$?
   git checkout -- "$file"
   current=""

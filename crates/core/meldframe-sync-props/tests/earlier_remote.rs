@@ -201,7 +201,7 @@ fn run(seed: u64) {
     }
     let s1 = net.server.nodes.iter().find(|n| n.id == "s1").unwrap();
     // Both actors with an undo of an edit of the same field: the other actor's stale undo and its correction
-    // are writes that come after my edit, so the field may keep a value of an undone edit (a known limit,
+    // are writes that come after my edit, so the field may keep a value of an undone edit (a known limit, tested in `stale_limits.rs` in meldframe-sync-scenarios;
     // see `docs/architecture.md`). Such a field is not compared.
     let skip = |f: usize| seed % 4 == 3 && who[f] == 3;
     let (x, y, fill) = (s1.x, s1.y, s1.fill.clone());

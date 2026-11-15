@@ -25,7 +25,7 @@ test:
 
 # The core crates' tests under WASM on Node (needs wasm-bindgen-test-runner; see AGENTS.md)
 wasm-test:
-    cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-history -p meldframe-sync -p meldframe-history-props -p meldframe-sync-props
+    cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-history -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props
 
 # Everything to run locally before opening a pull request: the fast checks that pull request CI
 # runs, plus the heavier gates that CI runs only on push to develop and nightly

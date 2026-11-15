@@ -1,7 +1,7 @@
 //! Building the view again after a remote op or a refusal, and the corrections that go with it.
 
 use super::{OpKind, Replica, Source, footprint};
-use crate::correction::{field_diff, inverse_in, without_fields};
+use crate::correction::{field_diff, inverse_in, left_in_base, within, without_fields};
 use meldframe_core::apply_command;
 use meldframe_protocol::{Command, Node};
 use std::collections::HashSet;
@@ -20,7 +20,10 @@ impl Replica {
         direct_run: Option<u64>,
         remote: Option<&Command>,
         correct: bool,
+        lost: Option<Vec<Command>>,
     ) -> usize {
+        // A refused correction, and the corrections that fall with it, are sent once more.
+        let (chain, mut lost) = (lost.is_some(), lost.unwrap_or_default());
         let mut dead_runs: Vec<u64> = direct_run.into_iter().collect();
         self.view.reset_nodes(self.base.clone());
         // What the rebuilt steps would write, to set right the stale ops that are already on their way.
@@ -67,6 +70,9 @@ impl Replica {
                 continue;
             }
             dead.insert(p.out.key.clone());
+            if chain && p.is_correction() && !p.resent {
+                lost.extend(p.intent.take());
+            }
             if let Some(r) = p.rec {
                 self.view.forget_rec(r);
             }
@@ -85,8 +91,18 @@ impl Replica {
             self.ideal = None;
             want = want.filter(|_| dropped == 0);
         }
-        if let Some(w) = want.filter(|_| correct) {
-            self.correct(&w);
+        match want.filter(|_| correct || !lost.is_empty()) {
+            Some(w) => self.correct(&w, &lost),
+            // No `want`: send what `base` lacks of them. A correction that fell with a refused stale op
+            // is not sent: that value never landed.
+            None => {
+                let pend: Vec<&Command> = self.pending.iter().map(|p| &p.out.command).collect();
+                let left: Vec<Command> = lost
+                    .iter()
+                    .filter_map(|c| left_in_base(&self.base, self.view.nodes(), &pend, c))
+                    .collect();
+                left.into_iter().for_each(|c| self.send_correction(c, true));
+            }
         }
         dropped
     }
@@ -111,21 +127,27 @@ impl Replica {
 
     /// Send what sets right the fields where the view, which holds stale undo or redo ops that are on
     /// their way, differs from `want` (see `correction`).
-    fn correct(&mut self, want: &[Node]) {
+    fn correct(&mut self, want: &[Node], lost: &[Command]) {
         for c in field_diff(self.view.nodes(), want) {
-            let foot = footprint(self.view.nodes(), &c);
-            if self.view.replay_pending(&c).is_ok() {
-                self.enqueue(
-                    c.clone(),
-                    OpKind::Undo,
-                    Source::default(),
-                    foot,
-                    self.pending.len(),
-                    None,
-                );
-                if let Some(last) = self.pending.back_mut() {
-                    last.intent = Some(c);
-                }
+            let resent = lost.iter().any(|l| within(&c, l));
+            self.send_correction(c, resent);
+        }
+    }
+
+    fn send_correction(&mut self, c: Command, resent: bool) {
+        let foot = footprint(self.view.nodes(), &c);
+        if self.view.replay_pending(&c).is_ok() {
+            self.enqueue(
+                c.clone(),
+                OpKind::Undo,
+                Source::default(),
+                foot,
+                self.pending.len(),
+                None,
+            );
+            if let Some(last) = self.pending.back_mut() {
+                last.intent = Some(c);
+                last.resent = resent;
             }
         }
     }
