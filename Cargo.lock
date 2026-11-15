@@ -261,6 +261,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-store-contract"
+version = "0.0.0"
+dependencies = [
+ "meldframe-host",
+ "meldframe-protocol",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-sync"
 version = "0.0.0"
 dependencies = [

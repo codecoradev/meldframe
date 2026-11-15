@@ -63,7 +63,7 @@ begin
 end $$;
 SQL
 
-echo "[3/3] ops are append-only and idempotent per file"
+echo "[3/3] ops are append-only and idempotent per actor and file"
 psql "$URL" -q -v ON_ERROR_STOP=1 <<'SQL'
 do $$
 begin
@@ -84,6 +84,13 @@ begin
       values ('missing', 1, 'k1', 'a1', '{}', 1);
     raise exception 'an op for an unknown file was accepted';
   exception when foreign_key_violation then null; end;
+  -- The key is unique per actor within a file (the Store seam's contract): another actor may reuse it.
+  insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
+    values ('f1', 4, 'k1', 'a2', '{}', 1);
+  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
+      values ('f1', 5, 'k1', 'a2', '{}', 1);
+    raise exception 'a repeated key of the same actor was accepted';
+  exception when unique_violation then null; end;
   -- Deleting a file removes its history with it.
   delete from files where id = 'f1';
   if exists (select 1 from ops) or exists (select 1 from snapshots) then raise exception 'history outlived its file'; end if;

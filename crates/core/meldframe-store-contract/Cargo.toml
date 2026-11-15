@@ -1,0 +1,20 @@
+[package]
+name = "meldframe-store-contract"
+description = "The contract every Store adapter must pass, as shared test cases. Not used at run time."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+# A tool crate, not a core one: it exists for the tests of the adapters (the in-memory one in
+# meldframe-host's seam tests here, Postgres in apps/server) and must not be a dependency of a product build.
+[package.metadata.meldframe]
+kind = "tool"
+
+[dependencies]
+meldframe-host = { path = "../meldframe-host" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+serde_json = "1"
+
+[lints]
+workspace = true
