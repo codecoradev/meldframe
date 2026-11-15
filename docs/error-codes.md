@@ -47,7 +47,7 @@ row, a row has no variant, or two variants share a code.
 
 | Code | Meaning and typical cause | What an agent should do next |
 | --- | --- | --- |
-| `forbidden` | The policy for the call's risk tier does not let this principal do it. Today a delete is `Ask`, which is refused until approval exists; with no readable policy only reads pass. | Do not retry the same call. Use a lower-risk call, or ask the owner to approve or change the policy. |
+| `forbidden` | The policy for the call's risk tier does not let this principal do it. Today a delete is `Ask`, which is refused until approval exists; with no readable policy only reads pass. It also covers a call that is not allowed to the tool: a tool the server was not built with (left out of the build), or an op of a higher risk tier than its tool. | Do not retry the same call. Use a lower-risk call, or ask the owner to approve or change the policy. |
 | `quota_exceeded` | The workspace used up its quota of ops. Retryable. | Wait, then send the same batch again; the refused batch was not counted. |
 | `conflict` | A node the command touches was changed by another op after the `ifSeq` the caller sent. | Read the node again, rework the command on the new state, and send it with a fresh `ifSeq`. |
 | `invalid` | The op is malformed before it is applied: an empty batch, an empty or repeated idempotency key, an op that depends on itself, an empty or repeated dependency key, or more than 512 dependencies. | Fix the op as the message says and send it again. |

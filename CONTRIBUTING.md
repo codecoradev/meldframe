@@ -38,7 +38,7 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo xtask deps-check        # kind and group rules, UI toolkit usage
-cargo xtask build-matrix      # the product builds with no features and with each feature alone
+cargo xtask build-matrix      # the product builds with no features and with each feature alone, and tests run with defaults off
 cargo xtask portable-check    # portable kinds compile for each planned target
 cargo xtask size-check        # 500 lines per file, 2,000 per crate; the allow-list only shrinks
 cargo xtask ui-literals       # no colour, font, size or duration literals in UI crates

@@ -222,6 +222,13 @@ dependencies = [
 [[package]]
 name = "meldframe-server"
 version = "0.0.0"
+dependencies = [
+ "example",
+ "meldframe-host",
+ "meldframe-module",
+ "meldframe-protocol",
+ "serde_json",
+]
 
 [[package]]
 name = "meldframe-sync"

@@ -4,7 +4,9 @@ use crate::plan::Step;
 use crate::rules::Package;
 
 /// Steps for the matrix: one workspace build with default features off, then one build per
-/// declared feature of each package, with default features off so the feature stands alone.
+/// declared feature of each package, with default features off so the feature stands alone. A package
+/// with default features also runs its tests with them off, so a test can prove that a feature left out
+/// removes what it adds.
 pub fn plan(packages: &[Package]) -> Vec<Step> {
     let mut steps = vec![Step::new(
         "no features",
@@ -24,6 +26,12 @@ pub fn plan(packages: &[Package]) -> Vec<Step> {
                     "--features",
                     f,
                 ],
+            ));
+        }
+        if p.features.iter().any(|f| f == "default") {
+            steps.push(Step::new(
+                format!("{} tests with default features off", p.name),
+                &["test", "-p", &p.name, "--no-default-features"],
             ));
         }
     }
@@ -71,9 +79,23 @@ mod tests {
     }
 
     #[test]
+    fn a_package_with_default_features_is_tested_with_them_off() {
+        let steps = plan(&[pkg("a", &["default", "x"])]);
+        let last = steps.last().unwrap();
+        assert_eq!(last.args, ["test", "-p", "a", "--no-default-features"]);
+        assert!(last.label.contains("a"));
+    }
+
+    #[test]
+    fn a_package_without_default_features_has_no_test_step() {
+        let steps = plan(&[pkg("a", &["x"])]);
+        assert!(steps.iter().all(|s| s.args[0] == "build"));
+    }
+
+    #[test]
     fn the_default_feature_is_not_a_member_of_the_matrix() {
         let steps = plan(&[pkg("a", &["default", "x"])]);
-        assert_eq!(steps.len(), 2);
+        assert_eq!(steps.len(), 3);
     }
 
     #[test]

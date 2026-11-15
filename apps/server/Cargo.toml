@@ -9,5 +9,20 @@ publish.workspace = true
 [package.metadata.meldframe]
 kind = "bin"
 
+[features]
+# Each feature module is compiled in only when its cargo feature is on; leaving one out removes its
+# tools from the registry (ADR-0007). The example module is the first.
+default = ["example"]
+example = ["dep:example"]
+
+[dependencies]
+meldframe-host = { path = "../../crates/core/meldframe-host" }
+meldframe-module = { path = "../../crates/core/meldframe-module" }
+example = { path = "../../crates/features/example/example", optional = true }
+
+[dev-dependencies]
+meldframe-protocol = { path = "../../crates/core/meldframe-protocol" }
+serde_json = "1"
+
 [lints]
 workspace = true
