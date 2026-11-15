@@ -41,6 +41,10 @@ Every crate declares its kind (core, engine, integration, os, feature, app, ffi,
 - `cargo xtask licences --check`: every third-party crate's licence expression must be allowed by `[licenses] allow` in `deny.toml` (D2). The same list drives `cargo deny check` (install with `cargo install cargo-deny --locked`). Model weights have no check yet (no models are shipped).
 - Before a pull request: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo xtask deps-check`.
 
+## Parallel worktrees
+
+When several worktrees build at once, give each its own target directory outside the worktree (`export CARGO_TARGET_DIR=<path>`), delete it when the worktree is removed, and watch the free disk space (a target directory is several GB). A shared target directory lets worktrees overwrite each other's `meldframe-*` artifacts: false "cannot find" errors (an `xtask` binary built for another worktree was a case of this, fixed in #101 for the Cargo workspace root, but the overwrite itself remains). The `just` recipes and `cargo xtask` honour the variable through cargo; unset, the target stays in the worktree.
+
 ## CI
 
 Gitea Actions in `.gitea/workflows/`: `ci.yml` (the fast set in two jobs, `checks` and `migrations`: scripts self-test, format, lint with warnings as errors, tests, `deps-check`, the protocol drift check, and the migrations check; every pull request must pass it), `nightly.yml` (the heavier gates `build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences`, `wasm-test`, nightly and on demand; run them yourself before a pull request), `pr-checks.yml` (one job: branch prefix, Message Standard, description sections What, Why, Changes, Testing) and `cora-review.yml` (disabled; config in `.cora.yaml`; the local Cora agent review replaces it). A gate whose command does not exist yet is listed in `.gitea/ci-pending.txt` and passes without running; remove its line in the pull request that adds the command. Check scripts live in `scripts/ci/` (`sh scripts/ci/selftest.sh`).

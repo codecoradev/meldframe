@@ -51,6 +51,16 @@ Before you open a pull request, run Cora as an agent reviewer on the whole diff 
 
 The CI Cora review is disabled (`.gitea/workflows/cora-review.yml`, config in `.cora.yaml`) because it exceeded its time budget on the shared runner and delayed the other checks. The local agent review above is required for every pull request. A pull request merges with the fast CI checks green, the local agent review clean and no major or critical finding left.
 
+## Several worktrees at once
+
+When more than one git worktree builds at the same time (parallel agents, or a branch checked out beside `develop`), give each worktree its own target directory, outside the worktree:
+
+```sh
+export CARGO_TARGET_DIR=$HOME/cargo-targets/<worktree-name>
+```
+
+Worktrees that share one target directory overwrite each other's `meldframe-*` build artifacts. The symptoms look like code bugs: false "cannot find ..." errors; a stale `xtask` binary that checked another worktree's files was one case (issue #99, fixed in #101 for the Cargo workspace root, but the overwrite itself remains). Delete the directory when you remove the worktree, and watch the free disk space: one target directory is several GB. The `just` recipes and `cargo xtask` need no change; cargo reads `CARGO_TARGET_DIR` itself, and without it the target stays in `target/` of the worktree.
+
 ## Reporting problems
 
 Open an issue in this repository with the bug, task or epic template. Do not put secrets, tokens or customer data in an issue or a pull request. Conduct questions go to the owner; see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

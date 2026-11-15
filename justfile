@@ -1,4 +1,6 @@
 # Daily commands. Install just: https://github.com/casey/just
+# Cargo recipes honour an optional CARGO_TARGET_DIR from the environment (one per worktree when
+# several build at once; see CONTRIBUTING.md). Unset, the target stays in target/.
 
 default:
     @just --list
