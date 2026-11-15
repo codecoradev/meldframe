@@ -47,8 +47,25 @@ row, a row has no variant, or two variants share a code.
 
 | Code | Meaning and typical cause | What an agent should do next |
 | --- | --- | --- |
-| `forbidden` | The policy for the call's risk tier does not let this principal do it. Today a delete of a frame, of a node that is not in the file, or of a subtree above the small-delete limit is `Ask`, which is refused until approval exists (a small delete is Auto; today only a frame can have children, so in practice every non-frame delete is small and every frame delete is Ask, and a relaxed delete whose node became a frame or gained children before the room applied it is refused with this code too); with no readable policy only reads pass. It also covers a call that is not allowed to the tool: a tool the server was not built with (left out of the build), or an op of a higher risk tier than its tool. | Do not retry the same call. Use a lower-risk call, or ask the owner to approve or change the policy. |
+| `forbidden` | The policy for the call's risk tier does not let this principal do it. Today a delete of a frame, of a node that is not in the file, or of a subtree above the small-delete limit is `Ask`, which is refused here; through the approval seam it opens an approval instead (see the approval codes above) (a small delete is Auto; today only a frame can have children, so in practice every non-frame delete is small and every frame delete is Ask, and a relaxed delete whose node became a frame or gained children before the room applied it is refused with this code too); with no readable policy only reads pass. It also covers a call that is not allowed to the tool: a tool the server was not built with (left out of the build), or an op of a higher risk tier than its tool. | Do not retry the same call unchanged. Use a lower-risk call, ask the owner to change the policy, or, where the server offers the approval seam, expect `approval_required` instead and follow it. |
 | `quota_exceeded` | The workspace used up its quota of ops. Retryable. | Wait, then send the same batch again; the refused batch was not counted. |
 | `conflict` | A node the command touches was changed by another op after the `ifSeq` the caller sent. | Read the node again, rework the command on the new state, and send it with a fresh `ifSeq`. |
 | `invalid` | The op is malformed before it is applied: an empty batch, an empty or repeated idempotency key, an op that depends on itself, an empty or repeated dependency key, or more than 512 dependencies. | Fix the op as the message says and send it again. |
 | `dependency_rejected` | A dependency was not applied for this actor: it was refused, never sent, or belongs to another actor. | Resend the dependency first, or send the op without it. |
+
+## Approval refusal codes
+
+A call whose policy is Ask can be sent through the approval seam (`Approvals::submit` in
+`crates/core/meldframe-approvals`) instead of straight to the gate. The seam adds three codes, same rules as the
+gate codes: lower-case strings, never changed in meaning, never reused, and a refused op writes nothing. Every
+other refusal passes through with its own code (`forbidden` for a Deny policy, `quota_exceeded`, `invalid`).
+Each of the three carries the approval id. A call sent straight to the gate is unchanged: Ask is `forbidden`.
+
+A test in `crates/core/meldframe-approvals/tests/approval_codes.rs` reads this table and fails if a code has no
+row or a row has no code.
+
+| Code | Meaning and typical cause | What an agent should do next |
+| --- | --- | --- |
+| `approval_required` | The policy for the call is Ask and the owner has not approved it. An approval is pending; sending the same op again while it is pending returns the same id. | Wait for the owner's decision, then send the same op again (same key, command, `ifSeq` and dependencies). An approval admits one call, once; a second call asks again. |
+| `approval_denied` | The owner denied this op. It stays refused. | Do not retry it. To ask again, send a new op with a new key. |
+| `approval_expired` | The approval ran out (pending or approved) before it was used. It stays refused. | Send a new op with a new key to ask again. |

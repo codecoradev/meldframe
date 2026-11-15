@@ -47,6 +47,7 @@ fn gate_table() -> Vec<String> {
         .split(HEADING)
         .nth(1)
         .expect("the gate table is missing");
+    let section = section.split("\n## ").next().unwrap_or(section); // up to the next section
     section
         .lines()
         .filter(|l| l.starts_with('|'))

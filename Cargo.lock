@@ -138,6 +138,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-approvals"
+version = "0.0.0"
+dependencies = [
+ "meldframe-host",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-rooms",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-check"
 version = "0.0.0"
 dependencies = [

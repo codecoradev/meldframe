@@ -70,7 +70,7 @@ pub struct ActivityEntry {
 
 impl ActivityEntry {
     /// The kind and the node id of a command.
-    pub(crate) fn describe(cmd: &Command) -> (ActivityKind, String) {
+    pub fn describe(cmd: &Command) -> (ActivityKind, String) {
         match cmd {
             Command::UpdateNode { id, .. } => (ActivityKind::UpdateNode, id.clone()),
             Command::AddNode { node, .. } => (ActivityKind::AddNode, node.id.clone()),

@@ -1,0 +1,22 @@
+[package]
+name = "meldframe-approvals"
+description = "The approval path for a call with policy Ask: pending, approved, denied or expired, and the log of decisions."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dependencies]
+meldframe-host = { path = "../meldframe-host" }
+meldframe-module = { path = "../meldframe-module" }
+meldframe-rooms = { path = "../meldframe-rooms" }
+
+[dev-dependencies]
+meldframe-protocol = { path = "../meldframe-protocol" }
+serde_json = "1"
+
+[lints]
+workspace = true
