@@ -16,7 +16,7 @@ fn keys(r: &Replica) -> Vec<String> {
 
 #[test]
 fn a_refused_op_leaves_the_view_and_the_history() {
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     r.apply(&upd("a", |p| p.x = Some(5.0))).unwrap();
     let ops = r.take_outbox();
     assert!(r.on_reject(&ops[0].key));
@@ -32,7 +32,7 @@ fn a_refused_op_leaves_the_view_and_the_history() {
 
 #[test]
 fn a_refusal_is_ignored_when_the_op_is_not_pending() {
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     assert!(!r.on_reject("ca-9"));
     r.apply(&upd("a", |p| p.x = Some(5.0))).unwrap();
     let ops = r.take_outbox();
@@ -45,7 +45,7 @@ fn a_refusal_is_ignored_when_the_op_is_not_pending() {
 
 #[test]
 fn ops_after_a_refused_one_are_applied_again_on_the_new_state() {
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     r.apply(&upd("a", |p| p.x = Some(5.0))).unwrap();
     r.apply(&upd("a", |p| p.x = Some(9.0))).unwrap();
     r.apply(&upd("k", |p| p.x = Some(1.0))).unwrap();
@@ -64,7 +64,7 @@ fn ops_after_a_refused_one_are_applied_again_on_the_new_state() {
 
 #[test]
 fn an_op_that_needs_a_refused_op_is_dropped_with_it() {
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     r.apply(&add("n", "rect", Some("a"))).unwrap();
     r.apply(&upd("n", |p| p.x = Some(4.0))).unwrap();
     r.apply(&upd("k", |p| p.x = Some(2.0))).unwrap();

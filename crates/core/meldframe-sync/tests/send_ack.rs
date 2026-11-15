@@ -11,7 +11,7 @@ use common::{add, base, snap, upd, x_of};
 use meldframe_sync::{EventOutcome, OpKind, Replica, ReplicaError};
 
 fn replica() -> Replica {
-    Replica::new("user:a", "ca", base(), 0)
+    Replica::new("user:a", "ca", base(), 0).unwrap()
 }
 
 #[test]

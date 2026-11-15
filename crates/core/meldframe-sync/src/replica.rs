@@ -15,6 +15,7 @@
 
 use crate::footprint::{Pairs, footprint, premise};
 use crate::types::{EventOutcome, OpKind, Outgoing, ReplicaError};
+use meldframe_check::LoadError;
 use meldframe_core::{ApplyError, Limits, apply_command};
 use meldframe_history::FileState;
 use meldframe_protocol::{Command, MAX_OP_DEPS, Node};
@@ -81,11 +82,19 @@ pub struct Replica {
 
 impl Replica {
     /// `actor` is the name the server puts on my events (such as `user:alice`); `key_prefix` must be
-    /// unique per replica. `nodes` and `seq` come from a snapshot.
-    pub fn new(actor: &str, key_prefix: &str, nodes: Vec<Node>, seq: u64) -> Self {
-        let mut view = FileState::from_nodes_unchecked(nodes);
+    /// unique per replica. `nodes` and `seq` come from a snapshot, which is bytes from a network and is not
+    /// trusted: it goes through `FileState::try_from_nodes` (the old-file migration, then `check_file`),
+    /// and a bad one is refused with a typed [`LoadError`] and nothing is repaired.
+    pub fn new(
+        actor: &str,
+        key_prefix: &str,
+        nodes: Vec<Node>,
+        seq: u64,
+    ) -> Result<Self, LoadError> {
+        let limits = Limits::default();
+        let mut view = FileState::try_from_nodes(nodes, limits.clone())?;
         view.set_optimistic(true);
-        Replica {
+        Ok(Replica {
             actor: actor.to_string(),
             prefix: key_prefix.to_string(),
             base: view.nodes().to_vec(),
@@ -96,8 +105,8 @@ impl Replica {
             run_left: HashMap::new(),
             ideal: None,
             counter: 0,
-            limits: Limits::default(),
-        }
+            limits,
+        })
     }
 
     pub fn actor(&self) -> &str {

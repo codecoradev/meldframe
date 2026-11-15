@@ -24,7 +24,7 @@ fn confirm_all(r: &mut Replica, ops: &[meldframe_sync::Outgoing], from: u64) {
 
 #[test]
 fn only_undo_and_redo_carry_deps_and_only_on_unconfirmed_ops() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     a.apply(&upd("a", |p| p.x = Some(1.0))).unwrap();
     a.apply(&upd("a", |p| p.y = Some(2.0))).unwrap();
     let e = a.take_outbox();
@@ -53,7 +53,7 @@ fn only_undo_and_redo_carry_deps_and_only_on_unconfirmed_ops() {
         "nothing pending: no deps"
     );
 
-    let mut b = Replica::new("user:b", "cb", base(), 0);
+    let mut b = Replica::new("user:b", "cb", base(), 0).unwrap();
     b.apply(&upd("a", |p| p.x = Some(1.0))).unwrap();
     b.undo().unwrap();
     let again = b.unconfirmed();
@@ -66,7 +66,7 @@ fn only_undo_and_redo_carry_deps_and_only_on_unconfirmed_ops() {
 
 #[test]
 fn the_ops_of_one_undo_step_depend_on_each_other() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     a.begin_group();
     a.apply(&upd("a", |p| p.x = Some(1.0))).unwrap();
     a.apply(&upd("k", |p| p.x = Some(2.0))).unwrap();
@@ -82,7 +82,7 @@ fn the_ops_of_one_undo_step_depend_on_each_other() {
 
 #[test]
 fn deps_keep_the_newest_max_op_deps() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     let n = MAX_OP_DEPS + 5;
     for i in 0..n {
         a.apply(&upd("a", |p| p.x = Some(i as f64))).unwrap();
@@ -97,7 +97,7 @@ fn deps_keep_the_newest_max_op_deps() {
 
 #[test]
 fn a_refused_op_takes_its_pending_dependents_with_it() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     a.apply(&upd("a", |p| p.x = Some(10.0))).unwrap();
     a.apply(&upd("k", |p| p.x = Some(7.0))).unwrap();
     assert!(a.undo().unwrap());
@@ -125,7 +125,7 @@ fn a_refused_op_takes_its_pending_dependents_with_it() {
 
 #[test]
 fn an_undo_does_not_depend_on_an_unrelated_pending_op() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     a.apply(&upd("k", |p| p.x = Some(9.0))).unwrap();
     a.apply(&upd("a", |p| p.x = Some(5.0))).unwrap();
     assert!(a.undo().unwrap());
@@ -144,7 +144,7 @@ fn an_undo_does_not_depend_on_an_unrelated_pending_op() {
 
 #[test]
 fn deps_are_per_field_of_a_node() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     a.apply(&upd("k", |p| p.x = Some(9.0))).unwrap();
     a.apply(&upd("a", |p| p.x = Some(5.0))).unwrap();
     a.apply(&upd("a", |p| p.y = Some(6.0))).unwrap();
@@ -158,7 +158,7 @@ fn deps_are_per_field_of_a_node() {
 
 #[test]
 fn deps_follow_what_an_op_creates_and_removes() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     a.apply(&upd("p", |p| p.x = Some(3.0))).unwrap();
     a.apply(&add("n", "rect", Some("a"))).unwrap();
     a.apply(&upd("n", |p| p.fill = Some("#ff0000".into())))
@@ -190,7 +190,7 @@ fn deps_follow_what_an_op_creates_and_removes() {
 
 #[test]
 fn deps_are_transitive_through_pending_undo_ops() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     a.apply(&upd("a", |p| p.x = Some(1.0))).unwrap();
     a.apply(&upd("a", |p| p.x = Some(2.0))).unwrap();
     assert!(a.undo().unwrap());
@@ -208,7 +208,7 @@ fn deps_are_transitive_through_pending_undo_ops() {
 
 #[test]
 fn an_explicit_dependency_names_only_ops_that_are_still_pending() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     a.apply(&upd("a", |p| p.x = Some(5.0))).unwrap();
     let e = a.take_outbox();
     a.apply_dependent(
@@ -236,8 +236,8 @@ fn an_undo_built_on_ops_the_server_refuses_is_refused_too_and_the_replica_agrees
         node("s1", "rect", Some("f1")),
     ];
     let mut rule = ServerRule::new(init.clone());
-    let mut u1 = Replica::new("user:u1", "c1", init.clone(), 0);
-    let mut u2 = Replica::new("user:u2", "c2", init, 0);
+    let mut u1 = Replica::new("user:u1", "c1", init.clone(), 0).unwrap();
+    let mut u2 = Replica::new("user:u2", "c2", init, 0).unwrap();
     let first = Command::Reorder {
         id: "f2".into(),
         before: Some("f1".into()),

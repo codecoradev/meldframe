@@ -10,6 +10,7 @@ publish.workspace = true
 kind = "core"
 
 [dependencies]
+meldframe-check = { path = "../meldframe-check" }
 meldframe-core = { path = "../meldframe-core" }
 meldframe-history = { path = "../meldframe-history" }
 meldframe-protocol = { path = "../meldframe-protocol" }

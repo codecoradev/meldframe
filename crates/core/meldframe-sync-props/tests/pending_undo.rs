@@ -51,7 +51,7 @@ impl Server {
 }
 
 fn replica() -> Replica {
-    Replica::new("user:a", "ca", base(), 0)
+    Replica::new("user:a", "ca", base(), 0).unwrap()
 }
 
 #[test]

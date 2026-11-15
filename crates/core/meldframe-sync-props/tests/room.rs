@@ -117,7 +117,9 @@ impl Net {
         let reps = names
             .iter()
             .enumerate()
-            .map(|(i, a)| Replica::new(a, &format!("c{i}"), room.nodes().to_vec(), room.seq()))
+            .map(|(i, a)| {
+                Replica::new(a, &format!("c{i}"), room.nodes().to_vec(), room.seq()).unwrap()
+            })
             .collect();
         Net {
             gate,

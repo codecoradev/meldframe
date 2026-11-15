@@ -7,6 +7,7 @@
 //! field where the view, which still holds the stale op, differs from it. Every plain field is
 //! corrected, `image` included. A stale `Reparent`, `Reorder`, `AddNode` or `RemoveNode` is not.
 
+use meldframe_core::normalize_positions;
 use meldframe_history::FileState;
 use meldframe_protocol::{Command, Node, NodePatch};
 use serde_json::{Map, Value};
@@ -21,7 +22,11 @@ fn fields(n: &Node) -> Map<String, Value> {
 
 /// What `cmd` would undo in the tree `want`, as commands; `None` when it does not apply there.
 pub(crate) fn inverse_in(want: &[Node], cmd: &Command) -> Option<Vec<Command>> {
-    let mut scratch = FileState::from_nodes_unchecked(want.to_vec());
+    // `want` comes from the replica's own checked state, so no load check; only the migration, as before.
+    let mut nodes = want.to_vec();
+    normalize_positions(&mut nodes);
+    let mut scratch = FileState::new();
+    scratch.reset_nodes(nodes);
     scratch.apply(cmd).ok()?;
     scratch.undo()
 }

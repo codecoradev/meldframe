@@ -13,7 +13,7 @@ use meldframe_sync::Replica;
 
 /// One edit `a.x = 5` that the server confirmed (seq 1).
 fn confirmed_edit() -> Replica {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     a.apply(&upd("a", |p| p.x = Some(5.0))).unwrap();
     let e = a.take_outbox();
     a.on_event(1, "user:a", &e[0].command).unwrap();
@@ -69,7 +69,7 @@ fn a_refused_redo_puts_the_step_back_on_the_redo_stack() {
 
 #[test]
 fn an_undo_that_fell_with_its_refused_edit_leaves_no_history() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     a.apply(&upd("a", |p| p.x = Some(5.0))).unwrap();
     assert!(a.undo().unwrap());
     let o = a.take_outbox();
@@ -102,7 +102,7 @@ fn a_refused_undo_goes_back_below_an_edit_made_since() {
 
 #[test]
 fn a_refused_redo_does_not_come_back_after_a_new_edit_cleared_redo() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     for f in 0..3 {
         a.apply(&upd("a", |p| match f {
             0 => p.x = Some(1.0),
@@ -133,7 +133,7 @@ fn a_refused_redo_does_not_come_back_after_a_new_edit_cleared_redo() {
 
 #[test]
 fn a_step_with_several_ops_comes_back_whole_when_one_op_is_refused() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     a.begin_group();
     a.apply(&upd("a", |p| p.x = Some(1.0))).unwrap();
     a.apply(&upd("k", |p| p.x = Some(2.0))).unwrap();
@@ -169,7 +169,7 @@ fn undo_and_redo_both_pending_with_the_undo_refused_restores_both_stacks() {
 
 #[test]
 fn a_step_the_server_refuses_twice_is_dropped_so_undo_is_never_stuck() {
-    let mut a = Replica::new("user:a", "ca", base(), 0);
+    let mut a = Replica::new("user:a", "ca", base(), 0).unwrap();
     let mut seq = 1;
     for v in [1.0, 2.0] {
         a.apply(&upd("k", |p| p.x = Some(v))).unwrap();

@@ -114,7 +114,7 @@ impl Net {
             reps: names
                 .iter()
                 .enumerate()
-                .map(|(i, a)| Replica::new(a, &format!("c{i}"), init.clone(), 0))
+                .map(|(i, a)| Replica::new(a, &format!("c{i}"), init.clone(), 0).unwrap())
                 .collect(),
             names,
             up: (0..n).map(|_| VecDeque::new()).collect(),

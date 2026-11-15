@@ -34,7 +34,7 @@ fn order_under(r: &Replica, parent: &str) -> Vec<String> {
 
 #[test]
 fn another_actors_op_moves_the_confirmed_state_and_the_view() {
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     let out = r.on_event(1, "user:b", &upd("a", |p| p.x = Some(7.0)));
     assert_eq!(out, Ok(EventOutcome::Rebased { dropped: 0 }));
     assert_eq!(
@@ -48,7 +48,7 @@ fn another_actors_op_moves_the_confirmed_state_and_the_view() {
 #[test]
 fn a_pending_op_is_applied_again_on_top_of_an_earlier_remote_op() {
     // I send x=10. The server orders the other actor's x=5 (and a fill) before it.
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     r.apply(&upd("a", |p| p.x = Some(10.0))).unwrap();
     let mine = r.take_outbox();
     let theirs = upd("a", |p| {
@@ -74,7 +74,7 @@ fn a_pending_op_is_applied_again_on_top_of_an_earlier_remote_op() {
 
 #[test]
 fn undo_of_a_delete_brings_back_what_the_other_actor_added_before_it() {
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     r.apply(&remove("a")).unwrap();
     let mine = r.take_outbox();
     r.on_event(1, "user:b", &add("kk", "rect", Some("a")))
@@ -101,7 +101,7 @@ fn undo_of_a_delete_brings_back_what_the_other_actor_added_before_it() {
 
 #[test]
 fn a_pending_op_that_is_no_longer_valid_is_dropped_with_its_history() {
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     r.apply(&upd("k", |p| p.x = Some(3.0))).unwrap();
     r.take_outbox();
     assert_eq!(
@@ -119,7 +119,7 @@ fn a_pending_op_that_is_no_longer_valid_is_dropped_with_its_history() {
 
 #[test]
 fn an_event_that_cannot_be_applied_changes_nothing() {
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     r.apply(&upd("a", |p| p.x = Some(1.0))).unwrap();
     let before = (snap(r.nodes()), snap(r.base()), r.seq());
     let e = r.on_event(1, "user:b", &remove("missing"));
@@ -129,7 +129,7 @@ fn an_event_that_cannot_be_applied_changes_nothing() {
 
 #[test]
 fn my_confirmed_undo_keeps_the_field_the_other_actor_wrote_after_me() {
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     r.apply(&upd("a", |p| {
         p.x = Some(50.0);
         p.y = Some(60.0);
@@ -153,7 +153,7 @@ fn my_confirmed_undo_keeps_the_field_the_other_actor_wrote_after_me() {
 #[test]
 fn a_remote_update_reaches_a_node_my_undo_will_add_again() {
     // I add n, then undo (a delete, pending). The other actor's update of n is ordered before my delete.
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     r.apply(&add("n", "rect", Some("a"))).unwrap();
     let first = r.take_outbox();
     r.on_event(1, "user:a", &first[0].command).unwrap();
@@ -174,7 +174,7 @@ fn a_remote_update_reaches_a_node_my_undo_will_add_again() {
 
 #[test]
 fn a_remote_reparent_reaches_a_node_my_undo_will_add_again() {
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     r.apply(&add("n", "rect", Some("a"))).unwrap();
     let first = r.take_outbox();
     r.on_event(1, "user:a", &first[0].command).unwrap();
@@ -205,8 +205,8 @@ fn f1_nodes() -> Vec<Node> {
 fn redo_of_a_reparent_survives_a_remote_reorder_of_the_same_node() {
     // u1 reparents s4 into f1 and undoes it. u2's reorder of s4 (ordered first) writes only `pos`,
     // so u1's redo must still move s4 into f1.
-    let mut u1 = Replica::new("user:u1", "c1", f1_nodes(), 0);
-    let mut u2 = Replica::new("user:u2", "c2", f1_nodes(), 0);
+    let mut u1 = Replica::new("user:u1", "c1", f1_nodes(), 0).unwrap();
+    let mut u2 = Replica::new("user:u2", "c2", f1_nodes(), 0).unwrap();
     let reparent = Command::Reparent {
         id: "s4".into(),
         parent_id: Some("f1".into()),
@@ -250,7 +250,7 @@ fn redo_of_a_reparent_survives_a_remote_reorder_of_the_same_node() {
 #[test]
 fn undo_of_a_move_goes_under_the_surviving_ancestor_of_a_parent_the_other_actor_deleted() {
     // root > p > a > k. I move k to root, then the other actor deletes a (k is no longer inside it).
-    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let mut r = Replica::new("user:a", "ca", base(), 0).unwrap();
     let moved = Command::Reparent {
         id: "k".into(),
         parent_id: Some("root".into()),
