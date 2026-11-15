@@ -1,4 +1,4 @@
-//! Rooms, jobs, store, admission gate and activity log.
+//! Room, store seam and admission gate; jobs come later.
 //!
 //! This crate is portable: no IO, no async runtime, no network. Adapters for Postgres and the
 //! transports live in later changes (E1.2, E1.3, E1.5).

@@ -147,6 +147,16 @@ impl<S: Store> Room<S> {
         &self.nodes
     }
 
+    /// The file id this room serves.
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    /// The workspace the file belongs to.
+    pub fn workspace(&self) -> &str {
+        &self.workspace
+    }
+
     /// The sequence number of the last accepted op, 0 for a new room.
     pub fn seq(&self) -> u64 {
         self.seq

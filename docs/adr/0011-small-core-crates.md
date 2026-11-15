@@ -18,3 +18,5 @@ The first vertical slice of the apply path did not fit in one crate: with its te
 ## Consequences
 
 A new crate means a new kind declaration and a place in `docs/architecture.md`; `cargo xtask deps-check` enforces the edges. Callers of the apply path depend on `meldframe-core` only.
+
+The same reasoning applied later to the host: `meldframe-host` (room, store seam, gate) reached its ceiling, so the activity log and the room registry live in `meldframe-rooms`, a core crate that depends on the host.

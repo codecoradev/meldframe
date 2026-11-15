@@ -81,7 +81,8 @@ crates/
     meldframe-sync        `Replica`: the optimistic layer over a `FileState` (pending ops, the server's order, rebase, op dependencies)
     meldframe-sync-props  (tool) property tests of replicas against an in-memory server and the host room; no library code
     meldframe-module      Module trait, registry, risk tiers
-    meldframe-host        rooms, jobs, store, admission gate, activity log
+    meldframe-host        room, store, admission gate; jobs later
+    meldframe-rooms       activity log of accepted ops (the room registry follows); split from host, which is near its 2,000-line ceiling
   engines/                text measurer, rasteriser (traits and adapters)
   integrations/           MCP (rmcp), Gatehouse OIDC/OAuth, Uteke memory
   features/<name>/        <name> (domain) and <name>-ui (view): variables, export, review, capture, assets, import-tokens

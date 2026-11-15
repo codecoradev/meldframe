@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-host"
-description = "Rooms, jobs, store, admission gate and activity log."
+description = "Room, store seam and admission gate; jobs come later."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

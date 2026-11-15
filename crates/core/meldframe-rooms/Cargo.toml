@@ -1,0 +1,21 @@
+[package]
+name = "meldframe-rooms"
+description = "Many rooms in one process: the activity log of accepted ops."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dependencies]
+meldframe-host = { path = "../meldframe-host" }
+meldframe-module = { path = "../meldframe-module" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+
+[dev-dependencies]
+serde_json = "1"
+
+[lints]
+workspace = true
