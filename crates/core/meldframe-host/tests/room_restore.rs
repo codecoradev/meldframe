@@ -3,9 +3,10 @@
 mod common;
 
 use common::{add, admit, op, refusal};
-use meldframe_host::{MemoryStore, Op, Room, RoomError, Store};
+use meldframe_host::{MemoryStore, Op, Room, RoomError, SnapshotWarning, Store, StoreError};
+use std::{cell::Cell, rc::Rc};
 
-fn put(room: &mut Room<MemoryStore>, actor: &str, o: Op) -> Result<u64, RoomError> {
+fn put<S: Store>(room: &mut Room<S>, actor: &str, o: Op) -> Result<u64, RoomError> {
     let (o, p) = admit(actor, o);
     room.accept(o, p).map(|a| a.seq)
 }
@@ -104,8 +105,9 @@ fn a_log_that_does_not_replay_is_reported_not_hidden() {
     }
 }
 
-/// A store whose snapshot saves fail: the op was already written when the failure happens.
-struct NoSnapshots(MemoryStore);
+/// A store whose snapshot saves fail while the flag in `.1` is set. The op was already written when
+/// the failure happens.
+struct NoSnapshots(MemoryStore, Rc<Cell<bool>>);
 
 impl Store for NoSnapshots {
     fn append(
@@ -135,10 +137,13 @@ impl Store for NoSnapshots {
     }
     fn save_snapshot(
         &mut self,
-        _: &str,
-        _: meldframe_host::Snapshot,
+        room: &str,
+        snapshot: meldframe_host::Snapshot,
     ) -> Result<(), meldframe_host::StoreError> {
-        Err(meldframe_host::StoreError::Unavailable("disk full".into()))
+        if self.1.get() {
+            return Err(meldframe_host::StoreError::Unavailable("disk full".into()));
+        }
+        self.0.save_snapshot(room, snapshot)
     }
     fn latest_snapshot(
         &self,
@@ -150,9 +155,13 @@ impl Store for NoSnapshots {
 
 #[test]
 fn a_failed_snapshot_does_not_turn_an_accepted_op_into_an_error() {
-    let mut r = Room::open("ws_1", "file_1", NoSnapshots(MemoryStore::new()))
-        .unwrap()
-        .with_snapshot_every(1);
+    let mut r = Room::open(
+        "ws_1",
+        "file_1",
+        NoSnapshots(MemoryStore::new(), Rc::new(Cell::new(true))),
+    )
+    .unwrap()
+    .with_snapshot_every(1);
     let (o, p) = admit("a", op("k1", add("n1")));
     let done = r
         .accept(o, p)
@@ -160,6 +169,48 @@ fn a_failed_snapshot_does_not_turn_an_accepted_op_into_an_error() {
     assert_eq!((done.seq, done.written), (1, true));
     assert_eq!(r.seq(), 1);
     assert_eq!(r.snapshot_failures(), 1);
+}
+
+#[test]
+fn a_failed_snapshot_is_reported_with_its_seq_and_cause() {
+    let mut r = Room::open(
+        "ws_1",
+        "file_1",
+        NoSnapshots(MemoryStore::new(), Rc::new(Cell::new(true))),
+    )
+    .unwrap()
+    .with_snapshot_every(2);
+    assert_eq!(r.snapshot_warning(), None);
+    put(&mut r, "a", op("k1", add("n1"))).unwrap();
+    assert_eq!(r.snapshot_warning(), None, "no save was tried at seq 1");
+    put(&mut r, "a", op("k2", add("n2"))).unwrap();
+    assert_eq!(
+        r.snapshot_warning(),
+        Some(&SnapshotWarning {
+            seq: 2,
+            error: StoreError::Unavailable("disk full".into())
+        })
+    );
+    // A later failure replaces the warning: it names the newest snapshot that is missing.
+    put(&mut r, "a", op("k3", add("n3"))).unwrap();
+    put(&mut r, "a", op("k4", add("n4"))).unwrap();
+    assert_eq!(r.snapshot_warning().map(|w| w.seq), Some(4));
+    assert_eq!(r.snapshot_failures(), 2);
+}
+
+#[test]
+fn a_later_successful_snapshot_clears_the_warning() {
+    let failing = Rc::new(Cell::new(true));
+    let store = NoSnapshots(MemoryStore::new(), failing.clone());
+    let mut r = Room::open("ws_1", "file_1", store)
+        .unwrap()
+        .with_snapshot_every(1);
+    put(&mut r, "a", op("k1", add("n1"))).unwrap();
+    assert!(r.snapshot_warning().is_some());
+    failing.set(false);
+    put(&mut r, "a", op("k2", add("n2"))).unwrap();
+    assert_eq!(r.snapshot_warning(), None);
+    assert_eq!(r.snapshot_failures(), 1, "the counter is a total, it stays");
 }
 
 #[test]

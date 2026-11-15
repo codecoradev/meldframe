@@ -17,13 +17,23 @@ pub struct Accepted {
     pub written: bool,
 }
 
+/// A snapshot that could not be saved after its op was written. The op is accepted regardless; this tells
+/// the caller (a server logs it) that a restart will replay the log from the older snapshot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SnapshotWarning {
+    /// The sequence number the snapshot was for.
+    pub seq: u64,
+    /// The store's error for that save.
+    pub error: StoreError,
+}
+
 /// Why `accept` or `open` did not succeed.
 #[derive(Debug, Clone, PartialEq)]
 pub enum RoomError {
     /// The op was refused; nothing was written.
     Refused(Refusal),
     /// The store failed before the op was written, so it was not applied. (A snapshot that fails to save
-    /// after the op was written is not an error: see [`Room::snapshot_failures`].)
+    /// after the op was written is not an error: see [`Room::snapshot_warning`].)
     Store(StoreError),
     /// The log does not replay: op `seq` was refused by the document core. The log is never edited,
     /// so this needs a person.
@@ -71,6 +81,7 @@ pub struct Room<S: Store> {
     seq: u64,
     snapshot_every: u64,
     snapshot_failures: u64,
+    snapshot_warning: Option<SnapshotWarning>,
 }
 
 impl<S: Store> Room<S> {
@@ -106,6 +117,7 @@ impl<S: Store> Room<S> {
             seq,
             snapshot_every: SNAPSHOT_EVERY,
             snapshot_failures: 0,
+            snapshot_warning: None,
         })
     }
 
@@ -125,8 +137,15 @@ impl<S: Store> Room<S> {
         self.seq
     }
 
-    /// How many snapshots could not be saved. A snapshot only shortens the next restart, so a failed save
-    /// never fails an op that is already in the log; the next multiple of the interval tries again.
+    /// The newest snapshot that could not be saved, with the store's error, or `None` when the last
+    /// attempt succeeded (or none was made). A snapshot only shortens the next restart, so a failed save
+    /// never fails an op that is already in the log; the next multiple of the interval tries again. The
+    /// warning stays set across ops that attempt no save and is cleared only by a save that works.
+    pub fn snapshot_warning(&self) -> Option<&SnapshotWarning> {
+        self.snapshot_warning.as_ref()
+    }
+
+    /// How many snapshots could not be saved in total (never reset, for a metric).
     pub fn snapshot_failures(&self) -> u64 {
         self.snapshot_failures
     }
@@ -150,7 +169,8 @@ impl<S: Store> Room<S> {
     /// nothing, and its key stays free. `if_seq` compares against the last op that touched the node; after a
     /// restart from a snapshot a node with no later op counts as touched at the snapshot, so an `if_seq`
     /// below the snapshot conflicts (safe, never lets a stale edit through). Adding a child does not count as
-    /// touching its parent.
+    /// touching its parent. A snapshot that fails to save after the write does not fail the op: see
+    /// [`Room::snapshot_warning`].
     pub fn accept(&mut self, op: Op, permit: Permit) -> Result<Accepted, RoomError> {
         if permit.key() != op.key {
             return Err(Refusal::Invalid {
@@ -227,9 +247,13 @@ impl<S: Store> Room<S> {
                 seq,
                 nodes: self.nodes.clone(),
             };
-            if self.store.save_snapshot(&self.id, snapshot).is_err() {
-                self.snapshot_failures += 1;
-            }
+            self.snapshot_warning = match self.store.save_snapshot(&self.id, snapshot) {
+                Ok(()) => None,
+                Err(error) => {
+                    self.snapshot_failures += 1;
+                    Some(SnapshotWarning { seq, error })
+                }
+            };
         }
         Ok(Accepted { seq, written })
     }
