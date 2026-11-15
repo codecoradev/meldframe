@@ -96,8 +96,11 @@ pub trait Store {
     /// The highest sequence number in the room's log, 0 when it is empty.
     fn latest_seq(&self, room: &str) -> Result<u64, StoreError>;
 
-    /// Ops with a sequence number above `seq`, in order.
-    fn ops_after(&self, room: &str, seq: u64) -> Result<Vec<StoredOp>, StoreError>;
+    /// At most `limit` ops with a sequence number above `seq`, in order: the first page of the tail. To read
+    /// further, call again with the last sequence number returned; an empty page means the tail is done.
+    /// `limit` is a page size, so an adapter never loads a whole long log in one call; a `limit` of 0
+    /// returns nothing (a caller that loops on pages must pass at least 1).
+    fn ops_after(&self, room: &str, seq: u64, limit: usize) -> Result<Vec<StoredOp>, StoreError>;
 
     /// Keep a snapshot. Refused when it is ahead of the log or not newer than the latest snapshot. The caller
     /// builds the snapshot from the log up to `seq`; the store does not re-check the nodes.

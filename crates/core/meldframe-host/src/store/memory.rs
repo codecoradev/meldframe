@@ -58,12 +58,12 @@ impl Store for MemoryStore {
         Ok(self.rooms.get(room).map_or(0, |l| l.ops.len() as u64))
     }
 
-    fn ops_after(&self, room: &str, seq: u64) -> Result<Vec<StoredOp>, StoreError> {
+    fn ops_after(&self, room: &str, seq: u64, limit: usize) -> Result<Vec<StoredOp>, StoreError> {
         let skip = usize::try_from(seq).unwrap_or(usize::MAX);
         Ok(self
             .rooms
             .get(room)
-            .map(|l| l.ops.iter().skip(skip).cloned().collect())
+            .map(|l| l.ops.iter().skip(skip).take(limit).cloned().collect())
             .unwrap_or_default())
     }
 

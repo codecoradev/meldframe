@@ -9,6 +9,9 @@ use std::fmt;
 /// Take a snapshot after this many ops (unless `with_snapshot_every` says otherwise).
 const SNAPSHOT_EVERY: u64 = 500;
 
+/// How many ops `Room::open` asks the store for at a time when it replays the log.
+pub const REPLAY_PAGE: usize = 256;
+
 /// What `accept` did with an op that was not refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Accepted {
@@ -98,12 +101,24 @@ impl<S: Store> Room<S> {
             None => (Vec::new(), 0),
         };
         let mut touched = HashMap::new();
-        for op in store.ops_after(&id, floor)? {
-            apply_command(&mut nodes, &op.command, &limits)
-                .map_err(|_| RoomError::Corrupt { seq: op.seq })?;
-            for node in touches(&op.command) {
-                touched.insert(node, op.seq);
+        let mut after = floor;
+        loop {
+            let page = store.ops_after(&id, after, REPLAY_PAGE)?;
+            let Some(last) = page.last().map(|op| op.seq) else {
+                break;
+            };
+            // A store that ignores `seq` would return the same page for ever: a hang becomes an error.
+            if last <= after {
+                return Err(RoomError::Corrupt { seq: last });
             }
+            for op in &page {
+                apply_command(&mut nodes, &op.command, &limits)
+                    .map_err(|_| RoomError::Corrupt { seq: op.seq })?;
+                for node in touches(&op.command) {
+                    touched.insert(node, op.seq);
+                }
+            }
+            after = last;
         }
         let seq = store.latest_seq(&id)?;
         Ok(Room {

@@ -35,7 +35,7 @@ fn ops_of_two_actors_have_one_total_order() {
     for (actor, key, id) in order {
         put(&mut r, actor, op(key, add(id))).unwrap();
     }
-    let log = r.store().ops_after("file_1", 0).unwrap();
+    let log = r.store().ops_after("file_1", 0, usize::MAX).unwrap();
     let rows: Vec<(u64, &str, &str)> = log
         .iter()
         .map(|o| (o.seq, o.actor.as_str(), o.key.as_str()))

@@ -105,9 +105,10 @@ fn a_log_that_does_not_replay_is_reported_not_hidden() {
     }
 }
 
-/// A store whose snapshot saves fail while the flag in `.1` is set. The op was already written when
-/// the failure happens.
-struct NoSnapshots(MemoryStore, Rc<Cell<bool>>);
+/// A faulty store. Snapshot saves fail while the flag in `.1` is set (the op was already written when
+/// that happens); with `.2` set it ignores the cursor of `ops_after` and always starts at the first op.
+#[derive(Debug)]
+struct NoSnapshots(MemoryStore, Rc<Cell<bool>>, bool);
 
 impl Store for NoSnapshots {
     fn append(
@@ -132,8 +133,9 @@ impl Store for NoSnapshots {
         &self,
         room: &str,
         seq: u64,
+        limit: usize,
     ) -> Result<Vec<meldframe_host::StoredOp>, meldframe_host::StoreError> {
-        self.0.ops_after(room, seq)
+        self.0.ops_after(room, if self.2 { 0 } else { seq }, limit)
     }
     fn save_snapshot(
         &mut self,
@@ -158,7 +160,7 @@ fn a_failed_snapshot_does_not_turn_an_accepted_op_into_an_error() {
     let mut r = Room::open(
         "ws_1",
         "file_1",
-        NoSnapshots(MemoryStore::new(), Rc::new(Cell::new(true))),
+        NoSnapshots(MemoryStore::new(), Rc::new(Cell::new(true)), false),
     )
     .unwrap()
     .with_snapshot_every(1);
@@ -176,7 +178,7 @@ fn a_failed_snapshot_is_reported_with_its_seq_and_cause() {
     let mut r = Room::open(
         "ws_1",
         "file_1",
-        NoSnapshots(MemoryStore::new(), Rc::new(Cell::new(true))),
+        NoSnapshots(MemoryStore::new(), Rc::new(Cell::new(true)), false),
     )
     .unwrap()
     .with_snapshot_every(2);
@@ -201,7 +203,7 @@ fn a_failed_snapshot_is_reported_with_its_seq_and_cause() {
 #[test]
 fn a_later_successful_snapshot_clears_the_warning() {
     let failing = Rc::new(Cell::new(true));
-    let store = NoSnapshots(MemoryStore::new(), failing.clone());
+    let store = NoSnapshots(MemoryStore::new(), failing.clone(), false);
     let mut r = Room::open("ws_1", "file_1", store)
         .unwrap()
         .with_snapshot_every(1);
@@ -242,4 +244,15 @@ fn a_restart_starts_from_the_snapshot_not_from_an_empty_file() {
     let r = Room::open("ws_1", "file_1", store).unwrap();
     let ids: Vec<&str> = r.nodes().iter().map(|n| n.id.as_str()).collect();
     assert_eq!(ids, ["from_snapshot", "n2"]);
+}
+
+#[test]
+fn a_store_that_ignores_the_cursor_makes_open_fail_instead_of_hang() {
+    let mut r = Room::open("ws_1", "file_1", MemoryStore::new()).unwrap();
+    for i in 0..3 {
+        put(&mut r, "a", op(&format!("k{i}"), add(&format!("n{i}")))).unwrap();
+    }
+    let broken = NoSnapshots(r.into_store(), Rc::new(Cell::new(false)), true);
+    let err = Room::open("ws_1", "file_1", broken).unwrap_err();
+    assert!(matches!(err, RoomError::Corrupt { .. }), "{err}");
 }

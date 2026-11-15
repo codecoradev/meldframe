@@ -39,7 +39,7 @@ fn a_retried_key_returns_the_same_sequence_number_and_writes_nothing() {
     assert_eq!(again.seq, first.seq);
     assert!(!again.written);
     assert_eq!(s.latest_seq("r1").unwrap(), 2);
-    let log = s.ops_after("r1", 0).unwrap();
+    let log = s.ops_after("r1", 0, usize::MAX).unwrap();
     assert_eq!(log.len(), 2);
     assert_eq!(
         serde_json::to_value(&log[0].command).unwrap(),
@@ -67,17 +67,63 @@ fn ops_after_returns_the_log_in_order_with_actor_and_key() {
         s.append("r1", new_op(actor, key, &format!("n{i}")))
             .unwrap();
     }
-    let all = s.ops_after("r1", 0).unwrap();
+    let all = s.ops_after("r1", 0, usize::MAX).unwrap();
     let rows: Vec<(u64, &str, &str)> = all
         .iter()
         .map(|o| (o.seq, o.actor.as_str(), o.key.as_str()))
         .collect();
     assert_eq!(rows, [(1, "a", "k1"), (2, "b", "k1"), (3, "a", "k2")]);
-    let tail = s.ops_after("r1", 2).unwrap();
+    let tail = s.ops_after("r1", 2, usize::MAX).unwrap();
     assert_eq!(tail.len(), 1);
     assert_eq!(tail[0].seq, 3);
-    assert!(s.ops_after("r1", 3).unwrap().is_empty());
-    assert!(s.ops_after("none", 0).unwrap().is_empty());
+    assert!(s.ops_after("r1", 3, usize::MAX).unwrap().is_empty());
+    assert!(s.ops_after("none", 0, usize::MAX).unwrap().is_empty());
+}
+
+#[test]
+fn a_limit_smaller_than_the_tail_returns_the_first_page_in_order() {
+    let mut s = store();
+    for i in 0..5 {
+        s.append("r1", new_op("a", &format!("k{i}"), &format!("n{i}")))
+            .unwrap();
+    }
+    let seqs = |ops: Vec<meldframe_host::StoredOp>| ops.iter().map(|o| o.seq).collect::<Vec<_>>();
+    assert_eq!(seqs(s.ops_after("r1", 0, 2).unwrap()), [1, 2]);
+    assert_eq!(seqs(s.ops_after("r1", 2, 2).unwrap()), [3, 4]);
+    // The last page is short, and a limit that is large enough returns the whole tail.
+    assert_eq!(seqs(s.ops_after("r1", 4, 2).unwrap()), [5]);
+    assert_eq!(seqs(s.ops_after("r1", 1, 100).unwrap()), [2, 3, 4, 5]);
+    // A limit of 0 returns nothing; a caller must not loop on it.
+    assert!(s.ops_after("r1", 0, 0).unwrap().is_empty());
+}
+
+#[test]
+fn replay_through_pages_equals_replay_in_one_go() {
+    let mut s = store();
+    for i in 0..7 {
+        s.append("r1", new_op("a", &format!("k{i}"), &format!("n{i}")))
+            .unwrap();
+    }
+    let whole = s.ops_after("r1", 0, usize::MAX).unwrap();
+    for limit in [1, 2, 3, 7, 8] {
+        let mut paged = Vec::new();
+        let mut after = 0;
+        loop {
+            let page = s.ops_after("r1", after, limit).unwrap();
+            if page.is_empty() {
+                break;
+            }
+            assert!(page.len() <= limit);
+            after = page.last().unwrap().seq;
+            paged.extend(page);
+        }
+        let key = |ops: &[meldframe_host::StoredOp]| {
+            ops.iter()
+                .map(|o| (o.seq, o.actor.clone(), o.key.clone()))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(key(&paged), key(&whole), "limit {limit}");
+    }
 }
 
 #[test]
@@ -130,7 +176,7 @@ fn a_snapshot_never_changes_the_log() {
         },
     )
     .unwrap();
-    assert_eq!(s.ops_after("r1", 0).unwrap().len(), 1);
+    assert_eq!(s.ops_after("r1", 0, usize::MAX).unwrap().len(), 1);
     assert_eq!(s.append("r1", new_op("a", "k2", "n2")).unwrap().seq, 2);
 }
 
@@ -178,7 +224,7 @@ fn a_snapshot_restores_with_the_log_after_it() {
     )
     .unwrap();
     let snap = s.latest_snapshot("r1").unwrap().unwrap();
-    let tail = s.ops_after("r1", snap.seq).unwrap();
+    let tail = s.ops_after("r1", snap.seq, usize::MAX).unwrap();
     assert_eq!(snap.nodes.len(), 2);
     assert_eq!(tail.len(), 1);
     assert_eq!(tail[0].seq, 3);

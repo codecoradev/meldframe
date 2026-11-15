@@ -267,7 +267,7 @@ impl Net {
             );
         }
         // The log replays to the same tree.
-        let log = self.room.store().ops_after(FILE, 0).unwrap();
+        let log = self.room.store().ops_after(FILE, 0, usize::MAX).unwrap();
         let mut nodes = Vec::new();
         for op in &log {
             meldframe_core::apply_command(
