@@ -1,10 +1,10 @@
 //! The composition root proves omission at build level: the tool list follows the cargo features.
 //! Run `cargo test -p meldframe-server --no-default-features` for the feature-off half.
 
-use meldframe_host::{Gate, MemoryStore, Op, Principal, Refusal, Room};
+use meldframe_host::{Op, Principal, Refusal};
 use meldframe_module::{Policy, RiskTier};
 use meldframe_protocol::Command;
-use meldframe_server::Server;
+use meldframe_server::{Server, SubmitError};
 
 fn who() -> Principal {
     Principal::new("ws_dev", "agent:test")
@@ -42,15 +42,15 @@ mod feature_on {
         // The tool's tier is an upper bound on the tier of what it submits.
         let mut server = Server::assemble();
         let err = server
-            .submit_tool("example_ping", &who(), vec![add("k1")])
+            .submit_tool("example_ping", "file_dev", &who(), vec![add("k1")])
             .unwrap_err();
         assert!(
             matches!(
                 err,
-                Refusal::Forbidden {
+                SubmitError::Refused(Refusal::Forbidden {
                     tier: RiskTier::Change,
                     policy: Policy::Deny
-                }
+                })
             ),
             "{err:?}"
         );
@@ -73,14 +73,14 @@ mod feature_off {
     fn a_tool_that_was_left_out_is_denied_at_the_gate() {
         let mut server = Server::assemble();
         let err = server
-            .submit_tool("example_ping", &who(), vec![add("k1")])
+            .submit_tool("example_ping", "file_dev", &who(), vec![add("k1")])
             .unwrap_err();
         assert!(matches!(
             err,
-            Refusal::Forbidden {
+            SubmitError::Refused(Refusal::Forbidden {
                 policy: Policy::Deny,
                 ..
-            }
+            })
         ));
     }
 }
@@ -89,15 +89,15 @@ mod feature_off {
 fn an_unknown_tool_is_denied() {
     let mut server = Server::assemble();
     let err = server
-        .submit_tool("no_such_tool", &who(), vec![add("k1")])
+        .submit_tool("no_such_tool", "file_dev", &who(), vec![add("k1")])
         .unwrap_err();
     assert!(
         matches!(
             err,
-            Refusal::Forbidden {
+            SubmitError::Refused(Refusal::Forbidden {
                 policy: Policy::Deny,
                 ..
-            }
+            })
         ),
         "{err:?}"
     );
@@ -121,23 +121,25 @@ mod change_tool {
     fn a_change_tool_gets_its_change_op_admitted_under_the_default_policy() {
         let mut server = Server::assemble_with(vec![Box::new(Painter)]);
         let report = server
-            .submit_tool("paint", &who(), vec![add("k1")])
+            .submit_tool("paint", "file_dev", &who(), vec![add("k1")])
             .unwrap();
-        assert_eq!(report.admitted.len(), 1);
+        assert_eq!(report.len(), 1);
     }
 
     #[test]
     fn a_change_tool_cannot_submit_a_delete() {
         let mut server = Server::assemble_with(vec![Box::new(Painter)]);
         let rm = Op::new("k2", Command::RemoveNode { id: "n1".into() });
-        let err = server.submit_tool("paint", &who(), vec![rm]).unwrap_err();
+        let err = server
+            .submit_tool("paint", "file_dev", &who(), vec![rm])
+            .unwrap_err();
         assert!(
             matches!(
                 err,
-                Refusal::Forbidden {
+                SubmitError::Refused(Refusal::Forbidden {
                     tier: RiskTier::Delete,
                     ..
-                }
+                })
             ),
             "{err:?}"
         );
@@ -147,15 +149,15 @@ mod change_tool {
     fn an_unknown_tool_is_reported_with_the_tier_of_what_it_tried() {
         let mut server = Server::assemble();
         let err = server
-            .submit_tool("no_such_tool", &who(), vec![add("k1")])
+            .submit_tool("no_such_tool", "file_dev", &who(), vec![add("k1")])
             .unwrap_err();
         assert!(
             matches!(
                 err,
-                Refusal::Forbidden {
+                SubmitError::Refused(Refusal::Forbidden {
                     tier: RiskTier::Change,
                     policy: Policy::Deny
-                }
+                })
             ),
             "{err:?}"
         );
@@ -173,7 +175,7 @@ mod change_tool {
 
     /// A server whose room holds frame `f` with one rect `r` in it.
     fn server_with_nodes() -> Server {
-        let mut room = Room::open("ws_dev", "file_dev", MemoryStore::new()).unwrap();
+        let mut server = Server::assemble_with(vec![Box::new(Painter), Box::new(Looker)]);
         let node = |id: &str, kind: &str, parent: Option<&str>| {
             serde_json::from_value(serde_json::json!({"id": id, "type": kind, "parentId": parent}))
                 .unwrap()
@@ -194,10 +196,10 @@ mod change_tool {
                 },
             ),
         ];
-        for adm in Gate::new().submit(&who(), ops).unwrap().admitted {
-            room.accept(adm).unwrap();
-        }
-        Server::assemble_with(vec![Box::new(Painter), Box::new(Looker)]).with_room(room)
+        server
+            .submit_tool("paint", "file_dev", &who(), ops)
+            .unwrap();
+        server
     }
 
     fn rm(id: &str) -> Op {
@@ -207,23 +209,23 @@ mod change_tool {
     #[test]
     fn a_change_tool_gets_a_small_delete_of_an_existing_node_admitted() {
         let report = server_with_nodes()
-            .submit_tool("paint", &who(), vec![rm("r")])
+            .submit_tool("paint", "file_dev", &who(), vec![rm("r")])
             .unwrap();
-        assert_eq!(report.admitted.len(), 1);
+        assert_eq!(report.len(), 1);
     }
 
     #[test]
     fn a_read_tool_cannot_submit_even_a_small_delete() {
         let err = server_with_nodes()
-            .submit_tool("look", &who(), vec![rm("r")])
+            .submit_tool("look", "file_dev", &who(), vec![rm("r")])
             .unwrap_err();
         assert!(
             matches!(
                 err,
-                Refusal::Forbidden {
+                SubmitError::Refused(Refusal::Forbidden {
                     policy: Policy::Deny,
                     ..
-                }
+                })
             ),
             "{err:?}"
         );
@@ -232,15 +234,15 @@ mod change_tool {
     #[test]
     fn a_change_tool_cannot_delete_a_frame() {
         let err = server_with_nodes()
-            .submit_tool("paint", &who(), vec![rm("f")])
+            .submit_tool("paint", "file_dev", &who(), vec![rm("f")])
             .unwrap_err();
         assert!(
             matches!(
                 err,
-                Refusal::Forbidden {
+                SubmitError::Refused(Refusal::Forbidden {
                     tier: RiskTier::Delete,
                     policy: Policy::Deny
-                }
+                })
             ),
             "{err:?}"
         );
