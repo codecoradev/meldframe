@@ -82,7 +82,7 @@ crates/
     meldframe-sync-props  (tool) property tests of replicas against an in-memory server and the host room; no library code
     meldframe-module      Module trait, registry, risk tiers
     meldframe-host        room, store, admission gate; jobs later
-    meldframe-rooms       activity log of accepted ops and the room registry (open, close, bound); split from host, which is near its 2,000-line ceiling
+    meldframe-rooms       activity log of accepted ops and the room registry (open, close, a bound, idle close by a caller-supplied clock); split from host, which is near its 2,000-line ceiling
   engines/                text measurer, rasteriser (traits and adapters)
   integrations/           MCP (rmcp), Gatehouse OIDC/OAuth, Uteke memory
   features/<name>/        <name> (domain) and <name>-ui (view): variables, export, review, capture, assets, import-tokens

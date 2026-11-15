@@ -56,6 +56,19 @@ impl From<RoomError> for RegistryError {
     }
 }
 
+/// An open room and the caller-clock value of its last touch.
+struct Slot<S: Store> {
+    room: Room<S>,
+    touched: u64,
+}
+
+impl<S: Store> Slot<S> {
+    /// The last touch never moves back: a clock value from the past is ignored.
+    fn touch(&mut self, at: u64) {
+        self.touched = self.touched.max(at);
+    }
+}
+
 /// At most `max_open` rooms, one per file, with one activity log for all of them.
 ///
 /// `make_store` gives a handle on the file's durable store. It is called once per actual open (not for a file
@@ -65,7 +78,7 @@ pub struct Rooms<S: Store, L: ActivityLog, F: FnMut(&str) -> S> {
     max_open: usize,
     make_store: F,
     log: L,
-    open: HashMap<String, Room<S>>,
+    open: HashMap<String, Slot<S>>,
     activity_failures: u64,
 }
 
@@ -92,13 +105,17 @@ impl<S: Store, L: ActivityLog, F: FnMut(&str) -> S> Rooms<S, L, F> {
 
     /// Open the room of `file` in `workspace`, restoring it from its store (latest snapshot, then the log).
     /// Idempotent: a file that is already open is left as it is and reported with `already_open`.
-    pub fn open(&mut self, workspace: &str, file: &str) -> Result<Opened, RegistryError> {
-        if let Some(room) = self.open.get(file) {
-            if room.workspace() != workspace {
+    ///
+    /// `at` is the caller's clock value; `open` touches the room (see `close_idle`), also when the file was
+    /// already open. A refused open (full, wrong workspace, failed store) touches nothing.
+    pub fn open(&mut self, workspace: &str, file: &str, at: u64) -> Result<Opened, RegistryError> {
+        if let Some(slot) = self.open.get_mut(file) {
+            if slot.room.workspace() != workspace {
                 return Err(RegistryError::WorkspaceMismatch { file: file.into() });
             }
+            slot.touch(at);
             return Ok(Opened {
-                seq: room.seq(),
+                seq: slot.room.seq(),
                 already_open: true,
             });
         }
@@ -109,7 +126,8 @@ impl<S: Store, L: ActivityLog, F: FnMut(&str) -> S> Rooms<S, L, F> {
         }
         let room = Room::open(workspace, file, (self.make_store)(file))?;
         let seq = room.seq();
-        self.open.insert(file.to_string(), room);
+        self.open
+            .insert(file.to_string(), Slot { room, touched: at });
         Ok(Opened {
             seq,
             already_open: false,
@@ -122,9 +140,33 @@ impl<S: Store, L: ActivityLog, F: FnMut(&str) -> S> Rooms<S, L, F> {
         self.open.remove(file).is_some()
     }
 
+    /// Close every room that has been idle for at least `idle_for` clock units at `now`, and return the
+    /// closed file ids sorted, so the answer does not depend on hash order. A room is idle when
+    /// `now - last_touch >= idle_for`; a `now` before the last touch (a clock that went backwards) never
+    /// closes a room, and nothing underflows. `idle_for` of 0 closes every room whose last touch is not
+    /// after `now`; `u64::MAX` closes none unless `now` is itself `u64::MAX` and the touch was 0.
+    ///
+    /// What touches a room: `open` (also of an open file) and an accepted write through `accept` that was
+    /// written (a retried key and a refused op do not). `with_room` is a read and does not touch. The clock
+    /// is the caller's, the same unit for `open`, `accept` and here; this crate reads no wall clock.
+    /// Closing is `close`: the slot is freed and a later `open` restores the room from its store.
+    pub fn close_idle(&mut self, now: u64, idle_for: u64) -> Vec<String> {
+        let mut idle: Vec<String> = self
+            .open
+            .iter()
+            .filter(|(_, s)| now.checked_sub(s.touched).is_some_and(|d| d >= idle_for))
+            .map(|(file, _)| file.clone())
+            .collect();
+        idle.sort();
+        for file in &idle {
+            self.open.remove(file);
+        }
+        idle
+    }
+
     /// Read an open room; `None` when the file is not open.
     pub fn with_room<R>(&self, file: &str, f: impl FnOnce(&Room<S>) -> R) -> Option<R> {
-        self.open.get(file).map(f)
+        self.open.get(file).map(|slot| f(&slot.room))
     }
 
     /// Accept an admitted op in the room of `file` and record it in the activity log (see `accept_logged`).
@@ -134,11 +176,14 @@ impl<S: Store, L: ActivityLog, F: FnMut(&str) -> S> Rooms<S, L, F> {
         admission: Admission,
         at: u64,
     ) -> Result<Logged, RegistryError> {
-        let room = self
+        let slot = self
             .open
             .get_mut(file)
             .ok_or_else(|| RegistryError::NotOpen { file: file.into() })?;
-        let logged = accept_logged(room, &mut self.log, admission, at)?;
+        let logged = accept_logged(&mut slot.room, &mut self.log, admission, at)?;
+        if logged.accepted.written {
+            slot.touch(at);
+        }
         if logged.log_error.is_some() {
             self.activity_failures += 1;
         }

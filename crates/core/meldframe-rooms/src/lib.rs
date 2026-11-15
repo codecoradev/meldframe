@@ -1,4 +1,5 @@
-//! Many rooms in one process: the activity log of accepted ops and the room registry.
+//! Many rooms in one process: the activity log of accepted ops and the room registry (open, close, a bound,
+//! and closing idle rooms by a caller-supplied clock: `Rooms::close_idle`).
 //!
 //! This crate is portable: no IO, no async runtime, no threads, no network, no wall clock. It sits on
 //! `meldframe-host`, which holds the single room, the store seam and the admission gate. It is a separate
