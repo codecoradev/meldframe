@@ -1,0 +1,13 @@
+error[E0451]: fields `actor`, `workspace`, `key` and `tier` of struct `Permit` are private
+  --> tests/ui/permit_literal.rs:7:9
+   |
+ 6 |     let _ = Permit {
+   |             ------ in this type
+ 7 |         actor: "a".into(),
+   |         ^^^^^ private field
+ 8 |         workspace: "w".into(),
+   |         ^^^^^^^^^ private field
+ 9 |         key: "k".into(),
+   |         ^^^ private field
+10 |         tier: RiskTier::Read,
+   |         ^^^^ private field

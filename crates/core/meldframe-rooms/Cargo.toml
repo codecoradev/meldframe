@@ -16,6 +16,7 @@ meldframe-protocol = { path = "../meldframe-protocol" }
 
 [dev-dependencies]
 serde_json = "1"
+trybuild = "1.0.123"
 
 [lints]
 workspace = true

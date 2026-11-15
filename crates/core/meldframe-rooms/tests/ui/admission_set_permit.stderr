@@ -1,0 +1,16 @@
+error[E0616]: field `permit` of struct `Admission` is private
+  --> tests/ui/admission_set_permit.rs:20:7
+   |
+20 |     a.permit = b.permit;
+   |       ^^^^^^ private field
+
+error[E0616]: field `permit` of struct `Admission` is private
+  --> tests/ui/admission_set_permit.rs:20:18
+   |
+20 |     a.permit = b.permit;
+   |                  ^^^^^^ private field
+   |
+help: a method `permit` also exists, call it with parentheses
+   |
+20 |     a.permit = b.permit();
+   |                        ++

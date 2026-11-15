@@ -1,0 +1,43 @@
+error[E0616]: field `op` of struct `Admission` is private
+  --> tests/ui/admission_swap_parts.rs:20:27
+   |
+20 |     std::mem::swap(&mut a.op, &mut b.op);
+   |                           ^^ private field
+   |
+help: a method `op` also exists, call it with parentheses
+   |
+20 |     std::mem::swap(&mut a.op(), &mut b.op);
+   |                             ++
+
+error[E0616]: field `op` of struct `Admission` is private
+  --> tests/ui/admission_swap_parts.rs:20:38
+   |
+20 |     std::mem::swap(&mut a.op, &mut b.op);
+   |                                      ^^ private field
+   |
+help: a method `op` also exists, call it with parentheses
+   |
+20 |     std::mem::swap(&mut a.op, &mut b.op());
+   |                                        ++
+
+error[E0616]: field `permit` of struct `Admission` is private
+  --> tests/ui/admission_swap_parts.rs:21:27
+   |
+21 |     std::mem::swap(&mut a.permit, &mut b.permit);
+   |                           ^^^^^^ private field
+   |
+help: a method `permit` also exists, call it with parentheses
+   |
+21 |     std::mem::swap(&mut a.permit(), &mut b.permit);
+   |                                 ++
+
+error[E0616]: field `permit` of struct `Admission` is private
+  --> tests/ui/admission_swap_parts.rs:21:42
+   |
+21 |     std::mem::swap(&mut a.permit, &mut b.permit);
+   |                                          ^^^^^^ private field
+   |
+help: a method `permit` also exists, call it with parentheses
+   |
+21 |     std::mem::swap(&mut a.permit, &mut b.permit());
+   |                                                ++

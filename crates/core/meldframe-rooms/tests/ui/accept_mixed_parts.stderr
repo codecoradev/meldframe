@@ -1,0 +1,38 @@
+error[E0616]: field `op` of struct `Admission` is private
+  --> tests/ui/accept_mixed_parts.rs:22:27
+   |
+22 |     let _ = room.accept(a.op, b.permit);
+   |                           ^^ private field
+   |
+help: a method `op` also exists, call it with parentheses
+   |
+22 |     let _ = room.accept(a.op(), b.permit);
+   |                             ++
+
+error[E0616]: field `permit` of struct `Admission` is private
+  --> tests/ui/accept_mixed_parts.rs:22:33
+   |
+22 |     let _ = room.accept(a.op, b.permit);
+   |                                 ^^^^^^ private field
+   |
+help: a method `permit` also exists, call it with parentheses
+   |
+22 |     let _ = room.accept(a.op, b.permit());
+   |                                       ++
+
+error[E0061]: this method takes 1 argument but 2 arguments were supplied
+  --> tests/ui/accept_mixed_parts.rs:22:18
+   |
+22 |     let _ = room.accept(a.op, b.permit);
+   |                  ^^^^^^       -------- unexpected argument #2
+   |
+note: method defined here
+  --> $WORKSPACE/crates/core/meldframe-host/src/room.rs
+   |
+   |     pub fn accept(&mut self, admission: Admission) -> Result<Accepted, RoomError> {
+   |            ^^^^^^
+help: remove the extra argument
+   |
+22 -     let _ = room.accept(a.op, b.permit);
+22 +     let _ = room.accept(a.op);
+   |

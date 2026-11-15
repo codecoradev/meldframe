@@ -39,6 +39,7 @@ Every crate declares its kind (core, engine, integration, os, feature, app, ffi,
 - `cargo xtask size-check [--base <git-ref>]`: 500 lines per file and 2,000 per crate (D1). `xtask/size-allow.toml` lists what is over; an entry must equal the current size, so entries only go down. With `--base` (use `origin/develop` in CI) an entry that is new or higher than on the base fails.
 - `cargo xtask ui-literals`: rejects colour, font-size and duration literals in `ui` and `feature-ui` crates and in `apps/web` styles (U4). Read values from the tokens module (`crates/ui/meldframe-ui/src/tokens.rs`); `tokens.rs` and `tokens.css` are exempt.
 - `cargo xtask licences --check`: every third-party crate's licence expression must be allowed by `[licenses] allow` in `deny.toml` (D2). The same list drives `cargo deny check` (install with `cargo install cargo-deny --locked`). Model weights have no check yet (no models are shipped).
+- Compile-fail tests (`crates/core/meldframe-rooms/tests/ui`, `trybuild`) compare the exact compiler output: after a toolchain bump, or a change to the signature of `Permit::new` or `Room::accept` (the output quotes them), regenerate the `.stderr` files with `TRYBUILD=overwrite cargo test -p meldframe-rooms --test compile_fail` and review the diff.
 - Before a pull request: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo xtask deps-check`.
 
 ## Parallel worktrees

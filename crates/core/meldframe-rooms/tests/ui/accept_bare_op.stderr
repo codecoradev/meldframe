@@ -1,0 +1,13 @@
+error[E0308]: mismatched types
+ --> tests/ui/accept_bare_op.rs:8:25
+  |
+8 |     let _ = room.accept(op);
+  |                  ------ ^^ expected `Admission`, found `Op`
+  |                  |
+  |                  arguments to this method are incorrect
+  |
+note: method defined here
+ --> $WORKSPACE/crates/core/meldframe-host/src/room.rs
+  |
+  |     pub fn accept(&mut self, admission: Admission) -> Result<Accepted, RoomError> {
+  |            ^^^^^^

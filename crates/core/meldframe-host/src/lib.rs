@@ -9,9 +9,8 @@
 //! # A write needs a permit
 //!
 //! `Room::accept(admission)` is the only way to write, and only the gate makes an [`Admission`], an op sealed
-//! together with its permit. The first
-//! block is the whole path and compiles. The blocks after it must not compile; each names the error it
-//! is meant to fail with, so one cannot pass by failing for another reason (a typo, a missing import).
+//! together with its permit. The block
+//! below is the whole path and compiles.
 //!
 //! ```
 //! use meldframe_host::{Gate, MemoryStore, Op, Principal, Room};
@@ -26,33 +25,8 @@
 //! assert_eq!(room.accept(adm).unwrap().seq, 1);
 //! ```
 //!
-//! A write without a permit does not compile (E0308, an op is not an admission):
-//!
-//! ```compile_fail,E0308
-//! use meldframe_host::{MemoryStore, Op, Room};
-//! use meldframe_protocol::Command;
-//!
-//! let mut room = Room::open("ws_1", "file_1", MemoryStore::new()).unwrap();
-//! let op = Op::new("k1", Command::RemoveNode { id: "n1".into() });
-//! room.accept(op);
-//! ```
-//!
-//! That an op and a permit cannot be paired by hand is shown by the doctests of `meldframe-rooms` (this
-//! crate is at its size ceiling).
-//!
-//! A permit cannot be built outside the gate, by struct literal (E0451, private fields):
-//!
-//! ```compile_fail,E0451
-//! use meldframe_host::Permit;
-//! let _ = Permit { actor: "a".into(), workspace: "w".into(), key: "k".into() };
-//! ```
-//!
-//! nor by constructor (E0624, private function):
-//!
-//! ```compile_fail,E0624
-//! use meldframe_host::Permit;
-//! let _ = Permit::new("a", "w", "k", meldframe_module::RiskTier::Read);
-//! ```
+//! That a write without a permit, a permit built by hand, or an op paired with a permit by hand does not
+//! compile is pinned by the `trybuild` cases of `meldframe-rooms` (`tests/ui`; this crate is at its size ceiling).
 
 mod gate;
 mod op;

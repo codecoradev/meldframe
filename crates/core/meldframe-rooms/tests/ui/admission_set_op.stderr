@@ -1,0 +1,16 @@
+error[E0616]: field `op` of struct `Admission` is private
+  --> tests/ui/admission_set_op.rs:20:7
+   |
+20 |     a.op = b.op;
+   |       ^^ private field
+
+error[E0616]: field `op` of struct `Admission` is private
+  --> tests/ui/admission_set_op.rs:20:14
+   |
+20 |     a.op = b.op;
+   |              ^^ private field
+   |
+help: a method `op` also exists, call it with parentheses
+   |
+20 |     a.op = b.op();
+   |                ++
