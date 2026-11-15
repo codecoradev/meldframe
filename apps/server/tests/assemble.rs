@@ -1,7 +1,7 @@
 //! The composition root proves omission at build level: the tool list follows the cargo features.
 //! Run `cargo test -p meldframe-server --no-default-features` for the feature-off half.
 
-use meldframe_host::{Op, Principal, Refusal};
+use meldframe_host::{Gate, MemoryStore, Op, Principal, Refusal, Room};
 use meldframe_module::{Policy, RiskTier};
 use meldframe_protocol::Command;
 use meldframe_server::Server;
@@ -154,6 +154,91 @@ mod change_tool {
                 err,
                 Refusal::Forbidden {
                     tier: RiskTier::Change,
+                    policy: Policy::Deny
+                }
+            ),
+            "{err:?}"
+        );
+    }
+
+    struct Looker;
+    impl Module for Looker {
+        fn name(&self) -> &'static str {
+            "looker"
+        }
+        fn register(&self, r: &mut Registrar) {
+            r.agent_tool("look", "Look at a node.", RiskTier::Read);
+        }
+    }
+
+    /// A server whose room holds frame `f` with one rect `r` in it.
+    fn server_with_nodes() -> Server {
+        let mut room = Room::open("ws_dev", "file_dev", MemoryStore::new()).unwrap();
+        let node = |id: &str, kind: &str, parent: Option<&str>| {
+            serde_json::from_value(serde_json::json!({"id": id, "type": kind, "parentId": parent}))
+                .unwrap()
+        };
+        let ops = vec![
+            Op::new(
+                "a1",
+                Command::AddNode {
+                    node: node("f", "frame", None),
+                    index: None,
+                },
+            ),
+            Op::new(
+                "a2",
+                Command::AddNode {
+                    node: node("r", "rect", Some("f")),
+                    index: None,
+                },
+            ),
+        ];
+        for adm in Gate::new().submit(&who(), ops).unwrap().admitted {
+            room.accept(adm).unwrap();
+        }
+        Server::assemble_with(vec![Box::new(Painter), Box::new(Looker)]).with_room(room)
+    }
+
+    fn rm(id: &str) -> Op {
+        Op::new("k9", Command::RemoveNode { id: id.into() })
+    }
+
+    #[test]
+    fn a_change_tool_gets_a_small_delete_of_an_existing_node_admitted() {
+        let report = server_with_nodes()
+            .submit_tool("paint", &who(), vec![rm("r")])
+            .unwrap();
+        assert_eq!(report.admitted.len(), 1);
+    }
+
+    #[test]
+    fn a_read_tool_cannot_submit_even_a_small_delete() {
+        let err = server_with_nodes()
+            .submit_tool("look", &who(), vec![rm("r")])
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                Refusal::Forbidden {
+                    policy: Policy::Deny,
+                    ..
+                }
+            ),
+            "{err:?}"
+        );
+    }
+
+    #[test]
+    fn a_change_tool_cannot_delete_a_frame() {
+        let err = server_with_nodes()
+            .submit_tool("paint", &who(), vec![rm("f")])
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                Refusal::Forbidden {
+                    tier: RiskTier::Delete,
                     policy: Policy::Deny
                 }
             ),

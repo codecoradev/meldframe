@@ -18,6 +18,7 @@ example = ["dep:example"]
 [dependencies]
 meldframe-host = { path = "../../crates/core/meldframe-host" }
 meldframe-module = { path = "../../crates/core/meldframe-module" }
+meldframe-rooms = { path = "../../crates/core/meldframe-rooms" }
 example = { path = "../../crates/features/example/example", optional = true }
 
 [dev-dependencies]

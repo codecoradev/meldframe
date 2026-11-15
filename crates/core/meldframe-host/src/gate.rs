@@ -57,6 +57,21 @@ pub struct Report {
     pub admitted: Vec<Admission>,
 }
 
+/// What the gate may know about the file's tree, read at submit time, so that the tier of an op can depend on
+/// it (ADR-0010) without the gate holding the file state. The room registry gives the implementation.
+pub trait NodeFacts {
+    /// True when removing `node_id` is a small delete: the node is in the file, is not a frame, and its
+    /// subtree is within the limit. False for anything else, including a node the facts do not know.
+    fn delete_is_small(&self, node_id: &str) -> bool;
+}
+
+/// No facts: no delete is small.
+impl NodeFacts for () {
+    fn delete_is_small(&self, _: &str) -> bool {
+        false
+    }
+}
+
 type PolicyFn = Box<dyn Fn(&Principal, RiskTier) -> Policy + Send + Sync>;
 
 /// The one admission step. A batch is decided as a whole: one refusal refuses every op in it and
@@ -126,9 +141,20 @@ impl Gate {
     /// Decide a batch. Order of checks: shape (`invalid`), policy (`forbidden`), quota
     /// (`quota_exceeded`). Everything the gate can know without the file; the room decides the rest.
     pub fn submit(&mut self, who: &Principal, ops: Vec<Op>) -> Result<Report, Refusal> {
+        self.submit_with(who, ops, &())
+    }
+
+    /// Like [`Gate::submit`], with facts about the tree before the batch, so that a small delete is Change
+    /// (see [`Op::batch_tiers`]). The caller must pass the facts of the room the ops target.
+    pub fn submit_with(
+        &mut self,
+        who: &Principal,
+        ops: Vec<Op>,
+        facts: &dyn NodeFacts,
+    ) -> Result<Report, Refusal> {
         check_shape(&ops)?;
-        for op in &ops {
-            let tier = op.tier();
+        let tiers = Op::batch_tiers(&ops, facts);
+        for tier in tiers.iter().copied() {
             match (self.policy)(who, tier) {
                 Policy::Auto => {}
                 policy @ (Policy::Ask | Policy::Deny) => {
@@ -146,8 +172,9 @@ impl Gate {
             .insert(who.workspace.clone(), used + ops.len() as u64);
         let admitted = ops
             .into_iter()
-            .map(|op| Admission {
-                permit: Permit::new(&who.actor, &who.workspace, &op.key, op.tier()),
+            .zip(tiers)
+            .map(|(op, tier)| Admission {
+                permit: Permit::new(&who.actor, &who.workspace, &op.key, tier),
                 op,
             })
             .collect();

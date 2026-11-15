@@ -1,5 +1,6 @@
 //! One op as a transport submits it.
 
+use crate::NodeFacts;
 use meldframe_module::RiskTier;
 use meldframe_protocol::Command;
 
@@ -40,15 +41,30 @@ impl Op {
         self
     }
 
-    /// How much this op can change: removing a node is Delete, every other command is Change. ADR-0010 relaxes
-    /// a small delete to Auto; that needs the file, which the gate does not have, so every delete is Delete here.
+    /// The worst tier of this op, without the file: removing a node is Delete, every other command is Change.
     pub fn tier(&self) -> RiskTier {
-        match self.command {
-            Command::RemoveNode { .. } => RiskTier::Delete,
-            Command::UpdateNode { .. }
-            | Command::AddNode { .. }
-            | Command::Reparent { .. }
-            | Command::Reorder { .. } => RiskTier::Change,
+        self.tier_with(&())
+    }
+
+    /// The tier of this op given facts about the tree before it: ADR-0010 relaxes a delete that `facts`
+    /// calls small to Change. Facts never raise a tier, and an unknown node is a Delete (fail closed).
+    pub fn tier_with(&self, facts: &dyn NodeFacts) -> RiskTier {
+        match &self.command {
+            Command::RemoveNode { id } if !facts.delete_is_small(id) => RiskTier::Delete,
+            _ => RiskTier::Change,
         }
+    }
+
+    /// The tier of each op of a batch: `tier_with`, except that a batch that adds or reparents a node gets no
+    /// relief (no facts): it could grow the subtree it then removes.
+    pub fn batch_tiers(ops: &[Op], facts: &dyn NodeFacts) -> Vec<RiskTier> {
+        let grows = ops.iter().any(|o| {
+            matches!(
+                o.command,
+                Command::AddNode { .. } | Command::Reparent { .. }
+            )
+        });
+        let facts: &dyn NodeFacts = if grows { &() } else { facts };
+        ops.iter().map(|op| op.tier_with(facts)).collect()
     }
 }

@@ -2,7 +2,8 @@
 
 use crate::{Admission, Appended, NewOp, Refusal, Snapshot, Store, StoreError};
 use meldframe_core::{Limits, apply_command, apply_planned, plan_command};
-use meldframe_protocol::{Command, Node};
+use meldframe_module::{Policy, RiskTier};
+use meldframe_protocol::{Command, Node, NodeKind};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -204,11 +205,6 @@ impl<S: Store> Room<S> {
             op.key,
             "an admission pairs an op with another op's permit"
         );
-        debug_assert_eq!(
-            permit.tier(),
-            op.tier(),
-            "an admission pairs an op with a permit of another tier"
-        );
         if permit.workspace() != self.workspace {
             return Err(Refusal::Invalid {
                 reason: format!(
@@ -249,6 +245,19 @@ impl<S: Store> Room<S> {
                     return Err(Refusal::Conflict { node_id }.into());
                 }
             }
+        }
+        // A delete the gate relaxed was a non-frame leaf at submit; an id can have been reused since.
+        if let Command::RemoveNode { id } = &op.command
+            && permit.tier() != RiskTier::Delete
+            && self.nodes.iter().any(|n| {
+                (n.id == *id && n.kind == NodeKind::Frame) || n.parent_id.as_deref() == Some(id)
+            })
+        {
+            return Err(Refusal::Forbidden {
+                tier: RiskTier::Delete,
+                policy: Policy::Ask,
+            }
+            .into());
         }
         let pos = plan_command(&self.nodes, &op.command, &self.limits).map_err(Refusal::Apply)?;
         let Appended { seq, written } = self.store.append(

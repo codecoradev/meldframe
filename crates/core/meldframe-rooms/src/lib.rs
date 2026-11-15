@@ -14,9 +14,11 @@
 //! `TRYBUILD=overwrite cargo test -p meldframe-rooms --test compile_fail`.
 
 mod activity;
+mod facts;
 mod logged;
 mod registry;
 
 pub use activity::{ActivityEntry, ActivityError, ActivityKind, ActivityLog, MemoryActivityLog};
+pub use facts::{SMALL_DELETE_MAX_NODES, TreeFacts};
 pub use logged::{Logged, accept_logged};
 pub use registry::{Opened, RegistryError, Rooms};

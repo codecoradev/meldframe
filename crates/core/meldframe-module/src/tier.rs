@@ -40,7 +40,8 @@ pub enum Policy {
 /// Auto and Delete is Ask.
 ///
 /// Delete is Ask at the tier level. The gate may relax it to Auto below a size threshold; that
-/// threshold depends on the call and lives in the gate, not here. Per-agent overrides are not
+/// threshold depends on the call and the file: the gate takes facts about the tree (`NodeFacts`) and the
+/// limit lives in `meldframe-rooms`, not here. Per-agent overrides are not
 /// represented yet.
 pub fn default_policy(tier: RiskTier) -> Policy {
     match tier {
