@@ -110,17 +110,17 @@ impl FileState {
         self.version += 1;
     }
 
-    /// Apply my pending command again on a new tree. When it has a rec, the rec's undo is worked out
-    /// again, so it holds the value that is right in the server's order. A command that no longer
-    /// applies returns the error and changes nothing.
-    pub fn replay_pending(&mut self, cmd: &Command, rec: Option<u64>) -> Result<(), ApplyError> {
-        let inverse = self.run(cmd)?;
-        if let Some(id) = rec {
-            for r in self.recs_mut().filter(|r| r.id == id) {
-                r.undo_ = inverse.clone();
-            }
+    /// Apply my pending command again on a new tree; returns its inverse for the caller to give to the
+    /// rec (`set_undo`). A command that no longer applies returns the error and changes nothing.
+    pub fn replay_pending(&mut self, cmd: &Command) -> Result<Vec<Command>, ApplyError> {
+        self.run(cmd)
+    }
+
+    /// Give the rec this undo, so it holds the value that is right in the server's order.
+    pub fn set_undo(&mut self, id: u64, undo: Vec<Command>) {
+        for r in self.recs_mut().filter(|r| r.id == id) {
+            r.undo_ = undo.clone();
         }
-        Ok(())
     }
 
     /// Apply without touching the history; returns the inverse, worked out before the change.

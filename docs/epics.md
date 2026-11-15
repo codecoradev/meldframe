@@ -67,7 +67,7 @@ Goal: backend, a basic web editor and MCP connected end to end on the carried sp
 ### E1.1 Core seed (M)
 Carry the document core from the spike (decision 14, survey section 6.1): `Command`, validation, history with per-actor undo, replica with rebase and op dependencies, fractional order, layout with the text measurer seam.
 - [x] The spike's property tests (convergence, undo, rebase, dependencies) run in this repository and pass with at least 600 seeds per run in CI and more nightly. (600 seeds per run in `cargo test --workspace`; 6,000 in the nightly `property-tests` job.)
-- [x] Mutation check: disabling the dependency rule or the per-actor undo rule makes a test fail. (`tools/mutation-check-sync.sh`: ten mutations, all killed.)
+- [x] Mutation check: disabling the dependency rule or the per-actor undo rule makes a test fail. (`tools/mutation-check-sync.sh`: eighteen mutations, all killed.)
 - [x] Names follow `GLOSSARY.md`; no spike ids remain in file or type names; comments are English.
 - [ ] The core compiles natively and to WASM with the same tests. (`just wasm-test` passes locally: 233 tests, the six core crates plus the two property-test crates, from the same sources. Tick it after the first green `wasm-test` run of the nightly job on a runner.)
 

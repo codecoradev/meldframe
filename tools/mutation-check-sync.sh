@@ -18,14 +18,22 @@ export CARGO_INCREMENTAL=0
 MUTATIONS=$(cat <<'TABLE'
 deps-client	crates/core/meldframe-sync/src/replica.rs	if kind == OpKind::Edit {	if true {	the replica never names dependencies on an undo or redo
 deps-server	crates/core/meldframe-sync-props/tests/sim/server.rs	.any(|d| !self\.idem\.contains_key(&(actor\.to_string(), d\.clone())))	.any(|_| false)	the server accepts an op although a dependency was not applied
-cascade	crates/core/meldframe-sync/src/replica.rs	let alive = !p\.out\.deps\.iter()\.any(|d| dead\.contains(d))	let alive = true	a refused op does not take its dependents with it
+cascade	crates/core/meldframe-sync/src/replica/rebuild.rs	let alive = !p\.out\.deps\.iter()\.any(|d| dead\.contains(d))	let alive = true	a refused op does not take its dependents with it
 per-actor-undo	crates/core/meldframe-history/src/remote.rs	drop_fields(&mut patch, rp);	let _ = rp;	undo keeps its old value for a field another actor wrote after me
 put-back	crates/core/meldframe-history/src/runs.rs	if restore && alive && m\.shadow\.strikes < 2 {	if false {	a refused undo or redo does not put the history step back
 snapshot-patch	crates/core/meldframe-history/src/remote.rs	node\.apply_patch(rp)	()	a remote edit is not written into the node my undo will add again
-replay-undo	crates/core/meldframe-history/src/file_state.rs	r\.undo_ = inverse\.clone();	let _ = \&inverse;	a replayed pending op keeps a stale undo
-pending-skip	crates/core/meldframe-history/src/remote.rs	\.filter(|r| !r\.pending)	.filter(|_| true)	a pending rec is rewritten against a remote op that is ordered before it
+replay-undo	crates/core/meldframe-history/src/file_state.rs	r\.undo_ = undo\.clone();	let _ = \&undo;	a replayed pending op keeps a stale undo
+pending-skip	crates/core/meldframe-history/src/remote.rs	|r: &&mut Rec| r\.pending || held\.contains(&r\.id)	|r: \&\&mut Rec| false || held.contains(\&r.id)	a pending rec is rewritten against a remote op that is ordered before it
 seq-guard	crates/core/meldframe-sync/src/replica.rs	if seq <= self.seq {	if false \&\& seq <= self.seq {	a duplicate server event is not ignored
 reparent-survivor	crates/core/meldframe-history/src/remote.rs	let parent_id = ctx\.survivor\.clone();	let parent_id: Option<String> = None;	undo of a move into a deleted parent goes to the top instead of the nearest surviving ancestor
+held-recs	crates/core/meldframe-history/src/runs.rs	let hit = |r: &Rec| r\.pending || held\.contains(&r\.id);	let hit = |r: \&Rec| false \&\& r.pending;	the step an undo or redo made from a pending edit is rewritten against a remote op that is ordered before the edit (the redo loses its field)
+refresh-run	crates/core/meldframe-history/src/runs.rs	if self\.held_recs()\.contains(&rec) {	if false {	the step an undo or redo made keeps the stale value its op carried
+correction	crates/core/meldframe-sync/src/replica/rebuild.rs	self\.correct(&w);	let _ = \&w;	a stale undo or redo that is already on its way is not set right
+strip-remote	crates/core/meldframe-sync/src/replica/rebuild.rs	p\.intent = p\.intent\.take()\.and_then(|i| without_fields(&i, r));	let _ = r;	a correction is kept for a field another actor wrote after it was made
+want-undo	crates/core/meldframe-sync/src/replica/rebuild.rs	self\.view\.set_undo(r, own\.unwrap_or(inverse));	self.view.set_undo(r, inverse);	the undo of an edit made after a stale undo is worked out in the stale view
+refused-correction	crates/core/meldframe-sync/src/replica.rs	!p\.is_correction(),	true,	a refused correction is sent again without end
+ideal-persist	crates/core/meldframe-sync/src/replica/rebuild.rs	self\.ideal = Some(w);	drop(w);	a stale undo that the server applied is forgotten while a later edit is still pending
+ideal-reset	crates/core/meldframe-sync/src/replica/rebuild.rs	if dropped > 0 || self\.pending\.is_empty() {	if self.pending.is_empty() {	a refused or dropped op leaves ideal and the correction with what its step would have added
 TABLE
 )
 

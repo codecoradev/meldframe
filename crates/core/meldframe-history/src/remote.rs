@@ -17,6 +17,7 @@
 //!   written among the siblings of the same parent (`pos` has no meaning across parents).
 
 use crate::file_state::FileState;
+use crate::history::Rec;
 use crate::inverse::descendants;
 use crate::patch_ops::{drop_fields, patch_is_empty};
 use meldframe_core::{ApplyError, apply_planned, plan_command};
@@ -24,6 +25,7 @@ use meldframe_protocol::{Command, Node};
 use std::collections::HashSet;
 
 /// What the remote command removed, read from the tree before it is applied.
+#[derive(Default)]
 struct RemoteCtx {
     /// The deleted node and its descendants.
     removed: HashSet<String>,
@@ -35,31 +37,21 @@ struct RemoteCtx {
 
 impl RemoteCtx {
     fn new(nodes: &[Node], r: &Command) -> Self {
+        let find = |id: &String| nodes.iter().find(|n| n.id == *id);
         match r {
             Command::RemoveNode { id } => RemoteCtx {
                 removed: descendants(nodes, id)
                     .into_iter()
                     .map(String::from)
                     .collect(),
-                survivor: nodes
-                    .iter()
-                    .find(|n| n.id == *id)
-                    .and_then(|n| n.parent_id.clone()),
-                reorder_space: None,
+                survivor: find(id).and_then(|n| n.parent_id.clone()),
+                ..Default::default()
             },
             Command::Reorder { id, .. } => RemoteCtx {
-                removed: HashSet::new(),
-                survivor: None,
-                reorder_space: nodes
-                    .iter()
-                    .find(|n| n.id == *id)
-                    .map(|n| (n.id.clone(), n.parent_id.clone())),
+                reorder_space: find(id).map(|n| (n.id.clone(), n.parent_id.clone())),
+                ..Default::default()
             },
-            _ => RemoteCtx {
-                removed: HashSet::new(),
-                survivor: None,
-                reorder_space: None,
-            },
+            _ => RemoteCtx::default(),
         }
     }
 }
@@ -175,7 +167,9 @@ fn xform_list(list: &mut Vec<Command>, r: &Command, ctx: &RemoteCtx) {
 impl FileState {
     /// Rewrite my steps against a remote command that is ordered after them. A pending rec is skipped.
     fn xform_history(&mut self, cmd: &Command, ctx: &RemoteCtx) {
-        for rec in self.recs_mut().filter(|r| !r.pending) {
+        let held = self.held_recs();
+        let skip = |r: &&mut Rec| r.pending || held.contains(&r.id);
+        for rec in self.recs_mut().filter(|r| !skip(r)) {
             xform_list(&mut rec.do_, cmd, ctx);
             xform_list(&mut rec.undo_, cmd, ctx);
         }

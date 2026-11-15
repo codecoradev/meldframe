@@ -11,8 +11,8 @@ use meldframe_protocol::Command;
 #[derive(Debug, Clone)]
 pub(crate) struct Rec {
     pub(crate) id: u64,
-    /// The op of this rec has not come back from the server yet. A remote command is ordered before
-    /// it, so the rec is not rewritten against that command; its undo is worked out again on replay.
+    /// The op of this rec has not come back yet: a remote command is ordered before it and does not
+    /// rewrite it; its undo is worked out again on replay (a step made from it: `refresh_run`).
     pub(crate) pending: bool,
     pub(crate) do_: Vec<Command>,
     pub(crate) undo_: Vec<Command>,
@@ -103,9 +103,8 @@ impl FileState {
     }
 
     /// Give the children of `parent` fresh `pos` keys in their current order, as one history step (or part
-    /// of the caller's open group). Use it
-    /// when repeated inserts into one gap have made the keys long. Returns how many children were
-    /// processed.
+    /// of the caller's open group). Use it when repeated inserts into one gap have made the keys long.
+    /// Returns how many children were processed.
     pub fn rebalance(&mut self, parent: Option<&str>) -> Result<usize, ApplyError> {
         let cmds = rebalance_commands(&self.nodes, parent);
         // Inside a group the caller opened, the commands join it and the caller closes it.
@@ -113,18 +112,11 @@ impl FileState {
         if opened {
             self.begin_group();
         }
-        for c in &cmds {
-            if let Err(e) = self.apply(c) {
-                if opened {
-                    self.end_group();
-                }
-                return Err(e);
-            }
-        }
+        let done = cmds.iter().try_for_each(|c| self.apply(c));
         if opened {
             self.end_group();
         }
-        Ok(cmds.len())
+        done.map(|()| cmds.len())
     }
 
     fn new_entry_id(&mut self) -> u64 {
@@ -238,7 +230,7 @@ impl FileState {
         self.end_group();
         while let Some(e) = self.undo.pop() {
             if let Some((done, opposite)) = self.exec_entry(&e, true) {
-                self.note_run(true, e, opposite.id);
+                self.note_run(true, e, &opposite);
                 self.redo.push(opposite);
                 return Some(done);
             }
@@ -252,7 +244,7 @@ impl FileState {
         self.end_group();
         while let Some(e) = self.redo.pop() {
             if let Some((done, opposite)) = self.exec_entry(&e, false) {
-                self.note_run(false, e, opposite.id);
+                self.note_run(false, e, &opposite);
                 self.undo.push(opposite);
                 return Some(done);
             }

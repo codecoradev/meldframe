@@ -7,6 +7,9 @@
 //! When another actor's event arrives, `base` moves on, my history is rewritten against it, and the view is
 //! built again: start from `base` and apply the pending ops one by one; an op that is no longer valid is dropped.
 //!
+//! An undo or redo op that is already on its way when an earlier remote op arrives cannot be recalled:
+//! the rebuild works out what the steps would write now and sends `UpdateNode` corrections (`correction`).
+//!
 //! Undo and redo are worked out by the `FileState` and sent as ordinary ops with an idempotency key.
 //! One replica is one actor.
 
@@ -16,6 +19,8 @@ use meldframe_core::{ApplyError, Limits, apply_command};
 use meldframe_history::FileState;
 use meldframe_protocol::{Command, MAX_OP_DEPS, Node};
 use std::collections::{HashMap, HashSet, VecDeque};
+
+mod rebuild;
 
 #[derive(Debug, Clone)]
 struct Pending {
@@ -28,6 +33,20 @@ struct Pending {
     run: Option<u64>,
     /// What this op writes, worked out when it was made.
     writes: Pairs,
+    /// A correction only: what it still sets right in the model (`want`, `ideal`), without the fields that
+    /// a later remote op wrote. The op already sent or queued is not changed; a later correction restores
+    /// the remote value.
+    intent: Option<Command>,
+    /// What this op adds to the state the rebuilt steps give (`Replica::ideal`), as of the last rebuild;
+    /// none until a rebuild has worked it out (then the op itself).
+    ideal_cmds: Option<Vec<Command>>,
+}
+
+impl Pending {
+    /// A correction (see `correction`): an op that is no edit and belongs to no undo or redo step.
+    fn is_correction(&self) -> bool {
+        self.run.is_none() && self.rec.is_none() && self.out.kind != OpKind::Edit
+    }
 }
 
 /// Where an op comes from in the history: the rec of an edit, or the step of an undo or redo.
@@ -53,6 +72,9 @@ pub struct Replica {
     outbox: Vec<Outgoing>,
     /// Undo and redo steps: how many of their ops are still pending. At zero the step is finished.
     run_left: HashMap<u64, usize>,
+    /// The confirmed state as it would be had every stale op been the op the rebuilt step works out, while
+    /// that differs from `base` (a stale op that the server applied leaves its value in `base`).
+    ideal: Option<Vec<Node>>,
     counter: u64,
     limits: Limits,
 }
@@ -72,6 +94,7 @@ impl Replica {
             pending: VecDeque::new(),
             outbox: Vec::new(),
             run_left: HashMap::new(),
+            ideal: None,
             counter: 0,
             limits: Limits::default(),
         }
@@ -173,6 +196,8 @@ impl Replica {
             rec: from.rec,
             run: from.run,
             writes: foot.1,
+            intent: None,
+            ideal_cmds: None,
         });
     }
 
@@ -292,6 +317,7 @@ impl Replica {
                 .front()
                 .is_some_and(|p| p.json == cmd_json(cmd));
         if own {
+            self.advance_ideal(cmd);
             apply_command(&mut self.base, cmd, &self.limits)
                 .map_err(|e| ReplicaError::Diverged(e.to_string()))?;
             let p = self.pending.pop_front().expect("checked above");
@@ -308,10 +334,13 @@ impl Replica {
         // Another actor (or an op of mine that was dropped): my history is rewritten against it, the
         // confirmed state moves on and the view is built again from it.
         self.view.transform_remote(cmd, &self.base);
+        if let Some(w) = self.ideal.as_mut() {
+            drop(apply_command(w, cmd, &self.limits));
+        }
         self.base = next;
         self.seq = seq;
         Ok(EventOutcome::Rebased {
-            dropped: self.rebuild(HashSet::new(), None),
+            dropped: self.rebuild(HashSet::new(), None, Some(cmd), true),
         })
     }
 
@@ -337,38 +366,6 @@ impl Replica {
         }
     }
 
-    /// Build the view again: start from `base` and apply the pending ops one by one. `dead` holds keys
-    /// of ops that are known to be gone (refused by the server). A pending op that names a dead key is
-    /// dropped without a try, and its own key becomes dead (the server does the same: it refuses an op
-    /// whose dependency was not applied). An op that no longer applies is dropped too, with its history.
-    /// Pending ops are in creation order and deps point to older ops, so one pass is enough. Returns
-    /// how many were dropped. `direct_run` is the step whose op the server refused itself; the steps
-    /// of the ops dropped here join it, and the history of all of them is put back.
-    fn rebuild(&mut self, mut dead: HashSet<String>, direct_run: Option<u64>) -> usize {
-        let mut dead_runs: Vec<u64> = direct_run.into_iter().collect();
-        self.view.reset_nodes(self.base.clone());
-        let mut dropped = 0;
-        for p in std::mem::take(&mut self.pending) {
-            let alive = !p.out.deps.iter().any(|d| dead.contains(d))
-                && self.view.replay_pending(&p.out.command, p.rec).is_ok();
-            if alive {
-                self.pending.push_back(p);
-                continue;
-            }
-            dead.insert(p.out.key.clone());
-            if let Some(r) = p.rec {
-                self.view.forget_rec(r);
-            }
-            if let Some(m) = p.run.filter(|m| !dead_runs.contains(m)) {
-                dead_runs.push(m);
-            }
-            self.outbox.retain(|o| o.key != p.out.key);
-            dropped += 1;
-        }
-        self.put_back_runs(dead_runs, direct_run);
-        dropped
-    }
-
     /// The server refused op `key`: it leaves the pending queue and its history step is forgotten, and
     /// the view is built again without its result. Returns `false` when the op is not pending (it was
     /// dropped before, or confirmed).
@@ -381,7 +378,14 @@ impl Replica {
             self.view.forget_rec(r);
         }
         self.outbox.retain(|o| o.key != key);
-        self.rebuild(HashSet::from([key.to_string()]), p.run);
+        // A refused correction is not sent again. Nothing works it out afresh when the queue is empty: the
+        // stale value then stays in `base` (a known limit).
+        self.rebuild(
+            HashSet::from([key.to_string()]),
+            p.run,
+            None,
+            !p.is_correction(),
+        );
         true
     }
 

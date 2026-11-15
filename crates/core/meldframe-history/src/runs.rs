@@ -5,7 +5,9 @@
 //! was, so the step can be tried again.
 
 use crate::file_state::FileState;
-use crate::history::{Entry, MAX_HISTORY};
+use crate::history::{Entry, MAX_HISTORY, Rec};
+use crate::patch_ops::compact;
+use meldframe_protocol::Command;
 
 /// One undo or redo step that has run but whose ops are not all confirmed.
 #[derive(Debug, Clone)]
@@ -15,15 +17,15 @@ pub(crate) struct Run {
     undoing: bool,
     /// The original step.
     pub(crate) shadow: Entry,
-    /// The id of the step that took its place on the opposite stack.
-    produced: u64,
+    /// The rec of the step that took its place on the opposite stack.
+    rec: u64,
     /// `redo_epoch` when the step ran.
     epoch: u64,
 }
 
 impl FileState {
     /// Keep a copy of the step that just ran (optimistic mode only).
-    pub(crate) fn note_run(&mut self, undoing: bool, original: Entry, produced: u64) {
+    pub(crate) fn note_run(&mut self, undoing: bool, original: Entry, produced: &Entry) {
         self.last_run = None;
         if !self.optimistic {
             return;
@@ -33,10 +35,38 @@ impl FileState {
             id: self.next_run,
             undoing,
             shadow: original,
-            produced,
+            rec: produced.recs[0].id,
             epoch: self.redo_epoch,
         });
         self.last_run = Some(self.next_run);
+    }
+
+    /// Recs of ops ordered after every remote command seen: a step whose original holds a pending (or
+    /// held) rec. Remote commands skip them; `refresh_run` makes them again.
+    pub(crate) fn held_recs(&self) -> Vec<u64> {
+        let mut held = Vec::new();
+        for m in &self.runs {
+            let hit = |r: &Rec| r.pending || held.contains(&r.id);
+            if m.shadow.recs.iter().any(hit) {
+                held.push(m.rec);
+            }
+        }
+        held
+    }
+
+    /// What step `id` applies now that remote commands rewrote its original. A held step is made again
+    /// from it, so it keeps no stale value and loses no field written before my edit.
+    pub fn refresh_run(&mut self, id: u64) -> Option<Vec<Command>> {
+        let m = self.runs.iter().find(|m| m.id == id)?;
+        let (rec, undoing, recs) = (m.rec, m.undoing, &m.shadow.recs);
+        let undo = compact(recs.iter().rev().flat_map(|r| r.undo_.clone()).collect());
+        let do_ = compact(recs.iter().flat_map(|r| r.do_.clone()).collect());
+        if self.held_recs().contains(&rec) {
+            for r in self.recs_mut().filter(|r| r.id == rec) {
+                (r.do_, r.undo_) = (do_.clone(), undo.clone());
+            }
+        }
+        Some(if undoing { undo } else { do_ })
     }
 
     /// The id of the step that the last `undo` or `redo` ran, once (`None` outside optimistic mode).
@@ -75,7 +105,7 @@ impl FileState {
         };
         let found = opposite
             .iter()
-            .position(|e| e.id == m.produced)
+            .position(|e| e.recs.iter().any(|r| r.id == m.rec))
             .map(|k| opposite.remove(k))
             .is_some();
         let cleared = self.redo_epoch != m.epoch;

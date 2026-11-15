@@ -40,6 +40,8 @@ pub struct Server {
     pub nodes: Vec<Node>,
     pub seq: u64,
     pub counts: Counts,
+    /// Every accepted op in the server's order: actor, kind, command (for the checks of one scenario).
+    pub log: Vec<(String, OpKind, Command)>,
     seed: u64,
     idem: HashMap<(String, String), u64>,
     last: HashMap<Field, (u64, String)>,
@@ -87,6 +89,7 @@ impl Server {
             nodes,
             seq: 0,
             counts: Counts::default(),
+            log: Vec::new(),
             seed,
             idem: HashMap::new(),
             last: HashMap::new(),
@@ -181,6 +184,8 @@ impl Server {
             return Verdict::Rejected;
         }
         self.seq += 1;
+        self.log
+            .push((actor.to_string(), o.kind, o.command.clone()));
         self.idem.insert(key, self.seq);
         if undoing {
             self.counts.ur_accepted += 1;

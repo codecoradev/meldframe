@@ -82,6 +82,14 @@ _Avoid_: Mirror, local copy, cache
 An op that its actor has applied and sent but the server has not confirmed or refused yet. A remote op that is ordered before it makes the replica apply it again on the new state.
 _Avoid_: Queued op, optimistic op
 
+**Stale op**:
+An undo or redo op that was already sent when another actor's op was ordered before the edit it reverses: the values it carries were worked out before that op, and the server will apply them because an op on its way cannot be recalled.
+_Avoid_: Old op, outdated op
+
+**Correction**:
+An `UpdateNode` that the replica sends after a **Stale op** to set right the fields where that op would leave a value older than the other actor's. It is a pending op that is neither an edit nor part of an undo or redo step, and it falls with the ops it depends on. Only node fields are corrected, not a stale move, reorder, add or delete.
+_Avoid_: Compensation, fix, repair op
+
 **Dependency**:
 A pending op of the same actor that another op was built on, such as the edit an undo reverses. The server accepts the op only if every dependency was applied, so an undo never lands on a premise the server refused.
 _Avoid_: Prerequisite, parent op
