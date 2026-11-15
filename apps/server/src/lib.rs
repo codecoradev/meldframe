@@ -1,10 +1,13 @@
 //! Server composition root. It assembles the registry from the compiled-in feature modules and builds the
 //! room registry (one room per file) over an in-memory or Postgres backing. HTTP, MCP, REST and WebSocket
-//! transports arrive later; the binary only assembles and holds no business logic. [`PgStore`] is the
+//! transports are the `meldframe-http` adapter over [`SharedServer`]; the binary only assembles and holds no
+//! business logic. [`PgStore`] is the
 //! Postgres adapter of the store seam; [`Backing`] picks it.
 
+mod http;
 mod pg;
 
+pub use http::SharedServer;
 pub use pg::PgStore;
 
 use meldframe_host::{Accepted, Gate, Op, Principal, Refusal, Room, RoomError, Store};
@@ -23,7 +26,7 @@ pub const MAX_OPEN_ROOMS: usize = 256;
 /// A room untouched for this many milliseconds is closed by the next write (see `Server::with_idle_after`).
 pub const IDLE_AFTER_MS: u64 = 5 * 60 * 1000;
 
-type Factory = Box<dyn FnMut(&str) -> AnyStore>;
+type Factory = Box<dyn FnMut(&str) -> AnyStore + Send>;
 
 /// Why `Server::submit_tool` wrote nothing, or stopped part way.
 #[derive(Debug, Clone, PartialEq)]
