@@ -82,6 +82,7 @@ crates/
     meldframe-sync        `Replica`: the optimistic layer over a `FileState` (pending ops, the server's order, rebase, op dependencies)
     meldframe-store-contract (tool) the `Store` seam cases as functions and a `store_contract!` macro; both adapters run them
     meldframe-sync-scenarios (tool) scenario tests of refused ops and of the limits of the correction; no library code
+    meldframe-live-tests  (tool) tests of the live streams of `apps/server` (accepted ops reach subscribers, reconnect from a number); no library code; separate because the server crate is near its ceiling
     meldframe-sync-props  (tool) property tests of replicas against an in-memory server and the host room; no library code
     meldframe-module      Module trait, registry, risk tiers
     meldframe-host        room, store, admission gate; jobs later
@@ -125,7 +126,7 @@ Using deep-module vocabulary. A module is **deep** when much behaviour sits behi
 | Admission gate | submit an op or batch with a principal; get a report or a typed refusal | Deep once consolidated; duplicated in the spike across WebSocket, MCP and REST | One gate with three transports on top; the room accepts a write only with a permit the gate creates (ADR-0010) |
 | Module registry | register commands, settings, jobs, agent tools and panels; read them | Small interface, wide leverage | Read by editor, MCP and REST; leaving a feature out removes it everywhere (ADR-0007) |
 | App layer | dispatch an action; read state; carry out effects; receive events | Deep once built; **does not exist in the spike** (rules live in the Svelte client) | Front ends: web now; desktop or mobile later; a test harness as the second driver (ADR-0008) |
-| Room actor | accept ops in order, apply, persist, broadcast | Deep (proven) | The `Store` seam has two adapters, in-memory (`meldframe-host`) and Postgres (`PgStore`, `apps/server`), both held to one contract suite (`meldframe-store-contract`) |
+| Room actor | accept ops in order, apply, persist, broadcast (`Server::subscribe`, `poll`, `seen`, `tick` and `submit_tool` (calls take the principal's workspace and the caller's clock) feed a `meldframe-stream` hub per file; the WebSocket transport is not built yet) | Deep (proven) | The `Store` seam has two adapters, in-memory (`meldframe-host`) and Postgres (`PgStore`, `apps/server`), both held to one contract suite (`meldframe-store-contract`) |
 | Agent surface | MCP tools contributed by feature modules, over the gate | Thin by design | Adapter over the gate |
 | Capture | request an image of a node or frame | Small | One adapter (browser relay); a second renderer is decision 18, so no port yet |
 | Export | resolved model in, HTML/Tailwind/CSS variables and a warnings list out | Deep | Consumer of the render model |

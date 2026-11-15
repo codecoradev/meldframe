@@ -3,13 +3,16 @@
 //! transports arrive later; the binary only assembles and holds no business logic. [`PgStore`] is the
 //! Postgres adapter of the store seam; [`Backing`] picks it.
 
+mod live;
 mod pg;
 
+pub use live::{Frame, LIVE_CONFIG, MAX_LIVE_STREAMS, StreamId, SubscribeError, Subscription};
+pub use meldframe_stream::{Config, StreamError};
 pub use pg::PgStore;
 
-use meldframe_host::{Accepted, Gate, Op, Principal, Refusal, Room, RoomError, Store};
+use meldframe_host::{Accepted, Gate, Op, Principal, Refusal, Room, RoomError, Store, StoredOp};
 use meldframe_module::{Module, Policy, Registry, RiskTier};
-use meldframe_rooms::{MemoryActivityLog, RegistryError, Rooms, TreeFacts};
+use meldframe_rooms::{MemoryActivityLog, RegistryError, TreeFacts};
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -24,6 +27,7 @@ pub const MAX_OPEN_ROOMS: usize = 256;
 pub const IDLE_AFTER_MS: u64 = 5 * 60 * 1000;
 
 type Factory = Box<dyn FnMut(&str) -> AnyStore>;
+pub(crate) type Rooms = meldframe_rooms::Rooms<AnyStore, MemoryActivityLog, Factory>;
 
 /// Why `Server::submit_tool` wrote nothing, or stopped part way.
 #[derive(Debug, Clone, PartialEq)]
@@ -82,8 +86,9 @@ impl From<RegistryError> for SubmitError {
 pub struct Server {
     registry: Registry,
     gate: Gate,
-    rooms: Rooms<AnyStore, MemoryActivityLog, Factory>,
+    rooms: Rooms,
     idle_after: u64,
+    live: live::Live,
 }
 
 /// The key of a file in the registry and the store: the workspace's length, the workspace, then the file.
@@ -128,8 +133,9 @@ impl Server {
         Server {
             registry,
             gate: Gate::new(),
-            rooms: Rooms::new(MAX_OPEN_ROOMS, factory, MemoryActivityLog::new()),
+            rooms: meldframe_rooms::Rooms::new(MAX_OPEN_ROOMS, factory, MemoryActivityLog::new()),
             idle_after: IDLE_AFTER_MS,
+            live: meldframe_stream::Streams::new(LIVE_CONFIG, MAX_LIVE_STREAMS),
         }
     }
 
@@ -215,6 +221,7 @@ impl Server {
             registry,
             gate,
             rooms,
+            live,
             ..
         } = self;
         let mut done: Vec<Option<Accepted>> = ops
@@ -234,6 +241,7 @@ impl Server {
         if fresh.is_empty() && !done.is_empty() {
             return Ok(done.into_iter().flatten().collect());
         }
+        let mut sent = fresh.clone().into_iter();
         let report = rooms
             .with_room(key, |room| {
                 let facts = TreeFacts::new(room.nodes());
@@ -244,7 +252,20 @@ impl Server {
         let mut written = report.admitted.into_iter();
         for slot in done.iter_mut().filter(|d| d.is_none()) {
             let admission = written.next().expect("one admission per op");
-            *slot = Some(rooms.accept(key, admission, at)?.accepted);
+            let op = sent.next().expect("one op per admission");
+            let accepted = rooms.accept(key, admission, at)?.accepted;
+            if accepted.written {
+                let stored = StoredOp {
+                    seq: accepted.seq,
+                    actor: who.actor.clone(),
+                    key: op.key,
+                    command: op.command,
+                };
+                // A gap cannot happen (one writer, one numbering); if it did, the hub resyncs its streams
+                // itself, so the write is never failed here.
+                let _ = live.publish(key, accepted.seq, stored);
+            }
+            *slot = Some(accepted);
         }
         Ok(done.into_iter().flatten().collect())
     }

@@ -723,6 +723,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-live-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-host",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-server",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-module"
 version = "0.0.0"
 
@@ -765,6 +776,7 @@ dependencies = [
  "meldframe-protocol",
  "meldframe-rooms",
  "meldframe-store-contract",
+ "meldframe-stream",
  "serde_json",
  "sqlx",
  "tokio",

@@ -21,6 +21,7 @@ meldframe-module = { path = "../../crates/core/meldframe-module" }
 meldframe-rooms = { path = "../../crates/core/meldframe-rooms" }
 example = { path = "../../crates/features/example/example", optional = true }
 meldframe-protocol = { path = "../../crates/core/meldframe-protocol" }
+meldframe-stream = { path = "../../crates/core/meldframe-stream" }
 serde_json = "1"
 # Postgres adapter of the Store seam. No TLS feature: a deployment that needs it turns it on deliberately.
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "json", "migrate", "macros"] }
