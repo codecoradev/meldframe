@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-rooms"
-description = "Many rooms in one process: the activity log of accepted ops."
+description = "Many rooms in one process: the activity log of accepted ops and the room registry."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,0 +1,171 @@
+//! The room registry: one room per file, opened on demand, bounded, and written only through the registry.
+//!
+//! The registry owns its rooms, so a write needs `&mut Rooms`: Rust allows one writer at a time, and each room
+//! still has one total order of sequence numbers. No lock, thread or channel is needed here. A transport that
+//! shares the registry between tasks wraps it in its own single owner (a mutex or an actor) at the app layer.
+//! The registry hands out read access (`with_room`) and `accept`, never `&mut Room`: a write that skipped
+//! `accept` would skip the activity log.
+
+use crate::{ActivityLog, Logged, accept_logged};
+use meldframe_host::{Op, Permit, Room, RoomError, Store};
+use std::collections::HashMap;
+use std::fmt;
+
+/// What `Rooms::open` found.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Opened {
+    /// The sequence number of the room's last accepted op, 0 for a new file.
+    pub seq: u64,
+    /// True when the file was already open: the same room, untouched, and no store was asked for.
+    pub already_open: bool,
+}
+
+/// Why a registry call failed. These are failures of the registry, not refusals of an op (`Refusal`, with its
+/// wire codes, stays in `RoomError::Refused`). A transport maps them to its own errors.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RegistryError {
+    /// The registry holds its limit of open rooms; close one first. Opening a file that is already open
+    /// never hits this.
+    Full { limit: usize },
+    /// The file is not open.
+    NotOpen { file: String },
+    /// The file is open for another workspace.
+    WorkspaceMismatch { file: String },
+    /// The room did not open (the store failed or the log does not replay) or refused or failed the op.
+    Room(RoomError),
+}
+
+impl fmt::Display for RegistryError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RegistryError::Full { limit } => write!(f, "{limit} rooms are open; close one first"),
+            RegistryError::NotOpen { file } => write!(f, "file {file} is not open"),
+            RegistryError::WorkspaceMismatch { file } => {
+                write!(f, "file {file} is open for another workspace")
+            }
+            RegistryError::Room(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for RegistryError {}
+
+impl From<RoomError> for RegistryError {
+    fn from(e: RoomError) -> Self {
+        RegistryError::Room(e)
+    }
+}
+
+/// At most `max_open` rooms, one per file, with one activity log for all of them.
+///
+/// `make_store` gives a handle on the file's durable store. It is called once per actual open (not for a file
+/// that is already open) and must hand back the same durable state each time, as a database adapter does:
+/// that is how a closed file is restored when it is opened again.
+pub struct Rooms<S: Store, L: ActivityLog, F: FnMut(&str) -> S> {
+    max_open: usize,
+    make_store: F,
+    log: L,
+    open: HashMap<String, Room<S>>,
+    activity_failures: u64,
+}
+
+impl<S: Store, L: ActivityLog, F: FnMut(&str) -> S> fmt::Debug for Rooms<S, L, F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Rooms")
+            .field("max_open", &self.max_open)
+            .field("open", &self.open.len())
+            .field("activity_failures", &self.activity_failures)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<S: Store, L: ActivityLog, F: FnMut(&str) -> S> Rooms<S, L, F> {
+    pub fn new(max_open: usize, make_store: F, log: L) -> Self {
+        Rooms {
+            max_open,
+            make_store,
+            log,
+            open: HashMap::new(),
+            activity_failures: 0,
+        }
+    }
+
+    /// Open the room of `file` in `workspace`, restoring it from its store (latest snapshot, then the log).
+    /// Idempotent: a file that is already open is left as it is and reported with `already_open`.
+    pub fn open(&mut self, workspace: &str, file: &str) -> Result<Opened, RegistryError> {
+        if let Some(room) = self.open.get(file) {
+            if room.workspace() != workspace {
+                return Err(RegistryError::WorkspaceMismatch { file: file.into() });
+            }
+            return Ok(Opened {
+                seq: room.seq(),
+                already_open: true,
+            });
+        }
+        if self.open.len() >= self.max_open {
+            return Err(RegistryError::Full {
+                limit: self.max_open,
+            });
+        }
+        let room = Room::open(workspace, file, (self.make_store)(file))?;
+        let seq = room.seq();
+        self.open.insert(file.to_string(), room);
+        Ok(Opened {
+            seq,
+            already_open: false,
+        })
+    }
+
+    /// Close the room of `file` and free its slot. Every accepted op is already in the store, so nothing is
+    /// lost. False when the file was not open.
+    pub fn close(&mut self, file: &str) -> bool {
+        self.open.remove(file).is_some()
+    }
+
+    /// Read an open room; `None` when the file is not open.
+    pub fn with_room<R>(&self, file: &str, f: impl FnOnce(&Room<S>) -> R) -> Option<R> {
+        self.open.get(file).map(f)
+    }
+
+    /// Accept an admitted op in the room of `file` and record it in the activity log (see `accept_logged`).
+    pub fn accept(
+        &mut self,
+        file: &str,
+        op: Op,
+        permit: Permit,
+        at: u64,
+    ) -> Result<Logged, RegistryError> {
+        let room = self
+            .open
+            .get_mut(file)
+            .ok_or_else(|| RegistryError::NotOpen { file: file.into() })?;
+        let logged = accept_logged(room, &mut self.log, op, permit, at)?;
+        if logged.log_error.is_some() {
+            self.activity_failures += 1;
+        }
+        Ok(logged)
+    }
+
+    pub fn is_open(&self, file: &str) -> bool {
+        self.open.contains_key(file)
+    }
+
+    /// How many rooms are open.
+    pub fn len(&self) -> usize {
+        self.open.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.open.is_empty()
+    }
+
+    /// The activity log of every room.
+    pub fn activity(&self) -> &L {
+        &self.log
+    }
+
+    /// How many activity entries could not be written; the ops are in their stores regardless.
+    pub fn activity_failures(&self) -> u64 {
+        self.activity_failures
+    }
+}
