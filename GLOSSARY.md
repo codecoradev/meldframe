@@ -152,6 +152,10 @@ _Avoid_: Permission level, scope
 What the gate does with a call of a given risk tier: Auto (let it through), Ask (the owner must confirm) or Deny (refuse). The defaults are Read Auto, Change Auto and Delete Ask.
 _Avoid_: Permission, rule
 
+**Approval**:
+The owner's answer to a call whose policy is Ask: it is pending, then approved, denied or expired, and an approved one admits the same call once. It is not a Review, which looks at changes after they were applied.
+_Avoid_: Permission, sign-off
+
 **Durable event**:
 A live message that is an accepted change, numbered and replayable after a reconnect.
 _Avoid_: Persistent message
