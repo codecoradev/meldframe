@@ -79,7 +79,7 @@ crates/
     meldframe-history     `FileState` (the in-memory tree of one File) with validated apply, undo and redo per actor, groups and remote ops
     meldframe-history-props (tool) property test of random undo and redo runs; no library code
     meldframe-sync        `Replica`: the optimistic layer over a `FileState` (pending ops, the server's order, rebase, op dependencies)
-    meldframe-sync-props  (tool) property tests of replicas against an in-memory server; no library code
+    meldframe-sync-props  (tool) property tests of replicas against an in-memory server and the host room; no library code
     meldframe-module      Module trait, registry, risk tiers
     meldframe-host        rooms, jobs, store, admission gate, activity log
   engines/                text measurer, rasteriser (traits and adapters)
@@ -95,7 +95,7 @@ xtask/                    deps-check, build-matrix, portable-check, size-check, 
 
 Allowed dependencies: core to core; engine and integration to core and engine; feature to core, engine, integration and (only if marked composite) other features; app to core, engine, integration and feature; ui to core, app and ui. UI toolkits are allowed only in ui, feature-ui and bin crates. Core, engine, integration, feature and app crates must compile for `wasm32`. A product build with each feature alone, and with none, must pass its tests.
 
-`meldframe-sync-props` is a separate crate of kind `tool` for one reason: the random runs of several replicas against an in-memory server (convergence, undo per actor, refused ops, op dependencies) would have taken `meldframe-sync` over the 2,000-line ceiling with its scenario tests. It depends on the replica crate, not the other way round, and has no library code; a default run is 600 seeds (`MELDFRAME_SEEDS` raises it; nightly CI uses 6,000) and `tools/mutation-check-sync.sh` shows that switching a rule off makes a test fail.
+`meldframe-sync-props` is a separate crate of kind `tool` for one reason: the random runs of several replicas against an in-memory server (convergence, undo per actor, refused ops, op dependencies) would have taken `meldframe-sync` over the 2,000-line ceiling with its scenario tests. It depends on the replica crate (and on the host crate for the room test), not the other way round, and has no library code; a default run is 600 seeds (`MELDFRAME_SEEDS` raises it; nightly CI uses 6,000) and `tools/mutation-check-sync.sh` shows that switching a rule off makes a test fail.
 
 The document model was one crate in the first plan. It is now several small core crates (ADR-0011) so that each stays under the 2,000-line ceiling with its tests. The in-memory tree of one File is named `FileState` (see GLOSSARY), because the glossary keeps "document" out of the vocabulary for a File.
 

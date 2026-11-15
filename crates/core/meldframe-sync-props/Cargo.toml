@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-sync-props"
-description = "Property tests for meldframe-sync: random runs of several replicas against an in-memory server. No library code."
+description = "Property tests for meldframe-sync: random runs of several replicas against an in-memory server and against the real gate and room of meldframe-host. No library code."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,6 +11,8 @@ kind = "tool"
 
 [dev-dependencies]
 meldframe-core = { path = "../meldframe-core" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-module = { path = "../meldframe-module" }
 meldframe-order = { path = "../meldframe-order" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-sync = { path = "../meldframe-sync" }

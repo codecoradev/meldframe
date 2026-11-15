@@ -240,6 +240,8 @@ name = "meldframe-sync-props"
 version = "0.0.0"
 dependencies = [
  "meldframe-core",
+ "meldframe-host",
+ "meldframe-module",
  "meldframe-order",
  "meldframe-protocol",
  "meldframe-sync",
