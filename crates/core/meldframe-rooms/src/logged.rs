@@ -1,7 +1,7 @@
 //! Accept an op in a room and record it in the activity log.
 
 use crate::{ActivityEntry, ActivityError, ActivityLog};
-use meldframe_host::{Accepted, Op, Permit, Room, RoomError, Store};
+use meldframe_host::{Accepted, Admission, Room, RoomError, Store};
 
 /// What `accept_logged` did with an op that was not refused.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,14 +18,13 @@ pub struct Logged {
 pub fn accept_logged<S: Store, L: ActivityLog + ?Sized>(
     room: &mut Room<S>,
     log: &mut L,
-    op: Op,
-    permit: Permit,
+    admission: Admission,
     at: u64,
 ) -> Result<Logged, RoomError> {
-    let tier = permit.tier();
-    let actor = permit.actor().to_string();
-    let (kind, node_id) = ActivityEntry::describe(&op.command);
-    let accepted = room.accept(op, permit)?;
+    let tier = admission.permit().tier();
+    let actor = admission.permit().actor().to_string();
+    let (kind, node_id) = ActivityEntry::describe(&admission.op().command);
+    let accepted = room.accept(admission)?;
     let log_error = if accepted.written {
         let entry = ActivityEntry {
             seq: accepted.seq,

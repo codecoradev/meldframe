@@ -1,7 +1,7 @@
 //! Helpers shared by the host tests.
 #![allow(dead_code)]
 
-use meldframe_host::{Gate, Op, Permit, Principal, Refusal, RoomError};
+use meldframe_host::{Admission, Gate, Op, Principal, Refusal, RoomError};
 use meldframe_protocol::{Command, Node};
 
 pub fn node(id: &str, kind: &str, parent: Option<&str>) -> Node {
@@ -23,15 +23,14 @@ pub fn op(key: &str, command: Command) -> Op {
     Op::new(key, command)
 }
 
-/// An op and the permit the gate gives it, for `actor` in workspace `ws_1`.
-pub fn admit(actor: &str, op: Op) -> (Op, Permit) {
+/// The admission the gate gives an op, for `actor` in workspace `ws_1`.
+pub fn admit(actor: &str, op: Op) -> Admission {
     let who = Principal::new("ws_1", actor);
-    let a = Gate::new()
+    Gate::new()
         .submit(&who, vec![op])
         .unwrap()
         .admitted
-        .remove(0);
-    (a.op, a.permit)
+        .remove(0)
 }
 
 pub fn refusal(e: RoomError) -> Refusal {

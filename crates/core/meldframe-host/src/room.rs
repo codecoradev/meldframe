@@ -1,6 +1,6 @@
 //! The room: one total order per file, and the only write entry, [`Room::accept`].
 
-use crate::{Appended, NewOp, Op, Permit, Refusal, Snapshot, Store, StoreError};
+use crate::{Admission, Appended, NewOp, Refusal, Snapshot, Store, StoreError};
 use meldframe_core::{Limits, apply_command, apply_planned, plan_command};
 use meldframe_protocol::{Command, Node};
 use std::collections::HashMap;
@@ -184,10 +184,10 @@ impl<S: Store> Room<S> {
         self.store
     }
 
-    /// Accept an admitted op. This is the only way to write to a room, and a [`Permit`] only comes from
-    /// the gate (see the crate docs for the compile-fail proof).
+    /// Accept an admitted op. This is the only way to write to a room, and an [`Admission`] only comes from
+    /// the gate with its op and permit sealed together (see the crate docs for the compile-fail proof).
     ///
-    /// Order of checks: the permit fits the op (same key, same risk tier) and this room's workspace; a key
+    /// Order of checks: the permit is for this room's workspace; a key
     /// that was applied before is a duplicate (same number, nothing written) when the command is the same
     /// and `invalid` when it is not; every dependency was applied for this actor (applied
     /// keys are never forgotten, they live in the log); `if_seq`; the command itself. A refused op writes
@@ -196,22 +196,19 @@ impl<S: Store> Room<S> {
     /// below the snapshot conflicts (safe, never lets a stale edit through). Adding a child does not count as
     /// touching its parent. A snapshot that fails to save after the write does not fail the op: see
     /// [`Room::snapshot_warning`].
-    pub fn accept(&mut self, op: Op, permit: Permit) -> Result<Accepted, RoomError> {
-        if permit.key() != op.key {
-            return Err(Refusal::Invalid {
-                reason: format!("the permit is for op {}, not {}", permit.key(), op.key),
-            }
-            .into());
-        }
-        if permit.tier() != op.tier() {
-            return Err(Refusal::Invalid {
-                reason: format!(
-                    "the permit was decided for another risk tier than op {}",
-                    op.key
-                ),
-            }
-            .into());
-        }
+    pub fn accept(&mut self, admission: Admission) -> Result<Accepted, RoomError> {
+        let (op, permit) = admission.into_parts();
+        // An admission cannot pair an op with another's permit; this holds for every admission.
+        debug_assert_eq!(
+            permit.key(),
+            op.key,
+            "an admission pairs an op with another op's permit"
+        );
+        debug_assert_eq!(
+            permit.tier(),
+            op.tier(),
+            "an admission pairs an op with a permit of another tier"
+        );
         if permit.workspace() != self.workspace {
             return Err(Refusal::Invalid {
                 reason: format!(

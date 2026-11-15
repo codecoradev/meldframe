@@ -38,7 +38,7 @@ impl Permit {
         &self.key
     }
 
-    /// The risk tier the gate decided the policy for. The room refuses an op of another tier.
+    /// The risk tier the gate decided the policy for.
     pub fn tier(&self) -> RiskTier {
         self.tier
     }

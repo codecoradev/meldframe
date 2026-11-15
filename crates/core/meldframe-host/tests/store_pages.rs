@@ -46,8 +46,8 @@ fn open_replays_a_long_log_in_bounded_pages_and_gets_the_same_tree() {
         .unwrap()
         .with_snapshot_every(u64::MAX);
     for i in 0..total {
-        let (o, p) = admit("user:a", op(&format!("k{i}"), add(&format!("n{i}"))));
-        room.accept(o, p).unwrap();
+        let adm = admit("user:a", op(&format!("k{i}"), add(&format!("n{i}"))));
+        room.accept(adm).unwrap();
     }
     let want: Vec<String> = room.nodes().iter().map(|n| n.id.clone()).collect();
     let store = Recording {

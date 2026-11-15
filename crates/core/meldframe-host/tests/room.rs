@@ -11,8 +11,7 @@ fn room() -> Room<MemoryStore> {
 }
 
 fn put(room: &mut Room<MemoryStore>, actor: &str, o: Op) -> Result<u64, meldframe_host::RoomError> {
-    let (o, p) = admit(actor, o);
-    room.accept(o, p).map(|a| a.seq)
+    room.accept(admit(actor, o)).map(|a| a.seq)
 }
 
 fn ids(room: &Room<MemoryStore>) -> Vec<String> {
@@ -48,8 +47,8 @@ fn a_retried_key_gets_the_same_number_and_changes_nothing() {
     let mut r = room();
     put(&mut r, "a", op("k1", add("n1"))).unwrap();
     put(&mut r, "a", op("k2", add("n2"))).unwrap();
-    let (o, p) = admit("a", op("k1", add("n1")));
-    let again = r.accept(o, p).unwrap();
+    let adm = admit("a", op("k1", add("n1")));
+    let again = r.accept(adm).unwrap();
     assert_eq!((again.seq, again.written), (1, false));
     assert_eq!(r.seq(), 2);
     assert_eq!(ids(&r), ["n1", "n2"]);
@@ -136,18 +135,17 @@ fn if_seq_refuses_an_edit_of_a_node_changed_since() {
 }
 
 #[test]
-fn a_permit_for_another_op_or_workspace_is_refused() {
+fn a_permit_of_another_workspace_is_refused() {
+    // An op and a permit cannot be paired by hand (see the crate doctests); a room of another workspace
+    // is the mismatch that can still happen, so the room checks it.
     let mut r = room();
-    let (_, permit) = admit("a", op("k1", add("n1")));
-    let err = refusal(r.accept(op("k2", add("n2")), permit).unwrap_err());
-    assert_eq!(err.code(), "invalid");
     let other = Principal::new("ws_2", "a");
     let adm = Gate::new()
         .submit(&other, vec![op("k1", add("n1"))])
         .unwrap()
         .admitted
         .remove(0);
-    let err = refusal(r.accept(adm.op, adm.permit).unwrap_err());
+    let err = refusal(r.accept(adm).unwrap_err());
     assert_eq!(err.code(), "invalid");
     assert!(err.to_string().contains("workspace"), "{err}");
     assert_eq!(r.seq(), 0);
@@ -161,18 +159,4 @@ fn a_key_reused_for_a_different_command_is_refused_not_reported_as_done() {
     assert_eq!(err.code(), "invalid");
     assert_eq!(ids(&r), ["n1"]);
     assert_eq!(r.seq(), 1);
-}
-
-#[test]
-fn a_permit_does_not_cover_a_stronger_command_under_the_same_key() {
-    // The gate decided the policy for a Change; the same key with a Delete must not ride on it.
-    let mut r = room();
-    put(&mut r, "a", op("k1", add("n1"))).unwrap();
-    let (_, permit) = admit("a", op("k2", add("n2")));
-    let err = refusal(
-        r.accept(op("k2", common::remove("n1")), permit)
-            .unwrap_err(),
-    );
-    assert_eq!(err.code(), "invalid");
-    assert_eq!(ids(&r), ["n1"]);
 }

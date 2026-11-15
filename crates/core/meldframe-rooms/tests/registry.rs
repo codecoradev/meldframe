@@ -2,7 +2,7 @@
 //! is restored from the store on open, and every write goes through the registry.
 
 use meldframe_host::{
-    Appended, Gate, MemoryStore, NewOp, Op, Permit, Principal, RoomError, Snapshot, Store,
+    Admission, Appended, Gate, MemoryStore, NewOp, Op, Principal, RoomError, Snapshot, Store,
     StoreError, StoredOp,
 };
 use meldframe_protocol::Command;
@@ -40,14 +40,13 @@ fn add(id: &str) -> Command {
     Command::AddNode { node, index: None }
 }
 
-fn admit(actor: &str, key: &str, id: &str) -> (Op, Permit) {
+fn admit(actor: &str, key: &str, id: &str) -> Admission {
     let who = Principal::new("ws_1", actor);
-    let a = Gate::new()
+    Gate::new()
         .submit(&who, vec![Op::new(key, add(id))])
         .unwrap()
         .admitted
-        .remove(0);
-    (a.op, a.permit)
+        .remove(0)
 }
 
 type Reg = Rooms<Shared, MemoryActivityLog, Box<dyn FnMut(&str) -> Shared>>;
@@ -65,8 +64,8 @@ fn registry(max: usize) -> (Reg, Rc<Cell<usize>>) {
 }
 
 fn put(reg: &mut Reg, file: &str, actor: &str, key: &str, id: &str) -> Result<u64, RegistryError> {
-    let (o, p) = admit(actor, key, id);
-    reg.accept(file, o, p, 7).map(|l| l.accepted.seq)
+    reg.accept(file, admit(actor, key, id), 7)
+        .map(|l| l.accepted.seq)
 }
 
 fn ids(reg: &Reg, file: &str) -> Vec<String> {
@@ -146,8 +145,8 @@ fn a_reopened_room_is_restored_from_the_store() {
     assert_eq!((reopened.already_open, reopened.seq), (false, 3));
     assert_eq!(ids(&reg, "f1"), ["n1", "n2", "n3"]);
     // The log came back with the room: a retried key is a duplicate, a new key continues the numbers.
-    let (o, p) = admit("a", "k1", "n2");
-    let dup = reg.accept("f1", o, p, 9).unwrap().accepted;
+    let adm = admit("a", "k1", "n2");
+    let dup = reg.accept("f1", adm, 9).unwrap().accepted;
     assert_eq!((dup.seq, dup.written), (2, false));
     assert_eq!(put(&mut reg, "f1", "a", "k9", "n9").unwrap(), 4);
 }
@@ -205,7 +204,7 @@ fn a_permit_of_another_workspace_is_refused_on_an_open_room() {
         .unwrap()
         .admitted
         .remove(0);
-    let err = reg.accept("f1", a.op, a.permit, 1).unwrap_err();
+    let err = reg.accept("f1", a, 1).unwrap_err();
     match err {
         RegistryError::Room(RoomError::Refused(r)) => {
             assert_eq!(r.code(), "invalid");
@@ -231,24 +230,24 @@ fn a_registry_that_holds_no_room_refuses_every_open_without_asking_for_a_store()
 fn an_open_that_fails_leaves_no_half_registered_room() {
     // The first store the factory hands out has a log that does not replay; the second is good.
     let mut bad = MemoryStore::new();
-    let (o, _) = admit("a", "k1", "n1");
+    let o = admit("a", "k1", "n1");
     bad.append(
         "f1",
         NewOp {
             actor: "a".into(),
             key: "k1".into(),
-            command: o.command,
+            command: o.op().command.clone(),
         },
     )
     .unwrap();
     // A second op that the document core refuses (the same node id again) makes the log corrupt.
-    let (o2, _) = admit("a", "k2", "n1");
+    let o2 = admit("a", "k2", "n1");
     bad.append(
         "f1",
         NewOp {
             actor: "a".into(),
             key: "k2".into(),
-            command: o2.command,
+            command: o2.op().command.clone(),
         },
     )
     .unwrap();

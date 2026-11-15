@@ -16,3 +16,5 @@ Working default (13 Nov 2026, decision 26), open to the owner's override: Read i
 ## Consequences
 
 The first refactor of the seed code is to consolidate admission before adding Gatehouse and workspace tenancy. Workspace identity comes from the principal the gate receives.
+
+The room accepts an `Admission`, which pairs an op with the permit the gate made for that op; its fields are private, so an op and a permit cannot be paired by hand (compile-fail doctests in `meldframe-rooms`). A room checks the workspace of the permit, not which gate made it: the policy of a gate is trusted per workspace, so a room does not bind to one gate.

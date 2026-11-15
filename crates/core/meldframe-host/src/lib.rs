@@ -8,7 +8,8 @@
 //!
 //! # A write needs a permit
 //!
-//! `Room::accept(op, permit)` is the only way to write, and only the gate makes a permit. The first
+//! `Room::accept(admission)` is the only way to write, and only the gate makes an [`Admission`], an op sealed
+//! together with its permit. The first
 //! block is the whole path and compiles. The blocks after it must not compile; each names the error it
 //! is meant to fail with, so one cannot pass by failing for another reason (a typo, a missing import).
 //!
@@ -21,12 +22,13 @@
 //! let who = Principal::new("ws_1", "user:a");
 //! let adm = Gate::new().submit(&who, vec![op]).unwrap().admitted.remove(0);
 //! let mut room = Room::open("ws_1", "file_1", MemoryStore::new()).unwrap();
-//! assert_eq!(room.accept(adm.op, adm.permit).unwrap().seq, 1);
+//! assert_eq!((adm.op().key.as_str(), adm.permit().key()), ("k1", "k1"));
+//! assert_eq!(room.accept(adm).unwrap().seq, 1);
 //! ```
 //!
-//! A write without a permit does not compile (E0061, too few arguments):
+//! A write without a permit does not compile (E0308, an op is not an admission):
 //!
-//! ```compile_fail,E0061
+//! ```compile_fail,E0308
 //! use meldframe_host::{MemoryStore, Op, Room};
 //! use meldframe_protocol::Command;
 //!
@@ -34,6 +36,9 @@
 //! let op = Op::new("k1", Command::RemoveNode { id: "n1".into() });
 //! room.accept(op);
 //! ```
+//!
+//! That an op and a permit cannot be paired by hand is shown by the doctests of `meldframe-rooms` (this
+//! crate is at its size ceiling).
 //!
 //! A permit cannot be built outside the gate, by struct literal (E0451, private fields):
 //!

@@ -7,7 +7,7 @@
 //! `accept` would skip the activity log.
 
 use crate::{ActivityLog, Logged, accept_logged};
-use meldframe_host::{Op, Permit, Room, RoomError, Store};
+use meldframe_host::{Admission, Room, RoomError, Store};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -131,15 +131,14 @@ impl<S: Store, L: ActivityLog, F: FnMut(&str) -> S> Rooms<S, L, F> {
     pub fn accept(
         &mut self,
         file: &str,
-        op: Op,
-        permit: Permit,
+        admission: Admission,
         at: u64,
     ) -> Result<Logged, RegistryError> {
         let room = self
             .open
             .get_mut(file)
             .ok_or_else(|| RegistryError::NotOpen { file: file.into() })?;
-        let logged = accept_logged(room, &mut self.log, op, permit, at)?;
+        let logged = accept_logged(room, &mut self.log, admission, at)?;
         if logged.log_error.is_some() {
             self.activity_failures += 1;
         }

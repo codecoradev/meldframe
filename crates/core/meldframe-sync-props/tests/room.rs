@@ -85,7 +85,7 @@ fn submit(
         .map_err(|r| r.code())?
         .admitted
         .remove(0);
-    let done = room.accept(a.op, a.permit).map_err(|e| match e {
+    let done = room.accept(a).map_err(|e| match e {
         meldframe_host::RoomError::Refused(r) => r.code(),
         other => panic!("the room failed: {other}"),
     })?;

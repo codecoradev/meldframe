@@ -17,10 +17,10 @@ fn a_change_is_admitted_and_the_permit_names_its_actor_op_and_workspace() {
     let report = gate.submit(&who(), vec![op("k1", add("n1"))]).unwrap();
     assert_eq!(report.admitted.len(), 1);
     let a = &report.admitted[0];
-    assert_eq!(a.op.key, "k1");
-    assert_eq!(a.permit.actor(), "user:a");
-    assert_eq!(a.permit.workspace(), "ws_1");
-    assert_eq!(a.permit.key(), "k1");
+    assert_eq!(a.op().key, "k1");
+    assert_eq!(a.permit().actor(), "user:a");
+    assert_eq!(a.permit().workspace(), "ws_1");
+    assert_eq!(a.permit().key(), "k1");
 }
 
 #[test]
@@ -28,7 +28,11 @@ fn a_batch_is_admitted_whole_in_order() {
     let mut gate = Gate::new();
     let ops = vec![op("k1", add("n1")), op("k2", add("n2"))];
     let report = gate.submit(&who(), ops).unwrap();
-    let keys: Vec<&str> = report.admitted.iter().map(|a| a.op.key.as_str()).collect();
+    let keys: Vec<&str> = report
+        .admitted
+        .iter()
+        .map(|a| a.op().key.as_str())
+        .collect();
     assert_eq!(keys, ["k1", "k2"]);
 }
 

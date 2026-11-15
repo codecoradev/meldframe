@@ -1,6 +1,6 @@
 //! The activity log seam: one entry per accepted op, none for a retry or a refusal.
 
-use meldframe_host::{Gate, MemoryStore, Op, Permit, Principal, Room};
+use meldframe_host::{Admission, Gate, MemoryStore, Op, Principal, Room};
 use meldframe_module::{Policy, RiskTier};
 use meldframe_protocol::Command;
 use meldframe_rooms::{
@@ -26,14 +26,12 @@ fn room() -> Room<MemoryStore> {
 }
 
 /// Admit with a policy that lets a delete through, so the log can be checked for a Delete tier.
-fn admit(actor: &str, o: Op) -> (Op, Permit) {
+fn admit(actor: &str, o: Op) -> Admission {
     let mut gate = Gate::with_policy(|_, _| Policy::Auto);
-    let a = gate
-        .submit(&Principal::new("ws_1", actor), vec![o])
+    gate.submit(&Principal::new("ws_1", actor), vec![o])
         .unwrap()
         .admitted
-        .remove(0);
-    (a.op, a.permit)
+        .remove(0)
 }
 
 fn try_put(
@@ -43,8 +41,7 @@ fn try_put(
     at: u64,
     o: Op,
 ) -> Result<Logged, meldframe_host::RoomError> {
-    let (o, p) = admit(actor, o);
-    accept_logged(r, log, o, p, at)
+    accept_logged(r, log, admit(actor, o), at)
 }
 
 fn put(r: &mut Room<MemoryStore>, log: &mut impl ActivityLog, actor: &str, at: u64, o: Op) -> bool {
@@ -180,8 +177,8 @@ impl ActivityLog for Broken {
 #[test]
 fn a_failed_log_write_does_not_fail_an_op_that_is_already_in_the_store() {
     let mut r = room();
-    let (o, p) = admit("a", op("k1", add("n1")));
-    let done = accept_logged(&mut r, &mut Broken, o, p, 1).unwrap();
+    let adm = admit("a", op("k1", add("n1")));
+    let done = accept_logged(&mut r, &mut Broken, adm, 1).unwrap();
     assert_eq!(done.accepted.seq, 1);
     assert_eq!(r.seq(), 1);
     assert_eq!(

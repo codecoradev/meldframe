@@ -7,8 +7,7 @@ use meldframe_host::{MemoryStore, Op, Room, RoomError, SnapshotWarning, Store, S
 use std::{cell::Cell, rc::Rc};
 
 fn put<S: Store>(room: &mut Room<S>, actor: &str, o: Op) -> Result<u64, RoomError> {
-    let (o, p) = admit(actor, o);
-    room.accept(o, p).map(|a| a.seq)
+    room.accept(admit(actor, o)).map(|a| a.seq)
 }
 
 fn tree(room: &Room<MemoryStore>) -> String {
@@ -56,8 +55,8 @@ fn keys_stay_remembered_across_a_restart_and_a_snapshot() {
     }
     let mut r = restart(r);
     // A resend of an old key is a duplicate with its first number.
-    let (o, p) = admit("a", op("k0", add("n0")));
-    let again = r.accept(o, p).unwrap();
+    let adm = admit("a", op("k0", add("n0")));
+    let again = r.accept(adm).unwrap();
     assert_eq!((again.seq, again.written), (1, false));
     // An op that depends on a key from before the snapshot is accepted.
     let dep = op("k9", add("n9")).with_deps(["k0"]);
@@ -81,7 +80,7 @@ fn if_seq_older_than_the_snapshot_is_treated_as_a_conflict() {
         .unwrap()
         .admitted
         .remove(0);
-    let err = refusal(r.accept(a.op, a.permit).unwrap_err());
+    let err = refusal(r.accept(a).unwrap_err());
     assert_eq!(err.code(), "conflict");
 }
 
@@ -164,10 +163,8 @@ fn a_failed_snapshot_does_not_turn_an_accepted_op_into_an_error() {
     )
     .unwrap()
     .with_snapshot_every(1);
-    let (o, p) = admit("a", op("k1", add("n1")));
-    let done = r
-        .accept(o, p)
-        .expect("the op is written, so it is accepted");
+    let adm = admit("a", op("k1", add("n1")));
+    let done = r.accept(adm).expect("the op is written, so it is accepted");
     assert_eq!((done.seq, done.written), (1, true));
     assert_eq!(r.seq(), 1);
     assert_eq!(r.snapshot_failures(), 1);
@@ -220,14 +217,14 @@ fn a_restart_starts_from_the_snapshot_not_from_an_empty_file() {
     // The snapshot holds a node that no op in the log created: only a room that loads it can show it.
     let mut store = MemoryStore::new();
     for i in 0..3 {
-        let (o, _) = admit("a", op(&format!("k{i}"), add(&format!("n{i}"))));
+        let a = admit("a", op(&format!("k{i}"), add(&format!("n{i}"))));
         store
             .append(
                 "file_1",
                 meldframe_host::NewOp {
                     actor: "a".into(),
-                    key: o.key.clone(),
-                    command: o.command.clone(),
+                    key: a.op().key.clone(),
+                    command: a.op().command.clone(),
                 },
             )
             .unwrap();

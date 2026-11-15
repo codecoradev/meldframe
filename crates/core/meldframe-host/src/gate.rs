@@ -27,11 +27,28 @@ impl Principal {
     }
 }
 
-/// One admitted op with its permit.
+/// One admitted op sealed with its permit. Only the gate builds one and the fields are private, so an
+/// op cannot be paired with another op's permit, and the room takes the whole value.
 #[derive(Debug)]
 pub struct Admission {
-    pub op: Op,
-    pub permit: Permit,
+    op: Op,
+    permit: Permit,
+}
+
+impl Admission {
+    /// The admitted op.
+    pub fn op(&self) -> &Op {
+        &self.op
+    }
+
+    /// The permit the gate gave the op.
+    pub fn permit(&self) -> &Permit {
+        &self.permit
+    }
+
+    pub(crate) fn into_parts(self) -> (Op, Permit) {
+        (self.op, self.permit)
+    }
 }
 
 /// What the gate admitted: every op of the batch, in order.
