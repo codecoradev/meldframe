@@ -64,7 +64,7 @@ jobs:
   migrations:
     name: migrations
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     services:
       meldframe-pg:
         image: postgres:16
@@ -86,3 +86,13 @@ jobs:
             sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
           fi
       - run: bash tools/check-migrations.sh
+      # The Postgres adapter of the Store seam runs the shared store contract and the restart tests here;
+      # without DATABASE_URL they skip, so the `checks` job (no database) stays green.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Store contract and restart tests against Postgres
+        env:
+          DATABASE_URL: postgres://postgres:postgres@meldframe-pg:5432/postgres
+          # A missing DATABASE_URL fails the tests here instead of skipping them.
+          MELDFRAME_REQUIRE_PG: "1"
+        run: cargo test -p meldframe-server --test pg_contract --test pg_restore --test pg_isolation

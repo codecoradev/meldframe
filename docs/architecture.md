@@ -67,7 +67,7 @@ The structure follows the CodeCora standard `modular-thin-ui` (`docs/standards/m
 
 ```
 apps/
-  server/                 bin: axum, MCP, REST, WebSocket; composition root
+  server/                 bin: axum, MCP, REST, WebSocket; composition root; `PgStore`, the Postgres adapter of the store seam (sqlx, migrations from `/migrations`)
   web/                    bin: Svelte 5 + PixiJS front end (renders meldframe-app state)
 crates/
   core/
@@ -80,6 +80,7 @@ crates/
     meldframe-history     `FileState` (the in-memory tree of one File) with validated apply, undo and redo per actor, groups and remote ops
     meldframe-history-props (tool) property tests of random undo and redo runs and of undo against a deleted parent; no library code
     meldframe-sync        `Replica`: the optimistic layer over a `FileState` (pending ops, the server's order, rebase, op dependencies)
+    meldframe-store-contract (tool) the `Store` seam cases as functions and a `store_contract!` macro; both adapters run them
     meldframe-sync-props  (tool) property tests of replicas against an in-memory server and the host room; no library code
     meldframe-module      Module trait, registry, risk tiers
     meldframe-host        room, store, admission gate; jobs later
@@ -97,6 +98,8 @@ xtask/                    deps-check, build-matrix, portable-check, size-check, 
 ```
 
 Allowed dependencies: core to core; engine and integration to core and engine; feature to core, engine, integration and (only if marked composite) other features; app to core, engine, integration and feature; ui to core, app and ui. UI toolkits are allowed only in ui, feature-ui and bin crates. Core, engine, integration, feature and app crates must compile for `wasm32`. A product build with each feature alone, and with none, must pass its tests.
+
+`PgStore` lives in the server crate because sqlx is not portable (L5) and no kind of its own exists for adapters yet. Its methods block on a private runtime, so a transport calls it from a plain thread or `spawn_blocking` (dropping the last clone from an async task panics); each `connect` costs one runtime and one pool, so connect once and clone. The sqlx migrator owns the database: `connect` applies `migrations/` and refuses, with a clear error, a database or schema that holds the tables but no `_sqlx_migrations` (what `psql -f migrations/*.sql` and the dev seed leave behind), rather than failing half way. We chose the refusal over a baseline of such a database: which migrations psql applied is not recorded. So until `just dev-db` loads migrations through the same migrator, point `PgStore` at an empty database or schema (`connect_in_schema`), not at the psql-loaded `meldframe_dev`; `tools/check-migrations.sh` is unaffected. A data error that can never succeed (a NUL character that `jsonb` cannot hold) is reported as `StoreError::Unavailable` with the text "retrying cannot succeed", because the seam has no permanent-failure variant. One `files` row per room carries the counter that an append locks, which makes sequence numbers gap-free per file across connections; the op key is unique per `(file, actor, key)` (migration 0002). `meldframe-store-contract` is a `tool` crate for the same reason as the next one: the cases would not fit `meldframe-host` under its 2,000-line ceiling.
 
 `meldframe-sync-props` is a separate crate of kind `tool` for one reason: the random runs of several replicas against an in-memory server (convergence, undo per actor, refused ops, op dependencies) would have taken `meldframe-sync` over the 2,000-line ceiling with its scenario tests. It depends on the replica crate (and on the host crate for the room test), not the other way round, and has no library code; a default run is 600 seeds (`MELDFRAME_SEEDS` raises it; nightly CI uses 6,000) and `tools/mutation-check-sync.sh` shows that switching a rule off makes a test fail.
 
@@ -118,7 +121,7 @@ Using deep-module vocabulary. A module is **deep** when much behaviour sits behi
 | Admission gate | submit an op or batch with a principal; get a report or a typed refusal | Deep once consolidated; duplicated in the spike across WebSocket, MCP and REST | One gate with three transports on top; the room accepts a write only with a permit the gate creates (ADR-0010) |
 | Module registry | register commands, settings, jobs, agent tools and panels; read them | Small interface, wide leverage | Read by editor, MCP and REST; leaving a feature out removes it everywhere (ADR-0007) |
 | App layer | dispatch an action; read state; carry out effects; receive events | Deep once built; **does not exist in the spike** (rules live in the Svelte client) | Front ends: web now; desktop or mobile later; a test harness as the second driver (ADR-0008) |
-| Room actor | accept ops in order, apply, persist, broadcast | Deep (proven) | Persistence has one adapter (Postgres); do not add a port until a second consumer exists |
+| Room actor | accept ops in order, apply, persist, broadcast | Deep (proven) | The `Store` seam has two adapters, in-memory (`meldframe-host`) and Postgres (`PgStore`, `apps/server`), both held to one contract suite (`meldframe-store-contract`) |
 | Agent surface | MCP tools contributed by feature modules, over the gate | Thin by design | Adapter over the gate |
 | Capture | request an image of a node or frame | Small | One adapter (browser relay); a second renderer is decision 18, so no port yet |
 | Export | resolved model in, HTML/Tailwind/CSS variables and a warnings list out | Deep | Consumer of the render model |

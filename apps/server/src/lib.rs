@@ -1,6 +1,11 @@
 //! Server composition root. It assembles the registry from the compiled-in feature modules and builds the
-//! in-memory host. HTTP, MCP, REST and WebSocket transports (E1.3) and the Postgres store (E1.2) arrive
-//! later; the binary only assembles and holds no business logic.
+//! in-memory host. HTTP, MCP, REST and WebSocket transports (E1.3) arrive later; the binary only assembles
+//! and holds no business logic. [`PgStore`] is the Postgres adapter of the store seam; wiring it into the
+//! assembled server comes with the room per file (issue 133).
+
+mod pg;
+
+pub use pg::PgStore;
 
 use meldframe_host::{Gate, MemoryStore, Op, Principal, Refusal, Report, Room};
 use meldframe_module::{Module, Policy, Registry, RiskTier};
