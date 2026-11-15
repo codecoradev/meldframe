@@ -85,7 +85,7 @@ ADR-0010; the survey's candidate 2.
 - [ ] The principal comes from development tokens through an interface that Gatehouse implements in M2.
 
 ### E1.4 Live events (S)
-ADR-0009.
+ADR-0009. Status: the stream logic is the `meldframe-stream` crate (pure, no transport; `crates/core/meldframe-stream/tests/stream.rs`: ordering, replay from a number, the store range for a client behind the window, ephemeral frames, a stalled client, the cap, heartbeats with a supplied clock and one real-clock test; `Streams::seen` and `Streams::tick` drop silent and long-stalled streams and free their slots, stream ids are never reused, a failed replay read leaves no stream, a long replay is cut with a resync marker). Nothing calls `tick` yet: the transport's timer loop must call `seen` on client traffic and `tick` on a schedule. Not yet wired into `apps/server` and no WebSocket transport, so the boxes below stay open until an op accepted by the server reaches a subscriber end to end.
 - [ ] Accepted ops reach every open client as durable frames with sequence numbers; a client that reconnects with its last sequence number receives exactly the missed frames.
 - [ ] Ephemeral frames (capture requests, touch hints) carry no sequence number and are never replayed.
 - [ ] A slow client whose queue is full gets a resync marker and recovers; the room never waits for it (test with a stalled client).

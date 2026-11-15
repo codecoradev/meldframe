@@ -780,6 +780,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-stream"
+version = "0.0.0"
+
+[[package]]
 name = "meldframe-sync"
 version = "0.0.0"
 dependencies = [
