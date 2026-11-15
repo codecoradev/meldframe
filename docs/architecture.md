@@ -77,7 +77,7 @@ crates/
     meldframe-layout      text measurer seam, Rect and layout
     meldframe-core        applying a command to the file tree (`apply_command`, `plan_command`, `apply_planned`); re-exports the check API; the render model comes later
     meldframe-history     `FileState` (the in-memory tree of one File) with validated apply, undo and redo per actor, groups and remote ops
-    meldframe-history-props (tool) property test of random undo and redo runs; no library code
+    meldframe-history-props (tool) property tests of random undo and redo runs and of undo against a deleted parent; no library code
     meldframe-sync        `Replica`: the optimistic layer over a `FileState` (pending ops, the server's order, rebase, op dependencies)
     meldframe-sync-props  (tool) property tests of replicas against an in-memory server and the host room; no library code
     meldframe-module      Module trait, registry, risk tiers
@@ -146,7 +146,7 @@ Principles applied: the interface is the test surface; one adapter means a hypot
 
 ## 7. Change semantics (carried from the spikes)
 
-Ops are idempotent per actor. A batch may be atomic. `ifSeq` rejects an edit of a node changed after the caller last looked. An op may name dependencies; it is accepted only if every dependency was applied, so an undo never lands on a premise the server rejected. Undo is per actor and recomputed against the current document. A revert of agent work is a new batch that restores only fields whose last writer is still that agent. These behaviours were verified by property tests; see the spike docs for evidence and the list of what was not proven.
+Ops are idempotent per actor. A batch may be atomic. `ifSeq` rejects an edit of a node changed after the caller last looked. An op may name dependencies; it is accepted only if every dependency was applied, so an undo never lands on a premise the server rejected. Undo is per actor and recomputed against the current document: a field another actor wrote after me is not overwritten, and a node my undo would put under a parent the other actor deleted goes under the nearest ancestor that survives (the top level if none does); a step whose node was deleted is dropped. A revert of agent work is a new batch that restores only fields whose last writer is still that agent. These behaviours were verified by property tests; see the spike docs for evidence and the list of what was not proven.
 
 ## 8. Fidelity and verification
 

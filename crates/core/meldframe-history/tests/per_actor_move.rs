@@ -138,16 +138,20 @@ fn a_move_is_dropped_when_the_other_actor_deletes_the_node() {
 }
 
 #[test]
-fn a_move_is_not_undone_into_a_parent_the_other_actor_deleted() {
+fn a_move_is_undone_under_the_surviving_ancestor_of_a_parent_the_other_actor_deleted() {
     let mut s = tree();
-    s.apply(&reparent("s2", "root")).unwrap();
+    s.apply(&add("g", "frame", Some("root"))).unwrap();
+    s.apply(&reparent("s2", "g")).unwrap();
     s.apply_remote(&Command::RemoveNode { id: "f1".into() })
         .unwrap();
-    // Undoing the move would put s2 back under f1, so the move is skipped and undo takes the step below
-    // it, the add of s5. s2 stays where it is.
+    // Undoing the move would put s2 back under f1, which is gone: it goes under root, the nearest
+    // ancestor of f1 that survives, and the step below the move (the add of g) stays where it is.
     let undone = s.undo().unwrap();
-    assert!(matches!(undone.as_slice(), [Command::RemoveNode { id }] if id == "s5"));
+    assert!(
+        matches!(undone.as_slice(), [Command::Reparent { id, parent_id: Some(p), .. }] if id == "s2" && p == "root")
+    );
     assert_eq!(parent(&s, "s2").as_deref(), Some("root"));
+    assert!(s.node("g").is_some());
 }
 
 #[test]

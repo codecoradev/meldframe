@@ -25,6 +25,7 @@ snapshot-patch	crates/core/meldframe-history/src/remote.rs	node\.apply_patch(rp)
 replay-undo	crates/core/meldframe-history/src/file_state.rs	r\.undo_ = inverse\.clone();	let _ = \&inverse;	a replayed pending op keeps a stale undo
 pending-skip	crates/core/meldframe-history/src/remote.rs	\.filter(|r| !r\.pending)	.filter(|_| true)	a pending rec is rewritten against a remote op that is ordered before it
 seq-guard	crates/core/meldframe-sync/src/replica.rs	if seq <= self.seq {	if false \&\& seq <= self.seq {	a duplicate server event is not ignored
+reparent-survivor	crates/core/meldframe-history/src/remote.rs	let parent_id = ctx\.survivor\.clone();	let parent_id: Option<String> = None;	undo of a move into a deleted parent goes to the top instead of the nearest surviving ancestor
 TABLE
 )
 

@@ -246,3 +246,27 @@ fn redo_of_a_reparent_survives_a_remote_reorder_of_the_same_node() {
     u1.check_consistency().unwrap();
     u2.check_consistency().unwrap();
 }
+
+#[test]
+fn undo_of_a_move_goes_under_the_surviving_ancestor_of_a_parent_the_other_actor_deleted() {
+    // root > p > a > k. I move k to root, then the other actor deletes a (k is no longer inside it).
+    let mut r = Replica::new("user:a", "ca", base(), 0);
+    let moved = Command::Reparent {
+        id: "k".into(),
+        parent_id: Some("root".into()),
+        pos: None,
+    };
+    r.apply(&moved).unwrap();
+    let mine = r.take_outbox();
+    r.on_event(1, "user:a", &mine[0].command).unwrap();
+    r.on_event(2, "user:b", &remove("a")).unwrap();
+    assert!(r.undo().unwrap());
+    let undo = r.take_outbox();
+    assert!(
+        matches!(&undo[0].command, Command::Reparent { id, parent_id: Some(p), .. } if id == "k" && p == "p"),
+        "{:?}",
+        undo[0].command
+    );
+    assert_eq!(parent_of(&r, "k").as_deref(), Some("p"));
+    r.check_consistency().unwrap();
+}

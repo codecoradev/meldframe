@@ -9,6 +9,8 @@
 //!   the nearest ancestor that survives. A remote `UpdateNode`, `Reparent` or `Reorder` of that node
 //!   is written into the snapshot: the node comes back with the other actor's edit. This only happens
 //!   in a replica, whose confirmed state still holds the node while my delete is pending.
+//! - `Reparent` to a parent the remote command deleted goes to the nearest surviving ancestor, with no
+//!   `pos`; if the node itself was deleted, the step goes. This holds for undo and redo alike.
 //! - `Reparent` writes the parent and the `pos` together, so a remote `Reparent` or `Reorder` of the
 //!   same node beats my `Reorder`, and a remote `Reparent` beats my `Reparent`. A remote `Reorder` writes
 //!   only `pos`: my `Reparent` keeps its parent and loses its `pos`, but only when the remote `pos` was
@@ -134,9 +136,19 @@ fn xform_list(list: &mut Vec<Command>, r: &Command, ctx: &RemoteCtx) {
                     list.push(Command::Reparent { id, parent_id, pos });
                 }
                 Command::AddNode { node, .. } if node.id == id => {}
+                Command::RemoveNode { .. } if ctx.removed.contains(&id) => {}
+                // The parent is gone: go under its nearest surviving ancestor. Its `pos` was written
+                // among other siblings, so it is not kept.
                 Command::RemoveNode { .. }
-                    if ctx.removed.contains(&id)
-                        || parent_id.as_ref().is_some_and(|p| ctx.removed.contains(p)) => {}
+                    if parent_id.as_ref().is_some_and(|p| ctx.removed.contains(p)) =>
+                {
+                    let parent_id = ctx.survivor.clone();
+                    list.push(Command::Reparent {
+                        id,
+                        parent_id,
+                        pos: None,
+                    });
+                }
                 _ => list.push(Command::Reparent { id, parent_id, pos }),
             },
             Command::Reorder {
