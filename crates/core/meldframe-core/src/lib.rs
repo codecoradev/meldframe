@@ -4,6 +4,6 @@ pub mod apply;
 
 pub use apply::{
     apply_command, apply_planned, normalize_positions, normalize_positions_with, plan_command,
-    rebalance_commands,
+    rebalance_commands, rebalance_positions,
 };
 pub use meldframe_check::{ApplyError, Limits, check_command, check_node, check_patch, check_pos};

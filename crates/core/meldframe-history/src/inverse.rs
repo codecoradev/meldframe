@@ -7,7 +7,7 @@ use meldframe_protocol::{Command, Node};
 use meldframe_undo::inverse_patch;
 use std::collections::HashSet;
 
-fn some_pos(n: &Node) -> Option<String> {
+pub(crate) fn some_pos(n: &Node) -> Option<String> {
     (!n.pos.is_empty()).then(|| n.pos.clone())
 }
 

@@ -3,7 +3,8 @@
 //! again from the tree as it is then, so undo followed by redo leaves the tree as it was.
 
 use crate::file_state::FileState;
-use meldframe_core::{ApplyError, rebalance_commands};
+use crate::inverse::some_pos;
+use meldframe_core::{ApplyError, rebalance_positions};
 use meldframe_protocol::Command;
 use meldframe_undo::{Entry, Rec, compact};
 
@@ -37,19 +38,41 @@ impl FileState {
 
     /// Give the children of `parent` fresh `pos` keys in their current order, as one history step (or part
     /// of the caller's open group). Use it when repeated inserts into one gap have made the keys long.
-    /// Returns how many children were processed.
+    /// The new keys are worked out once for the whole group (`rebalance_positions`), so the cost is linear
+    /// in the number of siblings apart from their sort (O(n log n) overall), and they are exactly what a `Reorder` to the end for each child in turn
+    /// would give. The history holds those `Reorder`s with their exact inverses. All or nothing: when a key
+    /// would pass the `pos` limit the tree and the history are left as they were. Returns how many
+    /// children were processed.
     pub fn rebalance(&mut self, parent: Option<&str>) -> Result<usize, ApplyError> {
-        let cmds = rebalance_commands(&self.nodes, parent);
+        let plan = rebalance_positions(&self.nodes, parent, &self.limits)?;
         // Inside a group the caller opened, the commands join it and the caller closes it.
         let opened = !self.hist.group_is_open();
+        // An empty plan opens and closes an empty group too: that ends any keyed merge run, as it always did.
         if opened {
             self.begin_group();
         }
-        let done = cmds.iter().try_for_each(|c| self.apply(c));
+        for (i, key) in &plan {
+            let id = self.nodes[*i].id.clone();
+            let cmd = Command::Reorder {
+                id: id.clone(),
+                before: None,
+                after: None,
+                pos: None,
+            };
+            let undo = Command::Reorder {
+                id,
+                before: None,
+                after: None,
+                pos: some_pos(&self.nodes[*i]),
+            };
+            self.nodes[*i].pos.clone_from(key);
+            self.version += 1;
+            self.hist.record(&cmd, vec![undo], None);
+        }
         if opened {
             self.end_group();
         }
-        done.map(|()| cmds.len())
+        Ok(plan.len())
     }
 
     /// The id of the rec made by the last `apply`.

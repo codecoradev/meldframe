@@ -172,3 +172,79 @@ pub fn rebalance_commands(nodes: &[Node], parent: Option<&str>) -> Vec<Command> 
         })
         .unwrap_or_default()
 }
+
+/// The new `pos` of each child of `parent` after [`rebalance_commands`], worked out once for the whole
+/// group in time linear in the number of siblings apart from the sort by `(pos, id)` (O(n log n) overall): `(index into nodes,
+/// new pos)` in the order the commands run. It is what the chain of plain `Reorder`s gives, because each
+/// child lands behind the largest `pos` at that moment: the first behind the largest of the others, every
+/// later one behind its predecessor. Fails, with nothing for the caller to undo, when a key would pass
+/// `l.max_pos`.
+pub fn rebalance_positions(
+    nodes: &[Node],
+    parent: Option<&str>,
+    l: &Limits,
+) -> Result<Vec<(usize, String)>, ApplyError> {
+    let kids = children_map(nodes);
+    let Some(group) = kids.get(&parent).filter(|g| !g.is_empty()) else {
+        return Ok(Vec::new());
+    };
+    let mut prev: Option<String> = group[1..]
+        .iter()
+        .map(|&i| nodes[i].pos.as_str())
+        .filter(|p| !p.is_empty())
+        .max()
+        .map(String::from);
+    let mut out = Vec::with_capacity(group.len());
+    for &i in group {
+        let k = mid(prev.as_deref(), None, l)?;
+        prev = Some(k.clone());
+        out.push((i, k));
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn kid(id: &str, parent: &str, pos: &str) -> Node {
+        serde_json::from_value(
+            serde_json::json!({"id": id, "type": "rect", "parentId": parent, "pos": pos}),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn positions_for_zero_one_and_many_siblings() {
+        let l = Limits::default();
+        let nodes = vec![
+            kid("b", "p", "a5"),
+            kid("a", "p", "a1"),
+            kid("z", "q", "a0"),
+        ];
+        assert!(
+            rebalance_positions(&nodes, Some("none"), &l)
+                .unwrap()
+                .is_empty()
+        );
+        let one = rebalance_positions(&nodes, Some("q"), &l).unwrap();
+        assert_eq!(one.len(), 1);
+        let two = rebalance_positions(&nodes, Some("p"), &l).unwrap();
+        // In sibling order (a, then b), each key behind the one before, the first behind the largest.
+        assert_eq!(two.iter().map(|(i, _)| *i).collect::<Vec<_>>(), [1, 0]);
+        assert!("a5" < two[0].1.as_str() && two[0].1 < two[1].1);
+    }
+
+    #[test]
+    fn a_key_past_the_limit_is_an_error() {
+        let l = Limits {
+            max_pos: 1,
+            ..Limits::default()
+        };
+        let nodes = vec![kid("a", "p", "a1"), kid("b", "p", "a2")];
+        assert!(matches!(
+            rebalance_positions(&nodes, Some("p"), &l),
+            Err(ApplyError::PosTooLong { max: 1 })
+        ));
+    }
+}
