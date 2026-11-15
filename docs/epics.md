@@ -69,18 +69,18 @@ Carry the document core from the spike (decision 14, survey section 6.1): `Comma
 - [x] The spike's property tests (convergence, undo, rebase, dependencies) run in this repository and pass with at least 600 seeds per run in CI and more nightly. (600 seeds per run in `cargo test --workspace`; 6,000 in the nightly `property-tests` job.)
 - [x] Mutation check: disabling the dependency rule or the per-actor undo rule makes a test fail. (`tools/mutation-check-sync.sh`: ten mutations, all killed.)
 - [x] Names follow `GLOSSARY.md`; no spike ids remain in file or type names; comments are English.
-- [ ] The core compiles natively and to WASM with the same tests.
+- [ ] The core compiles natively and to WASM with the same tests. (`just wasm-test` passes locally: 233 tests, the six core crates plus the two property-test crates, from the same sources. Tick it after the first green `wasm-test` run of the nightly job on a runner.)
 
 ### E1.2 Room, persistence and snapshots (M)
-- [ ] One room per file accepts ops in one total order, persists them append-only with actor, idempotency key and sequence number, and snapshots periodically.
-- [ ] Restarting the server restores every file from snapshot plus log with no change in content (test).
-- [ ] A retried op with the same key returns the same sequence number and writes nothing (test).
-- [ ] A dependent op is accepted only if every dependency was applied (carried F3 behaviour, test).
+- [ ] One room per file accepts ops in one total order, persists them append-only with actor, idempotency key and sequence number, and snapshots periodically. (The `Room` and the `Store` seam with an in-memory adapter exist in `meldframe-host`; the Postgres adapter and a room per file are open, issue 133.)
+- [ ] Restarting the server restores every file from snapshot plus log with no change in content (test). (Tested at the seam with the in-memory store; open until the Postgres adapter runs the same tests.)
+- [x] A retried op with the same key returns the same sequence number and writes nothing (test). (At the `Store` and `Room` seams. The store refuses the same key with another command (`KeyReused`) and the room reports it as `invalid`. The Postgres adapter must pass the same tests.)
+- [x] A dependent op is accepted only if every dependency was applied (carried F3 behaviour, test). (In `Room::accept`, with a property test of replicas fed by the real gate and room; applied keys are kept in the log.)
 
 ### E1.3 Admission gate (M)
 ADR-0010; the survey's candidate 2.
-- [ ] WebSocket, MCP and REST submit through one gate; the room accepts a write only with a permit the gate creates, so a path that skips the gate does not compile.
-- [ ] Refusals have stable codes and English messages (`forbidden`, `quota_exceeded`, `conflict`, `invalid`, `dependency_rejected`, ...), listed in one table that a test checks against the code.
+- [ ] WebSocket, MCP and REST submit through one gate; the room accepts a write only with a permit the gate creates, so a path that skips the gate does not compile. (The permit and the compile-fail proof exist in `meldframe-host`; the transports are open.)
+- [x] Refusals have stable codes and English messages (`forbidden`, `quota_exceeded`, `conflict`, `invalid`, `dependency_rejected`, ...), listed in one table that a test checks against the code. (`docs/error-codes.md` has the gate table; `tests/refusal_codes.rs` in `meldframe-host` checks it.)
 - [ ] Rate limiting happens before parsing; per-call timeouts apply (carried H1 behaviour, tests).
 - [ ] The principal comes from development tokens through an interface that Gatehouse implements in M2.
 

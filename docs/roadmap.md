@@ -49,6 +49,7 @@ Tracked as issues; priorities are labels (`priority:P0` first). The alignment wo
 
 - Alignment: close-out of E1.1 (108), `meldframe-module` (109), `meldframe-host` (110), the `apps/server` composition root (111), repository hygiene (112), validation of a file at load (113), the core tests under WASM (114).
 - Replica and history: undo of a reparent into a deleted parent (107), a pending undo against an earlier remote value (94), matching own ops by idempotency key, resync and an outbox cap (90), the dependency rule in the room (96), `rebalance` cost (91).
+- Found while building the alignment (15 Nov 2026): validation of a server snapshot in `Replica::new` (125), splitting `meldframe-history` before it reaches its ceiling (126), a size threshold that relaxes a small delete to Auto (127), an approval path for Ask (128), a snapshot-save failure after an accepted op (129), sealing `Admission` (131), compile-fail tests with trybuild (132), the room registry, activity log and a page size for `ops_after` (133). Handled in the same batch: the build-level omission test (130, done) and the per-worktree target directory (134, with its pull request).
 - Owner decisions: GitHub backup mirror, `Signed-off-by` in squash messages, runner capacity (116).
 
 ## Milestones
