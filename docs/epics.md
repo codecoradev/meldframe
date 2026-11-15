@@ -75,7 +75,7 @@ Carry the document core from the spike (decision 14, survey section 6.1): `Comma
 - [ ] One room per file accepts ops in one total order, persists them append-only with actor, idempotency key and sequence number, and snapshots periodically. (The `Room` and the `Store` seam with an in-memory adapter exist in `meldframe-host`; the Postgres adapter and a room per file are open, issue 133.)
 - [ ] Restarting the server restores every file from snapshot plus log with no change in content (test). (Tested at the seam with the in-memory store; open until the Postgres adapter runs the same tests.)
 - [x] A retried op with the same key returns the same sequence number and writes nothing (test). (At the `Store` and `Room` seams. The store refuses the same key with another command (`KeyReused`) and the room reports it as `invalid`. The Postgres adapter must pass the same tests.)
-- [x] A dependent op is accepted only if every dependency was applied (carried F3 behaviour, test). (In `Room::accept`, with a property test of replicas fed by the real gate and room; applied keys are kept in the log.)
+- [x] A dependent op is accepted only if every dependency was applied (carried F3 behaviour, test). (In `Room::accept`, with a property test of replicas fed by the real gate and room; applied keys are kept in the log. The rule is written down in `docs/architecture.md` 7a, one test per clause in `meldframe-rooms/tests/dependencies.rs`.)
 
 ### E1.3 Admission gate (M)
 ADR-0010; the survey's candidate 2.
