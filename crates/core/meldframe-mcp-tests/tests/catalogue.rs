@@ -114,3 +114,11 @@ fn regenerate() {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../docs/mcp-tools.json");
     std::fs::write(path, serde_json::to_string_pretty(&doc).unwrap() + "\n").unwrap();
 }
+
+#[test]
+fn the_server_batch_cap_is_the_mcp_batch_limit() {
+    assert_eq!(
+        meldframe_server::MAX_BATCH_OPS,
+        meldframe_http::mcp::MAX_BATCH
+    );
+}

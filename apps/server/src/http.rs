@@ -5,7 +5,7 @@ use crate::{
     AnyStore, PERMANENT_STORE_ERROR, Server, StreamId, SubmitError, SubscribeError, Subscription,
 };
 use meldframe_batch::Stop;
-use meldframe_host::{Accepted, Op, Principal, Room, RoomError, Store, StoreError};
+use meldframe_host::{Accepted, Op, Principal, Refusal, Room, RoomError, Store, StoreError};
 use meldframe_http::{Failure, Guard, Submitter};
 use meldframe_http_live::{LiveSource, Opened, Out};
 use meldframe_protocol::ServerMsg;
@@ -76,6 +76,8 @@ impl Submitter for SharedServer {
         guards: Vec<Guard>,
     ) -> Result<Vec<Accepted>, Failure> {
         let mut s = self.lock();
+        s.precheck(tool, file, who, &ops)
+            .map_err(|e| failure_of(&e))?;
         let (ws, was_open) = (
             who.workspace.as_str(),
             s.with_room(&who.workspace, file, |_| ()),
@@ -220,6 +222,11 @@ pub fn failure_of(e: &SubmitError) -> Failure {
         {
             Failure::Permanent(e.to_string())
         }
+        SubmitError::Rooms(RegistryError::InvalidName { reason }) => {
+            Failure::Refused(Refusal::Invalid {
+                reason: reason.clone(),
+            })
+        }
         _ => Failure::Unavailable(e.to_string()),
     }
 }
@@ -286,5 +293,11 @@ fn opened(sub: Result<Subscription, SubscribeError>) -> Result<Opened, Failure> 
         id: s.id,
         replay: s.replay,
     })
-    .map_err(|e| Failure::Unavailable(format!("{e:?}")))
+    .map_err(|e| match e {
+        // A bad name is the caller's to fix: `invalid`, never retryable.
+        SubscribeError::Rooms(e @ RegistryError::InvalidName { .. }) => {
+            failure_of(&SubmitError::Rooms(e))
+        }
+        e => Failure::Unavailable(format!("{e:?}")),
+    })
 }

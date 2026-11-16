@@ -2,13 +2,15 @@
 //! `Server::submit_tool` with the ops the room accepted (ADR-0009). There is no transport here: a
 //! transport calls `subscribe`, sends the replay and then drains `poll`.
 //!
-//! Ownership: a stream is owned by the connection that opened it. Authorization here is by workspace (a
-//! stream of another workspace is not found), and ids are sequential, so a transport must never show a
-//! `StreamId` to a client: the id stays inside the connection task, which is the only caller of `poll`,
-//! `seen`, `resubscribe` and `unsubscribe` for it. That is the per-principal ownership: no other principal
-//! can name the stream. A room opened for a stream is not closed on unsubscribe; idle eviction frees it.
+//! Ownership: a stream belongs to the actor that opened it. `poll`, `seen`, `resubscribe`, `unsubscribe`
+//! do nothing for another actor, or for another workspace (the
+//! file key holds the workspace). `publish_ephemeral` is the server's own push (the capture tool asks the
+//! workspace's editors) and is scoped by workspace only. Ids are sequential, so a transport should still keep a `StreamId` inside
+//! its connection task and never show it to a client. A room opened for a stream is not closed on
+//! unsubscribe or reaping; only idle eviction (or `close`) frees it, so streams on many files keep their
+//! rooms open until then.
 
-use crate::{Server, room_key};
+use crate::{Server, limits, room_key};
 use meldframe_host::{Principal, Store, StoreError, StoredOp};
 use meldframe_protocol::ServerMsg;
 use meldframe_rooms::RegistryError;
@@ -62,6 +64,12 @@ impl Server {
         self
     }
 
+    /// Streams whose owner the server knows. It equals [`Server::live_stream_count`] unless a stream was
+    /// dropped by a path that does not tell the server (a leak check for operators and tests).
+    pub fn live_owner_count(&self) -> usize {
+        self.owners.len()
+    }
+
     /// How often a stream is sent a heartbeat, in milliseconds.
     pub fn live_heartbeat_ms(&self) -> u64 {
         self.live.config().heartbeat_ms
@@ -106,10 +114,17 @@ impl Server {
         from_seq: u64,
         at: u64,
     ) -> Result<Subscription, SubscribeError> {
+        limits::valid_names(&who.workspace, file).map_err(SubscribeError::Rooms)?;
+        if again.is_some_and(|id| {
+            !self
+                .owners
+                .owns(id, &room_key(&who.workspace, file), &who.actor)
+        }) {
+            return Err(SubscribeError::Stream(StreamError::Unknown));
+        }
         let key = room_key(&who.workspace, file);
         let opened = self
-            .rooms
-            .open(&who.workspace, &key, crate::now())
+            .open_room(&who.workspace, &key, crate::now())
             .map_err(SubscribeError::Rooms)?;
         let Server { rooms, live, .. } = self;
         let read = |a, b| read_range(rooms, &key, a, b);
@@ -120,7 +135,9 @@ impl Server {
         if done.is_err() && !opened.already_open {
             self.rooms.close(&key);
         }
-        Ok(done?)
+        let joined = done?;
+        self.owners.set(joined.id, &key, &who.actor);
+        Ok(joined)
     }
 
     /// The next frame for a stream of the principal's workspace, if any. Another workspace's stream is
@@ -134,26 +151,48 @@ impl Server {
         id: StreamId,
         now: u64,
     ) -> Option<Frame<StoredOp, ServerMsg>> {
+        if !self
+            .owners
+            .owns(id, &room_key(&who.workspace, file), &who.actor)
+        {
+            return None;
+        }
         self.live.poll(&room_key(&who.workspace, file), id, now)
     }
 
     /// The client behind a stream was heard from (a ping, any message).
     pub fn seen(&mut self, who: &Principal, file: &str, id: StreamId, now: u64) {
-        self.live.seen(&room_key(&who.workspace, file), id, now);
+        if self
+            .owners
+            .owns(id, &room_key(&who.workspace, file), &who.actor)
+        {
+            self.live.seen(&room_key(&who.workspace, file), id, now);
+        }
     }
 
     /// Run the heartbeat schedule of every stream at `now`: queue heartbeats, and drop streams not seen
-    /// for `dead_after_ms` or stalled for `stall_ms`, freeing their slots. Returns the `(file key, stream)`
+    /// for `dead_after_ms` or stalled for `stall_ms`, freeing their slots, and close rooms idle past `idle_after` (the same wall clock as writes). Returns the `(file key, stream)`
     /// pairs dropped. The transport calls this on a timer. The pairs are for the transport to find the
     /// connections to close, by stream id; the file key names another workspace's file too, so a
     /// transport must never forward them to a client.
     pub fn tick(&mut self, now: u64) -> Vec<(String, StreamId)> {
-        self.live.tick(now)
+        self.close_idle(crate::now());
+        let dropped = self.live.tick(now);
+        for (_, id) in &dropped {
+            self.owners.forget(*id);
+        }
+        dropped
     }
 
     /// Close a stream of the principal's workspace; the file's hub goes with its last stream.
     pub fn unsubscribe(&mut self, who: &Principal, file: &str, id: StreamId) {
-        self.live.unsubscribe(&room_key(&who.workspace, file), id);
+        if self
+            .owners
+            .owns(id, &room_key(&who.workspace, file), &who.actor)
+        {
+            self.live.unsubscribe(&room_key(&who.workspace, file), id);
+            self.owners.forget(id);
+        }
     }
 
     /// Send an ephemeral frame (a capture request, a touch hint) to one stream of `file` in the

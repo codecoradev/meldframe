@@ -62,7 +62,9 @@ async fn a_drain_of_more_than_one_batch_delivers_every_frame_in_order() {
     let e = env(live_cfg(256, 256), 8, false).await;
     let mut ws = connect(&e, ALPHA, None).await;
     next(&mut ws).await;
-    assert_eq!(rest(&e, ALPHA, 1, 150).await, 200);
+    // A call takes at most MAX_BATCH_OPS (100) ops, so 150 frames come from two calls.
+    assert_eq!(rest(&e, ALPHA, 1, 100).await, 200);
+    assert_eq!(rest(&e, ALPHA, 101, 150).await, 200);
     let want: Vec<u64> = (1..=150).collect();
     assert_eq!(events(&mut ws, 150).await, want);
 }

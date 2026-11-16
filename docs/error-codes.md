@@ -100,6 +100,21 @@ frames are limited per principal, and a connection is closed after several limit
 A browser cannot set `Authorization` on a WebSocket, so there is no browser client on this path until Gatehouse; an
 `Origin` check belongs with it.
 
+## Server limits
+
+`Server` (`apps/server`) checks these before it opens a room, so a refused call costs no store read. A name or a
+batch the server refuses is a `Refusal::Invalid` (code `invalid`, HTTP 400, never retryable); a room limit is a
+`RegistryError`, which a transport answers as `unavailable` (503, retryable) because it clears when a room closes
+(`Server::close`, or idle eviction after 5 minutes). There is no `Retry-After` on these 503s yet: `Failure::Unavailable` carries no hint and `meldframe-http` is at its size ceiling.
+
+| Check | Typed error | Transport code | What a caller should do next |
+| --- | --- | --- | --- |
+| Workspace or file name is empty, over 128 bytes, only whitespace, or holds a control character (NUL included) or an invisible formatting character (bidi controls, zero-width marks, U+2028/2029, U+FEFF); a file is also not `.` or `..` (`Server::open`, `submit_tool` and `subscribe`; `with_room` finds nothing; a transport sends `invalid` 400, not `unavailable`). The REST and WebSocket adapters check file names further (no slash) before this. | `RegistryError::InvalidName` | `invalid` | Use a valid name. |
+| A call has more than 100 ops (`MAX_BATCH_OPS`, the MCP `batchLimit`; this applies to REST too). Checked before any key is looked up and, for an atomic batch, before the room is opened (`Server::precheck`). | `Refusal::Invalid` | `invalid` | Split the batch. |
+| A Read-tier tool submits ops that are writes whatever the tree (anything but a delete). Refused before the room is opened, with the same `forbidden` refusal as before; so a Read tool that sends already-applied non-delete ops again gets `forbidden`, not `written: false`. | `Refusal::Forbidden` | `forbidden` | Use a Change-tier tool. |
+| The workspace already holds `MAX_ROOMS_PER_WORKSPACE` (32, `Server::with_workspace_rooms`) open rooms. Other workspaces are not affected. Rooms idle for 5 minutes are closed first when an open hits a cap (and by `Server::tick`), so a workspace that only reads or streams gets its slots back. | `RegistryError::WorkspaceFull` | `unavailable` | Wait, or close a file. |
+| The server holds `MAX_OPEN_ROOMS` (256) open rooms in all. | `RegistryError::Full` | `unavailable` | Wait, then send the call again. |
+
 ## MCP tool errors
 
 An MCP tool call that fails returns a tool error (`isError: true`) whose structured body is `{"ok": false, "error": {"code", "message", "retryable", ...}}`: the same shape as the transport above. A refusal keeps its code from the tables above (`conflict`, `forbidden`, `E_...`) and adds, when they apply, `index` (the command of an atomic batch that would be refused, from 0), `nodeId` (a conflict) and, from `apply_commands` with `ifSeq`, `currentSeq`, `current` (the node now, `null` if removed) and `changes` (`seq`, `actor`, `command` of each op since `ifSeq` that touched the node). REST carries `nodeId` and `index` too. Two codes are worded by the MCP tools: `invalid` also covers a missing, empty or doubled idempotency key (or `ifSeq`), an `ifSeq` more than 2,000 changes behind the file, an `ifSeq` that cannot guard a command of a non-atomic call (with its `index`), a batch of 0 or more than 100 commands, a bad file name, and an `ids` list of 0 or more than 100; `bad_request` covers arguments that do not fit the input schema (an unknown field, a wrong type) and a command that is not a command (with its `index`). A call refused before MCP sees it (`unauthenticated`, `rate_limited`, `too_large`) is an HTTP answer in the transport shape, not a tool error.

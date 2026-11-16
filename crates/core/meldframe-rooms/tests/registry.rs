@@ -114,6 +114,24 @@ fn the_number_of_open_rooms_is_bounded_and_close_frees_a_slot() {
 }
 
 #[test]
+fn a_workspace_at_its_room_limit_does_not_block_another_workspace() {
+    let (reg, _) = registry(8);
+    let mut reg = reg.with_workspace_limit(2);
+    reg.open("ws_1", "f1", 0).unwrap();
+    reg.open("ws_1", "f2", 0).unwrap();
+    assert_eq!(
+        reg.open("ws_1", "f3", 0).unwrap_err(),
+        RegistryError::WorkspaceFull { limit: 2 }
+    );
+    assert!(!reg.is_open("f3"));
+    // Already open is not a new room; another workspace has its own count; closing frees a slot.
+    assert!(reg.open("ws_1", "f1", 0).unwrap().already_open);
+    reg.open("ws_2", "g1", 0).unwrap();
+    assert!(reg.close("f1"));
+    reg.open("ws_1", "f3", 0).unwrap();
+}
+
+#[test]
 fn closing_a_file_that_is_not_open_does_nothing() {
     let (mut reg, _) = registry(2);
     assert!(!reg.close("nope"));

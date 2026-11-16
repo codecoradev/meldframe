@@ -27,6 +27,13 @@ pub enum RegistryError {
     /// The registry holds its limit of open rooms; close one first. Opening a file that is already open
     /// never hits this.
     Full { limit: usize },
+    /// The workspace holds its own limit of open rooms (see `Rooms::with_workspace_limit`); close one of
+    /// its files first. Other workspaces are not affected. Opening a file that is already open never hits
+    /// this.
+    WorkspaceFull { limit: usize },
+    /// A workspace or file name the server does not accept (empty, too long, a control character). Raised
+    /// by the server before the registry is asked, so a store never sees the name.
+    InvalidName { reason: String },
     /// The file is not open.
     NotOpen { file: String },
     /// The file is open for another workspace.
@@ -39,6 +46,10 @@ impl fmt::Display for RegistryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RegistryError::Full { limit } => write!(f, "{limit} rooms are open; close one first"),
+            RegistryError::WorkspaceFull { limit } => {
+                write!(f, "the workspace has {limit} rooms open; close one first")
+            }
+            RegistryError::InvalidName { reason } => write!(f, "invalid name: {reason}"),
             RegistryError::NotOpen { file } => write!(f, "file {file} is not open"),
             RegistryError::WorkspaceMismatch { file } => {
                 write!(f, "file {file} is open for another workspace")
@@ -76,6 +87,7 @@ impl<S: Store> Slot<S> {
 /// that is how a closed file is restored when it is opened again.
 pub struct Rooms<S: Store, L: ActivityLog, F: FnMut(&str) -> S> {
     max_open: usize,
+    per_workspace: usize,
     make_store: F,
     log: L,
     open: HashMap<String, Slot<S>>,
@@ -96,11 +108,19 @@ impl<S: Store, L: ActivityLog, F: FnMut(&str) -> S> Rooms<S, L, F> {
     pub fn new(max_open: usize, make_store: F, log: L) -> Self {
         Rooms {
             max_open,
+            per_workspace: usize::MAX,
             make_store,
             log,
             open: HashMap::new(),
             activity_failures: 0,
         }
+    }
+
+    /// At most `limit` open rooms for any one workspace (default: no limit beyond `max_open`), so one
+    /// workspace cannot fill the registry for the others.
+    pub fn with_workspace_limit(mut self, limit: usize) -> Self {
+        self.per_workspace = limit;
+        self
     }
 
     /// Open the room of `file` in `workspace`, restoring it from its store (latest snapshot, then the log).
@@ -117,6 +137,16 @@ impl<S: Store, L: ActivityLog, F: FnMut(&str) -> S> Rooms<S, L, F> {
             return Ok(Opened {
                 seq: slot.room.seq(),
                 already_open: true,
+            });
+        }
+        let held = self
+            .open
+            .values()
+            .filter(|s| s.room.workspace() == workspace)
+            .count();
+        if held >= self.per_workspace {
+            return Err(RegistryError::WorkspaceFull {
+                limit: self.per_workspace,
             });
         }
         if self.open.len() >= self.max_open {

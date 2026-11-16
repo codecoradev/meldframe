@@ -14,6 +14,7 @@ meldframe-host = { path = "../meldframe-host" }
 meldframe-module = { path = "../meldframe-module" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-server = { path = "../../../apps/server" }
+meldframe-rooms = { path = "../meldframe-rooms" }
 meldframe-http = { path = "../../integrations/meldframe-http" }
 meldframe-http-live = { path = "../../integrations/meldframe-http-live" }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }

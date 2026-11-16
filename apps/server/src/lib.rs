@@ -5,10 +5,13 @@
 //! Postgres adapter of the store seam; [`Backing`] picks it.
 
 mod http;
+mod limits;
 mod live;
+mod owners;
 mod pg;
 
 pub use http::{SharedServer, failure_of};
+pub use limits::{MAX_BATCH_OPS, MAX_NAME_BYTES, MAX_ROOMS_PER_WORKSPACE};
 pub use live::{Frame, LIVE_CONFIG, MAX_LIVE_STREAMS, StreamId, SubscribeError, Subscription};
 pub use meldframe_stream::{Config, StreamError};
 pub use pg::{PERMANENT_STORE_ERROR, PgStore};
@@ -93,6 +96,7 @@ pub struct Server {
     rooms: Rooms,
     idle_after: u64,
     live: live::Live,
+    owners: owners::Owners,
     /// Keys of the rooms this server opened and has not closed, so `close_all` can reach them.
     open_keys: HashSet<String>,
 }
@@ -139,9 +143,11 @@ impl Server {
         Server {
             registry,
             gate: Gate::new(),
-            rooms: meldframe_rooms::Rooms::new(MAX_OPEN_ROOMS, factory, MemoryActivityLog::new()),
+            rooms: meldframe_rooms::Rooms::new(MAX_OPEN_ROOMS, factory, MemoryActivityLog::new())
+                .with_workspace_limit(MAX_ROOMS_PER_WORKSPACE),
             idle_after: IDLE_AFTER_MS,
             live: meldframe_stream::Streams::new(LIVE_CONFIG, MAX_LIVE_STREAMS),
+            owners: owners::Owners::default(),
             open_keys: HashSet::new(),
         }
     }
@@ -149,6 +155,14 @@ impl Server {
     /// Close rooms idle for `ms` milliseconds at the start of each write (default [`IDLE_AFTER_MS`]).
     pub fn with_idle_after(mut self, ms: u64) -> Self {
         self.idle_after = ms;
+        self
+    }
+
+    /// Let each workspace hold at most `limit` open rooms (default [`MAX_ROOMS_PER_WORKSPACE`]); the
+    /// global bound stays [`MAX_OPEN_ROOMS`]. A call over the limit fails with
+    /// `RegistryError::WorkspaceFull`.
+    pub fn with_workspace_rooms(mut self, limit: usize) -> Self {
+        self.rooms = self.rooms.with_workspace_limit(limit);
         self
     }
 
@@ -160,10 +174,34 @@ impl Server {
     /// Open `file` of `workspace` (idempotent) and return the sequence number of its last op. A file name
     /// belongs to one workspace: another workspace's file of the same name is a different, empty file.
     pub fn open(&mut self, workspace: &str, file: &str) -> Result<u64, RegistryError> {
+        limits::valid_names(workspace, file)?;
         let key = room_key(workspace, file);
-        let seq = self.rooms.open(workspace, &key, now())?.seq;
+        let seq = self.open_room(workspace, &key, now())?.seq;
         self.open_keys.insert(key);
         Ok(seq)
+    }
+
+    /// Open a room. When a cap refuses it, rooms idle past `idle_after` are closed and the open is tried
+    /// once more, so a workspace that only reads or streams gets its idle slots back without a write.
+    pub(crate) fn open_room(
+        &mut self,
+        workspace: &str,
+        key: &str,
+        at: u64,
+    ) -> Result<meldframe_rooms::Opened, RegistryError> {
+        match self.rooms.open(workspace, key, at) {
+            Err(RegistryError::Full { .. } | RegistryError::WorkspaceFull { .. }) => {
+                self.close_idle(at);
+                self.rooms.open(workspace, key, at)
+            }
+            other => other,
+        }
+    }
+
+    fn close_idle(&mut self, at: u64) {
+        for key in self.rooms.close_idle(at, self.idle_after) {
+            self.open_keys.remove(&key);
+        }
     }
 
     /// Close `file`; every accepted op is already in the store, so a later open restores it.
@@ -216,13 +254,15 @@ impl Server {
         who: &Principal,
         ops: Vec<Op>,
     ) -> Result<Vec<Accepted>, SubmitError> {
+        limits::valid_names(&who.workspace, file)?;
         let at = now();
         for key in self.rooms.close_idle(at, self.idle_after) {
             self.open_keys.remove(&key);
         }
         known_auto_tool(&self.registry, tool, &ops)?;
+        limits::precheck(self.registry.agent_tool(tool).map(|t| t.tier), &ops)?;
         let key = room_key(&who.workspace, file);
-        let opened = self.rooms.open(&who.workspace, &key, at)?;
+        let opened = self.open_room(&who.workspace, &key, at)?;
         self.open_keys.insert(key.clone());
         let done = self.write(tool, &key, who, ops, at);
         if done.is_err() && !opened.already_open {
@@ -230,6 +270,22 @@ impl Server {
             self.open_keys.remove(&key);
         }
         done
+    }
+
+    /// The checks of `submit_tool` that need no room: names, batch size, a known tool with an `Auto` policy,
+    /// and a Read tool with an op that is a write whatever the tree. A caller that opens the room itself
+    /// first (an atomic batch) runs this before opening it.
+    pub fn precheck(
+        &self,
+        tool: &str,
+        file: &str,
+        who: &Principal,
+        ops: &[Op],
+    ) -> Result<(), SubmitError> {
+        limits::valid_names(&who.workspace, file)?;
+        known_auto_tool(&self.registry, tool, ops)?;
+        limits::precheck(self.registry.agent_tool(tool).map(|t| t.tier), ops)?;
+        Ok(())
     }
 
     fn write(
