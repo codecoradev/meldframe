@@ -14,7 +14,7 @@ mod ws;
 
 use axum::{Router, routing::get};
 use hub::LiveHub;
-pub use hub::{LiveSource, Opened, Out, Timer};
+pub use hub::{ClientHook, LiveSource, Opened, Out, Timer};
 use meldframe_http::{Authenticator, Clock, Config, Shared, Slots, Submitter};
 use std::sync::Arc;
 use std::time::Duration;
@@ -40,6 +40,8 @@ pub struct LiveConfig {
     pub max_seen_in_flight: usize,
     /// The same, per principal. A `seen` with no place is done at the connection's next look.
     pub max_seen_per_principal: usize,
+    /// A feature's hook on the sockets (see [`ClientHook`]); none by default.
+    pub hook: Option<Arc<dyn ClientHook>>,
 }
 
 impl Default for LiveConfig {
@@ -51,6 +53,7 @@ impl Default for LiveConfig {
             max_live_per_principal: 8,
             max_seen_in_flight: 8,
             max_seen_per_principal: 2,
+            hook: None,
         }
     }
 }
@@ -78,7 +81,7 @@ pub fn routes(
     if let Some(beat) = source.heartbeat_ms() {
         poll = poll.min(Duration::from_millis(beat).max(Duration::from_millis(10)));
     }
-    let hub = Arc::new(LiveHub::new(source, clock, poll));
+    let hub = Arc::new(LiveHub::new(source, clock, poll, config.hook.clone()));
     let woken = hub.clone();
     let _ = shared
         .on_write

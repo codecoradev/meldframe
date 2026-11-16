@@ -6,7 +6,7 @@
 
 use meldframe_host::{Principal, StoredOp};
 use meldframe_http::{Clock, Failure};
-use meldframe_protocol::ServerMsg;
+use meldframe_protocol::{ClientMsg, ServerMsg};
 use meldframe_stream::{Frame, StreamId};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -54,9 +54,39 @@ pub trait LiveSource: Send + Sync {
     fn heartbeat_ms(&self) -> Option<u64> {
         None
     }
+    /// Send an ephemeral frame (a capture request) to one stream of `file`; false when the stream is gone or
+    /// the source cannot publish. Blocks like the other calls.
+    fn publish_ephemeral(
+        &self,
+        _who: &Principal,
+        _file: &str,
+        _to: StreamId,
+        _msg: ServerMsg,
+    ) -> bool {
+        false
+    }
     /// Queue heartbeats and drop silent or stalled streams at `now`; returns the ids dropped. The
     /// server's `(file key, id)` pairs name every workspace's files: only the ids are used, never sent.
     fn tick(&self, now: u64) -> Vec<StreamId>;
+}
+
+/// A feature's hook on the live sockets: it sees the client messages the socket does not know (a capture
+/// editor's `capabilities` and `captureFailed`), the end of every stream and every timer pass. Its calls are
+/// short and do not block on the store.
+pub trait ClientHook: std::fmt::Debug + Send + Sync {
+    /// A message from the client of stream `id` on `file`: `None` when the hook does not know it, else the
+    /// hook took it and may answer with one frame (`Some(Some(frame))`).
+    fn message(
+        &self,
+        who: &Principal,
+        file: &str,
+        id: StreamId,
+        msg: &ClientMsg,
+    ) -> Option<Option<ServerMsg>>;
+    /// The stream ended (socket closed, or the server dropped it); may be called more than once.
+    fn closed(&self, id: StreamId);
+    /// The timer ran at `now` (milliseconds on the adapter's clock).
+    fn tick(&self, now: u64);
 }
 
 /// One open connection's handles.
@@ -88,6 +118,7 @@ pub(crate) struct LiveHub {
     pub(crate) source: Arc<dyn LiveSource>,
     pub(crate) clock: Clock,
     pub(crate) poll_every: Duration,
+    pub(crate) hook: Option<Arc<dyn ClientHook>>,
     tables: Mutex<Tables>,
 }
 
@@ -96,11 +127,17 @@ fn file_key(who: &Principal, file: &str) -> String {
 }
 
 impl LiveHub {
-    pub(crate) fn new(source: Arc<dyn LiveSource>, clock: Clock, poll_every: Duration) -> Self {
+    pub(crate) fn new(
+        source: Arc<dyn LiveSource>,
+        clock: Clock,
+        poll_every: Duration,
+        hook: Option<Arc<dyn ClientHook>>,
+    ) -> Self {
         LiveHub {
             source,
             clock,
             poll_every,
+            hook,
             tables: Mutex::default(),
         }
     }
@@ -159,6 +196,10 @@ impl LiveHub {
         let Ok(gone) = tokio::task::spawn_blocking(move || source.tick(now)).await else {
             return;
         };
+        if let Some(h) = &self.hook {
+            h.tick(self.now());
+            gone.iter().for_each(|id| h.closed(*id));
+        }
         let mut t = self.tables();
         for id in gone {
             if let Some(n) = t.by_stream.get(&id) {

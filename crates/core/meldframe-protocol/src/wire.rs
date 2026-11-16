@@ -145,7 +145,9 @@ pub enum ServerMsg {
     },
     Pong {},
     /// Ephemeral: asks ONE client for an image of a node. The client renders offscreen and then
-    /// `POST /captures/{requestId}` (PNG, `Authorization: Bearer <uploadToken>`, header `X-Capture-Seq`). An empty
+    /// `POST /captures/{requestId}` with the PNG as the body, its own `Authorization: Bearer <token>` (the
+    /// principal's), the header `X-Capture-Token: <uploadToken>` and the header `X-Capture-Seq` (the sequence number
+    /// it rendered at); or it answers with `ClientMsg::CaptureFailed`. An empty
     /// `node_id` means the whole page. `min_seq`: the PNG must reflect the file at a sequence number of at least this
     /// value (the client waits for events that have not arrived yet).
     CaptureRequest {

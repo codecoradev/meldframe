@@ -1,7 +1,5 @@
 //! The five tools. Each takes the caller's principal (from the token, never from the arguments) and the
-//! arguments as JSON, and returns the body of its result: `Ok` for a success, `Err` for a tool error. Writes
-//! end in `Shared::submit_ops`, the one handler REST and WebSocket end in; reads run on the same blocking
-//! pool under the same limits.
+//! arguments as JSON, and returns the body of its result: `Ok` for a success, `Err` for a tool error.
 
 use super::defs::{MAX_BATCH, MAX_KEY};
 use super::view;

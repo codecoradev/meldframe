@@ -13,6 +13,21 @@ const MAX_CONNECTIONS: usize = 512;
 /// Open connections one client (an IPv4 address or an IPv6 /64) may hold.
 const MAX_PER_CLIENT: usize = 32;
 
+/// The capture relay's limits: 4 MiB images (about 5.5 MiB as base64) of up to 16 million pixels, 20 seconds
+/// for the editor to answer.
+#[cfg(feature = "capture")]
+const CAPTURE: capture::Config = capture::Config {
+    max_bytes: 4 << 20,
+    max_pixels: 1 << 24,
+    timeout_ms: 20_000,
+    max_pending: 64,
+    max_pending_per_client: 4,
+    max_clients: 256,
+    max_pending_per_workspace: 16,
+    max_pending_per_principal: 4,
+    max_clients_per_workspace: 32,
+};
+
 fn main() {
     let server = Server::assemble();
     for module in server.registry().module_names() {
@@ -46,15 +61,40 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     let spec = std::env::var("MELDFRAME_DEV_TOKENS").map_err(
         |_| "set MELDFRAME_DEV_TOKENS to token:workspace:actor entries, comma separated",
     )?;
+    #[cfg(feature = "capture")]
+    let capture_policy = server.registry().policy_for("capture");
     let shared = Arc::new(SharedServer::new(server));
     let auth = Arc::new(DevTokens::parse(&spec)?);
     let config = Config::default();
     let clock = config.clock.clone();
     // One state for every transport: one authenticator, one set of limits, one path to the submitter.
     let state = meldframe_http::shared(auth, shared.clone(), config);
+    #[cfg(feature = "capture")]
+    let cap = meldframe_http_capture::Capture::new(
+        state.clone(),
+        shared.clone(),
+        shared.clone(),
+        clock.clone(),
+        CAPTURE,
+        meldframe_http_capture::Options {
+            policy: capture_policy,
+            ..Default::default()
+        },
+    );
+    #[allow(unused_mut, reason = "only the capture feature sets the hook")]
+    let mut live_config = LiveConfig::default();
+    #[cfg(feature = "capture")]
+    {
+        live_config.hook = Some(cap.hook());
+    }
     let (live, timer) =
-        meldframe_http_live::routes(state.clone(), shared.clone(), LiveConfig::default(), clock);
-    let app = meldframe_http::routes(state.clone()).merge(live);
+        meldframe_http_live::routes(state.clone(), shared.clone(), live_config, clock);
+    #[allow(unused_mut, reason = "only the capture feature adds a route")]
+    let mut app = meldframe_http::routes(state.clone()).merge(live);
+    #[cfg(feature = "capture")]
+    {
+        app = app.merge(cap.routes());
+    }
     #[cfg(feature = "mcp")]
     let app = {
         // MCP answers to loopback host names unless MELDFRAME_MCP_HOSTS lists others (comma separated).
@@ -66,6 +106,10 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
                 .filter(|h| !h.is_empty())
                 .map(str::to_owned)
                 .collect(),
+            #[cfg(feature = "capture")]
+            extra: Some(cap.tool()),
+            #[cfg(not(feature = "capture"))]
+            extra: None,
         };
         app.merge(meldframe_http::mcp::routes(state, shared, mcp))
     };

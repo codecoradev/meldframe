@@ -368,5 +368,7 @@ fn modules() -> Vec<Box<dyn Module>> {
         Box::new(example::ExampleModule),
         #[cfg(feature = "mcp")]
         Box::new(meldframe_http::mcp::McpModule),
+        #[cfg(feature = "capture")]
+        Box::new(capture::CaptureModule),
     ]
 }

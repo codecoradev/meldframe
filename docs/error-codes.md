@@ -125,4 +125,5 @@ A test in `crates/features/capture/capture/tests/registration.rs` reads this tab
 | `stale_client` | The editor had not yet caught up to the file's latest change. | Try again in a moment. |
 | `render_failed` | The editor could not render, or sent something that is not a PNG. | Try again; if it repeats, report it. |
 | `client_disconnected` | The editor closed before it answered. | Try again once the file is open in an editor. |
-| `busy` | Too many captures are pending, or the editor already has its limit. Retryable. | Wait a moment, then try again. |
+| `busy` | Too many captures are pending (in all, for the workspace, for you, or on one editor), the editor was refused as one too many for its workspace, or the file could not be read just now. Retryable. | Wait a moment, then try again. |
+| `forbidden` | The policy for the capture tool does not allow the call, or the file is not yours to read. | Do not retry the same call; ask the owner to change the policy. |

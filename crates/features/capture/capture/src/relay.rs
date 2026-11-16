@@ -1,6 +1,6 @@
 //! The capture relay state machine.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use meldframe_protocol::ServerMsg;
 
@@ -25,13 +25,24 @@ pub struct Config {
     pub max_pending_per_client: usize,
     /// Most capable clients registered at once; more is `busy`.
     pub max_clients: usize,
+    /// Most requests pending for one workspace; more is `busy`.
+    pub max_pending_per_workspace: usize,
+    /// Most requests pending for one principal (workspace and actor); more is `busy`.
+    pub max_pending_per_principal: usize,
+    /// Most capable clients one workspace may register; more is `busy`.
+    pub max_clients_per_workspace: usize,
 }
+
+/// Most closed streams and refused registrations remembered.
+const REMEMBER: usize = 4096;
 
 /// One capture to start.
 #[derive(Clone, PartialEq)]
 pub struct Begin {
     /// Workspace of the calling principal.
     pub workspace: String,
+    /// Actor of the calling principal.
+    pub actor: String,
     /// The file to capture (already resolved through the session binding).
     pub file: String,
     /// The node, or `None` for the whole page.
@@ -84,6 +95,7 @@ impl std::fmt::Debug for Done {
 
 #[derive(Debug)]
 struct Pending<C> {
+    actor: String,
     client: C,
     token: Token,
     min_seq: u64,
@@ -99,6 +111,11 @@ pub struct Relay<C> {
     clients: BTreeMap<Key, BTreeSet<C>>,
     load: BTreeMap<C, usize>,
     pending: BTreeMap<Key, Pending<C>>,
+    /// Clients whose registration was refused as `busy`, by file: why a file with no editor is `busy`.
+    refused: BTreeMap<Key, BTreeSet<C>>,
+    /// Streams that closed (bounded, oldest forgotten): ids are never reused, so they cannot register again.
+    closed: BTreeSet<C>,
+    closed_order: VecDeque<C>,
 }
 
 impl<C: Copy + Ord> Relay<C> {
@@ -109,12 +126,24 @@ impl<C: Copy + Ord> Relay<C> {
             clients: BTreeMap::new(),
             load: BTreeMap::new(),
             pending: BTreeMap::new(),
+            refused: BTreeMap::new(),
+            closed: BTreeSet::new(),
+            closed_order: VecDeque::new(),
         }
     }
 
     /// Requests waiting for an answer.
     pub fn pending(&self) -> usize {
         self.pending.len()
+    }
+
+    /// Whether `request_id` of `workspace` is pending and `token` is its upload token (constant-time compare).
+    /// Changes nothing: the HTTP layer asks it before it reads a body.
+    pub fn is_pending(&self, workspace: &str, request_id: &str, token: &str) -> bool {
+        let key = (workspace.to_string(), request_id.to_string());
+        self.pending
+            .get(&key)
+            .is_some_and(|p| p.token.matches(token))
     }
 
     /// The largest upload accepted; the HTTP layer enforces it while streaming the body.
@@ -132,11 +161,26 @@ impl<C: Copy + Ord> Relay<C> {
         caps: &[String],
     ) -> Result<(), CaptureError> {
         let key = (workspace.to_string(), file.to_string());
+        if self.closed.contains(&client) {
+            return Ok(());
+        }
         if caps.iter().any(|c| c == CAPABILITY) {
             let known = self.clients.get(&key).is_some_and(|s| s.contains(&client));
             let total: usize = self.clients.values().map(BTreeSet::len).sum();
-            if !known && total >= self.cfg.max_clients {
+            let mine: usize = (self.clients.iter())
+                .filter(|(k, _)| k.0 == workspace)
+                .map(|(_, s)| s.len())
+                .sum();
+            if !known
+                && (total >= self.cfg.max_clients || mine >= self.cfg.max_clients_per_workspace)
+            {
+                if self.refused.len() < REMEMBER {
+                    self.refused.entry(key).or_default().insert(client);
+                }
                 return Err(CaptureError::Busy);
+            }
+            if let Some(set) = self.refused.get_mut(&key) {
+                set.remove(&client);
             }
             self.clients.entry(key).or_default().insert(client);
         } else if let Some(set) = self.clients.get_mut(&key) {
@@ -163,13 +207,25 @@ impl<C: Copy + Ord> Relay<C> {
             ));
         }
         let load = |c: &C| self.load.get(c).copied().unwrap_or(0);
-        let client = self
-            .clients
-            .get(&(b.workspace.clone(), b.file.clone()))
+        let fkey = (b.workspace.clone(), b.file.clone());
+        let Some(client) = (self.clients.get(&fkey))
             .and_then(|set| set.iter().min_by_key(|c| (load(c), **c)))
             .copied()
-            .ok_or(CaptureError::NoCapableClient)?;
+        else {
+            let refused = self.refused.get(&fkey).is_some_and(|s| !s.is_empty());
+            return Err(if refused {
+                CaptureError::Busy
+            } else {
+                CaptureError::NoCapableClient
+            });
+        };
+        let mine = self.pending.iter().filter(|(k, _)| k.0 == b.workspace);
+        let (in_ws, by_actor) = mine.fold((0, 0), |(w, a), (_, p)| {
+            (w + 1, a + usize::from(p.actor == b.actor))
+        });
         if self.pending.len() >= self.cfg.max_pending
+            || in_ws >= self.cfg.max_pending_per_workspace
+            || by_actor >= self.cfg.max_pending_per_principal
             || load(&client) >= self.cfg.max_pending_per_client
         {
             return Err(CaptureError::Busy);
@@ -188,6 +244,7 @@ impl<C: Copy + Ord> Relay<C> {
         self.pending.insert(
             key,
             Pending {
+                actor: b.actor,
                 client,
                 token: b.upload_token,
                 min_seq: b.min_seq,
@@ -220,6 +277,21 @@ impl<C: Copy + Ord> Relay<C> {
             self.check_png(png, seq, min_seq).map(|()| png.to_vec())
         };
         self.finish(&key, result)
+    }
+
+    /// The upload of `request_id` was longer than [`Relay::max_bytes`] and the HTTP layer stopped reading it:
+    /// the request fails with `too_large`. Same checks as [`Relay::upload`]: wrong token or workspace is ignored.
+    pub fn refuse_too_large(
+        &mut self,
+        workspace: &str,
+        request_id: &str,
+        token: &str,
+    ) -> Option<Done> {
+        let key = (workspace.to_string(), request_id.to_string());
+        if !self.pending.get(&key)?.token.matches(token) {
+            return None;
+        }
+        self.finish(&key, Err(CaptureError::TooLarge))
     }
 
     fn check_png(&self, png: &[u8], seq: u64, min_seq: u64) -> Result<(), CaptureError> {
@@ -270,8 +342,26 @@ impl<C: Copy + Ord> Relay<C> {
             .collect()
     }
 
-    /// A stream closed: it is no longer capable, and the requests sent to it fail.
+    /// Fail one request (the caller could not reach the editor, or gave up): nothing else changes, the
+    /// client stays capable and its place is free again. `None` when it is not pending.
+    pub fn abort(&mut self, workspace: &str, request_id: &str, why: CaptureError) -> Option<Done> {
+        self.finish(&(workspace.to_string(), request_id.to_string()), Err(why))
+    }
+
+    /// A stream closed: it is no longer capable (and cannot register again), and the requests sent to it fail.
     pub fn disconnect(&mut self, client: C) -> Vec<Done> {
+        if self.closed.insert(client) {
+            self.closed_order.push_back(client);
+            if self.closed_order.len() > REMEMBER {
+                self.closed_order
+                    .pop_front()
+                    .map(|old| self.closed.remove(&old));
+            }
+        }
+        self.refused.retain(|_, set| {
+            set.remove(&client);
+            !set.is_empty()
+        });
         self.clients.retain(|_, set| {
             set.remove(&client);
             !set.is_empty()

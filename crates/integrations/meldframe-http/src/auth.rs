@@ -32,9 +32,8 @@ impl fmt::Display for SpecError {
 impl std::error::Error for SpecError {}
 
 impl DevTokens {
-    /// Parse `token:workspace:actor` entries separated by commas; the actor may itself hold `:`
-    /// (`agent:alpha`). The caller reads the spec from configuration or the environment, never from
-    /// argv, where any local user can read it.
+    /// Parse `token:workspace:actor` entries separated by commas; the actor may hold `:` (`agent:alpha`).
+    /// Read the spec from the environment, never from argv, where any local user can read it.
     pub fn parse(spec: &str) -> Result<Self, SpecError> {
         let mut table = HashMap::new();
         for entry in spec.split(',').map(str::trim) {

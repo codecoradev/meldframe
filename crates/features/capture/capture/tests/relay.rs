@@ -29,12 +29,16 @@ fn cfg() -> Config {
         max_pending: 4,
         max_pending_per_client: 2,
         max_clients: 3,
+        max_pending_per_workspace: 4,
+        max_pending_per_principal: 4,
+        max_clients_per_workspace: 3,
     }
 }
 
 fn begin(id: &str, ws: &str, file: &str) -> Begin {
     Begin {
         workspace: ws.into(),
+        actor: "agent".into(),
         file: file.into(),
         node_id: Some("n1".into()),
         scale: 1.0,
@@ -384,4 +388,16 @@ fn a_token_is_bound_to_its_request() {
     assert!(r.upload("w", "b", &tok("a"), 7, &png()).is_none());
     assert_eq!(r.pending(), 2);
     assert!(r.upload("w", "b", &tok("b"), 7, &png()).is_some());
+}
+
+#[test]
+fn an_oversize_upload_stopped_by_the_transport_fails_the_request() {
+    let mut r = Relay::<u32>::new(cfg());
+    capable(&mut r, "w", "f", 1);
+    r.begin(0, begin("a", "w", "f")).unwrap();
+    assert!(r.refuse_too_large("w", "a", "wrong").is_none());
+    assert!(r.refuse_too_large("w2", "a", &tok("a")).is_none());
+    let done = r.refuse_too_large("w", "a", &tok("a")).unwrap();
+    assert_eq!(done.result.unwrap_err().code(), "too_large");
+    assert_eq!(r.pending(), 0);
 }

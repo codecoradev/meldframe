@@ -268,6 +268,10 @@ impl LiveSource for SharedServer {
         Some(self.lock().live_heartbeat_ms())
     }
 
+    fn publish_ephemeral(&self, who: &Principal, file: &str, to: StreamId, msg: ServerMsg) -> bool {
+        self.lock().publish_ephemeral(who, file, Some(to), msg) > 0
+    }
+
     fn tick(&self, now: u64) -> Vec<StreamId> {
         // The file keys name every workspace's files: only the ids leave this function.
         let dropped = self.lock().tick(now);

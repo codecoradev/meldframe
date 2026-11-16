@@ -129,7 +129,10 @@ pub async fn start_hosts(config: Config, allowed_hosts: Vec<String>) -> Harness 
         "{AGENT}:ws_1:agent:alpha,{PERSON}:ws_1:user:bea,{OTHER}:ws_2:agent:gamma"
     ))
     .unwrap();
-    let mcp = meldframe_http::mcp::McpConfig { allowed_hosts };
+    let mcp = meldframe_http::mcp::McpConfig {
+        allowed_hosts,
+        ..Default::default()
+    };
     let app = router_with_mcp_config(Arc::new(tokens), spy.clone(), spy.clone(), config, mcp);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

@@ -108,9 +108,9 @@ ADR-0008. First vertical slice of the app layer: the editor shell.
 
 ### E1.7 Capture relay (S)
 Carried from the spike (S13); headless capture waits for a real need (decision 18).
-- [ ] An agent can capture a node or a frame as PNG while an editor has the file open; without one it gets `no_capable_client`.
-- [ ] Capture uses the file bound to the session; a different file is refused with `room_mismatch`.
-- [ ] Capture is a feature module that registers its tool with a Read risk tier.
+- [x] An agent can capture a node or a frame as PNG while an editor has the file open; without one it gets `no_capable_client`. (Proven end to end with a fake editor client on the real live WebSocket in `meldframe-capture-tests`; the web editor's own capture client arrives with E1.6.)
+- [x] Capture uses the file bound to the session; a different file is refused with `room_mismatch`. (The session is the principal: the first call that names a file binds it; see `meldframe-http-capture`.)
+- [x] Capture is a feature module that registers its tool with a Read risk tier.
 
 **M1 exit criteria (demonstration, recorded in the pull request that closes the milestone):**
 1. Claude Code, connected through MCP, builds a landing hero (a frame with heading, text and a button) in one atomic batch; the open editor shows it without reload.

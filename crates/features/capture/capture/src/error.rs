@@ -1,7 +1,7 @@
 //! Capture error codes.
 
 /// Every code a capture can fail with, as documented in `docs/error-codes.md`.
-pub const CODES: [&str; 11] = [
+pub const CODES: [&str; 12] = [
     "no_file_selected",
     "room_mismatch",
     "no_capable_client",
@@ -13,6 +13,7 @@ pub const CODES: [&str; 11] = [
     "render_failed",
     "client_disconnected",
     "busy",
+    "forbidden",
 ];
 
 /// Why a capture did not produce an image.
@@ -40,6 +41,8 @@ pub enum CaptureError {
     ClientDisconnected,
     /// Too many captures or capable clients at once; retry later.
     Busy,
+    /// The policy for the capture tool does not allow the call.
+    Forbidden,
 }
 
 impl CaptureError {
@@ -57,6 +60,7 @@ impl CaptureError {
             Self::RenderFailed(_) => "render_failed",
             Self::ClientDisconnected => "client_disconnected",
             Self::Busy => "busy",
+            Self::Forbidden => "forbidden",
         }
     }
 

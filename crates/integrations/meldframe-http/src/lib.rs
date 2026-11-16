@@ -1,11 +1,10 @@
 //! A thin axum adapter over the admission gate: REST (`POST /v1/files/{file}/tools/{tool}`) and WebSocket
 //! (`GET /v1/ws`) both end in one handler, `Shared::submit`, which calls [`Submitter::submit`] and nothing
 //! else. The adapter holds no policy: it authenticates, rate-limits, bounds size and time, parses, and maps
-//! the answer to a stable code and an HTTP status. MCP is a third transport (E1.5) and is not here.
+//! the answer to a stable code and an HTTP status.
 //!
-//! Order of work for every call: client rate limit, then the token, then the principal's rate limit, and only
-//! then is the body read and parsed. The submitter is synchronous (the server blocks on its store), so each
-//! call runs on `spawn_blocking` under a timeout.
+//! Order of work for every call: client rate limit, the token, the principal's rate limit, and only then the
+//! body. The submitter blocks on its store, so each call runs on `spawn_blocking` under a timeout.
 
 mod auth;
 mod conn;
@@ -38,8 +37,7 @@ use serde::Deserialize;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
-/// The one way in to a write. The server implements it over `Server::submit_tool` (gate, then room).
-/// Implementations block, so the adapter calls them from `spawn_blocking`.
+/// The one way in to a write (the server's `Server::submit_tool`); it blocks, so it runs on `spawn_blocking`.
 pub trait Submitter: Send + Sync {
     fn submit(
         &self,
@@ -62,25 +60,24 @@ pub trait Submitter: Send + Sync {
     ) -> Result<Vec<Accepted>, Failure>;
 }
 
-/// Limits of the adapter. A request over any of them is refused with its own code.
+/// Limits of the adapter; a request over one is refused with its own code.
 #[derive(Clone)]
 pub struct Config {
     /// Most bytes of a request body or a WebSocket frame.
     pub max_body: usize,
-    /// Longest the caller waits for a call: from the start of the blocking job, so it includes any wait for
-    /// the server's lock. After that the caller gets `timeout`; the job is not cancelled and may still write.
+    /// Longest the caller waits for a call, from the start of the blocking job (the server's lock included);
+    /// then it gets `timeout`, and the job is not cancelled and may still write.
     pub timeout: Duration,
     /// Longest the body of a request may take to arrive.
     pub body_timeout: Duration,
-    /// Blocking calls running or abandoned at once, in all; one more is refused with `unavailable`. A call that
-    /// timed out keeps its slot until its job really ends.
+    /// Blocking calls running or abandoned at once, in all; one more is `unavailable`. A timed out call keeps
+    /// its slot until its job ends.
     pub max_in_flight: usize,
     /// The same, per principal.
     pub max_per_principal: usize,
     /// A WebSocket with no frame for this long is closed.
     pub ws_idle: Duration,
-    /// A WebSocket is closed when its count of limited frames (up one per limited frame or ping, down one per
-    /// allowed frame) reaches this.
+    /// A WebSocket is closed when its count of limited frames (up one per limited, down one per allowed) reaches this.
     pub ws_max_limited: u32,
     /// Longest one reply or the closing frame may take to send; a client that does not read is dropped.
     pub ws_send_timeout: Duration,
@@ -206,7 +203,7 @@ pub struct Shared {
     auth: Arc<dyn Authenticator>,
     submitter: Arc<dyn Submitter>,
     pub max_body: usize,
-    pub(crate) body_timeout: Duration,
+    pub body_timeout: Duration,
     pub(crate) ws_idle: Duration,
     pub ws_max_limited: u32,
     pub ws_send_timeout: Duration,
@@ -381,19 +378,7 @@ pub fn router(
     routes(shared(auth, submitter, config))
 }
 
-/// The router with MCP (`/mcp`, streamable HTTP) added: the three transports share one authenticator, one set
-/// of limits and one submitter, and MCP's reads go through `reader` on the same blocking pool.
-#[cfg(feature = "mcp")]
-pub fn router_with_mcp(
-    auth: Arc<dyn Authenticator>,
-    submitter: Arc<dyn Submitter>,
-    reader: Arc<dyn mcp::Reader>,
-    config: Config,
-) -> Router {
-    router_with_mcp_config(auth, submitter, reader, config, mcp::McpConfig::default())
-}
-
-/// [`router_with_mcp`] with the MCP settings given.
+/// The router with MCP (`/mcp`) added: all three transports share one authenticator, limits and submitter.
 #[cfg(feature = "mcp")]
 pub fn router_with_mcp_config(
     auth: Arc<dyn Authenticator>,

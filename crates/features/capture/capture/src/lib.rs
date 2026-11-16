@@ -32,6 +32,9 @@ pub use token::{Token, ct_eq};
 
 use meldframe_module::{Module, Registrar, RiskTier};
 
+/// The tool text an agent reads (English, part of the contract; `docs/mcp-tools.json` lists it).
+pub const DESCRIPTION: &str = "Capture a node, or the whole page, of the file bound to your session as a PNG image, rendered by an editor that has the file open. Name the file on your first call: the session stays bound to it, and naming another file later is refused with room_mismatch (a call that names no file on a session with none bound is refused with no_file_selected). Pass nodeId to capture one node (leave it out for the whole page) and scale, above 0 and at most 4 (default 1); the image is at most 4 MiB. With no editor open on the file that can capture, the call fails at once with no_capable_client; an editor that does not answer in time fails it with timeout, an image over the size limit with too_large, and an editor that has not caught up to the file with stale_client. The image comes back as image content. Changes nothing.";
+
 /// The capture module. It registers one Read-tier agent tool: a capture changes nothing.
 #[derive(Debug, Clone, Copy)]
 pub struct CaptureModule;
@@ -42,10 +45,6 @@ impl Module for CaptureModule {
     }
 
     fn register(&self, registrar: &mut Registrar) {
-        registrar.agent_tool(
-            "capture",
-            "Capture a node, or the whole page, of the bound file as a PNG, through an open editor.",
-            RiskTier::Read,
-        );
+        registrar.agent_tool("capture", DESCRIPTION, RiskTier::Read);
     }
 }

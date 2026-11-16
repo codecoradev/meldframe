@@ -1,9 +1,9 @@
 //! MCP over streamable HTTP (`/mcp`), the third transport of the one gate. It is stateless: every request
 //! carries its own Bearer token, and the principal of a tool call is the one that request authenticated as.
 //!
-//! Writes end in `Shared::submit_ops`, the handler REST and WebSocket end in, so the authenticator, the rate
-//! limits, the slots and the submitter are the same. Reads go through the [`Reader`] seam on the same blocking
-//! pool. The tool text and schemas are in [`TOOLS`]; `docs/mcp-tools.json` lists them and a test compares.
+//! Writes end in `Shared::submit_ops`, the handler REST and WebSocket end in (same authenticator, limits, slots
+//! and submitter); reads go through the [`Reader`] seam on the same blocking pool. The tool text and schemas
+//! are in [`TOOLS`]; `docs/mcp-tools.json` lists them and a test compares.
 
 mod defs;
 mod tools;
@@ -33,7 +33,7 @@ use rmcp::{
     },
 };
 use serde_json::Value;
-use std::sync::Arc;
+use std::{future::Future, pin::Pin, sync::Arc};
 
 /// A file as a read tool sees it: its sequence number and its nodes.
 #[derive(Debug, Clone)]
@@ -83,17 +83,27 @@ pub trait Reader: Send + Sync {
     ) -> Result<Vec<Option<u64>>, Failure>;
 }
 
+/// A tool another crate contributes (capture): listed with the others, called with the request's principal.
+pub trait Extra: std::fmt::Debug + Send + Sync {
+    fn tool(&self) -> Tool;
+    fn call(&self, who: Principal, args: serde_json::Map<String, Value>) -> ExtraCall<'_>;
+}
+
+pub type ExtraCall<'a> = Pin<Box<dyn Future<Output = CallToolResult> + Send + 'a>>;
+
 /// Settings of the MCP route.
 #[derive(Debug, Clone, Default)]
 pub struct McpConfig {
+    /// A tool of another crate to serve besides [`TOOLS`].
+    pub extra: Option<Arc<dyn Extra>>,
     /// Host names the route answers to besides the loopback names (`localhost`, `127.0.0.1`, `::1`), which it
     /// always answers to: the guard against DNS rebinding. A public deployment lists its own names.
     /// `Origin` is not validated: the route has no cookies and no CORS, a call needs the Bearer token.
     pub allowed_hosts: Vec<String>,
 }
 
-/// Registers the MCP tools in the registry, with their tiers: the write tool is a Change, the others Reads.
-/// The server compiles it in with its `mcp` feature; without it `apply_commands` is refused as `forbidden`.
+/// Registers the MCP tools in the registry with their tiers (`apply_commands` is a Change, the rest Reads).
+/// Without it `apply_commands` is refused as `forbidden`.
 #[derive(Debug, Clone, Copy)]
 pub struct McpModule;
 
@@ -114,6 +124,7 @@ impl Module for McpModule {
 pub(crate) struct Handler {
     pub(crate) shared: Arc<Shared>,
     pub(crate) reader: Arc<dyn Reader>,
+    extra: Option<Arc<dyn Extra>>,
 }
 
 fn tool_of(d: &ToolDef) -> Tool {
@@ -143,7 +154,9 @@ impl ServerHandler for Handler {
         _context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, ErrorData> {
         Ok(ListToolsResult::with_all_items(
-            TOOLS.iter().map(tool_of).collect(),
+            (TOOLS.iter().map(tool_of))
+                .chain(self.extra.iter().map(|x| x.tool()))
+                .collect(),
         ))
     }
 
@@ -159,6 +172,13 @@ impl ServerHandler for Handler {
             .cloned()
             .ok_or_else(|| ErrorData::internal_error("the call carries no principal", None))?;
         let a = request.arguments.unwrap_or_default();
+        if let Some(x) = self
+            .extra
+            .as_ref()
+            .filter(|x| x.tool().name == request.name)
+        {
+            return Ok(x.call(who, a).await.into());
+        }
         let body = match request.name.as_ref() {
             "whoami" => self.whoami(&who),
             "get_tree" => self.get_tree(&who, a).await,
@@ -206,6 +226,7 @@ pub fn routes(shared: Arc<Shared>, reader: Arc<dyn Reader>, cfg: McpConfig) -> R
     let handler = Handler {
         shared: shared.clone(),
         reader,
+        extra: cfg.extra,
     };
     let service: StreamableHttpService<Handler, LocalSessionManager> =
         StreamableHttpService::new(move || Ok(handler.clone()), Default::default(), config);

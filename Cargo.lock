@@ -1058,6 +1058,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-capture-tests"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "capture",
+ "futures-util",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-http-capture",
+ "meldframe-http-live",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-server",
+ "reqwest",
+ "rmcp",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite 0.26.2",
+]
+
+[[package]]
 name = "meldframe-check"
 version = "0.0.0"
 dependencies = [
@@ -1131,6 +1153,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-http-capture"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "capture",
+ "futures-util",
+ "getrandom 0.3.4",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-http-live",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-stream",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "meldframe-http-live"
 version = "0.0.0"
 dependencies = [
@@ -1197,6 +1240,7 @@ dependencies = [
  "axum",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-http-capture",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-server",
@@ -1244,10 +1288,12 @@ name = "meldframe-server"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "capture",
  "example",
  "meldframe-batch",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-http-capture",
  "meldframe-http-live",
  "meldframe-module",
  "meldframe-protocol",

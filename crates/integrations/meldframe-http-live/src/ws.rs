@@ -7,16 +7,14 @@
 //! before the marker. Ops are submitted over REST or `/v1/ws`, not here.
 //!
 //! Limits: the handshake is a call like any other (client and principal budgets, the REST in-flight slots).
-//! After it, a connection's poll, resubscribe and unsubscribe use the live slots (`max_live_in_flight`,
-//! `max_live_per_principal`) and its `seen` calls (one per client frame) use slots of their own
-//! (`max_seen_in_flight`, `max_seen_per_principal`), so pings are not starved by the live calls; a `seen`
-//! with no slot is owed and done at the next look. Each frame of the client costs the principal's budget (a
-//! `subscribe` costs `SUBSCRIBE_COST`, charged only once it has a slot), except that `seen` is called first,
-//! so a frame the budget refuses still shows the client is alive. `ws_idle` does not apply: a client must send a JSON `ping` (a
-//! browser cannot send a WebSocket-level ping) within the server's `dead_after_ms`, or the timer drops it.
-//! A call with no free slot is skipped and tried again at the next look; a poll that times out or fails may
-//! have taken frames and thrown them away, so the socket closes and the client reconnects with its last
-//! number.
+//! After it, polls, resubscribes and unsubscribes use the live slots (`max_live_in_flight`,
+//! `max_live_per_principal`) and the `seen` call of each client frame uses slots of its own, so pings are not
+//! starved; a `seen` with no slot is owed and done at the next look. Each client frame costs the principal's
+//! budget (a `subscribe` costs `SUBSCRIBE_COST`, charged once it has a slot), except that `seen` comes first,
+//! so a refused frame still shows the client is alive. `ws_idle` does not apply: a client must send a JSON
+//! `ping` (a browser cannot send a WebSocket-level ping) within the server's `dead_after_ms`, or the timer
+//! drops it. A call with no free slot is skipped and tried again at the next look; a poll that times out or
+//! fails may have taken frames, so the socket closes and the client reconnects with its last number.
 
 use crate::LiveState;
 use crate::hub::{Conn, LiveHub, Opened, Out};
@@ -130,21 +128,12 @@ fn retry_error(
     wait: std::time::Duration,
 ) -> ServerMsg {
     let ms = u64::try_from(wait.as_millis()).unwrap_or(u64::MAX).max(1);
-    match error(id, code, message, true) {
-        ServerMsg::Error {
-            id,
-            message,
-            retryable,
-            code,
-            ..
-        } => ServerMsg::Error {
-            id,
-            message,
-            retryable,
-            code,
-            retry_after_ms: Some(ms),
-        },
-        other => other,
+    ServerMsg::Error {
+        id,
+        message: message.to_owned(),
+        retryable: true,
+        code: Some(code.to_owned()),
+        retry_after_ms: Some(ms),
     }
 }
 
@@ -339,6 +328,14 @@ impl Session {
                 return self.send(socket, &e).await;
             }
         };
+        if let Some(h) = &self.hub.hook
+            && let Some(reply) = h.message(&self.who, &self.file, self.id, &msg)
+        {
+            return match reply {
+                Some(m) => self.send(socket, &m).await,
+                None => true,
+            };
+        }
         match msg {
             ClientMsg::Ping {} => self.send(socket, &ServerMsg::Pong {}).await,
             ClientMsg::Unsubscribe { room } if room == self.file => false,
@@ -436,6 +433,9 @@ impl Drop for Held {
     fn drop(&mut self) {
         if let Some(conn) = self.conn.take() {
             self.hub.deregister(conn);
+        }
+        if let Some(h) = &self.hub.hook {
+            h.closed(self.id);
         }
         // Close the stream in the background, in a live slot. With none free (the server is stuck), the
         // silent stream is dropped by the timer after `dead_after_ms`.

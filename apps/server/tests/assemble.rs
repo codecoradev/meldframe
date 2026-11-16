@@ -32,11 +32,13 @@ mod feature_on {
     fn the_tool_list_has_example_ping_with_its_tier() {
         let server = Server::assemble();
         assert!(tool_names(&server).contains(&"example_ping"));
-        let expected: &[&str] = if cfg!(feature = "mcp") {
-            &["example", "mcp"]
-        } else {
-            &["example"]
-        };
+        let mut expected = vec!["example"];
+        expected.extend(["mcp"].into_iter().filter(|_| cfg!(feature = "mcp")));
+        expected.extend(
+            ["capture"]
+                .into_iter()
+                .filter(|_| cfg!(feature = "capture")),
+        );
         assert_eq!(server.registry().module_names(), expected);
         let tool = server.registry().agent_tool("example_ping").unwrap();
         assert_eq!(tool.tier, RiskTier::Read);
@@ -70,7 +72,7 @@ mod feature_off {
     fn a_build_without_the_example_feature_does_not_list_its_tool() {
         let server = Server::assemble();
         assert!(!tool_names(&server).contains(&"example_ping"));
-        assert!(server.registry().module_names().is_empty());
+        assert!(!server.registry().module_names().contains(&"example"));
         assert!(server.registry().agent_tool("example_ping").is_none());
     }
 
@@ -251,5 +253,18 @@ mod change_tool {
             ),
             "{err:?}"
         );
+    }
+}
+
+/// The capture module is compiled in only with its feature, and its tool is a Read.
+#[test]
+fn the_capture_tool_is_listed_only_when_the_feature_is_on() {
+    let server = Server::assemble();
+    let tool = server.registry().agent_tool("capture");
+    if cfg!(feature = "capture") {
+        let tool = tool.expect("listed");
+        assert_eq!((tool.module, tool.tier), ("capture", RiskTier::Read));
+    } else {
+        assert!(tool.is_none());
     }
 }
