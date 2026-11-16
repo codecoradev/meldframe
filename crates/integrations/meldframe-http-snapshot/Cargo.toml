@@ -1,0 +1,21 @@
+[package]
+name = "meldframe-http-snapshot"
+description = "The read path of the HTTP adapter: GET /v1/files/{file} answers the file as it is now, each node with its last actor, for a client that starts from a snapshot and then follows the live stream."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "bin"
+
+[dependencies]
+meldframe-batch = { path = "../../core/meldframe-batch" }
+meldframe-host = { path = "../../core/meldframe-host" }
+meldframe-protocol = { path = "../../core/meldframe-protocol" }
+meldframe-http = { path = "../meldframe-http" }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
+serde_json = "1"
+
+[lints]
+workspace = true
