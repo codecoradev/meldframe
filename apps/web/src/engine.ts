@@ -31,9 +31,11 @@ export class Engine {
   private listeners = new Set<(s: Snapshot) => void>();
   private effectHandler: (fx: Effect[]) => void = () => {};
   private snap: Snapshot;
+  /** How often the state and the nodes were parsed (for tests: a quiet tick must cost nothing). */
+  readonly stats = { stateReads: 0, nodeReads: 0 };
 
   private constructor(private app: WasmApp) {
-    this.snap = { ...this.read(), events: [] };
+    this.snap = { state: this.readState(), nodes: this.readNodes(), events: [] };
   }
 
   static create(o: EngineOptions): Engine {
@@ -58,13 +60,28 @@ export class Engine {
   dispatch(action: Action): Effect[] {
     const effects: Effect[] = JSON.parse(this.app.dispatch(JSON.stringify(action)));
     const events: Event[] = JSON.parse(this.app.takeEventsJson());
-    this.snap = { ...this.read(), events };
-    for (const fn of this.listeners) fn(this.snap);
+    // Every change of state or document raises an event; a dispatch without events (a quiet tick, a
+    // heartbeat) leaves the snapshot as it is, so the views have nothing to redo.
+    if (events.length) {
+      const changed = events.some((e) => e.type === 'documentChanged');
+      this.snap = {
+        state: this.readState(),
+        nodes: changed ? this.readNodes() : this.snap.nodes,
+        events,
+      };
+      for (const fn of this.listeners) fn(this.snap);
+    }
     if (effects.length) this.effectHandler(effects);
     return effects;
   }
 
-  private read(): Pick<Snapshot, 'state' | 'nodes'> {
-    return { state: JSON.parse(this.app.stateJson()), nodes: JSON.parse(this.app.nodesJson()) };
+  private readState(): AppState {
+    this.stats.stateReads++;
+    return JSON.parse(this.app.stateJson());
+  }
+
+  private readNodes(): Node[] {
+    this.stats.nodeReads++;
+    return JSON.parse(this.app.nodesJson());
   }
 }

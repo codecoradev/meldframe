@@ -30,10 +30,26 @@ describe('ui literals', () => {
   it('reports the line of each finding', () => {
     expect(kinds('a {\n  color: #fff;\n  width: 10px;\n}')).toEqual(['2:colour', '3:size']);
   });
-  it('exempts the tokens module and tests only', () => {
+  it('exempts the tokens module and tests only, by exact path', () => {
     expect(isExempt('src/tokens.ts')).toBe(true);
     expect(isExempt('src/tokens.css')).toBe(true);
     expect(isExempt('src/engine.test.ts')).toBe(true);
     expect(isExempt('src/panels/Layers.svelte')).toBe(false);
+    expect(isExempt('src/panels/tokens.ts')).toBe(false);
+    expect(isExempt('src/tokens.evil.svelte')).toBe(false);
+    expect(isExempt('e2e/run.cjs')).toBe(false);
+  });
+  it('flags named colours, rem and em units, the font shorthand and short 0x colours', () => {
+    expect(kinds('a { color: red; }')).toEqual(['1:colour']);
+    expect(kinds('a { background: white; }')).toEqual(['1:colour']);
+    expect(kinds('a { border-color: RebeccaPurple; }')).toEqual(['1:colour']);
+    expect(kinds('a { fill: currentColor; stroke: transparent; }')).toEqual([]);
+    expect(kinds('a { margin: 1.5rem; }')).toEqual(['1:size']);
+    expect(kinds('a { padding: 2em; }')).toEqual(['1:size']);
+    expect(kinds('a { height: 50vh; }')).toEqual(['1:size']);
+    expect(kinds('a { font: 12px sans-serif; }')).toEqual(['1:font']);
+    expect(kinds('a { font: var(--font-ui); font: inherit; }')).toEqual([]);
+    expect(kinds('const c = 0xfff;', 'src/a.ts')).toEqual(['1:colour']);
+    expect(kinds('const c = 0xff8800aa;', 'src/a.ts')).toEqual(['1:colour']);
   });
 });

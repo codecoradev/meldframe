@@ -13,6 +13,12 @@
 </script>
 
 <div class="shell">
+  {#if snap.state.connection.type === 'halted'}
+    <div class="halted" role="alert" data-testid="halted">
+      The file and the server no longer fit. Reload to start again from the server's copy.
+      <button onclick={() => location.reload()}>Reload</button>
+    </div>
+  {/if}
   <Toolbar state={snap.state} {dispatch} {actor} />
   <main>
     {#if snap.state.panels.layers}
@@ -40,6 +46,11 @@
   .shell {
     display: flex;
     flex-direction: column;
+  }
+  .halted {
+    padding: var(--space-2) var(--space-3);
+    background: var(--colour-danger);
+    color: var(--colour-bg);
   }
   main {
     flex: 1;

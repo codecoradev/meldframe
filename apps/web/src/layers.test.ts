@@ -29,3 +29,17 @@ describe('layerRows', () => {
     expect(rows.find((r) => r.id === 't')?.actor).toBeUndefined();
   });
 });
+
+describe('layerRows safety and cost', () => {
+  it('does not show an inherited property as the actor of a node called constructor', () => {
+    const rows = layerRows([n('constructor', null, 'a'), n('toString', null, 'b')], [], {});
+    expect(rows.map((r) => r.actor)).toEqual([undefined, undefined]);
+  });
+
+  it('handles a large file in linear time', () => {
+    const many = Array.from({ length: 20000 }, (_, i) => n(`n${i}`, i === 0 ? null : `n${Math.floor((i - 1) / 2)}`, String(i).padStart(6, '0')));
+    const t = performance.now();
+    expect(layerRows(many, [], {})).toHaveLength(20000);
+    expect(performance.now() - t).toBeLessThan(1000);
+  });
+});

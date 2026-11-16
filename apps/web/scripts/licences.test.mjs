@@ -33,6 +33,14 @@ describe('npm licence check', () => {
     });
     expect(checkLock(l).map((v) => v.name)).toEqual(['other']);
   });
+  it('allows MPL-2.0 only for the exact lightningcss packages, not look-alikes', () => {
+    const dev = (n) => ({ [`node_modules/${n}`]: { license: 'MPL-2.0', dev: true } });
+    const l = lock({ ...dev('lightningcss-darwin-arm64'), ...dev('lightningcss-linux-x64-musl'), ...dev('lightningcss-evil'), ...dev('lightningcss-linux'), ...dev('lightningcss-linux-x64-gnu-extra') });
+    expect(checkLock(l).map((v) => v.name)).toEqual(['lightningcss-evil', 'lightningcss-linux', 'lightningcss-linux-x64-gnu-extra']);
+  });
+  it('does not allow MPL-2.0 for a shipped lightningcss', () => {
+    expect(checkLock(lock({ 'node_modules/lightningcss': { license: 'MPL-2.0' } })).map((v) => v.name)).toEqual(['lightningcss']);
+  });
   it('checks an SPDX OR expression by any allowed alternative', () => {
     expect(checkLock(lock({ 'node_modules/a': { license: '(MIT OR GPL-3.0)' } }))).toEqual([]);
   });

@@ -61,3 +61,15 @@ fn bad_json_and_unknown_actions_are_errors_not_panics() {
 fn a_file_that_does_not_load_is_an_error() {
     assert!(Bridge::new("usr_me", "web", 1, "{", 0).is_err());
 }
+
+#[test]
+fn a_panic_is_described_with_its_message_and_place() {
+    assert_eq!(
+        meldframe_wasm::describe_panic("boom", Some(("src/a.rs", 7))),
+        "meldframe-wasm panicked: boom (src/a.rs:7)"
+    );
+    assert_eq!(
+        meldframe_wasm::describe_panic("boom", None),
+        "meldframe-wasm panicked: boom"
+    );
+}
