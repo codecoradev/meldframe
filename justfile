@@ -16,7 +16,7 @@ dev-server:
 
 # Start the web client against the dev server
 dev-web:
-    @if [ -f apps/web/package.json ]; then cd apps/web && npm run dev; else echo "dev-web: the web client arrives in E1.x"; fi
+    @if [ -f apps/web/package.json ]; then cd apps/web && { [ -d node_modules ] || npm ci; } && npm run dev; else echo "dev-web: the web client arrives in E1.x"; fi
 
 # Run the test suite (Rust and web parts run when they exist)
 test:
@@ -36,6 +36,7 @@ check:
     cargo test --workspace
     for c in deps-check build-matrix portable-check size-check ui-literals; do cargo xtask $c || exit 1; done
     bash tools/check-protocol.sh
+    cd apps/web && { [ -d node_modules ] || npm ci; } && npm run check && npm run build
     bash scripts/dev-seed-test.sh
     @bash -n scripts/pg-start.sh scripts/dev-seed.sh && echo "check (scripts): syntax ok"
     @echo "migrations: run 'just dev-db' then 'bash tools/check-migrations.sh'; licences: 'cargo xtask licences --check' once it is merged"

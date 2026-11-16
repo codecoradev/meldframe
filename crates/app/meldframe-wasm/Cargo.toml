@@ -7,7 +7,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [package.metadata.meldframe]
-kind = "app"
+kind = "ffi"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
