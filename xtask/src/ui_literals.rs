@@ -163,11 +163,11 @@ pub fn check_file(path: &str, content: &str) -> Vec<Finding> {
 }
 
 /// File extensions to lint for a package: UI crates (kind `ui`, `feature-ui`) in Rust and CSS,
-/// and the web app's styles (`apps/web`, CSS and SCSS). Anything else is out of scope.
+/// and the web app's styles and components (`apps/web`: CSS, SCSS and Svelte). Anything else is out of scope.
 pub fn scope(p: &Package) -> &'static [&'static str] {
     match (p.kind.as_deref(), p.dir.as_str()) {
         (Some("ui" | "feature-ui"), _) => &["rs", "css"],
-        (_, "apps/web") => &["css", "scss"],
+        (_, "apps/web") => &["css", "scss", "svelte"],
         _ => &[],
     }
 }
@@ -281,7 +281,7 @@ mod tests {
             scope(&p("feature-ui", "crates/features/g/g-ui")),
             ["rs", "css"]
         );
-        assert_eq!(scope(&p("bin", "apps/web")), ["css", "scss"]);
+        assert_eq!(scope(&p("bin", "apps/web")), ["css", "scss", "svelte"]);
         assert!(scope(&p("bin", "apps/server")).is_empty());
         assert!(scope(&p("feature", "crates/features/g/g")).is_empty());
     }
