@@ -1,6 +1,6 @@
 // The canvas as plain data: what to draw and what a point means. No Pixi here, so it is testable.
 import type { Node } from '@meldframe/protocol';
-import { siblings } from '../layers';
+import { childrenOf } from '../layers';
 
 export interface SceneItem {
   id: string;
@@ -19,8 +19,9 @@ export interface SceneItem {
 /** Every node with its absolute position, back to front (a parent before its children). */
 export function sceneItems(nodes: Node[]): SceneItem[] {
   const out: SceneItem[] = [];
+  const kids = childrenOf(nodes);
   const visit = (parentId: string | null, ox: number, oy: number) => {
-    for (const n of siblings(nodes, parentId)) {
+    for (const n of kids.get(parentId) ?? []) {
       const x = ox + n.x;
       const y = oy + n.y;
       out.push({

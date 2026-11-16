@@ -52,3 +52,31 @@ describe('Engine over the real app layer (WASM)', () => {
     expect(e.snapshot().events.some((ev) => ev.type === 'refused')).toBe(true);
   });
 });
+
+describe('Engine re-reads only what changed', () => {
+  it('does not parse or notify on a tick that changes nothing', () => {
+    const e = make();
+    e.dispatch({ type: 'start', nowMs: 1 });
+    e.dispatch({ type: 'connected', nowMs: 2 });
+    const before = { ...e.stats };
+    const first = e.snapshot();
+    let notified = 0;
+    e.subscribe(() => notified++);
+    for (let i = 0; i < 5; i++) e.dispatch({ type: 'tick', nowMs: 1000 + i });
+    expect(e.stats).toEqual(before);
+    expect(notified).toBe(0);
+    expect(e.snapshot()).toBe(first);
+  });
+
+  it('re-reads the nodes only when the document changed', () => {
+    const e = make();
+    e.dispatch({ type: 'createNode', kind: 'frame', x: 0, y: 0, parent: null });
+    const nodes = e.snapshot().nodes;
+    const reads = e.stats.nodeReads;
+    e.dispatch({ type: 'setTool', tool: 'text' });
+    expect(e.stats.nodeReads).toBe(reads);
+    expect(e.snapshot().nodes).toBe(nodes);
+    e.dispatch({ type: 'undo' });
+    expect(e.stats.nodeReads).toBe(reads + 1);
+  });
+});

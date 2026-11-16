@@ -9,7 +9,13 @@ export const DEV_ONLY = [...SHIPPED, '0BSD', 'BlueOak-1.0.0'];
  * Dev-only build tools with a file-level copyleft licence that nothing links into the product: lightningcss
  * (a CSS minifier Vite calls as a separate native library) and its platform binaries.
  */
-export const DEV_EXCEPTIONS = { 'MPL-2.0': /^lightningcss(?:-[a-z0-9-]+)?$/ };
+const LIGHTNINGCSS = [
+  'lightningcss', 'lightningcss-android-arm64', 'lightningcss-darwin-arm64', 'lightningcss-darwin-x64',
+  'lightningcss-freebsd-x64', 'lightningcss-linux-arm-gnueabihf', 'lightningcss-linux-arm64-gnu',
+  'lightningcss-linux-arm64-musl', 'lightningcss-linux-x64-gnu', 'lightningcss-linux-x64-musl',
+  'lightningcss-win32-arm64-msvc', 'lightningcss-win32-x64-msvc',
+];
+export const DEV_EXCEPTIONS = { 'MPL-2.0': { test: (name) => LIGHTNINGCSS.includes(name) } };
 
 function allowedBy(expression, allowed, name) {
   const options = expression.replace(/[()]/g, ' ').split(/\s+OR\s+/);

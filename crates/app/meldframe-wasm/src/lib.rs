@@ -56,6 +56,42 @@ fn to_json<T: serde::Serialize + ?Sized>(value: &T) -> String {
     serde_json::to_string(value).expect("plain data serialises")
 }
 
+/// The text of a panic for the browser console.
+pub fn describe_panic(message: &str, at: Option<(&str, u32)>) -> String {
+    match at {
+        Some((file, line)) => format!("meldframe-wasm panicked: {message} ({file}:{line})"),
+        None => format!("meldframe-wasm panicked: {message}"),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console, js_name = error)]
+    fn console_error(text: &str);
+}
+
+/// Makes a panic a readable error in the browser console instead of "unreachable executed".
+#[cfg(target_arch = "wasm32")]
+fn install_panic_hook() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        std::panic::set_hook(Box::new(|info| {
+            let message = info
+                .payload()
+                .downcast_ref::<&str>()
+                .map(|s| (*s).to_owned())
+                .or_else(|| info.payload().downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "(no message)".into());
+            let at = info.location().map(|l| (l.file(), l.line()));
+            console_error(&describe_panic(&message, at));
+        }));
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn install_panic_hook() {}
+
 /// The app for the browser: the same five calls as [`Bridge`].
 #[wasm_bindgen]
 #[derive(Debug)]
@@ -74,6 +110,7 @@ impl WasmApp {
         nodes_json: &str,
         seq: f64,
     ) -> Result<WasmApp, JsValue> {
+        install_panic_hook();
         if !(seq >= 0.0 && seq.fract() == 0.0 && seq <= 9_007_199_254_740_991.0) {
             return Err(JsValue::from_str("seq: not a whole number"));
         }
