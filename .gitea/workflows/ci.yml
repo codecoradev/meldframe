@@ -109,3 +109,9 @@ jobs:
           # A missing DATABASE_URL fails the tests here instead of skipping them.
           MELDFRAME_REQUIRE_PG: "1"
         run: cargo test -p meldframe-server-tests --test pg_contract --test pg_restore --test pg_isolation
+      # The server binary on Postgres: REST submit, restart, file restored (tools/dev-smoke.sh).
+      - name: Server smoke test against Postgres
+        env:
+          DATABASE_URL: postgres://postgres:postgres@meldframe-pg:5432/postgres
+          MELDFRAME_REQUIRE_PG: "1"
+        run: bash tools/dev-smoke.sh

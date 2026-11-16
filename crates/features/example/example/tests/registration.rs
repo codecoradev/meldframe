@@ -41,7 +41,7 @@ fn registering_it_twice_is_refused() {
         reg.register(&ExampleModule),
         Err(RegistryError::DuplicateModule { module: "example" })
     );
-    assert_eq!(reg.agent_tools().len(), 1);
+    assert_eq!(reg.agent_tools().len(), 2);
 }
 
 #[test]
@@ -77,4 +77,13 @@ fn every_tool_of_the_example_has_a_tier_and_a_policy() {
     for tool in reg.agent_tools() {
         assert_eq!(reg.policy_for(tool.name), Some(default_policy(tool.tier)));
     }
+}
+
+#[test]
+fn the_module_also_registers_a_change_tool_so_a_developer_can_write_through_the_gate() {
+    let mut reg = Registry::new();
+    reg.register(&ExampleModule).unwrap();
+    let tool = reg.agent_tool("example_edit").expect("tool is listed");
+    assert_eq!((tool.module, tool.tier), ("example", RiskTier::Change));
+    assert_eq!(reg.policy_for("example_edit"), Some(Policy::Auto));
 }

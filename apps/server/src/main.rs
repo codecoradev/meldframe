@@ -4,7 +4,7 @@ use meldframe_http::{
     dev_tokens_warning,
 };
 use meldframe_http_live::LiveConfig;
-use meldframe_server::{Server, SharedServer};
+use meldframe_server::{Backing, Server, SharedServer};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -29,20 +29,31 @@ const CAPTURE: capture::Config = capture::Config {
 };
 
 fn main() {
-    let server = Server::assemble();
+    // Serve only when asked, and read secrets from the environment, never from argv. Postgres (and its
+    // migrations) is touched only when serving: DATABASE_URL set, else memory.
+    let listen = std::env::var("MELDFRAME_LISTEN").ok();
+    let backing = if listen.is_some() {
+        Backing::from_env().unwrap_or_else(|e| fail(&e))
+    } else {
+        Backing::memory()
+    };
+    let server = Server::assemble_in(Vec::new(), backing);
     for module in server.registry().module_names() {
         println!("module {module}");
     }
     for tool in server.registry().agent_tools() {
         println!("tool {} ({})", tool.name, tool.tier.as_str());
     }
-    // Serve only when asked, and read secrets from the environment, never from argv.
-    if let Ok(listen) = std::env::var("MELDFRAME_LISTEN")
+    if let Some(listen) = listen
         && let Err(e) = serve(&listen, server)
     {
-        eprintln!("meldframe-server: {e}");
-        std::process::exit(1);
+        fail(&e);
     }
+}
+
+fn fail(e: &dyn std::fmt::Display) -> ! {
+    eprintln!("meldframe-server: {e}");
+    std::process::exit(1);
 }
 
 fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>> {
@@ -63,6 +74,7 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     )?;
     #[cfg(feature = "capture")]
     let capture_policy = server.registry().policy_for("capture");
+    // `shared` outlives `block_on`: the last reference to a PgStore runtime must not drop inside one.
     let shared = Arc::new(SharedServer::new(server));
     let auth = Arc::new(DevTokens::parse(&spec)?);
     let config = Config::default();
@@ -89,8 +101,15 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     }
     let (live, timer) =
         meldframe_http_live::routes(state.clone(), shared.clone(), live_config, clock);
+    // Liveness for scripts: no token, no data (tools/dev-smoke.sh waits on it).
+    let health = axum::Router::new().route(
+        "/v1/health",
+        axum::routing::get(|| async { r#"{"status":"ok"}"# }),
+    );
     #[allow(unused_mut, reason = "only the capture feature adds a route")]
-    let mut app = meldframe_http::routes(state.clone()).merge(live);
+    let mut app = meldframe_http::routes(state.clone())
+        .merge(live)
+        .merge(health);
     #[cfg(feature = "capture")]
     {
         app = app.merge(cap.routes());
@@ -111,12 +130,12 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
             #[cfg(not(feature = "capture"))]
             extra: None,
         };
-        app.merge(meldframe_http::mcp::routes(state, shared, mcp))
+        app.merge(meldframe_http::mcp::routes(state, shared.clone(), mcp))
     };
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
-    rt.block_on(async {
+    let served = rt.block_on(async {
         let listener = tokio::net::TcpListener::bind(addr).await?;
         println!("listening on {addr}");
         // Heartbeats and the reaping of silent live clients (ADR-0009) run on this timer.
@@ -128,6 +147,7 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
             app.into_make_service_with_connect_info::<SocketAddr>(),
         )
         .await
-    })?;
-    Ok(())
+    });
+    drop(shared); // after block_on: see above
+    Ok(served?)
 }

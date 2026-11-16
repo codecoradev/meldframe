@@ -10,13 +10,24 @@ dev-db:
     scripts/pg-start.sh
     scripts/dev-seed.sh
 
-# Start the server against the dev database
-dev-server:
-    @if [ -f apps/server/Cargo.toml ]; then set -a; [ -f .env ] && . ./.env; set +a; cargo run -p meldframe-server; else echo "dev-server: the server arrives in E1.x"; fi
+# One command for development: Postgres, seed, then the server on http://127.0.0.1:8080 (Ctrl-C stops
+# the server; Postgres keeps running). The dev token is printed once on first run, saved in .dev-token.
+dev:
+    bash scripts/dev.sh
 
-# Start the web client against the dev server
-dev-web:
-    @if [ -f apps/web/package.json ]; then cd apps/web && npm run dev; else echo "dev-web: the web client arrives in E1.x"; fi
+# Start the server against an already running dev database (reads .env; no seed, no token handling)
+dev-server:
+    @set -a; [ -f .env ] && . ./.env; set +a; cargo run -p meldframe-server
+
+# The web client against the dev server. No client exists yet (E1.6); see AGENTS.md.
+web:
+    @if [ -f apps/web/package.json ]; then cd apps/web && npm run dev; else echo "web: there is no web client yet (apps/web is a stub until E1.6); the server of 'just dev' speaks REST and WebSocket, see docs/architecture.md"; fi
+
+dev-web: web
+
+# Smoke test of the server binary on Postgres (skips without DATABASE_URL; run 'just dev-db' first)
+dev-smoke:
+    bash tools/dev-smoke.sh
 
 # Run the test suite (Rust and web parts run when they exist)
 test:
@@ -37,5 +48,5 @@ check:
     for c in deps-check build-matrix portable-check size-check ui-literals; do cargo xtask $c || exit 1; done
     bash tools/check-protocol.sh
     bash scripts/dev-seed-test.sh
-    @bash -n scripts/pg-start.sh scripts/dev-seed.sh && echo "check (scripts): syntax ok"
+    @bash -n scripts/pg-start.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh && echo "check (scripts): syntax ok"
     @echo "migrations: run 'just dev-db' then 'bash tools/check-migrations.sh'; licences: 'cargo xtask licences --check' once it is merged"

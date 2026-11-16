@@ -28,8 +28,9 @@ Carousel, slides and motion are planned extensions and are on hold until the cor
 ```sh
 cp .env.example .env
 just dev-db       # Postgres on 127.0.0.1:5433 (Docker or no-Docker script) plus the development seed
-just dev-server   # arrives in E1.x
-just dev-web      # arrives in E1.x
+just dev          # Postgres, seed, then the server on http://127.0.0.1:8080 (token printed once)
+just web          # no web client yet (E1.6)
+just dev-smoke    # server on Postgres: submit, restart, restored
 just test
 just check
 ```
