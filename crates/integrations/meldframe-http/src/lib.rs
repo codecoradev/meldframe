@@ -10,6 +10,8 @@
 mod auth;
 mod conn;
 mod limit;
+#[cfg(feature = "mcp")]
+pub mod mcp;
 mod reply;
 mod rest;
 mod ws;
@@ -20,6 +22,7 @@ pub use auth::{
 };
 pub use conn::CappedListener;
 pub use limit::{Clock, Rate, RateLimiter};
+pub use meldframe_batch::Guard;
 pub use reply::Failure;
 
 use axum::{
@@ -44,6 +47,18 @@ pub trait Submitter: Send + Sync {
         file: &str,
         who: &Principal,
         ops: Vec<Op>,
+    ) -> Result<Vec<Accepted>, Failure>;
+
+    /// Like [`Submitter::submit`], but all or nothing as far as the checks of the gate and the room can tell
+    /// beforehand: if any op would be refused, none is written and the failure names the op
+    /// ([`Failure::Batch`]). MCP's `apply_commands` calls this unless the caller asks for `atomic: false`.
+    fn submit_atomic(
+        &self,
+        tool: &str,
+        file: &str,
+        who: &Principal,
+        ops: Vec<Op>,
+        guards: Vec<Guard>,
     ) -> Result<Vec<Accepted>, Failure>;
 }
 
@@ -181,7 +196,7 @@ fn is_invisible(c: char) -> bool {
 
 /// A file name the server should see: 1 to 128 bytes, not `.` or `..`, not only whitespace, no slash or
 /// backslash, no control or invisible formatting character.
-fn valid_file(name: &str) -> bool {
+pub(crate) fn valid_file(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 128
         && name != "."
@@ -216,6 +231,9 @@ pub(crate) struct Shared {
     max_per_principal: usize,
     pub(crate) clients: RateLimiter,
     principals: RateLimiter,
+    /// The per-principal budget as configured, for `whoami`.
+    #[cfg_attr(not(feature = "mcp"), allow(dead_code))]
+    pub(crate) principal_rate: Rate,
 }
 
 impl Shared {
@@ -260,7 +278,30 @@ impl Shared {
         })
     }
 
-    /// The shared handler: both transports call this, and it calls only `Submitter::submit`.
+    /// Run `job` on the blocking pool under the call's slot and the time limit: every call of every transport
+    /// (a write, a read) goes through here, so one set of limits covers them all.
+    pub(crate) async fn blocking<T: Send + 'static>(
+        &self,
+        who: &Principal,
+        job: impl FnOnce() -> T + Send + 'static,
+    ) -> Result<T, Reply> {
+        let Some(slot) = self.slot(who) else {
+            return Err(Reply::failure(&Failure::Unavailable(
+                "too many calls in flight".into(),
+            )));
+        };
+        let job = tokio::task::spawn_blocking(move || {
+            let _slot = slot;
+            job()
+        });
+        match tokio::time::timeout(self.timeout, job).await {
+            Err(_) => Err(Reply::timeout()),
+            Ok(Err(_)) => Err(Reply::internal()),
+            Ok(Ok(done)) => Ok(done),
+        }
+    }
+
+    /// The shared handler of REST and WebSocket: each op is its own write.
     pub(crate) async fn submit(
         &self,
         who: Principal,
@@ -268,26 +309,40 @@ impl Shared {
         file: String,
         ops: Vec<WireOp>,
     ) -> Reply {
+        let ops = ops.into_iter().map(Op::from).collect();
+        self.submit_ops(who, tool, file, ops, None).await
+    }
+
+    /// The one handler every transport ends in, MCP included: validate the names, take a slot, call the
+    /// submitter (`Some(guards)` picks [`Submitter::submit_atomic`]) and map the answer.
+    pub(crate) async fn submit_ops(
+        &self,
+        who: Principal,
+        tool: String,
+        file: String,
+        ops: Vec<Op>,
+        atomic: Option<Vec<Guard>>,
+    ) -> Reply {
         if !valid_file(&file) || !valid_tool(&tool) {
-            let reason = "a file name is 1 to 128 bytes without slashes or control characters, and a tool name is 1 to 64 letters, digits, _ - or .";
             return Reply::failure(&Failure::Refused(Refusal::Invalid {
-                reason: reason.into(),
+                reason: BAD_NAME.into(),
             }));
         }
-        let Some(slot) = self.slot(&who) else {
-            return Reply::failure(&Failure::Unavailable("too many calls in flight".into()));
-        };
         let submitter = self.submitter.clone();
-        let ops: Vec<Op> = ops.into_iter().map(Op::from).collect();
-        let job = tokio::task::spawn_blocking(move || {
-            let _slot = slot;
-            submitter.submit(&tool, &file, &who, ops)
-        });
-        match tokio::time::timeout(self.timeout, job).await {
-            Err(_) => Reply::timeout(),
-            Ok(Err(_)) => Reply::internal(),
-            Ok(Ok(Ok(accepted))) => Reply::accepted(&accepted),
-            Ok(Ok(Err(failure))) => {
+        let sent = who.clone();
+        let done = self
+            .blocking(&who, move || {
+                if let Some(guards) = atomic {
+                    submitter.submit_atomic(&tool, &file, &sent, ops, guards)
+                } else {
+                    submitter.submit(&tool, &file, &sent, ops)
+                }
+            })
+            .await;
+        match done {
+            Err(reply) => reply,
+            Ok(Ok(accepted)) => Reply::accepted(&accepted),
+            Ok(Err(failure)) => {
                 if let Failure::Unavailable(why) | Failure::Permanent(why) = &failure {
                     eprintln!("meldframe-http: unavailable: {why:?}");
                 }
@@ -297,13 +352,14 @@ impl Shared {
     }
 }
 
-/// The router: REST and WebSocket over one submitter, one authenticator and one set of limits.
-pub fn router(
+pub(crate) const BAD_NAME: &str = "a file name is 1 to 128 bytes without slashes or control characters, and a tool name is 1 to 64 letters, digits, _ - or .";
+
+fn shared(
     auth: Arc<dyn Authenticator>,
     submitter: Arc<dyn Submitter>,
     config: Config,
-) -> Router {
-    let shared = Arc::new(Shared {
+) -> Arc<Shared> {
+    Arc::new(Shared {
         auth,
         submitter,
         max_body: config.max_body,
@@ -317,9 +373,47 @@ pub fn router(
         max_per_principal: config.max_per_principal.max(1),
         clients: RateLimiter::new(config.per_client, config.clock.clone()),
         principals: RateLimiter::new(config.per_principal, config.clock),
-    });
+        principal_rate: config.per_principal,
+    })
+}
+
+fn routes(shared: Arc<Shared>) -> Router {
     Router::new()
         .route("/v1/files/{file}/tools/{tool}", post(rest::submit))
         .route("/v1/ws", get(ws::upgrade))
         .with_state(shared)
+}
+
+/// The router: REST and WebSocket over one submitter, one authenticator and one set of limits.
+pub fn router(
+    auth: Arc<dyn Authenticator>,
+    submitter: Arc<dyn Submitter>,
+    config: Config,
+) -> Router {
+    routes(shared(auth, submitter, config))
+}
+
+/// The router with MCP (`/mcp`, streamable HTTP) added: the three transports share one authenticator, one set
+/// of limits and one submitter, and MCP's reads go through `reader` on the same blocking pool.
+#[cfg(feature = "mcp")]
+pub fn router_with_mcp(
+    auth: Arc<dyn Authenticator>,
+    submitter: Arc<dyn Submitter>,
+    reader: Arc<dyn mcp::Reader>,
+    config: Config,
+) -> Router {
+    router_with_mcp_config(auth, submitter, reader, config, mcp::McpConfig::default())
+}
+
+/// [`router_with_mcp`] with the MCP settings given.
+#[cfg(feature = "mcp")]
+pub fn router_with_mcp_config(
+    auth: Arc<dyn Authenticator>,
+    submitter: Arc<dyn Submitter>,
+    reader: Arc<dyn mcp::Reader>,
+    config: Config,
+    mcp: mcp::McpConfig,
+) -> Router {
+    let shared = shared(auth, submitter, config);
+    routes(shared.clone()).merge(mcp::routes(shared, reader, mcp))
 }

@@ -1,8 +1,10 @@
 //! The server behind the HTTP adapter: [`SharedServer`] is the one [`Submitter`], so REST and WebSocket reach
 //! a room only through `Server::submit_tool` (the gate).
 
-use crate::{PERMANENT_STORE_ERROR, Server, SubmitError};
-use meldframe_host::{Accepted, Op, Principal, RoomError, StoreError};
+use crate::{AnyStore, PERMANENT_STORE_ERROR, Server, SubmitError};
+use meldframe_batch::Stop;
+use meldframe_host::{Accepted, Op, Principal, Room, RoomError, Store, StoreError};
+use meldframe_http::Guard;
 use meldframe_http::{Failure, Submitter};
 use meldframe_rooms::RegistryError;
 use std::sync::{Mutex, MutexGuard};
@@ -45,6 +47,148 @@ impl Submitter for SharedServer {
         self.lock()
             .submit_tool(tool, file, who, ops)
             .map_err(|e| failure_of(&e))
+    }
+
+    /// All or nothing: the batch is checked against the room (`meldframe_batch::check`) under the same lock
+    /// that then submits it, so no other writer can slip in between. Then it goes through the gate as usual.
+    fn submit_atomic(
+        &self,
+        tool: &str,
+        file: &str,
+        who: &Principal,
+        ops: Vec<Op>,
+        guards: Vec<Guard>,
+    ) -> Result<Vec<Accepted>, Failure> {
+        let mut s = self.lock();
+        let (ws, was_open) = (
+            who.workspace.as_str(),
+            s.with_room(&who.workspace, file, |_| ()),
+        );
+        let was_open = was_open.is_some();
+        s.open(ws, file)
+            .map_err(|e| failure_of(&SubmitError::Rooms(e)))?;
+        let checked = s
+            .with_room(ws, file, |room| {
+                meldframe_batch::check(room, &who.actor, &ops, &guards)
+            })
+            .expect("the room was just opened");
+        let done = match checked {
+            Err(Stop::Refused { index, refusal }) => Err(Failure::Batch { index, refusal }),
+            Err(Stop::Store(e)) => Err(Failure::Unavailable(e.to_string())),
+            Ok(()) => s
+                .submit_tool(tool, file, who, ops)
+                .map_err(|e| failure_of(&e)),
+        };
+        if done.is_err() && !was_open {
+            s.close(ws, file);
+        }
+        done
+    }
+}
+
+#[cfg(feature = "mcp")]
+mod read {
+    use super::*;
+    use meldframe_host::StoredOp;
+    use meldframe_http::mcp::{Conflict, FileView, Reader};
+    use meldframe_module::Policy;
+
+    impl SharedServer {
+        /// Run `f` on the room of `file`, opening it for the call when it is closed. A read tool is allowed
+        /// only when the registry has it with an `Auto` policy; without the MCP module nothing reads.
+        fn read<R>(
+            &self,
+            tool: &str,
+            who: &Principal,
+            file: &str,
+            f: impl FnOnce(&Room<AnyStore>) -> R,
+        ) -> Result<R, Failure> {
+            let mut s = self.lock();
+            if s.registry().policy_for(tool) != Some(Policy::Auto) {
+                return Err(Failure::Refused(meldframe_host::Refusal::Forbidden {
+                    tier: meldframe_module::RiskTier::Read,
+                    policy: Policy::Deny,
+                }));
+            }
+            let was_open = s.with_room(&who.workspace, file, |_| ()).is_some();
+            if !was_open {
+                s.open(&who.workspace, file)
+                    .map_err(|e| failure_of(&SubmitError::Rooms(e)))?;
+            }
+            let out = s
+                .with_room(&who.workspace, file, f)
+                .expect("the room is open");
+            if !was_open {
+                s.close(&who.workspace, file);
+            }
+            Ok(out)
+        }
+    }
+
+    fn unavailable(e: StoreError) -> Failure {
+        Failure::Unavailable(e.to_string())
+    }
+
+    impl Reader for SharedServer {
+        fn view(&self, who: &Principal, file: &str) -> Result<FileView, Failure> {
+            self.read("get_tree", who, file, |r| FileView {
+                seq: r.seq(),
+                nodes: r.nodes().to_vec(),
+            })
+        }
+
+        fn tree(
+            &self,
+            who: &Principal,
+            file: &str,
+            window: usize,
+        ) -> Result<(FileView, Vec<StoredOp>), Failure> {
+            self.read("get_tree", who, file, |r| {
+                let from = r.seq().saturating_sub(window as u64);
+                let recent = r.store().ops_after(r.id(), from, window)?;
+                Ok((
+                    FileView {
+                        seq: r.seq(),
+                        nodes: r.nodes().to_vec(),
+                    },
+                    recent,
+                ))
+            })?
+            .map_err(unavailable)
+        }
+
+        fn conflict(
+            &self,
+            who: &Principal,
+            file: &str,
+            since: u64,
+            node: &str,
+            limit: usize,
+        ) -> Result<Conflict, Failure> {
+            self.read("get_tree", who, file, |r| {
+                let changes = meldframe_batch::changes_to(r, since, node, limit)?;
+                Ok(Conflict {
+                    seq: r.seq(),
+                    node: r.nodes().iter().find(|n| n.id == node).cloned(),
+                    changes,
+                })
+            })?
+            .map_err(unavailable)
+        }
+
+        fn applied(
+            &self,
+            who: &Principal,
+            file: &str,
+            keys: &[String],
+        ) -> Result<Vec<Option<u64>>, Failure> {
+            self.read("batch_status", who, file, |r| {
+                keys.iter()
+                    .map(|k| r.store().find(r.id(), &who.actor, k))
+                    .collect::<Result<Vec<_>, _>>()
+            })?
+            .map_err(unavailable)
+        }
     }
 }
 

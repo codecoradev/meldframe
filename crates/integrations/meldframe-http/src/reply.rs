@@ -13,6 +13,8 @@ use std::time::Duration;
 pub enum Failure {
     /// A tool, the gate or the room refused: it has a stable `Refusal::code`.
     Refused(Refusal),
+    /// An atomic batch was refused before any op was written: the op at `index` (from 0) would be refused.
+    Batch { index: usize, refusal: Refusal },
     /// Not a refusal: the store is down, the registry is full. Carries a text for the log, not for the caller.
     Unavailable(String),
     /// Not a refusal either, but sending the same call again cannot succeed (the data cannot be stored).
@@ -54,18 +56,31 @@ impl Reply {
         }
     }
 
+    /// A refusal: its status and code, plus `nodeId` for a conflict and `index` for an op of an atomic batch.
+    fn refused(r: &Refusal, index: Option<usize>) -> Self {
+        let status = match r {
+            Refusal::Forbidden { .. } => 403,
+            Refusal::QuotaExceeded { .. } => 429,
+            Refusal::Conflict { .. } => 409,
+            Refusal::Invalid { .. } => 400,
+            Refusal::DependencyRejected { .. } | Refusal::Apply(_) => 422,
+        };
+        let mut reply = Self::error(status, r.code(), &r.to_string(), r.retryable());
+        if let Some(e) = reply.body["error"].as_object_mut() {
+            if let Refusal::Conflict { node_id } = r {
+                e.insert("nodeId".into(), json!(node_id));
+            }
+            if let Some(i) = index {
+                e.insert("index".into(), json!(i));
+            }
+        }
+        reply
+    }
+
     pub(crate) fn failure(f: &Failure) -> Self {
         match f {
-            Failure::Refused(r) => {
-                let status = match r {
-                    Refusal::Forbidden { .. } => 403,
-                    Refusal::QuotaExceeded { .. } => 429,
-                    Refusal::Conflict { .. } => 409,
-                    Refusal::Invalid { .. } => 400,
-                    Refusal::DependencyRejected { .. } | Refusal::Apply(_) => 422,
-                };
-                Self::error(status, r.code(), &r.to_string(), r.retryable())
-            }
+            Failure::Refused(r) => Self::refused(r, None),
+            Failure::Batch { index, refusal } => Self::refused(refusal, Some(*index)),
             Failure::Permanent(_) => Self::error(
                 400,
                 "invalid",

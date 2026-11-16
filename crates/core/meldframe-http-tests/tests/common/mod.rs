@@ -3,7 +3,7 @@
 
 use axum::{Router, body::Body, http::Request};
 use meldframe_host::{Accepted, Op, Principal};
-use meldframe_http::{Authenticator, Config, DevTokens, Failure, Rate, Submitter, router};
+use meldframe_http::{Authenticator, Config, DevTokens, Failure, Guard, Rate, Submitter, router};
 use meldframe_protocol::Command;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -76,6 +76,16 @@ impl Submitter for Fake {
         std::thread::sleep(Duration::from_millis(self.delay_ms.load(Ordering::SeqCst)));
         assert!(!(self.panics && n == 0), "the store blew up");
         self.reply.lock().unwrap().clone()
+    }
+    fn submit_atomic(
+        &self,
+        tool: &str,
+        file: &str,
+        who: &Principal,
+        ops: Vec<Op>,
+        _guards: Vec<Guard>,
+    ) -> Result<Vec<Accepted>, Failure> {
+        self.submit(tool, file, who, ops)
     }
 }
 

@@ -1,0 +1,180 @@
+{
+  "batchLimit": 100,
+  "tools": [
+    {
+      "description": "Report who you are to this server and what limits your calls have: the workspace and actor your token stands for, the batch limit (at most 100 commands per apply_commands call), the limits of a file (nodes, depth, text length) and your call rate. Call it first; it changes nothing.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "whoami",
+      "tier": "read"
+    },
+    {
+      "description": "Read the node tree of a file: every node with its id, name, kind, position and size, the actor that last changed it and the sequence number of that change, nested under its parent in sibling order. The result carries seq, the file's current sequence number: pass it as ifSeq to apply_commands so that your edit is refused with conflict if a node it touches changed after this read. A file that does not exist yet reads as seq 0 with no nodes. Changes nothing.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "description": "The name of the file: 1 to 128 characters, no slashes or control characters. A file belongs to the workspace of your token; a name that does not exist yet is a new, empty file.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxDepth": {
+            "description": "Do not list nodes nested deeper than this (0 lists only the nodes at the top). Default: all.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "type": "object"
+      },
+      "name": "get_tree",
+      "tier": "read"
+    },
+    {
+      "description": "Read the full data of up to 100 nodes of a file by id: every property of each node, as the commands set them. Ids that are not in the file are listed under missing. The result carries seq, the file's current sequence number, for ifSeq. Changes nothing.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "description": "The name of the file: 1 to 128 characters, no slashes or control characters. A file belongs to the workspace of your token; a name that does not exist yet is a new, empty file.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "ids": {
+            "description": "The ids of the nodes to read: 1 to 100.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "file",
+          "ids"
+        ],
+        "type": "object"
+      },
+      "name": "get_nodes",
+      "tier": "read"
+    },
+    {
+      "description": "Change a file by applying commands in order: addNode {node}, updateNode {id, patch}, removeNode {id}, reparent {id, parentId, pos?}, reorder {id, before? | after? | pos?}. One call takes 1 to 100 commands (the batch limit is 100 commands). The call is atomic by default: it is checked as a whole before anything is written, so if any command would be refused, none is written and the error names the command by index. Two rare cases can still leave the first commands written (the store fails part way, or ifSeq is older than the snapshot the file was opened from): send the same call again with the same key and check it with batch_status. Set atomic to false to keep the commands before the first failing one. Every call needs an idempotencyKey (also accepted as idempotency_key): send the same call again with the same key after a timeout and nothing is written twice. Pass ifSeq (also accepted as if_seq), the seq of your last read, to refuse the call with conflict when a node it touches changed since (ifSeq must be within 2000 changes of the file's seq, or the call is refused as invalid; with atomic false, a command that touches a node an earlier command of the call touched and also a new node is refused as invalid, because ifSeq cannot guard it); the error then lists the changes (seq and actor) and the node's current data. Removing a frame needs the owner's approval and is refused as forbidden. Every command is checked against the file's limits; the error code says what to fix.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "atomic": {
+            "default": true,
+            "description": "True (the default): write all commands or none. False: write the commands before the first one that fails.",
+            "type": "boolean"
+          },
+          "commands": {
+            "description": "The commands to apply in order: 1 to 100.",
+            "items": {
+              "description": "One command; its fields depend on its type, as listed in the tool description. addNode takes node {id, type (frame, rect, ellipse, text or shader), name, parentId, x, y, w, h, fill, text, ...}; updateNode takes a patch of the fields to change.",
+              "properties": {
+                "type": {
+                  "enum": [
+                    "addNode",
+                    "updateNode",
+                    "removeNode",
+                    "reparent",
+                    "reorder"
+                  ]
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "file": {
+            "description": "The name of the file: 1 to 128 characters, no slashes or control characters. A file belongs to the workspace of your token; a name that does not exist yet is a new, empty file.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "The idempotency key of the call (1 to 100 characters). Send idempotencyKey or idempotency_key, not both.",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "The idempotency key of the call (1 to 100 characters). Send idempotency_key or idempotencyKey, not both.",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "ifSeq": {
+            "description": "The seq of your last read. The call is refused with conflict if a node it touches changed after it. Send ifSeq or if_seq, not both.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "if_seq": {
+            "description": "The same as ifSeq.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file",
+          "commands"
+        ],
+        "type": "object"
+      },
+      "name": "apply_commands",
+      "tier": "change"
+    },
+    {
+      "description": "Find out what became of an apply_commands call from its idempotencyKey (also accepted as idempotency_key), for example after a timeout: how many of its commands were written, and the sequence number of each. state is none when nothing was written, applied when commands were written, and partial when you pass count (the number of commands the call had) and fewer were written; then send the call again with the same key to write the rest. Looks at the first 100 commands of a call. Changes nothing.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "description": "How many commands the call had; with it, state can be partial.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "file": {
+            "description": "The name of the file: 1 to 128 characters, no slashes or control characters. A file belongs to the workspace of your token; a name that does not exist yet is a new, empty file.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "The idempotency key of the call (1 to 100 characters). Send idempotencyKey or idempotency_key, not both.",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "The idempotency key of the call (1 to 100 characters). Send idempotency_key or idempotencyKey, not both.",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "type": "object"
+      },
+      "name": "batch_status",
+      "tier": "read"
+    }
+  ]
+}

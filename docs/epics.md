@@ -79,7 +79,7 @@ Carry the document core from the spike (decision 14, survey section 6.1): `Comma
 
 ### E1.3 Admission gate (M)
 ADR-0010; the survey's candidate 2.
-- [ ] WebSocket, MCP and REST submit through one gate; the room accepts a write only with a permit the gate creates, so a path that skips the gate does not compile. (Proven: the permit and the compile-fail proof in `meldframe-rooms`, and `Server::submit_tool` takes a file and goes Gate, Admission, `Rooms::accept` with no `&mut Room` exposed. The WebSocket and REST transports now call `Server::submit_tool` through one handler in `meldframe-http` and have no other write route (tests). Open: MCP, E1.5.)
+- [x] WebSocket, MCP and REST submit through one gate; the room accepts a write only with a permit the gate creates, so a path that skips the gate does not compile. (Proven: the permit and the compile-fail proof in `meldframe-rooms`, and `Server::submit_tool` takes a file and goes Gate, Admission, `Rooms::accept` with no `&mut Room` exposed. The WebSocket and REST transports now call `Server::submit_tool` through one handler in `meldframe-http` and have no other write route (tests). MCP calls the same `Shared::submit_ops` on the same router state; `meldframe-mcp-tests/tests/gate.rs` proves one submitter for an MCP and a REST write and one rate budget per principal across both.)
 - [x] Refusals have stable codes and English messages (`forbidden`, `quota_exceeded`, `conflict`, `invalid`, `dependency_rejected`, ...), listed in one table that a test checks against the code. (`docs/error-codes.md` has the gate table; `tests/refusal_codes.rs` in `meldframe-host` checks it.)
 - [x] Rate limiting happens before parsing; per-call timeouts apply (carried H1 behaviour, tests). (`meldframe-http`: per-address and per-principal token buckets with an injected clock, spent before the body is read, proven with a body that is never polled; body size limit; per-call timeout. Limits: the budgets are in memory per process, and a timed-out call may still write.)
 - [x] The principal comes from development tokens through an interface that Gatehouse implements in M2. (`Authenticator` trait; `DevTokens` reads `MELDFRAME_DEV_TOKENS` from the environment, never argv.)
@@ -92,10 +92,10 @@ ADR-0009. Status: the stream logic is the `meldframe-stream` crate (pure, no tra
 - [ ] Concurrent streams are capped; heartbeats are tested against a real clock.
 
 ### E1.5 MCP surface v1 (M)
-- [ ] Tools: read the file tree and nodes, apply commands (atomic by default for multi-command calls), report limits (`whoami`), batch status. Descriptions are English and name the batch limit.
-- [ ] Idempotency keys work in both spellings; `ifSeq` rejects a stale edit with `conflict` and says what changed.
-- [ ] A real MCP client (the rmcp client in tests, and Claude Code by hand) completes the M1 demonstration below.
-- [ ] Tool text and schemas are listed in a catalogue that a test compares with the server.
+- [x] Tools: read the file tree and nodes, apply commands (atomic by default for multi-command calls), report limits (`whoami`), batch status. Descriptions are English and name the batch limit. (`get_tree`, `get_nodes`, `apply_commands`, `whoami`, `batch_status`; `surface.rs` drives each with an rmcp client; atomic is a dry run under the server lock, see `docs/architecture.md`.)
+- [x] Idempotency keys work in both spellings; `ifSeq` rejects a stale edit with `conflict` and says what changed. (`idempotencyKey` and `idempotency_key`, `ifSeq` and `if_seq`; the conflict lists the changes, the node's current data and the file's seq. Limits: an atomic call guards every node a command touches for the first time; `ifSeq` must be within 2,000 changes of the file; see `docs/architecture.md`.)
+- [ ] A real MCP client (the rmcp client in tests, and Claude Code by hand) completes the M1 demonstration below. (Proven with the rmcp client in `demo.rs`: steps 1, 2 and 6 in part, with the person editing over REST. Open: Claude Code by hand, undo (step 3), reconnect (4) and capture (5), which need E1.6, E1.4 and E1.7.)
+- [x] Tool text and schemas are listed in a catalogue that a test compares with the server. (`docs/mcp-tools.json`; `catalogue.rs` compares it with the tools an rmcp client lists and with the registry; regenerate with the ignored `regenerate` test.)
 
 ### E1.6 App layer and basic web editor (L, split into slices)
 ADR-0008. First vertical slice of the app layer: the editor shell.

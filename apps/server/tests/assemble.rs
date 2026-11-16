@@ -32,7 +32,12 @@ mod feature_on {
     fn the_tool_list_has_example_ping_with_its_tier() {
         let server = Server::assemble();
         assert!(tool_names(&server).contains(&"example_ping"));
-        assert_eq!(server.registry().module_names(), ["example"]);
+        let expected: &[&str] = if cfg!(feature = "mcp") {
+            &["example", "mcp"]
+        } else {
+            &["example"]
+        };
+        assert_eq!(server.registry().module_names(), expected);
         let tool = server.registry().agent_tool("example_ping").unwrap();
         assert_eq!(tool.tier, RiskTier::Read);
     }

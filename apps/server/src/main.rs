@@ -1,7 +1,7 @@
 use axum::serve::ListenerExt;
 use meldframe_http::{
     CappedListener, Config, DevTokens, check_dev_listen, check_dev_tokens_allowed,
-    dev_tokens_warning, router,
+    dev_tokens_warning,
 };
 use meldframe_server::{Server, SharedServer};
 use std::net::SocketAddr;
@@ -45,11 +45,24 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     let spec = std::env::var("MELDFRAME_DEV_TOKENS").map_err(
         |_| "set MELDFRAME_DEV_TOKENS to token:workspace:actor entries, comma separated",
     )?;
-    let app = router(
-        Arc::new(DevTokens::parse(&spec)?),
-        Arc::new(SharedServer::new(server)),
-        Config::default(),
-    );
+    let shared = Arc::new(SharedServer::new(server));
+    let auth = Arc::new(DevTokens::parse(&spec)?);
+    #[cfg(feature = "mcp")]
+    let app = {
+        // MCP answers to loopback host names unless MELDFRAME_MCP_HOSTS lists others (comma separated).
+        let hosts = std::env::var("MELDFRAME_MCP_HOSTS").unwrap_or_default();
+        let mcp = meldframe_http::mcp::McpConfig {
+            allowed_hosts: hosts
+                .split(',')
+                .map(str::trim)
+                .filter(|h| !h.is_empty())
+                .map(str::to_owned)
+                .collect(),
+        };
+        meldframe_http::router_with_mcp_config(auth, shared.clone(), shared, Config::default(), mcp)
+    };
+    #[cfg(not(feature = "mcp"))]
+    let app = meldframe_http::router(auth, shared, Config::default());
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;

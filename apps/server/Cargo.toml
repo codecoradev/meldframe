@@ -12,11 +12,14 @@ kind = "bin"
 [features]
 # Each feature module is compiled in only when its cargo feature is on; leaving one out removes its
 # tools from the registry (ADR-0007). The example module is the first.
-default = ["example"]
+default = ["example", "mcp"]
 example = ["dep:example"]
+# The MCP surface: its tools in the registry and the read path behind them (E1.5).
+mcp = ["meldframe-http/mcp"]
 
 [dependencies]
 meldframe-http = { path = "../../crates/integrations/meldframe-http" }
+meldframe-batch = { path = "../../crates/core/meldframe-batch" }
 meldframe-host = { path = "../../crates/core/meldframe-host" }
 meldframe-module = { path = "../../crates/core/meldframe-module" }
 meldframe-rooms = { path = "../../crates/core/meldframe-rooms" }
