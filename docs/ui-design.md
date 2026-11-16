@@ -102,6 +102,16 @@ The title bar is split into three cells by vertical rules: window controls and s
 
 Agents speak ACP to a program on the person's machine, Claude Code first, with a custom ACP command allowed. Design changes from a chat arrive over MCP like any agent's: they pass the gate and appear as batches, so Review and Revert work unchanged. The chat adds conversation, code access and tool prompts only.
 
+**First run** `[P]`, five steps, drawn on board M2.1 (first-run flow) of the design canvas:
+
+1. Sign in through Gatehouse. The app opens the browser and returns; there is no password field in the app.
+2. Pick or create a Workspace (picked for the person when there is only one).
+3. Authorize this computer: an OAuth consent that lists the risk tiers (Read and Change Auto, Delete Ask) for agents the app starts. The app keeps the short-lived token in the system keychain; nothing is shown or copied. The person revokes it under Settings, Agents (board M2.3).
+4. Connect the agent: the app finds Claude Code and starts it over ACP. The agent keeps its own sign-in and Meldframe never sees those credentials; if the agent is signed out, the button starts the agent's own sign-in.
+5. The base page: repositories and chats on the left, the chat pane, and the design files, each with an empty state that offers the next action.
+
+The web editor has no steps 3 and 4. An agent that runs elsewhere gets the MCP endpoint, adds it, and starts its own OAuth sign-in; the browser shows a consent screen with the same tiers, and the agent then appears as an actor in Activity. Nobody creates or stores an API key (decision 31). Both paths end in the same room and pass the same gate, so Activity, Review and Revert behave the same. Each step also has a waiting, failed or empty state, drawn on board D.4 (desktop first launch).
+
 Open: whether the sidebar word is Projects or Repositories (Q4); whether a repository is only where code is read and written while the design stays in the workspace; whether one chat means one working copy and branch; whether Start preview (run the repository's app) is in scope; whether Code mode is in the first desktop build.
 
 ## 9. Rendering `[P]`

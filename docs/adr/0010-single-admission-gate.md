@@ -3,6 +3,8 @@ status: accepted
 ---
 # One admission gate in front of every change
 
+> Amended in part by ADR-0012: agents connect through an OAuth grant, not a token shown once. The gate, the permit, the risk tiers and the policy below stand.
+
 Every change from every transport (WebSocket, MCP, REST, editor) passes one admission step that decides authorisation, mode, quota, timeout and error mapping. The room accepts a write only with a permit that only the gate can create, so a path that skips the gate does not compile. Calls have risk tiers (Read, Change, Delete) with policy per tier and optional per-agent overrides; deleted data goes to the trash first. Agents pair with a random token that is shown once and stored only as a hash. Policy that cannot be read means reads only.
 
 ## Mapping to live apply
