@@ -54,7 +54,13 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     let state = meldframe_http::shared(auth, shared.clone(), config);
     let (live, timer) =
         meldframe_http_live::routes(state.clone(), shared.clone(), LiveConfig::default(), clock);
-    let app = meldframe_http::routes(state.clone()).merge(live);
+    let app =
+        meldframe_http::routes(state.clone())
+            .merge(live)
+            .merge(meldframe_http_snapshot::routes(
+                state.clone(),
+                shared.clone(),
+            ));
     #[cfg(feature = "mcp")]
     let app = {
         // MCP answers to loopback host names unless MELDFRAME_MCP_HOSTS lists others (comma separated).

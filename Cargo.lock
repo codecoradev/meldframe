@@ -1133,6 +1133,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-http-snapshot"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-protocol",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-http-tests"
 version = "0.0.0"
 dependencies = [
@@ -1141,6 +1152,7 @@ dependencies = [
  "meldframe-check",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-http-snapshot",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-rooms",
@@ -1238,6 +1250,7 @@ dependencies = [
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-live",
+ "meldframe-http-snapshot",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-rooms",

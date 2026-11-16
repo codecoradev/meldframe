@@ -20,6 +20,7 @@ mcp = ["meldframe-http/mcp"]
 [dependencies]
 meldframe-http = { path = "../../crates/integrations/meldframe-http" }
 meldframe-http-live = { path = "../../crates/integrations/meldframe-http-live" }
+meldframe-http-snapshot = { path = "../../crates/integrations/meldframe-http-snapshot" }
 meldframe-batch = { path = "../../crates/core/meldframe-batch" }
 meldframe-host = { path = "../../crates/core/meldframe-host" }
 meldframe-module = { path = "../../crates/core/meldframe-module" }

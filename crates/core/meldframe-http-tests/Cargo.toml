@@ -16,6 +16,7 @@ meldframe-module = { path = "../meldframe-module" }
 meldframe-rooms = { path = "../meldframe-rooms" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-http = { path = "../../integrations/meldframe-http" }
+meldframe-http-snapshot = { path = "../../integrations/meldframe-http-snapshot" }
 meldframe-server = { path = "../../../apps/server" }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
 serde_json = "1"
