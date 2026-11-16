@@ -10,10 +10,10 @@ publish.workspace = true
 kind = "app"
 
 [dependencies]
+meldframe-check = { path = "../../core/meldframe-check" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
+meldframe-sync = { path = "../../core/meldframe-sync" }
 serde = { version = "1", features = ["derive"] }
-
-[dev-dependencies]
 serde_json = "1"
 
 [lints]

@@ -21,6 +21,10 @@ pub enum Event {
         panel: Panel,
         open: bool,
     },
+    CollapsedChanged {
+        id: String,
+        collapsed: bool,
+    },
     ConnectionChanged {
         connection: Connection,
     },
@@ -28,10 +32,26 @@ pub enum Event {
         can_undo: bool,
         can_redo: bool,
     },
-    /// The server refused a command. The front end words the message from `code`.
-    CommandRejected {
-        op: u64,
+    /// The unconfirmed ops changed: how many are left.
+    PendingChanged {
+        count: usize,
+    },
+    /// The document changed. `optimistic` is true for the person's own edit that the server has not
+    /// confirmed; `actor` is then the person's own actor.
+    DocumentChanged {
+        actor: String,
+        optimistic: bool,
+    },
+    /// An action could not be carried out; nothing changed. A stable code such as `not_found`.
+    Refused {
+        code: String,
+    },
+    /// The server refused one of the person's ops; the view went back. The front end words the message.
+    OpRejected {
+        key: String,
         code: String,
         retryable: bool,
     },
+    /// The file and the events no longer fit. The front end must load the file again.
+    Diverged {},
 }
