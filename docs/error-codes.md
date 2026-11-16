@@ -102,3 +102,26 @@ A browser cannot set `Authorization` on a WebSocket, so there is no browser clie
 ## MCP tool errors
 
 An MCP tool call that fails returns a tool error (`isError: true`) whose structured body is `{"ok": false, "error": {"code", "message", "retryable", ...}}`: the same shape as the transport above. A refusal keeps its code from the tables above (`conflict`, `forbidden`, `E_...`) and adds, when they apply, `index` (the command of an atomic batch that would be refused, from 0), `nodeId` (a conflict) and, from `apply_commands` with `ifSeq`, `currentSeq`, `current` (the node now, `null` if removed) and `changes` (`seq`, `actor`, `command` of each op since `ifSeq` that touched the node). REST carries `nodeId` and `index` too. Two codes are worded by the MCP tools: `invalid` also covers a missing, empty or doubled idempotency key (or `ifSeq`), an `ifSeq` more than 2,000 changes behind the file, an `ifSeq` that cannot guard a command of a non-atomic call (with its `index`), a batch of 0 or more than 100 commands, a bad file name, and an `ids` list of 0 or more than 100; `bad_request` covers arguments that do not fit the input schema (an unknown field, a wrong type) and a command that is not a command (with its `index`). A call refused before MCP sees it (`unauthenticated`, `rate_limited`, `too_large`) is an HTTP answer in the transport shape, not a tool error.
+
+## Capture codes
+
+The `capture` tool (feature module `capture`, Read tier) fails with these codes. A client message in `render_failed` is cut to 200 bytes and stripped of control characters. The strings are shared with the
+transport codes above where the name is the same (`timeout`, `too_large`, `invalid`); here they describe the
+capture, not the HTTP call. A capture changes nothing, so an agent can always try again.
+
+A test in `crates/features/capture/capture/tests/registration.rs` reads this table and fails if the table and
+`capture::CODES` differ.
+
+| Code | Meaning and typical cause | What an agent should do next |
+| --- | --- | --- |
+| `no_file_selected` | The session is bound to no file and the call named none. | Select a file for the session first, then capture. |
+| `room_mismatch` | The call named a file other than the one bound to the session. A capture always uses the bound file. | Capture the bound file, or change the session's file first. |
+| `no_capable_client` | No editor that can capture has the bound file open. Returned at once, nothing is waited for. | Ask the person to open the file in the editor, then try again. |
+| `invalid` | The request is malformed: a scale not above 0 and at most 4, or a request id that is already pending. | Fix the call as the message says. |
+| `timeout` | The editor did not answer before the deadline. | Try again; check that the editor tab is open and visible. |
+| `too_large` | The image is over the size limit, or the editor refused to render it that large. | Capture a smaller node or use a lower scale. |
+| `node_not_found` | The editor has no node with that id (removed, or not synced yet). | Read the file again and use an id that exists. |
+| `stale_client` | The editor had not yet caught up to the file's latest change. | Try again in a moment. |
+| `render_failed` | The editor could not render, or sent something that is not a PNG. | Try again; if it repeats, report it. |
+| `client_disconnected` | The editor closed before it answered. | Try again once the file is open in an editor. |
+| `busy` | Too many captures are pending, or the editor already has its limit. Retryable. | Wait a moment, then try again. |

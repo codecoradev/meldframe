@@ -1,0 +1,14 @@
+[package]
+name = "capture-ui"
+description = "Capture feature view; draws state only."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "feature-ui"
+group = "capture"
+
+[lints]
+workspace = true
