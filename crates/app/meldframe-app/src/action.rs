@@ -3,12 +3,14 @@
 use crate::state::{Panel, Tool};
 use meldframe_protocol::Command;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Something a person did, or something the platform reports back.
 ///
 /// Variants without data are empty structs, not unit variants: serde does not enforce `deny_unknown_fields`
 /// on unit variants of an internally tagged enum.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -90,31 +92,37 @@ pub enum Action {
     /// Open the connection: the app asks for a subscription from its last confirmed number. `now_ms` is
     /// the shell's clock.
     Start {
+        #[ts(type = "number")]
         now_ms: u64,
     },
     /// The transport is subscribed (the first time or again). `now_ms` is the shell's clock.
     Connected {
+        #[ts(type = "number")]
         now_ms: u64,
     },
     /// The transport lost the connection, or an attempt to open it failed.
     Disconnected {},
     /// The backoff of `Effect::Reconnect` is over: try again.
     Reconnect {
+        #[ts(type = "number")]
         now_ms: u64,
     },
     /// The shell's timer: lets the app notice a silent connection or a stuck attempt.
     Tick {
+        #[ts(type = "number")]
         now_ms: u64,
     },
     /// A frame arrived from the server.
     Frame {
+        #[ts(type = "number")]
         now_ms: u64,
         frame: Frame,
     },
 }
 
 /// What the node tools can make.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub enum CreateKind {
     Frame,
@@ -123,7 +131,8 @@ pub enum CreateKind {
 }
 
 /// One value of the properties panel.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(tag = "property", content = "value", rename_all = "camelCase")]
 pub enum Property {
     Name(String),
@@ -134,7 +143,8 @@ pub enum Property {
 }
 
 /// A message of the live connection, as the transport decodes it.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -150,10 +160,16 @@ pub enum Frame {
     Heartbeat {},
     /// The server dropped frames after `after_seq` for this client (it was too slow): subscribe again from
     /// there. `latest_seq` is the newest number the server has.
-    Resync { after_seq: u64, latest_seq: u64 },
+    Resync {
+        #[ts(type = "number")]
+        after_seq: u64,
+        #[ts(type = "number")]
+        latest_seq: u64,
+    },
     /// An accepted op, numbered, with the actor the server stamped on it. The person's own ops come back
     /// this way, which confirms them.
     Event {
+        #[ts(type = "number")]
         seq: u64,
         actor: String,
         command: Command,
