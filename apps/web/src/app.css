@@ -1,0 +1,72 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Tailwind's own palette, type sizes and radii are switched off: only the tokens exist as utilities. */
+@theme inline {
+  --color-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --font-*: initial;
+
+  --color-canvas: var(--mf-canvas);
+  --color-sidebar: var(--mf-sidebar);
+  --color-panel: var(--mf-panel);
+  --color-field: var(--mf-field);
+  --color-raised: var(--mf-raised);
+  --color-hairline: var(--mf-hairline);
+  --color-menu-border: var(--mf-menu-border);
+  --color-text-strong: var(--mf-text-strong);
+  --color-text: var(--mf-text);
+  --color-text-secondary: var(--mf-text-secondary);
+  --color-text-muted: var(--mf-text-muted);
+  --color-accent: var(--mf-accent);
+  --color-primary: var(--mf-primary);
+  --color-on-primary: var(--mf-on-primary);
+  --color-selection: var(--mf-selection);
+  --color-selection-bg: var(--mf-selection-bg);
+  --color-chip-bg: var(--mf-chip-bg);
+  --color-chip-border: var(--mf-chip-border);
+  --color-chip-text: var(--mf-chip-text);
+  --color-actor-you: var(--mf-actor-you);
+  --color-actor-agent-1: var(--mf-actor-agent-1);
+  --color-actor-agent-2: var(--mf-actor-agent-2);
+  --color-actor-agent-3: var(--mf-actor-agent-3);
+  --color-on-agent-1: var(--mf-on-agent-1);
+  --color-success: var(--mf-success);
+  --color-danger: var(--mf-danger);
+  --color-danger-solid: var(--mf-danger-solid);
+  --color-warning: var(--mf-warning);
+  --color-info: var(--mf-info);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --text-title: var(--mf-text-title);
+  --text-dialog: var(--mf-text-dialog);
+  --text-panel: var(--mf-text-panel);
+  --text-base: var(--mf-text-base);
+  --text-dense: var(--mf-text-dense);
+  --text-label: var(--mf-text-label);
+
+  --radius-button: var(--mf-radius-button);
+  --radius-field: var(--mf-radius-field);
+  --radius-panel: var(--mf-radius-panel);
+  --radius-pill: var(--mf-radius-pill);
+
+  --shadow-float: var(--mf-shadow-float);
+  --shadow-popover: var(--mf-shadow-popover);
+
+  --font-ui: var(--mf-font-ui);
+  --font-mono: var(--mf-font-mono);
+}
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    background: var(--mf-canvas);
+    color: var(--mf-text);
+    font-family: var(--mf-font-ui);
+    font-size: var(--mf-text-base);
+  }
+}

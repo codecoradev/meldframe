@@ -1,3 +1,8 @@
 Copyright (c) 2026 CodeCora. All rights reserved.
 
 This repository is closed source. No license is granted to use, copy, modify or distribute any part of it without written permission.
+
+Third-party fonts bundled in the web client (apps/web), under the SIL Open Font License 1.1 (https://openfontlicense.org):
+- Inter, Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter), via @fontsource-variable/inter.
+- JetBrains Mono, Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono), via @fontsource-variable/jetbrains-mono.
+The fonts are served from the application's own files; none is loaded from a network host at runtime.

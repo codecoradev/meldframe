@@ -1,0 +1,113 @@
+/* Mirror of tokens.ts (tokens.test.ts fails on any difference). Literals live here and nowhere else. */
+
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url('@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  --mf-font-ui: 'Inter Variable', Inter, system-ui, sans-serif;
+  --mf-font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  --mf-text-title: 24px;
+  --mf-text-dialog: 22px;
+  --mf-text-panel: 16px;
+  --mf-text-base: 13px;
+  --mf-text-dense: 12px;
+  --mf-text-label: 11px;
+  --mf-space-4: 4px;
+  --mf-space-8: 8px;
+  --mf-space-12: 12px;
+  --mf-space-16: 16px;
+  --mf-space-24: 24px;
+  --mf-space-32: 32px;
+  --mf-radius-button: 7px;
+  --mf-radius-field: 8px;
+  --mf-radius-panel: 12px;
+  --mf-radius-pill: 999px;
+  --mf-height-button: 28px;
+  --mf-height-field: 28px;
+  --mf-height-chip: 22px;
+  --mf-height-menu-row: 30px;
+  --mf-shadow-float: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --mf-shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --mf-canvas: #161618;
+  --mf-sidebar: #1B1B1E;
+  --mf-panel: #1E1E21;
+  --mf-field: #26262A;
+  --mf-raised: #26262B;
+  --mf-hairline: #2E2E33;
+  --mf-menu-border: #3A3A42;
+  --mf-text-strong: #F4F4F5;
+  --mf-text: #E4E4E7;
+  --mf-text-secondary: #A1A1AA;
+  --mf-text-muted: #8B8B94;
+  --mf-accent: #3B82F6;
+  --mf-primary: #2563EB;
+  --mf-on-primary: #FFFFFF;
+  --mf-selection: #60A5FA;
+  --mf-selection-bg: #1F2540;
+  --mf-chip-bg: #1F2540;
+  --mf-chip-border: #343D6E;
+  --mf-chip-text: #C7D2FE;
+  --mf-actor-you: #7C6CF0;
+  --mf-actor-agent-1: #FB923C;
+  --mf-actor-agent-2: #2DD4BF;
+  --mf-actor-agent-3: #C084FC;
+  --mf-on-agent-1: #1C1917;
+  --mf-success: #4ADE80;
+  --mf-danger: #F87171;
+  --mf-danger-solid: #B91C1C;
+  --mf-warning: #FDE68A;
+  --mf-info: #93C5FD;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --mf-canvas: #E9E9EC;
+  --mf-sidebar: #F0F0F3;
+  --mf-panel: #FFFFFF;
+  --mf-field: #F4F4F5;
+  --mf-raised: #FFFFFF;
+  --mf-hairline: #E4E4E7;
+  --mf-menu-border: #D4D4D8;
+  --mf-text-strong: #09090B;
+  --mf-text: #18181B;
+  --mf-text-secondary: #52525B;
+  --mf-text-muted: #52525B;
+  --mf-accent: #2563EB;
+  --mf-primary: #2563EB;
+  --mf-on-primary: #FFFFFF;
+  --mf-selection: #2563EB;
+  --mf-selection-bg: #DBEAFE;
+  --mf-chip-bg: #E0E7FF;
+  --mf-chip-border: #C7D2FE;
+  --mf-chip-text: #3730A3;
+  --mf-actor-you: #7C6CF0;
+  --mf-actor-agent-1: #FB923C;
+  --mf-actor-agent-2: #2DD4BF;
+  --mf-actor-agent-3: #C084FC;
+  --mf-on-agent-1: #1C1917;
+  --mf-success: #15803D;
+  --mf-danger: #B91C1C;
+  --mf-danger-solid: #B91C1C;
+  --mf-warning: #A16207;
+  --mf-info: #1D4ED8;
+}
