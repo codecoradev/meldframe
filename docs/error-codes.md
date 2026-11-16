@@ -69,3 +69,32 @@ row or a row has no code.
 | `approval_required` | The policy for the call is Ask and the owner has not approved it. An approval is pending; sending the same op again while it is pending returns the same id. | Wait for the owner's decision, then send the same op again (same key, command, `ifSeq` and dependencies). An approval admits one call, once; a second call asks again. |
 | `approval_denied` | The owner denied this op. It stays refused. | Do not retry it. To ask again, send a new op with a new key. |
 | `approval_expired` | The approval ran out (pending or approved) before it was used. It stays refused. | Send a new op with a new key to ask again. |
+
+## Transport codes
+
+The HTTP adapter (`crates/integrations/meldframe-http` (tests in `crates/core/meldframe-http-tests`)) answers REST and WebSocket calls with one JSON shape,
+`{"error": {"code", "message", "retryable"}}`, and an HTTP status (a WebSocket reply frame carries the same body
+plus `id` and `status`). A gate refusal keeps its own code from the tables above; the statuses are `forbidden` 403,
+`quota_exceeded` 429, `conflict` 409, `invalid` 400, `dependency_rejected` and every `E_` code 422. The codes below
+belong to the transport; same rules: a code never changes meaning and is never reused. A call refused before it reaches the submitter (`unauthenticated`, `rate_limited`, `too_large`, `bad_request`,
+`request_timeout`, an over-cap `unavailable`) wrote nothing. `timeout`, `unavailable` and `internal` can come after the
+earlier ops of a batch were written (each op is its own durable write), and after `timeout` the job may still finish:
+send the batch again with the same keys.
+
+| Code | Status | Meaning and typical cause | What an agent should do next |
+| --- | --- | --- | --- |
+| `unauthenticated` | 401 | No token, or one that is unknown or revoked. | Send a valid token as `Authorization: Bearer <token>`. |
+| `rate_limited` | 429 | The peer address or the principal used up its budget. The refusal comes before the body is read. `Retry-After` says when. | Wait, then send the same call again. |
+| `too_large` | 413 | The body or frame is over the size limit. | Send fewer ops per call. |
+| `bad_request` | 400 | The body or frame is not the documented JSON (also an unknown field). | Fix the call as the message says. |
+| `request_timeout` | 408 | The body of the request took too long to arrive. | Send the call again. |
+| `timeout` | 504 | The call took longer than the time limit. | Send the same batch again with the same keys; ops already written come back as `written: false`. |
+| `unavailable` | 503 | The store is down, the server is full, or too many calls are in flight (global or per principal); not a refusal of the call. A store error that says retrying cannot succeed is `invalid` 400, not retryable. | Wait, then send the same call again. |
+| `internal` | 500 | The call failed inside the server. | Send it again later; report it if it repeats. |
+
+Notes on the transport. `timeout` covers the time from the start of the blocking job, including any wait for the
+server's lock; the job is not cancelled and keeps its in-flight slot until it ends. A WebSocket reply frame carries
+`id`, `status` and the body but not `Retry-After`. On a WebSocket the per-address limit is spent at the handshake only;
+frames are limited per principal, and a connection is closed after several limited frames in a row or when idle.
+A browser cannot set `Authorization` on a WebSocket, so there is no browser client on this path until Gatehouse; an
+`Origin` check belongs with it.

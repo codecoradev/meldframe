@@ -79,10 +79,10 @@ Carry the document core from the spike (decision 14, survey section 6.1): `Comma
 
 ### E1.3 Admission gate (M)
 ADR-0010; the survey's candidate 2.
-- [ ] WebSocket, MCP and REST submit through one gate; the room accepts a write only with a permit the gate creates, so a path that skips the gate does not compile. (Proven: the permit and the compile-fail proof in `meldframe-rooms`, and `Server::submit_tool` takes a file and goes Gate, Admission, `Rooms::accept` with no `&mut Room` exposed. Open: the WebSocket, MCP and REST transports do not exist yet.)
+- [ ] WebSocket, MCP and REST submit through one gate; the room accepts a write only with a permit the gate creates, so a path that skips the gate does not compile. (Proven: the permit and the compile-fail proof in `meldframe-rooms`, and `Server::submit_tool` takes a file and goes Gate, Admission, `Rooms::accept` with no `&mut Room` exposed. The WebSocket and REST transports now call `Server::submit_tool` through one handler in `meldframe-http` and have no other write route (tests). Open: MCP, E1.5.)
 - [x] Refusals have stable codes and English messages (`forbidden`, `quota_exceeded`, `conflict`, `invalid`, `dependency_rejected`, ...), listed in one table that a test checks against the code. (`docs/error-codes.md` has the gate table; `tests/refusal_codes.rs` in `meldframe-host` checks it.)
-- [ ] Rate limiting happens before parsing; per-call timeouts apply (carried H1 behaviour, tests).
-- [ ] The principal comes from development tokens through an interface that Gatehouse implements in M2.
+- [x] Rate limiting happens before parsing; per-call timeouts apply (carried H1 behaviour, tests). (`meldframe-http`: per-address and per-principal token buckets with an injected clock, spent before the body is read, proven with a body that is never polled; body size limit; per-call timeout. Limits: the budgets are in memory per process, and a timed-out call may still write.)
+- [x] The principal comes from development tokens through an interface that Gatehouse implements in M2. (`Authenticator` trait; `DevTokens` reads `MELDFRAME_DEV_TOKENS` from the environment, never argv.)
 
 ### E1.4 Live events (S)
 ADR-0009. Status: the stream logic is the `meldframe-stream` crate (pure, no transport; `crates/core/meldframe-stream/tests/stream.rs`: ordering, replay from a number, the store range for a client behind the window, ephemeral frames, a stalled client, the cap, heartbeats with a supplied clock and one real-clock test). `Server::submit_tool` publishes each op the room wrote (not a retried key) to the hub of its file, and `Server::subscribe` reads the range older than the window from the store (`crates/core/meldframe-live-tests/tests/live.rs`). What is left: the WebSocket transport (send, receive, close, and the timer loop that calls `Server::seen` on client traffic and `Server::tick(now)` on a schedule: nothing calls them yet, so today a vanished client keeps its stream slot until a tick runs), a protocol marker for the resync frame, and the capture and touch producers of ephemeral frames. The boxes stay open until a client over a socket proves them.
@@ -127,7 +127,7 @@ Goal: real users, tenants and agents (decisions 10 to 12; ADR-0006, ADR-0010).
 ### E2.1 Gatehouse login (M)
 - [ ] People sign in with Gatehouse (OIDC); the principal carries user and workspace.
 - [ ] Sessions are revocable; logout ends the WebSocket.
-- [ ] Development tokens are disabled in release builds.
+- [ ] Development tokens are disabled in release builds. (Partly: a release build refuses to start with dev tokens unless `MELDFRAME_ALLOW_DEV_TOKENS=1`, `check_dev_tokens_allowed`; open until Gatehouse replaces them and the override goes.)
 
 ### E2.2 MCP OAuth through Gatehouse (M)
 First platform slice (risk R9).

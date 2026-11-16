@@ -1,18 +1,22 @@
 //! Server composition root. It assembles the registry from the compiled-in feature modules and builds the
 //! room registry (one room per file) over an in-memory or Postgres backing. HTTP, MCP, REST and WebSocket
-//! transports arrive later; the binary only assembles and holds no business logic. [`PgStore`] is the
+//! transports are the `meldframe-http` adapter over [`SharedServer`]; the binary only assembles and holds no
+//! business logic. [`PgStore`] is the
 //! Postgres adapter of the store seam; [`Backing`] picks it.
 
+mod http;
 mod live;
 mod pg;
 
+pub use http::{SharedServer, failure_of};
 pub use live::{Frame, LIVE_CONFIG, MAX_LIVE_STREAMS, StreamId, SubscribeError, Subscription};
 pub use meldframe_stream::{Config, StreamError};
-pub use pg::PgStore;
+pub use pg::{PERMANENT_STORE_ERROR, PgStore};
 
 use meldframe_host::{Accepted, Gate, Op, Principal, Refusal, Room, RoomError, Store, StoredOp};
 use meldframe_module::{Module, Policy, Registry, RiskTier};
 use meldframe_rooms::{MemoryActivityLog, RegistryError, TreeFacts};
+use std::collections::HashSet;
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -26,7 +30,7 @@ pub const MAX_OPEN_ROOMS: usize = 256;
 /// A room untouched for this many milliseconds is closed by the next write (see `Server::with_idle_after`).
 pub const IDLE_AFTER_MS: u64 = 5 * 60 * 1000;
 
-type Factory = Box<dyn FnMut(&str) -> AnyStore>;
+type Factory = Box<dyn FnMut(&str) -> AnyStore + Send>;
 pub(crate) type Rooms = meldframe_rooms::Rooms<AnyStore, MemoryActivityLog, Factory>;
 
 /// Why `Server::submit_tool` wrote nothing, or stopped part way.
@@ -89,6 +93,8 @@ pub struct Server {
     rooms: Rooms,
     idle_after: u64,
     live: live::Live,
+    /// Keys of the rooms this server opened and has not closed, so `close_all` can reach them.
+    open_keys: HashSet<String>,
 }
 
 /// The key of a file in the registry and the store: the workspace's length, the workspace, then the file.
@@ -136,6 +142,7 @@ impl Server {
             rooms: meldframe_rooms::Rooms::new(MAX_OPEN_ROOMS, factory, MemoryActivityLog::new()),
             idle_after: IDLE_AFTER_MS,
             live: meldframe_stream::Streams::new(LIVE_CONFIG, MAX_LIVE_STREAMS),
+            open_keys: HashSet::new(),
         }
     }
 
@@ -154,12 +161,24 @@ impl Server {
     /// belongs to one workspace: another workspace's file of the same name is a different, empty file.
     pub fn open(&mut self, workspace: &str, file: &str) -> Result<u64, RegistryError> {
         let key = room_key(workspace, file);
-        Ok(self.rooms.open(workspace, &key, now())?.seq)
+        let seq = self.rooms.open(workspace, &key, now())?.seq;
+        self.open_keys.insert(key);
+        Ok(seq)
     }
 
     /// Close `file`; every accepted op is already in the store, so a later open restores it.
     pub fn close(&mut self, workspace: &str, file: &str) -> bool {
-        self.rooms.close(&room_key(workspace, file))
+        let key = room_key(workspace, file);
+        self.open_keys.remove(&key);
+        self.rooms.close(&key)
+    }
+
+    /// Close every open room; a later open restores each from its store. For a caller that cannot trust the
+    /// in-memory rooms any more, such as after a panic left one half changed.
+    pub fn close_all(&mut self) {
+        for key in std::mem::take(&mut self.open_keys) {
+            self.rooms.close(&key);
+        }
     }
 
     /// Read an open room; `None` when the file is not open. There is no way to write through this.
@@ -198,13 +217,17 @@ impl Server {
         ops: Vec<Op>,
     ) -> Result<Vec<Accepted>, SubmitError> {
         let at = now();
-        self.rooms.close_idle(at, self.idle_after);
+        for key in self.rooms.close_idle(at, self.idle_after) {
+            self.open_keys.remove(&key);
+        }
         known_auto_tool(&self.registry, tool, &ops)?;
         let key = room_key(&who.workspace, file);
         let opened = self.rooms.open(&who.workspace, &key, at)?;
+        self.open_keys.insert(key.clone());
         let done = self.write(tool, &key, who, ops, at);
         if done.is_err() && !opened.already_open {
             self.rooms.close(&key);
+            self.open_keys.remove(&key);
         }
         done
     }

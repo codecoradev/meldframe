@@ -1,0 +1,21 @@
+[package]
+name = "meldframe-http"
+description = "Thin axum adapter: REST and WebSocket submit through one handler, with auth, rate limit, size and time limits."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "bin"
+
+[dependencies]
+meldframe-host = { path = "../../core/meldframe-host" }
+meldframe-protocol = { path = "../../core/meldframe-protocol" }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "time", "sync"] }
+
+[lints]
+workspace = true

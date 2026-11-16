@@ -37,6 +37,10 @@ fn unavailable(e: impl Display) -> StoreError {
     StoreError::Unavailable(e.to_string())
 }
 
+/// The text that starts a store error that can never succeed (the one place that writes it, and the text a
+/// transport reads back with `starts_with`; the rest of the message comes from the database, after it).
+pub const PERMANENT_STORE_ERROR: &str = "data refused, retrying cannot succeed";
+
 /// A database error as a store error. The seam has no permanent-failure variant (and `meldframe-host` is at
 /// its size ceiling), so a data exception (SQLSTATE class 22, such as a NUL character that `jsonb` cannot
 /// hold) is `Unavailable` with a message that says retrying cannot succeed; a caller that wants to tell the
@@ -44,7 +48,7 @@ fn unavailable(e: impl Display) -> StoreError {
 fn db_err(e: sqlx::Error) -> StoreError {
     match &e {
         sqlx::Error::Database(d) if d.code().is_some_and(|c| c.starts_with("22")) => {
-            StoreError::Unavailable(format!("data refused, retrying cannot succeed: {e}"))
+            StoreError::Unavailable(format!("{PERMANENT_STORE_ERROR}: {e}"))
         }
         _ => unavailable(e),
     }
