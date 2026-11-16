@@ -102,7 +102,7 @@ ADR-0008. First vertical slice of the app layer: the editor shell.
 - [x] `meldframe-app` holds selection, current tool, panel state, connection state and the history buttons as plain data with actions, effects and events; a test harness drives it without the web client. (Tests: `crates/app/meldframe-app/tests`, and `crates/core/meldframe-app-tests` against the real in-memory server: two editors and an agent, ops in flight at a drop and sent again, a real refusal, concurrent edits, a restart with a reused prefix, undo of a selected node, heartbeats past the silence limit. Open in later slices: snapshot reload after `ReplayOverflow` or `Halted`, the WASM export, the web client.)
 - [ ] The web client (Svelte 5 + PixiJS) shows layers on the left, the canvas in the centre and properties on the right, and only renders app state and dispatches actions.
 - [ ] A person can create a frame, a rectangle and a text node, move and resize them, edit text and basic properties, and undo or redo their own changes.
-- [ ] UI colours, fonts and sizes come from the tokens module; the literal lint passes.
+- [x] UI colours, fonts and sizes come from the tokens module; the literal lint passes. (`apps/web/src/tokens.ts` is the one place; `node scripts/ui-literals.mjs` and its tests in `npm run check` and `npm test`; `cargo xtask ui-literals` for the Rust side and CSS. Slice 2 of E1.6: the web shell.)
 - [ ] Changes from an agent appear without reload and are labelled with the actor in the layers panel.
 - [ ] Browser end-to-end tests cover create, edit, undo, a dropped connection and the reconnect.
 

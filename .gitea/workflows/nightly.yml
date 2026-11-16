@@ -121,6 +121,30 @@ jobs:
           cargo install wasm-bindgen-cli --version "$v" --locked
       - run: cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-history -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props
 
+  # The web client (E1.6): the WASM bridge is built for the browser, then the type check, the literal
+  # and licence lints and the unit tests run (apps/web, `npm run check` and `npm test`).
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: Swatinem/rust-cache@v2
+      - name: wasm-bindgen CLI
+        run: |
+          v=$(cargo metadata --format-version 1 | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"]=="wasm-bindgen"))')
+          cargo install wasm-bindgen-cli --version "$v" --locked
+      - run: cd apps/web && npm ci
+      - run: cd apps/web && npm run check
+      - run: cd apps/web && npm test
+      - run: cd apps/web && npm run build
+
   # More seeds than a pull request run (600, the default of `cargo test --workspace`), and the E1.1
   # mutation check: each rule switched off must make a test fail (tools/mutation-check-sync.sh).
   property-tests:

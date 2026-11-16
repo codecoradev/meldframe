@@ -1,0 +1,28 @@
+{
+  "name": "@meldframe/web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Web client shell: renders the app layer state and carries out its effects.",
+  "scripts": {
+    "wasm": "bash scripts/build-wasm.sh",
+    "dev": "npm run wasm && vite",
+    "build": "npm run wasm -- --release && vite build",
+    "test": "npm run wasm && vitest run",
+    "check": "npm run wasm && svelte-check --tsconfig ./tsconfig.json && node scripts/ui-literals.mjs && node scripts/licences.mjs"
+  },
+  "dependencies": {
+    "pixi.js": "^8.23.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tsconfig/svelte": "^5.0.9",
+    "@types/node": "^22.20.5",
+    "jsdom": "^31.0.1",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
+    "typescript": "6.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

@@ -19,9 +19,9 @@ dev:
 dev-server:
     @set -a; [ -f .env ] && . ./.env; set +a; cargo run -p meldframe-server
 
-# The web client against the dev server. No client exists yet (E1.6); see AGENTS.md.
+# The web client (apps/web) against the server of 'just dev'; see AGENTS.md
 web:
-    @if [ -f apps/web/package.json ]; then cd apps/web && npm run dev; else echo "web: there is no web client yet (apps/web is a stub until E1.6); the server of 'just dev' speaks REST and WebSocket, see docs/architecture.md"; fi
+    @bash scripts/web.sh
 
 dev-web: web
 
@@ -47,6 +47,7 @@ check:
     cargo test --workspace
     for c in deps-check build-matrix portable-check size-check ui-literals; do cargo xtask $c || exit 1; done
     bash tools/check-protocol.sh
+    cd apps/web && { [ -d node_modules ] || npm ci; } && npm run check && npm run build
     bash scripts/dev-seed-test.sh
     @bash -n scripts/pg-start.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh && echo "check (scripts): syntax ok"
     @echo "migrations: run 'just dev-db' then 'bash tools/check-migrations.sh'; licences: 'cargo xtask licences --check' once it is merged"

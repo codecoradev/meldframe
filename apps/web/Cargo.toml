@@ -9,5 +9,9 @@ publish.workspace = true
 [package.metadata.meldframe]
 kind = "bin"
 
+[[bin]]
+name = "meldframe-web"
+path = "rust/main.rs"
+
 [lints]
 workspace = true
