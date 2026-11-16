@@ -1,9 +1,10 @@
 // Usage: node scripts/ui-literals.mjs  (from apps/web). Exits non-zero on any literal outside the tokens module.
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { findLiterals, isExempt } from './ui-literals-lib.mjs';
 
 function* walk(dir) {
+  if (!existsSync(dir)) return;
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);
     if (e.isDirectory()) {
