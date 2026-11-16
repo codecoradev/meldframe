@@ -1,0 +1,21 @@
+[package]
+name = "meldframe-app-tests"
+description = "Scripted editor sessions that drive meldframe-app against the real in-memory server: two clients, an agent, a dropped connection, a resync. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-app = { path = "../../app/meldframe-app" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-module = { path = "../meldframe-module" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-server = { path = "../../../apps/server" }
+serde_json = "1"
+
+[lints]
+workspace = true

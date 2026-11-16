@@ -87,8 +87,20 @@ pub enum Action {
     Undo {},
     /// Redo the change that was just undone.
     Redo {},
+    /// Open the connection: the app asks for a subscription from its last confirmed number.
+    Start {},
     /// The transport is subscribed (the first time or again). `now_ms` is the shell's clock.
     Connected {
+        now_ms: u64,
+    },
+    /// The transport lost the connection, or an attempt to open it failed.
+    Disconnected {},
+    /// The backoff of `Effect::Reconnect` is over: try again.
+    Reconnect {
+        now_ms: u64,
+    },
+    /// The shell's timer: lets the app notice a silent connection or a stuck attempt.
+    Tick {
         now_ms: u64,
     },
     /// A frame arrived from the server.
@@ -131,6 +143,11 @@ pub enum Property {
     reason = "short-lived values; boxing would leak into every consumer pattern"
 )]
 pub enum Frame {
+    /// Nothing to say; the connection is alive.
+    Heartbeat {},
+    /// The server dropped frames after `after_seq` for this client (it was too slow): subscribe again from
+    /// there. `latest_seq` is the newest number the server has.
+    Resync { after_seq: u64, latest_seq: u64 },
     /// An accepted op, numbered, with the actor the server stamped on it. The person's own ops come back
     /// this way, which confirms them.
     Event {

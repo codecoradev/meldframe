@@ -99,7 +99,7 @@ ADR-0009. Status: the stream logic is the `meldframe-stream` crate (pure, no tra
 
 ### E1.6 App layer and basic web editor (L, split into slices)
 ADR-0008. First vertical slice of the app layer: the editor shell.
-- [ ] `meldframe-app` holds selection, current tool, panel state, connection state and the history buttons as plain data with actions, effects and events; a test harness drives it without the web client.
+- [x] `meldframe-app` holds selection, current tool, panel state, connection state and the history buttons as plain data with actions, effects and events; a test harness drives it without the web client. (Tests: `crates/app/meldframe-app/tests`, and `crates/core/meldframe-app-tests` against the real in-memory server. Open in later slices: snapshot reload after `ReplayOverflow`, the WASM export, the web client.)
 - [ ] The web client (Svelte 5 + PixiJS) shows layers on the left, the canvas in the centre and properties on the right, and only renders app state and dispatches actions.
 - [ ] A person can create a frame, a rectangle and a text node, move and resize them, edit text and basic properties, and undo or redo their own changes.
 - [ ] UI colours, fonts and sizes come from the tokens module; the literal lint passes.

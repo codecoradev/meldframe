@@ -83,6 +83,7 @@ crates/
     meldframe-store-contract (tool) the `Store` seam cases as functions and a `store_contract!` macro; both adapters run them
     meldframe-sync-scenarios (tool) scenario tests of refused ops and of the limits of the correction; no library code
     meldframe-live-tests  (tool) tests of the live streams of `apps/server` (accepted ops reach subscribers, reconnect from a number); no library code; separate because the server crate is near its ceiling
+    meldframe-app-tests   (tool) scripted editor sessions that drive `meldframe-app` against the real in-memory server (two editors, an agent, a dropped connection, a resync); no library code
     meldframe-sync-props  (tool) property tests of replicas against an in-memory server and the host room; no library code
     meldframe-module      Module trait, registry, risk tiers
     meldframe-host        room, store, admission gate; jobs later
@@ -94,7 +95,7 @@ crates/
   features/<name>/        <name> (domain) and <name>-ui (view): variables, export, review, capture, assets, import-tokens
                           today only the placeholder `example/` (`example`, `example-ui`) exists
   app/
-    meldframe-app         UI-neutral state, actions, effects, events (compiled to WASM)
+    meldframe-app         UI-neutral state, actions, effects, events (compiled to WASM); holds a sync Replica for the document
     meldframe-wasm        thin wasm-bindgen glue over core and app
   ui/                     tokens and plain-data *-model crates beside views
 xtask/                    deps-check, build-matrix, portable-check, size-check, ui-literals, licences
@@ -137,6 +138,8 @@ Using deep-module vocabulary. A module is **deep** when much behaviour sits behi
 | Capture | request an image of a node or frame | Small | One adapter (browser relay); a second renderer is decision 18, so no port yet |
 | Export | resolved model in, HTML/Tailwind/CSS variables and a warnings list out | Deep | Consumer of the render model |
 | Blob store | put and get image bytes by content hash | Small | Local disk first; object storage later gives the second adapter |
+
+**App layer (E1.6, first slice).** `meldframe-app` is a synchronous, deterministic state machine: `App::dispatch(Action) -> Vec<Effect>`, `App::state()` for the plain-data `AppState`, `App::nodes()` for the document and `App::take_events()` for `Event`s. It reads no clock and does no I/O: time is a payload (`now_ms`) of the actions that need it, and the transport is an effect the shell carries out. State: the selection (known nodes only), the current tool, panel state (layers and properties open, collapsed layers), the properties of a single selection, the connection (`Connecting`, `Live`, `Reconnecting { attempt }`, `Offline`, with `confirmed_seq`), the history buttons (`can_undo`, `can_redo` and step counts from the replica's own history), the keys of unconfirmed ops (`pending`) and `last_actor` per node for the layers panel. Document actions (create a frame, rectangle or text node, move, resize, edit text, set a property, delete, reorder, undo, redo) become commands in the replica: the person sees them at once, and they go out as `Effect::SendOps` only while the connection is live; ops made while offline stay pending and go out again with the same keys when `Connected` arrives. Server frames (`Action::Frame`: event, rejected, resync marker, heartbeat) confirm, rebase or reject the pending ops; a resync marker or a gap in the numbers gives `Effect::Subscribe { after_seq }`. A dropped connection gives `Offline` and `Effect::Reconnect { after_ms }` (1 s, doubling, at most 30 s); the shell dispatches `Reconnect` when the wait is over, and `Tick` ends a silent connection (45 s) or a stuck attempt (10 s). `crates/core/meldframe-app-tests` plays the shell against the real `Server`, two editors and an agent. Not built yet: reloading from a snapshot after `ReplayOverflow` or a diverged replica (the app raises `Event::Diverged` and stops), the activity panel, and the WASM export (`meldframe-wasm` is still a stub).
 
 Principles applied: the interface is the test surface; one adapter means a hypothetical seam, two means a real one; delete a pass-through module and see where its complexity lands.
 

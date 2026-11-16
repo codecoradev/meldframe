@@ -3,6 +3,7 @@
 use crate::action::{Action, Frame};
 use crate::effect::{Effect, OutOp};
 use crate::event::Event;
+use crate::link::Link;
 use crate::state::{AppState, Connection, History, Panel, Properties};
 use meldframe_protocol::{Command, Node};
 use meldframe_sync::{EventOutcome, LoadError, Outgoing, Replica, ReplicaError};
@@ -13,6 +14,7 @@ pub struct App {
     pub(crate) state: AppState,
     pub(crate) events: Vec<Event>,
     pub(crate) replica: Replica,
+    pub(crate) link: Link,
     prefix: String,
     next_id: u64,
 }
@@ -32,6 +34,7 @@ impl App {
             state: AppState::default(),
             events: Vec::new(),
             replica,
+            link: Link::default(),
             prefix: key_prefix.to_string(),
             next_id: 0,
         };
@@ -83,7 +86,11 @@ impl App {
                 self.set_panel(panel, open);
             }
             Action::ToggleCollapsed { id } => self.toggle_collapsed(id),
+            Action::Start {} => self.start(&mut fx),
             Action::Connected { now_ms } => self.connected(now_ms, &mut fx),
+            Action::Disconnected {} => self.disconnected(&mut fx),
+            Action::Reconnect { now_ms } => self.reconnect(now_ms, &mut fx),
+            Action::Tick { now_ms } => self.tick(now_ms, &mut fx),
             Action::Frame { now_ms, frame } => self.frame(now_ms, frame, &mut fx),
             doc => self.document(doc, &mut fx),
         }
@@ -154,17 +161,6 @@ impl App {
         }
     }
 
-    /// The transport is subscribed: the connection is live and everything unconfirmed goes out (again).
-    fn connected(&mut self, _now_ms: u64, fx: &mut Vec<Effect>) {
-        self.set_connection(Connection::Live);
-        let ops = out_ops(self.replica.unconfirmed());
-        if !ops.is_empty() {
-            fx.push(Effect::SendOps { ops });
-        }
-        // What the replica queued before is part of `unconfirmed`: do not send it twice.
-        self.replica.take_outbox();
-    }
-
     pub(crate) fn set_connection(&mut self, connection: Connection) {
         if self.state.connection != connection {
             self.state.connection = connection;
@@ -172,8 +168,11 @@ impl App {
         }
     }
 
-    fn frame(&mut self, _now_ms: u64, frame: Frame, fx: &mut Vec<Effect>) {
+    fn frame(&mut self, now_ms: u64, frame: Frame, fx: &mut Vec<Effect>) {
+        self.heard(now_ms);
         match frame {
+            Frame::Heartbeat {} => {}
+            Frame::Resync { after_seq, .. } => Self::resubscribe(after_seq, fx),
             Frame::Event {
                 seq,
                 actor,
@@ -209,7 +208,7 @@ impl App {
                 self.changed(actor.to_string(), false, nodes, fx);
             }
             Ok(EventOutcome::Duplicate) => {}
-            Err(ReplicaError::Gap { .. }) => {}
+            Err(ReplicaError::Gap { .. }) => Self::resubscribe(self.replica.seq(), fx),
             Err(ReplicaError::Diverged(_)) => self.events.push(Event::Diverged {}),
         }
     }

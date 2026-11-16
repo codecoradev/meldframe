@@ -28,6 +28,11 @@ pub struct OutOp {
 pub enum Effect {
     /// Send these ops to the server, in order. The answer comes back as `Action::Frame`.
     SendOps { ops: Vec<OutOp> },
+    /// Open the subscription (a new one, or again on the stream the shell holds) and replay the ops after
+    /// `after_seq`. What arrives comes back as `Action::Connected` and `Action::Frame`.
+    Subscribe { after_seq: u64 },
+    /// Wait `after_ms`, then dispatch `Action::Reconnect`.
+    Reconnect { after_ms: u64 },
     /// Redraw. The nodes named changed; an empty list means everything.
     Render { nodes: Vec<String> },
 }

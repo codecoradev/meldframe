@@ -17,11 +17,13 @@ mod app;
 mod document;
 mod effect;
 mod event;
+mod link;
 mod state;
 
 pub use action::{Action, CreateKind, Frame, Property};
 pub use app::App;
 pub use effect::{Effect, OutOp};
 pub use event::Event;
+pub use link::{ATTEMPT_MS, SILENT_MS};
 pub use meldframe_sync::LoadError;
 pub use state::{AppState, Connection, History, Panel, Panels, Properties, Tool};
