@@ -11,8 +11,10 @@
 //! [`Hub::tick`] queues heartbeats and drops clients that have been silent too long.
 
 mod streams;
+mod touch;
 
 pub use streams::{JoinError, Joined, Streams};
+pub use touch::{MAX_TOUCH_ENTRIES, MAX_TOUCH_NODES, TouchHint, Touches};
 
 use std::collections::{BTreeMap, VecDeque};
 
@@ -229,10 +231,21 @@ impl<D: Clone, E: Clone> Hub<D, E> {
     /// Send an ephemeral frame to every stream (`None`) or to one. A full queue drops it. Returns how
     /// many streams queued it.
     pub fn publish_ephemeral(&mut self, to: Option<StreamId>, data: E) -> usize {
+        self.publish_with_headroom(to, data, 0)
+    }
+
+    /// Like [`Hub::publish_ephemeral`], but only to streams whose queue keeps `headroom` free slots after
+    /// the frame, so a lossy hint cannot take the room that durable frames and capture requests need.
+    pub(crate) fn publish_with_headroom(
+        &mut self,
+        to: Option<StreamId>,
+        data: E,
+        headroom: usize,
+    ) -> usize {
         let mut queued = 0;
         for (id, stream) in &mut self.streams {
             let wanted = to.is_none_or(|t| t == *id);
-            if wanted && !stream.stalled && stream.queue.len() < self.config.queue {
+            if wanted && !stream.stalled && stream.queue.len() + headroom < self.config.queue {
                 stream.queue.push_back(Frame::Ephemeral(data.clone()));
                 queued += 1;
             }

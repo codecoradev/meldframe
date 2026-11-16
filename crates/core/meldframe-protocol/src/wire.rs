@@ -133,6 +133,16 @@ pub enum ServerMsg {
     },
     /// Ephemeral keep-alive on a live stream: nothing happened, the connection is up. No sequence number.
     Heartbeat {},
+    /// Ephemeral touch hint on a live stream: `actor` (a person or an agent) changed these nodes, the newest
+    /// op being `seq`; the editor draws the actor's touch ring. Best effort: never stored, never replayed,
+    /// at most one per actor and file per 100 ms (the latest `node_ids` win), at most 64 ids, and it carries
+    /// no document content. It is not numbered itself: `seq` only says which op it is about.
+    Touch {
+        actor: String,
+        node_ids: Vec<String>,
+        #[ts(type = "number")]
+        seq: u64,
+    },
     Error {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]

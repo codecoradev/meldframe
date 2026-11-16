@@ -57,10 +57,25 @@ impl From<JoinError<StoreError>> for SubscribeError {
     }
 }
 
+/// At most one touch hint per actor and file in this many milliseconds.
+pub const TOUCH_WINDOW_MS: u64 = 100;
+
 impl Server {
-    /// Use these per-file stream limits and this server-wide cap (see [`LIVE_CONFIG`]).
+    /// Use these per-file stream limits and this server-wide cap (see [`LIVE_CONFIG`]). Call it before
+    /// [`Server::with_touch_hints`], which it resets.
     pub fn with_live(mut self, config: Config, max_streams: usize) -> Self {
         self.live = Streams::new(config, max_streams);
+        self
+    }
+
+    /// Queue an ephemeral `touch` frame (ids only) on the streams of a file when ops of it are written, at
+    /// most one per actor and file per `window_ms` (`Streams::touch`). Off by default.
+    pub fn with_touch_hints(mut self, window_ms: u64) -> Self {
+        self.live.set_touch(window_ms, |h| ServerMsg::Touch {
+            actor: h.actor,
+            node_ids: h.node_ids,
+            seq: h.seq,
+        });
         self
     }
 
@@ -157,6 +172,7 @@ impl Server {
         {
             return None;
         }
+        self.live.flush_touches(crate::now());
         self.live.poll(&room_key(&who.workspace, file), id, now)
     }
 
@@ -177,6 +193,7 @@ impl Server {
     /// transport must never forward them to a client.
     pub fn tick(&mut self, now: u64) -> Vec<(String, StreamId)> {
         self.close_idle(crate::now());
+        self.live.flush_touches(crate::now());
         let dropped = self.live.tick(now);
         for (_, id) in &dropped {
             self.owners.forget(*id);

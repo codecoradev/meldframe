@@ -25,6 +25,7 @@ export function handle(m: ServerMsg): string {
     case 'replayOverflow': return String(m.latestSeq);
     case 'resync': return `${m.room}>${m.afterSeq}`;
     case 'heartbeat': return 'heartbeat';
+    case 'touch': return `${m.actor}:${m.nodeIds.join(',')}@${m.seq}`;
     case 'error': return m.message;
     case 'pong': return 'pong';
     case 'captureRequest': return m.requestId;

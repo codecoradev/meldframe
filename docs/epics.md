@@ -103,7 +103,7 @@ ADR-0008. First vertical slice of the app layer: the editor shell.
 - [ ] The web client (Svelte 5 + PixiJS) shows layers on the left, the canvas in the centre and properties on the right, and only renders app state and dispatches actions.
 - [ ] A person can create a frame, a rectangle and a text node, move and resize them, edit text and basic properties, and undo or redo their own changes.
 - [ ] UI colours, fonts and sizes come from the tokens module; the literal lint passes.
-- [ ] Changes from an agent appear without reload and are labelled with the actor in the layers panel. (Server side: `GET /v1/files/{file}` returns each node with `lastActor` and `lastSeq`; the editor part is open.)
+- [ ] Changes from an agent appear without reload and are labelled with the actor in the layers panel. (Server side: `GET /v1/files/{file}` returns each node with `lastActor` and `lastSeq`, and live streams carry an ephemeral `touch` frame for the touch ring; the editor part is open.)
 - [ ] Browser end-to-end tests cover create, edit, undo, a dropped connection and the reconnect.
 
 ### E1.7 Capture relay (S)

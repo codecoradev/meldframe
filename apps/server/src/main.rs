@@ -4,7 +4,7 @@ use meldframe_http::{
     dev_tokens_warning,
 };
 use meldframe_http_live::LiveConfig;
-use meldframe_server::{Backing, Server, SharedServer};
+use meldframe_server::{Backing, Server, SharedServer, TOUCH_WINDOW_MS};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -37,7 +37,7 @@ fn main() {
     } else {
         Backing::memory()
     };
-    let server = Server::assemble_in(Vec::new(), backing);
+    let server = Server::assemble_in(Vec::new(), backing).with_touch_hints(TOUCH_WINDOW_MS);
     for module in server.registry().module_names() {
         println!("module {module}");
     }
@@ -110,7 +110,6 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     let mut app = meldframe_http::routes(state.clone())
         .merge(live)
         .merge(health)
-        // The editor starts from a snapshot of the file, then follows the live stream.
         .merge(meldframe_http_snapshot::routes(
             state.clone(),
             shared.clone(),
