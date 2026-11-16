@@ -49,5 +49,5 @@ check:
     bash tools/check-protocol.sh
     cd apps/web && { [ -d node_modules ] || npm ci; } && npm run check && npm run build
     bash scripts/dev-seed-test.sh
-    @bash -n scripts/pg-start.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh && echo "check (scripts): syntax ok"
+    @bash -n scripts/pg-start.sh scripts/dev-seed.sh scripts/dev.sh scripts/web.sh tools/dev-smoke.sh && echo "check (scripts): syntax ok"
     @echo "migrations: run 'just dev-db' then 'bash tools/check-migrations.sh'; licences: 'cargo xtask licences --check' once it is merged"

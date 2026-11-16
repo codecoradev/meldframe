@@ -64,6 +64,14 @@ jobs:
         run: cargo xtask licences --check
       - name: UI literals (colours, fonts and sizes come from the tokens)
         run: cargo xtask ui-literals
+      # The web client's lints and their tests need no WASM build (the full `npm run check` runs nightly).
+      - name: Web lints (literals, licences, dev proxy guard)
+        run: |
+          cd apps/web
+          npm ci
+          npx vitest run scripts dev
+          node scripts/ui-literals.mjs
+          node scripts/licences.mjs
       - name: Protocol drift (generated TypeScript matches the committed files)
         run: bash tools/check-protocol.sh
       - name: Lint

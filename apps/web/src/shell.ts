@@ -31,11 +31,41 @@ export const TICK_MS = 1000;
 /** The server drops a client it has not heard from within 45 s; a JSON ping keeps a quiet one alive. */
 export const PING_MS = 15_000;
 
+/** Most times a refused `subscribe` is sent again before the connection counts as lost. */
+export const MAX_SUBSCRIBE_RETRIES = 3;
+const RETRY_FALLBACK_MS = 1000;
+
+type Wire = { type: string; id?: string; seq?: number; actor?: string; command?: unknown; afterSeq?: number; latestSeq?: number; code?: string; retryAfterMs?: number };
+
+/** A frame of the live socket, checked: null when it is not JSON or lacks a field its type needs. */
+export function parseFrame(data: string): Wire | null {
+  let m: unknown;
+  try {
+    m = JSON.parse(data);
+  } catch {
+    return null;
+  }
+  if (typeof m !== 'object' || m === null || typeof (m as Wire).type !== 'string') return null;
+  const w = m as Wire;
+  const num = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+  switch (w.type) {
+    case 'event':
+      return num(w.seq) && typeof w.actor === 'string' && typeof w.command === 'object' && w.command !== null ? w : null;
+    case 'resync':
+      return num(w.afterSeq) && num(w.latestSeq) ? w : null;
+    default:
+      return w;
+  }
+}
+
 export class Shell {
   private socket: SocketLike | null = null;
   private timers = new Set<number>();
   private sending: Promise<void> = Promise.resolve();
+  private epoch = 0;
   private subscribeId = 0;
+  private lastSub: { id: string; afterSeq: number; tries: number } | null = null;
+  private warned = false;
 
   constructor(
     private engine: Engine,
@@ -43,6 +73,8 @@ export class Shell {
     private opts: ShellOptions,
   ) {
     engine.onEffects((fx) => fx.forEach((e) => this.run(e)));
+    // A halted app ignores everything but the UI: nothing left to keep alive until the page is reloaded.
+    engine.subscribe((s) => s.state.connection.type === 'halted' && this.stop());
   }
 
   start(): void {
@@ -53,9 +85,8 @@ export class Shell {
   stop(): void {
     for (const t of this.timers) this.env.clearTimer(t);
     this.timers.clear();
-    const s = this.socket;
-    this.socket = null;
-    s?.close();
+    this.epoch++;
+    this.drop();
   }
 
   private dispatch(a: Action): void {
@@ -85,29 +116,64 @@ export class Shell {
     this.timers.add(id);
   }
 
+  /** Forget the socket and close it; what it says or does from now on is ignored. */
+  private drop(): void {
+    const s = this.socket;
+    this.socket = null;
+    this.lastSub = null;
+    try {
+      s?.close();
+    } catch {
+      // already gone
+    }
+  }
+
+  /** The connection is lost for the app: drop the socket and tell it. */
+  private lost(): void {
+    this.drop();
+    this.dispatch({ type: 'disconnected' });
+  }
+
+  private send1(socket: SocketLike, msg: object): boolean {
+    try {
+      socket.send(JSON.stringify(msg));
+      return true;
+    } catch {
+      return false; // not open (yet or any more)
+    }
+  }
+
   private subscribe(afterSeq: number): void {
-    if (this.socket) {
-      // After a resync marker the stream waits for a subscribe on the same socket.
-      this.socket.send(JSON.stringify({ type: 'subscribe', id: `s${++this.subscribeId}`, room: this.opts.file, sinceSeq: afterSeq }));
+    const live = this.engine.snapshot().state.connection.type === 'live';
+    if (this.socket && live) {
+      // A resync marker or a gap: the stream waits for a subscribe on the same socket.
+      this.resubscribe(afterSeq, 0);
       return;
     }
+    // Connecting or reconnecting: whatever socket there was is not trusted any more.
+    this.drop();
     const socket = this.env.openSocket(`/v1/live/${encodeURIComponent(this.opts.file)}?after=${afterSeq}`);
     this.socket = socket;
     const mine = () => this.socket === socket;
-    const ping = this.env.setTimer(() => mine() && socket.send(JSON.stringify({ type: 'ping' })), PING_MS, true);
-    this.timers.add(ping);
     socket.onmessage = (data) => mine() && this.frame(data);
-    socket.onclose = () => {
-      this.env.clearTimer(ping);
-      this.timers.delete(ping);
-      if (!mine()) return;
-      this.socket = null;
-      this.dispatch({ type: 'disconnected' });
-    };
+    socket.onclose = () => mine() && this.lost();
+    const ping = this.env.setTimer(() => {
+      if (mine() && !this.send1(socket, { type: 'ping' })) this.lost();
+    }, PING_MS, true);
+    this.timers.add(ping);
+  }
+
+  private resubscribe(afterSeq: number, tries: number): void {
+    const socket = this.socket;
+    if (!socket) return;
+    const id = `s${++this.subscribeId}`;
+    this.lastSub = { id, afterSeq, tries };
+    if (!this.send1(socket, { type: 'subscribe', id, room: this.opts.file, sinceSeq: afterSeq })) this.lost();
   }
 
   private frame(data: string): void {
-    const m = JSON.parse(data) as { type: string; seq?: number; actor?: string; command?: never; afterSeq?: number; latestSeq?: number };
+    const m = parseFrame(data);
+    if (!m) return this.lost();
     const nowMs = this.env.now();
     switch (m.type) {
       case 'subscribed':
@@ -115,31 +181,61 @@ export class Shell {
       case 'heartbeat':
         return this.dispatch({ type: 'frame', nowMs, frame: { type: 'heartbeat' } });
       case 'event':
-        return this.dispatch({ type: 'frame', nowMs, frame: { type: 'event', seq: m.seq!, actor: m.actor!, command: m.command! } });
+        return this.dispatch({ type: 'frame', nowMs, frame: { type: 'event', seq: m.seq!, actor: m.actor!, command: m.command as never } });
       case 'resync':
         return this.dispatch({ type: 'frame', nowMs, frame: { type: 'resync', afterSeq: m.afterSeq!, latestSeq: m.latestSeq! } });
+      case 'error':
+        return this.refused(m);
       default:
-        return; // pong, ephemeral frames and errors need no action
+        return; // pong and ephemeral frames need no action
     }
   }
 
-  /** One request per op, in order (SendOps calls queue behind each other). A refusal goes back to the app. */
+  /** An `error` frame. Only the answer to our last `subscribe` matters. */
+  private refused(m: Wire): void {
+    const sub = this.lastSub;
+    if (!sub || m.id !== sub.id) return;
+    if (m.code === 'rate_limited' || m.code === 'unavailable') {
+      if (sub.tries >= MAX_SUBSCRIBE_RETRIES) return this.lost();
+      const socket = this.socket;
+      const id = this.env.setTimer(() => {
+        this.timers.delete(id);
+        if (this.socket === socket) this.resubscribe(sub.afterSeq, sub.tries + 1);
+      }, m.retryAfterMs ?? RETRY_FALLBACK_MS);
+      this.timers.add(id);
+      return;
+    }
+    // bad_request: a subscribe before the marker. The marker is on its way; wait for it.
+    if (!this.warned) {
+      this.warned = true;
+      console.warn('live: subscribe refused, waiting for the resync marker', m.code);
+    }
+  }
+
+  /** One request per op, in order (SendOps calls queue behind each other). */
   private send(ops: OutOp[]): void {
+    const epoch = this.epoch;
     this.sending = this.sending.then(async () => {
       for (const op of ops) {
+        if (epoch !== this.epoch) return; // the connection was lost: the app sends everything again
+        const path = `/v1/files/${encodeURIComponent(this.opts.file)}/tools/${this.opts.tool ?? 'apply_commands'}`;
+        let res: { status: number; body: unknown };
         try {
-          const path = `/v1/files/${encodeURIComponent(this.opts.file)}/tools/${this.opts.tool ?? 'apply_commands'}`;
-          const res = await this.env.post(path, { ops: [{ key: op.key, command: op.command, deps: op.deps }] });
-          if (res.status === 200) continue; // the live event confirms it
-          const error = (res.body as { error?: { code?: string; retryable?: boolean } } | null)?.error;
-          this.dispatch({
-            type: 'frame',
-            nowMs: this.env.now(),
-            frame: { type: 'rejected', key: op.key, code: error?.code ?? 'unavailable', retryable: error?.retryable ?? true },
-          });
+          res = await this.env.post(path, { ops: [{ key: op.key, command: op.command, deps: op.deps }] });
         } catch {
-          // The network is down: the op stays pending and goes out again once the connection is back.
+          // The network failed. Stop here: the later ops depend on this one, and the app sends every
+          // unconfirmed op again, in order and with the same keys, when the connection is back.
+          this.epoch++;
+          this.lost();
+          return;
         }
+        if (res.status === 200) continue; // the live event confirms it
+        const error = (res.body as { error?: { code?: string; retryable?: boolean } } | null)?.error;
+        this.dispatch({
+          type: 'frame',
+          nowMs: this.env.now(),
+          frame: { type: 'rejected', key: op.key, code: error?.code ?? 'unavailable', retryable: error?.retryable ?? true },
+        });
       }
     });
   }

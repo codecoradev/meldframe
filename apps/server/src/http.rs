@@ -9,8 +9,10 @@ use meldframe_host::{Accepted, Op, Principal, Room, RoomError, Store, StoreError
 use meldframe_http::{Failure, Guard, Submitter};
 use meldframe_http_live::{LiveSource, Opened, Out};
 use meldframe_http_snapshot::{FileSnapshot, Snapshots};
+use meldframe_module::Policy;
 use meldframe_protocol::ServerMsg;
 use meldframe_rooms::RegistryError;
+use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 use std::sync::{Mutex, MutexGuard};
 
 /// A [`Server`] shared by the transport's blocking calls. One writer at a time, as the room actor assumes.
@@ -105,6 +107,7 @@ impl Submitter for SharedServer {
 
 impl SharedServer {
     /// Run `f` on the room of `file` in the principal's workspace, opening it for the call when it is closed.
+    /// A room opened for the call is closed again even when `f` panics.
     fn with_open_room<R>(
         &self,
         who: &Principal,
@@ -117,21 +120,45 @@ impl SharedServer {
             s.open(&who.workspace, file)
                 .map_err(|e| failure_of(&SubmitError::Rooms(e)))?;
         }
-        let out = s
-            .with_room(&who.workspace, file, f)
-            .expect("the room is open");
+        let out = catch_unwind(AssertUnwindSafe(|| {
+            s.with_room(&who.workspace, file, f)
+                .expect("the room is open")
+        }));
         if !was_open {
             s.close(&who.workspace, file);
         }
-        Ok(out)
+        match out {
+            Ok(v) => Ok(v),
+            Err(panic) => resume_unwind(panic),
+        }
+    }
+
+    /// Like `with_open_room`, but only for a read tool the registry has with an `Auto` policy; without the
+    /// MCP module nothing reads (the same rule for the MCP reads and the snapshot route).
+    fn read<R>(
+        &self,
+        tool: &str,
+        who: &Principal,
+        file: &str,
+        f: impl FnOnce(&Room<AnyStore>) -> R,
+    ) -> Result<R, Failure> {
+        if self.lock().registry().policy_for(tool) != Some(Policy::Auto) {
+            return Err(Failure::Refused(meldframe_host::Refusal::Forbidden {
+                tier: meldframe_module::RiskTier::Read,
+                policy: Policy::Deny,
+            }));
+        }
+        self.with_open_room(who, file, f)
     }
 }
 
-/// The snapshot route reads the file of the principal's workspace; the token decides the workspace, so a
-/// principal never reads another workspace's file.
+/// The snapshot route reads the file of the principal's workspace (the token decides the workspace) under the
+/// policy of the `get_tree` read tool, like the MCP reads: a registry that does not allow that read allows
+/// no snapshot either. Every call of a closed file opens and closes its room; there is no cache or per-workspace
+/// cap on that yet, only the per-principal budget and the in-flight slots of the adapter.
 impl Snapshots for SharedServer {
     fn snapshot(&self, who: &Principal, file: &str) -> Result<FileSnapshot, Failure> {
-        self.with_open_room(who, file, |r| FileSnapshot {
+        self.read("get_tree", who, file, |r| FileSnapshot {
             seq: r.seq(),
             nodes: r.nodes().to_vec(),
         })
@@ -143,28 +170,6 @@ mod read {
     use super::*;
     use meldframe_host::StoredOp;
     use meldframe_http::mcp::{Conflict, FileView, Reader};
-    use meldframe_module::Policy;
-
-    impl SharedServer {
-        /// Run `f` on the room of `file`, opening it for the call when it is closed. A read tool is allowed
-        /// only when the registry has it with an `Auto` policy; without the MCP module nothing reads.
-        fn read<R>(
-            &self,
-            tool: &str,
-            who: &Principal,
-            file: &str,
-            f: impl FnOnce(&Room<AnyStore>) -> R,
-        ) -> Result<R, Failure> {
-            if self.lock().registry().policy_for(tool) != Some(Policy::Auto) {
-                return Err(Failure::Refused(meldframe_host::Refusal::Forbidden {
-                    tier: meldframe_module::RiskTier::Read,
-                    policy: Policy::Deny,
-                }));
-            }
-            self.with_open_room(who, file, f)
-        }
-    }
-
     fn unavailable(e: StoreError) -> Failure {
         Failure::Unavailable(e.to_string())
     }
@@ -311,4 +316,27 @@ fn opened(sub: Result<Subscription, SubscribeError>) -> Result<Opened, Failure> 
         replay: s.replay,
     })
     .map_err(|e| Failure::Unavailable(format!("{e:?}")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_room_opened_for_a_read_is_closed_even_when_the_read_panics() {
+        let server = SharedServer::new(Server::assemble());
+        let who = Principal {
+            workspace: "ws".into(),
+            actor: "usr".into(),
+        };
+        let panicked = catch_unwind(AssertUnwindSafe(|| {
+            let _ = server.with_open_room(&who, "f", |_| panic!("boom"));
+        }));
+        assert!(panicked.is_err());
+        assert!(
+            server
+                .with_server(|s| s.with_room("ws", "f", |_| ()))
+                .is_none()
+        );
+    }
 }
