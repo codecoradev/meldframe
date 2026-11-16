@@ -54,7 +54,7 @@ Crates under `crates/{core,engines,integrations,features,app,ui}`, apps under `a
 - [x] Postgres migrations run from a clean database in CI.
 
 ### E0.4 Local development environment (S)
-- [ ] One command starts Postgres and the server for development; one command starts the web client against it. (`just dev` does the first half and is smoke-tested (`tools/dev-smoke.sh`, in the migrations CI job); `just web` is a stub that says so, because the web client does not exist until E1.6. Tick when `just web` starts a client that talks to the server.)
+- [ ] One command starts Postgres and the server for development; one command starts the web client against it. (`just dev` does the first half and is smoke-tested (`tools/dev-smoke.sh`, in the migrations CI job); `just web` starts the web client skeleton (`apps/web`: a token showcase page) with `/v1` proxied to that server through the guarded dev proxy; the client that shows the document and talks to the server is E1.6. Tick when `just web` starts a client that talks to the server.)
 - [x] A seeded development workspace, file and token exist for agents and tests (development only, never in a release build).
 - [x] `AGENTS.md` lists the commands; a new session can run the full test suite from a fresh clone.
 

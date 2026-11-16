@@ -19,9 +19,11 @@ dev:
 dev-server:
     @set -a; [ -f .env ] && . ./.env; set +a; cargo run -p meldframe-server
 
-# The web client against the dev server. No client exists yet (E1.6); see AGENTS.md.
+# The web client (Vite) against the dev server of `just dev`, through the guarded dev proxy: the token
+# is read from the git-ignored .dev-token and added by the proxy, never sent to the browser.
 web:
-    @if [ -f apps/web/package.json ]; then cd apps/web && npm run dev; else echo "web: there is no web client yet (apps/web is a stub until E1.6); the server of 'just dev' speaks REST and WebSocket, see docs/architecture.md"; fi
+    @cd apps/web && { [ -f node_modules/.package-lock.json ] && [ ! package-lock.json -nt node_modules/.package-lock.json ]; } || npm ci
+    @cd apps/web && if [ -s ../../.dev-token ]; then MELDFRAME_WEB_TOKEN="$(cat ../../.dev-token)" npm run dev; else echo "web: no .dev-token yet; run 'just dev' first to talk to the server (starting the client without a token)"; npm run dev; fi
 
 dev-web: web
 
@@ -29,10 +31,10 @@ dev-web: web
 dev-smoke:
     bash tools/dev-smoke.sh
 
-# Run the test suite (Rust and web parts run when they exist)
+# Run the test suite (Rust and web parts)
 test:
     @if [ -f Cargo.toml ]; then cargo test --workspace; else echo "test (rust): the workspace arrives in E1.x"; fi
-    @if [ -f apps/web/package.json ]; then cd apps/web && npm test; else echo "test (web): the web client arrives in E1.x"; fi
+    @if [ -f apps/web/package.json ]; then cd apps/web && ({ [ -f node_modules/.package-lock.json ] && [ ! package-lock.json -nt node_modules/.package-lock.json ]; } || npm ci) && npm test; else echo "test (web): no web client"; fi
 
 # The core crates' tests under WASM on Node (needs wasm-bindgen-test-runner; see AGENTS.md)
 wasm-test:
@@ -47,6 +49,7 @@ check:
     cargo test --workspace
     for c in deps-check build-matrix portable-check size-check ui-literals; do cargo xtask $c || exit 1; done
     bash tools/check-protocol.sh
+    cd apps/web && npm ci && npm run check
     bash scripts/dev-seed-test.sh
     @bash -n scripts/pg-start.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh && echo "check (scripts): syntax ok"
     @echo "migrations: run 'just dev-db' then 'bash tools/check-migrations.sh'; licences: 'cargo xtask licences --check' once it is merged"

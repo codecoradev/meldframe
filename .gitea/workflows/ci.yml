@@ -2,9 +2,9 @@
 #
 # This is the FAST set that every pull request must pass, in two jobs so that a runner with little
 # capacity is not flooded: `checks` (scripts self-test, then the cheap rules, format, layering,
-# size limits, licences, UI literals and the protocol drift check, then the build-heavy lint and
-# tests, run one after another on one toolchain and one cache; a broken rule fails the run in about
-# a minute) and `migrations` (needs a Postgres service). The heaviest gates (build-matrix,
+# size limits, licences, UI literals and the protocol drift check, then the web client (npm ci,
+# typecheck, lint, tests, build, UI literals, licences), then the build-heavy lint and Rust tests, run one after
+# another on one toolchain and one cache; a broken rule fails the run in about a minute) and `migrations` (needs a Postgres service). The heaviest gates (build-matrix,
 # portable-check) run nightly in .gitea/workflows/nightly.yml, and locally with `just check`
 # before a pull request is opened.
 #
@@ -51,6 +51,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
       - name: Check scripts (good and bad examples for the branch, message and description checks)
         run: sh scripts/ci/selftest.sh
       # Cheap steps first, so a rule break fails the run in a minute instead of after the build and the tests.
@@ -66,6 +68,21 @@ jobs:
         run: cargo xtask ui-literals
       - name: Protocol drift (generated TypeScript matches the committed files)
         run: bash tools/check-protocol.sh
+      # Web client (apps/web): after the cheap Rust gates, before the build-heavy Rust steps. npm is cached.
+      - name: Web install
+        run: npm ci --prefix apps/web
+      - name: Web typecheck (svelte-check)
+        run: npm run typecheck --prefix apps/web
+      - name: Web lint
+        run: npm run lint --prefix apps/web
+      - name: Web unit tests
+        run: npm test --prefix apps/web
+      - name: Web UI literals (colours, fonts and sizes come from the tokens)
+        run: npm run ui-literals --prefix apps/web
+      - name: Web licences (npm packages)
+        run: npm run licences --prefix apps/web
+      - name: Web build
+        run: npm run build --prefix apps/web
       - name: Lint
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests
