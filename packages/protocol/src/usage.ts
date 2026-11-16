@@ -23,6 +23,8 @@ export function handle(m: ServerMsg): string {
     case 'ack': return String(m.seq);
     case 'event': return `${m.actor}@${m.seq}`;
     case 'replayOverflow': return String(m.latestSeq);
+    case 'resync': return `${m.room}>${m.afterSeq}`;
+    case 'heartbeat': return 'heartbeat';
     case 'error': return m.message;
     case 'pong': return 'pong';
     case 'captureRequest': return m.requestId;

@@ -40,6 +40,11 @@ impl<D: Clone, E: Clone> Streams<D, E> {
         }
     }
 
+    /// The limits every hub is made with.
+    pub fn config(&self) -> Config {
+        self.config
+    }
+
     /// Streams across all keys.
     pub fn stream_count(&self) -> usize {
         self.hubs.values().map(Hub::stream_count).sum()
@@ -133,7 +138,8 @@ impl<D: Clone, E: Clone> Streams<D, E> {
                 replay: Vec::new(),
             });
         };
-        let end = through.min(after.saturating_add(max_replay));
+        // At least one op per call: a limit of 0 would send the client back to the same marker forever.
+        let end = through.min(after.saturating_add(max_replay.max(1)));
         let replay = read(after, end).map_err(JoinError::Read)?;
         if let (true, Some(hub)) = (end < through, self.hubs.get_mut(key)) {
             hub.cut(sub.id, end);

@@ -1,11 +1,14 @@
 //! The server behind the HTTP adapter: [`SharedServer`] is the one [`Submitter`], so REST and WebSocket reach
 //! a room only through `Server::submit_tool` (the gate).
 
-use crate::{AnyStore, PERMANENT_STORE_ERROR, Server, SubmitError};
+use crate::{
+    AnyStore, PERMANENT_STORE_ERROR, Server, StreamId, SubmitError, SubscribeError, Subscription,
+};
 use meldframe_batch::Stop;
 use meldframe_host::{Accepted, Op, Principal, Room, RoomError, Store, StoreError};
-use meldframe_http::Guard;
-use meldframe_http::{Failure, Submitter};
+use meldframe_http::{Failure, Guard, Submitter};
+use meldframe_http_live::{LiveSource, Opened, Out};
+use meldframe_protocol::ServerMsg;
 use meldframe_rooms::RegistryError;
 use std::sync::{Mutex, MutexGuard};
 
@@ -28,6 +31,19 @@ impl SharedServer {
             self.0.clear_poison();
             server
         })
+    }
+
+    /// Send an ephemeral frame (a capture request, a touch hint) to one stream of `file` in the principal's
+    /// workspace, or to all of them; returns how many streams queued it. Open sockets pick it up on their
+    /// next look at the stream.
+    pub fn publish_ephemeral(
+        &self,
+        who: &Principal,
+        file: &str,
+        to: Option<StreamId>,
+        msg: ServerMsg,
+    ) -> usize {
+        self.lock().publish_ephemeral(who, file, to, msg)
     }
 
     /// Read access for the embedder and tests; there is no write path here.
@@ -206,4 +222,65 @@ pub fn failure_of(e: &SubmitError) -> Failure {
         }
         _ => Failure::Unavailable(e.to_string()),
     }
+}
+
+/// The live streams of the server, for the WebSocket route of the adapter.
+impl LiveSource for SharedServer {
+    fn subscribe(
+        &self,
+        who: &Principal,
+        file: &str,
+        from_seq: u64,
+        now: u64,
+    ) -> Result<Opened, Failure> {
+        let sub = self.lock().subscribe(who, file, from_seq, now);
+        opened(sub)
+    }
+
+    fn resubscribe(
+        &self,
+        who: &Principal,
+        file: &str,
+        id: StreamId,
+        from_seq: u64,
+        now: u64,
+    ) -> Result<Opened, Failure> {
+        let sub = self.lock().resubscribe(who, file, id, from_seq, now);
+        opened(sub)
+    }
+
+    fn poll(&self, who: &Principal, file: &str, id: StreamId, now: u64, max: usize) -> Vec<Out> {
+        let mut server = self.lock();
+        std::iter::from_fn(|| server.poll(who, file, id, now))
+            .take(max)
+            .collect()
+    }
+
+    fn seen(&self, who: &Principal, file: &str, id: StreamId, now: u64) {
+        self.lock().seen(who, file, id, now);
+    }
+
+    fn unsubscribe(&self, who: &Principal, file: &str, id: StreamId) {
+        self.lock().unsubscribe(who, file, id);
+    }
+
+    fn heartbeat_ms(&self) -> Option<u64> {
+        Some(self.lock().live_heartbeat_ms())
+    }
+
+    fn tick(&self, now: u64) -> Vec<StreamId> {
+        // The file keys name every workspace's files: only the ids leave this function.
+        let dropped = self.lock().tick(now);
+        dropped.into_iter().map(|(_, id)| id).collect()
+    }
+}
+
+/// A failed subscribe is not a refusal of the client's call: the stream cap, the registry and the store are
+/// the server's to answer for, so the transport says `unavailable` (retryable).
+fn opened(sub: Result<Subscription, SubscribeError>) -> Result<Opened, Failure> {
+    sub.map(|s| Opened {
+        id: s.id,
+        replay: s.replay,
+    })
+    .map_err(|e| Failure::Unavailable(format!("{e:?}")))
 }

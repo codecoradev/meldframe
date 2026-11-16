@@ -4,7 +4,7 @@ import type { Command } from "./Command";
 /**
  * A message from the server to a client.
  */
-export type ServerMsg = { "type": "connected", connectionId: string, } | { "type": "subscribed", id: string, room: string, } | { "type": "ack", id: string, seq: number, } | { "type": "event", room: string, seq: number, actor: string, command: Command, } | { "type": "replayOverflow", room: string, latestSeq: number, } | { "type": "error", id?: string, message: string, retryable: boolean, 
+export type ServerMsg = { "type": "connected", connectionId: string, } | { "type": "subscribed", id: string, room: string, } | { "type": "ack", id: string, seq: number, } | { "type": "event", room: string, seq: number, actor: string, command: Command, } | { "type": "replayOverflow", room: string, latestSeq: number, } | { "type": "resync", room: string, afterSeq: number, latestSeq: number, } | { "type": "heartbeat", } | { "type": "error", id?: string, message: string, retryable: boolean, 
 /**
  * Machine code (optional): `conflict` (`ifSeq` failed), `stale` (`ifSeq` older than the kept log), `invalid`
  * (semantic validation), `internal`. An older client may ignore it.

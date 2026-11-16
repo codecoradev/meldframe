@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-server-tests"
-description = "Tests of the server's rooms: one room per file, every write through the gate. No library code."
+description = "Tests of the server's rooms: one room per file, every write through the gate, and the Postgres store behind them. No library code."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -15,6 +15,10 @@ meldframe-module = { path = "../meldframe-module" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-server = { path = "../../../apps/server" }
 serde_json = "1"
+meldframe-store-contract = { path = "../meldframe-store-contract" }
+# The Postgres tests check the schema directly.
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [lints]
 workspace = true
