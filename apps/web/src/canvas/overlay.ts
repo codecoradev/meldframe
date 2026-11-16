@@ -11,7 +11,7 @@ export type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 export const HANDLE_SIZE = 8;
 /** Extra reach around a handle for the pointer, in px. */
 export const HANDLE_SLOP = 2;
-/** An edge handle is only offered when its side is at least this long, so neighbours never touch. */
+/** An edge handle is only offered when the box is at least this long and this wide, so handles never crowd the body. */
 export const HANDLE_MIN_SIDE = 24;
 /** Gap between the box and the size badge, in px. */
 export const BADGE_GAP = 10;
@@ -47,8 +47,7 @@ export function handlePositions(b: Rect): Record<HandleId, Point> {
 /** The handles to draw and to hit: corners always, an edge only when it is long enough. */
 export function visibleHandles(b: Rect): HandleId[] {
   return ORDER.filter((h) => {
-    if (h === 'n' || h === 's') return b.w >= HANDLE_MIN_SIDE;
-    if (h === 'e' || h === 'w') return b.h >= HANDLE_MIN_SIDE;
+    if (h === 'n' || h === 's' || h === 'e' || h === 'w') return b.w >= HANDLE_MIN_SIDE && b.h >= HANDLE_MIN_SIDE;
     return true;
   });
 }

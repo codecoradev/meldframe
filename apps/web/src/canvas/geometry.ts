@@ -43,3 +43,7 @@ export function intersectRects(a: Rect, b: Rect): Rect {
 
 export const rectsOverlap = (a: Rect, b: Rect): boolean =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/** True when `inner` lies completely inside `outer`. */
+export const containsRect = (outer: Rect, inner: Rect): boolean =>
+  inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.w <= outer.x + outer.w && inner.y + inner.h <= outer.y + outer.h;
