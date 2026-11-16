@@ -12,21 +12,35 @@ export interface LayerRow {
   actor?: string;
 }
 
-/** Siblings in z order, back to front: by position, then id. */
-export function siblings(nodes: Node[], parentId: string | null): Node[] {
-  return nodes
-    .filter((n) => (n.parentId ?? null) === parentId)
-    .sort((a, b) => ((a.pos ?? '') < (b.pos ?? '') ? -1 : (a.pos ?? '') > (b.pos ?? '') ? 1 : a.id < b.id ? -1 : 1));
+const byPos = (a: Node, b: Node) =>
+  (a.pos ?? '') < (b.pos ?? '') ? -1 : (a.pos ?? '') > (b.pos ?? '') ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+
+/** The children of every parent (`null` for the roots) in z order, back to front: by position, then id. One pass. */
+export function childrenOf(nodes: Node[]): Map<string | null, Node[]> {
+  const map = new Map<string | null, Node[]>();
+  for (const n of nodes) {
+    const key = n.parentId ?? null;
+    const list = map.get(key);
+    if (list) list.push(n);
+    else map.set(key, [n]);
+  }
+  for (const list of map.values()) list.sort(byPos);
+  return map;
 }
 
 /** Front-most sibling first, children right under their parent, hidden children left out. */
 export function layerRows(nodes: Node[], collapsed: string[], lastActor: Record<string, string>): LayerRow[] {
+  const kids = childrenOf(nodes);
+  const hidden = new Set(collapsed);
   const rows: LayerRow[] = [];
   const visit = (parentId: string | null, depth: number) => {
-    for (const n of siblings(nodes, parentId).reverse()) {
-      const hasChildren = nodes.some((c) => c.parentId === n.id);
-      const isCollapsed = collapsed.includes(n.id);
-      rows.push({ id: n.id, name: n.name, kind: n.type, depth, hasChildren, collapsed: isCollapsed, actor: lastActor[n.id] });
+    const list = kids.get(parentId) ?? [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      const n = list[i]!;
+      const hasChildren = kids.has(n.id);
+      const isCollapsed = hidden.has(n.id);
+      const actor = Object.hasOwn(lastActor, n.id) ? lastActor[n.id] : undefined;
+      rows.push({ id: n.id, name: n.name, kind: n.type, depth, hasChildren, collapsed: isCollapsed, actor });
       if (hasChildren && !isCollapsed) visit(n.id, depth + 1);
     }
   };

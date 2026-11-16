@@ -8,13 +8,13 @@ function* walk(dir) {
     const p = join(dir, e.name);
     if (e.isDirectory()) {
       if (e.name !== 'wasm') yield* walk(p);
-    } else if (/\.(?:ts|svelte|css|scss|html)$/.test(e.name)) yield p;
+    } else if (/\.(?:ts|svelte|css|scss|html|cjs|mjs)$/.test(e.name)) yield p;
   }
 }
 
 const found = [];
-for (const root of ['src', 'index.html']) {
-  const files = root.endsWith('.html') ? [root] : [...walk(root)];
+for (const root of ['src', 'dev', 'e2e', 'index.html', 'vite.config.ts']) {
+  const files = /\.(?:html|ts)$/.test(root) ? [root] : [...walk(root)];
   for (const f of files) if (!isExempt(f)) found.push(...findLiterals(f, readFileSync(f, 'utf8')));
 }
 for (const f of found) console.error(`${f.path}:${f.line}: ${f.kind} literal; read it from src/tokens.ts`);
