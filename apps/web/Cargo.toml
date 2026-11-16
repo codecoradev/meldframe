@@ -9,5 +9,11 @@ publish.workspace = true
 [package.metadata.meldframe]
 kind = "bin"
 
+# The Rust stub lives in rust/ so that src/ holds the Svelte client; the package stays at apps/web so
+# deps-check, size-check and ui-literals keep seeing the directory as one `bin` package.
+[[bin]]
+name = "meldframe-web"
+path = "rust/main.rs"
+
 [lints]
 workspace = true

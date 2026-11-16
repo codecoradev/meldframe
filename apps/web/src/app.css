@@ -1,0 +1,80 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Tailwind's own palette, type sizes and radii are switched off: only the tokens exist as utilities. */
+@theme inline {
+  --spacing: var(--mf-space-1);
+  --color-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --font-*: initial;
+
+  --color-canvas: var(--mf-canvas);
+  --color-sidebar: var(--mf-sidebar);
+  --color-surface: var(--mf-surface);
+  --color-surface-raised: var(--mf-surface-raised);
+  --color-field: var(--mf-field);
+  --color-border: var(--mf-border);
+  --color-hairline: var(--mf-hairline);
+  --color-text: var(--mf-text);
+  --color-text-strong: var(--mf-text-strong);
+  --color-text-muted: var(--mf-text-muted);
+  --color-text-faint: var(--mf-text-faint);
+  --color-accent: var(--mf-accent);
+  --color-accent-strong: var(--mf-accent-strong);
+  --color-on-accent: var(--mf-on-accent);
+  --color-selection: var(--mf-selection);
+  --color-chip-bg: var(--mf-chip-bg);
+  --color-chip-border: var(--mf-chip-border);
+  --color-chip-text: var(--mf-chip-text);
+  --color-person: var(--mf-person);
+  --color-agent-1: var(--mf-agent-1);
+  --color-agent-2: var(--mf-agent-2);
+  --color-agent-3: var(--mf-agent-3);
+  --color-on-agent: var(--mf-on-agent);
+  --color-success: var(--mf-success);
+  --color-warning: var(--mf-warning);
+  --color-warning-bg: var(--mf-warning-bg);
+  --color-danger: var(--mf-danger);
+  --color-danger-bg: var(--mf-danger-bg);
+  --color-danger-strong: var(--mf-danger-strong);
+  --color-info: var(--mf-info);
+  --color-review-bg: var(--mf-review-bg);
+  --color-review-text: var(--mf-review-text);
+  --color-diff-add: var(--mf-diff-add);
+  --color-diff-delete: var(--mf-diff-delete);
+  --color-scrim: var(--mf-scrim);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --text-caption: var(--mf-font-size-caption);
+  --text-small: var(--mf-font-size-small);
+  --text-body: var(--mf-font-size-body);
+  --text-title: var(--mf-font-size-title);
+  --text-heading: var(--mf-font-size-heading);
+  --text-display: var(--mf-font-size-display);
+
+  --radius-xs: var(--mf-radius-xs);
+  --radius-sm: var(--mf-radius-sm);
+  --radius-md: var(--mf-radius-md);
+  --radius-lg: var(--mf-radius-lg);
+  --radius-pill: var(--mf-radius-pill);
+
+  --shadow-float: var(--mf-shadow-float);
+  --shadow-popover: var(--mf-shadow-popover);
+
+  --font-sans: var(--mf-font-family-sans);
+  --font-mono: var(--mf-font-family-mono);
+}
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    background: var(--mf-canvas);
+    color: var(--mf-text);
+    font-family: var(--mf-font-family-sans);
+    font-size: var(--mf-font-size-body);
+  }
+}
