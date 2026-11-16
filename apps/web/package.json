@@ -9,6 +9,7 @@
     "dev": "npm run wasm && vite",
     "build": "npm run wasm -- --release && vite build",
     "test": "npm run wasm && vitest run",
+    "e2e": "npm run wasm && node e2e/run.cjs",
     "check": "npm run wasm && svelte-check --tsconfig ./tsconfig.json && node scripts/ui-literals.mjs && node scripts/licences.mjs"
   },
   "dependencies": {

@@ -96,6 +96,8 @@ Notes on the transport. `timeout` covers the time from the start of the blocking
 server's lock; the job is not cancelled and keeps its in-flight slot until it ends. A WebSocket reply frame carries
 `id`, `status` and the body but not `Retry-After`. On a WebSocket the per-address limit is spent at the handshake only;
 frames are limited per principal, and a connection is closed after several limited frames in a row or when idle.
+`GET /v1/files/{file}` (the snapshot: `{"seq", "nodes"}`) answers with the transport codes only: `unauthenticated`, `rate_limited`, `invalid` for a bad file name, `unavailable` and `timeout`.
+
 `GET /v1/live/{file}?after={seq}` answers its handshake with these codes (`unavailable` 503 when the stream cap is reached or the store cannot be read; `bad_request` 400 for a bad file name or a non-numeric `after`); after the upgrade, a message it cannot take gets an `error` frame with `bad_request` and the socket stays open (`subscribe` before a `resync` marker is one). A `subscribe` that costs more than the budget has left gets `rate_limited` (retryable, socket open, `retryAfterMs` says when); one the server cannot take now gets `unavailable` (retryable, socket open, `retryAfterMs` is the poll interval) when the server is busy, and costs one frame then, not four, or `unavailable` and a close when the stream could not be restarted or ended before the socket was ready: the text is fixed, and the client connects again with its last sequence number. A socket closes without a frame when a poll timed out or failed.
 A browser cannot set `Authorization` on a WebSocket, so there is no browser client on this path until Gatehouse; an
 `Origin` check belongs with it.
