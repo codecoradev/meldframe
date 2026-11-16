@@ -8,6 +8,7 @@ use meldframe_batch::Stop;
 use meldframe_host::{Accepted, Op, Principal, Room, RoomError, Store, StoreError};
 use meldframe_http::{Failure, Guard, Submitter};
 use meldframe_http_live::{LiveSource, Opened, Out};
+use meldframe_http_snapshot::{FileSnapshot, Snapshots};
 use meldframe_protocol::ServerMsg;
 use meldframe_rooms::RegistryError;
 use std::sync::{Mutex, MutexGuard};
@@ -102,6 +103,41 @@ impl Submitter for SharedServer {
     }
 }
 
+impl SharedServer {
+    /// Run `f` on the room of `file` in the principal's workspace, opening it for the call when it is closed.
+    fn with_open_room<R>(
+        &self,
+        who: &Principal,
+        file: &str,
+        f: impl FnOnce(&Room<AnyStore>) -> R,
+    ) -> Result<R, Failure> {
+        let mut s = self.lock();
+        let was_open = s.with_room(&who.workspace, file, |_| ()).is_some();
+        if !was_open {
+            s.open(&who.workspace, file)
+                .map_err(|e| failure_of(&SubmitError::Rooms(e)))?;
+        }
+        let out = s
+            .with_room(&who.workspace, file, f)
+            .expect("the room is open");
+        if !was_open {
+            s.close(&who.workspace, file);
+        }
+        Ok(out)
+    }
+}
+
+/// The snapshot route reads the file of the principal's workspace; the token decides the workspace, so a
+/// principal never reads another workspace's file.
+impl Snapshots for SharedServer {
+    fn snapshot(&self, who: &Principal, file: &str) -> Result<FileSnapshot, Failure> {
+        self.with_open_room(who, file, |r| FileSnapshot {
+            seq: r.seq(),
+            nodes: r.nodes().to_vec(),
+        })
+    }
+}
+
 #[cfg(feature = "mcp")]
 mod read {
     use super::*;
@@ -119,25 +155,13 @@ mod read {
             file: &str,
             f: impl FnOnce(&Room<AnyStore>) -> R,
         ) -> Result<R, Failure> {
-            let mut s = self.lock();
-            if s.registry().policy_for(tool) != Some(Policy::Auto) {
+            if self.lock().registry().policy_for(tool) != Some(Policy::Auto) {
                 return Err(Failure::Refused(meldframe_host::Refusal::Forbidden {
                     tier: meldframe_module::RiskTier::Read,
                     policy: Policy::Deny,
                 }));
             }
-            let was_open = s.with_room(&who.workspace, file, |_| ()).is_some();
-            if !was_open {
-                s.open(&who.workspace, file)
-                    .map_err(|e| failure_of(&SubmitError::Rooms(e)))?;
-            }
-            let out = s
-                .with_room(&who.workspace, file, f)
-                .expect("the room is open");
-            if !was_open {
-                s.close(&who.workspace, file);
-            }
-            Ok(out)
+            self.with_open_room(who, file, f)
         }
     }
 
