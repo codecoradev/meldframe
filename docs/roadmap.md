@@ -26,7 +26,7 @@ See `docs/decisions.md` (items 1 to 14 and 20 to 26), the working defaults in `d
 | Approve ADR-0005 review and revert model | grilling (owner) | owner; questionnaire section 4 |
 | Decide headless capture | decision (in the repository, when a real workflow needs it) | no separate spike |
 | Confirm Gatehouse client type and scopes for MCP | decision during E2.2 | Gatehouse access |
-| Choose the editor UI direction (`DESIGN.md`) | prototype (owner) | owner; after PRD approval |
+| Choose the editor UI direction (`DESIGN.md`) | prototype (owner) | draft written in `DESIGN.md` and `docs/ui-design.md`; owner review |
 | Define the document model round 2 (components, variants, schema version) | grilling (owner) | after ADR-0004 |
 
 ## Not yet specified (fog)

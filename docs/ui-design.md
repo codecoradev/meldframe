@@ -9,7 +9,7 @@ This is a design note, not product code. It records what the first design pass o
 1. The canvas is the window. Chrome floats over it and collapses, so a person who only wants to look sees nothing else. `[D]` (decision 27)
 2. The editor is an operating surface: neutral, dense and scannable. Colour belongs to the design on the canvas, to selection and to actors. `[P]`
 3. The front end only renders app state and sends actions (ADR-0008). Every rule in this page that is about behaviour (what a panel lists, what a view contains) lives in `meldframe-app`.
-4. UI colours, sizes and durations come from the tokens module (`crates/ui/meldframe-ui`). The values in this page are proposals to replace the placeholders there. `[P]`
+4. UI colours, sizes and durations come from the tokens module (`crates/ui/meldframe-ui`). The values and the rules are in `DESIGN.md`. `[P]`
 
 ## 2. Web editor layout
 
