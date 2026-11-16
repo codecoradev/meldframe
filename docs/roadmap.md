@@ -56,6 +56,23 @@ Tracked as issues; priorities are labels (`priority:P0` first). The alignment wo
 
 M0 Foundation, M1 Connected skeleton (first goal), M2 Platform and agent identity, M3 Model round 2 and variables, M4 Export and fidelity, M5 Agent review and design quality, M6 V2 and the W1 gate. Epics, acceptance criteria and exit criteria: `docs/epics.md`.
 
+### Progress
+
+Counted from the acceptance-criteria boxes in `docs/epics.md` (a box is ticked only when its whole text is proven). State on 16 Nov 2026.
+
+| Milestone | Ticked | Of | Share | What is left |
+|---|---|---|---|---|
+| M0 Foundation | 14 | 15 | 93% | E0.4: `just web` now starts the client through the guarded proxy but was not yet run end to end against `just dev` (the client shows only the token page until the editor slices land) |
+| M1 Connected skeleton | 23 | 29 | 79% | E1.6 web editor (5 boxes, all need the UI), E1.5 demonstration with Claude Code by hand, and the real capture client of the editor |
+| M2 Platform and agent identity | 0 | 13 | 0% | not started |
+| M3 Model round 2 and variables | 0 | 13 | 0% | not started |
+| M4 Export and fidelity | 0 | 6 | 0% | not started |
+| M5 Agent review and design quality | 0 | 8 | 0% | not started |
+| M6 V2 and the W1 gate | 0 | 4 | 0% | not started |
+| Total | 37 | 88 | 42% | |
+
+The backend, MCP surface, live events, capture relay and app layer of M1 are done and covered by tests, including a headless run of the M1 demonstration (steps 3, 4 and 5 on the real server with an app-layer editor, in `meldframe-capture-tests`). The remaining M0 and M1 boxes need the web client.
+
 ## Earlier build order (superseded by the milestones)
 
 1. E0 Foundation: workspace layout by kind, CI checks (`deps-check`, `build-matrix`, `portable-check` for wasm32, `size-check`, `ui-literals`, `licences`), schema version, protocol pipeline.
