@@ -16,7 +16,7 @@ dev-server:
 
 # Start the web client against the dev server
 dev-web:
-    @if [ -f apps/web/package.json ]; then cd apps/web && { [ -d node_modules ] || npm ci; } && npm run dev; else echo "dev-web: the web client arrives in E1.x"; fi
+    @if [ -f apps/web/package.json ]; then set -a; [ -f .env ] && . ./.env; set +a; cd apps/web && { [ -d node_modules ] || npm ci; } && npm run dev; else echo "dev-web: the web client arrives in E1.x"; fi
 
 # Run the test suite (Rust and web parts run when they exist)
 test:

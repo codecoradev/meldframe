@@ -10,5 +10,5 @@
     "paths": { "@meldframe/protocol": ["../../packages/protocol/src/index.ts"] },
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.svelte", "dev/**/*.ts", "vite.config.ts"]
 }

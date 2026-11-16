@@ -137,6 +137,15 @@ jobs:
       - run: cd apps/web && npm run check
       - run: cd apps/web && npm test
       - run: cd apps/web && npm run build
+      - name: Protocol drift (generated TypeScript matches the committed files)
+        run: bash tools/check-protocol.sh
+      # The browser end-to-end test needs Playwright and Chromium, which the project does not depend on.
+      - name: Browser end-to-end test
+        run: |
+          cd apps/web
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+          npm run e2e
 
   # More seeds than a pull request run (600, the default of `cargo test --workspace`), and the E1.1
   # mutation check: each rule switched off must make a test fail (tools/mutation-check-sync.sh).
