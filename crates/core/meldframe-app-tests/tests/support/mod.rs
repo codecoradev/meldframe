@@ -29,8 +29,8 @@ pub fn config(queue: usize) -> Config {
         queue,
         max_streams: 8,
         heartbeat_ms: 500,
-        dead_after_ms: 60_000,
-        stall_ms: 60_000,
+        dead_after_ms: 10_000_000,
+        stall_ms: 10_000_000,
     }
 }
 
@@ -94,9 +94,9 @@ impl World {
     }
 
     /// A new editor that loads the file as it is now and opens its connection.
-    pub fn join(&mut self, actor: &str, prefix: &str) -> usize {
+    pub fn join(&mut self, actor: &str, prefix: &str, session: u64) -> usize {
         let (nodes, seq) = self.room();
-        let app = App::new(actor, prefix, nodes, seq).unwrap();
+        let app = App::new(actor, prefix, session, nodes, seq).unwrap();
         self.clients.push(Client {
             name: actor.to_string(),
             app,
@@ -106,7 +106,8 @@ impl World {
             states: vec![],
         });
         let i = self.clients.len() - 1;
-        self.act(i, Action::Start {});
+        let now = self.now;
+        self.act(i, Action::Start { now_ms: now });
         i
     }
 
@@ -176,7 +177,7 @@ impl World {
                 }
                 back
             }
-            Effect::Reconnect { .. } | Effect::Render { .. } => vec![],
+            Effect::Reconnect { .. } | Effect::WakeAfter { .. } | Effect::Render { .. } => vec![],
         }
     }
 

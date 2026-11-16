@@ -46,12 +46,19 @@ pub enum Event {
     Refused {
         code: String,
     },
-    /// The server refused one of the person's ops; the view went back. The front end words the message.
+    /// The server refused an op for now (`retryable`); the app sends it again with the same key. Attempt
+    /// number `attempt` (from 1) is under way.
+    OpRetry {
+        key: String,
+        attempt: u32,
+    },
+    /// The server refused one of the person's ops for good (or the retries ran out); the view went back. The front end words the message.
     OpRejected {
         key: String,
         code: String,
         retryable: bool,
     },
-    /// The file and the events no longer fit. The front end must load the file again.
+    /// The file and the events no longer fit. The app halts (`Connection::Halted`) and ignores frames and
+    /// edits; the shell loads the file again and makes a new `App`.
     Diverged {},
 }

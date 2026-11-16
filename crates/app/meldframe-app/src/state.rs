@@ -85,6 +85,9 @@ pub enum Connection {
     Reconnecting { attempt: u32 },
     /// The connection dropped; the next attempt waits for its backoff.
     Offline,
+    /// The file and the server's events no longer fit (`Event::Diverged`). Only a new `App` made from a
+    /// fresh snapshot goes on; selection, tool and panels still work.
+    Halted,
 }
 
 /// What the actor's own history can do. No wording: the front end writes the button text.

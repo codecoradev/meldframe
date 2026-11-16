@@ -87,8 +87,11 @@ pub enum Action {
     Undo {},
     /// Redo the change that was just undone.
     Redo {},
-    /// Open the connection: the app asks for a subscription from its last confirmed number.
-    Start {},
+    /// Open the connection: the app asks for a subscription from its last confirmed number. `now_ms` is
+    /// the shell's clock.
+    Start {
+        now_ms: u64,
+    },
     /// The transport is subscribed (the first time or again). `now_ms` is the shell's clock.
     Connected {
         now_ms: u64,

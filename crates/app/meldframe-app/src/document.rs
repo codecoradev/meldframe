@@ -1,10 +1,10 @@
 //! Document actions: what the person meant becomes commands in the replica.
 
 use crate::action::{Action, CreateKind, Property};
-use crate::app::{App, touched};
+use crate::app::{App, render_set};
 use crate::effect::Effect;
 use crate::state::Tool;
-use meldframe_check::ApplyError;
+use meldframe_check::{ApplyError, Limits, check_command};
 use meldframe_protocol::{Command, Node, NodePatch};
 use meldframe_sync::Replica;
 use serde_json::json;
@@ -44,6 +44,10 @@ impl App {
         let before = self.replica.pending_len();
         let mut select = None;
         let result = match action {
+            Action::CreateNode { kind, x, y, parent } if !(x.is_finite() && y.is_finite()) => {
+                let _ = (kind, parent);
+                Err(ApplyError::NotFinite("x"))
+            }
             Action::CreateNode { kind, x, y, parent } => {
                 let id = self.fresh_id();
                 let cmd = Command::AddNode {
@@ -79,7 +83,10 @@ impl App {
                         )
                     })
                     .collect();
-                apply_all(&mut self.replica, &cmds)
+                match self.validate(&cmds) {
+                    Ok(()) => apply_all(&mut self.replica, &cmds),
+                    Err(e) => Err(e),
+                }
             }
             Action::Resize { id, w, h } => self.replica.apply(&update(
                 &id,
@@ -127,7 +134,8 @@ impl App {
         if made.is_empty() {
             return;
         }
-        let nodes: Vec<String> = made.iter().flat_map(|o| touched(&o.command)).collect();
+        let commands: Vec<Command> = made.into_iter().map(|o| o.command).collect();
+        let nodes = render_set(&commands);
         let me = self.replica.actor().to_string();
         self.changed(me, true, nodes, fx);
         if let Some(id) = select {
@@ -136,7 +144,20 @@ impl App {
         }
     }
 
+    /// Every command is valid on the current document: checked before any is applied, so a list
+    /// that would fail half way applies nothing.
+    fn validate(&self, cmds: &[Command]) -> Result<(), ApplyError> {
+        let limits = Limits::default();
+        cmds.iter()
+            .try_for_each(|c| check_command(self.replica.nodes(), c, &limits))
+    }
+
     fn delete(&mut self, ids: &[String]) -> Result<(), ApplyError> {
+        let cmds: Vec<Command> = ids
+            .iter()
+            .map(|id| Command::RemoveNode { id: id.clone() })
+            .collect();
+        self.validate(&cmds)?;
         self.replica.begin_group();
         let mut done = Ok(());
         for id in ids {

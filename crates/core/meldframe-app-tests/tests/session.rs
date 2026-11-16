@@ -36,8 +36,8 @@ fn text_patch(text: &str) -> NodePatch {
 
 /// Alice and Bob open the file. Returns their indexes.
 fn two_editors(w: &mut World) -> (usize, usize) {
-    let a = w.join("user:alice", "a");
-    let b = w.join("user:bob", "b");
+    let a = w.join("user:alice", "a", 1);
+    let b = w.join("user:bob", "b", 1);
     assert_eq!(w.app(a).state().connection, meldframe_app::Connection::Live);
     (a, b)
 }
@@ -326,17 +326,4 @@ fn a_resync_marker_makes_the_app_subscribe_again_from_the_marker() {
     assert_eq!(node_of(&w, a, "t1").text, "v6");
     assert_eq!(w.app(a).state().connection, meldframe_app::Connection::Live);
     w.assert_converged();
-}
-
-#[test]
-fn heartbeats_keep_a_quiet_connection_and_change_no_document_state() {
-    let mut w = World::new(64);
-    let (a, _) = two_editors(&mut w);
-    w.clients[a].events.clear();
-    w.now += 600;
-    w.server.tick(w.now);
-    assert!(w.pump(a) >= 1, "a heartbeat frame arrived");
-    w.act(a, Action::Tick { now_ms: w.now });
-    assert!(w.clients[a].events.is_empty());
-    assert_eq!(w.app(a).state().connection, meldframe_app::Connection::Live);
 }

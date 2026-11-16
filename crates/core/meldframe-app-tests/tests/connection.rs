@@ -1,10 +1,35 @@
 //! The connection state machine: connecting, live, dropped, backoff, reconnect, resync and heartbeats.
 //! Frames are scripted; the real server comes in `meldframe-app-tests`.
 
-mod common;
-use common::*;
-use meldframe_app::{Action, Connection, Effect, Event, Frame};
-use meldframe_protocol::{Command, NodePatch};
+use meldframe_app::{Action, App, Connection, Effect, Event, Frame};
+use meldframe_protocol::{Command, Node, NodePatch};
+
+fn node(id: &str, kind: &str, parent: Option<&str>) -> Node {
+    serde_json::from_value(serde_json::json!({"id": id, "type": kind, "parentId": parent})).unwrap()
+}
+
+fn app() -> App {
+    let nodes = vec![
+        node("root", "frame", None),
+        node("r1", "rect", Some("root")),
+        node("t1", "text", Some("root")),
+    ];
+    App::new("user:me", "c0", 1, nodes, 0).unwrap()
+}
+
+fn get(app: &App, id: &str) -> Node {
+    app.nodes().iter().find(|n| n.id == id).cloned().unwrap()
+}
+
+fn sent(effects: &[Effect]) -> Vec<Command> {
+    effects
+        .iter()
+        .flat_map(|e| match e {
+            Effect::SendOps { ops } => ops.iter().map(|o| o.command.clone()).collect(),
+            _ => vec![],
+        })
+        .collect()
+}
 
 fn subscribe_after(effects: &[Effect]) -> Vec<u64> {
     effects
@@ -54,7 +79,7 @@ fn event(seq: u64, actor: &str, id: &str, x: f64) -> Action {
 #[test]
 fn start_subscribes_from_the_last_confirmed_number() {
     let mut app = app();
-    let fx = app.dispatch(Action::Start {});
+    let fx = app.dispatch(Action::Start { now_ms: 0 });
     assert_eq!(subscribe_after(&fx), [0]);
     assert_eq!(app.state().connection, Connection::Connecting);
 }
@@ -62,7 +87,7 @@ fn start_subscribes_from_the_last_confirmed_number() {
 #[test]
 fn ops_made_before_the_connection_is_live_are_held_and_sent_when_it_is() {
     let mut app = app();
-    app.dispatch(Action::Start {});
+    app.dispatch(Action::Start { now_ms: 0 });
     let fx = app.dispatch(move_to("r1", 4.0));
     assert!(sent(&fx).is_empty(), "nothing goes out while connecting");
     assert_eq!(app.state().pending.len(), 1);
@@ -77,17 +102,15 @@ fn a_dropped_connection_goes_offline_and_asks_for_a_retry_with_growing_backoff()
     app.dispatch(Action::Connected { now_ms: 0 });
     let fx = app.dispatch(Action::Disconnected {});
     assert_eq!(app.state().connection, Connection::Offline);
-    assert_eq!(reconnect_after(&fx), [1_000]);
-    app.dispatch(Action::Reconnect { now_ms: 1_000 });
-    let fx = app.dispatch(Action::Disconnected {});
-    assert_eq!(reconnect_after(&fx), [2_000]);
-    for _ in 0..8 {
+    let mut waits = reconnect_after(&fx);
+    for _ in 0..7 {
         app.dispatch(Action::Reconnect { now_ms: 0 });
-        app.dispatch(Action::Disconnected {});
+        waits.extend(reconnect_after(&app.dispatch(Action::Disconnected {})));
     }
-    app.dispatch(Action::Reconnect { now_ms: 0 });
-    let fx = app.dispatch(Action::Disconnected {});
-    assert_eq!(reconnect_after(&fx), [30_000], "the backoff is capped");
+    assert_eq!(
+        waits,
+        [1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000, 30_000]
+    );
     assert!(
         app.dispatch(Action::Disconnected {}).is_empty(),
         "already offline"
@@ -110,6 +133,7 @@ fn reconnect_resubscribes_from_the_confirmed_number_and_connected_resets_the_bac
     assert_eq!(subscribe_after(&fx), [2]);
     app.dispatch(Action::Connected { now_ms: 1_100 });
     assert_eq!(app.state().connection, Connection::Live);
+    app.dispatch(Action::Tick { now_ms: 12_000 }); // live for over ten seconds: the backoff starts again
     let ev = app.take_events();
     assert!(ev.contains(&Event::ConnectionChanged {
         connection: Connection::Reconnecting { attempt: 1 }
@@ -229,4 +253,38 @@ fn the_heartbeat_changes_no_document_state() {
     });
     assert!(fx.is_empty() && app.take_events().is_empty());
     assert_eq!(*app.state(), before);
+}
+
+#[test]
+fn a_connection_that_drops_soon_after_connecting_keeps_the_backoff() {
+    let mut app = app();
+    app.dispatch(Action::Connected { now_ms: 0 });
+    app.dispatch(Action::Disconnected {});
+    app.dispatch(Action::Reconnect { now_ms: 1_000 });
+    app.dispatch(Action::Connected { now_ms: 1_100 });
+    app.dispatch(Action::Tick { now_ms: 3_000 });
+    let fx = app.dispatch(Action::Disconnected {});
+    assert_eq!(
+        reconnect_after(&fx),
+        [2_000],
+        "it was live for less than ten seconds"
+    );
+}
+
+#[test]
+fn a_first_connection_that_never_comes_up_times_out() {
+    let mut app = app();
+    app.dispatch(Action::Start { now_ms: 100 });
+    assert!(app.dispatch(Action::Tick { now_ms: 5_000 }).is_empty());
+    let fx = app.dispatch(Action::Tick { now_ms: 10_200 });
+    assert_eq!(app.state().connection, Connection::Offline);
+    assert_eq!(reconnect_after(&fx), [1_000]);
+}
+
+#[test]
+fn a_clock_that_goes_backwards_drops_nothing() {
+    let mut app = app();
+    app.dispatch(Action::Connected { now_ms: 50_000 });
+    assert!(app.dispatch(Action::Tick { now_ms: 10 }).is_empty());
+    assert_eq!(app.state().connection, Connection::Live);
 }

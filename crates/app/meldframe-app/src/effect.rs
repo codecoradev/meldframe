@@ -33,6 +33,8 @@ pub enum Effect {
     Subscribe { after_seq: u64 },
     /// Wait `after_ms`, then dispatch `Action::Reconnect`.
     Reconnect { after_ms: u64 },
+    /// Wait `after_ms`, then dispatch `Action::Tick`: the app has a retry to send.
+    WakeAfter { after_ms: u64 },
     /// Redraw. The nodes named changed; an empty list means everything.
     Render { nodes: Vec<String> },
 }

@@ -22,7 +22,7 @@ pub fn ids(list: &[&str]) -> Vec<String> {
 }
 
 pub fn app() -> App {
-    App::new("user:me", "c0", doc(), 0).unwrap()
+    App::new("user:me", "c0", 1, doc(), 0).unwrap()
 }
 
 pub fn get(app: &App, id: &str) -> Node {
