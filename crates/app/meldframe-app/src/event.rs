@@ -2,8 +2,10 @@
 
 use crate::state::{Connection, Panel, Tool};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",

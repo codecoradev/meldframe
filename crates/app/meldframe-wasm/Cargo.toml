@@ -9,5 +9,15 @@ publish.workspace = true
 [package.metadata.meldframe]
 kind = "app"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+meldframe-app = { path = "../meldframe-app" }
+meldframe-protocol = { path = "../../core/meldframe-protocol" }
+serde = "1"
+serde_json = "1"
+wasm-bindgen = "0.2.130"
+
 [lints]
 workspace = true

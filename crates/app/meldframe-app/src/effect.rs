@@ -2,9 +2,11 @@
 
 use meldframe_protocol::Command;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// An op for the server. Sending it again with the same `key` is safe.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OutOp {
     /// Idempotency key.
@@ -14,7 +16,8 @@ pub struct OutOp {
     pub deps: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -30,11 +33,20 @@ pub enum Effect {
     SendOps { ops: Vec<OutOp> },
     /// Open the subscription (a new one, or again on the stream the shell holds) and replay the ops after
     /// `after_seq`. What arrives comes back as `Action::Connected` and `Action::Frame`.
-    Subscribe { after_seq: u64 },
+    Subscribe {
+        #[ts(type = "number")]
+        after_seq: u64,
+    },
     /// Wait `after_ms`, then dispatch `Action::Reconnect`.
-    Reconnect { after_ms: u64 },
+    Reconnect {
+        #[ts(type = "number")]
+        after_ms: u64,
+    },
     /// Wait `after_ms`, then dispatch `Action::Tick`: the app has a retry to send.
-    WakeAfter { after_ms: u64 },
+    WakeAfter {
+        #[ts(type = "number")]
+        after_ms: u64,
+    },
     /// Redraw. The nodes named changed; an empty list means everything.
     Render { nodes: Vec<String> },
 }
