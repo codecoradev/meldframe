@@ -48,6 +48,17 @@ Status of each item: **decided** (owner confirmed), **proposed** (needs owner co
 | 25 | First goal: backend, basic web editor and MCP connected end to end (milestone M1 in `docs/epics.md`). Development tokens behind the gate's principal interface in M1; Gatehouse in M2. | decided |
 | 26 | The recommendations in `docs/owner-questionnaire.md` are working defaults until the owner overrides an answer. | decided |
 
+## UI (owner decisions, 16 Nov 2026)
+
+Details in `docs/ui-design.md`.
+
+| # | Decision | Status |
+|---|---|---|
+| 27 | Editor layout: the canvas fills the window; chrome floats over it; the layers panel and the right panel collapse (Option+1, Option+2); a view control saves and restores panel layouts. | decided |
+| 28 | Colour variables are shown as OKLCH by default, hex on request and by copy. Storage and canvas rendering stay open (`tokens-and-variables.md` Q3). | decided |
+| 29 | The web editor stays visual: canvas and MCP. Comments on the web are parked. Decision 8 stands. | decided |
+| 30 | Desktop front end, layout A (mode switch): a sidebar of repositories (local folder or GitHub) with chats beneath, a chat pane for chats only, and a work area that switches between Design (tabs of designs) and Code (file viewers and terminals as tabs, the file tree on the right). Chats speak ACP to a local agent; design changes go through MCP and the gate. Side by side and dockable layouts are later options. Open: the sidebar word, repository versus workspace file, one working copy per chat. | decided (layout), proposed (details) |
+
 ## Workflow
 
 Branches `feat/`, `fix/`, `docs/`, `chore/` from `develop`; rebase onto `develop`; squash merge with a clean message; commits signed off (DCO); a local Cora agent review before every pull request (Cora Review in CI is disabled); all git artifacts in English.

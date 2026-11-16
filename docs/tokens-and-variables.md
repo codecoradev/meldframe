@@ -450,7 +450,7 @@ T0 to T3 should be inside W1 (concept spike order: model round 2, token import, 
 
 - Q1 Component tokens: later, or never (just naming)?
 - Q2 Name uniqueness per collection or global (affects CSS name collisions across collections)?
-- Q3 Color space: sRGB hex only now, or store OKLCH/P3 from the start (Tailwind v4 default palette is OKLCH, Wonder lists P3/OKLCH)? Needs a canvas rendering decision with PixiJS.
+- Q3 Color space: sRGB hex only now, or store OKLCH/P3 from the start (Tailwind v4 default palette is OKLCH, Wonder lists P3/OKLCH)? Needs a canvas rendering decision with PixiJS. The display default is OKLCH (decision 28); storage and rendering are still open.
 - Q4 Does `size` get its own namespace or share `spacing`?
 - Q5 Global mode switch as view state only, or persisted per file?
 - Q6 Generalize the entity store (variables reuse node machinery) or bespoke commands?
