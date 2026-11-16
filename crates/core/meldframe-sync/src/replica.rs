@@ -22,6 +22,7 @@ use meldframe_protocol::{Command, MAX_OP_DEPS, Node};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 mod rebuild;
+mod resync;
 
 #[derive(Debug, Clone)]
 struct Pending {
@@ -307,11 +308,25 @@ impl Replica {
         self.pending.iter().map(|p| p.out.clone()).collect()
     }
 
-    /// Apply a server event. Events must arrive in `seq` order.
+    /// Apply a server event that carries no key: my own op is recognised by actor and command.
     pub fn on_event(
         &mut self,
         seq: u64,
         actor: &str,
+        cmd: &Command,
+    ) -> Result<EventOutcome, ReplicaError> {
+        self.on_event_keyed(seq, actor, None, cmd)
+    }
+
+    /// Apply a server event. Events must arrive in `seq` order. `key` is the idempotency key the event
+    /// carries: my own op is the event of my actor that names the key of my oldest pending op. Another
+    /// session of my actor, or a repeat of my command, is not mine. Without a key (an old log) the
+    /// command is compared instead.
+    pub fn on_event_keyed(
+        &mut self,
+        seq: u64,
+        actor: &str,
+        key: Option<&str>,
         cmd: &Command,
     ) -> Result<EventOutcome, ReplicaError> {
         if seq <= self.seq {
@@ -324,10 +339,21 @@ impl Replica {
             });
         }
         let own = actor == self.actor
-            && self
-                .pending
-                .front()
-                .is_some_and(|p| p.json == cmd_json(cmd));
+            && self.pending.front().is_some_and(|p| match key {
+                Some(k) => p.out.key == k,
+                None => p.json == cmd_json(cmd),
+            });
+        // My op named by its key, but not the oldest pending one: the server ordered it ahead of an older op
+        // of mine (that one was refused or is late). Taking it as a remote op would leave it pending for
+        // ever, so the replica says it cannot follow: the caller resyncs.
+        if !own
+            && actor == self.actor
+            && key.is_some_and(|k| self.pending.iter().any(|p| p.out.key == k))
+        {
+            return Err(ReplicaError::Diverged(
+                "an op of mine was confirmed out of order".into(),
+            ));
+        }
         if own {
             self.advance_ideal(cmd);
             apply_command(&mut self.base, cmd, &self.limits)

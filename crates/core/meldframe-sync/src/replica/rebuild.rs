@@ -51,7 +51,8 @@ impl Replica {
                 // A step counts once, at its first op; a correction is not part of any step.
                 let cmds = match p.run {
                     Some(m) if seen.insert(m) => self.view.refresh_run(m).unwrap_or_default(),
-                    None if p.out.kind == OpKind::Edit => vec![cmd.clone()],
+                    // An edit, or an op replayed by `resync`: it has a history rec of its own.
+                    None if p.rec.is_some() => vec![cmd.clone()],
                     // A correction counts, minus what a remote op wrote (it is ordered first).
                     None => {
                         if let Some(r) = remote {

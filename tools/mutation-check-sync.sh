@@ -39,6 +39,12 @@ resent-flag	crates/core/meldframe-sync/src/replica/rebuild.rs	last\.resent = res
 lost-base	crates/core/meldframe-sync/src/replica/rebuild.rs	\.filter_map(|c| left_in_base(&self\.base, self\.view\.nodes(), &pend, c))	.filter_map(|_| None::<Command>)	a refused correction whose dependent ops fell is not sent once more
 lost-cascade	crates/core/meldframe-sync/src/replica/rebuild.rs	if chain && p\.is_correction() && !p\.resent {	if false \&\& chain \&\& p.is_correction() \&\& !p.resent {	a correction that falls with a refused correction is not sent once more
 pending-written	crates/core/meldframe-sync/src/correction.rs	!written\.contains(k) && 	true \&\&	a resend overwrites a pending edit of the field that holds the same value as the stale one
+own-by-key	crates/core/meldframe-sync/src/replica.rs	Some(k) => p\.out\.key == k,	Some(_) => p.json == cmd_json(cmd),	an event of my actor is taken for the ack of my oldest pending op by actor and command, not by key
+own-keyless	crates/core/meldframe-sync/src/replica.rs	None => p\.json == cmd_json(cmd),	None => false,	an event without a key (an old log) is never recognised as mine
+resync-seq	crates/core/meldframe-sync/src/replica/resync.rs	self\.seq = seq;	let _ = seq;	a resync does not move the replica to the sequence number of the snapshot
+resync-applied	crates/core/meldframe-sync/src/replica/resync.rs	if done\.contains(p\.out\.key\.as_str()) {	if false \&\& done.contains(p.out.key.as_str()) {	an op the snapshot already holds is replayed (and sent) again after a resync
+resync-deps	crates/core/meldframe-sync/src/replica/resync.rs	let live = !p\.out\.deps\.iter()\.any(|d| dead\.contains(d))	let live = true	after a resync an op whose dependency was dropped is kept
+resync-outbox	crates/core/meldframe-sync/src/replica/resync.rs	self\.outbox = self\.pending\.iter()\.map(|p| p\.out\.clone())\.collect();	self.outbox.clear();	a resync does not queue the pending ops to be sent again
 TABLE
 )
 

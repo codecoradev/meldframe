@@ -3,12 +3,13 @@
 //! to a replica twice. A lost or reordered event is not modelled: it needs the resync entry point. Every seed is one run; a failure names the seed, and `MELDFRAME_SEED=n` replays it.
 
 pub mod random;
+mod resync;
 pub mod server;
 
 use meldframe_core::normalize_positions;
 use meldframe_order::fracindex;
 use meldframe_protocol::{Command, Node};
-use meldframe_sync::{EventOutcome, Outgoing, Replica};
+use meldframe_sync::{EventOutcome, Outgoing, Replica, ReplicaError};
 use random::{Rng, initial, rand_edit};
 use server::{Server, Verdict};
 use std::collections::{HashSet, VecDeque};
@@ -19,6 +20,7 @@ pub enum Msg {
     Event {
         seq: u64,
         actor: String,
+        key: String,
         cmd: Command,
     },
     Reject {
@@ -40,6 +42,8 @@ pub struct Stats {
     pub quiet_pair_diffs: u64,
     pub rejects: u64,
     pub dep_rejects: u64,
+    /// Replicas that loaded a snapshot again and replayed their pending ops.
+    pub resyncs: u64,
     /// Events delivered to a replica a second time.
     pub duplicated: u64,
     /// Of those, the ones the replica ignored as a duplicate.
@@ -127,7 +131,7 @@ impl Net {
         }
     }
 
-    fn fail(&self, i: usize, msg: &str) -> ! {
+    pub(super) fn fail(&self, i: usize, msg: &str) -> ! {
         let t = &self.trace[i];
         let tail = t[t.len().saturating_sub(30)..].join("\n");
         panic!("seed {}: replica {i}: {msg}\n{tail}", self.seed)
@@ -158,6 +162,7 @@ impl Net {
                     d.push_back(Msg::Event {
                         seq,
                         actor: self.names[i].clone(),
+                        key: o.key.clone(),
                         cmd: o.command.clone(),
                     });
                 }
@@ -176,10 +181,18 @@ impl Net {
                     self.mirrors[i].clear();
                 }
             }
-            Msg::Event { seq, actor, cmd } => {
-                let res = self.reps[i]
-                    .on_event(seq, &actor, &cmd)
-                    .unwrap_or_else(|e| self.fail(i, &format!("on_event: {e:?}")));
+            Msg::Event {
+                seq,
+                actor,
+                key,
+                cmd,
+            } => {
+                let res = match self.reps[i].on_event_keyed(seq, &actor, Some(&key), &cmd) {
+                    Ok(res) => res,
+                    // The replica cannot follow: the platform loads the file again.
+                    Err(ReplicaError::Diverged(_)) => return self.resync(i),
+                    Err(e) => self.fail(i, &format!("on_event: {e:?}")),
+                };
                 self.trace[i].push(format!("EV seq{seq} {actor} -> {res:?}"));
                 match res {
                     EventOutcome::Rebased { dropped } => {
@@ -197,7 +210,12 @@ impl Net {
                         ^ (i as u64).wrapping_mul(40_503))
                     .is_multiple_of(7)
                 {
-                    self.down[i].push_back(Msg::Event { seq, actor, cmd });
+                    self.down[i].push_back(Msg::Event {
+                        seq,
+                        actor,
+                        key,
+                        cmd,
+                    });
                     self.stats.duplicated += 1;
                 }
             }
@@ -448,6 +466,7 @@ pub fn run_seed(seed: u64, n: usize, steps: usize, quiet_windows: bool, stats: &
             4..=6 => net.deliver_up(r.below(n)),
             7..=8 => net.deliver_down(r.below(n)),
             _ if r.below(8) == 0 => net.resend(r.below(n)),
+            _ if r.below(40) == 0 => net.resync(r.below(n)),
             _ => {}
         }
         if quiet && step % 40 == 39 {
@@ -466,6 +485,7 @@ pub fn run_seed(seed: u64, n: usize, steps: usize, quiet_windows: bool, stats: &
     stats.redos += s.redos;
     stats.dropped_on_rebase += s.dropped_on_rebase;
     stats.resent += s.resent;
+    stats.resyncs += s.resyncs;
     stats.duplicated += s.duplicated;
     stats.duplicates_ignored += s.duplicates_ignored;
     stats.exact_checks += s.exact_checks;

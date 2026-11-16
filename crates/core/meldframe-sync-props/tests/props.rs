@@ -1,7 +1,9 @@
 //! Property tests for the replica: random runs of several replicas against an in-memory server, with
 //! the dependency rule, delayed delivery (random order across replicas), repeated delivery of ops to the
-//! server and of events to the replicas, and refused ops. Not modelled yet: a lost or reordered event on
-//! the way to a replica, which needs the resync entry point (issue 90).
+//! server and of events to the replicas, and refused ops. A replica also loses its connection now and
+//! then: the events and refusals on the way to it are lost, and it loads the file again (`Replica::resync`)
+//! and replays its pending ops. Events name the key of the op, as the wire does. Not modelled: a
+//! reordered event.
 //!
 //! Checked on every seed:
 //! - I1 convergence: when the queues are empty every replica equals the server, nothing is pending, the
@@ -59,6 +61,8 @@ fn replicas_converge_and_undo_stays_per_actor() {
         // The run must not be idle.
         assert!(st.rejects > 0 && st.dep_rejects > 0, "{st:?}");
         assert!(st.dropped_on_rebase > 0 && st.resent > 0, "{st:?}");
+        // A replica that lost its connection resynced from a snapshot and still converged.
+        assert!(st.resyncs > 100, "{st:?}");
         // A server event delivered again must reach the replica and be ignored.
         assert!(st.duplicated > 0 && st.duplicates_ignored > 0, "{st:?}");
         // The undo and redo checks must not be idle either.
