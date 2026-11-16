@@ -41,11 +41,11 @@ Status of each item: **decided** (owner confirmed), **proposed** (needs owner co
 | # | Decision | Status |
 |---|---|---|
 | 20 | Layered crates with kinds and enforced dependency rules; feature modules that never import each other (except composite), one registry read by editor, MCP and REST, a build per feature alone. See ADR-0007 and `docs/standards/modular-thin-ui.md`. | decided |
-| 21 | One admission gate in front of every change, with a permit, risk tiers and agent pairing. See ADR-0010. | decided |
+| 21 | One admission gate in front of every change, with a permit, risk tiers and agent pairing. See ADR-0010. The pairing token is replaced by an OAuth grant (decision 31, ADR-0012). | decided |
 | 22 | UI-neutral app layer in Rust compiled to WASM; the web client only renders. See ADR-0008. | decided |
 | 23 | Live events are durable (sequence numbers, replay) or ephemeral (best-effort). See ADR-0009. | decided |
 | 24 | No new spikes. The first vertical slice of the app layer (the editor shell in M1, see decision 25) is built directly in the product repository with exit criteria written first. | decided |
-| 25 | First goal: backend, basic web editor and MCP connected end to end (milestone M1 in `docs/epics.md`). Development tokens behind the gate's principal interface in M1; Gatehouse in M2. | decided |
+| 25 | First goal: backend, basic web editor and MCP connected end to end (milestone M1 in `docs/epics.md`). Development tokens behind the gate's principal interface in M1; Gatehouse in M2. From M2 agents connect through OAuth grants (decision 31). | decided |
 | 26 | The recommendations in `docs/owner-questionnaire.md` are working defaults until the owner overrides an answer. | decided |
 
 ## UI (owner decisions, 16 Nov 2026)
@@ -58,6 +58,7 @@ Details in `docs/ui-design.md`.
 | 28 | Colour variables are shown as OKLCH by default, hex on request and by copy. Storage and canvas rendering stay open (`tokens-and-variables.md` Q3). | decided |
 | 29 | The web editor stays visual: canvas and MCP. Comments on the web are parked. Decision 8 stands. | decided |
 | 30 | Desktop front end, layout A (mode switch): a sidebar of repositories (local folder or GitHub) with chats beneath, a chat pane for chats only, and a work area that switches between Design (tabs of designs) and Code (file viewers and terminals as tabs, the file tree on the right). Chats speak ACP to a local agent; design changes go through MCP and the gate. Side by side and dockable layouts are later options. Open: the sidebar word, repository versus workspace file, one working copy per chat. | decided (layout), proposed (details) |
+| 31 | Agents connect through OAuth with Gatehouse only, on the web through MCP and on the desktop through the app. No API key, token or pairing token is created or copied by hand. A connection is an OAuth grant: the consent screen lists the risk tiers, access tokens are short-lived, and revoking the grant ends the agent (owner, 16 Nov 2026). The gate, permit and risk tiers of ADR-0010 stand; ADR-0012 replaces its pairing token and rule G4, and E2.4, FR-28 and `collab-ux.md` section 14 follow. | decided |
 
 ## Workflow
 

@@ -72,7 +72,7 @@ Use it when the product has a UI and an MCP or API surface, or will get a second
 - **G1** Every change, from every transport (WebSocket, MCP, REST, UI), MUST pass one authorisation decision point. Policy MUST NOT be re-implemented per transport.
 - **G2** The enforcement point SHOULD prove passage with a value only the gate can construct (a permit with a private constructor), so executing a change without the gate does not compile.
 - **G3** Calls have risk tiers (Read, Change, Delete). Policy is per tier, and MAY be overridden per agent. Read is always allowed; Change is Ask or Auto; Delete is Ask, Auto or Deny. Deleted data goes to trash first.
-- **G4** Agents pair with a random token shown once. The host stores only its hash. The token travels in an environment variable, never an argument. Unpaired callers get the stricter of the default and any override under their declared name; a bad token is an error, never a downgrade.
+- **G4** Agents connect through an OAuth grant through Gatehouse (ADR-0012). Access tokens are short-lived and the host stores no long-lived secret for an agent. A caller without a valid grant is refused, never downgraded.
 - **G5** An approval queue entry expires to denied. If policy cannot be read or a row is not understood, only Read calls proceed.
 - **G6** Every action is logged with its actor, tool, risk, decision and outcome. Logs carry structured fields, not content, and redaction is a safety net only.
 

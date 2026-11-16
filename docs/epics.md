@@ -24,7 +24,7 @@ Plan of record for building W1. Status: draft for owner review, 13 Nov 2026. Req
 |---|---|---|---|
 | M0 Foundation | A repository an agent can build in safely | E0.1 to E0.4 | CI enforces the standard on an empty workspace |
 | **M1 Connected skeleton** (owner's first goal) | Backend, basic web editor and MCP connected end to end | E1.1 to E1.7 | An external agent and a person edit one file live, through one gate |
-| M2 Platform and agent identity | Real login, workspaces, quotas, paired agents, assets | E2.1 to E2.5 | Gatehouse login and MCP OAuth work; data is tenant-scoped |
+| M2 Platform and agent identity | Real login, workspaces, quotas, agent grants, assets | E2.1 to E2.5 | Gatehouse login and MCP OAuth work; data is tenant-scoped |
 | M3 Model round 2 and variables | The layout and paint model of W1, with variables rendered | E3.1 to E3.5 | A Tailwind design system is imported and rendered on the canvas |
 | M4 Export and fidelity | HTML/Tailwind with CSS variables that match the canvas | E4.1 to E4.3 | The oracle gate runs in CI and passes |
 | M5 Agent review and design quality | People can see, review and revert agent work | E5.1 to E5.5 | The review loop works on a real agent run |
@@ -131,15 +131,16 @@ Goal: real users, tenants and agents (decisions 10 to 12; ADR-0006, ADR-0010).
 
 ### E2.2 MCP OAuth through Gatehouse (M)
 First platform slice (risk R9).
-- [ ] Claude Code connects to the MCP endpoint through an OAuth flow with Gatehouse and acts as a paired agent of the signed-in user.
+- [ ] Claude Code connects to the MCP endpoint through an OAuth flow with Gatehouse and acts as an authorised agent of the signed-in user.
 - [ ] The client type and scopes chosen in the questionnaire are documented in an ADR.
 
 ### E2.3 Workspaces and quotas (M)
 - [ ] Every file, variable collection, asset and counter belongs to one workspace; a query without the workspace in the principal returns nothing (tests per table).
 - [ ] Quotas per workspace (ops per minute, batch size, storage) with stable refusal codes; counters survive a restart.
 
-### E2.4 Agent pairing, risk tiers and activity log (M)
-- [ ] An agent session pairs with a token shown once and stored as a hash; it is revocable at once and the next call is refused.
+### E2.4 Agent grants, risk tiers and activity log (M)
+- [ ] An agent connects through an OAuth grant (decision 31): no API key or token is copied by hand, access tokens are short-lived, and revoking the grant ends the session at once so the next call is refused. The consent screen lists the risk tiers.
+- [ ] The release build refuses development tokens (decision 25, ADR-0012).
 - [ ] Calls carry risk tiers (Read, Change, Delete) with the default policy from the questionnaire; an agent deleting a whole frame or a large subtree is asked first.
 - [ ] Every call is logged with actor, tool, risk, decision and outcome; logs carry no content.
 
@@ -147,7 +148,7 @@ First platform slice (risk R9).
 - [ ] Upload png, jpeg, webp or gif (SVG refused); content-addressed; stored on local disk behind a blob interface.
 - [ ] Image fills (cover, contain, fill) render on the canvas; a missing asset is reported as `asset_not_found`.
 
-**M2 exit criteria:** a signed-in person and a paired Claude Code session work in one workspace; another workspace cannot see that file; revoking the agent stops it on its next call.
+**M2 exit criteria:** a signed-in person and an authorised Claude Code session work in one workspace; another workspace cannot see that file; revoking the agent stops it on its next call.
 
 ## M3 Model round 2 and variables
 

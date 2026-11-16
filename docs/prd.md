@@ -132,7 +132,7 @@ Operations and trust
 | FR-25 | Components and instances with overrides | P1 | New (decision 19) |
 | FR-26 | Carousel, slides, motion | Later | Not scheduled |
 | FR-27 | Feature modules register commands, settings, jobs, agent tools (with risk tiers) and panels in one registry read by editor, MCP and REST | P0 | New |
-| FR-28 | Risk tiers (Read, Change, Delete) with policy per tier and per agent; agent pairing with a token shown once and stored as a hash | P0 | Partly proven (session tokens, quotas) |
+| FR-28 | Risk tiers (Read, Change, Delete) with policy per tier and per agent; agents connect through an OAuth grant, revocable at once (decision 31, ADR-0012) | P0 | Partly proven (session tokens, quotas) |
 | FR-29 | Durable and ephemeral live frames with replay from a cursor and a resync marker | P0 | Partly proven (ops with sequence numbers; ephemeral frames New) |
 
 ## 6. Non-functional requirements
