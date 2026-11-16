@@ -29,6 +29,9 @@ describe('describeSnapshotFailure', () => {
     expect(describeSnapshotFailure(401, '')).toContain('401');
     expect(describeSnapshotFailure(401, '')).toContain('MELDFRAME_WEB_TOKEN');
   });
+  it('explains a 403 as the get_tree read policy', () => {
+    expect(describeSnapshotFailure(403, '')).toContain('get_tree');
+  });
   it('names the status and the server text otherwise', () => {
     expect(describeSnapshotFailure(503, 'busy')).toContain('503');
     expect(describeSnapshotFailure(503, 'busy')).toContain('busy');

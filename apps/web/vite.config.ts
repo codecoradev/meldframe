@@ -5,7 +5,7 @@ import type { Duplex } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import type { Plugin, PreviewServer, ViteDevServer } from 'vite';
 import { defineConfig } from 'vitest/config';
-import { checkTarget, guardRequest } from './dev/proxy-guard';
+import { REFUSED_URL, checkTarget, guardRequest, isProxied } from './dev/proxy-guard';
 
 const protocol = fileURLToPath(new URL('../../packages/protocol/src/index.ts', import.meta.url));
 
@@ -33,14 +33,19 @@ const describe = (req: IncomingMessage, upgrade: boolean) => ({
 function guard(): Plugin {
   const install = (server: ViteDevServer | PreviewServer) => {
     const port = () => (server.httpServer?.address() as AddressInfo | null)?.port ?? 0;
-    server.middlewares.use('/v1', (req, res, next) => {
+    server.middlewares.use((req, res, next) => {
+      if (!isProxied(req.url)) return next();
       const refused = guardRequest(describe(req, false), port());
       if (!refused) return next();
       res.statusCode = refused.status;
       res.end(refused.reason);
     });
     server.httpServer?.prependListener('upgrade', (req: IncomingMessage, socket: Duplex) => {
-      if (req.url?.startsWith('/v1') && guardRequest(describe(req, true), port())) socket.destroy();
+      if (isProxied(req.url) && guardRequest(describe(req, true), port())) {
+        // Vite's own upgrade listener runs next and would connect upstream with the token: hide the url from it.
+        req.url = REFUSED_URL;
+        socket.destroy();
+      }
     });
   };
   return { name: 'meldframe-proxy-guard', configureServer: install, configurePreviewServer: install };

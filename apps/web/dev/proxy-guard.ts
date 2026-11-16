@@ -49,3 +49,10 @@ export function checkTarget(target: string, allowRemote: string | undefined): { 
   }
   return { warning: `the dev proxy sends the dev token to ${url.host}, which is not on this machine` };
 }
+
+/** The prefix test of the proxy (Vite proxies every url that starts with the context); the guard uses the same one. */
+export const PROXY_PREFIX = '/v1';
+export const isProxied = (url: string | undefined): boolean => url !== undefined && url.startsWith(PROXY_PREFIX);
+
+/** What a refused upgrade's url is rewritten to, so the proxy's own upgrade listener does not connect upstream. */
+export const REFUSED_URL = '/__refused';

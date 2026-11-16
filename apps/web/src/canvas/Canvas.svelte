@@ -13,7 +13,6 @@
   let items: SceneItem[] = [];
   let drag: { x: number; y: number; dx: number; dy: number } | null = null;
 
-  const colour = (s: string) => s || tokens.colour.nodeFrame;
   /** One display container per node, so a drag moves containers and rebuilds nothing. */
   let views = new Map<string, Container>();
 
@@ -28,13 +27,13 @@
       if (i.kind === 'text') {
         const t = new Text({
           text: i.text,
-          style: { fontSize: i.fontSize, fill: colour(i.fill) || tokens.colour.nodeText, fontFamily: tokens.font.canvas },
+          style: { fontSize: i.fontSize, fill: i.fill || tokens.colour.nodeText, fontFamily: tokens.font.canvas },
         });
         t.position.set(i.x, i.y);
         view.addChild(t);
       } else {
         const g = new Graphics();
-        g.roundRect(i.x, i.y, i.w, i.h, i.radius).fill(colour(i.fill));
+        g.roundRect(i.x, i.y, i.w, i.h, i.radius).fill(i.fill || tokens.colour.nodeFrame);
         if (i.kind === 'frame') g.stroke({ width: tokens.size.frameStroke, color: tokens.colour.border });
         view.addChild(g);
       }
@@ -46,6 +45,8 @@
       world.addChild(view);
       views.set(i.id, view);
     }
+    // A change from elsewhere during a drag rebuilds the scene: keep the preview where the pointer is.
+    if (drag) preview(drag.dx, drag.dy);
   }
 
   /** Show the drag by moving the selected containers. */

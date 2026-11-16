@@ -45,7 +45,9 @@ class FakeEnv implements Env {
     this.sockets.push(s);
     return s;
   };
-  post = async (path: string, body: { ops: { key: string; command: Command }[] }) => {
+  postTimeouts: number[] = [];
+  post = async (path: string, body: { ops: { key: string; command: Command }[] }, timeoutMs = 0) => {
+    this.postTimeouts.push(timeoutMs);
     this.posts.push({ path, body });
     return this.reply(this.posts.length);
   };
@@ -308,5 +310,72 @@ describe('Shell: error and malformed frames', () => {
       env.advance(1_000);
       expect(env.sockets.length).toBe(2);
     }
+  });
+});
+
+describe('Shell: leaks, hangs and stale reports', () => {
+  it('keeps one ping timer per live socket: dropped sockets leave none behind', () => {
+    const { env } = live();
+    for (let i = 0; i < 50; i++) {
+      env.socket.drop();
+      env.advance(60_000);
+    }
+    // the tick, the ping of the current socket, and at most one pending reconnect or retry
+    expect(env.timers.length).toBeLessThanOrEqual(3);
+  });
+
+  it('survives a frame that is well formed but that the app cannot read: the connection counts as lost', () => {
+    const { env, seen } = live();
+    env.socket.serve({ type: 'event', room: 'file_dev', seq: 1, actor: 'a', command: { type: 'bogus' } });
+    expect(seen).toContain('offline');
+    expect(env.socket.closed).toBe(true);
+  });
+
+  it('refuses a sequence number that is not a whole number of at least 0, and a null command', () => {
+    for (const bad of [{ seq: 1.5 }, { seq: -1 }, { seq: 1, command: null }]) {
+      const { env, seen } = live();
+      env.socket.onmessage(JSON.stringify({ type: 'event', room: 'file_dev', actor: 'a', command: add('x'), seq: 1, ...(bad as object) }));
+      expect(seen).toContain('offline');
+    }
+  });
+
+  it('a refused subscribe with any other code than bad_request loses the connection', () => {
+    for (const code of ['forbidden', 'not_found']) {
+      const { env, seen } = live();
+      env.socket.serve({ type: 'resync', room: 'file_dev', afterSeq: 0, latestSeq: 3 });
+      env.socket.serve({ type: 'error', id: 's1', message: 'm', retryable: false, code });
+      expect(seen).toContain('offline');
+    }
+  });
+
+  it('gives every POST a time limit, and a hung POST takes the network-error path', async () => {
+    const { env, engine, seen } = live();
+    env.post = async (_p, _b, timeoutMs = 0) =>
+      new Promise((_ok, fail) => void env.setTimer(() => fail(new Error('timed out')), timeoutMs));
+    create(engine);
+    await flush();
+    env.advance(14_999);
+    await flush();
+    expect(seen).not.toContain('offline');
+    env.advance(1);
+    await flush();
+    expect(seen).toContain('offline');
+  });
+
+  it('does not lose the connection a second time when the POST fails after the socket already dropped', async () => {
+    const { env, engine, seen } = live();
+    let fail: (e: Error) => void = () => {};
+    env.post = () => new Promise((_ok, f) => (fail = f));
+    create(engine);
+    await flush();
+    env.socket.drop();
+    env.advance(1_000); // the app reconnects: a new socket is connecting
+    expect(env.sockets).toHaveLength(2);
+    const connecting = env.socket;
+    fail(new Error('network down'));
+    await flush();
+    expect(connecting.closed).toBe(false);
+    expect(env.sockets).toHaveLength(2);
+    expect(seen).toEqual(['connecting', 'live', 'offline', 'reconnecting']);
   });
 });

@@ -22,7 +22,9 @@ export function shouldReload(store: Store, now: number): boolean {
 }
 
 export function describeSnapshotFailure(status: number, text: string): string {
-  const hint = status === 401 ? ' The dev token is missing or wrong: set MELDFRAME_WEB_TOKEN to a token of MELDFRAME_DEV_TOKENS.' : '';
+  const hint = status === 403
+    ? " The server's read policy for get_tree forbids the snapshot: the MCP feature must be on and get_tree allowed."
+    : status === 401 ? ' The dev token is missing or wrong: set MELDFRAME_WEB_TOKEN to a token of MELDFRAME_DEV_TOKENS.' : '';
   return `Could not load the file: the server answered ${status}${text ? ` (${text.slice(0, 200)})` : ''}.${hint}`;
 }
 

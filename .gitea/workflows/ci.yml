@@ -51,6 +51,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
       - name: Check scripts (good and bad examples for the branch, message and description checks)
         run: sh scripts/ci/selftest.sh
       # Cheap steps first, so a rule break fails the run in a minute instead of after the build and the tests.
@@ -69,7 +71,7 @@ jobs:
         run: |
           cd apps/web
           npm ci
-          npx vitest run scripts dev
+          npx vitest run 'scripts/**' 'dev/**'
           node scripts/ui-literals.mjs
           node scripts/licences.mjs
       - name: Protocol drift (generated TypeScript matches the committed files)

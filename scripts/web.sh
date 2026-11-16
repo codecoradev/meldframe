@@ -13,7 +13,10 @@ fi
 export MELDFRAME_WEB_TOKEN
 export MELDFRAME_WEB_ACTOR=${MELDFRAME_WEB_ACTOR:-agent:dev}
 export MELDFRAME_WEB_FILE=${MELDFRAME_WEB_FILE:-file_dev}
-export MELDFRAME_SERVER=${MELDFRAME_SERVER:-http://${MELDFRAME_LISTEN:-127.0.0.1:8080}}
+# A server bound to every address (0.0.0.0 or ::) is reached on loopback; the proxy refuses a remote target.
+listen=${MELDFRAME_LISTEN:-127.0.0.1:8080}
+case "$listen" in 0.0.0.0:*) listen=127.0.0.1:${listen#*:} ;; '[::]:'*) listen=127.0.0.1:${listen##*:} ;; esac
+export MELDFRAME_SERVER=${MELDFRAME_SERVER:-http://$listen}
 cd apps/web
 [ -d node_modules ] || npm ci
 exec npm run dev

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkTarget, guardRequest } from './proxy-guard';
+import { REFUSED_URL, checkTarget, guardRequest, isProxied } from './proxy-guard';
 
 const PORT = 5173;
 const ok = { host: `127.0.0.1:${PORT}`, origin: `http://127.0.0.1:${PORT}` };
@@ -42,5 +42,15 @@ describe('checkTarget', () => {
   });
   it('refuses a target that is not a URL', () => {
     expect(checkTarget('nonsense', undefined).error).toBeDefined();
+  });
+});
+
+describe('isProxied (the same prefix test as the proxy)', () => {
+  it('matches what Vite proxies, including look-alike prefixes, and nothing else', () => {
+    for (const u of ['/v1', '/v1/files/x', '/v1x', '/v1?a=1']) expect(isProxied(u)).toBe(true);
+    for (const u of ['/', '/v2/files', '/x/v1', '', undefined]) expect(isProxied(u)).toBe(false);
+  });
+  it('the url a refused upgrade is rewritten to is not proxied', () => {
+    expect(isProxied(REFUSED_URL)).toBe(false);
   });
 });

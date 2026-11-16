@@ -15,7 +15,8 @@ export interface SocketLike {
 export interface Env {
   now(): number;
   openSocket(path: string): SocketLike;
-  post(path: string, body: unknown): Promise<{ status: number; body: unknown }>;
+  /** A POST that rejects after `timeoutMs` (a hung request must not hold up the ops behind it). */
+  post(path: string, body: unknown, timeoutMs?: number): Promise<{ status: number; body: unknown }>;
   setTimer(fn: () => void, ms: number, repeat?: boolean): number;
   clearTimer(id: number): void;
 }
@@ -30,6 +31,8 @@ export interface ShellOptions {
 export const TICK_MS = 1000;
 /** The server drops a client it has not heard from within 45 s; a JSON ping keeps a quiet one alive. */
 export const PING_MS = 15_000;
+/** How long a REST call may take before it counts as a network error. */
+export const POST_TIMEOUT_MS = 15_000;
 
 /** Most times a refused `subscribe` is sent again before the connection counts as lost. */
 export const MAX_SUBSCRIBE_RETRIES = 3;
@@ -47,7 +50,7 @@ export function parseFrame(data: string): Wire | null {
   }
   if (typeof m !== 'object' || m === null || typeof (m as Wire).type !== 'string') return null;
   const w = m as Wire;
-  const num = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+  const num = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0;
   switch (w.type) {
     case 'event':
       return num(w.seq) && typeof w.actor === 'string' && typeof w.command === 'object' && w.command !== null ? w : null;
@@ -66,6 +69,7 @@ export class Shell {
   private subscribeId = 0;
   private lastSub: { id: string; afterSeq: number; tries: number } | null = null;
   private warned = false;
+  private ping: number | null = null;
 
   constructor(
     private engine: Engine,
@@ -118,6 +122,11 @@ export class Shell {
 
   /** Forget the socket and close it; what it says or does from now on is ignored. */
   private drop(): void {
+    if (this.ping !== null) {
+      this.env.clearTimer(this.ping);
+      this.timers.delete(this.ping);
+      this.ping = null;
+    }
     const s = this.socket;
     this.socket = null;
     this.lastSub = null;
@@ -157,10 +166,10 @@ export class Shell {
     const mine = () => this.socket === socket;
     socket.onmessage = (data) => mine() && this.frame(data);
     socket.onclose = () => mine() && this.lost();
-    const ping = this.env.setTimer(() => {
+    this.ping = this.env.setTimer(() => {
       if (mine() && !this.send1(socket, { type: 'ping' })) this.lost();
     }, PING_MS, true);
-    this.timers.add(ping);
+    this.timers.add(this.ping);
   }
 
   private resubscribe(afterSeq: number, tries: number): void {
@@ -174,6 +183,16 @@ export class Shell {
   private frame(data: string): void {
     const m = parseFrame(data);
     if (!m) return this.lost();
+    try {
+      this.apply(m);
+    } catch {
+      // A frame the app cannot take (it passed the shape check but not the app's own): the view would go
+      // stale while heartbeats look alive, so start again from the last confirmed number.
+      this.lost();
+    }
+  }
+
+  private apply(m: Wire): void {
     const nowMs = this.env.now();
     switch (m.type) {
       case 'subscribed':
@@ -205,7 +224,9 @@ export class Shell {
       this.timers.add(id);
       return;
     }
-    // bad_request: a subscribe before the marker. The marker is on its way; wait for it.
+    // bad_request: a subscribe before the marker. The marker is on its way; wait for it. Any other refusal
+    // (forbidden, not_found, ...) will not get better by waiting.
+    if (m.code !== 'bad_request') return this.lost();
     if (!this.warned) {
       this.warned = true;
       console.warn('live: subscribe refused, waiting for the resync marker', m.code);
@@ -221,12 +242,13 @@ export class Shell {
         const path = `/v1/files/${encodeURIComponent(this.opts.file)}/tools/${this.opts.tool ?? 'apply_commands'}`;
         let res: { status: number; body: unknown };
         try {
-          res = await this.env.post(path, { ops: [{ key: op.key, command: op.command, deps: op.deps }] });
+          res = await this.env.post(path, { ops: [{ key: op.key, command: op.command, deps: op.deps }] }, POST_TIMEOUT_MS);
         } catch {
           // The network failed. Stop here: the later ops depend on this one, and the app sends every
           // unconfirmed op again, in order and with the same keys, when the connection is back.
           this.epoch++;
-          this.lost();
+          // Only a live connection is lost by this; one the app already knows is down is on its way back.
+          if (this.engine.snapshot().state.connection.type === 'live') this.lost();
           return;
         }
         if (res.status === 200) continue; // the live event confirms it
@@ -256,8 +278,13 @@ export function browserEnv(): Env {
       ws.onerror = () => {}; // a close follows
       return s;
     },
-    async post(path, body) {
-      const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    async post(path, body, timeoutMs) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
+      });
       return { status: res.status, body: await res.json().catch(() => null) };
     },
     setTimer: (fn, ms, repeat) => (repeat ? setInterval(fn, ms) : setTimeout(fn, ms)) as unknown as number,
