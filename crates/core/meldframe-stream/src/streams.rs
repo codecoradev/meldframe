@@ -1,7 +1,7 @@
 //! The hubs of many files, keyed by a caller-chosen string: a hub exists while it has a stream, and a
 //! server-wide cap bounds the streams across all of them.
 
-use crate::{Config, Frame, Hub, StreamError, StreamId, Subscribed};
+use crate::{Config, Frame, Hub, StreamError, StreamId, Subscribed, TouchHint, Touches};
 use std::collections::BTreeMap;
 
 /// A subscription with its replay: the ops older than the window, read by the caller's `read`, to send
@@ -27,7 +27,11 @@ pub struct Streams<D, E> {
     max_total: usize,
     next_id: u64,
     hubs: BTreeMap<String, Hub<D, E>>,
+    touch: Option<(Touches, MakeFrame<E>)>,
 }
+
+/// Builds the ephemeral frame of a touch hint.
+type MakeFrame<E> = fn(TouchHint) -> E;
 
 impl<D: Clone, E: Clone> Streams<D, E> {
     /// Hubs with `config` each, and at most `max_total` streams in all.
@@ -37,6 +41,7 @@ impl<D: Clone, E: Clone> Streams<D, E> {
             max_total,
             next_id: 0,
             hubs: BTreeMap::new(),
+            touch: None,
         }
     }
 
@@ -183,6 +188,48 @@ impl<D: Clone, E: Clone> Streams<D, E> {
         self.hubs
             .get_mut(key)
             .map_or(0, |h| h.publish_ephemeral(to, data))
+    }
+
+    /// Turn touch hints on: [`Streams::touch`] sends at most one ephemeral frame per actor and file every
+    /// `window_ms`, built from the hint by `make`.
+    pub fn set_touch(&mut self, window_ms: u64, make: MakeFrame<E>) {
+        self.touch = Some((Touches::new(window_ms), make));
+    }
+
+    /// `actor` touched `node_ids` of `key` (the newest op being `seq`) at `now`: queue the hint on every
+    /// stream of `key` unless the actor's window for that file is still open, in which case the latest hint
+    /// waits for [`Streams::flush_touches`]. Does nothing without touch hints or without a stream on `key`.
+    /// Returns how many streams queued a frame.
+    pub fn touch(
+        &mut self,
+        key: &str,
+        actor: &str,
+        node_ids: Vec<String>,
+        seq: u64,
+        now: u64,
+    ) -> usize {
+        let (Some((touches, make)), Some(hub)) = (self.touch.as_mut(), self.hubs.get_mut(key))
+        else {
+            return 0;
+        };
+        touches
+            .record(key, actor, node_ids, seq, now)
+            .map_or(0, |hint| hub.publish_ephemeral(None, make(hint)))
+    }
+
+    /// Queue the waiting hints whose window is over at `now`; returns how many frames were queued.
+    pub fn flush_touches(&mut self, now: u64) -> usize {
+        let Some((touches, make)) = self.touch.as_mut() else {
+            return 0;
+        };
+        let due = touches.due(now);
+        due.into_iter()
+            .map(|(key, hint)| {
+                self.hubs
+                    .get_mut(&key)
+                    .map_or(0, |h| h.publish_ephemeral(None, make(hint)))
+            })
+            .sum()
     }
 
     /// Run every hub's heartbeat schedule; returns the `(key, stream)` pairs dropped as silent.

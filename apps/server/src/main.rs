@@ -4,7 +4,7 @@ use meldframe_http::{
     dev_tokens_warning,
 };
 use meldframe_http_live::LiveConfig;
-use meldframe_server::{Backing, Server, SharedServer};
+use meldframe_server::{Backing, Server, SharedServer, TOUCH_WINDOW_MS};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -37,7 +37,8 @@ fn main() {
     } else {
         Backing::memory()
     };
-    let server = Server::assemble_in(Vec::new(), backing);
+    // Live streams get touch hints (the editor's touch ring): at most one per actor and file per window.
+    let server = Server::assemble_in(Vec::new(), backing).with_touch_hints(TOUCH_WINDOW_MS);
     for module in server.registry().module_names() {
         println!("module {module}");
     }

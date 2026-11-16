@@ -11,8 +11,10 @@
 //! [`Hub::tick`] queues heartbeats and drops clients that have been silent too long.
 
 mod streams;
+mod touch;
 
 pub use streams::{JoinError, Joined, Streams};
+pub use touch::{MAX_TOUCH_ENTRIES, MAX_TOUCH_NODES, TouchHint, Touches};
 
 use std::collections::{BTreeMap, VecDeque};
 

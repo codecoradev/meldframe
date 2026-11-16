@@ -12,7 +12,9 @@ mod pg;
 
 pub use http::{SharedServer, failure_of};
 pub use limits::{MAX_BATCH_OPS, MAX_NAME_BYTES, MAX_ROOMS_PER_WORKSPACE};
-pub use live::{Frame, LIVE_CONFIG, MAX_LIVE_STREAMS, StreamId, SubscribeError, Subscription};
+pub use live::{
+    Frame, LIVE_CONFIG, MAX_LIVE_STREAMS, StreamId, SubscribeError, Subscription, TOUCH_WINDOW_MS,
+};
 pub use meldframe_stream::{Config, StreamError};
 pub use pg::{PERMANENT_STORE_ERROR, PgStore};
 
@@ -329,11 +331,15 @@ impl Server {
             })
             .expect("the room was just opened")?;
         let mut written = report.admitted.into_iter();
+        // The nodes the batch wrote and its newest number, for one touch hint.
+        let (mut touched, mut newest) = (Vec::new(), 0);
         for slot in done.iter_mut().filter(|d| d.is_none()) {
             let admission = written.next().expect("one admission per op");
             let op = sent.next().expect("one op per admission");
             let accepted = rooms.accept(key, admission, at)?.accepted;
             if accepted.written {
+                touched.extend(meldframe_batch::touches(&op.command));
+                newest = accepted.seq;
                 let stored = StoredOp {
                     seq: accepted.seq,
                     actor: who.actor.clone(),
@@ -346,6 +352,7 @@ impl Server {
             }
             *slot = Some(accepted);
         }
+        live.touch(key, &who.actor, touched, newest, at);
         Ok(done.into_iter().flatten().collect())
     }
 }
