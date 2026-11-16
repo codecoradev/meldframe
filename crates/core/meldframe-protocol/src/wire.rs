@@ -67,7 +67,9 @@ pub enum ClientMsg {
         message: String,
     },
     /// An empty struct variant, not a unit variant: serde does not enforce `deny_unknown_fields` on unit variants of
-    /// an internally tagged enum, so `{"type":"ping","x":1}` would pass.
+    /// an internally tagged enum, so `{"type":"ping","x":1}` would pass. On a live stream (`/v1/live/{file}`) a
+    /// client sends one at least once within the server's `dead_after_ms`, or the stream is dropped and the
+    /// socket closes: a browser cannot send a WebSocket-level ping, so this is the proof of life.
     Ping {},
 }
 
@@ -113,7 +115,8 @@ pub enum ServerMsg {
     },
     /// Durable resync marker on a live stream (ADR-0009): the client was too slow (or its replay was cut), so
     /// events after `after_seq` were not sent and the stream delivers nothing more until the client
-    /// subscribes again with `since_seq = after_seq`. `latest_seq` is the newest number of the file. Not
+    /// subscribes again with `since_seq = after_seq` (the server never starts before the marker, and accepts a
+    /// `subscribe` on a live stream only after one). `latest_seq` is the newest number of the file. Not
     /// numbered itself, and never replayed.
     Resync {
         room: String,

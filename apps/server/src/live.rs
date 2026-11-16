@@ -62,6 +62,16 @@ impl Server {
         self
     }
 
+    /// How often a stream is sent a heartbeat, in milliseconds.
+    pub fn live_heartbeat_ms(&self) -> u64 {
+        self.live.config().heartbeat_ms
+    }
+
+    /// Streams open now, across all files.
+    pub fn live_stream_count(&self) -> usize {
+        self.live.stream_count()
+    }
+
     /// Open a stream on `file` of the principal's workspace for a client whose last sequence number is
     /// `from_seq` (0 when new). `now` is the caller's clock in milliseconds, the same for every live call.
     /// A failed call leaves no stream behind and closes a room it opened.

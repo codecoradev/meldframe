@@ -3,6 +3,7 @@ use meldframe_http::{
     CappedListener, Config, DevTokens, check_dev_listen, check_dev_tokens_allowed,
     dev_tokens_warning,
 };
+use meldframe_http_live::LiveConfig;
 use meldframe_server::{Server, SharedServer};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -47,6 +48,13 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     )?;
     let shared = Arc::new(SharedServer::new(server));
     let auth = Arc::new(DevTokens::parse(&spec)?);
+    let config = Config::default();
+    let clock = config.clock.clone();
+    // One state for every transport: one authenticator, one set of limits, one path to the submitter.
+    let state = meldframe_http::shared(auth, shared.clone(), config);
+    let (live, timer) =
+        meldframe_http_live::routes(state.clone(), shared.clone(), LiveConfig::default(), clock);
+    let app = meldframe_http::routes(state.clone()).merge(live);
     #[cfg(feature = "mcp")]
     let app = {
         // MCP answers to loopback host names unless MELDFRAME_MCP_HOSTS lists others (comma separated).
@@ -59,16 +67,16 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
                 .map(str::to_owned)
                 .collect(),
         };
-        meldframe_http::router_with_mcp_config(auth, shared.clone(), shared, Config::default(), mcp)
+        app.merge(meldframe_http::mcp::routes(state, shared, mcp))
     };
-    #[cfg(not(feature = "mcp"))]
-    let app = meldframe_http::router(auth, shared, Config::default());
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
     rt.block_on(async {
         let listener = tokio::net::TcpListener::bind(addr).await?;
         println!("listening on {addr}");
+        // Heartbeats and the reaping of silent live clients (ADR-0009) run on this timer.
+        tokio::spawn(timer.run());
         let listener =
             CappedListener::new(listener, MAX_CONNECTIONS, MAX_PER_CLIENT).tap_io(|_| {});
         axum::serve(

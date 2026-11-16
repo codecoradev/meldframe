@@ -40,6 +40,11 @@ impl<D: Clone, E: Clone> Streams<D, E> {
         }
     }
 
+    /// The limits every hub is made with.
+    pub fn config(&self) -> Config {
+        self.config
+    }
+
     /// Streams across all keys.
     pub fn stream_count(&self) -> usize {
         self.hubs.values().map(Hub::stream_count).sum()

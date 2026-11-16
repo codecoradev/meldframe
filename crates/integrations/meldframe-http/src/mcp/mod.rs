@@ -195,7 +195,8 @@ async fn gate(State(s): State<Arc<Shared>>, mut req: Request, next: Next) -> Res
     }
 }
 
-pub(crate) fn routes(shared: Arc<Shared>, reader: Arc<dyn Reader>, cfg: McpConfig) -> Router {
+/// The `/mcp` route over `shared`, to merge into the router of the same `shared`.
+pub fn routes(shared: Arc<Shared>, reader: Arc<dyn Reader>, cfg: McpConfig) -> Router {
     let mut config = StreamableHttpServerConfig::default()
         .with_legacy_session_mode(false)
         .with_json_response(true)

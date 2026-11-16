@@ -29,7 +29,7 @@ impl From<Refusal> for Failure {
 
 /// A status and a JSON body: `{"accepted": [...]}` or `{"error": {"code", "message", "retryable"}}`.
 #[derive(Debug)]
-pub(crate) struct Reply {
+pub struct Reply {
     pub(crate) status: StatusCode,
     pub(crate) body: Value,
     retry_after: Option<Duration>,
@@ -77,7 +77,7 @@ impl Reply {
         reply
     }
 
-    pub(crate) fn failure(f: &Failure) -> Self {
+    pub fn failure(f: &Failure) -> Self {
         match f {
             Failure::Refused(r) => Self::refused(r, None),
             Failure::Batch { index, refusal } => Self::refused(refusal, Some(*index)),
@@ -125,7 +125,7 @@ impl Reply {
         )
     }
 
-    pub(crate) fn bad_request(why: &str) -> Self {
+    pub fn bad_request(why: &str) -> Self {
         Self::error(400, "bad_request", why, false)
     }
 

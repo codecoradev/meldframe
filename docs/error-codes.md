@@ -89,13 +89,14 @@ send the batch again with the same keys.
 | `bad_request` | 400 | The body or frame is not the documented JSON (also an unknown field). | Fix the call as the message says. |
 | `request_timeout` | 408 | The body of the request took too long to arrive. | Send the call again. |
 | `timeout` | 504 | The call took longer than the time limit. | Send the same batch again with the same keys; ops already written come back as `written: false`. |
-| `unavailable` | 503 | The store is down, the server is full, or too many calls are in flight (global or per principal); not a refusal of the call. A store error that says retrying cannot succeed is `invalid` 400, not retryable. | Wait, then send the same call again. |
+| `unavailable` | 503 | The store is down, the server is full, or too many calls are in flight (global or per principal, REST and the live handshake; the live calls after the handshake have their own slots and are skipped and tried again, never answered with this code); not a refusal of the call. A store error that says retrying cannot succeed is `invalid` 400, not retryable. | Wait, then send the same call again. |
 | `internal` | 500 | The call failed inside the server. | Send it again later; report it if it repeats. |
 
 Notes on the transport. `timeout` covers the time from the start of the blocking job, including any wait for the
 server's lock; the job is not cancelled and keeps its in-flight slot until it ends. A WebSocket reply frame carries
 `id`, `status` and the body but not `Retry-After`. On a WebSocket the per-address limit is spent at the handshake only;
 frames are limited per principal, and a connection is closed after several limited frames in a row or when idle.
+`GET /v1/live/{file}?after={seq}` answers its handshake with these codes (`unavailable` 503 when the stream cap is reached or the store cannot be read; `bad_request` 400 for a bad file name or a non-numeric `after`); after the upgrade, a message it cannot take gets an `error` frame with `bad_request` and the socket stays open (`subscribe` before a `resync` marker is one). A `subscribe` that costs more than the budget has left gets `rate_limited` (retryable, socket open, `retryAfterMs` says when); one the server cannot take now gets `unavailable` (retryable, socket open, `retryAfterMs` is the poll interval) when the server is busy, and costs one frame then, not four, or `unavailable` and a close when the stream could not be restarted or ended before the socket was ready: the text is fixed, and the client connects again with its last sequence number. A socket closes without a frame when a poll timed out or failed.
 A browser cannot set `Authorization` on a WebSocket, so there is no browser client on this path until Gatehouse; an
 `Origin` check belongs with it.
 

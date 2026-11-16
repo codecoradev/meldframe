@@ -18,7 +18,7 @@ struct Payload {
 }
 
 /// The token of exactly one `Authorization: Bearer <token>` header; the scheme is case-insensitive.
-pub(crate) fn bearer(h: &HeaderMap) -> Option<&str> {
+pub fn bearer(h: &HeaderMap) -> Option<&str> {
     let mut all = h.get_all(header::AUTHORIZATION).iter();
     let (Some(v), None) = (all.next(), all.next()) else {
         return None;
@@ -28,7 +28,7 @@ pub(crate) fn bearer(h: &HeaderMap) -> Option<&str> {
     (scheme.eq_ignore_ascii_case("bearer") && !token.is_empty()).then_some(token)
 }
 
-pub(crate) fn peer<T>(req: &axum::http::Request<T>) -> String {
+pub fn peer<T>(req: &axum::http::Request<T>) -> String {
     req.extensions()
         .get::<ConnectInfo<SocketAddr>>()
         .map_or_else(|| "unknown".to_owned(), |c| crate::client_key(c.0.ip()))

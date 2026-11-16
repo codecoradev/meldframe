@@ -14,6 +14,7 @@ mod limit;
 pub mod mcp;
 mod reply;
 mod rest;
+mod slots;
 mod ws;
 
 pub use auth::{
@@ -23,7 +24,9 @@ pub use auth::{
 pub use conn::CappedListener;
 pub use limit::{Clock, Rate, RateLimiter};
 pub use meldframe_batch::Guard;
-pub use reply::Failure;
+pub use reply::{Failure, Reply};
+pub use rest::{bearer, peer};
+pub use slots::{Slot, Slots};
 
 use axum::{
     Router,
@@ -31,12 +34,9 @@ use axum::{
 };
 use meldframe_host::{Accepted, Op, Principal, Refusal};
 use meldframe_protocol::Command;
-use reply::Reply;
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
-use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 /// The one way in to a write. The server implements it over `Server::submit_tool` (gate, then room).
 /// Implementations block, so the adapter calls them from `spawn_blocking`.
@@ -167,26 +167,6 @@ pub fn client_key(ip: std::net::IpAddr) -> String {
     }
 }
 
-/// A place among the blocking calls; held by the job itself, so it is freed when the job ends, not when the
-/// caller stops waiting.
-struct Slot {
-    _global: OwnedSemaphorePermit,
-    per_principal: Arc<Mutex<HashMap<String, usize>>>,
-    key: String,
-}
-
-impl Drop for Slot {
-    fn drop(&mut self) {
-        let mut m = self.per_principal.lock().unwrap_or_else(|p| p.into_inner());
-        if let Some(n) = m.get_mut(&self.key) {
-            *n = n.saturating_sub(1);
-            if *n == 0 {
-                m.remove(&self.key);
-            }
-        }
-    }
-}
-
 /// Characters that change how a name reads without showing: bidi controls, zero-width marks, line and
 /// paragraph separators, the byte order mark.
 fn is_invisible(c: char) -> bool {
@@ -196,7 +176,7 @@ fn is_invisible(c: char) -> bool {
 
 /// A file name the server should see: 1 to 128 bytes, not `.` or `..`, not only whitespace, no slash or
 /// backslash, no control or invisible formatting character.
-pub(crate) fn valid_file(name: &str) -> bool {
+pub fn valid_file(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 128
         && name != "."
@@ -216,19 +196,24 @@ fn valid_tool(name: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.'))
 }
 
-/// State of one router: both transports share it, so there is one path to the submitter.
-pub(crate) struct Shared {
+/// Called with the principal and the file after a call wrote at least one op (the live transport wakes its
+/// sockets with it).
+pub type WriteHook = Box<dyn Fn(&Principal, &str) + Send + Sync>;
+
+/// State of one router: every transport shares it, so there is one path to the submitter. Another crate (the
+/// live WebSocket) builds on its checks and limits: `client_ok`, `principal`, `principal_ok`, `blocking`.
+pub struct Shared {
     auth: Arc<dyn Authenticator>,
     submitter: Arc<dyn Submitter>,
-    pub(crate) max_body: usize,
+    pub max_body: usize,
     pub(crate) body_timeout: Duration,
     pub(crate) ws_idle: Duration,
-    pub(crate) ws_max_limited: u32,
-    pub(crate) ws_send_timeout: Duration,
-    timeout: Duration,
-    in_flight: Arc<Semaphore>,
-    per_principal: Arc<Mutex<HashMap<String, usize>>>,
-    max_per_principal: usize,
+    pub ws_max_limited: u32,
+    pub ws_send_timeout: Duration,
+    pub timeout: Duration,
+    slots: Slots,
+    /// Set once by a transport that wants to know about writes.
+    pub on_write: OnceLock<WriteHook>,
     pub(crate) clients: RateLimiter,
     principals: RateLimiter,
     /// The per-principal budget as configured, for `whoami`.
@@ -236,8 +221,14 @@ pub(crate) struct Shared {
     pub(crate) principal_rate: Rate,
 }
 
+impl std::fmt::Debug for Shared {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Shared").finish_non_exhaustive()
+    }
+}
+
 impl Shared {
-    pub(crate) fn client_ok(&self, ip: &str) -> Result<(), Reply> {
+    pub fn client_ok(&self, ip: &str) -> Result<(), Reply> {
         self.clients.check(ip).map_err(Reply::rate_limited)
     }
 
@@ -249,43 +240,32 @@ impl Shared {
     }
 
     /// The principal behind the token, with one call charged to its budget.
-    pub(crate) fn principal(&self, token: Option<&str>) -> Result<Principal, Reply> {
+    pub fn principal(&self, token: Option<&str>) -> Result<Principal, Reply> {
         let who = self.authenticate(token)?;
         self.principal_ok(&who)?;
         Ok(who)
     }
 
     /// Spend one call of the principal's budget.
-    pub(crate) fn principal_ok(&self, who: &Principal) -> Result<(), Reply> {
-        self.principals
-            .check(&format!("{}\u{0}{}", who.workspace, who.actor))
-            .map_err(Reply::rate_limited)
+    pub fn principal_ok(&self, who: &Principal) -> Result<(), Reply> {
+        self.principal_wait(who, 1).map_err(Reply::rate_limited)
     }
 
-    fn slot(&self, who: &Principal) -> Option<Slot> {
-        let global = self.in_flight.clone().try_acquire_owned().ok()?;
+    /// Spend `n` calls of the principal's budget; `Err` says how long until a call is available. Calls spent
+    /// before one was refused stay spent.
+    pub fn principal_wait(&self, who: &Principal, n: u32) -> Result<(), Duration> {
         let key = format!("{}\u{0}{}", who.workspace, who.actor);
-        let mut m = self.per_principal.lock().unwrap_or_else(|p| p.into_inner());
-        let n = m.entry(key.clone()).or_insert(0);
-        if *n >= self.max_per_principal {
-            return None;
-        }
-        *n += 1;
-        Some(Slot {
-            _global: global,
-            per_principal: self.per_principal.clone(),
-            key,
-        })
+        (0..n).try_for_each(|_| self.principals.check(&key))
     }
 
     /// Run `job` on the blocking pool under the call's slot and the time limit: every call of every transport
     /// (a write, a read) goes through here, so one set of limits covers them all.
-    pub(crate) async fn blocking<T: Send + 'static>(
+    pub async fn blocking<T: Send + 'static>(
         &self,
         who: &Principal,
         job: impl FnOnce() -> T + Send + 'static,
     ) -> Result<T, Reply> {
-        let Some(slot) = self.slot(who) else {
+        let Some(slot) = self.slots.take(who) else {
             return Err(Reply::failure(&Failure::Unavailable(
                 "too many calls in flight".into(),
             )));
@@ -329,7 +309,7 @@ impl Shared {
             }));
         }
         let submitter = self.submitter.clone();
-        let sent = who.clone();
+        let (sent, woken) = (who.clone(), file.clone());
         let done = self
             .blocking(&who, move || {
                 if let Some(guards) = atomic {
@@ -341,7 +321,14 @@ impl Shared {
             .await;
         match done {
             Err(reply) => reply,
-            Ok(Ok(accepted)) => Reply::accepted(&accepted),
+            Ok(Ok(accepted)) => {
+                if let (Some(hook), true) =
+                    (self.on_write.get(), accepted.iter().any(|a| a.written))
+                {
+                    hook(&who, &woken);
+                }
+                Reply::accepted(&accepted)
+            }
             Ok(Err(failure)) => {
                 if let Failure::Unavailable(why) | Failure::Permanent(why) = &failure {
                     eprintln!("meldframe-http: unavailable: {why:?}");
@@ -354,7 +341,8 @@ impl Shared {
 
 pub(crate) const BAD_NAME: &str = "a file name is 1 to 128 bytes without slashes or control characters, and a tool name is 1 to 64 letters, digits, _ - or .";
 
-fn shared(
+/// The state of a router: build it once, then give it to [`routes`] and to any other transport's routes.
+pub fn shared(
     auth: Arc<dyn Authenticator>,
     submitter: Arc<dyn Submitter>,
     config: Config,
@@ -368,16 +356,16 @@ fn shared(
         ws_max_limited: config.ws_max_limited,
         ws_send_timeout: config.ws_send_timeout,
         timeout: config.timeout,
-        in_flight: Arc::new(Semaphore::new(config.max_in_flight.max(1))),
-        per_principal: Arc::default(),
-        max_per_principal: config.max_per_principal.max(1),
+        slots: Slots::new(config.max_in_flight, config.max_per_principal),
+        on_write: OnceLock::new(),
         clients: RateLimiter::new(config.per_client, config.clock.clone()),
         principals: RateLimiter::new(config.per_principal, config.clock),
         principal_rate: config.per_principal,
     })
 }
 
-fn routes(shared: Arc<Shared>) -> Router {
+/// REST and `/v1/ws` over `shared`.
+pub fn routes(shared: Arc<Shared>) -> Router {
     Router::new()
         .route("/v1/files/{file}/tools/{tool}", post(rest::submit))
         .route("/v1/ws", get(ws::upgrade))
