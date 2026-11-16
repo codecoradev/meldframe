@@ -12,6 +12,7 @@ mod decoration;
 mod enums;
 mod node;
 mod patch;
+mod snapshot;
 mod version;
 mod wire;
 
@@ -23,5 +24,6 @@ pub use enums::{
 };
 pub use node::Node;
 pub use patch::NodePatch;
+pub use snapshot::{FileSnapshot, SnapshotNode};
 pub use version::SCHEMA_VERSION;
 pub use wire::{ClientMsg, MAX_OP_DEPS, ServerMsg};

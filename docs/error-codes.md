@@ -85,6 +85,7 @@ send the batch again with the same keys.
 | --- | --- | --- | --- |
 | `unauthenticated` | 401 | No token, or one that is unknown or revoked. | Send a valid token as `Authorization: Bearer <token>`. |
 | `rate_limited` | 429 | The peer address or the principal used up its budget. The refusal comes before the body is read. `Retry-After` says when. | Wait, then send the same call again. |
+| `not_found` | 404 | `GET /v1/files/{file}` named a file that has no ops in the caller's workspace (a file of another workspace looks the same). Reading writes nothing. | Write to the file first, or use the right name. |
 | `too_large` | 413 | The body or frame is over the size limit. | Send fewer ops per call. |
 | `bad_request` | 400 | The body or frame is not the documented JSON (also an unknown field). | Fix the call as the message says. |
 | `request_timeout` | 408 | The body of the request took too long to arrive. | Send the call again. |
