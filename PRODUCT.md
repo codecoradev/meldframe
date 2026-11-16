@@ -48,7 +48,7 @@ The design surface agents can use without breaking things (idempotent, atomic, s
 
 Undecided: logo, visual identity, pricing. The name is Meldframe (decided); the trademark search is the owner's responsibility.
 
-Proposed direction for the editor UI (to confirm in `DESIGN.md` later): the category standard played straight, at the craft level of the tools designers already know. The editor is an operating surface, so scanability, consistency and native expectations outrank expression. Must not feel like an AI chat with a canvas attached.
+Proposed direction for the editor UI (values and rules in `DESIGN.md`, draft for owner review): the category standard played straight, at the craft level of the tools designers already know. The editor is an operating surface, so scanability, consistency and native expectations outrank expression. Must not feel like an AI chat with a canvas attached.
 
 ## Evidence on Hand
 
