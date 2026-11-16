@@ -319,8 +319,8 @@ Concept section 12: owner iterates with numbered critique lists (points 6, 9, 10
 - Q3 Stop = revoke only, or add pause/resume?
 - Q4 Bind a session to a frame/page, not just a file?
 - Q5 Is a partial revert acceptable, or always atomic?
-- Q6 Where does the activity panel live (left sidebar bottom, right tab, bottom drawer) given the Wonder-like right panel is already dense (Properties, Variables, Icons)?
-- Q7 Should "Follow agent" exist in v1?
+- Q6 Where does the activity panel live (left sidebar bottom, right tab, bottom drawer) given the Wonder-like right panel is already dense (Properties, Variables, Icons)? Proposed in `ui-design.md` section 4: the second tab of the right panel, next to Design.
+- Q7 Should "Follow agent" exist in v1? Proposed in `ui-design.md`: a Preferences setting, off by default.
 - Q8 Before/after compare in v1 or later?
 - Q9 Ask agents to duplicate a frame before large rewrites (Wonder behavior)?
 - Q10 `atomic` default on for session tokens?
