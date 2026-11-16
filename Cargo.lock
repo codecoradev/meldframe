@@ -1017,8 +1017,22 @@ dependencies = [
 name = "meldframe-app"
 version = "0.0.0"
 dependencies = [
+ "meldframe-check",
  "meldframe-protocol",
+ "meldframe-sync",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "meldframe-app-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-host",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-server",
  "serde_json",
 ]
 
