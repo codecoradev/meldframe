@@ -32,6 +32,11 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # The runner has a small disk. Debug information is what made the debug build of the whole workspace
+  # (about forty crates, their tests and the web server's dependencies) fill it ("No space left on
+  # device" while linking). No step reads it, so build without it.
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
 
 jobs:
   checks:
