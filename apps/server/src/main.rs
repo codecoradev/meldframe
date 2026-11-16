@@ -111,7 +111,10 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
         .merge(live)
         .merge(health)
         // The browser starts from a snapshot of the file, then follows the live stream.
-        .merge(meldframe_http_snapshot::routes(state.clone(), shared.clone()));
+        .merge(meldframe_http_snapshot::routes(
+            state.clone(),
+            shared.clone(),
+        ));
     #[cfg(feature = "capture")]
     {
         app = app.merge(cap.routes());
