@@ -1,5 +1,5 @@
 //! `ui-literals` (U4): no colour, font-size or duration literals in UI code. Values come from
-//! the tokens module (`tokens.rs` or `tokens.css`, exempt from this lint).
+//! the tokens module (`tokens.rs`, `tokens.ts` or `tokens.css`, exempt from this lint).
 
 use std::fmt;
 use std::path::Path;
@@ -131,7 +131,12 @@ pub fn scan_line(ext: &str, line: &str) -> Vec<Literal> {
                 .any(|(i, _)| starts_number(&line[i + n.len()..]))
         })
     } else {
-        has_css_time(line)
+        // A bare `10ms` counts only where a property or transition names a duration.
+        let l = line.to_ascii_lowercase();
+        ["transition", "animation", "duration", "delay"]
+            .iter()
+            .any(|w| l.contains(w))
+            && has_css_time(line)
     };
     if time {
         out.push(Literal::Duration);
@@ -146,8 +151,14 @@ pub fn check_file(path: &str, content: &str) -> Vec<Finding> {
     }
     let ext = path.rsplit('.').next().unwrap_or_default();
     let mut out = Vec::new();
+    // Lines of a (multi-line) `<!-- -->` comment are skipped like `//` lines.
+    let mut in_html_comment = false;
     for (i, line) in content.lines().enumerate() {
         let t = line.trim_start();
+        if in_html_comment || t.starts_with("<!--") {
+            in_html_comment = !t.contains("-->");
+            continue;
+        }
         if t.starts_with("//") || t.starts_with("/*") || t.starts_with('*') {
             continue;
         }
@@ -162,12 +173,12 @@ pub fn check_file(path: &str, content: &str) -> Vec<Finding> {
     out
 }
 
-/// File extensions to lint for a package: UI crates (kind `ui`, `feature-ui`) in Rust and CSS,
-/// and the web app's styles (`apps/web`, CSS and SCSS). Anything else is out of scope.
+/// File extensions to lint for a package (for the web app this is the fast baseline; `npm run ui-literals` is the strict check): UI crates (kind `ui`, `feature-ui`) in Rust and CSS,
+/// and the web app's styles and components (`apps/web`: CSS, SCSS and Svelte). Anything else is out of scope.
 pub fn scope(p: &Package) -> &'static [&'static str] {
     match (p.kind.as_deref(), p.dir.as_str()) {
         (Some("ui" | "feature-ui"), _) => &["rs", "css"],
-        (_, "apps/web") => &["css", "scss"],
+        (_, "apps/web") => &["css", "scss", "svelte"],
         _ => &[],
     }
 }
@@ -235,6 +246,15 @@ mod tests {
         assert!(css("transition: opacity var(--duration-fast);").is_empty());
         assert!(rs("Duration::from_millis(tokens::FAST_MS)").is_empty());
         assert!(css(".items { width: 100%; }").is_empty());
+        assert!(css(".x::after { content: \"10ms\"; }").is_empty());
+        assert_eq!(css("<div style=\"transition: 10ms\">"), [Duration]);
+    }
+
+    #[test]
+    fn multi_line_html_comments_are_skipped() {
+        let src = "<!--\n  color: #fff;\n  transition: 10ms;\n-->\n<p style=\"color: #abc\">x</p>\n<!-- one line #fff -->\n";
+        let lines: Vec<_> = check_file("a.svelte", src).iter().map(|f| f.line).collect();
+        assert_eq!(lines, [5]);
     }
 
     #[test]
@@ -281,7 +301,7 @@ mod tests {
             scope(&p("feature-ui", "crates/features/g/g-ui")),
             ["rs", "css"]
         );
-        assert_eq!(scope(&p("bin", "apps/web")), ["css", "scss"]);
+        assert_eq!(scope(&p("bin", "apps/web")), ["css", "scss", "svelte"]);
         assert!(scope(&p("bin", "apps/server")).is_empty());
         assert!(scope(&p("feature", "crates/features/g/g")).is_empty());
     }
