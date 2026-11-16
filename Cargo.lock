@@ -821,7 +821,9 @@ dependencies = [
 name = "meldframe-app"
 version = "0.0.0"
 dependencies = [
+ "meldframe-check",
  "meldframe-protocol",
+ "meldframe-sync",
  "serde",
  "serde_json",
 ]
