@@ -253,3 +253,27 @@ fn patch_applies_only_present_fields() {
 fn schema_version_starts_at_one() {
     assert_eq!(SCHEMA_VERSION, 1);
 }
+
+#[test]
+fn the_resync_marker_and_the_heartbeat_are_wire_frames() {
+    let m = ServerMsg::Resync {
+        room: "r".into(),
+        after_seq: 3,
+        latest_seq: 9,
+    };
+    assert_eq!(
+        serde_json::to_string(&m).unwrap(),
+        r#"{"type":"resync","room":"r","afterSeq":3,"latestSeq":9}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&ServerMsg::Heartbeat {}).unwrap(),
+        r#"{"type":"heartbeat"}"#
+    );
+    assert!(serde_json::from_str::<ServerMsg>(r#"{"type":"heartbeat","x":1}"#).is_err());
+    assert!(
+        serde_json::from_str::<ServerMsg>(
+            r#"{"type":"resync","room":"r","afterSeq":3,"latestSeq":9,"x":1}"#
+        )
+        .is_err()
+    );
+}

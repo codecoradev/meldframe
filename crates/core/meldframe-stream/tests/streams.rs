@@ -175,3 +175,17 @@ fn a_long_replay_is_cut_and_the_rest_comes_by_resubscribing_from_the_marker() {
         Some(Frame::Durable { seq: 6, data: 60 })
     );
 }
+
+#[test]
+fn a_zero_replay_limit_still_makes_progress() {
+    let mut s = S::new(cfg(), 8);
+    let read = |a: u64, b: u64| Ok::<_, ()>((a + 1..=b).collect::<Vec<u64>>());
+    let j = s.join("f", 5, 0, 0, 0, read).unwrap();
+    assert_eq!(
+        j.replay,
+        vec![1],
+        "at least one op per call, or the client loops forever"
+    );
+    let again = s.rejoin("f", j.id, 1, 0, 0, read).unwrap();
+    assert_eq!(again.replay, vec![2]);
+}
