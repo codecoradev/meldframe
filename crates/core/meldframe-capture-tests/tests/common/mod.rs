@@ -110,6 +110,8 @@ pub struct Harness {
     pub addr: SocketAddr,
     pub cap: Capture,
     pub source: Arc<Source>,
+    /// The real server, for reading what it holds (the file and its log) without a transport.
+    pub server: Arc<SharedServer>,
 }
 
 pub async fn start() -> Harness {
@@ -157,6 +159,7 @@ pub async fn start_setup(tweak: impl FnOnce(&mut Setup)) -> Harness {
         inner: server.clone(),
         fail_publish: AtomicBool::new(false),
     });
+    let handle = server.clone();
     let cap = Capture::new(
         shared.clone(),
         source.clone(),
@@ -192,7 +195,12 @@ pub async fn start_setup(tweak: impl FnOnce(&mut Setup)) -> Harness {
         .await
         .unwrap();
     });
-    Harness { addr, cap, source }
+    Harness {
+        addr,
+        cap,
+        source,
+        server: handle,
+    }
 }
 
 pub type Agent = RunningService<RoleClient, ClientConfig>;
@@ -252,7 +260,19 @@ pub struct Editor {
 
 impl Editor {
     pub async fn open(h: &Harness, token: &str, file: &str, caps: &[&str]) -> Editor {
-        let mut req = format!("ws://{}/v1/live/{file}", h.addr)
+        Editor::open_after(h, token, file, caps, None).await
+    }
+
+    /// Like `open`, replaying the ops after `after` (a reconnecting editor sends its last number).
+    pub async fn open_after(
+        h: &Harness,
+        token: &str,
+        file: &str,
+        caps: &[&str],
+        after: Option<u64>,
+    ) -> Editor {
+        let query = after.map_or(String::new(), |n| format!("?after={n}"));
+        let mut req = format!("ws://{}/v1/live/{file}{query}", h.addr)
             .into_client_request()
             .unwrap();
         req.headers_mut()
@@ -290,6 +310,19 @@ impl Editor {
                 .unwrap();
             if let Message::Text(t) = m {
                 return serde_json::from_str(t.as_str()).unwrap();
+            }
+        }
+    }
+
+    /// The next text frame, or `None` when none arrives within `wait`.
+    pub async fn try_next(&mut self, wait: Duration) -> Option<Value> {
+        loop {
+            let m = tokio::time::timeout(wait, self.ws.next())
+                .await
+                .ok()??
+                .ok()?;
+            if let Message::Text(t) = m {
+                return serde_json::from_str(t.as_str()).ok();
             }
         }
     }

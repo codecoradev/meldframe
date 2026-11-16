@@ -1065,6 +1065,7 @@ dependencies = [
  "base64 0.22.1",
  "capture",
  "futures-util",
+ "meldframe-app",
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-capture",

@@ -10,6 +10,7 @@ publish.workspace = true
 kind = "tool"
 
 [dependencies]
+meldframe-app = { path = "../../app/meldframe-app" }
 capture = { path = "../../features/capture/capture" }
 meldframe-host = { path = "../meldframe-host" }
 meldframe-module = { path = "../meldframe-module" }
