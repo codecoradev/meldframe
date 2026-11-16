@@ -1,6 +1,12 @@
 //! Live streams of the server: a `meldframe_stream::Streams` (one hub per file with a subscriber) fed by
 //! `Server::submit_tool` with the ops the room accepted (ADR-0009). There is no transport here: a
 //! transport calls `subscribe`, sends the replay and then drains `poll`.
+//!
+//! Ownership: a stream is owned by the connection that opened it. Authorization here is by workspace (a
+//! stream of another workspace is not found), and ids are sequential, so a transport must never show a
+//! `StreamId` to a client: the id stays inside the connection task, which is the only caller of `poll`,
+//! `seen`, `resubscribe` and `unsubscribe` for it. That is the per-principal ownership: no other principal
+//! can name the stream. A room opened for a stream is not closed on unsubscribe; idle eviction frees it.
 
 use crate::{Server, room_key};
 use meldframe_host::{Principal, Store, StoreError, StoredOp};
@@ -108,7 +114,9 @@ impl Server {
     }
 
     /// The next frame for a stream of the principal's workspace, if any. Another workspace's stream is
-    /// not found.
+    /// not found. Polling is not proof of life and does not touch the stream's last-seen time: the
+    /// transport calls [`Server::seen`] when the client sends something, or [`Server::tick`] drops the
+    /// stream as silent.
     pub fn poll(
         &mut self,
         who: &Principal,
@@ -126,7 +134,9 @@ impl Server {
 
     /// Run the heartbeat schedule of every stream at `now`: queue heartbeats, and drop streams not seen
     /// for `dead_after_ms` or stalled for `stall_ms`, freeing their slots. Returns the `(file key, stream)`
-    /// pairs dropped. The transport calls this on a timer.
+    /// pairs dropped. The transport calls this on a timer. The pairs are for the transport to find the
+    /// connections to close, by stream id; the file key names another workspace's file too, so a
+    /// transport must never forward them to a client.
     pub fn tick(&mut self, now: u64) -> Vec<(String, StreamId)> {
         self.live.tick(now)
     }

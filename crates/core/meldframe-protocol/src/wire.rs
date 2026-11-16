@@ -111,6 +111,19 @@ pub enum ServerMsg {
         #[ts(type = "number")]
         latest_seq: u64,
     },
+    /// Durable resync marker on a live stream (ADR-0009): the client was too slow (or its replay was cut), so
+    /// events after `after_seq` were not sent and the stream delivers nothing more until the client
+    /// subscribes again with `since_seq = after_seq`. `latest_seq` is the newest number of the file. Not
+    /// numbered itself, and never replayed.
+    Resync {
+        room: String,
+        #[ts(type = "number")]
+        after_seq: u64,
+        #[ts(type = "number")]
+        latest_seq: u64,
+    },
+    /// Ephemeral keep-alive on a live stream: nothing happened, the connection is up. No sequence number.
+    Heartbeat {},
     Error {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
