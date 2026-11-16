@@ -6,7 +6,7 @@ use crate::effect::Effect;
 use crate::state::Tool;
 use meldframe_check::{ApplyError, Limits, check_command};
 use meldframe_protocol::{Command, Node, NodePatch};
-use meldframe_sync::Replica;
+use meldframe_sync::{Replica, SubmitError};
 use serde_json::json;
 
 fn update(id: &str, patch: NodePatch) -> Command {
@@ -17,7 +17,10 @@ fn update(id: &str, patch: NodePatch) -> Command {
 }
 
 /// A stable code for a refusal; the front end words the message.
-fn code(e: &ApplyError) -> &'static str {
+fn code(e: &SubmitError) -> &'static str {
+    let SubmitError::Invalid(e) = e else {
+        return "outbox_full";
+    };
     match e {
         ApplyError::NotFound(_) => "not_found",
         ApplyError::DuplicateId(_) => "duplicate_id",
@@ -32,7 +35,7 @@ fn code(e: &ApplyError) -> &'static str {
     }
 }
 
-fn apply_all(r: &mut Replica, cmds: &[Command]) -> Result<(), ApplyError> {
+fn apply_all(r: &mut Replica, cmds: &[Command]) -> Result<(), SubmitError> {
     r.begin_group();
     let done = cmds.iter().try_for_each(|c| r.apply(c));
     r.end_group();
@@ -46,7 +49,7 @@ impl App {
         let result = match action {
             Action::CreateNode { kind, x, y, parent } if !(x.is_finite() && y.is_finite()) => {
                 let _ = (kind, parent);
-                Err(ApplyError::NotFinite("x"))
+                Err(ApplyError::NotFinite("x").into())
             }
             Action::CreateNode { kind, x, y, parent } => {
                 let id = self.fresh_id();
@@ -144,15 +147,20 @@ impl App {
         }
     }
 
-    /// Every command is valid on the current document: checked before any is applied, so a list
-    /// that would fail half way applies nothing.
-    fn validate(&self, cmds: &[Command]) -> Result<(), ApplyError> {
+    /// Every command is valid on the current document and the queue has room for all of them: checked
+    /// before any is applied, so a list that would fail half way applies nothing.
+    fn validate(&self, cmds: &[Command]) -> Result<(), SubmitError> {
+        let max = self.replica.max_pending();
+        if self.replica.pending_len() + cmds.len() > max {
+            return Err(SubmitError::OutboxFull { max });
+        }
         let limits = Limits::default();
         cmds.iter()
             .try_for_each(|c| check_command(self.replica.nodes(), c, &limits))
+            .map_err(SubmitError::Invalid)
     }
 
-    fn delete(&mut self, ids: &[String]) -> Result<(), ApplyError> {
+    fn delete(&mut self, ids: &[String]) -> Result<(), SubmitError> {
         let cmds: Vec<Command> = ids
             .iter()
             .map(|id| Command::RemoveNode { id: id.clone() })
@@ -174,7 +182,7 @@ impl App {
     }
 
     /// Undo or redo one step; nothing when the history has none.
-    fn step(&mut self, undo: bool) -> Result<(), ApplyError> {
+    fn step(&mut self, undo: bool) -> Result<(), SubmitError> {
         if undo {
             self.replica.undo().map(drop)
         } else {

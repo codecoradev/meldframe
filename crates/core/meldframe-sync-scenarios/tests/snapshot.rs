@@ -1,6 +1,7 @@
 //! A snapshot is bytes from a network: `Replica::new` refuses a corrupt one with a typed `LoadError` and
 //! its stable code, and a good one loads exactly as `FileState::try_from_nodes` would load it.
 
+#[path = "../../meldframe-sync/tests/common/mod.rs"]
 mod common;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;

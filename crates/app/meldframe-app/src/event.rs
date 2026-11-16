@@ -58,7 +58,12 @@ pub enum Event {
         code: String,
         retryable: bool,
     },
+    /// A reload dropped this many unconfirmed ops: they no longer apply to the new file. The front end
+    /// tells the person.
+    OpsDropped {
+        count: usize,
+    },
     /// The file and the events no longer fit. The app halts (`Connection::Halted`) and ignores frames and
-    /// edits; the shell loads the file again and makes a new `App`.
+    /// edits; the shell loads the file again and dispatches `Action::Reload` (or makes a new `App`).
     Diverged {},
 }

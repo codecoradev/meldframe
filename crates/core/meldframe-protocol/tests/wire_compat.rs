@@ -277,3 +277,43 @@ fn the_resync_marker_and_the_heartbeat_are_wire_frames() {
         .is_err()
     );
 }
+
+/// An accepted op names the idempotency key of the op that made it, so a client recognises its own op by
+/// key. An event written before the key existed has none and still reads.
+#[test]
+fn an_event_carries_the_idempotency_key_and_an_old_event_without_one_still_reads() {
+    let c = Command::RemoveNode { id: "n".into() };
+    let m = ServerMsg::Event {
+        room: "r".into(),
+        seq: 4,
+        actor: "user:a".into(),
+        key: Some("k-1".into()),
+        command: c.clone(),
+    };
+    let text = serde_json::to_string(&m).unwrap();
+    assert_eq!(
+        text,
+        r#"{"type":"event","room":"r","seq":4,"actor":"user:a","key":"k-1","command":{"type":"removeNode","id":"n"}}"#
+    );
+    assert!(matches!(
+        serde_json::from_str::<ServerMsg>(&text).unwrap(),
+        ServerMsg::Event { key: Some(k), .. } if k == "k-1"
+    ));
+    let old = r#"{"type":"event","room":"r","seq":4,"actor":"user:a","command":{"type":"removeNode","id":"n"}}"#;
+    assert!(matches!(
+        serde_json::from_str::<ServerMsg>(old).unwrap(),
+        ServerMsg::Event { key: None, .. }
+    ));
+    let none = ServerMsg::Event {
+        room: "r".into(),
+        seq: 4,
+        actor: "user:a".into(),
+        key: None,
+        command: c,
+    };
+    assert_eq!(
+        serde_json::to_string(&none).unwrap(),
+        old,
+        "no key: no field"
+    );
+}

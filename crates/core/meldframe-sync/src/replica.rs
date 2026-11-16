@@ -14,14 +14,19 @@
 //! One replica is one actor.
 
 use crate::footprint::{Pairs, footprint, premise};
-use crate::types::{EventOutcome, OpKind, Outgoing, ReplicaError};
+use crate::types::{EventOutcome, OpKind, Outgoing, ReplicaError, SubmitError};
 use meldframe_check::LoadError;
-use meldframe_core::{ApplyError, Limits, apply_command};
+use meldframe_core::{Limits, apply_command};
 use meldframe_history::FileState;
 use meldframe_protocol::{Command, MAX_OP_DEPS, Node};
 use std::collections::{HashMap, HashSet, VecDeque};
 
+mod confirm;
 mod rebuild;
+mod resync;
+
+/// How many ops may wait for the server before a new local op is refused (`Replica::set_max_pending`).
+pub const DEFAULT_MAX_PENDING: usize = 10_000;
 
 #[derive(Debug, Clone)]
 struct Pending {
@@ -80,6 +85,7 @@ pub struct Replica {
     ideal: Option<Vec<Node>>,
     counter: u64,
     limits: Limits,
+    max_pending: usize,
 }
 
 impl Replica {
@@ -108,6 +114,7 @@ impl Replica {
             ideal: None,
             counter: 0,
             limits,
+            max_pending: DEFAULT_MAX_PENDING,
         })
     }
 
@@ -132,6 +139,27 @@ impl Replica {
 
     pub fn pending_len(&self) -> usize {
         self.pending.len()
+    }
+
+    /// The most ops that may wait for the server.
+    pub fn max_pending(&self) -> usize {
+        self.max_pending
+    }
+
+    /// Set the cap on pending ops. A new local op (`apply`, `undo`, `redo`) is refused with
+    /// [`SubmitError::OutboxFull`] while that many wait; a step may end above the cap by its own size,
+    /// and a correction that follows a remote op is not counted.
+    pub fn set_max_pending(&mut self, max: usize) {
+        self.max_pending = max;
+    }
+
+    fn check_room(&self) -> Result<(), SubmitError> {
+        match self.pending.len() >= self.max_pending {
+            true => Err(SubmitError::OutboxFull {
+                max: self.max_pending,
+            }),
+            false => Ok(()),
+        }
     }
 
     pub fn can_undo(&self) -> bool {
@@ -214,19 +242,19 @@ impl Replica {
     }
 
     /// A new local command: applied at once, recorded in the history and queued as an op.
-    pub fn apply(&mut self, cmd: &Command) -> Result<(), ApplyError> {
+    pub fn apply(&mut self, cmd: &Command) -> Result<(), SubmitError> {
         self.apply_keyed(cmd, None)
     }
 
     /// Like [`Replica::apply`]; edits with the same `key` join one history step.
-    pub fn apply_keyed(&mut self, cmd: &Command, key: Option<&str>) -> Result<(), ApplyError> {
+    pub fn apply_keyed(&mut self, cmd: &Command, key: Option<&str>) -> Result<(), SubmitError> {
         self.apply_inner(cmd, key, None)
     }
 
     /// Like [`Replica::apply`], but the op names the given keys of my pending ops as its dependencies.
     /// A caller that applies an undo or redo again on a new snapshot uses it, so the op falls with its
     /// premise. A key that is no longer pending is ignored.
-    pub fn apply_dependent(&mut self, cmd: &Command, deps: &[String]) -> Result<(), ApplyError> {
+    pub fn apply_dependent(&mut self, cmd: &Command, deps: &[String]) -> Result<(), SubmitError> {
         let live = deps
             .iter()
             .filter(|d| self.pending.iter().any(|p| &p.out.key == *d))
@@ -240,7 +268,8 @@ impl Replica {
         cmd: &Command,
         key: Option<&str>,
         forced: Option<Vec<String>>,
-    ) -> Result<(), ApplyError> {
+    ) -> Result<(), SubmitError> {
+        self.check_room()?;
         let foot = footprint(self.view.nodes(), cmd);
         self.view.apply_keyed(cmd, key)?;
         let rec = self.view.last_rec();
@@ -264,13 +293,21 @@ impl Replica {
 
     /// Undo my last step; each command that was applied is sent as an op. `false` when there is
     /// nothing to undo.
-    pub fn undo(&mut self) -> Result<bool, ApplyError> {
+    pub fn undo(&mut self) -> Result<bool, SubmitError> {
+        if !self.view.can_undo() {
+            return Ok(false);
+        }
+        self.check_room()?;
         let before = self.view.nodes().to_vec();
         let cmds = self.view.undo();
         Ok(self.send_step(before, cmds, OpKind::Undo))
     }
 
-    pub fn redo(&mut self) -> Result<bool, ApplyError> {
+    pub fn redo(&mut self) -> Result<bool, SubmitError> {
+        if !self.view.can_redo() {
+            return Ok(false);
+        }
+        self.check_room()?;
         let before = self.view.nodes().to_vec();
         let cmds = self.view.redo();
         Ok(self.send_step(before, cmds, OpKind::Redo))
@@ -307,11 +344,25 @@ impl Replica {
         self.pending.iter().map(|p| p.out.clone()).collect()
     }
 
-    /// Apply a server event. Events must arrive in `seq` order.
+    /// Apply a server event that carries no key: my own op is recognised by actor and command.
     pub fn on_event(
         &mut self,
         seq: u64,
         actor: &str,
+        cmd: &Command,
+    ) -> Result<EventOutcome, ReplicaError> {
+        self.on_event_keyed(seq, actor, None, cmd)
+    }
+
+    /// Apply a server event. Events must arrive in `seq` order. `key` is the idempotency key the event
+    /// carries: my own op is the event of my actor that names the key of my oldest pending op. Another
+    /// session of my actor, or a repeat of my command, is not mine. Without a key (an old log) the
+    /// command is compared instead.
+    pub fn on_event_keyed(
+        &mut self,
+        seq: u64,
+        actor: &str,
+        key: Option<&str>,
         cmd: &Command,
     ) -> Result<EventOutcome, ReplicaError> {
         if seq <= self.seq {
@@ -323,22 +374,19 @@ impl Replica {
                 got: seq,
             });
         }
-        let own = actor == self.actor
-            && self
-                .pending
-                .front()
-                .is_some_and(|p| p.json == cmd_json(cmd));
-        if own {
-            self.advance_ideal(cmd);
-            apply_command(&mut self.base, cmd, &self.limits)
-                .map_err(|e| ReplicaError::Diverged(e.to_string()))?;
-            let p = self.pending.pop_front().expect("checked above");
-            if let Some(r) = p.rec {
-                self.view.confirm_rec(r);
+        // My own op: named by its key (or, without a key, the oldest pending op with this command).
+        let at = match key {
+            Some(k) => self.pending.iter().position(|p| p.out.key == k),
+            None => (self.pending.front().map(|p| &p.json) == Some(&cmd_json(cmd))).then_some(0),
+        };
+        if let Some(i) = at.filter(|_| actor == self.actor) {
+            if self.pending[i].json != cmd_json(cmd) {
+                return Err(ReplicaError::Diverged(format!(
+                    "my op {} came back with another command",
+                    self.pending[i].out.key
+                )));
             }
-            self.settle_run(p.run);
-            self.seq = seq;
-            return Ok(EventOutcome::Confirmed);
+            return self.confirm_at(i, seq, cmd);
         }
         let mut next = self.base.clone();
         apply_command(&mut next, cmd, &self.limits)

@@ -71,6 +71,12 @@ impl App {
         &self.state
     }
 
+    /// Refuse a document action (`Event::Refused`, code `outbox_full`) while this many ops wait for the
+    /// server; the replica's own default is 10,000.
+    pub fn set_max_pending(&mut self, max: usize) {
+        self.replica.set_max_pending(max);
+    }
+
     /// The document as the person sees it: the confirmed file plus their pending ops.
     pub fn nodes(&self) -> &[Node] {
         self.replica.nodes()
@@ -99,7 +105,8 @@ impl App {
                 | Action::TogglePanel { .. }
                 | Action::ToggleCollapsed { .. }
         );
-        if self.state.connection == Connection::Halted && !ui {
+        let reload = matches!(action, Action::Reload { .. });
+        if self.state.connection == Connection::Halted && !ui && !reload {
             return Vec::new();
         }
         self.level = match &action {
@@ -141,6 +148,12 @@ impl App {
             Action::Reconnect { now_ms } => self.reconnect(now_ms, &mut fx),
             Action::Tick { now_ms } => self.tick(now_ms, &mut fx),
             Action::Frame { now_ms, frame } => self.frame(now_ms, frame, &mut fx),
+            Action::Reload {
+                now_ms,
+                nodes,
+                seq,
+                applied,
+            } => self.reload(now_ms, nodes, seq, &applied, &mut fx),
             doc => self.document(doc, &mut fx),
         }
         match self.level {
@@ -242,16 +255,30 @@ impl App {
                     self.changed(self.replica.actor().to_string(), true, Vec::new(), fx);
                 }
             }
+            Frame::Acked { key, seq } => {
+                if let Some(dropped) = self.replica.on_ack(&key, seq) {
+                    self.dropped(dropped);
+                    self.changed(self.replica.actor().to_string(), false, Vec::new(), fx);
+                }
+            }
             Frame::Event {
                 seq,
                 actor,
+                key,
                 command,
-            } => self.server_event(seq, &actor, &command, fx),
+            } => self.server_event(seq, &actor, key.as_deref(), &command, fx),
         }
     }
 
-    fn server_event(&mut self, seq: u64, actor: &str, command: &Command, fx: &mut Vec<Effect>) {
-        match self.replica.on_event(seq, actor, command) {
+    fn server_event(
+        &mut self,
+        seq: u64,
+        actor: &str,
+        key: Option<&str>,
+        command: &Command,
+        fx: &mut Vec<Effect>,
+    ) {
+        match self.replica.on_event_keyed(seq, actor, key, command) {
             Ok(EventOutcome::Confirmed) => {
                 self.gap_closed();
                 self.stamp(actor, command);
@@ -275,6 +302,12 @@ impl App {
                 self.set_connection(Connection::Halted);
                 self.events.push(Event::Diverged {});
             }
+        }
+    }
+
+    pub(crate) fn dropped(&mut self, count: usize) {
+        if count > 0 {
+            self.events.push(Event::OpsDropped { count });
         }
     }
 

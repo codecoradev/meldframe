@@ -1,7 +1,9 @@
 //! Property tests for the replica: random runs of several replicas against an in-memory server, with
 //! the dependency rule, delayed delivery (random order across replicas), repeated delivery of ops to the
-//! server and of events to the replicas, and refused ops. Not modelled yet: a lost or reordered event on
-//! the way to a replica, which needs the resync entry point (issue 90).
+//! server and of events to the replicas, and refused ops. A replica also loses its connection now and
+//! then: the events and refusals on the way to it are lost, and it loads the file again (`Replica::resync`)
+//! and replays its pending ops. Events name the key of the op, as the wire does. Not modelled: a
+//! reordered event.
 //!
 //! Checked on every seed:
 //! - I1 convergence: when the queues are empty every replica equals the server, nothing is pending, the
@@ -24,7 +26,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod sim;
 
-use sim::{Stats, run_seed};
+use sim::{Stats, run_seed, run_seed_with};
 
 /// 600 natively (the per-run floor of the epic); few under WASM, which only checks that the same
 /// arithmetic behaves the same and runs several times slower.
@@ -59,6 +61,12 @@ fn replicas_converge_and_undo_stays_per_actor() {
         // The run must not be idle.
         assert!(st.rejects > 0 && st.dep_rejects > 0, "{st:?}");
         assert!(st.dropped_on_rebase > 0 && st.resent > 0, "{st:?}");
+        // A replica that lost its connection resynced from a snapshot and still converged.
+        assert!(st.resyncs > 100, "{st:?}");
+        // A refusal that arrives behind later events, and ops that reach the server in the other order,
+        // are normal: the replica follows them and never reports `Diverged`.
+        assert!(st.late_rejects > 100, "{st:?}");
+        assert_eq!(st.diverged, 0, "a healthy run never diverges: {st:?}");
         // A server event delivered again must reach the replica and be ignored.
         assert!(st.duplicated > 0 && st.duplicates_ignored > 0, "{st:?}");
         // The undo and redo checks must not be idle either.
@@ -91,4 +99,21 @@ fn a_single_writer_gets_every_step_back_exactly() {
     }
     println!("a_single_writer_gets_every_step_back_exactly: {st:?}");
     assert!(st.exact_checks > 500, "{st:?}");
+}
+
+/// Two edits of one replica that reach the server in the other order are confirmed by key, in either
+/// order: the replica follows and never reports `Diverged`.
+#[test]
+fn edits_ordered_the_other_way_by_the_server_never_diverge() {
+    let mut st = Stats::default();
+    let range = seeds();
+    let seeds = (range.end - range.start).min(300);
+    for seed in range.start..range.start + seeds {
+        run_seed_with(seed, 3, 300, seed % 2 == 0, true, &mut st);
+    }
+    println!("edits_ordered_the_other_way_by_the_server_never_diverge: {st:?}");
+    assert_eq!(st.diverged, 0, "{st:?}");
+    if seeds >= 300 {
+        assert!(st.reordered > 100 && st.late_rejects > 100, "{st:?}");
+    }
 }

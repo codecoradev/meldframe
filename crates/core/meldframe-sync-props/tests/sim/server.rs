@@ -160,6 +160,14 @@ impl Server {
         }
     }
 
+    /// The keys of the ops of `actor` that the server has applied.
+    pub fn applied_keys(&self, actor: &str) -> Vec<String> {
+        let mut keys: Vec<&(String, String)> =
+            self.idem.keys().filter(|(a, _)| a == actor).collect();
+        keys.sort();
+        keys.into_iter().map(|(_, k)| k.clone()).collect()
+    }
+
     pub fn submit(&mut self, actor: &str, o: &Outgoing) -> Verdict {
         let key = (actor.to_string(), o.key.clone());
         if self.idem.contains_key(&key) {

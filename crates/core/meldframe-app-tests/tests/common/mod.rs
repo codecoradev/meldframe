@@ -70,6 +70,7 @@ impl Loopback {
                         frame: Frame::Event {
                             seq: self.seq,
                             actor: "user:me".into(),
+                            key: Some(o.key.clone()),
                             command: o.command.clone(),
                         },
                     });

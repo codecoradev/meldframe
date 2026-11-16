@@ -1364,7 +1364,9 @@ dependencies = [
 name = "meldframe-sync-scenarios"
 version = "0.0.0"
 dependencies = [
+ "meldframe-check",
  "meldframe-core",
+ "meldframe-history",
  "meldframe-protocol",
  "meldframe-sync",
  "serde_json",

@@ -7,5 +7,5 @@ mod replica;
 mod types;
 
 pub use meldframe_check::LoadError;
-pub use replica::Replica;
-pub use types::{EventOutcome, OpKind, Outgoing, ReplicaError};
+pub use replica::{DEFAULT_MAX_PENDING, Replica};
+pub use types::{EventOutcome, OpKind, Outgoing, ReplicaError, ResyncError, SubmitError};

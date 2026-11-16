@@ -119,6 +119,19 @@ batch the server refuses is a `Refusal::Invalid` (code `invalid`, HTTP 400, neve
 
 An MCP tool call that fails returns a tool error (`isError: true`) whose structured body is `{"ok": false, "error": {"code", "message", "retryable", ...}}`: the same shape as the transport above. A refusal keeps its code from the tables above (`conflict`, `forbidden`, `E_...`) and adds, when they apply, `index` (the command of an atomic batch that would be refused, from 0), `nodeId` (a conflict) and, from `apply_commands` with `ifSeq`, `currentSeq`, `current` (the node now, `null` if removed) and `changes` (`seq`, `actor`, `command` of each op since `ifSeq` that touched the node). REST carries `nodeId` and `index` too. Two codes are worded by the MCP tools: `invalid` also covers a missing, empty or doubled idempotency key (or `ifSeq`), an `ifSeq` more than 2,000 changes behind the file, an `ifSeq` that cannot guard a command of a non-atomic call (with its `index`), a batch of 0 or more than 100 commands, a bad file name, and an `ids` list of 0 or more than 100; `bad_request` covers arguments that do not fit the input schema (an unknown field, a wrong type) and a command that is not a command (with its `index`). A call refused before MCP sees it (`unauthenticated`, `rate_limited`, `too_large`) is an HTTP answer in the transport shape, not a tool error.
 
+## Replica codes
+
+The client-side `Replica` (`crates/core/meldframe-sync`) refuses a new local op (`apply`, `undo`, `redo`) with a `SubmitError`, and a `resync` with a `ResyncError`. An invalid command keeps the `E_` code of its `ApplyError` from the table above, and a bad snapshot keeps the code of its `LoadError`; the replica adds the two codes below, with the same rules: a code never changes meaning and is never reused, and a refused call changes nothing (the op is not applied, queued or recorded in the history; the replica is left as it was).
+
+The app layer (`meldframe-app`) words a refusal of a document action as `Event::Refused { code }` and has no wire code for these: a full queue is `outbox_full` (a list action, such as moving a selection, is checked whole first), and a refused `Action::Reload` carries the `E_` code of the `ResyncError`.
+
+A test in `crates/core/meldframe-sync-scenarios/tests/outbox_cap.rs` reads this table and fails if the rows differ from the codes, or if the section stops naming the app's `Event::Refused` and `outbox_full`.
+
+| Code | Meaning and typical cause | What an agent should do next |
+| --- | --- | --- |
+| `E_OUTBOX_FULL` | The replica already holds as many ops as its cap (`Replica::max_pending`, 10,000 by default) that the server has not confirmed: the connection is down or the server is slow. `Replica::undo` and `redo` check it only when there is a step to take. In the app layer the same refusal is `Event::Refused` with the code `outbox_full`. | Do not send more. Wait for the connection to come back and the queue to drain (or reload after `Halted`), then send the command again. |
+| `E_SNAPSHOT_BEHIND` | `Replica::resync` (the app's `Action::Reload`) was given a snapshot older than the events the replica already applied: loading it would go back. | Load the file again (a newer snapshot) and retry. |
+
 ## Capture codes
 
 The `capture` tool (feature module `capture`, Read tier) fails with these codes. A client message in `render_failed` is cut to 200 bytes and stripped of control characters. The strings are shared with the

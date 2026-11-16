@@ -30,6 +30,7 @@ fn ev(seq: u64, actor: &str, command: Command) -> Action {
         Frame::Event {
             seq,
             actor: actor.into(),
+            key: None,
             command,
         },
     )

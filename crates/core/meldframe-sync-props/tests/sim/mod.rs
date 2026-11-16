@@ -2,13 +2,15 @@
 //! random (delay), ops are sometimes sent to the server twice (resend) and events are sometimes delivered
 //! to a replica twice. A lost or reordered event is not modelled: it needs the resync entry point. Every seed is one run; a failure names the seed, and `MELDFRAME_SEED=n` replays it.
 
+mod drills;
 pub mod random;
+mod resync;
 pub mod server;
 
 use meldframe_core::normalize_positions;
 use meldframe_order::fracindex;
 use meldframe_protocol::{Command, Node};
-use meldframe_sync::{EventOutcome, Outgoing, Replica};
+use meldframe_sync::{EventOutcome, Outgoing, Replica, ReplicaError};
 use random::{Rng, initial, rand_edit};
 use server::{Server, Verdict};
 use std::collections::{HashSet, VecDeque};
@@ -19,10 +21,13 @@ pub enum Msg {
     Event {
         seq: u64,
         actor: String,
+        key: String,
         cmd: Command,
     },
     Reject {
         key: String,
+        /// The refusal travels apart from the stream: it may arrive behind later events.
+        late: bool,
     },
 }
 
@@ -40,6 +45,13 @@ pub struct Stats {
     pub quiet_pair_diffs: u64,
     pub rejects: u64,
     pub dep_rejects: u64,
+    /// Replicas that loaded a snapshot again and replayed their pending ops.
+    pub resyncs: u64,
+    /// Replicas that could not follow an event (`ReplicaError::Diverged`): zero on a healthy run.
+    pub diverged: u64,
+    pub late_rejects: u64,
+    /// Pairs of edits that reached the server in the other order.
+    pub reordered: u64,
     /// Events delivered to a replica a second time.
     pub duplicated: u64,
     /// Of those, the ones the replica ignored as a duplicate.
@@ -99,6 +111,10 @@ pub struct Net {
     down: Vec<VecDeque<Msg>>,
     mirrors: Vec<Mirror>,
     pub stats: Stats,
+    /// Ops of one replica may reach the server in the other order (the `earlier_remote` runs rely on the order).
+    pub reorder: bool,
+    /// Deliveries so far: a run that does not settle is a failure, not a hang.
+    steps: u64,
     seed: u64,
     next_id: Vec<u32>,
     trace: Vec<Vec<String>>,
@@ -121,13 +137,15 @@ impl Net {
             down: (0..n).map(|_| VecDeque::new()).collect(),
             mirrors: (0..n).map(|_| Mirror::default()).collect(),
             stats: Stats::default(),
+            reorder: false,
+            steps: 0,
             seed,
             next_id: vec![0; n],
             trace: vec![vec![]; n],
         }
     }
 
-    fn fail(&self, i: usize, msg: &str) -> ! {
+    pub(super) fn fail(&self, i: usize, msg: &str) -> ! {
         let t = &self.trace[i];
         let tail = t[t.len().saturating_sub(30)..].join("\n");
         panic!("seed {}: replica {i}: {msg}\n{tail}", self.seed)
@@ -147,17 +165,33 @@ impl Net {
 
     /// The server takes the oldest op of replica `i`.
     pub fn deliver_up(&mut self, i: usize) {
+        self.steps += 1;
+        if self.steps > 20_000 {
+            self.fail(i, "the run does not settle");
+        }
+        // Two ops of one replica sometimes reach the server in the other order.
+        if self.reorder
+            && self.up[i].len() >= 2
+            && (self.seed ^ self.server.seq ^ i as u64).is_multiple_of(9)
+        {
+            self.up[i].swap(0, 1);
+            self.stats.reordered += 1;
+        }
         let Some(o) = self.up[i].pop_front() else {
             return;
         };
         match self.server.submit(&self.names[i], &o) {
             Verdict::Duplicate => {}
-            Verdict::Rejected => self.down[i].push_back(Msg::Reject { key: o.key }),
+            Verdict::Rejected => {
+                let late = (self.seed ^ self.server.seq).is_multiple_of(3);
+                self.down[i].push_back(Msg::Reject { key: o.key, late });
+            }
             Verdict::Accepted { seq } => {
                 for d in self.down.iter_mut() {
                     d.push_back(Msg::Event {
                         seq,
                         actor: self.names[i].clone(),
+                        key: o.key.clone(),
                         cmd: o.command.clone(),
                     });
                 }
@@ -167,19 +201,39 @@ impl Net {
 
     /// Replica `i` takes the oldest message of the server.
     pub fn deliver_down(&mut self, i: usize) {
+        self.steps += 1;
+        if self.steps > 20_000 {
+            self.fail(i, "the run does not settle");
+        }
         let Some(m) = self.down[i].pop_front() else {
             return;
         };
         match m {
-            Msg::Reject { key } => {
+            Msg::Reject { key, late: true } if !self.down[i].is_empty() => {
+                self.stats.late_rejects += 1;
+                self.down[i].push_back(Msg::Reject { key, late: false });
+                return;
+            }
+            Msg::Reject { key, .. } => {
                 if self.reps[i].on_reject(&key) {
                     self.mirrors[i].clear();
                 }
             }
-            Msg::Event { seq, actor, cmd } => {
-                let res = self.reps[i]
-                    .on_event(seq, &actor, &cmd)
-                    .unwrap_or_else(|e| self.fail(i, &format!("on_event: {e:?}")));
+            Msg::Event {
+                seq,
+                actor,
+                key,
+                cmd,
+            } => {
+                let res = match self.reps[i].on_event_keyed(seq, &actor, Some(&key), &cmd) {
+                    Ok(res) => res,
+                    // The replica cannot follow: the platform loads the file again.
+                    Err(ReplicaError::Diverged(_)) => {
+                        self.stats.diverged += 1;
+                        return self.resync(i);
+                    }
+                    Err(e) => self.fail(i, &format!("on_event: {e:?}")),
+                };
                 self.trace[i].push(format!("EV seq{seq} {actor} -> {res:?}"));
                 match res {
                     EventOutcome::Rebased { dropped } => {
@@ -197,7 +251,12 @@ impl Net {
                         ^ (i as u64).wrapping_mul(40_503))
                     .is_multiple_of(7)
                 {
-                    self.down[i].push_back(Msg::Event { seq, actor, cmd });
+                    self.down[i].push_back(Msg::Event {
+                        seq,
+                        actor,
+                        key,
+                        cmd,
+                    });
                     self.stats.duplicated += 1;
                 }
             }
@@ -348,95 +407,25 @@ fn check_converged(net: &Net, when: &str) {
     }
 }
 
-/// I7 (simulated): on a quiet replica an undo or redo that the server refuses leaves the history and
-/// the view exactly as they were.
-fn drill_refused_step(net: &mut Net, stats: &mut Stats) {
-    for i in 0..net.reps.len() {
-        for undoing in [true, false] {
-            let r = &mut net.reps[i];
-            if !(if undoing { r.can_undo() } else { r.can_redo() }) {
-                continue;
-            }
-            let (d0, s0) = ((r.undo_depth(), r.redo_depth()), snap(r.nodes()));
-            let did = if undoing {
-                r.undo().unwrap()
-            } else {
-                r.redo().unwrap()
-            };
-            if !did {
-                continue;
-            }
-            let ops = r.take_outbox();
-            let d1 = (r.undo_depth(), r.redo_depth());
-            let moved_one = if undoing {
-                d1 == (d0.0 - 1, d0.1 + 1)
-            } else {
-                d1 == (d0.0 + 1, d0.1 - 1)
-            };
-            assert!(
-                r.on_reject(&ops[0].key),
-                "seed {}: the first op of a step is pending",
-                net.seed
-            );
-            assert_eq!(
-                r.pending_len(),
-                0,
-                "seed {}: a refused step falls whole",
-                net.seed
-            );
-            r.check_consistency().unwrap();
-            if moved_one {
-                stats.sim_reject_checks += 1;
-                let d2 = (r.undo_depth(), r.redo_depth());
-                assert!(
-                    d2 == d0 && snap(r.nodes()) == s0,
-                    "seed {}: replica {i}: a refused {} changed history {d2:?} vs {d0:?} or the view",
-                    net.seed,
-                    if undoing { "undo" } else { "redo" }
-                );
-            }
-        }
-    }
-}
-
-/// Undo then redo on a quiet replica with the server answering: both are accepted and the pair
-/// gives the tree back (no one else writes).
-fn drill_quiet_pair(net: &mut Net) {
-    for i in 0..net.reps.len() {
-        for _ in 0..3 {
-            if !net.reps[i].can_undo() {
-                break;
-            }
-            let s0 = snap(net.reps[i].nodes());
-            let rejects = net.server.counts.rejects;
-            if !net.reps[i].undo().unwrap() {
-                break;
-            }
-            net.flush_all(i);
-            net.quiesce();
-            if net.server.counts.rejects != rejects || !net.reps[i].can_redo() {
-                continue;
-            }
-            let rejects = net.server.counts.rejects;
-            assert!(
-                net.reps[i].redo().unwrap(),
-                "seed {}: can_redo but redo failed",
-                net.seed
-            );
-            net.flush_all(i);
-            net.quiesce();
-            if net.server.counts.rejects == rejects {
-                net.stats.quiet_pairs += 1;
-                net.stats.quiet_pair_diffs += u64::from(snap(net.reps[i].nodes()) != s0);
-            }
-        }
-    }
-}
-
 /// One run: random steps, then the checks.
 pub fn run_seed(seed: u64, n: usize, steps: usize, quiet_windows: bool, stats: &mut Stats) {
+    run_seed_with(seed, n, steps, quiet_windows, false, stats);
+}
+
+/// With `reorder`, two edits of one replica sometimes reach the server in the other order. A refusal of
+/// an undo step then happens more often than the exact put-back drill allows (a step refused twice is
+/// dropped on purpose), so that drill is left out.
+pub fn run_seed_with(
+    seed: u64,
+    n: usize,
+    steps: usize,
+    quiet_windows: bool,
+    reorder: bool,
+    stats: &mut Stats,
+) {
     let mut r = Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1);
     let mut net = Net::new(seed, n);
+    net.reorder = reorder;
     for step in 0..steps {
         // A quiet window: only replica 0 writes and delivery is prompt (I3 on a clean path).
         let quiet = quiet_windows && (step / 40) % 2 == 1;
@@ -448,6 +437,7 @@ pub fn run_seed(seed: u64, n: usize, steps: usize, quiet_windows: bool, stats: &
             4..=6 => net.deliver_up(r.below(n)),
             7..=8 => net.deliver_down(r.below(n)),
             _ if r.below(8) == 0 => net.resend(r.below(n)),
+            _ if r.below(40) == 0 => net.resync(r.below(n)),
             _ => {}
         }
         if quiet && step % 40 == 39 {
@@ -456,8 +446,10 @@ pub fn run_seed(seed: u64, n: usize, steps: usize, quiet_windows: bool, stats: &
     }
     net.quiesce();
     check_converged(&net, "after the run");
-    drill_refused_step(&mut net, stats);
-    drill_quiet_pair(&mut net);
+    if !reorder {
+        drills::drill_refused_step(&mut net, stats);
+    }
+    drills::drill_quiet_pair(&mut net);
     check_converged(&net, "after the drills");
     let c = &net.server.counts;
     let s = &net.stats;
@@ -466,6 +458,10 @@ pub fn run_seed(seed: u64, n: usize, steps: usize, quiet_windows: bool, stats: &
     stats.redos += s.redos;
     stats.dropped_on_rebase += s.dropped_on_rebase;
     stats.resent += s.resent;
+    stats.resyncs += s.resyncs;
+    stats.diverged += s.diverged;
+    stats.late_rejects += s.late_rejects;
+    stats.reordered += s.reordered;
     stats.duplicated += s.duplicated;
     stats.duplicates_ignored += s.duplicates_ignored;
     stats.exact_checks += s.exact_checks;

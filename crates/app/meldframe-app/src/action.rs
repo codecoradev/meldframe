@@ -1,7 +1,7 @@
 //! Inputs to the app layer. They are UI-neutral: no toolkit events (standard rule U6).
 
 use crate::state::{Panel, Tool};
-use meldframe_protocol::Command;
+use meldframe_protocol::{Command, Node};
 use serde::{Deserialize, Serialize};
 
 /// Something a person did, or something the platform reports back.
@@ -111,6 +111,19 @@ pub enum Action {
         now_ms: u64,
         frame: Frame,
     },
+    /// The shell loaded the file again (after `Connection::Halted`, or a replay that was too old): `nodes`
+    /// as of `seq`. The replica starts from it and replays the person's unconfirmed ops on top, with the
+    /// same keys; `applied` lists the keys of those ops that the server already applied, so the snapshot
+    /// holds their result (leave none out: the server answers a repeated key and writes nothing, but the
+    /// app would wait for an event the stream never brings). The undo history starts again. The
+    /// connection goes to connecting and the app subscribes from `seq`. A bad snapshot is refused with
+    /// `Event::Refused` (the `LoadError` code, or `E_SNAPSHOT_BEHIND` for a snapshot older than the app) and nothing changes. Ops that no longer apply raise `Event::OpsDropped`.
+    Reload {
+        now_ms: u64,
+        nodes: Vec<Node>,
+        seq: u64,
+        applied: Vec<String>,
+    },
 }
 
 /// What the node tools can make.
@@ -152,12 +165,24 @@ pub enum Frame {
     /// there. `latest_seq` is the newest number the server has.
     Resync { after_seq: u64, latest_seq: u64 },
     /// An accepted op, numbered, with the actor the server stamped on it. The person's own ops come back
-    /// this way, which confirms them.
+    /// this way, which confirms them. `key` is the idempotency key of the op: the app recognises its own op
+    /// by it. A shell that does not carry it (an old server) leaves it out, and the app compares the actor
+    /// and the command instead.
     Event {
         seq: u64,
         actor: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        key: Option<String>,
         command: Command,
     },
+    /// The server answered the send of the op with this key: it was applied as event `seq` (for a repeated
+    /// key, the first time, and nothing was written). When the app already follows the file up to `seq`
+    /// (a reload went past it) the op is done; otherwise its event is still to come and this changes
+    /// nothing. Contract of the shell: after a reload it sends the unconfirmed ops again and must report
+    /// every answer this way, including the one for a repeated key; until it does, an op the snapshot already
+    /// holds stays pending and counts against the cap. The shell side is not built yet: only the test harness
+    /// of `meldframe-app-tests` emits this frame.
+    Acked { key: String, seq: u64 },
     /// The server refused the op with this idempotency key. No wording: the front end writes the text.
     Rejected {
         key: String,

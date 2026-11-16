@@ -214,6 +214,7 @@ fn pending_ops_show_before_the_ack_and_clear_after_it() {
         frame: Frame::Event {
             seq: 1,
             actor: "user:me".into(),
+            key: None,
             command: ops[0].command.clone(),
         },
     });
@@ -261,6 +262,7 @@ fn another_actors_change_is_applied_and_labelled() {
         frame: Frame::Event {
             seq: 1,
             actor: "agent:claude".into(),
+            key: None,
             command: Command::UpdateNode {
                 id: "t1".into(),
                 patch: meldframe_protocol::NodePatch {
@@ -288,6 +290,7 @@ fn a_node_deleted_by_another_actor_leaves_the_selection() {
         frame: Frame::Event {
             seq: 1,
             actor: "agent:claude".into(),
+            key: None,
             command: Command::RemoveNode { id: "r1".into() },
         },
     });

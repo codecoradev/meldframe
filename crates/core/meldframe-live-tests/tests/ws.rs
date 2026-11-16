@@ -31,6 +31,10 @@ async fn an_op_submitted_over_rest_arrives_in_order_with_its_sequence_number() {
         (Some("event"), Some(1), Some("agent:alpha"))
     );
     assert_eq!(first["command"]["type"], "addNode");
+    assert_eq!(
+        first["key"], "k1",
+        "the event carries the op's idempotency key"
+    );
     assert_eq!(events(&mut ws, 2).await, [2, 3]);
     // The same key again writes nothing, so nothing is sent; the next new op is 4.
     assert_eq!(rest(&e, ALPHA, 3, 4).await, 200);

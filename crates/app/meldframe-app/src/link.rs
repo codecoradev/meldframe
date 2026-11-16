@@ -1,9 +1,12 @@
 //! The live connection: connecting, live, dropped, backoff, reconnect and resync. Time arrives as an
 //! action payload (`now_ms`, the shell's clock); nothing here reads a clock.
 
-use crate::app::{App, out_ops};
+use crate::app::{App, Level, out_ops};
 use crate::effect::Effect;
+use crate::event::Event;
+use crate::retry::Retries;
 use crate::state::Connection;
+use meldframe_protocol::Node;
 
 /// A live connection that has been silent this long is dropped. The server sends a heartbeat when it has
 /// said nothing for 15 seconds, so three are missed by then.
@@ -43,6 +46,32 @@ impl App {
         fx.push(Effect::Subscribe {
             after_seq: self.replica.seq(),
         });
+    }
+
+    /// The shell loaded the file again: the replica starts from the snapshot and the app subscribes from
+    /// its number. A bad snapshot changes nothing.
+    pub(crate) fn reload(
+        &mut self,
+        now_ms: u64,
+        nodes: Vec<Node>,
+        seq: u64,
+        applied: &[String],
+        fx: &mut Vec<Effect>,
+    ) {
+        match self.replica.resync(nodes, seq, applied) {
+            Ok(dropped) => self.dropped(dropped),
+            Err(e) => {
+                self.level = Level::Nothing;
+                self.events.push(Event::Refused {
+                    code: e.code().to_string(),
+                });
+                return;
+            }
+        }
+        self.retries = Retries::default();
+        self.link.live_since = None;
+        self.start(now_ms, fx);
+        self.changed(self.replica.actor().to_string(), false, Vec::new(), fx);
     }
 
     /// The transport is subscribed: the connection is live and everything unconfirmed goes out (again).

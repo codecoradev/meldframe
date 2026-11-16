@@ -85,8 +85,8 @@ pub enum Connection {
     Reconnecting { attempt: u32 },
     /// The connection dropped; the next attempt waits for its backoff.
     Offline,
-    /// The file and the server's events no longer fit (`Event::Diverged`). Only a new `App` made from a
-    /// fresh snapshot goes on; selection, tool and panels still work.
+    /// The file and the server's events no longer fit (`Event::Diverged`). Only `Action::Reload` with a
+    /// fresh snapshot (or a new `App`) goes on; selection, tool and panels still work.
     Halted,
 }
 

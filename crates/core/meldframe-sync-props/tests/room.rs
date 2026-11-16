@@ -19,7 +19,7 @@ mod random;
 use meldframe_host::{Gate, MemoryStore, Op, Principal, Room, Store};
 use meldframe_module::{Policy, default_policy};
 use meldframe_protocol::{Command, Node};
-use meldframe_sync::{Outgoing, Replica};
+use meldframe_sync::{OpKind, Outgoing, Replica, ReplicaError};
 use random::{Rng, initial, rand_edit};
 use std::collections::{BTreeMap, HashSet, VecDeque};
 
@@ -37,10 +37,13 @@ enum Msg {
     Event {
         seq: u64,
         actor: String,
+        key: String,
         cmd: Command,
     },
     Reject {
         key: String,
+        /// The refusal travels apart from the stream: it may arrive behind later events.
+        late: bool,
     },
 }
 
@@ -48,6 +51,9 @@ enum Msg {
 struct Stats {
     accepted: u64,
     duplicates: u64,
+    resyncs: u64,
+    /// Of those, the ones that followed `ReplicaError::Diverged`.
+    diverged: u64,
     refused: BTreeMap<&'static str, u64>,
 }
 
@@ -62,6 +68,8 @@ struct Net {
     /// `(actor, key)` of every op the room wrote, to check the dependency rule from outside.
     applied: HashSet<(String, String)>,
     seed: u64,
+    /// Deliveries so far: a run that does not settle is a failure, not a hang.
+    steps: u64,
     /// Even seeds run a gate that allows deletes, so `forbidden` is not expected there.
     allow: bool,
     stats: Stats,
@@ -113,7 +121,12 @@ impl Net {
             )
             .unwrap();
         }
-        let names: Vec<String> = (0..n).map(|i| format!("user:u{i}")).collect();
+        // On odd seeds the last replica is a second session of replica 0's actor: its ops and its events
+        // look alike, and only the idempotency key tells them apart.
+        let twin = seed % 2 == 1 && n >= 3;
+        let names: Vec<String> = (0..n)
+            .map(|i| format!("user:u{}", if twin && i == n - 1 { 0 } else { i }))
+            .collect();
         let reps = names
             .iter()
             .enumerate()
@@ -131,6 +144,7 @@ impl Net {
             next_id: vec![0; n],
             applied: HashSet::new(),
             seed,
+            steps: 0,
             allow,
             stats: Stats::default(),
         }
@@ -142,6 +156,19 @@ impl Net {
     }
 
     fn deliver_up(&mut self, i: usize, r: &mut Rng) {
+        self.steps += 1;
+        assert!(
+            self.steps < 20_000,
+            "seed {}: the run does not settle",
+            self.seed
+        );
+        // Two edits of one replica sometimes reach the room in the other order.
+        if self.up[i].len() >= 2
+            && self.up[i].iter().take(2).all(|o| o.kind == OpKind::Edit)
+            && (self.seed ^ self.room.seq() ^ i as u64).is_multiple_of(9)
+        {
+            self.up[i].swap(0, 1);
+        }
         let Some(o) = self.up[i].pop_front() else {
             return;
         };
@@ -165,6 +192,7 @@ impl Net {
                     d.push_back(Msg::Event {
                         seq,
                         actor: self.names[i].clone(),
+                        key: o.key.clone(),
                         cmd: o.command.clone(),
                     });
                 }
@@ -178,7 +206,11 @@ impl Net {
                     || (code == "forbidden" && !self.allow);
                 assert!(expected, "seed {}: unexpected refusal {code}", self.seed);
                 *self.stats.refused.entry(code).or_default() += 1;
-                self.down[i].push_back(Msg::Reject { key: o.key.clone() });
+                let late = (self.seed ^ self.room.seq()).is_multiple_of(3);
+                self.down[i].push_back(Msg::Reject {
+                    key: o.key.clone(),
+                    late,
+                });
             }
         }
         // About one op in six reaches the room again (a resend).
@@ -188,22 +220,64 @@ impl Net {
     }
 
     fn deliver_down(&mut self, i: usize) {
+        self.steps += 1;
+        assert!(
+            self.steps < 20_000,
+            "seed {}: the run does not settle",
+            self.seed
+        );
         let Some(m) = self.down[i].pop_front() else {
             return;
         };
         match m {
-            Msg::Reject { key } => {
+            Msg::Reject { key, late: true } if !self.down[i].is_empty() => {
+                self.down[i].push_back(Msg::Reject { key, late: false });
+                return;
+            }
+            Msg::Reject { key, .. } => {
                 self.reps[i].on_reject(&key);
             }
-            Msg::Event { seq, actor, cmd } => {
-                if let Err(e) = self.reps[i].on_event(seq, &actor, &cmd) {
-                    panic!("seed {}: replica {i}: on_event: {e:?}", self.seed);
+            Msg::Event {
+                seq,
+                actor,
+                key,
+                cmd,
+            } => {
+                match self.reps[i].on_event_keyed(seq, &actor, Some(&key), &cmd) {
+                    Ok(_) => {}
+                    // An op of mine was ordered ahead of an older one: the platform loads the file again.
+                    Err(ReplicaError::Diverged(_)) => {
+                        self.stats.diverged += 1;
+                        return self.resync(i);
+                    }
+                    Err(e) => panic!("seed {}: replica {i}: on_event: {e:?}", self.seed),
                 }
             }
         }
         if let Err(e) = self.reps[i].check_consistency() {
             panic!("seed {}: replica {i}: {e}", self.seed);
         }
+        self.flush(i);
+    }
+
+    /// Replica `i` lost its connection and the messages in flight to it: it loads the file again and
+    /// replays the ops the room does not hold yet.
+    fn resync(&mut self, i: usize) {
+        let applied: Vec<String> = self
+            .applied
+            .iter()
+            .filter(|(a, _)| *a == self.names[i])
+            .map(|(_, k)| k.clone())
+            .collect();
+        self.down[i].clear();
+        let (nodes, seq) = (self.room.nodes().to_vec(), self.room.seq());
+        if let Err(e) = self.reps[i].resync(nodes, seq, &applied) {
+            panic!("seed {}: replica {i}: resync: {e:?}", self.seed);
+        }
+        if let Err(e) = self.reps[i].check_consistency() {
+            panic!("seed {}: replica {i}: {e}", self.seed);
+        }
+        self.stats.resyncs += 1;
         self.flush(i);
     }
 
@@ -299,6 +373,7 @@ fn run_seed(seed: u64, st: &mut Stats) {
         match r.below(8) {
             0..=3 => net.act(i, &mut r),
             4..=5 => net.deliver_up(i, &mut r),
+            6 if r.below(12) == 0 => net.resync(i),
             _ => net.deliver_down(i),
         }
     }
@@ -306,6 +381,8 @@ fn run_seed(seed: u64, st: &mut Stats) {
     net.check();
     st.accepted += net.stats.accepted;
     st.duplicates += net.stats.duplicates;
+    st.resyncs += net.stats.resyncs;
+    st.diverged += net.stats.diverged;
     for (k, v) in net.stats.refused {
         *st.refused.entry(k).or_default() += v;
     }
@@ -333,6 +410,8 @@ fn replicas_fed_by_the_room_converge() {
         // room refused for the reasons the run is meant to exercise.
         assert!(st.accepted > 5000, "{st:?}");
         assert!(st.duplicates > 500, "{st:?}");
+        assert!(st.resyncs > 100, "{st:?}");
+        assert_eq!(st.diverged, 0, "a healthy run never diverges: {st:?}");
         for code in ["forbidden", "dependency_rejected"] {
             assert!(
                 st.refused.get(code).copied().unwrap_or(0) > 0,

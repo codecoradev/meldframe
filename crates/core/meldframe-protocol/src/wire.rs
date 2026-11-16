@@ -99,12 +99,18 @@ pub enum ServerMsg {
         #[ts(type = "number")]
         seq: u64,
     },
-    /// An accepted op, numbered and replayable.
+    /// An accepted op, numbered and replayable. `key` is the idempotency key of the op: a client that sent
+    /// it recognises its own op by `key` (not by actor and command, which a second session of the same
+    /// actor or a repeated command can share). Absent in an event written before the key was carried;
+    /// such a client falls back to the actor and the command.
     Event {
         room: String,
         #[ts(type = "number")]
         seq: u64,
         actor: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        key: Option<String>,
         command: Command,
     },
     /// The requested replay is older than the kept log: the client must reload from a snapshot.

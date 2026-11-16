@@ -65,6 +65,7 @@ fn event(seq: u64, actor: &str, id: &str, x: f64) -> Action {
         frame: Frame::Event {
             seq,
             actor: actor.into(),
+            key: None,
             command: Command::UpdateNode {
                 id: id.into(),
                 patch: NodePatch {

@@ -141,16 +141,26 @@ impl World {
                 let mut back = vec![];
                 for o in ops {
                     let op = Op::new(o.key.clone(), o.command.clone()).with_deps(o.deps.clone());
-                    if let Err(e) = self.server.submit_tool("paint", FILE, &who, vec![op]) {
-                        let r = e.refusal().expect("a refusal");
-                        back.push(Action::Frame {
+                    match self.server.submit_tool("paint", FILE, &who, vec![op]) {
+                        // The answer names the seq, also for a repeated key (`written` is false).
+                        Ok(done) => back.push(Action::Frame {
                             now_ms: self.now,
-                            frame: AppFrame::Rejected {
+                            frame: AppFrame::Acked {
                                 key: o.key.clone(),
-                                code: r.code().into(),
-                                retryable: r.retryable(),
+                                seq: done[0].seq,
                             },
-                        });
+                        }),
+                        Err(e) => {
+                            let r = e.refusal().expect("a refusal");
+                            back.push(Action::Frame {
+                                now_ms: self.now,
+                                frame: AppFrame::Rejected {
+                                    key: o.key.clone(),
+                                    code: r.code().into(),
+                                    retryable: r.retryable(),
+                                },
+                            });
+                        }
                     }
                 }
                 back
@@ -172,6 +182,7 @@ impl World {
                     back.push(self.frame(AppFrame::Event {
                         seq: op.seq,
                         actor: op.actor,
+                        key: Some(op.key),
                         command: op.command,
                     }));
                 }
@@ -200,6 +211,7 @@ impl World {
                 Frame::Durable { seq, data } => AppFrame::Event {
                     seq,
                     actor: data.actor,
+                    key: Some(data.key),
                     command: data.command,
                 },
                 Frame::Resync {

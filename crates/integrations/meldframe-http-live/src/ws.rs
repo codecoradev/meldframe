@@ -1,10 +1,10 @@
 //! `GET /v1/live/{file}?after={seq}`: one WebSocket is one stream of one file (ADR-0009). The handshake
 //! authenticates and subscribes, so a refusal is an HTTP status (401, 429, 503). Then the server sends
-//! `subscribed`, the ops after `after` as `event` frames, and what the stream queues: more events, ephemeral
-//! frames, `heartbeat`, and `resync` when the client fell behind. The client sends `ping` (answered with
-//! `pong`) to show it is alive, and after a `resync` it sends `subscribe` (with `sinceSeq` = the marker's
-//! `afterSeq`, or without it) on the same socket; `subscribe` is refused before a marker, and never starts
-//! before the marker. Ops are submitted over REST or `/v1/ws`, not here.
+//! `subscribed`, the ops after `after` as `event` frames (each names the op's idempotency key), and what the stream
+//! queues: more events, ephemeral frames, `heartbeat`, and `resync` when the client fell behind. The client sends
+//! `ping` (answered with `pong`) to show it is alive, and after a `resync` it sends `subscribe` (with `sinceSeq` =
+//! the marker's `afterSeq`, or without it) on the same socket; `subscribe` is refused before a marker, and never
+//! starts before the marker. Ops are submitted over REST or `/v1/ws`, not here.
 //!
 //! Limits: the handshake is a call like any other (client and principal budgets, the REST in-flight slots).
 //! After it, polls, resubscribes and unsubscribes use the live slots (`max_live_in_flight`,
@@ -12,9 +12,8 @@
 //! starved; a `seen` with no slot is owed and done at the next look. Each client frame costs the principal's
 //! budget (a `subscribe` costs `SUBSCRIBE_COST`, charged once it has a slot), except that `seen` comes first,
 //! so a refused frame still shows the client is alive. `ws_idle` does not apply: a client must send a JSON
-//! `ping` (a browser cannot send a WebSocket-level ping) within the server's `dead_after_ms`, or the timer
-//! drops it. A call with no free slot is skipped and tried again at the next look; a poll that times out or
-//! fails may have taken frames, so the socket closes and the client reconnects with its last number.
+//! `ping` (a browser cannot send a WebSocket-level ping) within the server's `dead_after_ms`, or the timer drops
+//! it. A call with no free slot is retried at the next look; a poll that fails or times out closes the socket.
 
 use crate::LiveState;
 use crate::hub::{Conn, LiveHub, Opened, Out};
@@ -95,6 +94,7 @@ fn wire(room: &str, f: Out) -> ServerMsg {
             room: room.to_owned(),
             seq,
             actor: data.actor,
+            key: Some(data.key),
             command: data.command,
         },
         Frame::Ephemeral(m) => m,
