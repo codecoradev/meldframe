@@ -110,7 +110,7 @@ fn an_oversize_batch_is_refused_before_the_room_opens_or_a_key_is_looked_up() {
         .submit_tool("paint", "other", &who("ws_1"), many)
         .unwrap_err();
     assert!(
-        matches!(err, SubmitError::Refused(Refusal::Invalid { .. })),
+        matches!(err, SubmitError::Refused(Refusal::BatchTooLarge { .. })),
         "{err:?}"
     );
     // A batch of exactly the cap is taken.

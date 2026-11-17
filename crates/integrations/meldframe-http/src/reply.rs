@@ -15,7 +15,7 @@ pub enum Failure {
     Refused(Refusal),
     /// An atomic batch was refused before any op was written: the op at `index` (from 0) would be refused.
     Batch { index: usize, refusal: Refusal },
-    /// Not a refusal: the store is down, the registry is full. Carries a text for the log, not for the caller.
+    /// Not a refusal: the store is down, the registry is full. The text is for the log, not the caller.
     Unavailable(String),
     /// Not a refusal either, but sending the same call again cannot succeed (the data cannot be stored).
     Permanent(String),
@@ -45,7 +45,7 @@ impl Reply {
     }
 
     pub(crate) fn accepted(done: &[Accepted]) -> Self {
-        let list: Vec<Value> = done
+        let list: Vec<_> = done
             .iter()
             .map(|a| json!({"seq": a.seq, "written": a.written}))
             .collect();
@@ -60,12 +60,16 @@ impl Reply {
     fn refused(r: &Refusal, index: Option<usize>) -> Self {
         let status = match r {
             Refusal::Forbidden { .. } => 403,
-            Refusal::QuotaExceeded { .. } => 429,
+            Refusal::QuotaExceeded { .. } | Refusal::RateExceeded { .. } => 429,
+            Refusal::BatchTooLarge { .. } | Refusal::StorageExceeded { .. } => 413,
             Refusal::Conflict { .. } => 409,
             Refusal::Invalid { .. } => 400,
             Refusal::DependencyRejected { .. } | Refusal::Apply(_) => 422,
         };
         let mut reply = Self::error(status, r.code(), &r.to_string(), r.retryable());
+        if let Refusal::RateExceeded { retry_after_ms, .. } = r {
+            reply.retry_after = Some(Duration::from_millis(*retry_after_ms));
+        }
         if let Some(e) = reply.body["error"].as_object_mut() {
             if let Refusal::Conflict { node_id } = r {
                 e.insert("nodeId".into(), json!(node_id));

@@ -72,6 +72,10 @@ impl NodeFacts for () {
     }
 }
 
+const MINUTE_MS: u64 = 60_000;
+
+type Clock = Box<dyn Fn() -> u64 + Send + Sync>;
+
 type PolicyFn = Box<dyn Fn(&Principal, RiskTier) -> Policy + Send + Sync>;
 
 /// The one admission step. A batch is decided as a whole: one refusal refuses every op in it and
@@ -80,6 +84,13 @@ pub struct Gate {
     policy: PolicyFn,
     quota: Option<u64>,
     used: HashMap<String, u64>,
+    /// Ops per minute per workspace, with the clock (milliseconds) that tells the minute.
+    rate: Option<(u64, Clock)>,
+    /// Per workspace: the minute window and the ops admitted in it.
+    windows: HashMap<String, (u64, u64)>,
+    batch_limit: Option<usize>,
+    storage_limit: Option<u64>,
+    stored: HashMap<String, u64>,
 }
 
 impl std::fmt::Debug for Gate {
@@ -116,6 +127,11 @@ impl Gate {
             policy: Box::new(policy),
             quota: None,
             used: HashMap::new(),
+            rate: None,
+            windows: HashMap::new(),
+            batch_limit: None,
+            storage_limit: None,
+            stored: HashMap::new(),
         }
     }
 
@@ -133,13 +149,42 @@ impl Gate {
         self
     }
 
+    /// Let each workspace send at most `limit` ops in a minute. `now_ms` is the clock: milliseconds from any fixed
+    /// origin; a minute window is `now_ms / 60000`, and the count starts again at the next one.
+    pub fn ops_per_minute(
+        mut self,
+        limit: u64,
+        now_ms: impl Fn() -> u64 + Send + Sync + 'static,
+    ) -> Self {
+        self.rate = Some((limit, Box::new(now_ms)));
+        self
+    }
+
+    /// Refuse a batch of more than `limit` ops as `batch_too_large`.
+    pub fn batch_limit(mut self, limit: usize) -> Self {
+        self.batch_limit = Some(limit);
+        self
+    }
+
+    /// Let each workspace write at most `limit` bytes of ops (the JSON size of each command).
+    pub fn storage_limit(mut self, limit: u64) -> Self {
+        self.storage_limit = Some(limit);
+        self
+    }
+
+    /// Bytes of ops admitted so far for a workspace.
+    pub fn storage_used(&self, workspace: &str) -> u64 {
+        self.stored.get(workspace).copied().unwrap_or(0)
+    }
+
     /// Ops admitted so far for a workspace.
     pub fn used(&self, workspace: &str) -> u64 {
         self.used.get(workspace).copied().unwrap_or(0)
     }
 
-    /// Decide a batch. Order of checks: shape (`invalid`), policy (`forbidden`), quota
-    /// (`quota_exceeded`). Everything the gate can know without the file; the room decides the rest.
+    /// Decide a batch. Order of checks: shape (`invalid`), batch limit (`batch_too_large`), policy (`forbidden`),
+    /// total quota (`quota_exceeded`), rate (`quota_ops_per_minute`), storage (`quota_storage`). Everything the gate
+    /// can know without the file; the room decides the rest. Nothing is charged unless every check passes.
     pub fn submit(&mut self, who: &Principal, ops: Vec<Op>) -> Result<Report, Refusal> {
         self.submit_with(who, ops, &())
     }
@@ -153,6 +198,13 @@ impl Gate {
         facts: &dyn NodeFacts,
     ) -> Result<Report, Refusal> {
         check_shape(&ops)?;
+        if let Some(limit) = self.batch_limit
+            && ops.len() > limit
+        {
+            return Err(Refusal::BatchTooLarge {
+                limit: limit as u64,
+            });
+        }
         let tiers = Op::batch_tiers(&ops, facts);
         for tier in tiers.iter().copied() {
             match (self.policy)(who, tier) {
@@ -168,6 +220,40 @@ impl Gate {
         {
             return Err(Refusal::QuotaExceeded { limit });
         }
+        let window = match &self.rate {
+            Some((limit, now)) => {
+                let t = now();
+                // A clock that steps back keeps the newer window it already counted in: no reset, no bypass.
+                let (w, count) = match self.windows.get(&who.workspace) {
+                    Some(&(at, n)) if at >= t / MINUTE_MS => (at, n),
+                    _ => (t / MINUTE_MS, 0),
+                };
+                if count.saturating_add(ops.len() as u64) > *limit {
+                    return Err(Refusal::RateExceeded {
+                        limit: *limit,
+                        retry_after_ms: (w + 1).saturating_mul(MINUTE_MS).saturating_sub(t),
+                    });
+                }
+                Some((w, count))
+            }
+            None => None,
+        };
+        let bytes: u64 = ops
+            .iter()
+            .map(|o| serde_json::to_vec(&o.command).map_or(0, |v| v.len() as u64))
+            .sum();
+        let stored = self.storage_used(&who.workspace);
+        if let Some(limit) = self.storage_limit
+            && stored.saturating_add(bytes) > limit
+        {
+            return Err(Refusal::StorageExceeded { limit });
+        }
+        // Everything passed: charge.
+        if let Some((w, count)) = window {
+            self.windows
+                .insert(who.workspace.clone(), (w, count + ops.len() as u64));
+        }
+        self.stored.insert(who.workspace.clone(), stored + bytes);
         self.used
             .insert(who.workspace.clone(), used + ops.len() as u64);
         let admitted = ops

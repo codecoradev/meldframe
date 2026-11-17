@@ -18,6 +18,13 @@ pub const MAX_NAME_BYTES: usize = 128;
 /// anything is looked up (the duplicate-key check reads the store twice per op).
 pub const MAX_BATCH_OPS: usize = 100;
 
+/// Ops one workspace may send in a minute (see `Server::with_quotas`). Generous: a person editing and an agent working
+/// side by side stay far under it; a runaway loop does not.
+pub const MAX_OPS_PER_MINUTE: u64 = 6_000;
+
+/// Bytes of ops one workspace may write (the JSON size of each command, see `Server::with_quotas`).
+pub const MAX_STORAGE_BYTES: u64 = 256 * 1024 * 1024;
+
 /// Characters that change how a name reads without showing: bidi controls, zero-width marks, line and
 /// paragraph separators, the byte order mark.
 fn is_invisible(c: char) -> bool {
@@ -57,11 +64,8 @@ pub(crate) fn valid_names(workspace: &str, file: &str) -> Result<(), RegistryErr
 /// tree (any op but a delete; a delete may be small or not, which only the tree says).
 pub(crate) fn precheck(tool_tier: Option<RiskTier>, ops: &[Op]) -> Result<(), Refusal> {
     if ops.len() > MAX_BATCH_OPS {
-        return Err(Refusal::Invalid {
-            reason: format!(
-                "a call takes at most {MAX_BATCH_OPS} ops; this call has {}",
-                ops.len()
-            ),
+        return Err(Refusal::BatchTooLarge {
+            limit: MAX_BATCH_OPS as u64,
         });
     }
     let no_deletes = !ops

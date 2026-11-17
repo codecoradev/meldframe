@@ -122,7 +122,7 @@ fn submit_atomic_runs_the_cheap_checks_before_it_opens_a_room() {
     // At its room limit, an open of "other" would fail as unavailable; these must be refused first.
     let many: Vec<Op> = (0..101).map(op).collect();
     let cases = [
-        ("paint", many, "invalid"),
+        ("paint", many, "batch_too_large"),
         ("peek", vec![op(1)], "forbidden"),
         ("nope", vec![op(1)], "forbidden"),
     ];
@@ -163,7 +163,7 @@ fn the_server_limits_table_matches_the_transport_codes() {
         let want = row[2].trim_matches(['`', ' ', '|']).to_string();
         let got = match typed.as_str() {
             "RegistryError::InvalidName" => s.submit("paint", "a\0", &who("ws_1"), vec![op(1)]),
-            "Refusal::Invalid" => s.submit("paint", "other", &who("ws_1"), many.clone()),
+            "Refusal::BatchTooLarge" => s.submit("paint", "other", &who("ws_1"), many.clone()),
             "Refusal::Forbidden" => s.submit("peek", "other", &who("ws_1"), vec![op(1)]),
             "RegistryError::WorkspaceFull" => s.submit("paint", "other", &who("ws_1"), vec![op(2)]),
             "RegistryError::Full" => {

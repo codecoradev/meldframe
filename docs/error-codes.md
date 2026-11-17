@@ -51,6 +51,9 @@ row, a row has no variant, or two variants share a code.
 | --- | --- | --- |
 | `forbidden` | The policy for the call's risk tier does not let this principal do it. Today a delete of a frame, of a node that is not in the file, or of a subtree above the small-delete limit is `Ask`, which is refused here; through the approval seam it opens an approval instead (see the approval codes above) (a small delete is Auto; today only a frame can have children, so in practice every non-frame delete is small and every frame delete is Ask, and a relaxed delete whose node became a frame or gained children before the room applied it is refused with this code too); with no readable policy only reads pass. It also covers a call that is not allowed to the tool: a tool the server was not built with (left out of the build), or an op of a higher risk tier than its tool. | Do not retry the same call unchanged. Use a lower-risk call, ask the owner to change the policy, or, where the server offers the approval seam, expect `approval_required` instead and follow it. |
 | `quota_exceeded` | The workspace used up its quota of ops. Retryable. | Wait, then send the same batch again; the refused batch was not counted. |
+| `quota_ops_per_minute` | The workspace sent more ops in this minute than its rate allows (the count starts again at the next minute). Retryable. HTTP 429 with `Retry-After`. | Wait the time in the message (or `Retry-After`), then send the same batch again; the refused batch was not counted. |
+| `batch_too_large` | One call carries more ops than the batch limit (100). HTTP 413. | Split the batch into calls of at most the limit. |
+| `quota_storage` | The workspace used up its storage: the bytes of the ops it wrote. HTTP 413. | Do not retry unchanged. Remove content or ask the owner for more room. |
 | `conflict` | A node the command touches was changed by another op after the `ifSeq` the caller sent. | Read the node again, rework the command on the new state, and send it with a fresh `ifSeq`. |
 | `invalid` | The op is malformed before it is applied: an empty batch, an empty or repeated idempotency key, an op that depends on itself, an empty or repeated dependency key, or more than 512 dependencies. | Fix the op as the message says and send it again. |
 | `dependency_rejected` | A dependency was not applied for this actor: it was refused, never sent, or belongs to another actor. | Resend the dependency first, or send the op without it. |
@@ -77,7 +80,7 @@ row or a row has no code.
 The HTTP adapter (`crates/integrations/meldframe-http` (tests in `crates/core/meldframe-http-tests`)) answers REST and WebSocket calls with one JSON shape,
 `{"error": {"code", "message", "retryable"}}`, and an HTTP status (a WebSocket reply frame carries the same body
 plus `id` and `status`). A gate refusal keeps its own code from the tables above; the statuses are `forbidden` 403,
-`quota_exceeded` 429, `conflict` 409, `invalid` 400, `dependency_rejected` and every `E_` code 422. The codes below
+`quota_exceeded` and `quota_ops_per_minute` 429, `batch_too_large` and `quota_storage` 413, `conflict` 409, `invalid` 400, `dependency_rejected` and every `E_` code 422. The codes below
 belong to the transport; same rules: a code never changes meaning and is never reused. A call refused before it reaches the submitter (`unauthenticated`, `rate_limited`, `too_large`, `bad_request`,
 `request_timeout`, an over-cap `unavailable`) wrote nothing. `timeout`, `unavailable` and `internal` can come after the
 earlier ops of a batch were written (each op is its own durable write), and after `timeout` the job may still finish:
@@ -105,15 +108,15 @@ A browser cannot set `Authorization` on a WebSocket, so there is no browser clie
 
 ## Server limits
 
-`Server` (`apps/server`) checks these before it opens a room, so a refused call costs no store read. A name or a
-batch the server refuses is a `Refusal::Invalid` (code `invalid`, HTTP 400, never retryable); a room limit is a
+`Server` (`apps/server`) checks these before it opens a room, so a refused call costs no store read. A name the server refuses is `RegistryError::InvalidName`; a
+batch the server refuses is a `Refusal::BatchTooLarge` (code `batch_too_large`, HTTP 413, never retryable); a room limit is a
 `RegistryError`, which a transport answers as `unavailable` (503, retryable) because it clears when a room closes
 (`Server::close`, or idle eviction after 5 minutes). There is no `Retry-After` on these 503s yet: `Failure::Unavailable` carries no hint and `meldframe-http` is at its size ceiling.
 
 | Check | Typed error | Transport code | What a caller should do next |
 | --- | --- | --- | --- |
 | Workspace or file name is empty, over 128 bytes, only whitespace, or holds a control character (NUL included) or an invisible formatting character (bidi controls, zero-width marks, U+2028/2029, U+FEFF); a file is also not `.` or `..` (`Server::open`, `submit_tool` and `subscribe`; `with_room` finds nothing; a transport sends `invalid` 400, not `unavailable`). The REST and WebSocket adapters check file names further (no slash) before this. | `RegistryError::InvalidName` | `invalid` | Use a valid name. |
-| A call has more than 100 ops (`MAX_BATCH_OPS`, the MCP `batchLimit`; this applies to REST too). Checked before any key is looked up and, for an atomic batch, before the room is opened (`Server::precheck`). | `Refusal::Invalid` | `invalid` | Split the batch. |
+| A call has more than 100 ops (`MAX_BATCH_OPS`, the MCP `batchLimit`; this applies to REST too). Checked before any key is looked up and, for an atomic batch, before the room is opened (`Server::precheck`). | `Refusal::BatchTooLarge` | `batch_too_large` | Split the batch. |
 | A Read-tier tool submits ops that are writes whatever the tree (anything but a delete). Refused before the room is opened, with the same `forbidden` refusal as before; so a Read tool that sends already-applied non-delete ops again gets `forbidden`, not `written: false`. | `Refusal::Forbidden` | `forbidden` | Use a Change-tier tool. |
 | The workspace already holds `MAX_ROOMS_PER_WORKSPACE` (32, `Server::with_workspace_rooms`) open rooms. Other workspaces are not affected. Rooms idle for 5 minutes are closed first when an open hits a cap (and by `Server::tick`), so a workspace that only reads or streams gets its slots back. | `RegistryError::WorkspaceFull` | `unavailable` | Wait, or close a file. |
 | The server holds `MAX_OPEN_ROOMS` (256) open rooms in all. | `RegistryError::Full` | `unavailable` | Wait, then send the call again. |

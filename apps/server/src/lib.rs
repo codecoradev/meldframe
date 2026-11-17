@@ -4,13 +4,17 @@
 //! business logic. [`PgStore`] is the
 //! Postgres adapter of the store seam; [`Backing`] picks it.
 
+mod error;
 mod http;
 mod limits;
 mod live;
 mod owners;
 
+pub use error::SubmitError;
 pub use http::{SharedServer, failure_of};
-pub use limits::{MAX_BATCH_OPS, MAX_NAME_BYTES, MAX_ROOMS_PER_WORKSPACE};
+pub use limits::{
+    MAX_BATCH_OPS, MAX_NAME_BYTES, MAX_OPS_PER_MINUTE, MAX_ROOMS_PER_WORKSPACE, MAX_STORAGE_BYTES,
+};
 pub use live::{
     Frame, LIVE_CONFIG, MAX_LIVE_STREAMS, StreamId, SubscribeError, Subscription, TOUCH_WINDOW_MS,
 };
@@ -18,11 +22,10 @@ pub use meldframe_store_pg::{PERMANENT_STORE_ERROR, PgStore};
 pub use meldframe_stream::{Config, StreamError};
 
 use meldframe_calls::{CallEntry, CallLog, MemoryCallLog};
-use meldframe_host::{Accepted, Gate, Op, Principal, Refusal, Room, RoomError, Store, StoredOp};
+use meldframe_host::{Accepted, Gate, Op, Principal, Refusal, Room, Store, StoredOp};
 use meldframe_module::{Module, Policy, Registry, RiskTier};
 use meldframe_rooms::{MemoryActivityLog, RegistryError, TreeFacts};
 use std::collections::HashSet;
-use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 mod store;
@@ -37,53 +40,6 @@ pub const IDLE_AFTER_MS: u64 = 5 * 60 * 1000;
 
 type Factory = Box<dyn FnMut(&str) -> AnyStore + Send>;
 pub(crate) type Rooms = meldframe_rooms::Rooms<AnyStore, MemoryActivityLog, Factory>;
-
-/// Why `Server::submit_tool` wrote nothing, or stopped part way.
-#[derive(Debug, Clone, PartialEq)]
-pub enum SubmitError {
-    /// The tool or the gate refused the batch; nothing was written.
-    Refused(Refusal),
-    /// The file would not open, or the room refused or failed an op. Ops of the same batch that came before
-    /// stay written (each op is its own durable write); sending the batch again with the same keys returns
-    /// those as `written: false` and writes only the rest.
-    Rooms(RegistryError),
-}
-
-impl fmt::Display for SubmitError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SubmitError::Refused(r) => write!(f, "{r}"),
-            SubmitError::Rooms(e) => write!(f, "{e}"),
-        }
-    }
-}
-
-impl std::error::Error for SubmitError {}
-
-impl SubmitError {
-    /// The refusal behind this error, whether the tool, the gate or the room refused: one shape (and one
-    /// stable `Refusal::code`) for a transport. `None` for a failure that is not a refusal (the store is
-    /// down, the registry is full, the log does not replay).
-    pub fn refusal(&self) -> Option<&Refusal> {
-        match self {
-            SubmitError::Refused(r)
-            | SubmitError::Rooms(RegistryError::Room(RoomError::Refused(r))) => Some(r),
-            SubmitError::Rooms(_) => None,
-        }
-    }
-}
-
-impl From<Refusal> for SubmitError {
-    fn from(r: Refusal) -> Self {
-        SubmitError::Refused(r)
-    }
-}
-
-impl From<RegistryError> for SubmitError {
-    fn from(e: RegistryError) -> Self {
-        SubmitError::Rooms(e)
-    }
-}
 
 /// The assembled server: the registry of compiled-in modules, the one admission gate and one room per open
 /// file. A write reaches a room only as `Gate` then `Admission` then `Rooms::accept`; no `&mut Room` leaves
@@ -149,7 +105,10 @@ impl Server {
         let factory: Factory = Box::new(move |_file| backing.store());
         Server {
             registry,
-            gate: Gate::new(),
+            gate: Gate::new()
+                .batch_limit(MAX_BATCH_OPS)
+                .ops_per_minute(MAX_OPS_PER_MINUTE, now)
+                .storage_limit(MAX_STORAGE_BYTES),
             rooms: meldframe_rooms::Rooms::new(MAX_OPEN_ROOMS, factory, MemoryActivityLog::new())
                 .with_workspace_limit(MAX_ROOMS_PER_WORKSPACE),
             idle_after: IDLE_AFTER_MS,
@@ -158,6 +117,21 @@ impl Server {
             open_keys: HashSet::new(),
             calls: Box::new(MemoryCallLog::with_capacity(MAX_CALL_LOG)),
         }
+    }
+
+    /// Set the quotas of every workspace: at most `ops_per_minute` ops in a minute and `storage_bytes` bytes of ops,
+    /// with `now_ms` as the clock (milliseconds). Defaults are [`MAX_OPS_PER_MINUTE`] and [`MAX_STORAGE_BYTES`].
+    /// The counts start from zero: a gate built here does not know what was written before.
+    pub fn with_quotas(
+        mut self,
+        ops_per_minute: u64,
+        storage_bytes: u64,
+        now_ms: impl Fn() -> u64 + Send + Sync + 'static,
+    ) -> Self {
+        self.gate = std::mem::take(&mut self.gate)
+            .ops_per_minute(ops_per_minute, now_ms)
+            .storage_limit(storage_bytes);
+        self
     }
 
     /// Close rooms idle for `ms` milliseconds at the start of each write (default [`IDLE_AFTER_MS`]).
@@ -253,8 +227,8 @@ impl Server {
     /// as after a delete) and the gate, since nothing is written.
     ///
     /// Known limit: the gate counts quota when it admits a batch, before the room accepts. A batch that
-    /// stops at a failing op leaves the later ops charged and unwritten, and a retry is charged again. The
-    /// server sets no quota today; fixing it needs a host change.
+    /// stops at a failing op leaves the later ops charged and unwritten, and a retry is charged again (rate,
+    /// storage and total alike); refunding needs a host change. The quotas are checked after the file is open.
     pub fn submit_tool(
         &mut self,
         tool: &str,

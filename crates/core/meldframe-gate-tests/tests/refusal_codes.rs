@@ -20,10 +20,13 @@ fn index(r: &Refusal) -> usize {
         Refusal::Invalid { .. } => 3,
         Refusal::DependencyRejected { .. } => 4,
         Refusal::Apply(_) => 5,
+        Refusal::RateExceeded { .. } => 6,
+        Refusal::BatchTooLarge { .. } => 7,
+        Refusal::StorageExceeded { .. } => 8,
     }
 }
 
-const VARIANTS: usize = 6;
+const VARIANTS: usize = 9;
 
 fn samples() -> Vec<Refusal> {
     vec![
@@ -38,6 +41,12 @@ fn samples() -> Vec<Refusal> {
         Refusal::Invalid { reason: "x".into() },
         Refusal::DependencyRejected { key: "k".into() },
         Refusal::Apply(ApplyError::Cycle),
+        Refusal::RateExceeded {
+            limit: 1,
+            retry_after_ms: 1,
+        },
+        Refusal::BatchTooLarge { limit: 1 },
+        Refusal::StorageExceeded { limit: 1 },
     ]
 }
 
@@ -69,7 +78,7 @@ fn the_samples_cover_every_variant() {
 }
 
 #[test]
-fn the_gate_codes_are_the_five_of_the_epic_and_apply_keeps_its_own() {
+fn the_gate_codes_are_stable_and_apply_keeps_its_own() {
     let codes: Vec<&str> = samples().iter().map(Refusal::code).collect();
     assert_eq!(
         codes,
@@ -79,7 +88,10 @@ fn the_gate_codes_are_the_five_of_the_epic_and_apply_keeps_its_own() {
             "conflict",
             "invalid",
             "dependency_rejected",
-            "E_CYCLE"
+            "E_CYCLE",
+            "quota_ops_per_minute",
+            "batch_too_large",
+            "quota_storage"
         ]
     );
 }

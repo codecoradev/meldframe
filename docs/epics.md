@@ -136,7 +136,7 @@ First platform slice (risk R9).
 
 ### E2.3 Workspaces and quotas (M)
 - [ ] Every file, variable collection, asset and counter belongs to one workspace; a query without the workspace in the principal returns nothing (tests per table).
-- [ ] Quotas per workspace (ops per minute, batch size, storage) with stable refusal codes; counters survive a restart.
+- [ ] Quotas per workspace (ops per minute, batch size, storage) with stable refusal codes; counters survive a restart. (In: the gate decides `quota_ops_per_minute` (fixed one-minute window, retryable, HTTP 429 with `Retry-After`), `batch_too_large` (HTTP 413; it was `invalid`) and `quota_storage` (bytes of ops, HTTP 413) per workspace, a refused batch charges nothing, and the server sets defaults (`Server::with_quotas`); ADR-0014. Open: the counters live in memory, so they start again at zero after a restart; persisting them needs the workspace column and a counters table.)
 
 ### E2.4 Agent grants, risk tiers and activity log (M)
 - [ ] An agent connects through an OAuth grant (decision 31): no API key or token is copied by hand, access tokens are short-lived, and revoking the grant ends the session at once so the next call is refused. The consent screen lists the risk tiers.

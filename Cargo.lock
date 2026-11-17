@@ -1122,6 +1122,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-gate-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-host",
+ "meldframe-module",
+ "meldframe-protocol",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-history"
 version = "0.0.0"
 dependencies = [

@@ -105,10 +105,15 @@ pub fn describe(
             };
             (Some(*tier), Some(decision), "forbidden".into())
         }
-        Err(Some(Refusal::QuotaExceeded { .. })) => {
-            (tool_tier, Some(Decision::Deny), "quota_exceeded".into())
+        Err(Some(
+            r @ (Refusal::QuotaExceeded { .. }
+            | Refusal::RateExceeded { .. }
+            | Refusal::StorageExceeded { .. }),
+        )) => (tool_tier, Some(Decision::Deny), r.code().into()),
+        // A malformed call: no policy decision was made on it.
+        Err(Some(r @ (Refusal::Invalid { .. } | Refusal::BatchTooLarge { .. }))) => {
+            (tool_tier, None, r.code().into())
         }
-        Err(Some(r @ Refusal::Invalid { .. })) => (tool_tier, None, r.code().into()),
         Err(Some(r)) => (tool_tier, Some(Decision::Allow), r.code().into()),
         Err(None) => (tool_tier, None, "unavailable".into()),
     }

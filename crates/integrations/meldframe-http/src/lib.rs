@@ -47,9 +47,8 @@ pub trait Submitter: Send + Sync {
         ops: Vec<Op>,
     ) -> Result<Vec<Accepted>, Failure>;
 
-    /// Like [`Submitter::submit`], but all or nothing as far as the checks of the gate and the room can tell
-    /// beforehand: if any op would be refused, none is written and the failure names the op
-    /// ([`Failure::Batch`]). MCP's `apply_commands` calls this unless the caller asks for `atomic: false`.
+    /// Like [`Submitter::submit`], but all or nothing as far as the gate and the room can tell beforehand: if any op
+    /// would be refused, none is written and the failure names it ([`Failure::Batch`]). MCP's `apply_commands` uses it.
     fn submit_atomic(
         &self,
         tool: &str,
@@ -65,13 +64,11 @@ pub trait Submitter: Send + Sync {
 pub struct Config {
     /// Most bytes of a request body or a WebSocket frame.
     pub max_body: usize,
-    /// Longest the caller waits for a call, from the start of the blocking job (the server's lock included);
-    /// then it gets `timeout`, and the job is not cancelled and may still write.
+    /// Longest the caller waits for a call (the server's lock included); then `timeout`, and the job may still write.
     pub timeout: Duration,
     /// Longest the body of a request may take to arrive.
     pub body_timeout: Duration,
-    /// Blocking calls running or abandoned at once, in all; one more is `unavailable`. A timed out call keeps
-    /// its slot until its job ends.
+    /// Blocking calls running or abandoned at once, in all; one more is `unavailable`. A timed out call keeps its slot.
     pub max_in_flight: usize,
     /// The same, per principal.
     pub max_per_principal: usize,
@@ -79,7 +76,7 @@ pub struct Config {
     pub ws_idle: Duration,
     /// A WebSocket is closed when its count of limited frames (up one per limited, down one per allowed) reaches this.
     pub ws_max_limited: u32,
-    /// Longest one reply or the closing frame may take to send; a client that does not read is dropped.
+    /// Longest a reply or the closing frame may take to send; a client that does not read is dropped.
     pub ws_send_timeout: Duration,
     /// Budget per peer address, spent before the token is checked.
     pub per_client: Rate,
@@ -92,7 +89,6 @@ impl std::fmt::Debug for Config {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Config")
             .field("max_body", &self.max_body)
-            .field("timeout", &self.timeout)
             .finish_non_exhaustive()
     }
 }
