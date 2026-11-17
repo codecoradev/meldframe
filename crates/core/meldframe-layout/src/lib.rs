@@ -4,12 +4,14 @@
 //! Text sizes come through the [`TextMeasurer`] seam so the crate stays free of I/O.
 
 mod fill;
+mod findings;
 mod measure;
 mod place;
 mod rect;
 mod size;
 mod tree;
 
+pub use findings::{LayoutFinding, layout_findings};
 pub use measure::{StubMeasurer, TextMeasurer};
 pub use rect::Rect;
 

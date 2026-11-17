@@ -1164,6 +1164,7 @@ dependencies = [
  "meldframe-batch",
  "meldframe-check",
  "meldframe-host",
+ "meldframe-layout",
  "meldframe-module",
  "meldframe-protocol",
  "rmcp",
@@ -1241,6 +1242,15 @@ dependencies = [
 name = "meldframe-layout"
 version = "0.0.0"
 dependencies = [
+ "meldframe-protocol",
+ "serde",
+]
+
+[[package]]
+name = "meldframe-layout-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-layout",
  "meldframe-protocol",
  "serde",
  "serde_json",

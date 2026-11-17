@@ -98,9 +98,18 @@ impl Handler {
             .read(who, move |r, w| r.tree(w, &name, TREE_WINDOW))
             .await?;
         let last = view::last_touch(&recent);
+        // The layout rules of the fidelity contract first (a broken layout matters more than a default name), then layer
+        // names; together at most MAX_NAME_WARNINGS.
+        let layout = meldframe_layout::layout_findings(&f.nodes, &meldframe_layout::StubMeasurer);
+        let mut warnings: Vec<Value> = layout
+            .into_iter()
+            .map(|w| json!({"code": w.code, "nodeId": w.id, "message": w.message}))
+            .collect();
+        warnings.extend(meldframe_check::name_warnings_of_nodes(&f.nodes));
+        warnings.truncate(meldframe_check::MAX_NAME_WARNINGS);
         Ok(
             json!({"ok": true, "file": file, "seq": f.seq, "roots": view::tree(&f.nodes, &last, max_depth),
-            "warnings": meldframe_check::name_warnings_of_nodes(&f.nodes)}),
+            "warnings": warnings}),
         )
     }
 

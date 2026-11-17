@@ -12,7 +12,7 @@
       "tier": "read"
     },
     {
-      "description": "Read the node tree of a file: every node with its id, name, kind, position and size, the actor that last changed it and the sequence number of that change, nested under its parent in sibling order. The result carries seq, the file's current sequence number: pass it as ifSeq to apply_commands so that your edit is refused with conflict if a node it touches changed after this read. A file that does not exist yet reads as seq 0 with no nodes. The result lists under warnings every layer that still has a default name (Frame 3, Text): rename it to a semantic name that says what the layer is. Changes nothing.",
+      "description": "Read the node tree of a file: every node with its id, name, kind, position and size, the actor that last changed it and the sequence number of that change, nested under its parent in sibling order. The result carries seq, the file's current sequence number: pass it as ifSeq to apply_commands so that your edit is refused with conflict if a node it touches changed after this read. A file that does not exist yet reads as seq 0 with no nodes. The result lists under warnings (at most 100) every layer that still has a default name (Frame 3, Text): rename it to a semantic name that says what the layer is; and the layout problems: a fixed auto layout frame whose children overflow it (overflow), a fill under a hug parent or in a frame without layout, which keeps its own size (fill under a hug, code fill_under_hug), a fill that resolves to under 1 px (zero_fill) and a frame smaller than its own padding (smaller_than_padding). Frames with hug text are not checked. Changes nothing.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {

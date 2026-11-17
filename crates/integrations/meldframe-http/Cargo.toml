@@ -11,13 +11,14 @@ kind = "bin"
 
 [features]
 # The MCP surface (E1.5). Off by default so the portable build does not pull a server stack.
-mcp = ["dep:rmcp", "dep:meldframe-check", "dep:meldframe-module"]
+mcp = ["dep:rmcp", "dep:meldframe-check", "dep:meldframe-layout", "dep:meldframe-module"]
 
 [dependencies]
 meldframe-host = { path = "../../core/meldframe-host" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
 meldframe-check = { path = "../../core/meldframe-check", optional = true }
 meldframe-batch = { path = "../../core/meldframe-batch" }
+meldframe-layout = { path = "../../core/meldframe-layout", optional = true }
 meldframe-module = { path = "../../core/meldframe-module", optional = true }
 rmcp = { version = "3.10", optional = true, default-features = false, features = ["server", "transport-streamable-http-server"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
