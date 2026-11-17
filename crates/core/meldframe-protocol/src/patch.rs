@@ -84,6 +84,10 @@ pub struct NodePatch {
     pub font_weight: Option<u16>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    /// Opacity of the node and what is inside it: 0 to 1 (`opacity`).
+    pub opacity: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     /// Text node horizontal alignment in its box (`textAlign`): left, center or right (justify is not supported).
     pub text_align: Option<TextAlign>,
     /// Replaces the whole `border` (width 0 = none; drawn on frame, rect, ellipse and shader nodes).
@@ -133,6 +137,7 @@ impl Node {
             font_size,
             shader,
             font_weight,
+            opacity,
             text_align,
             border,
             shadows

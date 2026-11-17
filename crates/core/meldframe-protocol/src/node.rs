@@ -26,6 +26,9 @@ fn d_fill2() -> String {
 fn d_weight() -> u16 {
     400
 }
+fn d_one() -> f64 {
+    1.0
+}
 
 /// One node of a file's tree (same shape as the node objects in the web client).
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
@@ -95,6 +98,9 @@ pub struct Node {
     /// Drop shadows, at most 4, drawn in list order (first = bottom). Empty = none. A patch replaces the whole list.
     #[serde(default)]
     pub shadows: Vec<Shadow>,
+    /// Opacity of the node and what is inside it: 0 (invisible) to 1 (opaque, the default; old files have none).
+    #[serde(default = "d_one")]
+    pub opacity: f64,
     /// image over `fill`. Absent = no image (old files stay valid).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

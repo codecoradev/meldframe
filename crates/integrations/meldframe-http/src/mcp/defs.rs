@@ -98,7 +98,7 @@ fn apply_commands_schema() -> Value {
         "commands": {"type": "array", "minItems": 1, "maxItems": MAX_BATCH,
             "items": {"type": "object", "required": ["type"], "properties": {
                 "type": {"enum": ["addNode", "updateNode", "removeNode", "reparent", "reorder"]}},
-                "description": "One command; its fields depend on its type, as listed in the tool description. addNode takes node {id, type (frame, rect, ellipse, text or shader), name, parentId, x, y, w, h, fill, text, ...}; updateNode takes a patch of the fields to change."},
+                "description": "One command; its fields depend on its type, as listed in the tool description. addNode takes node {id, type (frame, rect, ellipse, text or shader), name, parentId, x, y, w, h, fill (a #hex colour, or the word none for no fill), opacity (0 to 1, default 1), text, ...}; updateNode takes a patch of the fields to change."},
             "description": "The commands to apply in order: 1 to 100."},
         "idempotencyKey": key("idempotencyKey", "idempotency_key"),
         "idempotency_key": key("idempotency_key", "idempotencyKey"),

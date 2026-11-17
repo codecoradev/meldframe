@@ -160,7 +160,7 @@ The survey's candidate 1.
 - [ ] A coverage test fails when a node field is rendered by one consumer and not the other, unless it is marked unsupported.
 
 ### E3.2 Layout and paint round 2 (M)
-- [ ] Margin, padding per side, absolute children inside auto layout, gradients, opacity and no-fill are commands, validated, undoable and rendered.
+- [ ] Margin, padding per side, absolute children inside auto layout, gradients, opacity and no-fill are commands, validated, undoable and rendered. (In: opacity and no fill (`fill: "none"`): protocol, validation, undo, generated TypeScript, canvas and the `apply_commands` text; ADR-0013 records how the rest is added. Open: margin, padding per side, absolute children, gradients.)
 - [ ] The validator normalises fill under hug and warns on overflow (contract rules G1 to G3).
 - [ ] Frame presets Desktop, Tablet and Mobile.
 

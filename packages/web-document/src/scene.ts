@@ -11,7 +11,11 @@ export function parseFill(css: string): number | null {
 }
 
 function toSceneNode(n: Node): SceneNode {
-  const base = { id: n.id, parent: n.parentId, x: n.x, y: n.y, w: n.w, h: n.h, fill: parseFill(n.fill), name: n.name, clip: n.clip };
+  const base = {
+    id: n.id, parent: n.parentId, x: n.x, y: n.y, w: n.w, h: n.h, fill: parseFill(n.fill), name: n.name, clip: n.clip,
+    // 1 is the default, so an opaque node (or a file from before opacity) carries none.
+    ...(typeof n.opacity === 'number' && n.opacity < 1 ? { opacity: n.opacity } : {}),
+  };
   switch (n.type) {
     case 'frame':
       return { ...base, kind: 'frame', radius: n.radius };

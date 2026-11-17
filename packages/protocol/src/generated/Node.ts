@@ -37,6 +37,10 @@ border: Border,
  */
 shadows: Array<Shadow>, 
 /**
+ * Opacity of the node and what is inside it: 0 (invisible) to 1 (opaque, the default; old files have none).
+ */
+opacity: number, 
+/**
  * image over `fill`. Absent = no image (old files stay valid).
  */
 image?: ImageFill, };

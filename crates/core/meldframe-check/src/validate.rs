@@ -33,6 +33,14 @@ fn hex_color(field: &'static str, s: &str) -> Result<(), ApplyError> {
     }
 }
 
+/// The fill: a colour, or the word `none` for no fill.
+fn fill(s: &str) -> Result<(), ApplyError> {
+    if s == "none" {
+        return Ok(());
+    }
+    color("fill", s)
+}
+
 /// A colour field: bounded length first, then hex form.
 fn color(field: &'static str, s: &str) -> Result<(), ApplyError> {
     strlen(field, s, 64)?;
@@ -133,12 +141,13 @@ pub fn check_node(n: &Node, l: &Limits) -> Result<(), ApplyError> {
     }
     strlen("name", &n.name, l.max_name)?;
     strlen("text", &n.text, l.max_text)?;
-    color("fill", &n.fill)?;
+    fill(&n.fill)?;
     color("fill2", &n.fill2)?;
     if !n.pos.is_empty() {
         check_pos(&n.pos, l)?;
     }
     font_weight(n.font_weight)?;
+    num("opacity", n.opacity, 0.0, 1.0)?;
     check_border(&n.border, l)?;
     check_shadows(&n.shadows, l)?;
     check_numbers(
@@ -166,13 +175,16 @@ pub fn check_patch(p: &NodePatch, l: &Limits) -> Result<(), ApplyError> {
         strlen("text", s, l.max_text)?;
     }
     if let Some(s) = &p.fill {
-        color("fill", s)?;
+        fill(s)?;
     }
     if let Some(s) = &p.fill2 {
         color("fill2", s)?;
     }
     if let Some(w) = p.font_weight {
         font_weight(w)?;
+    }
+    if let Some(o) = p.opacity {
+        num("opacity", o, 0.0, 1.0)?;
     }
     if let Some(b) = &p.border {
         check_border(b, l)?;

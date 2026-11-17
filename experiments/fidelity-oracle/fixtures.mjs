@@ -9,7 +9,7 @@ let seq = 0;
 const base = {
   parentId: null, x: 0, y: 0, w: 100, h: 100, sw: 'fixed', sh: 'fixed', fill: '#3f3f46', fill2: '#22d3ee', radius: 0,
   layout: 'none', gap: 8, padding: 16, align: 'start', justify: 'start', clip: true, text: '', fontSize: 16, shader: 'aurora',
-  fontWeight: 400, textAlign: 'left', border: { width: 0, color: '#000000', position: 'inside' }, shadows: [],
+  fontWeight: 400, textAlign: 'left', opacity: 1, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [],
 };
 const mk = (type) => (id, parentId, p = {}) => ({ ...base, id, name: id, type, parentId, ...p });
 export const frame = mk('frame');

@@ -18,6 +18,10 @@ export type NodePatch = { name?: string, x?: number, y?: number, w?: number, h?:
  */
 fontWeight?: number, 
 /**
+ * Opacity of the node and what is inside it: 0 to 1 (`opacity`).
+ */
+opacity?: number, 
+/**
  * Text node horizontal alignment in its box (`textAlign`): left, center or right (justify is not supported).
  */
 textAlign?: TextAlign, 

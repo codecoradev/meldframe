@@ -23,7 +23,8 @@ export function propertyAction(p: Properties, field: PropertyField, raw: string)
     }
     case 'fill': {
       const v = raw.trim();
-      return HEX.test(v) && v.toLowerCase() !== p.fill.toLowerCase() ? set({ property: 'fill', value: v }) : null;
+      // A #hex colour, or the word none for no fill.
+      return (HEX.test(v) || v === 'none') && v.toLowerCase() !== p.fill.toLowerCase() ? set({ property: 'fill', value: v }) : null;
     }
     case 'radius': {
       const v = num(raw);

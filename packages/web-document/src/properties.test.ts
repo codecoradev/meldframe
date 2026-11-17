@@ -15,6 +15,8 @@ describe('propertyAction', () => {
   it('sets a hex fill and refuses anything else', () => {
     expect(propertyAction(p, 'fill', '#abc')).toEqual({ type: 'setProperty', id: 'n', property: { property: 'fill', value: '#abc' } });
     expect(propertyAction(p, 'fill', '#112233')).toBeNull();
+    expect(propertyAction(p, 'fill', 'none')).toEqual({ type: 'setProperty', id: 'n', property: { property: 'fill', value: 'none' } });
+    expect(propertyAction({ ...p, fill: 'none' }, 'fill', 'none')).toBeNull();
     expect(propertyAction(p, 'fill', 'red')).toBeNull();
     expect(propertyAction(p, 'fill', '#12')).toBeNull();
   });

@@ -5,7 +5,7 @@ import { parseFill, sceneFromNodes } from './scene';
 const node = (over: Partial<Node> & { id: string }): Node => ({
   name: over.id, type: 'rect', parentId: null, pos: 'a0', x: 0, y: 0, w: 10, h: 10, sw: 'fixed', sh: 'fixed',
   fill: '#336699', fill2: '#000000', radius: 0, layout: 'none', gap: 0, padding: 0, align: 'start', justify: 'start',
-  clip: false, text: '', fontSize: 16, shader: 'aurora', fontWeight: 400, textAlign: 'left',
+  clip: false, text: '', fontSize: 16, shader: 'aurora', fontWeight: 400, textAlign: 'left', opacity: 1,
   border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], ...over,
 }) as Node;
 
@@ -17,6 +17,24 @@ describe('parseFill', () => {
   });
   it('anything else is no fill', () => {
     for (const bad of ['', 'red', '#12', '#12345', 'transparent', '336699', '#gggggg']) expect(parseFill(bad), bad).toBeNull();
+  });
+});
+
+describe('opacity and no fill', () => {
+  it('"none" is no fill, and an opaque node carries no opacity', () => {
+    const s = sceneFromNodes([node({ id: 'a', fill: 'none' }), node({ id: 'b' })]);
+    expect(s.nodes[0]!.fill).toBeNull();
+    expect(s.nodes[1]!.opacity).toBeUndefined();
+  });
+  it('a node with opacity below one carries it to the canvas', () => {
+    const s = sceneFromNodes([node({ id: 'a', opacity: 0.4 }), node({ id: 'z', opacity: 0 })]);
+    expect(s.nodes[0]!.opacity).toBe(0.4);
+    expect(s.nodes[1]!.opacity).toBe(0);
+  });
+  it('a file from before opacity existed (no field) is opaque', () => {
+    const old = node({ id: 'o' }) as unknown as Record<string, unknown>;
+    delete old.opacity;
+    expect(sceneFromNodes([old as never]).nodes[0]!.opacity).toBeUndefined();
   });
 });
 
