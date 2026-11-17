@@ -184,6 +184,30 @@ const id = `e2e_${run}`;
       await page.keyboard.press('Control+z');
       await until('the leaf back', async () => Boolean(await nodeOf(leaf)));
     });
+    await check('a double click on a text node opens the editor; Ctrl+Enter commits one change, one undo takes it back; Escape cancels', async () => {
+      const tid = `text_${run}`;
+      await post({ type: 'addNode', node: { id: tid, name: 'Words', type: 'text', parentId: id, x: 20, y: 20, w: 200, h: 40, text: 'Hello', fontSize: 24, fill: '#ffffff' } });
+      await until('the text node is on the server', async () => Boolean(await nodeOf(tid)));
+      await page.waitForTimeout(500);
+      box = await bbox(page, B); z = await zoomOf(page);
+      const at = { x: box.x0 + 30 * z, y: box.y0 + 30 * z };
+      await page.mouse.dblclick(at.x, at.y);
+      const field = page.locator('[data-testid=text-editor]');
+      await field.waitFor({ state: 'visible', timeout: 5000 });
+      assert.equal(await field.inputValue(), 'Hello');
+      await field.fill('Hello world');
+      await page.keyboard.press('Control+Enter');
+      await until('the new text on the server', async () => (await nodeOf(tid)).text === 'Hello world');
+      assert.equal(await field.count(), 0, 'the editor is closed');
+      await page.keyboard.press('Control+z');
+      await until('one undo', async () => (await nodeOf(tid)).text === 'Hello');
+      await page.mouse.dblclick(at.x, at.y);
+      await field.waitFor({ state: 'visible', timeout: 5000 });
+      await field.fill('Never saved');
+      await page.keyboard.press('Escape');
+      await sleep(500);
+      assert.equal((await nodeOf(tid)).text, 'Hello', 'Escape made no change');
+    });
   }
   // The reconnect check stops the development server: only when the checks before it passed (otherwise leave it).
   if (results.every(Boolean)) await check('the server goes away: the page says so; it comes back: the page reconnects and shows what was done meanwhile', async () => {

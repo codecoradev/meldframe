@@ -1,0 +1,56 @@
+import type { Node } from '@meldframe/protocol';
+import { describe, expect, it } from 'vitest';
+import { commitText, editKeyTarget, textBoxStyle, textTarget } from './textedit';
+
+const node = (id: string, over: Partial<Node> = {}): Node =>
+  ({ id, name: id, type: 'rect', parentId: null, x: 0, y: 0, w: 100, h: 50, text: '', fontSize: 16, ...over }) as Node;
+const text = (id: string, t = 'Hello') => node(id, { type: 'text', text: t, fontSize: 20 });
+
+describe('textTarget', () => {
+  const nodes = [text('t'), node('r'), text('u')];
+  it('is the node when it is a text node', () => expect(textTarget('t', nodes)?.id).toBe('t'));
+  it('is null for another kind of node or an id that is gone', () => {
+    expect(textTarget('r', nodes)).toBeNull();
+    expect(textTarget('nope', nodes)).toBeNull();
+  });
+});
+
+describe('editKeyTarget (Enter on a selected text node)', () => {
+  const nodes = [text('t'), node('r'), text('u')];
+  const enter = { key: 'Enter', metaKey: false, ctrlKey: false, shiftKey: false, altKey: false };
+  it('opens the editor for exactly one selected text node', () => {
+    expect(editKeyTarget(enter, ['t'], nodes)).toBe('t');
+    expect(editKeyTarget(enter, ['t', 'u'], nodes)).toBeNull();
+    expect(editKeyTarget(enter, ['r'], nodes)).toBeNull();
+    expect(editKeyTarget(enter, [], nodes)).toBeNull();
+  });
+  it('ignores other keys and Enter with a modifier', () => {
+    expect(editKeyTarget({ ...enter, key: 'a' }, ['t'], nodes)).toBeNull();
+    expect(editKeyTarget({ ...enter, ctrlKey: true }, ['t'], nodes)).toBeNull();
+    expect(editKeyTarget({ ...enter, shiftKey: true }, ['t'], nodes)).toBeNull();
+  });
+});
+
+describe('commitText', () => {
+  it('is one editText action for a changed text', () => {
+    expect(commitText('t', 'Hello', 'Hello world')).toEqual({ type: 'editText', id: 't', text: 'Hello world' });
+  });
+  it('is nothing when the text did not change, so no empty undo step is made', () => {
+    expect(commitText('t', 'Hello', 'Hello')).toBeNull();
+  });
+  it('keeps an emptied text (the node stays, its text is empty)', () => {
+    expect(commitText('t', 'Hello', '')).toEqual({ type: 'editText', id: 't', text: '' });
+  });
+});
+
+describe('textBoxStyle', () => {
+  it('puts the editor over the node on the screen and scales the font with the zoom', () => {
+    const s = textBoxStyle({ x: 10, y: 20, zoom: 2 }, { x: 5, y: 6, w: 100, h: 30 }, 20);
+    expect(s).toEqual({ left: 20, top: 32, width: 200, height: 60, fontSize: 40 });
+  });
+  it('never makes the field smaller than one line', () => {
+    const s = textBoxStyle({ x: 0, y: 0, zoom: 1 }, { x: 0, y: 0, w: 10, h: 2 }, 20);
+    expect(s.height).toBeGreaterThanOrEqual(20);
+    expect(s.width).toBeGreaterThanOrEqual(10);
+  });
+});

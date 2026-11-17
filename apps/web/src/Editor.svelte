@@ -10,8 +10,10 @@
   import type { Engine } from '@meldframe/web-link/engine';
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
   import Canvas from './canvas/Canvas.svelte';
-  import { createActionFor, keyAction, moveActionsFor, previewScene, resizeActionFor, resizedBox, toolMode, type Preview } from '@meldframe/web-document/edit';
+  import { createActionFor, keyAction, worldOrigin, moveActionsFor, previewScene, resizeActionFor, resizedBox, toolMode, type Preview } from '@meldframe/web-document/edit';
   import { sceneFromNodes } from '@meldframe/web-document/scene';
+  import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
+  import TextEditor from './TextEditor.svelte';
   import { loadTheme } from './theme';
 
   interface Props {
@@ -39,6 +41,36 @@
     ({ live: 'Connected', connecting: 'Connecting', reconnecting: 'Reconnecting', offline: 'Offline', halted: 'Out of sync' })[c.type];
 
   const dispatch = (a: Action) => void engine.dispatch(a);
+
+  // The text being edited: the node and the text it had when the field opened (an unchanged commit makes no step).
+  let editing = $state<{ id: string; before: string } | null>(null);
+  const editedNode = $derived(editing ? textTarget(editing.id, nodes) : null);
+  // The box comes from the nodes (not from what the canvas drew last), so it follows a change of the node at once.
+  const editBox = $derived.by(() => {
+    const n = editedNode;
+    if (!n) return null;
+    const o = worldOrigin(nodes, n.parentId);
+    return textBoxStyle(camera, { x: o.x + n.x, y: o.y + n.y, w: n.w, h: n.h }, n.fontSize);
+  });
+  // The node is gone (someone deleted it): the field closes with nothing to commit.
+  $effect(() => {
+    if (editing && !editedNode) editing = null;
+  });
+  function startEdit(id: string) {
+    const n = textTarget(id, nodes);
+    if (!n) return;
+    dispatch({ type: 'select', ids: [id] });
+    editing = { id, before: n.text };
+  }
+  function endEdit(text: string | null) {
+    const e = editing;
+    editing = null;
+    if (e && text !== null) {
+      const a = commitText(e.id, e.before, text);
+      if (a) dispatch(a);
+    }
+    canvas?.focus();
+  }
 
   // `mount` runs this after the shell may have started: read what the engine holds now, then follow it.
   onMount(() => {
@@ -86,6 +118,12 @@
     if (e.repeat || e.isComposing) return; // a held key must not undo a step per repeat; a composition is not a command
     const el = e.target as HTMLElement | null;
     if (el && (el.isContentEditable || /^(input|textarea|select)$/i.test(el.tagName))) return;
+    const edit = editKeyTarget(e, snap.state.selection, nodes);
+    if (edit) {
+      e.preventDefault();
+      startEdit(edit);
+      return;
+    }
     const a = keyAction(e, snap.state.selection);
     if (!a) return;
     e.preventDefault();
@@ -114,9 +152,13 @@
     {onMove}
     {onResize}
     {onCreate}
+    onActivate={startEdit}
     {onReady}
     onError={(e) => (canvasError = e instanceof Error ? e.message : String(e))}
   />
+  {#if editing && editBox}
+    <TextEditor text={editing.before} box={editBox} onCommit={endEdit} onCancel={() => endEdit(null)} />
+  {/if}
   {#if canvasError}
     <div role="alert" data-testid="canvas-error" class="absolute inset-x-0 top-4 mx-auto w-fit rounded-md bg-danger-bg px-4 py-2 text-small text-danger">
       The canvas could not start: {canvasError}

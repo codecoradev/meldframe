@@ -7,7 +7,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Application } from 'pixi.js';
-  import { HOME, fitRect, rectToWorld, visibleWorldRect, type Camera } from '@meldframe/web-canvas/camera';
+  import { HOME, fitRect, rectToWorld, screenToWorld, visibleWorldRect, type Camera } from '@meldframe/web-canvas/camera';
   import { containsRect, unionRects, type Rect, type Size } from '@meldframe/web-canvas/geometry';
   import {
     Interaction, type CreateIntent, type Env, type Intents, type MoveIntent, type Mods, type ResizeIntent, type ToolMode,
@@ -39,6 +39,8 @@
     /** `final` is false while the camera is still moving. */
     onCameraChange?: (camera: Camera, final: boolean) => void;
     onHover?: (id: string | null) => void;
+    /** A double click on a node (with the select tool): the id of the node under the pointer. */
+    onActivate?: (id: string) => void;
     /** The renderer that started, or the error when none could. */
     onReady?: (info: { renderer: string }) => void;
     onError?: (error: unknown) => void;
@@ -53,7 +55,7 @@
     theme = 'dark',
     reducedMotion,
     label = 'Canvas',
-    onSelect, onMove, onResize, onCreate, onCameraChange, onHover, onReady, onError,
+    onSelect, onMove, onResize, onCreate, onCameraChange, onHover, onActivate, onReady, onError,
   }: Props = $props();
 
   interface HostEvents {
@@ -68,6 +70,7 @@
     keyup: KeyboardEvent;
     blur: FocusEvent;
     contextmenu: MouseEvent;
+    dblclick: MouseEvent;
   }
 
   let host: HTMLDivElement;
@@ -241,6 +244,11 @@
     else setCamera(fitRect(box, viewport), true);
   }
 
+  /** Gives the keyboard back to the canvas (after an editor laid over it closes). */
+  export function focus(): void {
+    host?.focus({ preventScroll: true });
+  }
+
   /** What the canvas is drawing now; for measurements and tests. */
   export function stats(): { nodes: number; drawn: number; renderer: string; dpr: number; timing: typeof timing } {
     return { timing: { ...timing }, nodes: world?.nodeCount ?? 0, drawn: world?.countRenderable() ?? 0, renderer: app?.renderer.name ?? '', dpr };
@@ -300,6 +308,13 @@
       schedule();
     });
     on('pointerleave', () => interaction.leave());
+    on('dblclick', (e) => {
+      if (tool !== 'move') return;
+      const r = host.getBoundingClientRect();
+      const w = screenToWorld(camera, e.clientX - r.left, e.clientY - r.top);
+      const id = hitTest(resolved, w.x, w.y);
+      if (id) onActivate?.(id);
+    });
     on('wheel', (e) => {
       e.preventDefault();
       const r = host.getBoundingClientRect();
