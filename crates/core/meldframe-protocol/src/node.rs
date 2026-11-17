@@ -73,6 +73,20 @@ pub struct Node {
     pub gap: f64,
     #[serde(default = "d_pad")]
     pub padding: f64,
+    /// Padding per side (`padT`, `padR`, `padB`, `padL`). A side that is not set takes `padding`, so a file from before
+    /// the sides existed lays out as before; read them through [`Node::pad`].
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "padT")]
+    #[ts(optional, rename = "padT")]
+    pub pad_t: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "padR")]
+    #[ts(optional, rename = "padR")]
+    pub pad_r: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "padB")]
+    #[ts(optional, rename = "padB")]
+    pub pad_b: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "padL")]
+    #[ts(optional, rename = "padL")]
+    pub pad_l: Option<f64>,
     #[serde(default)]
     pub align: Align,
     #[serde(default)]
@@ -105,4 +119,37 @@ pub struct Node {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub image: Option<ImageFill>,
+}
+
+/// The padding of a node on each side, in world units.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Pad {
+    pub top: f64,
+    pub right: f64,
+    pub bottom: f64,
+    pub left: f64,
+}
+
+impl Pad {
+    /// Left plus right.
+    pub fn horizontal(&self) -> f64 {
+        self.left + self.right
+    }
+
+    /// Top plus bottom.
+    pub fn vertical(&self) -> f64 {
+        self.top + self.bottom
+    }
+}
+
+impl Node {
+    /// The padding on each side: the side's own value, or `padding` when it is not set.
+    pub fn pad(&self) -> Pad {
+        Pad {
+            top: self.pad_t.unwrap_or(self.padding),
+            right: self.pad_r.unwrap_or(self.padding),
+            bottom: self.pad_b.unwrap_or(self.padding),
+            left: self.pad_l.unwrap_or(self.padding),
+        }
+    }
 }

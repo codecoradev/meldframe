@@ -103,7 +103,7 @@ idiomatic; token-based classes arrive with decision 17.
 |---|---|---|
 | opacity | in the model and drawn on the canvas (E3.2, ADR-0013); not exported until an oracle probe | maps to `opacity`; becomes supported in export only with an oracle probe (note: opacity creates a stacking context, check overlapping children) |
 | gradients, multiple fills | planned (model, W1) | `linear-gradient`/`radial-gradient` layers; needs probes for angle conventions |
-| per-side padding | planned (model, W1) | `padding: t r b l`; the S9 spike docs report that 12 of 25 frames of a hand-made shop page fell back to free layout when captured, mostly 9 buttons with `padding: 12px 20px` |
+| per-side padding | in the model and the layout (E3.2: `padT`, `padR`, `padB`, `padL`); not exported until an oracle probe | `padding: t r b l`; the S9 spike docs report that 12 of 25 frames of a hand-made shop page fell back to free layout when captured, mostly 9 buttons with `padding: 12px 20px` |
 | absolute child inside an auto layout frame | planned (model, W1) | `position:absolute` child of a `position:relative` flex container; removes the child from flow, as `ignoreAutoLayout` in the model would |
 | margin | planned (model, W1) | the spike capture turns margins into gap/padding; per-child margin only if round trip is required |
 | design tokens as CSS variables | planned (model, W1; decision 17) | `var(--token)`; the oracle resolves variables in the browser, so geometry tests are unchanged |

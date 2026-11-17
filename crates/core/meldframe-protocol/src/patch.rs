@@ -56,6 +56,40 @@ pub struct NodePatch {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub padding: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "de_double_option",
+        skip_serializing_if = "Option::is_none",
+        rename = "padT"
+    )]
+    #[ts(optional = nullable, as = "Option<f64>", rename = "padT")]
+    /// Padding of the top side (`padT`); the other sides are `padR`, `padB` and `padL`. Three states, as `image`: key
+    /// absent = unchanged; `null` = the side is not set (it takes `padding` again); a number = set it.
+    pub pad_t: Option<Option<f64>>,
+    #[serde(
+        default,
+        deserialize_with = "de_double_option",
+        skip_serializing_if = "Option::is_none",
+        rename = "padR"
+    )]
+    #[ts(optional = nullable, as = "Option<f64>", rename = "padR")]
+    pub pad_r: Option<Option<f64>>,
+    #[serde(
+        default,
+        deserialize_with = "de_double_option",
+        skip_serializing_if = "Option::is_none",
+        rename = "padB"
+    )]
+    #[ts(optional = nullable, as = "Option<f64>", rename = "padB")]
+    pub pad_b: Option<Option<f64>>,
+    #[serde(
+        default,
+        deserialize_with = "de_double_option",
+        skip_serializing_if = "Option::is_none",
+        rename = "padL"
+    )]
+    #[ts(optional = nullable, as = "Option<f64>", rename = "padL")]
+    pub pad_l: Option<Option<f64>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub align: Option<Align>,
@@ -112,6 +146,16 @@ impl Node {
     pub fn apply_patch(&mut self, p: &NodePatch) {
         if let Some(v) = &p.image {
             self.image = v.clone();
+        }
+        for (side, v) in [
+            (&mut self.pad_t, &p.pad_t),
+            (&mut self.pad_r, &p.pad_r),
+            (&mut self.pad_b, &p.pad_b),
+            (&mut self.pad_l, &p.pad_l),
+        ] {
+            if let Some(v) = v {
+                *side = *v;
+            }
         }
         macro_rules! set {
             ($($f:ident),*) => { $( if let Some(v) = &p.$f { self.$f = v.clone(); } )* };

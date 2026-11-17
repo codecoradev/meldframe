@@ -22,7 +22,7 @@ pub use enums::{
     Align, BorderPosition, ImageFit, Justify, LayoutMode, NodeKind, ShaderPreset, SizeMode,
     TextAlign,
 };
-pub use node::Node;
+pub use node::{Node, Pad};
 pub use patch::NodePatch;
 pub use snapshot::{FileSnapshot, SnapshotNode};
 pub use version::SCHEMA_VERSION;

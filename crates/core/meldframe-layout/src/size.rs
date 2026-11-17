@@ -57,7 +57,7 @@ impl Layout<'_> {
             main += if row { s.0 } else { s.1 } + if k > 0 { n.gap } else { 0.0 };
             cross = cross.max(if row { s.1 } else { s.0 });
         }
-        (if row { main } else { cross }) + n.padding * 2.0
+        (if row { main } else { cross }) + n.pad().horizontal()
     }
 
     /// Height of a hug frame whose width is `w`. A fill-width child is sized at the width it will
@@ -65,8 +65,8 @@ impl Layout<'_> {
     fn hug_height(&mut self, i: usize, w: f64) -> f64 {
         let nodes = self.nodes;
         let n = &nodes[i];
-        let pad = n.padding * 2.0;
-        let inner_w = w - pad;
+        let pad = n.pad().vertical();
+        let inner_w = w - n.pad().horizontal();
         let kids = self.children(&n.id);
         if kids.is_empty() {
             return pad;

@@ -12,7 +12,12 @@ import type { TextAlign } from "./TextAlign";
 /**
  * Partial change to a node: only the fields present are changed.
  */
-export type NodePatch = { name?: string, x?: number, y?: number, w?: number, h?: number, sw?: SizeMode, sh?: SizeMode, fill?: string, radius?: number, layout?: LayoutMode, gap?: number, padding?: number, align?: Align, justify?: Justify, clip?: boolean, text?: string, fontSize?: number, fill2?: string, shader?: ShaderPreset, 
+export type NodePatch = { name?: string, x?: number, y?: number, w?: number, h?: number, sw?: SizeMode, sh?: SizeMode, fill?: string, radius?: number, layout?: LayoutMode, gap?: number, padding?: number, 
+/**
+ * Padding of the top side (`padT`); the other sides are `padR`, `padB` and `padL`. Three states, as `image`: key
+ * absent = unchanged; `null` = the side is not set (it takes `padding` again); a number = set it.
+ */
+padT?: number | null, padR?: number | null, padB?: number | null, padL?: number | null, align?: Align, justify?: Justify, clip?: boolean, text?: string, fontSize?: number, fill2?: string, shader?: ShaderPreset, 
 /**
  * Text node font weight (`fontWeight`): 100..=900 in steps of 100 (400 regular, 700 bold); other values are rejected.
  */

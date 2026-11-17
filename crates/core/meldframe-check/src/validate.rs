@@ -158,6 +158,10 @@ pub fn check_node(n: &Node, l: &Limits) -> Result<(), ApplyError> {
             ("radius", Some(n.radius)),
             ("gap", Some(n.gap)),
             ("padding", Some(n.padding)),
+            ("padT", n.pad_t),
+            ("padR", n.pad_r),
+            ("padB", n.pad_b),
+            ("padL", n.pad_l),
             ("fontSize", Some(n.font_size)),
         ],
     )
@@ -200,6 +204,10 @@ pub fn check_patch(p: &NodePatch, l: &Limits) -> Result<(), ApplyError> {
             ("radius", p.radius),
             ("gap", p.gap),
             ("padding", p.padding),
+            ("padT", p.pad_t.flatten()),
+            ("padR", p.pad_r.flatten()),
+            ("padB", p.pad_b.flatten()),
+            ("padL", p.pad_l.flatten()),
             ("fontSize", p.font_size),
         ],
     )

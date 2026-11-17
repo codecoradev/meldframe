@@ -32,8 +32,9 @@ impl Layout<'_> {
             return;
         }
         let row = n.layout == LayoutMode::Row;
-        let inner_w = r.w - n.padding * 2.0;
-        let inner_h = r.h - n.padding * 2.0;
+        let pad = n.pad();
+        let inner_w = r.w - pad.horizontal();
+        let inner_h = r.h - pad.vertical();
         let (inner_main, inner_cross) = if row {
             (inner_w, inner_h)
         } else {
@@ -70,7 +71,7 @@ impl Layout<'_> {
         } else {
             spread(Default::default(), 0.0, kids.len())
         };
-        let mut pos = if row { r.x } else { r.y } + n.padding + shift.offset;
+        let mut pos = if row { r.x + pad.left } else { r.y + pad.top } + shift.offset;
         for (c, first) in items {
             // Stage 2: a child that fills the main axis is sized again with its final share.
             let s = if main_mode(c) == SizeMode::Fill {
@@ -90,7 +91,7 @@ impl Layout<'_> {
                 Align::End => inner_cross - cross_size,
                 Align::Start => 0.0,
             };
-            let cross_pos = if row { r.y } else { r.x } + n.padding + cross_off;
+            let cross_pos = if row { r.y + pad.top } else { r.x + pad.left } + cross_off;
             let rect = if row {
                 Rect {
                     x: pos,

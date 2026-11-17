@@ -21,7 +21,12 @@ export type SnapshotNode = { lastActor?: string, lastSeq?: number, id: string, n
  * (pos, id). Empty = not assigned yet (old documents/clients): the core places the node after the last sibling
  * (`AddNode`) or migrates it by the legacy list order.
  */
-pos?: string, x: number, y: number, w: number, h: number, sw: SizeMode, sh: SizeMode, fill: string, fill2: string, radius: number, layout: LayoutMode, gap: number, padding: number, align: Align, justify: Justify, clip: boolean, text: string, fontSize: number, shader: ShaderPreset, 
+pos?: string, x: number, y: number, w: number, h: number, sw: SizeMode, sh: SizeMode, fill: string, fill2: string, radius: number, layout: LayoutMode, gap: number, padding: number, 
+/**
+ * Padding per side (`padT`, `padR`, `padB`, `padL`). A side that is not set takes `padding`, so a file from before
+ * the sides existed lays out as before; read them through [`Node::pad`].
+ */
+padT?: number, padR?: number, padB?: number, padL?: number, align: Align, justify: Justify, clip: boolean, text: string, fontSize: number, shader: ShaderPreset, 
 /**
  * Font weight of text: 100..=900 in steps of 100 (400 = regular, 700 = bold). Only meaningful on text nodes.
  */
