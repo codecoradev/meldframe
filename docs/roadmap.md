@@ -63,7 +63,7 @@ Counted from the acceptance-criteria boxes in `docs/epics.md` (a box is ticked o
 | Milestone | Ticked | Of | Share | What is left |
 |---|---|---|---|---|
 | M0 Foundation | 15 | 15 | 100% | nothing: E0.4 is ticked since `just web` starts an editor that talks to the server |
-| M1 Connected skeleton | 28 | 29 | 97% | E1.5: the demonstration with Claude Code by hand (steps 1 to 5 already run in the real browser editor with an agent over MCP, `apps/web/scripts/m1-demo.mjs`), and a gate decision in the log (step 6) |
+| M1 Connected skeleton | 29 | 29 | 100% | nothing open in M1: the demonstration runs with Claude Code as the MCP client in the real browser editor (step 6 keeps its decision column for the M2 call log) |
 | M2 Platform and agent identity | 0 | 13 | 0% | not started |
 | M3 Model round 2 and variables | 0 | 13 | 0% | not started |
 | M4 Export and fidelity | 0 | 6 | 0% | not started |
