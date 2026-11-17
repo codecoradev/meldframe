@@ -1,0 +1,8 @@
+{
+  "name": "@meldframe/web-document",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The document side of the web client: the nodes as the canvas scene, loading the file, and the gestures and keys as actions of the app layer. Pure TypeScript; tested by the apps/web test run.",
+  "types": "src/edit.ts"
+}

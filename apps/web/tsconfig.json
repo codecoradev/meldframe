@@ -8,7 +8,7 @@
     "noUncheckedIndexedAccess": true,
     "types": ["svelte", "vite/client", "node"],
     "noEmit": true,
-    "paths": { "vitest": ["./node_modules/vitest"], "@meldframe/web-canvas/*": ["../../packages/web-canvas/src/*"], "@meldframe/web-link/*": ["../../packages/web-link/src/*"], "@meldframe/protocol": ["../../packages/protocol/src/index.ts"] }
+    "paths": { "vitest": ["./node_modules/vitest"], "@meldframe/web-canvas/*": ["../../packages/web-canvas/src/*"], "@meldframe/web-link/*": ["../../packages/web-link/src/*"], "@meldframe/web-document/*": ["../../packages/web-document/src/*"], "@meldframe/protocol": ["../../packages/protocol/src/index.ts"] }
   },
   "include": ["src/**/*.ts", "src/**/*.svelte", "dev/**/*.ts", "vite.config.ts", "../../packages/web-*/src/**/*.ts"]
 }

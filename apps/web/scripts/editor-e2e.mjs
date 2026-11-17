@@ -57,6 +57,43 @@ async function until(what, fn, ms = 20000) {
 }
 const state = (page) => page.getAttribute('[data-testid=connection]', 'data-state');
 
+/** The file on the server as the nodes with their sizes. */
+async function nodesOnServer() {
+  const res = await fetch(`${server}/v1/files/${file}`, { headers: { authorization: `Bearer ${token}` } });
+  assert.equal(res.status, 200);
+  return (await res.json()).nodes;
+}
+const nodeOf = async (nid) => (await nodesOnServer()).find((x) => x.id === nid);
+/** The box on the screen of the pixels of this colour (CSS pixels: the screenshot is at scale 1). */
+async function bbox(page, hex) {
+  const b64 = (await page.screenshot()).toString('base64');
+  return page.evaluate(async ({ b64, want }) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height).data;
+    let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+      const i = (y * c.width + x) * 4;
+      if (Math.abs(d[i] - want[0]) < 6 && Math.abs(d[i + 1] - want[1]) < 6 && Math.abs(d[i + 2] - want[2]) < 6) { if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y; }
+    }
+    return x1 < 0 ? null : { x0, y0, x1, y1 };
+  }, { b64, want: rgb(hex) });
+}
+const zoomOf = async (page) => Number.parseInt(await page.textContent('[data-testid=zoom]'), 10) / 100;
+async function drag(page, from, to) {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 4 });
+  await page.mouse.move(to.x, to.y, { steps: 4 });
+  await page.mouse.up();
+}
+const near = (a, b, tol, what) => assert.ok(Math.abs(a - b) <= tol, `${what}: ${a} is not within ${tol} of ${b}`);
+
 const results = [];
 async function check(name, fn) {
   try { await fn(); results.push(true); console.log('ok  ', name); }
@@ -96,6 +133,58 @@ const id = `e2e_${run}`;
     const after = await page.screenshot();
     assert.notDeepEqual(after, before, 'the selection changed what is drawn');
   });
+  // Editing: real gestures; the server is asked what happened. The frame is fitted to the window, so its box on the screen
+  // is found from its colour.
+  if (results.every(Boolean)) {
+    let box, z, start;
+    await check('dragging the frame moves it by what the pointer moved, and one undo takes it back', async () => {
+      box = await bbox(page, B); z = await zoomOf(page); start = await nodeOf(id);
+      const c = { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 };
+      await drag(page, c, { x: c.x + 80, y: c.y + 40 });
+      const moved = await until('the move on the server', async () => { const n = await nodeOf(id); return n.x !== start.x ? n : null; });
+      near(moved.x - start.x, 80 / z, 2, 'moved x'); near(moved.y - start.y, 40 / z, 2, 'moved y');
+      await page.keyboard.press('Control+z');
+      await until('the move undone', async () => (await nodeOf(id)).x === start.x);
+    });
+    await check('resizing from the top-left handle is one change: one undo restores the origin and the size together', async () => {
+      await page.waitForTimeout(300);
+      box = await bbox(page, B); z = await zoomOf(page); start = await nodeOf(id);
+      await drag(page, { x: box.x0 + 1, y: box.y0 + 1 }, { x: box.x0 + 31, y: box.y0 + 21 });
+      const n = await until('the resize on the server', async () => { const r = await nodeOf(id); return r.w !== start.w ? r : null; });
+      near(n.x - start.x, 30 / z, 2, 'x'); near(n.y - start.y, 20 / z, 2, 'y'); near(start.w - n.w, 30 / z, 2, 'w'); near(start.h - n.h, 20 / z, 2, 'h');
+      await page.keyboard.press('Control+z');
+      await until('one undo', async () => { const r = await nodeOf(id); return r.x === start.x && r.y === start.y && r.w === start.w && r.h === start.h; });
+    });
+    await check('R then a dragged box makes one node inside the frame, of that size; one undo removes it', async () => {
+      await page.waitForTimeout(300);
+      box = await bbox(page, B); z = await zoomOf(page);
+      const before = (await nodesOnServer()).length;
+      await page.keyboard.press('r');
+      assert.equal(await page.getAttribute('[data-testid=tool]', 'data-tool'), 'rectangle');
+      const c = { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 };
+      await drag(page, { x: c.x - 60, y: c.y - 30 }, { x: c.x + 20, y: c.y + 20 });
+      const all = await until('the new node', async () => { const a = await nodesOnServer(); return a.length === before + 1 ? a : null; });
+      const made = all.find((x) => x.parentId === id);
+      assert.ok(made, 'the node is in the frame');
+      near(made.w, 80 / z, 2, 'w'); near(made.h, 50 / z, 2, 'h');
+      assert.equal(await page.getAttribute('[data-testid=tool]', 'data-tool'), 'select', 'the tool goes back to select');
+      await page.keyboard.press('Control+z');
+      await until('the node removed by one undo', async () => (await nodesOnServer()).length === before);
+    });
+    // (Deleting a frame with content is a call the server asks about: no approval path before M2, so it is refused. A
+    // small node is deleted.)
+    await check('Delete removes a selected small node and undo brings it back', async () => {
+      const leaf = `leaf_${run}`;
+      await post({ type: 'addNode', node: { id: leaf, name: 'Leaf', type: 'rect', parentId: id, x: 10, y: 10, w: 60, h: 40, fill: '#ffaa00' } });
+      await until('the leaf is drawn', async () => (await bbox(page, '#ffaa00')) !== null);
+      const lb = await bbox(page, '#ffaa00');
+      await page.mouse.click((lb.x0 + lb.x1) / 2, (lb.y0 + lb.y1) / 2);
+      await page.keyboard.press('Delete');
+      await until('the leaf deleted', async () => !(await nodeOf(leaf)));
+      await page.keyboard.press('Control+z');
+      await until('the leaf back', async () => Boolean(await nodeOf(leaf)));
+    });
+  }
   // The reconnect check stops the development server: only when the checks before it passed (otherwise leave it).
   if (results.every(Boolean)) await check('the server goes away: the page says so; it comes back: the page reconnects and shows what was done meanwhile', async () => {
     // Stop only what listens on the server's port (not every process that has the name).

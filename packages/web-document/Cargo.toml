@@ -1,0 +1,16 @@
+[package]
+name = "meldframe-web-document"
+description = "The document side of the web client: the nodes as the canvas scene, loading the file, and the gestures and keys as actions of the app layer (TypeScript; this manifest makes the package a unit of the size and layering checks)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "ui"
+
+[lib]
+path = "rust/lib.rs"
+
+[lints]
+workspace = true

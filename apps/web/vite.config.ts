@@ -84,6 +84,7 @@ export default defineConfig(({ command }) => {
       alias: {
         '@meldframe/web-canvas': fileURLToPath(new URL('../../packages/web-canvas/src', import.meta.url)),
         '@meldframe/web-link': fileURLToPath(new URL('../../packages/web-link/src', import.meta.url)),
+        '@meldframe/web-document': fileURLToPath(new URL('../../packages/web-document/src', import.meta.url)),
         // The generated WASM glue (tools/build-wasm.sh). Without it the stub stands in, which fails with a clear
         // message when the page starts, so the build and the type check run without the wasm toolchain.
         '@meldframe/wasm': fileURLToPath(new URL(wasmGlue, import.meta.url)),

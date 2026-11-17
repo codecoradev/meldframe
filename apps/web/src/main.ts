@@ -5,7 +5,7 @@ import { Shell, browserEnv } from '@meldframe/web-link/shell';
 import App from './App.svelte';
 import Editor from './Editor.svelte';
 import Fatal from './Fatal.svelte';
-import { loadFile, reloadOnDivergence } from './file';
+import { loadFile, reloadOnDivergence } from '@meldframe/web-document/file';
 import { applyTheme, loadTheme } from './theme';
 
 applyTheme(loadTheme());
