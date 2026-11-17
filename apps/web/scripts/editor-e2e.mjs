@@ -209,6 +209,48 @@ const id = `e2e_${run}`;
       assert.equal((await nodeOf(tid)).text, 'Hello', 'Escape made no change');
     });
   }
+  if (results.every(Boolean)) {
+    await check('the layers panel lists the nodes; a click on a row selects it and the properties panel shows it', async () => {
+      const row = page.locator(`[data-testid=layer][data-id="${id}"]`);
+      await row.waitFor({ state: 'visible', timeout: 5000 });
+      await row.locator('button').last().click();
+      assert.equal(await row.getAttribute('data-selected'), 'true');
+      assert.equal(await page.locator('[data-testid=prop-name]').inputValue(), `Test ${run}`);
+    });
+    await check('renaming in the properties panel is one change, and undo takes it back', async () => {
+      const field = page.locator('[data-testid=prop-name]');
+      await field.fill(`Renamed ${run}`);
+      await field.press('Enter');
+      await until('the new name on the server', async () => (await nodeOf(id)).name === `Renamed ${run}`);
+      await page.keyboard.press('Control+z');
+      await until('the name back', async () => (await nodeOf(id)).name === `Test ${run}`);
+    });
+    await check('a value that is not valid is put back and makes no change', async () => {
+      const field = page.locator('[data-testid=prop-fill]');
+      const before = await field.inputValue();
+      await field.fill('not-a-colour');
+      await field.press('Enter');
+      await until('the field shows the document value again', async () => (await field.inputValue()) === before);
+      assert.equal((await nodeOf(id)).fill, before);
+    });
+    await check('a tool button sets the tool', async () => {
+      await page.click('[data-testid=tool-rectangle]');
+      assert.equal(await page.getAttribute('[data-testid=tool]', 'data-tool'), 'rectangle');
+      await page.click('[data-testid=tool-select]');
+      assert.equal(await page.getAttribute('[data-testid=tool]', 'data-tool'), 'select');
+    });
+    await check('a delete the server refuses shows a notice', async () => {
+      const row = page.locator(`[data-testid=layer][data-id="${id}"]`);
+      await row.locator('button').last().click();
+      await page.keyboard.press('Delete');
+      await page.locator('[data-testid=notice]').waitFor({ state: 'visible', timeout: 8000 });
+      assert.ok(await nodeOf(id), 'the frame is still on the server');
+      // Another action does not keep the notice on screen: it goes away by itself.
+      await page.click('[data-testid=tool-rectangle]');
+      await page.click('[data-testid=tool-select]');
+      await page.locator('[data-testid=notice]').waitFor({ state: 'detached', timeout: 9000 });
+    });
+  }
   // The reconnect check stops the development server: only when the checks before it passed (otherwise leave it).
   if (results.every(Boolean)) await check('the server goes away: the page says so; it comes back: the page reconnects and shows what was done meanwhile', async () => {
     // Stop only what listens on the server's port (not every process that has the name).

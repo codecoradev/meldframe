@@ -22,7 +22,7 @@ async function start() {
   // The page of the design tokens stays at /?tokens.
   if (new URLSearchParams(location.search).has('tokens')) return mount(App, { target: root });
   await loadWasm();
-  const { seq, nodes } = await loadFile(fetch, file);
+  const { seq, nodes, attribution } = await loadFile(fetch, file);
   // A fresh nonce per page load: the app never reuses an idempotency key (see `App::new`).
   const session = crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
   const engine = Engine.create({ actor, session, nodes, seq });
@@ -32,7 +32,7 @@ async function start() {
     if (reloadOnDivergence(s.events, () => sessionStorage, Date.now())) location.reload();
   });
   shell = new Shell(engine, browserEnv(), { file });
-  editor = mount(Editor, { target: root, props: { engine, file } });
+  editor = mount(Editor, { target: root, props: { engine, file, actor, attribution } });
   shell.start();
 }
 

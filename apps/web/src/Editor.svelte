@@ -4,7 +4,7 @@
   one action when it ends. The panels and the tool bar arrive in the next slice.
 -->
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import type { Action, AppState } from '@meldframe/protocol';
   import { HOME, formatZoom, type Camera } from '@meldframe/web-canvas/camera';
   import type { Engine } from '@meldframe/web-link/engine';
@@ -14,14 +14,24 @@
   import { sceneFromNodes } from '@meldframe/web-document/scene';
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
+  import Toolbar from './Toolbar.svelte';
+  import LayersPanel from './LayersPanel.svelte';
+  import PropertiesPanel from './PropertiesPanel.svelte';
+  import { layerRows } from '@meldframe/web-document/layers';
+  import { boxAction, propertyAction, type BoxField, type PropertyField } from '@meldframe/web-document/properties';
+  import { noticeFromEvents } from '@meldframe/web-document/notices';
   import { loadTheme } from './theme';
 
   interface Props {
     engine: Engine;
-    /** The file's name, shown in the corner. */
+    /** The file's name, shown at the top of the layers panel. */
     file: string;
+    /** The actor of this page: its own changes carry no label in the layers panel. */
+    actor: string;
+    /** Who last changed each node when the file was loaded; live changes are in the app state. */
+    attribution?: Record<string, { actor: string; seq: number }>;
   }
-  let { engine, file }: Props = $props();
+  let { engine, file, actor, attribution = {} }: Props = $props();
 
   // Snapshots are replaced as a whole, never edited: no deep proxy over the nodes.
   let snap = $state.raw(untrack(() => engine.snapshot()));
@@ -41,6 +51,34 @@
     ({ live: 'Connected', connecting: 'Connecting', reconnecting: 'Reconnecting', offline: 'Offline', halted: 'Out of sync' })[c.type];
 
   const dispatch = (a: Action) => void engine.dispatch(a);
+
+  // The layers: what the server stamped when the file loaded, then what the app saw change since.
+  const actors = $derived({ ...Object.fromEntries(Object.entries(attribution).map(([id, a]) => [id, a.actor])), ...snap.state.lastActor });
+  const rows = $derived(layerRows(nodes, snap.state.panels.collapsed, snap.state.selection, actors));
+  const onProperty = (f: PropertyField, raw: string) => {
+    const p = snap.state.properties;
+    const a = p && propertyAction(p, f, raw);
+    if (a) dispatch(a);
+  };
+  const onBox = (f: BoxField, raw: string) => {
+    const p = snap.state.properties;
+    const a = p && boxAction(p, f, raw);
+    if (a) dispatch(a);
+  };
+
+  // A refusal is shown for a few seconds, then goes away; a later snapshot does not cancel that (the timer is not tied to the effect).
+  let notice = $state<string | null>(null);
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+  function showNotice(text: string) {
+    notice = text;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => (notice = null), 6000);
+  }
+  $effect(() => {
+    const text = noticeFromEvents(snap.events);
+    if (text) untrack(() => showNotice(text));
+  });
+  onDestroy(() => clearTimeout(noticeTimer));
 
   // The text being edited: the node and the text it had when the field opened (an unchanged commit makes no step).
   let editing = $state<{ id: string; before: string } | null>(null);
@@ -139,7 +177,17 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="fixed inset-0 bg-canvas font-sans text-body text-text">
+<div class="fixed inset-0 flex bg-canvas font-sans text-body text-text">
+  {#if snap.state.panels.layers}
+    <LayersPanel
+      {rows}
+      {file}
+      self={actor}
+      onSelect={(id, additive) => (additive ? dispatch({ type: 'toggleSelect', id }) : dispatch({ type: 'select', ids: [id] }))}
+      onToggle={(id) => dispatch({ type: 'toggleCollapsed', id })}
+    />
+  {/if}
+  <div class="relative min-w-0 flex-1">
   <Canvas
     bind:this={canvas}
     scene={shown}
@@ -159,13 +207,16 @@
   {#if editing && editBox}
     <TextEditor text={editing.before} box={editBox} onCommit={endEdit} onCancel={() => endEdit(null)} />
   {/if}
+  {#if notice}
+    <div role="status" data-testid="notice" class="absolute top-4 right-4 max-w-80 rounded-md bg-warning-bg px-4 py-2 text-small text-text-strong shadow-float">{notice}</div>
+  {/if}
   {#if canvasError}
     <div role="alert" data-testid="canvas-error" class="absolute inset-x-0 top-4 mx-auto w-fit rounded-md bg-danger-bg px-4 py-2 text-small text-danger">
       The canvas could not start: {canvasError}
     </div>
   {/if}
-  <div class="pointer-events-none absolute top-4 left-4 rounded-md bg-surface/90 px-3 py-1.5 text-small text-text-muted">{file}</div>
-  <div class="pointer-events-none absolute right-5 bottom-7 flex items-center gap-3 text-small text-text-muted">
+  <Toolbar state={snap.state} {dispatch} />
+  <div class="pointer-events-none absolute top-4 left-4 flex items-center gap-3 text-small text-text-muted">
     <output data-testid="tool" data-tool={snap.state.tool}>{toolLabel}</output>
     <output data-testid="connection" data-state={snap.state.connection.type}>{label(snap.state.connection)}</output>
     <output class="font-mono" data-testid="zoom">{formatZoom(camera.zoom)}</output>
@@ -175,5 +226,9 @@
       This page and the server no longer agree about the file.
       <button class="ml-2 underline" onclick={() => location.reload()}>Reload</button>
     </div>
+  {/if}
+  </div>
+  {#if snap.state.panels.properties}
+    <PropertiesPanel properties={snap.state.properties} {onProperty} {onBox} />
   {/if}
 </div>
