@@ -1,8 +1,8 @@
 //! What the read tools say: the tree, the nodes and the changes, as JSON. Pure: no server, no IO.
 
-use meldframe_batch::touches;
+use meldframe_batch::{command_name, touches};
 use meldframe_host::StoredOp;
-use meldframe_protocol::{Command, Node};
+use meldframe_protocol::Node;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 
@@ -89,17 +89,6 @@ pub(super) fn nodes(all: &[Node], ids: &[String]) -> (Vec<Value>, Vec<String>) {
 /// One node's full data.
 pub(super) fn node(n: &Node) -> Value {
     serde_json::to_value(n).unwrap_or(Value::Null)
-}
-
-/// The name of a command's type, as a client sends it.
-pub(super) fn command_name(c: &Command) -> &'static str {
-    match c {
-        Command::AddNode { .. } => "addNode",
-        Command::UpdateNode { .. } => "updateNode",
-        Command::RemoveNode { .. } => "removeNode",
-        Command::Reparent { .. } => "reparent",
-        Command::Reorder { .. } => "reorder",
-    }
 }
 
 /// The ops of `ops` that touched `node_id`, as `{seq, actor, command}`.

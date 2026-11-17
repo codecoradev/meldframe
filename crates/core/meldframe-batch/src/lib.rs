@@ -219,3 +219,14 @@ fn touched_after<S: Store>(room: &Room<S>, seq: u64) -> Result<HashSet<String>, 
         after = last;
     }
 }
+
+/// The name of a command's type, as a client sends it.
+pub fn command_name(c: &Command) -> &'static str {
+    match c {
+        Command::AddNode { .. } => "addNode",
+        Command::UpdateNode { .. } => "updateNode",
+        Command::RemoveNode { .. } => "removeNode",
+        Command::Reparent { .. } => "reparent",
+        Command::Reorder { .. } => "reorder",
+    }
+}

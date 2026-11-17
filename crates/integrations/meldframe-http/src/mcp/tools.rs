@@ -98,8 +98,10 @@ impl Handler {
             .read(who, move |r, w| r.tree(w, &name, TREE_WINDOW))
             .await?;
         let last = view::last_touch(&recent);
-        Ok(json!({"ok": true, "file": file, "seq": f.seq,
-            "roots": view::tree(&f.nodes, &last, max_depth)}))
+        Ok(
+            json!({"ok": true, "file": file, "seq": f.seq, "roots": view::tree(&f.nodes, &last, max_depth),
+            "warnings": meldframe_check::name_warnings_of_nodes(&f.nodes)}),
+        )
     }
 
     pub(super) async fn get_nodes(&self, who: &Principal, a: Map<String, Value>) -> Body {
@@ -185,7 +187,7 @@ impl Handler {
             )));
         }
         let atomic = a.atomic.unwrap_or(true);
-        let (ops, guards) = build_ops(&key, if_seq, a.commands)?;
+        let (ops, guards) = build_ops(&key, if_seq, a.commands.clone())?;
         if !atomic && let Some(g) = guards.first() {
             let mut v = invalid(format!(
                 "command {} touches {} for the first time and a node an earlier command of the call \
@@ -228,7 +230,7 @@ impl Handler {
         let replayed = done.iter().all(|d| d["written"] == json!(false));
         Ok(
             json!({"ok": true, "file": a.file, "atomic": atomic, "idempotencyKey": key,
-            "seq": seq, "replayed": replayed, "results": results}),
+            "seq": seq, "replayed": replayed, "results": results, "warnings": meldframe_check::name_warnings_of_commands(&a.commands)}),
         )
     }
 

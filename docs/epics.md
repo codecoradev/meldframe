@@ -176,7 +176,7 @@ The survey's candidate 1.
 - [ ] A real Tailwind design system (the Uteke Cloud theme) is the import test corpus.
 
 ### E3.5 Layer names (S)
-- [ ] A lint flags default layer names; MCP descriptions ask agents for semantic names.
+- [x] A lint flags default layer names; MCP descriptions ask agents for semantic names. (`meldframe-check` `lint`: a name is a default name when it is empty, is the node's own id, or is a word a tool uses (Frame, Rectangle, Text, Group, Layer and so on) alone or with a number. `apply_commands` returns `warnings` for the names a call sets, `get_tree` for every layer of the file; a default name never fails a call. The `apply_commands` and `get_tree` descriptions ask for semantic names; tests: `meldframe-check/tests/lint.rs`, `meldframe-mcp-tests/tests/layer_names.rs`.)
 
 **M3 exit criteria:** the Uteke Cloud design system is imported, its variables are bound to a frame by an agent, and switching light and dark mode re-renders the frame on the canvas.
 
