@@ -54,7 +54,7 @@ Crates under `crates/{core,engines,integrations,features,app,ui}`, apps under `a
 - [x] Postgres migrations run from a clean database in CI.
 
 ### E0.4 Local development environment (S)
-- [ ] One command starts Postgres and the server for development; one command starts the web client against it. (`just dev` does the first half and is smoke-tested (`tools/dev-smoke.sh`, in the migrations CI job); `just web` starts the web client skeleton (`apps/web`: a token showcase page) with `/v1` proxied to that server through the guarded dev proxy; the client that shows the document and talks to the server is E1.6. Tick when `just web` starts a client that talks to the server.)
+- [x] One command starts Postgres and the server for development; one command starts the web client against it. (`just dev` is smoke-tested (`tools/dev-smoke.sh`, in the migrations CI job); `just web` builds the WASM bridge when it is missing and starts the editor on `file_dev` with `/v1` proxied to that server through the guarded dev proxy. Proven on 17 Nov 2026 with `apps/web/scripts/editor-e2e.mjs`: against the real server and the real WASM the page connects and draws the saved file, shows a change of an agent without a reload, and reconnects after the server was stopped and started again.)
 - [x] A seeded development workspace, file and token exist for agents and tests (development only, never in a release build).
 - [x] `AGENTS.md` lists the commands; a new session can run the full test suite from a fresh clone.
 
@@ -100,10 +100,10 @@ ADR-0009. Status: the stream logic is the `meldframe-stream` crate (pure, no tra
 ### E1.6 App layer and basic web editor (L, split into slices)
 ADR-0008. First vertical slice of the app layer: the editor shell.
 - [x] `meldframe-app` holds selection, current tool, panel state, connection state and the history buttons as plain data with actions, effects and events; a test harness drives it without the web client. (Tests: `crates/app/meldframe-app/tests`, and `crates/core/meldframe-app-tests` against the real in-memory server: two editors and an agent, ops in flight at a drop and sent again, a real refusal, concurrent edits, a restart with a reused prefix, undo of a selected node, heartbeats past the silence limit. Snapshot reload after `Halted` is `Action::Reload` (issue 90); the shell loading the snapshot after `ReplayOverflow`, the WASM export and the web client are open in later slices.)
-- [ ] The web client (Svelte 5 + PixiJS) shows layers on the left, the canvas in the centre and properties on the right, and only renders app state and dispatches actions.
+- [ ] The web client (Svelte 5 + PixiJS) shows layers on the left, the canvas in the centre and properties on the right, and only renders app state and dispatches actions. (In: the canvas (`packages/web-canvas`, `apps/web/src/canvas`), the shell (`packages/web-link`), the WASM bridge and the editor page with the connection state and selection. Open: the layers panel, the properties panel and the tool bar.)
 - [ ] A person can create a frame, a rectangle and a text node, move and resize them, edit text and basic properties, and undo or redo their own changes.
 - [ ] UI colours, fonts and sizes come from the tokens module; the literal lint passes.
-- [ ] Changes from an agent appear without reload and are labelled with the actor in the layers panel. (Server side: `GET /v1/files/{file}` returns each node with `lastActor` and `lastSeq`, and live streams carry an ephemeral `touch` frame for the touch ring; the editor part is open.)
+- [ ] Changes from an agent appear without reload and are labelled with the actor in the layers panel. (Server side: `GET /v1/files/{file}` returns each node with `lastActor` and `lastSeq`, and live streams carry an ephemeral `touch` frame for the touch ring. Editor side: a change of an agent appears without a reload, proven in the browser (`apps/web/scripts/editor-e2e.mjs`); the actor label in the layers panel and the touch ring are open.)
 - [ ] Browser end-to-end tests cover create, edit, undo, a dropped connection and the reconnect.
 
 ### E1.7 Capture relay (S)
