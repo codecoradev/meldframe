@@ -4,6 +4,7 @@ import type { IncomingMessage } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
 import type { Plugin, PreviewServer, ViteDevServer } from 'vite';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { REFUSED_URL, applyAuth, guardRequest, isProxied, resolveProxy } from './dev/proxy-guard';
 
@@ -70,7 +71,11 @@ export default defineConfig(({ command }) => {
   }
   return {
     plugins: [svelte(), tailwindcss(), guard()],
-    resolve: { conditions: ['browser'] },
+    resolve: {
+      conditions: ['browser'],
+      // The canvas model is the package packages/web-canvas (its own unit of the size check), used as source.
+      alias: { '@meldframe/web-canvas': fileURLToPath(new URL('../../packages/web-canvas/src', import.meta.url)) },
+    },
     server: { proxy },
     preview: { proxy },
     test: {

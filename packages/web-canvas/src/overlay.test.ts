@@ -45,7 +45,7 @@ describe('selection box and handles', () => {
   it('small boxes drop the edge handles that would touch each other', () => {
     expect(visibleHandles({ x: 0, y: 0, w: 200, h: 100 })).toHaveLength(8);
     expect(visibleHandles({ x: 0, y: 0, w: 10, h: 100 })).toEqual(expect.not.arrayContaining(['n', 's']));
-    expect(visibleHandles({ x: 0, y: 0, w: 100, h: 10 })).toEqual(expect.not.arrayContaining(['e', 'w']));
+    expect(visibleHandles({ x: 0, y: 0, w: 100, h: 10 })).toEqual(['nw', 'ne', 'se', 'sw']);
     expect(visibleHandles({ x: 0, y: 0, w: 1, h: 1 })).toEqual(['nw', 'ne', 'se', 'sw']);
   });
 
