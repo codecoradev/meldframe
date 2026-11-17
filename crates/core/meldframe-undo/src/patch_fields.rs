@@ -1,7 +1,7 @@
 //! The list of patchable node fields, written once. `NodePatch` and `Node` use the same names, so a
 //! helper that walks every field is a one-line macro over this list.
 
-/// Calls `$m!(field, field, ...)` with every plain field of `NodePatch`. `image` and the four paddings per side
+/// Calls `$m!(field, field, ...)` with every plain field of `NodePatch`. `image`, `gradient` and the four paddings per side
 /// (`pad_t`, `pad_r`, `pad_b`, `pad_l`) are not in the list: they have three states and each helper handles
 /// them by hand.
 macro_rules! patch_fields {
@@ -49,7 +49,7 @@ const _: () = {
         ($($f:ident),*) => {
             #[allow(dead_code)]
             fn every_patch_field_is_listed(p: meldframe_protocol::NodePatch) {
-                let meldframe_protocol::NodePatch { $($f: _,)* image: _, pad_t: _, pad_r: _, pad_b: _, pad_l: _ } = p;
+                let meldframe_protocol::NodePatch { $($f: _,)* image: _, gradient: _, pad_t: _, pad_r: _, pad_b: _, pad_l: _ } = p;
             }
         };
     }

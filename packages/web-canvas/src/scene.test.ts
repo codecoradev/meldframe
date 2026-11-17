@@ -164,3 +164,21 @@ describe('bounds', () => {
     expect(rectsOf(rs, ['b', 'nope'])).toEqual([{ x: 100, y: 50, w: 20, h: 20 }]);
   });
 });
+
+describe('gradient', () => {
+  const g = { kind: 'linear' as const, angle: 90, stops: [{ pos: 0, color: '#ffffff' }, { pos: 1, color: '#000000' }] };
+  const node = (extra = {}) => ({ id: 'a', parent: null, kind: 'rect' as const, x: 0, y: 0, w: 10, h: 10, fill: 0x112233, ...extra });
+  it('is carried to the resolved node, and absent when the node has none', () => {
+    expect(resolveScene({ space: 'parent', nodes: [node({ gradient: g })] }).scene.items[0]!.gradient).toEqual(g);
+    expect(resolveScene({ space: 'parent', nodes: [node()] }).scene.items[0]!.gradient).toBeUndefined();
+  });
+  it('a changed gradient makes the node changed, an equal one does not', () => {
+    const first = resolveScene({ space: 'parent', nodes: [node({ gradient: g })] }).scene;
+    const same = resolveScene({ space: 'parent', nodes: [node({ gradient: { ...g, stops: g.stops.map((s) => ({ ...s })) } })] }, first);
+    expect(same.patch.changed).toEqual([]);
+    const other = resolveScene({ space: 'parent', nodes: [node({ gradient: { ...g, angle: 180 } })] }, first);
+    expect(other.patch.changed).toEqual(['a']);
+    const gone = resolveScene({ space: 'parent', nodes: [node()] }, first);
+    expect(gone.patch.changed).toEqual(['a']);
+  });
+});

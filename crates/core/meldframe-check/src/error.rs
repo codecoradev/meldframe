@@ -38,6 +38,10 @@ pub enum ApplyError {
     InvalidAssetId,
     /// A text node cannot hold an image fill.
     ImageOnText,
+    /// A gradient that cannot be painted: the text says what is wrong with it.
+    InvalidGradient(&'static str),
+    /// A gradient on a text node (text is painted with its `fill` colour).
+    GradientOnText,
     /// A `pos` from a client has bad characters or a bad shape.
     InvalidPos(String),
     /// A `pos` (sent or computed) is longer than `Limits::max_pos`: the gap is too crowded.
@@ -71,6 +75,8 @@ impl ApplyError {
             ApplyError::InvalidFontWeight(_) => "E_INVALID_FONT_WEIGHT",
             ApplyError::InvalidAssetId => "E_INVALID_ASSET_ID",
             ApplyError::ImageOnText => "E_IMAGE_ON_TEXT",
+            ApplyError::InvalidGradient(_) => "E_INVALID_GRADIENT",
+            ApplyError::GradientOnText => "E_GRADIENT_ON_TEXT",
         }
     }
 }
@@ -113,6 +119,13 @@ impl fmt::Display for ApplyError {
                 write!(
                     f,
                     "image does not apply to text nodes (use frame, rect, ellipse or shader)"
+                )
+            }
+            ApplyError::InvalidGradient(why) => write!(f, "invalid gradient: {why}"),
+            ApplyError::GradientOnText => {
+                write!(
+                    f,
+                    "gradient does not apply to text nodes (use frame, rect, ellipse or shader)"
                 )
             }
             ApplyError::InvalidPos(p) => write!(f, "invalid pos: {p:?}"),

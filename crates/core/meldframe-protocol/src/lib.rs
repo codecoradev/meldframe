@@ -17,10 +17,10 @@ mod version;
 mod wire;
 
 pub use command::Command;
-pub use decoration::{Border, ImageFill, Shadow};
+pub use decoration::{Border, Gradient, GradientStop, ImageFill, Shadow};
 pub use enums::{
-    Align, BorderPosition, ImageFit, Justify, LayoutMode, NodeKind, ShaderPreset, SizeMode,
-    TextAlign,
+    Align, BorderPosition, GradientKind, ImageFit, Justify, LayoutMode, NodeKind, ShaderPreset,
+    SizeMode, TextAlign,
 };
 pub use node::{Node, Pad};
 pub use patch::NodePatch;

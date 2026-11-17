@@ -1,4 +1,4 @@
-//! Validation of font weight, border and shadows. Every refusal names the field it refused.
+//! Validation of font weight, border and shadows (moved from meldframe-check, whose size ceiling it counted against). Every refusal names the field it refused.
 
 // Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
 #[cfg(target_arch = "wasm32")]

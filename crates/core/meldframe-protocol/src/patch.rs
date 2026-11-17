@@ -1,6 +1,6 @@
 //! Partial change to a node and how it is applied.
 
-use crate::decoration::{Border, ImageFill, Shadow};
+use crate::decoration::{Border, Gradient, ImageFill, Shadow};
 use crate::enums::{Align, Justify, LayoutMode, ShaderPreset, SizeMode, TextAlign};
 use crate::node::Node;
 use serde::{Deserialize, Serialize};
@@ -157,12 +157,23 @@ pub struct NodePatch {
     )]
     #[ts(optional = nullable, as = "Option<ImageFill>")]
     pub image: Option<Option<ImageFill>>,
+    /// Three states, as `image`: key absent = unchanged; `null` = remove the gradient; object = set it.
+    #[serde(
+        default,
+        deserialize_with = "de_double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[ts(optional = nullable, as = "Option<Gradient>")]
+    pub gradient: Option<Option<Gradient>>,
 }
 
 impl Node {
     pub fn apply_patch(&mut self, p: &NodePatch) {
         if let Some(v) = &p.image {
             self.image = v.clone();
+        }
+        if let Some(v) = &p.gradient {
+            self.gradient = v.clone();
         }
         for (side, v) in [
             (&mut self.pad_t, &p.pad_t),

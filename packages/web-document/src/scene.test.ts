@@ -38,6 +38,25 @@ describe('opacity and no fill', () => {
   });
 });
 
+describe('gradient', () => {
+  const stops = [{ pos: 0, color: '#ff0000' }, { pos: 1, color: '#0000ff80' }];
+  it('is carried to the canvas with its kind, angle and stops', () => {
+    const s = sceneFromNodes([node({ id: 'a', gradient: { kind: 'linear', angle: 45, stops } } as never)]);
+    expect(s.nodes[0]!.gradient).toEqual({ kind: 'linear', angle: 45, stops });
+  });
+  it('a node without one carries none', () => {
+    expect(sceneFromNodes([node({ id: 'a' })]).nodes[0]!.gradient).toBeUndefined();
+  });
+  it('stops may be #rgb, #rgba, #rrggbb or #rrggbbaa, all of which the server accepts', () => {
+    const g = { kind: 'linear', angle: 0, stops: [{ pos: 0, color: '#f008' }, { pos: 1, color: '#0f0' }] };
+    expect(sceneFromNodes([node({ id: 'a', gradient: g } as never)]).nodes[0]!.gradient?.stops).toHaveLength(2);
+  });
+  it('a gradient with a stop that is not a hex colour is left out, so the fill shows', () => {
+    const bad = { kind: 'linear', angle: 0, stops: [{ pos: 0, color: 'red' }, { pos: 1, color: '#000000' }] };
+    expect(sceneFromNodes([node({ id: 'a', gradient: bad } as never)]).nodes[0]!.gradient).toBeUndefined();
+  });
+});
+
 describe('sceneFromNodes', () => {
   it('maps the node kinds the canvas draws and keeps parent-relative positions', () => {
     const s = sceneFromNodes([

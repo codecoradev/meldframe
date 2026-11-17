@@ -2,7 +2,7 @@
 
 use crate::{ApplyError, Limits};
 use meldframe_order::fracindex;
-use meldframe_protocol::{Border, ImageFill, Node, NodeKind, NodePatch, Shadow};
+use meldframe_protocol::{Border, Gradient, ImageFill, Node, NodeKind, NodePatch, Shadow};
 
 fn num(field: &'static str, v: f64, lo: f64, hi: f64) -> Result<(), ApplyError> {
     if !v.is_finite() {
@@ -78,6 +78,35 @@ fn font_weight(w: u16) -> Result<(), ApplyError> {
     }
 }
 
+/// A gradient: 2 to `max_gradient_stops` stops with positions from 0 to 1 that do not go back, hex colours, a finite
+/// angle within a few turns.
+fn check_gradient(g: &Gradient, l: &Limits) -> Result<(), ApplyError> {
+    num("gradient.angle", g.angle, -3600.0, 3600.0)?;
+    if g.stops.len() > l.max_gradient_stops {
+        return Err(ApplyError::TooMany {
+            field: "gradient.stops",
+            max: l.max_gradient_stops,
+        });
+    }
+    if g.stops.len() < 2 {
+        return Err(ApplyError::InvalidGradient(
+            "gradient.stops needs at least 2 stops",
+        ));
+    }
+    let mut last = 0.0;
+    for s in &g.stops {
+        num("gradient.stops.pos", s.pos, 0.0, 1.0)?;
+        if s.pos < last {
+            return Err(ApplyError::InvalidGradient(
+                "gradient.stops positions must be in order (not going back)",
+            ));
+        }
+        last = s.pos;
+        color("gradient.stops.color", &s.color)?;
+    }
+    Ok(())
+}
+
 fn check_border(b: &Border, l: &Limits) -> Result<(), ApplyError> {
     num("border.width", b.width, 0.0, l.max_size)?;
     color("border.color", &b.color)
@@ -130,6 +159,12 @@ fn check_numbers(
 
 /// Validate a whole node (as sent by `AddNode`).
 pub fn check_node(n: &Node, l: &Limits) -> Result<(), ApplyError> {
+    if let Some(g) = &n.gradient {
+        check_gradient(g, l)?;
+        if n.kind == NodeKind::Text {
+            return Err(ApplyError::GradientOnText);
+        }
+    }
     if let Some(im) = &n.image {
         check_image(im)?;
         if n.kind == NodeKind::Text {
@@ -175,6 +210,9 @@ pub fn check_node(n: &Node, l: &Limits) -> Result<(), ApplyError> {
 pub fn check_patch(p: &NodePatch, l: &Limits) -> Result<(), ApplyError> {
     if let Some(Some(im)) = &p.image {
         check_image(im)?;
+    }
+    if let Some(Some(g)) = &p.gradient {
+        check_gradient(g, l)?;
     }
     if let Some(s) = &p.name {
         strlen("name", s, l.max_name)?;

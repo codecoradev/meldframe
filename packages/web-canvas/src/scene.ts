@@ -10,7 +10,9 @@
 //
 // The canvas draws what it is given: no layout, no editor rules (clamping, snapping, constraints) live here.
 import { containsPoint, intersectRects, rectsEqual, type Rect } from './geometry';
+import { sameGradient, type SceneGradient } from './gradient';
 
+export type { SceneGradient } from './gradient';
 export type NodeKind = 'frame' | 'rect' | 'text';
 export type SceneSpace = 'parent' | 'world';
 
@@ -39,6 +41,8 @@ export interface SceneNode {
   visible?: boolean;
   /** 0 to 1; absent means 1. */
   opacity?: number;
+  /** Painted over the fill; absent means none. */
+  gradient?: SceneGradient;
 }
 
 export interface Scene {
@@ -70,6 +74,7 @@ export interface ResolvedNode {
   /** Visible itself and through every ancestor. */
   visible: boolean;
   opacity: number;
+  gradient: SceneGradient | undefined;
   /** The intersection of the clipping ancestors' rectangles; null when nothing clips it. */
   clipRect: Rect | null;
 }
@@ -96,7 +101,7 @@ function sameNode(a: ResolvedNode, b: ResolvedNode): boolean {
     a.parent === b.parent && a.kind === b.kind && a.depth === b.depth &&
     rectsEqual(a, b) && a.lx === b.lx && a.ly === b.ly &&
     a.fill === b.fill && a.radius === b.radius && a.text === b.text && a.fontSize === b.fontSize &&
-    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity &&
+    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) &&
     (a.clipRect === b.clipRect || (!!a.clipRect && !!b.clipRect && rectsEqual(a.clipRect, b.clipRect)))
   );
 }
@@ -136,6 +141,7 @@ function resolveAll(scene: Scene): ResolvedNode[] {
         clip: n.clip ?? false,
         visible: (n.visible ?? true) && (parent ? parent.visible : true),
         opacity: n.opacity ?? 1,
+        gradient: n.gradient,
         clipRect: parentClip,
       };
       out.push(node);

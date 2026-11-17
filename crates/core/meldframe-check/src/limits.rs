@@ -24,6 +24,8 @@ pub struct Limits {
     pub max_pos: usize,
     /// Most shadows on one node.
     pub max_shadows: usize,
+    /// Most stops in one gradient.
+    pub max_gradient_stops: usize,
 }
 
 impl Default for Limits {
@@ -38,6 +40,7 @@ impl Default for Limits {
             max_depth: 32,
             max_pos: 64,
             max_shadows: 4,
+            max_gradient_stops: 8,
         }
     }
 }

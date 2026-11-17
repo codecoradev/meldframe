@@ -102,7 +102,8 @@ idiomatic; token-based classes arrive with decision 17.
 | Property | Status | Position |
 |---|---|---|
 | opacity | in the model and drawn on the canvas (E3.2, ADR-0013); not exported until an oracle probe | maps to `opacity`; becomes supported in export only with an oracle probe (note: opacity creates a stacking context, check overlapping children) |
-| gradients, multiple fills | planned (model, W1) | `linear-gradient`/`radial-gradient` layers; needs probes for angle conventions |
+| gradients | in the model and on the canvas (E3.2: `gradient`, linear and radial; one gradient per node, over the fill); not exported until an oracle probe |
+| multiple fills | planned (model, W1) | `linear-gradient`/`radial-gradient` layers; needs probes for angle conventions |
 | per-side padding | in the model and the layout (E3.2: `padT`, `padR`, `padB`, `padL`); not exported until an oracle probe | `padding: t r b l`; the S9 spike docs report that 12 of 25 frames of a hand-made shop page fell back to free layout when captured, mostly 9 buttons with `padding: 12px 20px` |
 | absolute child inside an auto layout frame | planned (model, W1) | `position:absolute` child of a `position:relative` flex container; removes the child from flow, as `ignoreAutoLayout` in the model would |
 | margin | in the model and the layout (E3.2: `marT`, `marR`, `marB`, `marL`); not exported until an oracle probe (the TypeScript oracle has no margin, so the golden trees do not cover it) | the spike capture turns margins into gap/padding; per-child margin only if round trip is required |

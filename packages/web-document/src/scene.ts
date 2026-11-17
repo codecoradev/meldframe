@@ -1,6 +1,6 @@
 // The document (the nodes of the app layer) as the scene the canvas draws. Pure; the canvas knows no document model.
 import type { Node } from '@meldframe/protocol';
-import type { Scene, SceneNode } from '@meldframe/web-canvas/scene';
+import type { Scene, SceneGradient, SceneNode } from '@meldframe/web-canvas/scene';
 
 /** `#rrggbb`, `#rgb` or `#rrggbbaa` as a number (the alpha is dropped); anything else is no fill. */
 export function parseFill(css: string): number | null {
@@ -10,11 +10,23 @@ export function parseFill(css: string): number | null {
   return Number.parseInt(h.length === 3 ? [...h].map((c) => c + c).join('') : h.slice(0, 6), 16);
 }
 
+/** The colours the server accepts: #rgb, #rgba, #rrggbb and #rrggbbaa (a stop keeps its alpha, unlike a fill). */
+const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+
+/** The gradient of a node as the canvas draws it; none when the node has none or a stop is not a hex colour. */
+function gradientOf(n: Node): { gradient: SceneGradient } | Record<string, never> {
+  const g = n.gradient;
+  if (!g || n.type === 'text') return {};
+  if (g.stops.some((s) => !HEX_COLOR.test(s.color))) return {};
+  return { gradient: { kind: g.kind, angle: g.angle, stops: g.stops.map((s) => ({ pos: s.pos, color: s.color })) } };
+}
+
 function toSceneNode(n: Node): SceneNode {
   const base = {
     id: n.id, parent: n.parentId, x: n.x, y: n.y, w: n.w, h: n.h, fill: parseFill(n.fill), name: n.name, clip: n.clip,
     // 1 is the default, so an opaque node (or a file from before opacity) carries none.
     ...(typeof n.opacity === 'number' && n.opacity < 1 ? { opacity: n.opacity } : {}),
+    ...gradientOf(n),
   };
   switch (n.type) {
     case 'frame':

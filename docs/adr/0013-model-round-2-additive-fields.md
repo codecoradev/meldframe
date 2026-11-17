@@ -9,6 +9,7 @@ The paint and layout of W1 (opacity, no fill, per-side padding, margin, absolute
 - No fill is the word `none` in the existing `fill` field (any other fill is a `#hex` colour as before); `fill2`, the border colour and the shadow colours stay `#hex` only.
 - Margin per side is `marT`, `marR`, `marB` and `marL`, plain numbers from 0 that default to 0 (no three-state patch is needed: there is no single `margin` to fall back to). A margin is room around a child in an auto layout frame; a frame without layout ignores it.
 - An absolute child is `absolute: true` (default false): the child leaves the flow of an auto layout frame and sits at its own `x` and `y` inside the parent. It needs no extra position field because every child of a frame without layout is already placed that way.
+- A gradient is `gradient`, an optional object `{kind, angle, stops}` painted over `fill` and under the image; a patch has three states for it, as for `image` (absent leaves it, `null` removes it, an object sets it). Angles are CSS angles (0 up, 90 right, 180 down), so the canvas and the export agree. It is refused on text, which is painted with its `fill`.
 - Padding per side is `padT`, `padR`, `padB` and `padL`, each optional; when one is missing the single `padding` applies to that side, so an old file lays out as before. In a patch the side has three states, as `image` has: absent leaves it, a number sets it, `null` unsets it (so an undo can return a side to "follows `padding`").
 
 ## Why

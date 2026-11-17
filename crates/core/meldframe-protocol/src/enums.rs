@@ -102,3 +102,15 @@ pub enum ImageFit {
     /// Stretch to the box, ignoring the aspect ratio.
     Fill,
 }
+
+/// The shape of a gradient.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum GradientKind {
+    /// Colours change along a line at `angle` (default).
+    #[default]
+    Linear,
+    /// Colours change from the centre of the box outwards, as a circle that reaches the farthest corner.
+    Radial,
+}

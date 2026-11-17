@@ -1,6 +1,6 @@
 //! Decoration blocks of a node: border, drop shadow and image fill.
 
-use crate::enums::{BorderPosition, ImageFit};
+use crate::enums::{BorderPosition, GradientKind, ImageFit};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -69,4 +69,34 @@ pub struct ImageFill {
     pub asset_id: String,
     #[serde(default)]
     pub fit: ImageFit,
+}
+
+fn d_angle() -> f64 {
+    180.0
+}
+
+/// One colour of a gradient at a position along it.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export)]
+pub struct GradientStop {
+    /// Where the colour is, from 0 (start) to 1 (end).
+    pub pos: f64,
+    /// Hex colour: #rgb, #rgba, #rrggbb or #rrggbbaa (alpha allowed).
+    pub color: String,
+}
+
+/// A gradient painted over the node's `fill` and under its image (frame, rect, ellipse, shader; not text). 2 to 8
+/// stops with positions from 0 to 1 that do not go back (equal positions make a hard edge).
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export)]
+pub struct Gradient {
+    #[serde(default)]
+    pub kind: GradientKind,
+    /// Direction of a linear gradient in degrees, as CSS `linear-gradient`: 0 points up, 90 right, 180 down (the
+    /// default). A radial gradient ignores it.
+    #[serde(default = "d_angle")]
+    pub angle: f64,
+    pub stops: Vec<GradientStop>,
 }

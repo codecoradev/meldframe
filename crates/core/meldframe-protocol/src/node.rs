@@ -1,6 +1,6 @@
 //! The node: one element of a file's tree.
 
-use crate::decoration::{Border, ImageFill, Shadow};
+use crate::decoration::{Border, Gradient, ImageFill, Shadow};
 use crate::enums::{Align, Justify, LayoutMode, NodeKind, ShaderPreset, SizeMode, TextAlign};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -133,6 +133,10 @@ pub struct Node {
     /// Opacity of the node and what is inside it: 0 (invisible) to 1 (opaque, the default; old files have none).
     #[serde(default = "d_one")]
     pub opacity: f64,
+    /// A gradient over `fill`, under the image. Absent = none (old files stay valid).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub gradient: Option<Gradient>,
     /// image over `fill`. Absent = no image (old files stay valid).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

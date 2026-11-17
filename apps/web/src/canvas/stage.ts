@@ -3,6 +3,8 @@
 // their parent's space (the resolved `lx`, `ly`), so a frame's clip mask and children follow it. Nodes take no
 // pointer events (the canvas hit-tests the scene model itself), and display objects are culled by hand.
 import { Container, Culler, Graphics, RenderTexture, Sprite, Text, Texture, type Rectangle, type Renderer } from 'pixi.js';
+import { sameGradient } from '@meldframe/web-canvas/gradient';
+import { paintGradient } from './gradientcanvas';
 import type { Rect } from '@meldframe/web-canvas/geometry';
 import type { Camera } from '@meldframe/web-canvas/camera';
 import type { ResolvedNode, ResolvedScene, ScenePatch } from '@meldframe/web-canvas/scene';
@@ -58,6 +60,12 @@ export class WorldView {
 
   apply(rs: ResolvedScene, patch: ScenePatch): void {
     const removed = new Set(patch.removed);
+    // First free the bodies of every removed node: a parent destroyed with `children: true` destroys the container of a
+    // removed child too, and then the child's gradient texture could no longer be reached.
+    for (const id of patch.removed) {
+      const v = this.views.get(id);
+      if (v && !v.c.destroyed) this.dropBody(v);
+    }
     for (const id of patch.removed) {
       const v = this.views.get(id);
       this.views.delete(id);
@@ -119,7 +127,7 @@ export class WorldView {
     v.c.visible = n.visible;
     v.c.alpha = n.opacity;
     const geometry = first || prev.w !== n.w || prev.h !== n.h || prev.radius !== n.radius || prev.kind !== n.kind;
-    const fill = first || prev.fill !== n.fill;
+    const fill = first || prev.fill !== n.fill || !sameGradient(prev.gradient, n.gradient);
     if (n.kind === 'text') this.updateText(v, n, first || geometry || fill || prev.text !== n.text || prev.fontSize !== n.fontSize);
     else if (geometry || fill) this.updateBody(v, n);
     if (first || prev.clip !== n.clip || (n.clip && geometry)) this.updateMask(v, n);
@@ -131,40 +139,56 @@ export class WorldView {
     for (const part of [v.body, v.text, v.mask]) if (part) v.c.addChildAt(part, i++);
   }
 
+  /** Removes the body; a gradient's texture is its own and goes with it (the white texture is shared and stays). */
+  private dropBody(v: NodeView): void {
+    const b = v.body;
+    if (b instanceof Sprite && b.texture !== Texture.WHITE) b.destroy({ texture: true, textureSource: true });
+    else b?.destroy();
+    v.body = null;
+  }
+
   private updateBody(v: NodeView, n: ResolvedNode): void {
     const plain = n.radius <= 0;
-    if (n.fill === null || n.w <= 0 || n.h <= 0) {
-      v.body?.destroy();
-      v.body = null;
+    if ((n.fill === null && !n.gradient) || n.w <= 0 || n.h <= 0) {
+      this.dropBody(v);
+      return;
+    }
+    if (n.gradient) {
+      // The fill, the gradient over it and the rounded corners are one texture (see gradientcanvas.ts).
+      this.dropBody(v);
+      const { canvas, k } = paintGradient({ w: n.w, h: n.h, radius: n.radius, fill: n.fill === null ? null : `#${n.fill.toString(16).padStart(6, '0')}`, gradient: n.gradient });
+      const s = new Sprite(Texture.from(canvas));
+      s.eventMode = 'none';
+      s.scale.set(1 / k);
+      v.body = s;
       return;
     }
     if (plain) {
-      let s = v.body instanceof Sprite ? v.body : null;
+      let s = v.body instanceof Sprite && v.body.texture === Texture.WHITE ? v.body : null;
       if (!s) {
-        v.body?.destroy();
+        this.dropBody(v);
         s = new Sprite(Texture.WHITE);
         s.eventMode = 'none';
         v.body = s;
       }
-      s.tint = n.fill;
+      s.tint = n.fill ?? 0;
       s.width = n.w;
       s.height = n.h;
       return;
     }
     let g = v.body instanceof Graphics ? v.body : null;
     if (!g) {
-      v.body?.destroy();
+      this.dropBody(v);
       g = new Graphics();
       g.eventMode = 'none';
       v.body = g;
     }
-    g.clear().roundRect(0, 0, n.w, n.h, Math.min(n.radius, n.w / 2, n.h / 2)).fill(n.fill);
+    g.clear().roundRect(0, 0, n.w, n.h, Math.min(n.radius, n.w / 2, n.h / 2)).fill(n.fill ?? 0);
   }
 
   private updateText(v: NodeView, n: ResolvedNode, redo: boolean): void {
     if (!redo && v.text) return;
-    v.body?.destroy();
-    v.body = null;
+    this.dropBody(v);
     const style = {
       fontFamily: fonts.sans,
       fontSize: Math.max(1, n.fontSize),
@@ -239,6 +263,7 @@ export class WorldView {
   }
 
   destroy(): void {
+    for (const v of this.views.values()) this.dropBody(v);
     this.root.destroy({ children: true });
     this.views.clear();
   }

@@ -8,6 +8,9 @@ pub fn merge_patch(into: &mut NodePatch, later: &NodePatch) {
     if later.image.is_some() {
         into.image = later.image.clone();
     }
+    if later.gradient.is_some() {
+        into.gradient = later.gradient.clone();
+    }
     for (i, l) in [
         (&mut into.pad_t, &later.pad_t),
         (&mut into.pad_r, &later.pad_r),
@@ -28,6 +31,9 @@ pub fn merge_patch(into: &mut NodePatch, later: &NodePatch) {
 pub fn drop_fields(q: &mut NodePatch, p: &NodePatch) {
     if p.image.is_some() {
         q.image = None;
+    }
+    if p.gradient.is_some() {
+        q.gradient = None;
     }
     for (qs, ps) in [
         (&mut q.pad_t, &p.pad_t),
@@ -63,6 +69,9 @@ pub fn inverse_patch(old: &Node, p: &NodePatch) -> NodePatch {
     if p.image.is_some() {
         // The old value: `None` (no image) becomes the patch `null`.
         r.image = Some(old.image.clone());
+    }
+    if p.gradient.is_some() {
+        r.gradient = Some(old.gradient.clone());
     }
     // A side that was not set becomes the patch `null`.
     for (r, p, old) in [

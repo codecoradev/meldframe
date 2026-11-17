@@ -117,6 +117,9 @@ pub fn check_command(nodes: &[Node], cmd: &Command, l: &Limits) -> Result<(), Ap
             if matches!(patch.image, Some(Some(_))) && nodes[i].kind == NodeKind::Text {
                 return Err(ApplyError::ImageOnText);
             }
+            if matches!(patch.gradient, Some(Some(_))) && nodes[i].kind == NodeKind::Text {
+                return Err(ApplyError::GradientOnText);
+            }
             check_patch(patch, l)
         }
         Command::AddNode { node, .. } => {

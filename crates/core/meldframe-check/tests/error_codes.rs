@@ -33,10 +33,12 @@ fn index(e: &ApplyError) -> usize {
         ApplyError::InvalidFontWeight(_) => 16,
         ApplyError::InvalidAssetId => 17,
         ApplyError::ImageOnText => 18,
+        ApplyError::InvalidGradient(_) => 19,
+        ApplyError::GradientOnText => 20,
     }
 }
 
-const VARIANTS: usize = 19;
+const VARIANTS: usize = 21;
 
 /// The same for `LoadError`. Its `Node` variant carries an `ApplyError` and has that error's code, so it
 /// adds no row of its own; every other variant needs one.
@@ -89,6 +91,8 @@ fn samples() -> Vec<ApplyError> {
         ApplyError::InvalidFontWeight(450),
         ApplyError::InvalidAssetId,
         ApplyError::ImageOnText,
+        ApplyError::InvalidGradient("gradient.stops needs at least 2 stops"),
+        ApplyError::GradientOnText,
     ]
 }
 
