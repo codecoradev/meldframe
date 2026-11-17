@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -115,6 +115,16 @@ describe('ui literals: wider coverage', () => {
   });
 });
 
+describe('document data and packages', () => {
+  it('exempts the sample document colours by name, not the rest of the harness', () => {
+    expect(isExempt('src/harness/sample.ts')).toBe(true);
+    expect(isExempt('src/harness/Harness.svelte')).toBe(false);
+    expect(isExempt('src/harness/other.ts')).toBe(false);
+    expect(isExempt('src/sample.ts')).toBe(false);
+    expect(findLiterals('src/harness/Harness.svelte', 'const c = 0xe6ece8;').map((f) => f.kind)).toEqual(['colour']);
+  });
+});
+
 describe('ui-literals command', () => {
   const run = (file, body) => {
     const dir = mkdtempSync(join(tmpdir(), 'ui-literals-'));
@@ -134,6 +144,34 @@ describe('ui-literals command', () => {
   it.each(['a.js', 'a.svg', 'a.tsx', 'a.mts', 'a.json'])('scans %s too', (file) => {
     const r = run(file, '{"x": "#ff0000"}\n');
     expect(r.status).toBe(1);
+  });
+  it('also scans packages/web-*/src beside the app', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ui-literals-'));
+    try {
+      mkdirSync(join(dir, 'apps', 'web', 'src'), { recursive: true });
+      mkdirSync(join(dir, 'packages', 'web-x', 'src'), { recursive: true });
+      writeFileSync(join(dir, 'packages', 'web-x', 'src', 'a.ts'), "const c = '#ff0000';\n");
+      const r = spawnSync('node', [new URL('./ui-literals.mjs', import.meta.url).pathname], { cwd: join(dir, 'apps', 'web'), encoding: 'utf8' });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain('packages/web-x/src/a.ts:1: colour literal');
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
+  it('scans a packages/web-* directory that is a symlink', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ui-literals-'));
+    try {
+      mkdirSync(join(dir, 'apps', 'web', 'src'), { recursive: true });
+      mkdirSync(join(dir, 'elsewhere', 'src'), { recursive: true });
+      mkdirSync(join(dir, 'packages'));
+      writeFileSync(join(dir, 'elsewhere', 'src', 'a.ts'), "const c = '#ff0000';\n");
+      symlinkSync(join(dir, 'elsewhere'), join(dir, 'packages', 'web-link'));
+      const r = spawnSync('node', [new URL('./ui-literals.mjs', import.meta.url).pathname], { cwd: join(dir, 'apps', 'web'), encoding: 'utf8' });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain('packages/web-link/src/a.ts:1: colour literal');
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
   });
   it('passes a file that reads tokens', () => {
     expect(run('A.svelte', '<p class="text-text">x</p>\n').status).toBe(0);

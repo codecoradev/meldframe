@@ -1,5 +1,5 @@
 // Usage: node scripts/ui-literals.mjs  (from apps/web). Exits non-zero on any literal outside the tokens module.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { findLiterals, isExempt } from './ui-literals-lib.mjs';
 
@@ -13,8 +13,18 @@ function* walk(dir) {
   }
 }
 
+/** The source directories of the web packages beside the app (packages/web-*), as paths from apps/web. */
+function packageRoots() {
+  const base = '../../packages';
+  if (!existsSync(base)) return [];
+  // statSync follows a symlink: a package directory linked in from elsewhere is scanned too
+  return readdirSync(base)
+    .filter((name) => name.startsWith('web-') && statSync(join(base, name)).isDirectory())
+    .map((name) => `${base}/${name}/src`);
+}
+
 const found = [];
-for (const root of ['src', 'dev', 'index.html', 'vite.config.ts']) {
+for (const root of ['src', 'dev', 'index.html', 'vite.config.ts', ...packageRoots()]) {
   const files = /\.(?:html|ts)$/.test(root) ? [root] : [...walk(root)];
   for (const f of files) if (existsSync(f) && !isExempt(f)) found.push(...findLiterals(f, readFileSync(f, 'utf8')));
 }

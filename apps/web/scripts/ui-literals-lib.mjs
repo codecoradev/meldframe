@@ -26,9 +26,20 @@ const DURATION_CONTEXT = /transition|animation|duration|delay/i;
 const BARE_DURATION = /\b(?:duration|delay)\s*:\s*-?\.?\d/;
 const PIXELS = /(?<![\w.-])-?(?:0*[1-9]\d*|\d*\.\d*[1-9]\d*)(?:px|rem|em|vh|vw|pt)(?![a-z\d])/i;
 
-/** True for the tokens module itself and for tests, which may hold literals. */
+/**
+ * Files that hold the colours of a sample document (what a design contains), not UI colours. Named one by one
+ * by exact path: a new file next to them is linted like any other.
+ */
+export const DOCUMENT_DATA = ['src/harness/sample.ts'];
+
+/** True for the tokens module itself, the named document-data files and tests, which may hold literals. */
 export function isExempt(path) {
-  return path === 'src/tokens.ts' || path === 'src/tokens.css' || /\.test\.(?:ts|tsx|js|mts|mjs)$/.test(path);
+  return (
+    path === 'src/tokens.ts' ||
+    path === 'src/tokens.css' ||
+    DOCUMENT_DATA.includes(path) ||
+    /\.test\.(?:ts|tsx|js|mts|mjs)$/.test(path)
+  );
 }
 
 const blank = (s) => s.replace(/[^\n]/g, ' ');
