@@ -74,7 +74,12 @@ export default defineConfig(({ command }) => {
     resolve: {
       conditions: ['browser'],
       // The canvas model is the package packages/web-canvas (its own unit of the size check), used as source.
-      alias: { '@meldframe/web-canvas': fileURLToPath(new URL('../../packages/web-canvas/src', import.meta.url)) },
+      alias: {
+        '@meldframe/web-canvas': fileURLToPath(new URL('../../packages/web-canvas/src', import.meta.url)),
+        '@meldframe/web-link': fileURLToPath(new URL('../../packages/web-link/src', import.meta.url)),
+        // The generated WASM glue (tools/build-wasm.sh); only the code that loads it needs it to exist.
+        '@meldframe/wasm': fileURLToPath(new URL('./.wasm/meldframe_wasm.js', import.meta.url)),
+      },
     },
     server: { proxy },
     preview: { proxy },
