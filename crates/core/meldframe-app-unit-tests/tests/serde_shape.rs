@@ -24,6 +24,35 @@ fn actions_read_from_json_and_refuse_unknown_fields() {
     )
     .unwrap();
     assert!(matches!(a, Action::SetProperty { .. }));
+    // The size of a new node and the origin of a resize are optional: the shapes without them still read.
+    let a: Action = serde_json::from_value(
+        json!({"type":"createNode","kind":"frame","x":0.0,"y":0.0,"parent":null,"w":300.0,"h":200.0}),
+    )
+    .unwrap();
+    assert!(
+        matches!(a, Action::CreateNode { w: Some(w), h: Some(h), .. } if w == 300.0 && h == 200.0)
+    );
+    let a: Action =
+        serde_json::from_value(json!({"type":"resize","id":"r1","w":3.0,"h":4.0})).unwrap();
+    assert!(matches!(
+        a,
+        Action::Resize {
+            x: None,
+            y: None,
+            ..
+        }
+    ));
+    let a: Action =
+        serde_json::from_value(json!({"type":"resize","id":"r1","w":3.0,"h":4.0,"x":1.0,"y":2.0}))
+            .unwrap();
+    assert!(matches!(
+        a,
+        Action::Resize {
+            x: Some(_),
+            y: Some(_),
+            ..
+        }
+    ));
     assert!(serde_json::from_value::<Action>(json!({"type":"undo","x":1})).is_err());
     assert!(serde_json::from_value::<Action>(json!({"type":"select","ids":[],"x":1})).is_err());
 }

@@ -45,12 +45,19 @@ pub enum Action {
     ToggleCollapsed {
         id: String,
     },
-    /// Make a node at a point (in the parent's space), select it and go back to the select tool.
+    /// Make a node at a point (in the parent's space), select it and go back to the select tool. `w` and `h`
+    /// give it a size in the same op (a node made by dragging a box); without them it has the default size.
     CreateNode {
         kind: CreateKind,
         x: f64,
         y: f64,
         parent: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        w: Option<f64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        h: Option<f64>,
     },
     Move {
         id: String,
@@ -62,10 +69,18 @@ pub enum Action {
         dx: f64,
         dy: f64,
     },
+    /// Change the size of a node. `x` and `y` move its origin in the same step: resizing from the left or the top
+    /// edge changes both, and one undo takes both back.
     Resize {
         id: String,
         w: f64,
         h: f64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        x: Option<f64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        y: Option<f64>,
     },
     EditText {
         id: String,
@@ -133,6 +148,31 @@ pub enum Action {
         seq: u64,
         applied: Vec<String>,
     },
+}
+
+impl Action {
+    /// `CreateNode` with the default size.
+    pub fn create_node(kind: CreateKind, x: f64, y: f64, parent: Option<String>) -> Self {
+        Self::CreateNode {
+            kind,
+            x,
+            y,
+            parent,
+            w: None,
+            h: None,
+        }
+    }
+
+    /// `Resize` that keeps the origin of the node.
+    pub fn resize(id: impl Into<String>, w: f64, h: f64) -> Self {
+        Self::Resize {
+            id: id.into(),
+            w,
+            h,
+            x: None,
+            y: None,
+        }
+    }
 }
 
 /// What the node tools can make.

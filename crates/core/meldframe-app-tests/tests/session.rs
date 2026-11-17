@@ -6,12 +6,7 @@ use meldframe_protocol::{Command, NodePatch};
 use support::*;
 
 fn create(kind: CreateKind, x: f64, y: f64, parent: &str) -> Action {
-    Action::CreateNode {
-        kind,
-        x,
-        y,
-        parent: Some(parent.into()),
-    }
+    Action::create_node(kind, x, y, Some(parent.into()))
 }
 
 fn selected(w: &World, i: usize) -> String {
@@ -83,14 +78,7 @@ fn move_resize_text_and_properties_reach_the_server_and_the_other_editor() {
             y: 40.0,
         },
     );
-    w.act(
-        a,
-        Action::Resize {
-            id: rect.clone(),
-            w: 200.0,
-            h: 80.0,
-        },
-    );
+    w.act(a, Action::resize(rect.clone(), 200.0, 80.0));
     w.act(
         a,
         Action::SetProperty {

@@ -88,12 +88,12 @@ fn renders(fx: &[Effect]) -> Vec<Vec<String>> {
 fn creating_at_a_point_that_is_not_a_number_is_refused_and_does_not_panic() {
     for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
         let mut app = live();
-        let fx = app.dispatch(Action::CreateNode {
-            kind: CreateKind::Frame,
-            x: bad,
-            y: 0.0,
-            parent: Some("root".into()),
-        });
+        let fx = app.dispatch(Action::create_node(
+            CreateKind::Frame,
+            bad,
+            0.0,
+            Some("root".into()),
+        ));
         assert!(fx.is_empty() && app.nodes().len() == 3);
         assert_eq!(
             app.take_events(),
@@ -116,12 +116,7 @@ fn two_apps_of_one_actor_and_prefix_make_disjoint_keys_and_ids() {
             let fx = app.dispatch(mv("r1", f64::from(x)));
             keys.extend(op_keys(&fx));
         }
-        app.dispatch(Action::CreateNode {
-            kind: CreateKind::Text,
-            x: 0.0,
-            y: 0.0,
-            parent: None,
-        });
+        app.dispatch(Action::create_node(CreateKind::Text, 0.0, 0.0, None));
         ids.push(app.state().selection[0].clone());
     }
     assert_eq!(keys.len(), 6);
@@ -319,12 +314,7 @@ fn a_bad_selection_move_or_delete_applies_nothing() {
 #[test]
 fn an_undo_that_removes_the_selected_node_clears_the_selection() {
     let mut l = Loopback::live();
-    l.send(Action::CreateNode {
-        kind: CreateKind::Rectangle,
-        x: 0.0,
-        y: 0.0,
-        parent: None,
-    });
+    l.send(Action::create_node(CreateKind::Rectangle, 0.0, 0.0, None));
     assert_eq!(l.app.state().selection.len(), 1);
     l.send(Action::Undo {});
     assert!(l.app.state().selection.is_empty() && l.app.state().properties.is_none());

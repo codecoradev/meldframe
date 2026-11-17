@@ -20,6 +20,8 @@ fn create(kind: CreateKind, x: f64, y: f64) -> Action {
         x,
         y,
         parent: Some("root".into()),
+        w: None,
+        h: None,
     }
 }
 
@@ -68,6 +70,8 @@ fn move_resize_text_and_properties_update_the_node_and_the_panel() {
         id: "r1".into(),
         w: 30.0,
         h: 40.0,
+        x: None,
+        y: None,
     });
     l.send(Action::SetProperty {
         id: "r1".into(),
@@ -173,6 +177,8 @@ fn a_refused_action_changes_nothing_and_says_why() {
         x: 0.0,
         y: 0.0,
         parent: Some("r1".into()), // a rectangle holds no children
+        w: None,
+        h: None,
     });
     assert!(eff.is_empty());
     assert_eq!(l.app.nodes().len(), 3);
@@ -296,4 +302,116 @@ fn a_node_deleted_by_another_actor_leaves_the_selection() {
     });
     assert!(app.state().selection.is_empty());
     assert!(!app.state().last_actor.contains_key("r1"));
+}
+
+#[test]
+fn create_can_carry_a_size_and_stays_one_op() {
+    let mut l = Loopback::live();
+    let eff = l.send(Action::CreateNode {
+        kind: CreateKind::Rectangle,
+        x: 10.0,
+        y: 20.0,
+        parent: Some("root".into()),
+        w: Some(120.0),
+        h: Some(40.0),
+    });
+    let id = l.app.state().selection[0].clone();
+    let n = get(&l.app, &id);
+    assert_eq!((n.x, n.y, n.w, n.h), (10.0, 20.0, 120.0, 40.0));
+    assert!(matches!(sent(&eff).as_slice(), [Command::AddNode { .. }]));
+}
+
+#[test]
+fn a_size_that_is_not_valid_refuses_the_create_and_makes_nothing() {
+    let mut l = Loopback::live();
+    l.app.take_events();
+    let before = l.app.nodes().len();
+    for (w, h) in [(f64::NAN, 10.0), (10.0, f64::INFINITY), (-5.0, 10.0)] {
+        let eff = l.app.dispatch(Action::CreateNode {
+            kind: CreateKind::Rectangle,
+            x: 0.0,
+            y: 0.0,
+            parent: Some("root".into()),
+            w: Some(w),
+            h: Some(h),
+        });
+        assert!(eff.is_empty(), "{w} x {h} must be refused");
+    }
+    assert_eq!(l.app.nodes().len(), before);
+    assert!(
+        l.app
+            .take_events()
+            .iter()
+            .all(|e| matches!(e, Event::Refused { .. }))
+    );
+}
+
+#[test]
+fn resize_can_move_the_origin_in_the_same_step() {
+    let mut l = Loopback::live();
+    let before = get(&l.app, "r1");
+    let eff = l.send(Action::Resize {
+        id: "r1".into(),
+        w: 30.0,
+        h: 40.0,
+        x: Some(5.0),
+        y: Some(6.0),
+    });
+    let r = get(&l.app, "r1");
+    assert_eq!((r.x, r.y, r.w, r.h), (5.0, 6.0, 30.0, 40.0));
+    assert!(matches!(
+        sent(&eff).as_slice(),
+        [Command::UpdateNode { .. }]
+    ));
+    // One undo takes back the size and the origin together.
+    l.send(Action::Undo {});
+    let r = get(&l.app, "r1");
+    assert_eq!(
+        (r.x, r.y, r.w, r.h),
+        (before.x, before.y, before.w, before.h)
+    );
+}
+
+#[test]
+fn resize_without_an_origin_keeps_the_position() {
+    let mut l = Loopback::live();
+    let before = get(&l.app, "r1");
+    l.send(Action::Resize {
+        id: "r1".into(),
+        w: 30.0,
+        h: 40.0,
+        x: None,
+        y: None,
+    });
+    let r = get(&l.app, "r1");
+    assert_eq!((r.x, r.y, r.w, r.h), (before.x, before.y, 30.0, 40.0));
+}
+
+#[test]
+fn resize_takes_one_origin_value_alone_and_refuses_one_that_is_not_finite() {
+    let mut l = Loopback::live();
+    let before = get(&l.app, "r1");
+    l.send(Action::Resize {
+        id: "r1".into(),
+        w: 30.0,
+        h: 40.0,
+        x: Some(7.0),
+        y: None,
+    });
+    let r = get(&l.app, "r1");
+    assert_eq!((r.x, r.y, r.w, r.h), (7.0, before.y, 30.0, 40.0));
+    l.app.take_events();
+    let eff = l.app.dispatch(Action::Resize {
+        id: "r1".into(),
+        w: 1.0,
+        h: 1.0,
+        x: Some(f64::NAN),
+        y: None,
+    });
+    assert!(eff.is_empty());
+    assert!(matches!(
+        l.app.take_events().as_slice(),
+        [Event::Refused { .. }]
+    ));
+    assert_eq!(get(&l.app, "r1").w, 30.0);
 }

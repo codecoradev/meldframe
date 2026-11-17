@@ -1038,6 +1038,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-app-unit-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-protocol",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-approvals"
 version = "0.0.0"
 dependencies = [

@@ -47,14 +47,25 @@ impl App {
         let before = self.replica.pending_len();
         let mut select = None;
         let result = match action {
-            Action::CreateNode { kind, x, y, parent } if !(x.is_finite() && y.is_finite()) => {
-                let _ = (kind, parent);
-                Err(ApplyError::NotFinite("x").into())
+            Action::CreateNode { x, y, w, h, .. }
+                if ![Some(x), Some(y), w, h]
+                    .iter()
+                    .flatten()
+                    .all(|v| v.is_finite()) =>
+            {
+                Err(ApplyError::NotFinite("x, y, w or h").into())
             }
-            Action::CreateNode { kind, x, y, parent } => {
+            Action::CreateNode {
+                kind,
+                x,
+                y,
+                parent,
+                w,
+                h,
+            } => {
                 let id = self.fresh_id();
                 let cmd = Command::AddNode {
-                    node: new_node(&id, kind, x, y, parent),
+                    node: new_node(&id, kind, x, y, parent, w, h),
                     index: None,
                 };
                 let done = self.replica.apply(&cmd);
@@ -91,9 +102,11 @@ impl App {
                     Err(e) => Err(e),
                 }
             }
-            Action::Resize { id, w, h } => self.replica.apply(&update(
+            Action::Resize { id, w, h, x, y } => self.replica.apply(&update(
                 &id,
                 NodePatch {
+                    x,
+                    y,
                     w: Some(w),
                     h: Some(h),
                     ..Default::default()
@@ -191,12 +204,27 @@ impl App {
     }
 }
 
-fn new_node(id: &str, kind: CreateKind, x: f64, y: f64, parent: Option<String>) -> Node {
+fn new_node(
+    id: &str,
+    kind: CreateKind,
+    x: f64,
+    y: f64,
+    parent: Option<String>,
+    w: Option<f64>,
+    h: Option<f64>,
+) -> Node {
     let kind = match kind {
         CreateKind::Frame => "frame",
         CreateKind::Rectangle => "rect",
         CreateKind::Text => "text",
     };
-    serde_json::from_value(json!({"id": id, "type": kind, "parentId": parent, "x": x, "y": y}))
-        .expect("a node with these fields is valid")
+    let mut node = json!({"id": id, "type": kind, "parentId": parent, "x": x, "y": y});
+    // Sizes are finite here (checked by the caller): `json!` would turn a NaN into null.
+    if let Some(w) = w {
+        node["w"] = json!(w);
+    }
+    if let Some(h) = h {
+        node["h"] = json!(h);
+    }
+    serde_json::from_value(node).expect("a node with these fields is valid")
 }

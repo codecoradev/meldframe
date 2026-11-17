@@ -7,12 +7,7 @@ use meldframe_protocol::Command;
 use support::*;
 
 fn create(kind: CreateKind, x: f64, y: f64, parent: &str) -> Action {
-    Action::CreateNode {
-        kind,
-        x,
-        y,
-        parent: Some(parent.into()),
-    }
+    Action::create_node(kind, x, y, Some(parent.into()))
 }
 
 fn selected(w: &World, i: usize) -> String {
