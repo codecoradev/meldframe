@@ -47,7 +47,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      # kache caches each compiled crate by content, so a change to Cargo.lock reuses every crate that
+      # did not change (rust-cache drops the whole target directory then). rust-cache stays for the
+      # registry only. See scripts/ci/install-kache.sh (pinned version, checked sha256).
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: false
+      - name: Install kache
+        run: sh scripts/ci/install-kache.sh
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/kache-store
+          key: kache-checks-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: kache-checks-
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -87,6 +99,10 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests
         run: cargo test --workspace
+      # The daemon's control socket sits in the store and makes the cache save (tar) fail; stopping it removes it.
+      - name: Stop kache (so the store can be saved)
+        if: always()
+        run: command -v kache >/dev/null && kache daemon stop || true
 
   # Migrations apply from an empty database and keep the schema_version rules (tools/check-migrations.sh).
   # The service alias is unique on purpose: a generic alias can collide with other containers on the
