@@ -23,6 +23,10 @@ padT?: number | null, padR?: number | null, padB?: number | null, padL?: number 
  */
 fontWeight?: number, 
 /**
+ * Margin of the top side (`marT`); the other sides are `marR`, `marB` and `marL`.
+ */
+marT?: number, marR?: number, marB?: number, marL?: number, 
+/**
  * Opacity of the node and what is inside it: 0 to 1 (`opacity`).
  */
 opacity?: number, 

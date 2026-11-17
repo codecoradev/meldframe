@@ -116,6 +116,19 @@ pub struct NodePatch {
     #[ts(optional)]
     /// Text node font weight (`fontWeight`): 100..=900 in steps of 100 (400 regular, 700 bold); other values are rejected.
     pub font_weight: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "marT")]
+    #[ts(optional, rename = "marT")]
+    /// Margin of the top side (`marT`); the other sides are `marR`, `marB` and `marL`.
+    pub mar_t: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "marR")]
+    #[ts(optional, rename = "marR")]
+    pub mar_r: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "marB")]
+    #[ts(optional, rename = "marB")]
+    pub mar_b: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "marL")]
+    #[ts(optional, rename = "marL")]
+    pub mar_l: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     /// Opacity of the node and what is inside it: 0 to 1 (`opacity`).
@@ -181,6 +194,10 @@ impl Node {
             font_size,
             shader,
             font_weight,
+            mar_t,
+            mar_r,
+            mar_b,
+            mar_l,
             opacity,
             text_align,
             border,

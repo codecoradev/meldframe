@@ -42,6 +42,11 @@ border: Border,
  */
 shadows: Array<Shadow>, 
 /**
+ * Margin per side, in world units (`marT`, `marR`, `marB`, `marL`; default 0): room around the node inside an auto
+ * layout frame. A frame without layout ignores it. Read it through [`Node::margin`].
+ */
+marT: number, marR: number, marB: number, marL: number, 
+/**
  * Opacity of the node and what is inside it: 0 (invisible) to 1 (opaque, the default; old files have none).
  */
 opacity: number, 

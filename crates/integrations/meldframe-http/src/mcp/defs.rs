@@ -98,7 +98,7 @@ fn apply_commands_schema() -> Value {
         "commands": {"type": "array", "minItems": 1, "maxItems": MAX_BATCH,
             "items": {"type": "object", "required": ["type"], "properties": {
                 "type": {"enum": ["addNode", "updateNode", "removeNode", "reparent", "reorder"]}},
-                "description": "One command; its fields depend on its type, as listed in the tool description. addNode takes node {id, type (frame, rect, ellipse, text or shader), name, parentId, x, y, w, h, fill (a #hex colour, or the word none for no fill), opacity (0 to 1, default 1), padding (all four sides), padT, padR, padB, padL (one side each, in place of padding for that side), text, ...}; updateNode takes a patch of the fields to change (null for padT, padR, padB or padL makes that side follow padding again)."},
+                "description": "One command; its fields depend on its type, as listed in the tool description. addNode takes node {id, type (frame, rect, ellipse, text or shader), name, parentId, x, y, w, h, fill (a #hex colour, or the word none for no fill), opacity (0 to 1, default 1), padding (all four sides), padT, padR, padB, padL (one side each, in place of padding for that side), marT, marR, marB, marL (margin per side, room around the node inside an auto layout frame, default 0), text, ...}; updateNode takes a patch of the fields to change (null for padT, padR, padB or padL makes that side follow padding again)."},
             "description": "The commands to apply in order: 1 to 100."},
         "idempotencyKey": key("idempotencyKey", "idempotency_key"),
         "idempotency_key": key("idempotency_key", "idempotencyKey"),

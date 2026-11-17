@@ -7,6 +7,7 @@ The paint and layout of W1 (opacity, no fill, per-side padding, margin, absolute
 
 - Opacity is `opacity`, a number from 0 to 1 that defaults to 1.
 - No fill is the word `none` in the existing `fill` field (any other fill is a `#hex` colour as before); `fill2`, the border colour and the shadow colours stay `#hex` only.
+- Margin per side is `marT`, `marR`, `marB` and `marL`, plain numbers from 0 that default to 0 (no three-state patch is needed: there is no single `margin` to fall back to). A margin is room around a child in an auto layout frame; a frame without layout ignores it.
 - Padding per side is `padT`, `padR`, `padB` and `padL`, each optional; when one is missing the single `padding` applies to that side, so an old file lays out as before. In a patch the side has three states, as `image` has: absent leaves it, a number sets it, `null` unsets it (so an undo can return a side to "follows `padding`").
 
 ## Why

@@ -54,8 +54,14 @@ impl Layout<'_> {
         let mut cross: f64 = 0.0;
         for (k, c) in self.children(&n.id).into_iter().enumerate() {
             let s = self.size_of(c, None, None);
-            main += if row { s.0 } else { s.1 } + if k > 0 { n.gap } else { 0.0 };
-            cross = cross.max(if row { s.1 } else { s.0 });
+            let m = self.nodes[c].margin();
+            let (along, across) = if row {
+                (s.0 + m.horizontal(), s.1 + m.vertical())
+            } else {
+                (s.1 + m.vertical(), s.0 + m.horizontal())
+            };
+            main += along + if k > 0 { n.gap } else { 0.0 };
+            cross = cross.max(across);
         }
         (if row { main } else { cross }) + n.pad().horizontal()
     }
@@ -75,14 +81,16 @@ impl Layout<'_> {
         if n.layout == LayoutMode::Column {
             let mut total = 0.0;
             for &c in &kids {
-                let aw = (nodes[c].sw == SizeMode::Fill).then_some(inner_w);
-                total += self.size_of(c, aw, None).1;
+                let m = nodes[c].margin();
+                let aw = (nodes[c].sw == SizeMode::Fill).then_some(inner_w - m.horizontal());
+                total += self.size_of(c, aw, None).1 + m.vertical();
             }
             return total + gaps + pad;
         }
         let mut fixed = 0.0;
         let mut fills = 0usize;
         for &c in &kids {
+            fixed += nodes[c].margin().horizontal();
             if nodes[c].sw == SizeMode::Fill {
                 fills += 1;
             } else {
@@ -93,7 +101,7 @@ impl Layout<'_> {
         let mut tallest: f64 = 0.0;
         for &c in &kids {
             let aw = (nodes[c].sw == SizeMode::Fill).then_some(share);
-            tallest = tallest.max(self.size_of(c, aw, None).1);
+            tallest = tallest.max(self.size_of(c, aw, None).1 + nodes[c].margin().vertical());
         }
         tallest + pad
     }

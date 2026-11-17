@@ -42,11 +42,29 @@ impl Layout<'_> {
         };
         let main_mode = |k: usize| if row { nodes[k].sw } else { nodes[k].sh };
         let cross_mode = |k: usize| if row { nodes[k].sh } else { nodes[k].sw };
+        // The margins of a child along the main axis (start, end) and the cross axis (start, end).
+        let main_margin = |k: usize| {
+            let m = nodes[k].margin();
+            if row {
+                (m.left, m.right)
+            } else {
+                (m.top, m.bottom)
+            }
+        };
+        let cross_margin = |k: usize| {
+            let m = nodes[k].margin();
+            if row {
+                (m.top, m.bottom)
+            } else {
+                (m.left, m.right)
+            }
+        };
 
         // Stage 1: size every child with only the cross axis assigned.
         let mut items: Vec<(usize, (f64, f64))> = Vec::with_capacity(kids.len());
         for &c in &kids {
-            let cross = (cross_mode(c) == SizeMode::Fill).then_some(inner_cross);
+            let (cs, ce) = cross_margin(c);
+            let cross = (cross_mode(c) == SizeMode::Fill).then_some(inner_cross - cs - ce);
             let s = if row {
                 self.size_of(c, None, cross)
             } else {
@@ -57,6 +75,9 @@ impl Layout<'_> {
         let mut fixed = 0.0;
         let mut fills = 0usize;
         for &(c, s) in &items {
+            let (ms, me) = main_margin(c);
+            // A margin is fixed room, for a child that fills the main axis as for one that does not.
+            fixed += ms + me;
             if main_mode(c) == SizeMode::Fill {
                 fills += 1;
             } else {
@@ -73,9 +94,11 @@ impl Layout<'_> {
         };
         let mut pos = if row { r.x + pad.left } else { r.y + pad.top } + shift.offset;
         for (c, first) in items {
+            let (ms, me) = main_margin(c);
+            let (cs, ce) = cross_margin(c);
             // Stage 2: a child that fills the main axis is sized again with its final share.
             let s = if main_mode(c) == SizeMode::Fill {
-                let cross = (cross_mode(c) == SizeMode::Fill).then_some(inner_cross);
+                let cross = (cross_mode(c) == SizeMode::Fill).then_some(inner_cross - cs - ce);
                 if row {
                     self.size_of(c, Some(share), cross)
                 } else {
@@ -86,15 +109,19 @@ impl Layout<'_> {
             };
             let (cw, ch) = s;
             let cross_size = if row { ch } else { cw };
-            let cross_off = match n.align {
-                Align::Center => (inner_cross - cross_size) / 2.0,
-                Align::End => inner_cross - cross_size,
-                Align::Start => 0.0,
-            };
+            // Aligned as a whole with its margins, then moved in by the start margin.
+            let footprint = cross_size + cs + ce;
+            let cross_off = cs
+                + match n.align {
+                    Align::Center => (inner_cross - footprint) / 2.0,
+                    Align::End => inner_cross - footprint,
+                    Align::Start => 0.0,
+                };
             let cross_pos = if row { r.y + pad.top } else { r.x + pad.left } + cross_off;
+            let pos_here = pos + ms;
             let rect = if row {
                 Rect {
-                    x: pos,
+                    x: pos_here,
                     y: cross_pos,
                     w: cw,
                     h: ch,
@@ -102,13 +129,13 @@ impl Layout<'_> {
             } else {
                 Rect {
                     x: cross_pos,
-                    y: pos,
+                    y: pos_here,
                     w: cw,
                     h: ch,
                 }
             };
             self.place(c, rect);
-            pos += if row { cw } else { ch } + n.gap + shift.extra_gap;
+            pos += ms + if row { cw } else { ch } + me + n.gap + shift.extra_gap;
         }
     }
 

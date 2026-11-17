@@ -112,6 +112,20 @@ pub struct Node {
     /// Drop shadows, at most 4, drawn in list order (first = bottom). Empty = none. A patch replaces the whole list.
     #[serde(default)]
     pub shadows: Vec<Shadow>,
+    /// Margin per side, in world units (`marT`, `marR`, `marB`, `marL`; default 0): room around the node inside an auto
+    /// layout frame. A frame without layout ignores it. Read it through [`Node::margin`].
+    #[serde(default, rename = "marT")]
+    #[ts(rename = "marT")]
+    pub mar_t: f64,
+    #[serde(default, rename = "marR")]
+    #[ts(rename = "marR")]
+    pub mar_r: f64,
+    #[serde(default, rename = "marB")]
+    #[ts(rename = "marB")]
+    pub mar_b: f64,
+    #[serde(default, rename = "marL")]
+    #[ts(rename = "marL")]
+    pub mar_l: f64,
     /// Opacity of the node and what is inside it: 0 (invisible) to 1 (opaque, the default; old files have none).
     #[serde(default = "d_one")]
     pub opacity: f64,
@@ -143,6 +157,16 @@ impl Pad {
 }
 
 impl Node {
+    /// The margin on each side.
+    pub fn margin(&self) -> Pad {
+        Pad {
+            top: self.mar_t,
+            right: self.mar_r,
+            bottom: self.mar_b,
+            left: self.mar_l,
+        }
+    }
+
     /// The padding on each side: the side's own value, or `padding` when it is not set.
     pub fn pad(&self) -> Pad {
         Pad {

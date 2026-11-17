@@ -105,7 +105,7 @@ idiomatic; token-based classes arrive with decision 17.
 | gradients, multiple fills | planned (model, W1) | `linear-gradient`/`radial-gradient` layers; needs probes for angle conventions |
 | per-side padding | in the model and the layout (E3.2: `padT`, `padR`, `padB`, `padL`); not exported until an oracle probe | `padding: t r b l`; the S9 spike docs report that 12 of 25 frames of a hand-made shop page fell back to free layout when captured, mostly 9 buttons with `padding: 12px 20px` |
 | absolute child inside an auto layout frame | planned (model, W1) | `position:absolute` child of a `position:relative` flex container; removes the child from flow, as `ignoreAutoLayout` in the model would |
-| margin | planned (model, W1) | the spike capture turns margins into gap/padding; per-child margin only if round trip is required |
+| margin | in the model and the layout (E3.2: `marT`, `marR`, `marB`, `marL`); not exported until an oracle probe (the TypeScript oracle has no margin, so the golden trees do not cover it) | the spike capture turns margins into gap/padding; per-child margin only if round trip is required |
 | design tokens as CSS variables | planned (model, W1; decision 17) | `var(--token)`; the oracle resolves variables in the browser, so geometry tests are unchanged |
 | per-corner radius, rotation, scale, skew | unsupported until proposed | rotation changes `getBoundingClientRect`; the oracle would compare untransformed layout boxes |
 | flex-wrap, CSS grid, min/max size, aspect ratio, space-around, baseline alignment, sticky/fixed | unsupported until proposed | each needs a core implementation and its own oracle fixtures first |
