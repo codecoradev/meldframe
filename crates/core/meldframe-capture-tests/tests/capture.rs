@@ -49,6 +49,14 @@ async fn the_session_file_is_bound_once_an_editor_is_found_and_another_is_refuse
     let a = agent(&h, AGENT).await;
     let r = call(&a, "capture", json!({})).await;
     assert_eq!(code(&r), "no_file_selected");
+    // The message tells the caller what to do, not only what went wrong.
+    let message = r.structured_content.as_ref().unwrap()["error"]["message"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(
+        message.contains("\"file\""),
+        "the message names the argument: {message}"
+    );
     // A failed first call (a typo, no editor yet) binds nothing: the next call may name another file.
     let r = call(&a, "capture", json!({"file": "typo"})).await;
     assert_eq!(code(&r), "no_capable_client");

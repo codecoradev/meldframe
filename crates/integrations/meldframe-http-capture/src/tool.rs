@@ -59,6 +59,9 @@ fn refused(e: &CaptureError) -> CallToolResult {
     let why = match e {
         CaptureError::Invalid(m) | CaptureError::RenderFailed(m) => m.clone(),
         CaptureError::NoCapableClient => "no editor that can capture has this file open".into(),
+        CaptureError::NoFileSelected => {
+            "no file is selected: pass \"file\" (the file to capture) on your first call".into()
+        }
         CaptureError::RoomMismatch => "the session is bound to another file".into(),
         CaptureError::Forbidden => "the policy does not allow capture for this call".into(),
         other => format!("the capture failed: {}", other.code()),
