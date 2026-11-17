@@ -58,9 +58,9 @@ To do by a person; tick when done.
 - [ ] Copy: each message says what happened, whether the file changed and what happens next, with no blame.
 - [ ] Words: a final read for `_Avoid_` words in prose, not only in rendered labels.
 - [ ] Numbers on the boards are examples (batch counts, node counts, scores) or `[LIMIT]` placeholders; none is presented as a fact.
-- [ ] Each board matches the acceptance criteria of its epic in `docs/epics.md` (board IDs to epics are not mapped yet).
+- [ ] Each board matches the acceptance criteria of its epic in `docs/epics.md`. The map is in `docs/design-map.md`; the line-by-line check is still to do, epic by epic.
 - [ ] The light appearance reviewed by the owner; `DESIGN.md` marks it as less reviewed.
 - [ ] Behaviour of a narrow window (under 1280 px) decided and drawn; not drawn yet.
-- [ ] Component state matrix (hover, focus, active, disabled, error) drawn; not drawn yet.
+- [x] Component state matrix (hover, focus, pressed, disabled, error) drawn (board M0.4). Its hover and pressed values are proposals until `DESIGN.md` takes them.
 - [ ] Screen reader pass on the built showcase, not on the boards.
-- [ ] The desktop sidebar word (Projects or Repositories) decided against `GLOSSARY.md`.
+- [x] The desktop sidebar word decided against `GLOSSARY.md`: Projects (decision 32).
