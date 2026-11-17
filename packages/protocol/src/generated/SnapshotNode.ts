@@ -49,6 +49,11 @@ shadows: Array<Shadow>,
  */
 marT: number, marR: number, marB: number, marL: number, 
 /**
+ * A child of an auto layout frame that leaves the flow: it sits at its own `x` and `y` inside the parent and takes
+ * no room, no gap and no share. Default false; a frame without layout already places every child that way.
+ */
+absolute: boolean, 
+/**
  * Opacity of the node and what is inside it: 0 (invisible) to 1 (opaque, the default; old files have none).
  */
 opacity: number, 

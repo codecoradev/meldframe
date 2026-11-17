@@ -5,7 +5,7 @@ import { parseFill, sceneFromNodes } from './scene';
 const node = (over: Partial<Node> & { id: string }): Node => ({
   name: over.id, type: 'rect', parentId: null, pos: 'a0', x: 0, y: 0, w: 10, h: 10, sw: 'fixed', sh: 'fixed',
   fill: '#336699', fill2: '#000000', radius: 0, layout: 'none', gap: 0, padding: 0, align: 'start', justify: 'start',
-  clip: false, text: '', fontSize: 16, shader: 'aurora', fontWeight: 400, textAlign: 'left', opacity: 1, marT: 0, marR: 0, marB: 0, marL: 0,
+  clip: false, text: '', fontSize: 16, shader: 'aurora', fontWeight: 400, textAlign: 'left', opacity: 1, absolute: false, marT: 0, marR: 0, marB: 0, marL: 0,
   border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], ...over,
 }) as Node;
 

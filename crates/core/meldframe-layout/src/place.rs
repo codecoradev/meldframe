@@ -14,12 +14,17 @@ impl Layout<'_> {
         if n.kind != NodeKind::Frame {
             return;
         }
-        let kids = self.children(&n.id);
-        if !is_layout_frame(n) {
-            for c in kids {
+        // The boxes of the children, then placed in sibling order (the drawing order): the flow children get theirs
+        // from the loop below, the absolute children of a layout frame and every child of a frame without layout sit at
+        // their own offsets.
+        let all = self.children(&n.id);
+        let layout = is_layout_frame(n);
+        let mut boxes: Vec<(usize, Rect)> = Vec::with_capacity(all.len());
+        for &c in &all {
+            if !layout || nodes[c].absolute {
                 let s = self.size_of(c, None, None);
                 let cn = &nodes[c];
-                self.place(
+                boxes.push((
                     c,
                     Rect {
                         x: r.x + cn.x,
@@ -27,10 +32,16 @@ impl Layout<'_> {
                         w: s.0,
                         h: s.1,
                     },
-                );
+                ));
+            }
+        }
+        if !layout {
+            for (c, rect) in boxes {
+                self.place(c, rect);
             }
             return;
         }
+        let kids = self.flow_children(&n.id);
         let row = n.layout == LayoutMode::Row;
         let pad = n.pad();
         let inner_w = r.w - pad.horizontal();
@@ -134,8 +145,18 @@ impl Layout<'_> {
                     h: ch,
                 }
             };
-            self.place(c, rect);
+            boxes.push((c, rect));
             pos += ms + if row { cw } else { ch } + me + n.gap + shift.extra_gap;
+        }
+        // Drawing order is sibling order, whichever way a child got its box. Without an absolute child the boxes are
+        // already in that order, so the common case sorts nothing.
+        if all.iter().any(|&c| nodes[c].absolute) {
+            let order: std::collections::HashMap<usize, usize> =
+                all.iter().enumerate().map(|(k, &c)| (c, k)).collect();
+            boxes.sort_by_key(|(c, _)| order[c]);
+        }
+        for (c, rect) in boxes {
+            self.place(c, rect);
         }
     }
 

@@ -116,6 +116,10 @@ pub struct NodePatch {
     #[ts(optional)]
     /// Text node font weight (`fontWeight`): 100..=900 in steps of 100 (400 regular, 700 bold); other values are rejected.
     pub font_weight: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    /// A child of an auto layout frame that leaves the flow and sits at its own `x` and `y` (`absolute`).
+    pub absolute: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "marT")]
     #[ts(optional, rename = "marT")]
     /// Margin of the top side (`marT`); the other sides are `marR`, `marB` and `marL`.
@@ -194,6 +198,7 @@ impl Node {
             font_size,
             shader,
             font_weight,
+            absolute,
             mar_t,
             mar_r,
             mar_b,

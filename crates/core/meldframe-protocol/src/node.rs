@@ -126,6 +126,10 @@ pub struct Node {
     #[serde(default, rename = "marL")]
     #[ts(rename = "marL")]
     pub mar_l: f64,
+    /// A child of an auto layout frame that leaves the flow: it sits at its own `x` and `y` inside the parent and takes
+    /// no room, no gap and no share. Default false; a frame without layout already places every child that way.
+    #[serde(default)]
+    pub absolute: bool,
     /// Opacity of the node and what is inside it: 0 (invisible) to 1 (opaque, the default; old files have none).
     #[serde(default = "d_one")]
     pub opacity: f64,

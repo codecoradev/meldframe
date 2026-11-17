@@ -23,6 +23,10 @@ padT?: number | null, padR?: number | null, padB?: number | null, padL?: number 
  */
 fontWeight?: number, 
 /**
+ * A child of an auto layout frame that leaves the flow and sits at its own `x` and `y` (`absolute`).
+ */
+absolute?: boolean, 
+/**
  * Margin of the top side (`marT`); the other sides are `marR`, `marB` and `marL`.
  */
 marT?: number, marR?: number, marB?: number, marL?: number, 

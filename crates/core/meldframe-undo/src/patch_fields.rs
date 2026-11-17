@@ -27,6 +27,7 @@ macro_rules! patch_fields {
             font_size,
             shader,
             font_weight,
+            absolute,
             mar_t,
             mar_r,
             mar_b,

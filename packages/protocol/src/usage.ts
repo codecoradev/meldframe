@@ -12,7 +12,7 @@ export const demoNode: Node = {
   fill: '#8b5cf6', fill2: '#22d3ee', radius: 8,
   layout: 'none', gap: 8, padding: 16, align: 'start', justify: 'start',
   clip: true, text: '', fontSize: 16, shader: 'aurora',
-  fontWeight: 400, textAlign: 'left', opacity: 1, marT: 0, marR: 0, marB: 0, marL: 0, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [],
+  fontWeight: 400, textAlign: 'left', opacity: 1, absolute: false, marT: 0, marR: 0, marB: 0, marL: 0, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [],
 };
 
 /** Handles a server message. A new variant in Rust fails to compile here until it is handled. */

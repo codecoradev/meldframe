@@ -52,7 +52,7 @@ impl Layout<'_> {
         let row = n.layout == LayoutMode::Row;
         let mut main = 0.0;
         let mut cross: f64 = 0.0;
-        for (k, c) in self.children(&n.id).into_iter().enumerate() {
+        for (k, c) in self.flow_children(&n.id).into_iter().enumerate() {
             let s = self.size_of(c, None, None);
             let m = self.nodes[c].margin();
             let (along, across) = if row {
@@ -73,7 +73,7 @@ impl Layout<'_> {
         let n = &nodes[i];
         let pad = n.pad().vertical();
         let inner_w = w - n.pad().horizontal();
-        let kids = self.children(&n.id);
+        let kids = self.flow_children(&n.id);
         if kids.is_empty() {
             return pad;
         }

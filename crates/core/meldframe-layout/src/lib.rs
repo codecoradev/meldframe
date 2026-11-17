@@ -43,6 +43,13 @@ impl<'a> Layout<'a> {
         self.kids.get(&Some(id)).cloned().unwrap_or_default()
     }
 
+    /// The children that take part in the flow of an auto layout frame: not the absolute ones.
+    fn flow_children(&self, id: &str) -> Vec<usize> {
+        let mut kids = self.children(id);
+        kids.retain(|&c| !self.nodes[c].absolute);
+        kids
+    }
+
     fn roots(&self) -> Vec<usize> {
         self.kids.get(&None).cloned().unwrap_or_default()
     }
