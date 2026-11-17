@@ -1,0 +1,8 @@
+{
+  "name": "@meldframe/web-canvas",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Canvas model of the web client: scene diff, hit test, camera, overlay geometry and gestures. Pure TypeScript; tested by the apps/web test run.",
+  "types": "src/scene.ts"
+}

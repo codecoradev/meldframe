@@ -7,7 +7,8 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "types": ["svelte", "vite/client", "node"],
-    "noEmit": true
+    "noEmit": true,
+    "paths": { "vitest": ["./node_modules/vitest"] }
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte", "dev/**/*.ts", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.svelte", "dev/**/*.ts", "vite.config.ts", "../../packages/web-*/src/**/*.ts"]
 }

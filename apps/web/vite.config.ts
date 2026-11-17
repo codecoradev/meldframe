@@ -73,6 +73,9 @@ export default defineConfig(({ command }) => {
     resolve: { conditions: ['browser'] },
     server: { proxy },
     preview: { proxy },
-    test: { include: ['src/**/*.test.ts', 'dev/**/*.test.ts', 'scripts/**/*.test.mjs'], environment: 'node' },
+    test: {
+      include: ['src/**/*.test.ts', 'dev/**/*.test.ts', 'scripts/**/*.test.mjs', '../../packages/web-*/src/**/*.test.ts'],
+      environment: 'node',
+    },
   };
 });

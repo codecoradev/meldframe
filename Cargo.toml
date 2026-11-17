@@ -8,6 +8,7 @@ members = [
     "crates/features/*/*",
     "crates/app/*",
     "crates/ui/*",
+    "packages/web-*",
     "xtask",
 ]
 
