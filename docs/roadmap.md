@@ -65,11 +65,11 @@ Counted from the acceptance-criteria boxes in `docs/epics.md` (a box is ticked o
 | M0 Foundation | 15 | 15 | 100% | nothing: E0.4 is ticked since `just web` starts an editor that talks to the server |
 | M1 Connected skeleton | 29 | 29 | 100% | nothing open in M1: the demonstration runs with Claude Code as the MCP client in the real browser editor (step 6 keeps its decision column for the M2 call log) |
 | M2 Platform and agent identity | 0 | 13 | 0% | not started |
-| M3 Model round 2 and variables | 1 | 13 | 8% | E3.5 (layer names) is in; E3.1 to E3.4 are open |
+| M3 Model round 2 and variables | 4 | 13 | 31% | E3.5 (layer names) and E3.2 (layout and paint round 2) are in; E3.1, E3.3 and E3.4 are open |
 | M4 Export and fidelity | 0 | 6 | 0% | not started |
 | M5 Agent review and design quality | 0 | 8 | 0% | not started |
 | M6 V2 and the W1 gate | 0 | 4 | 0% | not started |
-| Total | 45 | 88 | 51% | |
+| Total | 48 | 88 | 55% | |
 
 M0 and M1 are complete. The M1 demonstration runs with Claude Code as the MCP client in the real browser editor (`apps/web/scripts/m1-claude-demo.mjs`); the backend, MCP surface, live events, capture relay, app layer and the web editor (layers, canvas, properties, tool bar, text editing, actor labels, touch rings, capture) are covered by tests and by the browser checks that are run by hand.
 
