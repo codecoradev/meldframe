@@ -3,11 +3,13 @@
 use meldframe_protocol::NodeKind;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use ts_rs::TS;
 
 /// The state of the editor: what is selected, which tool is active, which panels are open, how the
 /// connection to the room is doing and whether undo and redo are available. The document itself is read
 /// with [`App::nodes`](crate::App::nodes).
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppState {
     /// Ids of the selected nodes, in the order they were selected, without duplicates. Every id is a node
@@ -19,6 +21,7 @@ pub struct AppState {
     pub properties: Option<Properties>,
     pub connection: Connection,
     /// The last server sequence number applied to the confirmed file.
+    #[ts(type = "number")]
     pub confirmed_seq: u64,
     pub history: History,
     /// Idempotency keys of the person's ops the server has not confirmed yet, oldest first.
@@ -28,7 +31,8 @@ pub struct AppState {
 }
 
 /// The tool that decides what a press on the canvas does.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub enum Tool {
     #[default]
@@ -39,7 +43,8 @@ pub enum Tool {
 }
 
 /// A side panel of the editor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub enum Panel {
     /// The nodes of the page.
@@ -49,7 +54,8 @@ pub enum Panel {
 }
 
 /// Which side panels are open, and which layers are collapsed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Panels {
     pub layers: bool,
@@ -69,7 +75,8 @@ impl Default for Panels {
 }
 
 /// The state of the live connection to the file's room.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -91,7 +98,8 @@ pub enum Connection {
 }
 
 /// What the actor's own history can do. No wording: the front end writes the button text.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct History {
     pub can_undo: bool,
@@ -103,7 +111,8 @@ pub struct History {
 }
 
 /// The editable values of the selected node.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Properties {
     pub id: String,
