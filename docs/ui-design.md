@@ -1,6 +1,6 @@
 # Editor UI design
 
-Status: **draft for owner review** (16 Nov 2026). `[D]` = decided by the owner on 16 Nov 2026, `[P]` = proposed, `[Q]` = open question. Related: `decisions.md` #27 to #30, `collab-ux.md`, `tokens-and-variables.md` section 10, ADR-0008.
+Status: **draft for owner review** (16 Nov 2026). `[D]` = decided by the owner on 16 Nov 2026, `[P]` = proposed, `[Q]` = open question. Related: `decisions.md` #27 to #32, `collab-ux.md`, `tokens-and-variables.md` section 10, ADR-0008.
 
 This is a design note, not product code. It records what the first design pass of the editor looks like and why, so the web front end (E1.6, E3.4, E5.1) and a later desktop front end build the same thing. The pictures live in the design canvas "Meldframe UI/UX" (private); this page keeps the decisions. Wonder was the reference for layout and mood, studied from the owner's screenshots and recordings. Nothing is copied: names, accent colour and several features differ.
 
@@ -95,7 +95,7 @@ After the web editor is stable (decision 5). The layout is **A, mode switch** `[
 
 Four panes, left to right:
 
-1. **Sidebar** (248 px): New chat; a list of repositories (working name "Projects", see Q4), each a local folder or a GitHub repository, with its chats beneath and diff counts `+N -M`; Quick chats; a Next step card (for example "2 batches need review before you export"); the account.
+1. **Sidebar** (248 px): New chat; a list of Projects (decision 32), each one repository, a local folder or a GitHub repository, with its chats beneath and diff counts `+N -M`; Quick chats; a Next step card (for example "2 batches need review before you export"); the account.
 2. **Chat pane** (352 px): chats only. Its tab row holds chat tabs and its + is New chat. It has an agent picker, messages with batch cards (Show, Revert, Accept), a files-changed line, tool prompts from the agent (allow once, always in this chat, deny; these are the agent's own prompts, separate from a gate Approval), and the composer with context chips (file, node, variable), a mode (Ask, Edit, Auto), and model and effort. The composer lives here in both modes.
 3. **Work area, Design mode:** tabs for designs, with the Files home as the first tab. The + menu offers New design; presentation and motion appear in it as disabled "later" items (decision 3). The canvas fills the area; the inspector and the tool bar float over it exactly as on the web.
 4. **Work area, Code mode:** on the left, tabs for file viewers (a file opened once is a preview tab, in italics) and terminals; the + menu offers Open file and New terminal. A viewer marks changes against the base as green and red lines and has an Open in editor control. On the right, the file tree (280 px) with the chat's branch, tabs All files, Changes (with a count) and Exports, and a button to hide it. An export that writes HTML and Tailwind into the working copy appears under Changes.
@@ -114,7 +114,7 @@ Agents speak ACP to a program on the person's machine, Claude Code first, with a
 
 The web editor has no steps 3 and 4. An agent that runs elsewhere gets the MCP endpoint, adds it, and starts its own OAuth sign-in; the browser shows a consent screen with the same tiers, and the agent then appears as an actor in Activity. Nobody creates or stores an API key (decision 31). Both paths end in the same room and pass the same gate, so Activity, Review and Revert behave the same. Each step also has a waiting, failed or empty state, drawn on board D.4 (desktop first launch).
 
-Open: whether the sidebar word is Projects or Repositories (Q4); whether a repository is only where code is read and written while the design stays in the workspace; whether one chat means one working copy and branch; whether Start preview (run the repository's app) is in scope; whether Code mode is in the first desktop build.
+Decided (decision 32): the sidebar word is Projects, and one Project is one repository. Open: whether a repository is only where code is read and written while the design stays in the workspace (the working assumption); whether one chat means one working copy and branch; whether Start preview (run the repository's app) is in scope; whether Code mode is in the first desktop build.
 
 ## 9. Rendering `[P]`
 
@@ -125,5 +125,5 @@ Svelte 5 with Tailwind draws the chrome and Bits UI style primitives where neede
 - Q1 How are OKLCH and Display P3 stored and drawn (`tokens-and-variables.md` Q3)?
 - Q2 What does a saved view store beyond open panels and the active tab?
 - Q3 Is the Review view's before and after compare in v1 (`collab-ux.md` Q8)?
-- Q4 Desktop: the sidebar word (GLOSSARY lists Project as a word to avoid for File), repository versus workspace file, and the working copy per chat (section 8).
+- Q4 Desktop: the working copy per chat, Start preview and Code mode in the first build (section 8). The sidebar word and one project per repository are decided (decision 32).
 - Q5 Do comments return on the web, and if so as notes to an agent only (section 7)?

@@ -12,7 +12,11 @@ _Avoid_: Team, organization, account
 
 **File**:
 One design document inside a workspace. It is the unit that is opened, shared with an agent, exported and edited live.
-_Avoid_: Project, document, board
+_Avoid_: document, board; and Project, which is a different thing (see **Project**)
+
+**Project**:
+Desktop only. One repository (a local folder or a GitHub repository) that an agent works in, listed in the desktop sidebar with its chats beneath. A project is not a File and not a Workspace; the designs stay in the workspace. Decision 32.
+_Avoid_: Repository (in the sidebar), Folder, File
 
 **FileState**:
 The in-memory tree of one **File** that commands are applied to. It is the planned code name (in `meldframe-history`) for what a File holds while it is open; it is not a second kind of file.
