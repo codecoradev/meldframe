@@ -1418,6 +1418,13 @@ dependencies = [
 [[package]]
 name = "meldframe-wasm"
 version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-protocol",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "meldframe-web"

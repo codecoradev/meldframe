@@ -40,6 +40,14 @@ test:
 wasm-test:
     cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-history -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props
 
+# Build the wasm bridge for the web client into apps/web/.wasm (git-ignored); needs wasm-bindgen-cli, see AGENTS.md
+wasm-build:
+    bash tools/build-wasm.sh
+
+# Build the wasm bridge for Node and drive it (the JSON boundary of the web client)
+wasm-smoke:
+    bash tools/check-wasm.sh
+
 # Everything to run locally before opening a pull request: the fast checks that pull request CI
 # runs, plus the heavier gates that CI runs only on push to develop and nightly
 check:
@@ -49,6 +57,7 @@ check:
     cargo test --workspace
     for c in deps-check build-matrix portable-check size-check ui-literals; do cargo xtask $c || exit 1; done
     bash tools/check-protocol.sh
+    bash tools/check-wasm.sh
     cd apps/web && npm ci && npm run check
     bash scripts/dev-seed-test.sh
     @bash -n scripts/pg-start.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh && echo "check (scripts): syntax ok"
