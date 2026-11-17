@@ -22,6 +22,7 @@ dev-server:
 # The web client (Vite) against the dev server of `just dev`, through the guarded dev proxy: the token
 # is read from the git-ignored .dev-token and added by the proxy, never sent to the browser.
 web:
+    @[ -f apps/web/.wasm/meldframe_wasm_bg.wasm ] || bash tools/build-wasm.sh
     @cd apps/web && { [ -f node_modules/.package-lock.json ] && [ ! package-lock.json -nt node_modules/.package-lock.json ]; } || npm ci
     @cd apps/web && if [ -s ../../.dev-token ]; then MELDFRAME_WEB_TOKEN="$(cat ../../.dev-token)" npm run dev; else echo "web: no .dev-token yet; run 'just dev' first to talk to the server (starting the client without a token)"; npm run dev; fi
 
