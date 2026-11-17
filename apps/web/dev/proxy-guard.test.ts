@@ -22,6 +22,12 @@ describe('guardRequest (the dev proxy adds the token, so only this page may use 
   it('requires an Origin for a WebSocket upgrade', () => {
     expect(guardRequest({ method: 'GET', upgrade: true, host: ok.host }, PORT)?.status).toBe(403);
   });
+  it('lets the capture upload be a PNG, and only there (a form cannot send that type, and the other checks still apply)', () => {
+    expect(guardRequest({ method: 'POST', contentType: 'image/png', url: '/captures/r1', ...ok }, PORT)).toBeNull();
+    expect(guardRequest({ method: 'POST', contentType: 'image/png', url: '/v1/files/f/tools/x', ...ok }, PORT)?.status).toBe(415);
+    expect(guardRequest({ method: 'POST', contentType: 'text/plain', url: '/captures/r1', ...ok }, PORT)?.status).toBe(415);
+    expect(guardRequest({ method: 'POST', contentType: 'image/png', url: '/captures/r1', host: ok.host, origin: 'https://evil.example' }, PORT)?.status).toBe(403);
+  });
   it('requires JSON for a write, so a form post from another page cannot use the token', () => {
     expect(guardRequest({ method: 'POST', contentType: 'text/plain', ...ok }, PORT)?.status).toBe(415);
     expect(guardRequest({ method: 'POST', ...ok }, PORT)?.status).toBe(415);
@@ -49,6 +55,10 @@ describe('isProxied (the same prefix test as the proxy)', () => {
   it('matches what Vite proxies, including look-alike prefixes, and nothing else', () => {
     for (const u of ['/v1', '/v1/files/x', '/v1x', '/v1?a=1']) expect(isProxied(u)).toBe(true);
     for (const u of ['/', '/v2/files', '/x/v1', '', undefined]) expect(isProxied(u)).toBe(false);
+  });
+  it('also matches the capture upload of the editor (POST /captures/{id}, outside /v1)', () => {
+    for (const u of ['/captures/req_1', '/captures']) expect(isProxied(u)).toBe(true);
+    for (const u of ['/capture', '/x/captures/1']) expect(isProxied(u)).toBe(false);
   });
   it('the url a refused upgrade is rewritten to is not proxied', () => {
     expect(isProxied(REFUSED_URL)).toBe(false);

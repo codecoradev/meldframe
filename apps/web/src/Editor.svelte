@@ -21,6 +21,7 @@
   import { boxAction, propertyAction, type BoxField, type PropertyField } from '@meldframe/web-document/properties';
   import { noticeFromEvents } from '@meldframe/web-document/notices';
   import { addTouch, type Touched } from '@meldframe/web-document/touches';
+  import { serveCapture, type Req } from './capture';
   import { duration, pixiColors } from './tokens';
   import { loadTheme } from './theme';
 
@@ -34,8 +35,10 @@
     attribution?: Record<string, { actor: string; seq: number }>;
     /** Where the ephemeral touch frames of other actors come from; returns the way to stop listening. */
     onTouches?: (fn: (t: { actor: string; nodeIds: string[] }) => void) => () => void;
+    /** Capture requests of agents: where they come from, and how to tell the server this editor cannot serve one. */
+    captures?: { subscribe: (fn: (r: Req) => void) => () => void; fail: (requestId: string, code: string, message: string) => void };
   }
-  let { engine, file, actor, attribution = {}, onTouches }: Props = $props();
+  let { engine, file, actor, attribution = {}, onTouches, captures }: Props = $props();
 
   // Snapshots are replaced as a whole, never edited: no deep proxy over the nodes.
   let snap = $state.raw(untrack(() => engine.snapshot()));
@@ -81,6 +84,31 @@
         maxAgeMs: Math.max(duration['touch-ring'], duration['reduced-motion-hold']),
       });
     }),
+  );
+
+  // An agent asks for a PNG of a node: the canvas draws it offscreen and the page uploads it (see capture.ts).
+  const waitForSeq = (min: number, timeoutMs: number) =>
+    new Promise<boolean>((resolve) => {
+      if (engine.snapshot().state.confirmedSeq >= min) return resolve(true);
+      const off = engine.subscribe((s) => {
+        if (s.state.confirmedSeq < min) return;
+        off();
+        clearTimeout(timer);
+        resolve(true);
+      });
+      const timer = setTimeout(() => (off(), resolve(false)), timeoutMs);
+    });
+  onMount(() =>
+    captures?.subscribe((r) =>
+      void serveCapture(r, {
+        box: (id) => canvas?.captureBox(id) ?? null,
+        render: (box, scale) => canvas!.capture(box, scale),
+        seq: () => engine.snapshot().state.confirmedSeq,
+        whenSeq: waitForSeq,
+        upload: async (id, headers, body) => (await fetch(`/captures/${encodeURIComponent(id)}`, { method: 'POST', headers, body })).status,
+        fail: captures.fail,
+      }),
+    ),
   );
 
   // A refusal is shown for a few seconds, then goes away; a later snapshot does not cancel that (the timer is not tied to the effect).

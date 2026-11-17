@@ -249,6 +249,26 @@
     host?.focus({ preventScroll: true });
   }
 
+  /** The box in world units of a node, or of all the content when no id is given; null when the node is not here. */
+  export function captureBox(id?: string): Rect | null {
+    return id === undefined ? contentBounds(resolved) : (rectsOf(resolved, [id])[0] ?? null);
+  }
+
+  /** The world in `box` at `scale` as a PNG, without the overlay; the view is drawn again afterwards. */
+  export async function capture(box: Rect, scale: number): Promise<Blob> {
+    if (!app || !world) throw new Error('The canvas is not ready.');
+    const width = Math.ceil(box.w * scale);
+    const height = Math.ceil(box.h * scale);
+    let image: HTMLCanvasElement;
+    try {
+      image = world.renderRegion(app.renderer, box, scale, width, height);
+    } finally {
+      needCull = true; // the drawing showed everything: cull again for the view
+      schedule();
+    }
+    return new Promise((resolve, reject) => image.toBlob((b) => (b ? resolve(b) : reject(new Error('The image could not be encoded.'))), 'image/png'));
+  }
+
   /** What the canvas is drawing now; for measurements and tests. */
   export function stats(): { nodes: number; drawn: number; renderer: string; dpr: number; timing: typeof timing } {
     return { timing: { ...timing }, nodes: world?.nodeCount ?? 0, drawn: world?.countRenderable() ?? 0, renderer: app?.renderer.name ?? '', dpr };

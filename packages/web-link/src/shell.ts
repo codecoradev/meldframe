@@ -1,6 +1,9 @@
 // The shell carries out the effects of the app layer: it opens the live socket, sends ops over REST, and waits
 // for the timers the app asks for. Everything it learns goes back as an action. No editing rules here.
-import type { Action, AppState, Effect, OutOp } from '@meldframe/protocol';
+import type { Action, AppState, Effect, OutOp, ServerMsg } from '@meldframe/protocol';
+
+/** An agent asks this editor for a PNG of a node (or of the whole page when `nodeId` is absent). */
+export type CaptureRequest = Extract<ServerMsg, { type: 'captureRequest' }>;
 
 /** What the shell needs of the app layer. `Engine` in engine.ts (the WASM app behind JSON) is one; tests bring another. */
 export interface Engine {
@@ -35,6 +38,11 @@ export interface ShellOptions {
   tool?: string;
   /** An ephemeral `touch` frame: an actor changed these nodes. Not part of the document, so the app never sees it. */
   onTouch?: (t: { actor: string; nodeIds: string[] }) => void;
+  /**
+   * An agent asks for a PNG. With this set, the shell tells the server after each subscribe that this client can capture,
+   * and then every request must be answered: by the upload of the image, or by `captureFailed`.
+   */
+  onCapture?: (r: CaptureRequest) => void;
 }
 
 /** How often the app is told the time, so it can notice a silent connection or a stuck attempt. */
@@ -48,7 +56,7 @@ export const POST_TIMEOUT_MS = 15_000;
 export const MAX_SUBSCRIBE_RETRIES = 3;
 const RETRY_FALLBACK_MS = 1000;
 
-type Wire = { type: string; id?: string; seq?: number; actor?: string; nodeIds?: unknown; key?: unknown; command?: unknown; afterSeq?: number; latestSeq?: number; code?: string; retryAfterMs?: number };
+type Wire = { type: string; id?: string; seq?: number; actor?: string; nodeIds?: unknown; key?: unknown; requestId?: unknown; scale?: unknown; maxPixels?: unknown; minSeq?: unknown; uploadToken?: unknown; timeoutMs?: unknown; nodeId?: unknown; command?: unknown; afterSeq?: number; latestSeq?: number; code?: string; retryAfterMs?: number };
 
 /** A frame of the live socket, checked: null when it is not JSON or lacks a field its type needs. */
 export function parseFrame(data: string): Wire | null {
@@ -66,6 +74,11 @@ export function parseFrame(data: string): Wire | null {
       return num(w.seq) && typeof w.actor === 'string' && typeof w.command === 'object' && w.command !== null ? w : null;
     case 'resync':
       return num(w.afterSeq) && num(w.latestSeq) ? w : null;
+    case 'captureRequest':
+      return typeof w.requestId === 'string' && typeof w.uploadToken === 'string' && typeof w.scale === 'number' && typeof w.maxPixels === 'number' &&
+        num(w.minSeq) && num(w.timeoutMs) && (w.nodeId === undefined || typeof w.nodeId === 'string')
+        ? w
+        : null;
     case 'touch':
       return typeof w.actor === 'string' && Array.isArray(w.nodeIds) && w.nodeIds.every((x) => typeof x === 'string') ? w : null;
     default:
@@ -220,7 +233,16 @@ export class Shell {
     const nowMs = this.env.now();
     switch (m.type) {
       case 'subscribed':
-        return this.dispatch({ type: 'connected', nowMs });
+        this.dispatch({ type: 'connected', nowMs });
+        if (this.opts.onCapture && this.socket) this.send1(this.socket, { type: 'capabilities', room: this.opts.file, capabilities: ['capture'] });
+        return;
+      case 'captureRequest':
+        try {
+          this.opts.onCapture?.(m as unknown as CaptureRequest);
+        } catch {
+          // a view that fails on a request must not cost the connection; the agent's request times out on the server
+        }
+        return;
       case 'heartbeat':
         return this.dispatch({ type: 'frame', nowMs, frame: { type: 'heartbeat' } });
       case 'event':
@@ -244,6 +266,11 @@ export class Shell {
       default:
         return; // pong and ephemeral frames need no action
     }
+  }
+
+  /** Tells the server this editor cannot serve a capture request (codes: `node_not_found`, `too_large`, `stale_client`, ...). */
+  captureFailed(requestId: string, code: string, message: string): void {
+    if (this.socket) this.send1(this.socket, { type: 'captureFailed', requestId, code, message });
   }
 
   /** An `error` frame. Only the answer to our last `subscribe` matters. */

@@ -26,6 +26,7 @@ const describe = (req: IncomingMessage, upgrade: boolean) => ({
   contentType: req.headers['content-type'],
   upgrade,
   secFetchSite: req.headers['sec-fetch-site'] as string | undefined,
+  url: req.url,
 });
 
 /** Runs before the proxy, for HTTP and for WebSocket upgrades of `/v1`. */
@@ -51,19 +52,19 @@ function guard(): Plugin {
 }
 
 type ProxyReq = { setHeader(k: string, v: string): void; removeHeader(k: string): void };
-const proxy = {
-  '/v1': {
-    target,
-    ws: true,
-    // A remote upstream (opt-in) must see its own Host, not the dev page's.
-    changeOrigin: resolved.changeOrigin,
-    configure(p: { on(event: string, fn: (req: ProxyReq) => void): void }) {
-      const add = (req: ProxyReq) => applyAuth(req, token);
-      p.on('proxyReq', add);
-      p.on('proxyReqWs', add);
-    },
+const route = {
+  target,
+  ws: true,
+  // A remote upstream (opt-in) must see its own Host, not the dev page's.
+  changeOrigin: resolved.changeOrigin,
+  configure(p: { on(event: string, fn: (req: ProxyReq) => void): void }) {
+    const add = (req: ProxyReq) => applyAuth(req, token);
+    p.on('proxyReq', add);
+    p.on('proxyReqWs', add);
   },
 };
+// `/captures` is the editor's PNG upload for a capture request of an agent (it needs the same login).
+const proxy = { '/v1': route, '^/captures(/|$)': route };
 
 export default defineConfig(({ command }) => {
   // Only a running server (dev or preview) refuses a bad target or token; `vite build` and the tests do not need them.

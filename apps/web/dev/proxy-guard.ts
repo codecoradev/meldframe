@@ -6,6 +6,8 @@ export interface Req {
   host?: string;
   origin?: string;
   contentType?: string;
+  /** The request path, to tell the capture upload from the rest. */
+  url?: string;
   /** A WebSocket upgrade. */
   upgrade?: boolean;
   /** The `Sec-Fetch-Site` header, when the browser sent one. */
@@ -36,7 +38,10 @@ export function guardRequest(r: Req, port: number): { status: number; reason: st
     return { status: 403, reason: 'a WebSocket needs the dev page as its origin' };
   }
   const reads = r.method === undefined || r.method === 'GET' || r.method === 'HEAD';
-  if (!reads && !(r.contentType ?? '').toLowerCase().startsWith('application/json')) {
+  const type = (r.contentType ?? '').toLowerCase();
+  // The capture upload is a PNG (a cross-site form cannot send that type; the checks above still apply to it).
+  const png = type.startsWith('image/png') && /^\/captures(\/|$)/.test(r.url ?? '');
+  if (!reads && !png && !type.startsWith('application/json')) {
     return { status: 415, reason: 'writes must be application/json' };
   }
   return null;
@@ -59,7 +64,10 @@ export function checkTarget(target: string, allowRemote: string | undefined): { 
 
 /** The prefix test of the proxy (Vite proxies every url that starts with the context); the guard uses the same one. */
 export const PROXY_PREFIX = '/v1';
-export const isProxied = (url: string | undefined): boolean => url !== undefined && url.startsWith(PROXY_PREFIX);
+/** The editor's capture upload goes to `POST /captures/{id}` on the server, outside `/v1`. */
+export const CAPTURE_PREFIX = '/captures';
+export const isProxied = (url: string | undefined): boolean =>
+  url !== undefined && (url.startsWith(PROXY_PREFIX) || url.startsWith(CAPTURE_PREFIX + '/') || url === CAPTURE_PREFIX);
 
 /** What a refused upgrade's url is rewritten to, so the proxy's own upgrade listener does not connect upstream. */
 export const REFUSED_URL = '/__refused';

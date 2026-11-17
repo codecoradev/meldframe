@@ -2,7 +2,8 @@
 // The root is a render group and is the camera: pan and zoom are one matrix on it. Nodes are laid out in
 // their parent's space (the resolved `lx`, `ly`), so a frame's clip mask and children follow it. Nodes take no
 // pointer events (the canvas hit-tests the scene model itself), and display objects are culled by hand.
-import { Container, Culler, Graphics, Sprite, Text, Texture, type Rectangle } from 'pixi.js';
+import { Container, Culler, Graphics, RenderTexture, Sprite, Text, Texture, type Rectangle, type Renderer } from 'pixi.js';
+import type { Rect } from '@meldframe/web-canvas/geometry';
 import type { Camera } from '@meldframe/web-canvas/camera';
 import type { ResolvedNode, ResolvedScene, ScenePatch } from '@meldframe/web-canvas/scene';
 import { fonts } from '../tokens';
@@ -213,6 +214,28 @@ export class WorldView {
   /** Draws the text again, for a web font that arrived after the first draw. */
   refreshText(): void {
     for (const v of this.views.values()) if (v.text) this.updateText(v, v.node, true);
+  }
+
+  /**
+   * Draws the world through a camera of its own into an image of `width` x `height` pixels: `box` (world units) at `scale`.
+   * Nothing is culled, and the view's camera is put back. The overlay (selection, handles, rings) is another layer and is
+   * not in the image. The caller redraws the view afterwards.
+   */
+  renderRegion(renderer: Renderer, box: Rect, scale: number, width: number, height: number): HTMLCanvasElement {
+    const rt = RenderTexture.create({ width, height, resolution: 1 });
+    const { x, y } = this.root.position;
+    const zoom = this.root.scale.x;
+    try {
+      for (const v of this.views.values()) v.c.culled = false;
+      this.root.position.set(-box.x * scale, -box.y * scale);
+      this.root.scale.set(scale);
+      renderer.render({ container: this.root, target: rt, clear: true, clearColor: [0, 0, 0, 0] });
+      return renderer.extract.canvas(rt) as HTMLCanvasElement;
+    } finally {
+      this.root.position.set(x, y);
+      this.root.scale.set(zoom);
+      rt.destroy(true);
+    }
   }
 
   destroy(): void {

@@ -1,7 +1,7 @@
 import { mount, unmount } from 'svelte';
 import './app.css';
 import { Engine, loadWasm } from '@meldframe/web-link/engine';
-import { Shell, browserEnv } from '@meldframe/web-link/shell';
+import { Shell, browserEnv, type CaptureRequest } from '@meldframe/web-link/shell';
 import App from './App.svelte';
 import Editor from './Editor.svelte';
 import Fatal from './Fatal.svelte';
@@ -33,9 +33,23 @@ async function start() {
   });
   // The ephemeral touch frames go to the editor, not to the app layer: they are not part of the document.
   const touchHandlers = new Set<(t: { actor: string; nodeIds: string[] }) => void>();
-  shell = new Shell(engine, browserEnv(), { file, onTouch: (t) => touchHandlers.forEach((h) => h(t)) });
+  const captureHandlers = new Set<(r: CaptureRequest) => void>();
+  shell = new Shell(engine, browserEnv(), {
+    file,
+    onTouch: (t) => touchHandlers.forEach((h) => h(t)),
+    // With a handler the shell says this client can capture; the editor answers each request (capture.ts).
+    onCapture: (r) => captureHandlers.forEach((h) => h(r)),
+  });
+  const sh = shell;
   editor = mount(Editor, { target: root, props: {
       engine, file, actor, attribution,
+      captures: {
+        subscribe: (fn: (r: CaptureRequest) => void) => {
+          captureHandlers.add(fn);
+          return () => captureHandlers.delete(fn);
+        },
+        fail: (id: string, code: string, message: string) => sh.captureFailed(id, code, message),
+      },
       onTouches: (fn: (t: { actor: string; nodeIds: string[] }) => void) => {
         touchHandlers.add(fn);
         return () => touchHandlers.delete(fn);

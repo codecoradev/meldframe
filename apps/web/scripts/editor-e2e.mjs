@@ -269,6 +269,32 @@ const id = `e2e_${run}`;
       assert.equal(await page.locator(`[data-testid=layer][data-id="${id}"] [data-testid=actor]`).count(), 0);
     });
   }
+  // An agent asks the open editor for a PNG through MCP (second token, as above).
+  if (results.every(Boolean) && process.env.MELDFRAME_E2E_TOKEN2) {
+    await check('an agent captures the frame through MCP and gets a PNG of the right size from this editor', async () => {
+      const frame = await nodeOf(id);
+      const res = await fetch(`${server}/mcp`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${process.env.MELDFRAME_E2E_TOKEN2}` },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'capture', arguments: { file, nodeId: id, scale: 1 } } }),
+      });
+      const part = (await res.json()).result?.content?.[0];
+      assert.equal(part?.type, 'image', `not an image: ${JSON.stringify(part)?.slice(0, 200)}`);
+      assert.equal(part.mimeType, 'image/png');
+      const png = Buffer.from(part.data, 'base64');
+      assert.equal(png.subarray(1, 4).toString(), 'PNG');
+      near(png.readUInt32BE(16), frame.w, 1, 'width');
+      near(png.readUInt32BE(20), frame.h, 1, 'height');
+    });
+    await check('a capture of a node that is not there is refused with node_not_found', async () => {
+      const res = await fetch(`${server}/mcp`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${process.env.MELDFRAME_E2E_TOKEN2}` },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'capture', arguments: { file, nodeId: 'no_such_node', scale: 1 } } }),
+      });
+      assert.match(JSON.stringify(await res.json()), /node_not_found/);
+    });
+  }
   // The reconnect check stops the development server: only when the checks before it passed (otherwise leave it).
   if (results.every(Boolean)) await check('the server goes away: the page says so; it comes back: the page reconnects and shows what was done meanwhile', async () => {
     // Stop only what listens on the server's port (not every process that has the name).

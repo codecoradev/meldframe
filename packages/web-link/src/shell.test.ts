@@ -147,6 +147,62 @@ describe('touch frames', () => {
   });
 });
 
+describe('capture requests', () => {
+  const req = { type: 'captureRequest', requestId: 'r1', room: 'file_dev', nodeId: 'a', scale: 2, maxPixels: 1000000, minSeq: 3, uploadToken: 'tok', timeoutMs: 5000 };
+  const live = (onCapture?: (r: unknown) => void) => {
+    const engine = new FakeEngine();
+    const env = new FakeEnv();
+    const shell = new Shell(engine, env, { file: 'file_dev', ...(onCapture ? { onCapture } : {}) });
+    shell.start();
+    engine.effect({ type: 'subscribe', afterSeq: 0 });
+    return { engine, shell, socket: env.sockets[0]! };
+  };
+  it('a shell with a capture handler says so after it is subscribed, and one without does not', () => {
+    const a = live(() => {});
+    a.socket.onmessage('{"type":"subscribed"}');
+    expect(a.socket.sent.map((x) => JSON.parse(x)).find((m) => m.type === 'capabilities')).toEqual({ type: 'capabilities', room: 'file_dev', capabilities: ['capture'] });
+    const b = live();
+    b.socket.onmessage('{"type":"subscribed"}');
+    expect(b.socket.sent.map((x) => JSON.parse(x)).some((m) => m.type === 'capabilities')).toBe(false);
+  });
+  it('hands a request to the handler; a request that lacks a field is not handed over', () => {
+    const seen: unknown[] = [];
+    const { socket } = live((r) => seen.push(r));
+    socket.onmessage('{"type":"subscribed"}');
+    socket.onmessage(JSON.stringify(req));
+    expect(seen).toEqual([req]);
+    socket.onmessage(JSON.stringify({ ...req, uploadToken: undefined }));
+    expect(seen).toHaveLength(1);
+  });
+  it('says it again on the socket of a reconnect', () => {
+    const engine = new FakeEngine();
+    const env = new FakeEnv();
+    const shell = new Shell(engine, env, { file: 'file_dev', onCapture: () => {} });
+    shell.start();
+    engine.effect({ type: 'subscribe', afterSeq: 0 });
+    env.sockets[0]!.onmessage('{"type":"subscribed"}');
+    env.sockets[0]!.onclose(); // the connection is lost
+    engine.effect({ type: 'subscribe', afterSeq: 4 });
+    const second = env.sockets[1]!;
+    second.onmessage('{"type":"subscribed"}');
+    expect(second.sent.map((x) => JSON.parse(x)).some((m) => m.type === 'capabilities')).toBe(true);
+  });
+  it('answers a request it cannot serve with captureFailed on the same socket', () => {
+    const { shell, socket } = live(() => {});
+    socket.onmessage('{"type":"subscribed"}');
+    shell.captureFailed('r1', 'node_not_found', 'no such node');
+    expect(socket.sent.map((x) => JSON.parse(x)).at(-1)).toEqual({ type: 'captureFailed', requestId: 'r1', code: 'node_not_found', message: 'no such node' });
+  });
+  it('a handler that throws does not lose the connection', () => {
+    const { socket } = live(() => {
+      throw new Error('boom');
+    });
+    socket.onmessage('{"type":"subscribed"}');
+    socket.onmessage(JSON.stringify(req));
+    expect(socket.closed).toBe(false);
+  });
+});
+
 describe('Shell with a scripted engine', () => {
   it('start dispatches start and ticks every second', () => {
     const { engine, env, shell } = setup();
