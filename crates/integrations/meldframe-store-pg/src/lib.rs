@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
-static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");
+static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../../migrations");
 
 /// A store on Postgres. Cloning is cheap and shares the connection pool: give each room its own clone.
 ///

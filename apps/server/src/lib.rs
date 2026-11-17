@@ -8,16 +8,16 @@ mod http;
 mod limits;
 mod live;
 mod owners;
-mod pg;
 
 pub use http::{SharedServer, failure_of};
 pub use limits::{MAX_BATCH_OPS, MAX_NAME_BYTES, MAX_ROOMS_PER_WORKSPACE};
 pub use live::{
     Frame, LIVE_CONFIG, MAX_LIVE_STREAMS, StreamId, SubscribeError, Subscription, TOUCH_WINDOW_MS,
 };
+pub use meldframe_store_pg::{PERMANENT_STORE_ERROR, PgStore};
 pub use meldframe_stream::{Config, StreamError};
-pub use pg::{PERMANENT_STORE_ERROR, PgStore};
 
+use meldframe_calls::{CallEntry, CallLog, MemoryCallLog};
 use meldframe_host::{Accepted, Gate, Op, Principal, Refusal, Room, RoomError, Store, StoredOp};
 use meldframe_module::{Module, Policy, Registry, RiskTier};
 use meldframe_rooms::{MemoryActivityLog, RegistryError, TreeFacts};
@@ -101,6 +101,8 @@ pub struct Server {
     owners: owners::Owners,
     /// Keys of the rooms this server opened and has not closed, so `close_all` can reach them.
     open_keys: HashSet<String>,
+    /// One entry for every write call, refused or not (see `meldframe_calls::CallLog`).
+    calls: Box<dyn CallLog>,
 }
 
 /// The key of a file in the registry and the store: the workspace's length, the workspace, then the file.
@@ -109,6 +111,9 @@ pub struct Server {
 fn room_key(workspace: &str, file: &str) -> String {
     format!("{}:{workspace}{file}", workspace.len())
 }
+
+/// Entries the default call log keeps; the oldest go first.
+pub const MAX_CALL_LOG: usize = 10_000;
 
 fn now() -> u64 {
     SystemTime::now()
@@ -151,6 +156,7 @@ impl Server {
             live: meldframe_stream::Streams::new(LIVE_CONFIG, MAX_LIVE_STREAMS),
             owners: owners::Owners::default(),
             open_keys: HashSet::new(),
+            calls: Box::new(MemoryCallLog::with_capacity(MAX_CALL_LOG)),
         }
     }
 
@@ -256,6 +262,18 @@ impl Server {
         who: &Principal,
         ops: Vec<Op>,
     ) -> Result<Vec<Accepted>, SubmitError> {
+        let done = self.submit_tool_unlogged(tool, file, who, ops);
+        self.record_call(tool, file, who, done.as_ref().err());
+        done
+    }
+
+    fn submit_tool_unlogged(
+        &mut self,
+        tool: &str,
+        file: &str,
+        who: &Principal,
+        ops: Vec<Op>,
+    ) -> Result<Vec<Accepted>, SubmitError> {
         limits::valid_names(&who.workspace, file)?;
         let at = now();
         for key in self.rooms.close_idle(at, self.idle_after) {
@@ -272,6 +290,50 @@ impl Server {
             self.open_keys.remove(&key);
         }
         done
+    }
+
+    /// Keep one entry for a write call that ended in `failure` (`None`: it was written). `submit_tool` does this by
+    /// itself; a caller that refuses a call before it reaches `submit_tool` (an atomic batch that failed its
+    /// check) calls it for that call.
+    pub fn record_call(
+        &mut self,
+        tool: &str,
+        file: &str,
+        who: &Principal,
+        failure: Option<&SubmitError>,
+    ) {
+        self.record_call_as(
+            tool,
+            file,
+            who,
+            failure.map_or(Ok(()), |e| Err(e.refusal())),
+        );
+    }
+
+    /// The same for a caller that has only the refusal: `Ok(())` for a call that went through, `Err(Some(refusal))`
+    /// for one a policy or the room refused, `Err(None)` for a failure that is not a refusal.
+    pub fn record_call_as(
+        &mut self,
+        tool: &str,
+        file: &str,
+        who: &Principal,
+        done: Result<(), Option<&Refusal>>,
+    ) {
+        let tier = self.registry.agent_tool(tool).map(|t| t.tier);
+        self.calls
+            .record(CallEntry::new(now(), who, tool, file, tier, done));
+    }
+
+    /// At most `limit` of the newest calls, oldest first.
+    pub fn calls(&self, limit: usize) -> Vec<CallEntry> {
+        self.calls.recent(limit)
+    }
+
+    /// Replace the call log (an embedder that keeps it elsewhere); the default keeps the newest [`MAX_CALL_LOG`]
+    /// in memory.
+    pub fn with_call_log(mut self, log: Box<dyn CallLog>) -> Self {
+        self.calls = log;
+        self
     }
 
     /// The checks of `submit_tool` that need no room: names, batch size, a known tool with an `Auto` policy,

@@ -1,0 +1,20 @@
+[package]
+name = "meldframe-store-pg"
+description = "The Postgres adapter of the store seam (E1.2)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "integration"
+
+[dependencies]
+meldframe-host = { path = "../../core/meldframe-host" }
+meldframe-protocol = { path = "../../core/meldframe-protocol" }
+# No TLS feature: a deployment that needs it turns it on deliberately.
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "json", "migrate", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
+
+[lints]
+workspace = true

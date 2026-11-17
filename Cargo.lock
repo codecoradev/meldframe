@@ -1068,6 +1068,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-calls"
+version = "0.0.0"
+dependencies = [
+ "meldframe-host",
+ "meldframe-module",
+]
+
+[[package]]
 name = "meldframe-capture-tests"
 version = "0.0.0"
 dependencies = [
@@ -1076,6 +1084,7 @@ dependencies = [
  "capture",
  "futures-util",
  "meldframe-app",
+ "meldframe-calls",
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-capture",
@@ -1315,6 +1324,7 @@ dependencies = [
  "capture",
  "example",
  "meldframe-batch",
+ "meldframe-calls",
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-capture",
@@ -1323,9 +1333,9 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-rooms",
+ "meldframe-store-pg",
  "meldframe-stream",
  "serde_json",
- "sqlx",
  "tokio",
 ]
 
@@ -1333,6 +1343,7 @@ dependencies = [
 name = "meldframe-server-tests"
 version = "0.0.0"
 dependencies = [
+ "meldframe-calls",
  "meldframe-host",
  "meldframe-module",
  "meldframe-protocol",
@@ -1367,6 +1378,16 @@ dependencies = [
  "meldframe-host",
  "meldframe-protocol",
  "serde_json",
+]
+
+[[package]]
+name = "meldframe-store-pg"
+version = "0.0.0"
+dependencies = [
+ "meldframe-host",
+ "meldframe-protocol",
+ "sqlx",
+ "tokio",
 ]
 
 [[package]]

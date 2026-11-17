@@ -1,0 +1,17 @@
+[package]
+name = "meldframe-calls"
+description = "The call log: one entry for every call to a tool, with the policy's decision and the outcome."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dependencies]
+meldframe-host = { path = "../meldframe-host" }
+meldframe-module = { path = "../meldframe-module" }
+
+[lints]
+workspace = true

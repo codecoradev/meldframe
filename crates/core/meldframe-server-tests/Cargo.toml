@@ -15,6 +15,7 @@ meldframe-module = { path = "../meldframe-module" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-server = { path = "../../../apps/server" }
 meldframe-rooms = { path = "../meldframe-rooms" }
+meldframe-calls = { path = "../meldframe-calls" }
 serde_json = "1"
 meldframe-store-contract = { path = "../meldframe-store-contract" }
 # The Postgres tests check the schema directly.

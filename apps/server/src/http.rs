@@ -77,23 +77,42 @@ impl Submitter for SharedServer {
         guards: Vec<Guard>,
     ) -> Result<Vec<Accepted>, Failure> {
         let mut s = self.lock();
-        s.precheck(tool, file, who, &ops)
-            .map_err(|e| failure_of(&e))?;
+        if let Err(e) = s.precheck(tool, file, who, &ops) {
+            s.record_call(tool, file, who, Some(&e));
+            return Err(failure_of(&e));
+        }
         let (ws, was_open) = (
             who.workspace.as_str(),
             s.with_room(&who.workspace, file, |_| ()),
         );
         let was_open = was_open.is_some();
-        s.open(ws, file)
-            .map_err(|e| failure_of(&SubmitError::Rooms(e)))?;
+        if let Err(e) = s.open(ws, file) {
+            let e = SubmitError::Rooms(e);
+            s.record_call(tool, file, who, Some(&e));
+            return Err(failure_of(&e));
+        }
         let checked = s
             .with_room(ws, file, |room| {
                 meldframe_batch::check(room, &who.actor, &ops, &guards)
             })
             .expect("the room was just opened");
         let done = match checked {
-            Err(Stop::Refused { index, refusal }) => Err(Failure::Batch { index, refusal }),
-            Err(Stop::Store(e)) => Err(Failure::Unavailable(e.to_string())),
+            Err(Stop::Refused { index, refusal }) => {
+                s.record_call(
+                    tool,
+                    file,
+                    who,
+                    Some(&SubmitError::Refused(refusal.clone())),
+                );
+                Err(Failure::Batch { index, refusal })
+            }
+            Err(Stop::Store(e)) => {
+                let down = SubmitError::Rooms(meldframe_rooms::RegistryError::Room(
+                    meldframe_host::RoomError::Store(e.clone()),
+                ));
+                s.record_call(tool, file, who, Some(&down));
+                Err(Failure::Unavailable(e.to_string()))
+            }
             Ok(()) => s
                 .submit_tool(tool, file, who, ops)
                 .map_err(|e| failure_of(&e)),
@@ -152,7 +171,7 @@ mod read {
     impl SharedServer {
         /// Run `f` on the room of `file`, opening it for the call when it is closed. A read tool is allowed
         /// only when the registry has it with an `Auto` policy; without the MCP module nothing reads.
-        fn read<R>(
+        fn read_unlogged<R>(
             &self,
             tool: &str,
             who: &Principal,
@@ -167,6 +186,24 @@ mod read {
             }
             self.with_open_room(who, file, f)
         }
+
+        /// `read_unlogged`, and one entry in the call log for the call.
+        fn read<R>(
+            &self,
+            tool: &str,
+            who: &Principal,
+            file: &str,
+            f: impl FnOnce(&Room<AnyStore>) -> R,
+        ) -> Result<R, Failure> {
+            let done = self.read_unlogged(tool, who, file, f);
+            let refusal = match &done {
+                Err(Failure::Refused(r)) => Some(r),
+                _ => None,
+            };
+            let outcome = done.as_ref().map(|_| ()).map_err(|_| refusal);
+            self.lock().record_call_as(tool, file, who, outcome);
+            done
+        }
     }
 
     fn unavailable(e: StoreError) -> Failure {
@@ -175,7 +212,7 @@ mod read {
 
     impl Reader for SharedServer {
         fn view(&self, who: &Principal, file: &str) -> Result<FileView, Failure> {
-            self.read("get_tree", who, file, |r| FileView {
+            self.read("get_nodes", who, file, |r| FileView {
                 seq: r.seq(),
                 nodes: r.nodes().to_vec(),
             })
@@ -209,7 +246,8 @@ mod read {
             node: &str,
             limit: usize,
         ) -> Result<Conflict, Failure> {
-            self.read("get_tree", who, file, |r| {
+            // Part of the `apply_commands` call that conflicted: that call has its own entry.
+            self.read_unlogged("get_tree", who, file, |r| {
                 let changes = meldframe_batch::changes_to(r, since, node, limit)?;
                 Ok(Conflict {
                     seq: r.seq(),
