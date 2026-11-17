@@ -11,7 +11,7 @@ Meldframe is a closed-source design canvas for people and AI agents. The reposit
 
 ## Workflow
 
-1. Branch from `develop`. The branch name starts with `feat/`, `fix/`, `docs/`, `chore/`, `refactor/`, `perf/`, `test/`, `ci/`, `build/` or `release/`, then a lowercase slug (`feat/room-snapshots`). CI rejects other names. `main` receives release tags only.
+1. Branch from `develop`. The branch name starts with `feat/`, `fix/`, `docs/`, `chore/`, `refactor/`, `perf/`, `test/`, `ci/`, `build/` or `release/`, then a lowercase slug (`feat/room-snapshots`). CI rejects other names. `main` receives releases only: a pull request from `develop` after the heavy gates of "Release" in `AGENTS.md` have run.
 2. Write the failing test first for any behaviour change, at the agreed seam, then the minimal change.
 3. Commit with [Conventional Commits](https://www.conventionalcommits.org/) (`feat(core): ...`) and sign off every commit: `git commit -s`.
 4. Rebase onto `develop` (no merge commits) and push with `--force-with-lease`.

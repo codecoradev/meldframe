@@ -51,6 +51,10 @@ When several worktrees build at once, give each its own target directory outside
 
 Gitea Actions in `.gitea/workflows/`: `ci.yml` (the fast set in two jobs, `checks` and `migrations`: scripts self-test, format, lint with warnings as errors, tests, `deps-check`, the protocol drift check, and the migrations check; every pull request must pass it), `nightly.yml` (the heavier gates `build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences`, `wasm-test`, nightly and on demand; run them yourself before a pull request), `pr-checks.yml` (one job: branch prefix, Message Standard, description sections What, Why, Changes, Testing) and `cora-review.yml` (disabled; config in `.cora.yaml`; the local Cora agent review replaces it). A gate whose command does not exist yet is listed in `.gitea/ci-pending.txt` and passes without running; remove its line in the pull request that adds the command. Check scripts live in `scripts/ci/` (`sh scripts/ci/selftest.sh`).
 
+## Release (develop to main)
+
+A pull request from `develop` to `main` is a release. Pull request CI is the fast set, so before a release is merged run the heavy gates it skips and write the result in `Testing`: `just check` (all of it), `just wasm-test` and `just wasm-smoke`, `tools/mutation-check-sync.sh`, the property tests with more seeds (`MELDFRAME_SEEDS=6000 cargo test --release -p meldframe-history -p meldframe-history-props -p meldframe-sync-props`), and the browser checks against the development server: `apps/web/scripts/editor-e2e.mjs` (with a second token for the checks of another actor) and, when the MCP surface or the capture changed, `apps/web/scripts/m1-claude-demo.mjs`. The last nightly run on `develop` must be green. A release that skips one of these says which and why. Nothing here runs in pull request CI: a heavy check is run on purpose, at a release, and by hand before a change that touches what it covers.
+
 ## Rules that are easy to break
 
 - Keep pull requests small: about 400 changed lines and 10 files, one kind of content. A large or mixed pull request is slow to review and hard to review well; split it by kind (workflow, scripts, code, docs).
