@@ -23,7 +23,7 @@ How to use it: before an epic that has a UI part starts, open its boards, list w
 | M1.2 Editor, panels open | E1.6 | layers, canvas, right panel; agent change labelled by actor | touch ring on an agent's node is drawn only in M1.4 |
 | M1.3 Properties in full | E1.6 | basic properties of a frame, rectangle and text | none |
 | M1.4 Canvas interactions | E1.6 | move, resize, edit text, selection, touch ring | none |
-| M1.5 New file and frames | E1.6, E3.2 (frame presets) | new file, Desktop, Tablet, Mobile presets | Carousel, Story, Slide presets (later) |
+| M1.5 New file and frames | E1.6, E3.2 (frame presets, done) | new file, Desktop, Tablet, Mobile presets | Carousel, Story, Slide presets (later) |
 | M1.6 Files home | E1.2, E1.6 | file list, empty state, new file | sharing a file with an agent |
 | M1.7 Shortcuts and palette | E1.6 | shortcut sheet, command palette | none |
 | M1.8 Connection and errors | E1.4, E1.6 | connection bar, agent messages per error code, empty states, dialogs | the `Halted` reload flow of issue 90 |

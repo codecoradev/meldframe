@@ -2,13 +2,20 @@
   The tool bar: the four tools, undo and redo, and the two panels. It shows app state and dispatches actions only.
 -->
 <script lang="ts">
-  import type { Action, AppState, Tool } from '@meldframe/protocol';
+  import type { Action, AppState, FramePreset, Tool } from '@meldframe/protocol';
 
   interface Props {
     state: AppState;
     dispatch: (a: Action) => void;
+    /** Makes a frame of a preset in the middle of the view. */
+    onPreset: (p: FramePreset) => void;
   }
-  let { state, dispatch }: Props = $props();
+  let { state, dispatch, onPreset }: Props = $props();
+  const presets: { preset: FramePreset; label: string }[] = [
+    { preset: 'desktop', label: 'Desktop' },
+    { preset: 'tablet', label: 'Tablet' },
+    { preset: 'mobile', label: 'Mobile' },
+  ];
 
   const tools: { tool: Tool; label: string; key: string }[] = [
     { tool: 'select', label: 'Select', key: 'V' },
@@ -29,6 +36,10 @@
       data-testid="tool-{t.tool}"
       onclick={() => dispatch({ type: 'setTool', tool: t.tool })}
     >{t.label}</button>
+  {/each}
+  <span class="mx-1 h-5 w-px bg-hairline" aria-hidden="true"></span>
+  {#each presets as p (p.preset)}
+    <button type="button" class="{base} text-text-muted hover:bg-field hover:text-text" title="New {p.label} frame" data-testid="preset-{p.preset}" onclick={() => onPreset(p.preset)}>{p.label}</button>
   {/each}
   <span class="mx-1 h-5 w-px bg-hairline" aria-hidden="true"></span>
   <button type="button" class="{base} text-text hover:bg-field" disabled={!state.history.canUndo} title="Undo (Ctrl+Z)" data-testid="undo" onclick={() => dispatch({ type: 'undo' })}>Undo</button>

@@ -21,7 +21,7 @@ mod link;
 mod retry;
 mod state;
 
-pub use action::{Action, CreateKind, Frame, Property};
+pub use action::{Action, CreateKind, Frame, FramePreset, Property};
 pub use app::App;
 pub use effect::{Effect, OutOp};
 pub use event::Event;

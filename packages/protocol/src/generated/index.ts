@@ -11,6 +11,7 @@ export type { Effect } from './Effect';
 export type { Event } from './Event';
 export type { FileSnapshot } from './FileSnapshot';
 export type { Frame } from './Frame';
+export type { FramePreset } from './FramePreset';
 export type { Gradient } from './Gradient';
 export type { GradientKind } from './GradientKind';
 export type { GradientStop } from './GradientStop';

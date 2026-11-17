@@ -20,6 +20,7 @@
   import { layerRows } from '@meldframe/web-document/layers';
   import { boxAction, propertyAction, type BoxField, type PropertyField } from '@meldframe/web-document/properties';
   import { noticeFromEvents } from '@meldframe/web-document/notices';
+  import { presetAction } from '@meldframe/web-document/presets';
   import { addTouch, type Touched } from '@meldframe/web-document/touches';
   import { serveCapture, type Req } from './capture';
   import { duration, pixiColors } from './tokens';
@@ -261,7 +262,7 @@
       The canvas could not start: {canvasError}
     </div>
   {/if}
-  <Toolbar state={snap.state} {dispatch} />
+  <Toolbar state={snap.state} {dispatch} onPreset={(p) => canvas && dispatch(presetAction(p, canvas.centre()))} />
   <div class="pointer-events-none absolute top-4 left-4 flex items-center gap-3 text-small text-text-muted">
     <output data-testid="tool" data-tool={snap.state.tool}>{toolLabel}</output>
     <output data-testid="connection" data-state={snap.state.connection.type}>{label(snap.state.connection)}</output>

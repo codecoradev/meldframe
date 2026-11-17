@@ -244,6 +244,11 @@
     else setCamera(fitRect(box, viewport), true);
   }
 
+  /** The world point at the centre of what the canvas shows. */
+  export function centre(): { x: number; y: number } {
+    return screenToWorld(camera, viewport.w / 2, viewport.h / 2);
+  }
+
   /** Gives the keyboard back to the canvas (after an editor laid over it closes). */
   export function focus(): void {
     host?.focus({ preventScroll: true });

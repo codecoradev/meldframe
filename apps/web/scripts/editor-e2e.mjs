@@ -314,6 +314,21 @@ const id = `e2e_${run}`;
     await until('the change made while it reconnected', async () => (await count(page, C)) > 300, 30000);
     assert.equal(await page.evaluate(() => window.__stay), true, 'the page was not reloaded');
   });
+  // Last among the edits: the new frame is large and lies over the others.
+  if (results.every(Boolean)) {
+    await check('a frame preset makes a top-level frame of its size and name, and selects it', async () => {
+      const known = new Set((await nodesOnServer()).map((x) => x.id));
+      const before = known.size;
+      await page.click('[data-testid=preset-mobile]');
+      const all = await until('the preset frame on the server', async () => { const a = await nodesOnServer(); return a.length === before + 1 ? a : null; });
+      const made = all.find((x) => !known.has(x.id));
+      assert.equal(made.name, 'Mobile');
+      assert.equal(made.parentId, null);
+      assert.equal(`${made.w}x${made.h}`, '390x844');
+      await until('the new frame is selected', async () => (await page.locator(`[data-testid=layer][data-id="${made.id}"]`).getAttribute('data-selected')) === 'true');
+      // (Undoing the creation of a frame is refused by the server until the approval path of E2.4: a frame delete is Ask.)
+    });
+  }
   await check('no uncaught error in the page', async () => assert.deepEqual(pageErrors, []));
   await browser.close();
   const failed = results.filter((r) => !r).length;

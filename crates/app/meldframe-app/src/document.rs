@@ -47,6 +47,23 @@ impl App {
         let before = self.replica.pending_len();
         let mut select = None;
         let result = match action {
+            Action::CreatePreset { x, y, .. } if !(x.is_finite() && y.is_finite()) => {
+                Err(ApplyError::NotFinite("x or y").into())
+            }
+            Action::CreatePreset {
+                preset,
+                x,
+                y,
+                parent,
+            } => {
+                let id = self.fresh_id();
+                let (w, h) = preset.size();
+                let mut node = new_node(&id, CreateKind::Frame, x, y, parent, Some(w), Some(h));
+                node.name = preset.name().into();
+                let done = self.replica.apply(&Command::AddNode { node, index: None });
+                select = done.is_ok().then_some(id);
+                done
+            }
             Action::CreateNode { x, y, w, h, .. }
                 if ![Some(x), Some(y), w, h]
                     .iter()

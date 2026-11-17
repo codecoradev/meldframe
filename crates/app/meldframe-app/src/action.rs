@@ -59,6 +59,13 @@ pub enum Action {
         #[ts(optional)]
         h: Option<f64>,
     },
+    /// Make a frame of a preset's size and name at a point, select it and go back to the select tool (one undo step).
+    CreatePreset {
+        preset: FramePreset,
+        x: f64,
+        y: f64,
+        parent: Option<String>,
+    },
     Move {
         id: String,
         x: f64,
@@ -171,6 +178,43 @@ impl Action {
             h,
             x: None,
             y: None,
+        }
+    }
+}
+
+/// A frame size to start a design from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum FramePreset {
+    Desktop,
+    Tablet,
+    Mobile,
+}
+
+impl FramePreset {
+    /// Every preset, in the order a menu lists them.
+    pub const ALL: [FramePreset; 3] = [
+        FramePreset::Desktop,
+        FramePreset::Tablet,
+        FramePreset::Mobile,
+    ];
+
+    /// Width and height in px: a 1440 x 900 laptop, an iPad portrait and a current phone.
+    pub fn size(self) -> (f64, f64) {
+        match self {
+            FramePreset::Desktop => (1440.0, 900.0),
+            FramePreset::Tablet => (768.0, 1024.0),
+            FramePreset::Mobile => (390.0, 844.0),
+        }
+    }
+
+    /// The name the new frame gets.
+    pub fn name(self) -> &'static str {
+        match self {
+            FramePreset::Desktop => "Desktop",
+            FramePreset::Tablet => "Tablet",
+            FramePreset::Mobile => "Mobile",
         }
     }
 }
