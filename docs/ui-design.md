@@ -4,6 +4,8 @@ Status: **draft for owner review** (16 Nov 2026). `[D]` = decided by the owner o
 
 This is a design note, not product code. It records what the first design pass of the editor looks like and why, so the web front end (E1.6, E3.4, E5.1) and a later desktop front end build the same thing. The pictures live in the design canvas "Meldframe UI/UX" (private); this page keeps the decisions. Wonder was the reference for layout and mood, studied from the owner's screenshots and recordings. Nothing is copied: names, accent colour and several features differ.
 
+How the boards were checked, and what a person still has to review, is in `docs/design-qa.md`.
+
 ## 1. Principles
 
 1. The canvas is the window. Chrome floats over it and collapses, so a person who only wants to look sees nothing else. `[D]` (decision 27)
