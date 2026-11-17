@@ -251,6 +251,24 @@ const id = `e2e_${run}`;
       await page.locator('[data-testid=notice]').waitFor({ state: 'detached', timeout: 9000 });
     });
   }
+  // Needs a second actor: start the server with a second token (MELDFRAME_DEV_TOKENS="<dev token>:ws_dev:agent:dev,<token 2>:ws_dev:agent:claude")
+  // and run this with MELDFRAME_E2E_TOKEN2=<token 2>.
+  if (results.every(Boolean) && process.env.MELDFRAME_E2E_TOKEN2) {
+    await check('a change by another actor appears at once and its row in the layers panel carries the actor', async () => {
+      const other = `other_${run}`;
+      const res = await fetch(`${server}/v1/files/${file}/tools/apply_commands`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${process.env.MELDFRAME_E2E_TOKEN2}` },
+        body: JSON.stringify({ ops: [{ key: `e2e2-${run}`, command: { type: 'addNode', node: { id: other, name: 'From claude', type: 'rect', parentId: id, x: 5, y: 5, w: 40, h: 30, fill: '#00aa88' } }, deps: [] }] }),
+      });
+      assert.equal(res.status, 200, `op refused: ${res.status}`);
+      const chip = page.locator(`[data-testid=layer][data-id="${other}"] [data-testid=actor]`);
+      await chip.waitFor({ state: 'visible', timeout: 8000 });
+      assert.equal((await chip.textContent())?.trim(), 'claude');
+      // Its own changes carry no label.
+      assert.equal(await page.locator(`[data-testid=layer][data-id="${id}"] [data-testid=actor]`).count(), 0);
+    });
+  }
   // The reconnect check stops the development server: only when the checks before it passed (otherwise leave it).
   if (results.every(Boolean)) await check('the server goes away: the page says so; it comes back: the page reconnects and shows what was done meanwhile', async () => {
     // Stop only what listens on the server's port (not every process that has the name).

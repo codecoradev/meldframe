@@ -31,8 +31,17 @@ async function start() {
   engine.subscribe((s) => {
     if (reloadOnDivergence(s.events, () => sessionStorage, Date.now())) location.reload();
   });
-  shell = new Shell(engine, browserEnv(), { file });
-  editor = mount(Editor, { target: root, props: { engine, file, actor, attribution } });
+  // The ephemeral touch frames go to the editor, not to the app layer: they are not part of the document.
+  const touchHandlers = new Set<(t: { actor: string; nodeIds: string[] }) => void>();
+  shell = new Shell(engine, browserEnv(), { file, onTouch: (t) => touchHandlers.forEach((h) => h(t)) });
+  editor = mount(Editor, { target: root, props: {
+      engine, file, actor, attribution,
+      onTouches: (fn: (t: { actor: string; nodeIds: string[] }) => void) => {
+        touchHandlers.add(fn);
+        return () => touchHandlers.delete(fn);
+      },
+    },
+  });
   shell.start();
 }
 

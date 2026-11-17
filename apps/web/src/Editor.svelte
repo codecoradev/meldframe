@@ -20,6 +20,8 @@
   import { layerRows } from '@meldframe/web-document/layers';
   import { boxAction, propertyAction, type BoxField, type PropertyField } from '@meldframe/web-document/properties';
   import { noticeFromEvents } from '@meldframe/web-document/notices';
+  import { addTouch, type Touched } from '@meldframe/web-document/touches';
+  import { duration, pixiColors } from './tokens';
   import { loadTheme } from './theme';
 
   interface Props {
@@ -30,8 +32,10 @@
     actor: string;
     /** Who last changed each node when the file was loaded; live changes are in the app state. */
     attribution?: Record<string, { actor: string; seq: number }>;
+    /** Where the ephemeral touch frames of other actors come from; returns the way to stop listening. */
+    onTouches?: (fn: (t: { actor: string; nodeIds: string[] }) => void) => () => void;
   }
-  let { engine, file, actor, attribution = {} }: Props = $props();
+  let { engine, file, actor, attribution = {}, onTouches }: Props = $props();
 
   // Snapshots are replaced as a whole, never edited: no deep proxy over the nodes.
   let snap = $state.raw(untrack(() => engine.snapshot()));
@@ -65,6 +69,19 @@
     const a = p && boxAction(p, f, raw);
     if (a) dispatch(a);
   };
+
+  // The touch rings of other actors: a ring flashes on the nodes they just changed and fades.
+  let touches = $state.raw<Touched[]>([]);
+  onMount(() =>
+    onTouches?.((t) => {
+      const c = pixiColors(theme);
+      touches = addTouch(touches, t, performance.now(), {
+        self: actor,
+        palette: { person: c.person, agents: [c['agent-1'], c['agent-2'], c['agent-3']] },
+        maxAgeMs: Math.max(duration['touch-ring'], duration['reduced-motion-hold']),
+      });
+    }),
+  );
 
   // A refusal is shown for a few seconds, then goes away; a later snapshot does not cancel that (the timer is not tied to the effect).
   let notice = $state<string | null>(null);
@@ -195,6 +212,7 @@
     tool={toolMode(snap.state.tool)}
     bind:camera
     {theme}
+    {touches}
     label={`File ${file}`}
     {onSelect}
     {onMove}

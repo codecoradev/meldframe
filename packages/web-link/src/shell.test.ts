@@ -113,6 +113,40 @@ describe('parseFrame', () => {
   });
 });
 
+describe('touch frames', () => {
+  const live = (onTouch: (t: { actor: string; nodeIds: string[] }) => void) => {
+    const engine = new FakeEngine();
+    const env = new FakeEnv();
+    const shell = new Shell(engine, env, { file: 'file_dev', onTouch });
+    shell.start();
+    engine.effect({ type: 'subscribe', afterSeq: 0 });
+    return { engine, socket: env.sockets[0]! };
+  };
+  it('parseFrame takes a touch with an actor and node ids and refuses the rest', () => {
+    expect(parseFrame('{"type":"touch","actor":"agent:x","nodeIds":["a"],"seq":3}')?.type).toBe('touch');
+    for (const bad of ['{"type":"touch","nodeIds":["a"]}', '{"type":"touch","actor":"u"}', '{"type":"touch","actor":"u","nodeIds":[1]}', '{"type":"touch","actor":"u","nodeIds":"a"}']) {
+      expect(parseFrame(bad), bad).toBeNull();
+    }
+  });
+  it('hands a touch to the listener and does not dispatch it to the app', () => {
+    const seen: { actor: string; nodeIds: string[] }[] = [];
+    const { engine, socket } = live((t) => seen.push(t));
+    const before = engine.dispatched.length;
+    socket.onmessage('{"type":"touch","actor":"agent:claude","nodeIds":["a","b"],"seq":4}');
+    expect(seen).toEqual([{ actor: 'agent:claude', nodeIds: ['a', 'b'] }]);
+    expect(engine.dispatched).toHaveLength(before);
+  });
+  it('a listener that throws does not lose the connection', () => {
+    const { engine, socket } = live(() => {
+      throw new Error('a view broke');
+    });
+    const before = engine.dispatched.length;
+    socket.onmessage('{"type":"touch","actor":"u","nodeIds":["a"],"seq":1}');
+    expect(engine.dispatched).toHaveLength(before); // no reconnect action
+    expect(socket.closed).toBe(false);
+  });
+});
+
 describe('Shell with a scripted engine', () => {
   it('start dispatches start and ticks every second', () => {
     const { engine, env, shell } = setup();

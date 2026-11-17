@@ -33,6 +33,8 @@ export interface ShellOptions {
   file: string;
   /** The tool that applies commands; the server's MCP module registers it for every transport. */
   tool?: string;
+  /** An ephemeral `touch` frame: an actor changed these nodes. Not part of the document, so the app never sees it. */
+  onTouch?: (t: { actor: string; nodeIds: string[] }) => void;
 }
 
 /** How often the app is told the time, so it can notice a silent connection or a stuck attempt. */
@@ -46,7 +48,7 @@ export const POST_TIMEOUT_MS = 15_000;
 export const MAX_SUBSCRIBE_RETRIES = 3;
 const RETRY_FALLBACK_MS = 1000;
 
-type Wire = { type: string; id?: string; seq?: number; actor?: string; key?: unknown; command?: unknown; afterSeq?: number; latestSeq?: number; code?: string; retryAfterMs?: number };
+type Wire = { type: string; id?: string; seq?: number; actor?: string; nodeIds?: unknown; key?: unknown; command?: unknown; afterSeq?: number; latestSeq?: number; code?: string; retryAfterMs?: number };
 
 /** A frame of the live socket, checked: null when it is not JSON or lacks a field its type needs. */
 export function parseFrame(data: string): Wire | null {
@@ -64,6 +66,8 @@ export function parseFrame(data: string): Wire | null {
       return num(w.seq) && typeof w.actor === 'string' && typeof w.command === 'object' && w.command !== null ? w : null;
     case 'resync':
       return num(w.afterSeq) && num(w.latestSeq) ? w : null;
+    case 'touch':
+      return typeof w.actor === 'string' && Array.isArray(w.nodeIds) && w.nodeIds.every((x) => typeof x === 'string') ? w : null;
     default:
       return w;
   }
@@ -228,6 +232,13 @@ export class Shell {
         });
       case 'resync':
         return this.dispatch({ type: 'frame', nowMs, frame: { type: 'resync', afterSeq: m.afterSeq!, latestSeq: m.latestSeq! } });
+      case 'touch':
+        try {
+          this.opts.onTouch?.({ actor: m.actor!, nodeIds: m.nodeIds as string[] });
+        } catch {
+          // a view that fails on a touch must not cost the connection
+        }
+        return;
       case 'error':
         return this.refused(m);
       default:
