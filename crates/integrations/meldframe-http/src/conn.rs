@@ -1,4 +1,5 @@
-//! A cap on open connections: [`CappedListener`] stops accepting at the cap and resumes when one closes.
+//! A cap on open connections: [`CappedListener`] stops accepting at the cap and resumes when one closes; [`serve`]
+//! runs the router on it with a header-read timeout.
 
 use axum::serve::Listener;
 use std::collections::HashMap;
@@ -124,5 +125,36 @@ impl AsyncWrite for CappedIo {
     }
     fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         Pin::new(&mut self.io).poll_shutdown(cx)
+    }
+}
+
+/// Serve `app` on `listener`, HTTP/1.1 with upgrades (WebSocket), each request carrying the client address as
+/// `ConnectInfo`. Unlike `axum::serve` it closes a connection whose request headers are not complete within
+/// `header_read_timeout`, also one that sends nothing or stays idle between requests (issue 170): a slow client
+/// cannot keep one of the capped connections for ever. An upgraded connection is past it.
+pub async fn serve(
+    mut listener: CappedListener,
+    app: axum::Router,
+    header_read_timeout: std::time::Duration,
+) {
+    loop {
+        let (io, addr) = Listener::accept(&mut listener).await;
+        let app = app.clone();
+        tokio::spawn(async move {
+            // The client address goes into each request, as `axum::serve` does, without rebuilding the router.
+            let svc = hyper::service::service_fn(
+                move |mut req: hyper::Request<hyper::body::Incoming>| {
+                    req.extensions_mut()
+                        .insert(axum::extract::ConnectInfo(addr));
+                    tower::Service::call(&mut app.clone(), req)
+                },
+            );
+            let mut http = hyper::server::conn::http1::Builder::new();
+            http.timer(hyper_util::rt::TokioTimer::new())
+                .header_read_timeout(header_read_timeout);
+            let conn = http.serve_connection(hyper_util::rt::TokioIo::new(io), svc);
+            // A connection that ends with an error (a reset, the timeout) has nothing more to do.
+            let _ = conn.with_upgrades().await;
+        });
     }
 }

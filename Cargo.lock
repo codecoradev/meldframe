@@ -1179,6 +1179,8 @@ name = "meldframe-http"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "hyper",
+ "hyper-util",
  "meldframe-batch",
  "meldframe-check",
  "meldframe-host",
@@ -1190,6 +1192,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tower",
 ]
 
 [[package]]
