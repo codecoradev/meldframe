@@ -137,6 +137,8 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
         };
         app.merge(meldframe_http::mcp::routes(state, shared.clone(), mcp))
     };
+    // Reverse proxies whose X-Forwarded-For is believed (comma-separated addresses); none by default.
+    let trusted = trusted_proxies(&std::env::var("MELDFRAME_TRUSTED_PROXIES").unwrap_or_default())?;
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
@@ -146,9 +148,23 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
         // Heartbeats and the reaping of silent live clients (ADR-0009) run on this timer.
         tokio::spawn(timer.run());
         let listener = CappedListener::new(listener, MAX_CONNECTIONS, MAX_PER_CLIENT);
-        meldframe_http::serve(listener, app, HEADER_READ_TIMEOUT).await;
+        meldframe_http::serve(listener, app, HEADER_READ_TIMEOUT, trusted).await;
         Ok::<(), std::io::Error>(())
     });
     drop(shared); // after block_on: see above
     Ok(served?)
+}
+
+/// The addresses of `MELDFRAME_TRUSTED_PROXIES`: comma-separated, blanks ignored; one that is not an address is an
+/// error, so a typo does not silently trust nothing.
+fn trusted_proxies(spec: &str) -> Result<Vec<std::net::IpAddr>, Box<dyn std::error::Error>> {
+    spec.split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            s.parse().map_err(|_| {
+                format!("MELDFRAME_TRUSTED_PROXIES: {s:?} is not an IP address").into()
+            })
+        })
+        .collect()
 }

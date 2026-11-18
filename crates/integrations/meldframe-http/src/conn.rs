@@ -131,21 +131,27 @@ impl AsyncWrite for CappedIo {
 /// Serve `app` on `listener`, HTTP/1.1 with upgrades (WebSocket), each request carrying the client address as
 /// `ConnectInfo`. Unlike `axum::serve` it closes a connection whose request headers are not complete within
 /// `header_read_timeout`, also one that sends nothing or stays idle between requests (issue 170): a slow client
-/// cannot keep one of the capped connections for ever. An upgraded connection is past it.
+/// cannot keep one of the capped connections for ever. An upgraded connection is past it. Behind a reverse proxy
+/// listed in `trusted_proxies`, the client address of a request is the one the proxy put in `X-Forwarded-For`
+/// ([`real_client`]), so the per-address buckets count clients, not the proxy; the connection caps of
+/// [`CappedListener`] still count the proxy's connections.
 pub async fn serve(
     mut listener: CappedListener,
     app: axum::Router,
     header_read_timeout: std::time::Duration,
+    trusted_proxies: Vec<std::net::IpAddr>,
 ) {
+    let trusted: Arc<[std::net::IpAddr]> = trusted_proxies.into();
     loop {
         let (io, addr) = Listener::accept(&mut listener).await;
-        let app = app.clone();
+        let (app, trusted) = (app.clone(), trusted.clone());
         tokio::spawn(async move {
             // The client address goes into each request, as `axum::serve` does, without rebuilding the router.
             let svc = hyper::service::service_fn(
                 move |mut req: hyper::Request<hyper::body::Incoming>| {
+                    let client = real_client(addr, req.headers(), &trusted);
                     req.extensions_mut()
-                        .insert(axum::extract::ConnectInfo(addr));
+                        .insert(axum::extract::ConnectInfo(client));
                     tower::Service::call(&mut app.clone(), req)
                 },
             );
@@ -157,4 +163,44 @@ pub async fn serve(
             let _ = conn.with_upgrades().await;
         });
     }
+}
+
+/// The client of a request: `peer` itself, unless `peer` is one of `trusted` proxies; then the rightmost address of
+/// the `X-Forwarded-For` headers (read in order) that is not a trusted proxy, since each proxy appends the address it
+/// saw and anything left of that is what the client wrote. Addresses are compared as IPv4 when they are IPv4-mapped
+/// IPv6 (an IPv4 proxy seen through an IPv6 socket); an entry may carry a port (`1.2.3.4:80`, `[::1]:80`); empty
+/// entries are skipped. No such header, or an entry that is not an address, leaves `peer`. Only `X-Forwarded-For` is
+/// read, not `Forwarded`. The port of a forwarded client is 0.
+pub fn real_client(
+    peer: std::net::SocketAddr,
+    headers: &axum::http::HeaderMap,
+    trusted: &[std::net::IpAddr],
+) -> std::net::SocketAddr {
+    let trusted_ip = |ip: std::net::IpAddr| {
+        trusted
+            .iter()
+            .any(|t| t.to_canonical() == ip.to_canonical())
+    };
+    if !trusted_ip(peer.ip()) {
+        return peer;
+    }
+    let entries: Vec<&str> = headers
+        .get_all("x-forwarded-for")
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|v| v.split(','))
+        .map(str::trim)
+        .filter(|e| !e.is_empty())
+        .collect();
+    for e in entries.iter().rev() {
+        let ip = e
+            .parse::<std::net::IpAddr>()
+            .or_else(|_| e.parse::<std::net::SocketAddr>().map(|a| a.ip()));
+        match ip {
+            Ok(ip) if trusted_ip(ip) => continue,
+            Ok(ip) => return std::net::SocketAddr::new(ip.to_canonical(), 0),
+            Err(_) => return peer,
+        }
+    }
+    peer
 }
