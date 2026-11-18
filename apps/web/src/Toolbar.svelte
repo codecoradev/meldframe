@@ -1,16 +1,22 @@
 <!--
-  The tool bar: the four tools, undo and redo, and the two panels. It shows app state and dispatches actions only.
+  The tool bar: the four tools, the presets, PNG export of the selection, undo and redo, and the two panels. It shows app
+  state and dispatches actions only.
 -->
 <script lang="ts">
   import type { Action, AppState, FramePreset, Tool } from '@meldframe/protocol';
+  import { EXPORT_SCALES, type ExportScale } from '@meldframe/web-document/export';
 
   interface Props {
     state: AppState;
     dispatch: (a: Action) => void;
     /** Makes a frame of a preset in the middle of the view. */
     onPreset: (p: FramePreset) => void;
+    /** Whether the selection is one frame, which PNG export saves. */
+    canExport: boolean;
+    /** Saves the selected frame as a PNG at this scale. */
+    onExport: (scale: ExportScale) => void;
   }
-  let { state, dispatch, onPreset }: Props = $props();
+  let { state, dispatch, onPreset, canExport, onExport }: Props = $props();
   const presets: { preset: FramePreset; label: string }[] = [
     { preset: 'desktop', label: 'Desktop' },
     { preset: 'tablet', label: 'Tablet' },
@@ -40,6 +46,10 @@
   <span class="mx-1 h-5 w-px bg-hairline" aria-hidden="true"></span>
   {#each presets as p (p.preset)}
     <button type="button" class="{base} text-text-muted hover:bg-field hover:text-text" title="New {p.label} frame" data-testid="preset-{p.preset}" onclick={() => onPreset(p.preset)}>{p.label}</button>
+  {/each}
+  <span class="mx-1 h-5 w-px bg-hairline" aria-hidden="true"></span>
+  {#each EXPORT_SCALES as scale (scale)}
+    <button type="button" class="{base} whitespace-nowrap text-text-muted hover:bg-field hover:text-text" disabled={!canExport} title="Save the selected frame as a PNG at {scale}x" data-testid="export-{scale}x" onclick={() => onExport(scale)}>PNG {scale}x</button>
   {/each}
   <span class="mx-1 h-5 w-px bg-hairline" aria-hidden="true"></span>
   <button type="button" class="{base} text-text hover:bg-field" disabled={!state.history.canUndo} title="Undo (Ctrl+Z)" data-testid="undo" onclick={() => dispatch({ type: 'undo' })}>Undo</button>

@@ -194,7 +194,7 @@ Goal: exported HTML/Tailwind that matches the canvas (FR-12, FR-13, NFR-2; ADR-0
 - [ ] Pull requests run fixtures plus 50 fuzz seeds; nightly runs 500 or more; a known-gap fixture that starts passing fails the job.
 
 ### E4.3 PNG export (S)
-- [ ] A frame exports to PNG at 1x and 2x from the editor and through MCP.
+- [x] A frame exports to PNG at 1x and 2x from the editor and through MCP. (Editor: the tool bar has PNG 1x and PNG 2x for the one selected frame; its box is drawn offscreen as a capture is (what overlaps the frame is in the image too) and saved as `<layer name>.png` or `<layer name>@2x.png`, at most 4096 x 4096 pixels in area (`packages/web-document/src/export.ts`); checked in a real browser: a Mobile frame saves as 390 x 844 and 780 x 1688. MCP: the `capture` tool with `scale` 1 or 2 returns the same PNG, rendered by an open editor, up to the 4 MiB upload limit of a capture.)
 
 **M4 exit criteria:** the oracle gate is required on `develop` and passes; a landing frame exported to HTML/Tailwind renders the same boxes as the canvas within the contract.
 

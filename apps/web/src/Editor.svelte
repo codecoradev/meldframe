@@ -21,6 +21,7 @@
   import { boxAction, propertyAction, type BoxField, type PropertyField } from '@meldframe/web-document/properties';
   import { noticeFromEvents } from '@meldframe/web-document/notices';
   import { presetAction } from '@meldframe/web-document/presets';
+  import { type ExportScale, exportFileName, planExport } from '@meldframe/web-document/export';
   import { addTouch, type Touched } from '@meldframe/web-document/touches';
   import { serveCapture, type Req } from './capture';
   import { duration, pixiColors } from './tokens';
@@ -111,6 +112,33 @@
       }),
     ),
   );
+
+  // PNG export of the one selected frame (E4.3): drawn offscreen like a capture, then saved by the browser.
+  const exportable = $derived.by(() => {
+    const id = snap.state.selection.length === 1 ? snap.state.selection[0] : undefined;
+    const n = id ? nodes.find((x) => x.id === id) : undefined;
+    return n && n.type === 'frame' ? n : null;
+  });
+  async function exportPng(scale: ExportScale) {
+    const n = exportable;
+    if (!canvas || !n) return;
+    const box = canvas.captureBox(n.id);
+    const plan = planExport(box, scale);
+    if (!plan.ok || !box) return showNotice(plan.ok || plan.code !== 'too_large' ? 'There is nothing to export.' : 'The image would be larger than 4096 x 4096 pixels in area.');
+    try {
+      const url = URL.createObjectURL(await canvas.capture(box, scale));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = exportFileName(n.name, n.id, scale);
+      document.body.append(a);
+      a.click();
+      a.remove();
+      // Some browsers read the URL after the click returns: keep it a while.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      showNotice('The image could not be drawn.');
+    }
+  }
 
   // A refusal is shown for a few seconds, then goes away; a later snapshot does not cancel that (the timer is not tied to the effect).
   let notice = $state<string | null>(null);
@@ -262,7 +290,7 @@
       The canvas could not start: {canvasError}
     </div>
   {/if}
-  <Toolbar state={snap.state} {dispatch} onPreset={(p) => canvas && dispatch(presetAction(p, canvas.centre()))} />
+  <Toolbar state={snap.state} {dispatch} onPreset={(p) => canvas && dispatch(presetAction(p, canvas.centre()))} canExport={exportable !== null} onExport={(s) => void exportPng(s)} />
   <div class="pointer-events-none absolute top-4 left-4 flex items-center gap-3 text-small text-text-muted">
     <output data-testid="tool" data-tool={snap.state.tool}>{toolLabel}</output>
     <output data-testid="connection" data-state={snap.state.connection.type}>{label(snap.state.connection)}</output>
