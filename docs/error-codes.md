@@ -138,6 +138,19 @@ A test in `crates/core/meldframe-sync-scenarios/tests/outbox_cap.rs` reads this 
 | `E_OUTBOX_FULL` | The replica already holds as many ops as its cap (`Replica::max_pending`, 10,000 by default) that the server has not confirmed: the connection is down or the server is slow. `Replica::undo` and `redo` check it only when there is a step to take. In the app layer the same refusal is `Event::Refused` with the code `outbox_full`. | Do not send more. Wait for the connection to come back and the queue to drain (or reload after `Halted`), then send the command again. |
 | `E_SNAPSHOT_BEHIND` | `Replica::resync` (the app's `Action::Reload`) was given a snapshot older than the events the replica already applied: loading it would go back. | Load the file again (a newer snapshot) and retry. |
 
+## Asset codes
+
+The `assets` feature crate (E2.5, ADR-0015) fails with these codes. The upload route and the asset tool are not built yet; the codes are those of the store seam.
+
+| Code | Meaning and typical cause | What a caller should do next |
+| --- | --- | --- |
+| `asset_type_refused` | The bytes are not a png, jpeg, webp or gif image; SVG is refused. | Convert the image to one of the four types. |
+| `asset_too_large` | The upload is over 10 MiB. | Make the image smaller. |
+| `asset_not_found` | No asset with this id in the caller's workspace (another workspace's asset is not found either). | Upload the image first and use the id the upload returned. |
+| `invalid` | The upload is empty, or an id is not a lowercase hex SHA-256. | Send the bytes of the image, or the id the upload returned. |
+| `asset_corrupt` | The stored file no longer matches its id (changed on disk, or cut short by a crash). Not retryable as a read. | Upload the same image again: that writes the file anew. |
+| `unavailable` | The disk failed. | Try again later; report it if it stays. |
+
 ## Capture codes
 
 The `capture` tool (feature module `capture`, Read tier) fails with these codes. A client message in `render_failed` is cut to 200 bytes and stripped of control characters. The strings are shared with the

@@ -18,6 +18,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "assets"
+version = "0.0.0"
+dependencies = [
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"

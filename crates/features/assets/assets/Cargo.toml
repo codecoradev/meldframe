@@ -1,0 +1,17 @@
+[package]
+name = "assets"
+description = "Assets feature module: images for image fills, content-addressed by SHA-256, kept per workspace behind a blob seam (E2.5)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "feature"
+group = "assets"
+
+[lints]
+workspace = true
+
+[dependencies]
+sha2 = "0.10"
