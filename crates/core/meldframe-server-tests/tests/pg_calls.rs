@@ -42,6 +42,7 @@ fn logged_calls_are_rows_that_a_new_process_reads_back_per_workspace() {
     });
     // The rows are written off the caller's thread: wait until they are there.
     log.flush();
+    assert_eq!((log.dropped(), log.failed()), (0, 0));
     assert_eq!(log.recent(2).len(), 2, "recent reads the newest in memory");
     // A new process on the same database.
     let again = PgCallLog::new(db.reconnect());

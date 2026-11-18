@@ -23,12 +23,15 @@ pub struct PgCallLog {
     sent: Arc<AtomicU64>,
     done: Arc<AtomicU64>,
     dropped: Arc<AtomicU64>,
+    /// Entries the writer could not insert (the database refused or was down).
+    failed: Arc<AtomicU64>,
 }
 
 impl std::fmt::Debug for PgCallLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PgCallLog")
             .field("dropped", &self.dropped.load(Ordering::Relaxed))
+            .field("failed", &self.failed.load(Ordering::Relaxed))
             .finish_non_exhaustive()
     }
 }
@@ -38,11 +41,12 @@ impl PgCallLog {
     pub fn new(store: PgStore) -> Self {
         let (tx, mut rx) = mpsc::channel::<CallEntry>(CALL_QUEUE);
         let done = Arc::new(AtomicU64::new(0));
-        let (pool, finished) = (store.pool.clone(), done.clone());
+        let failed = Arc::new(AtomicU64::new(0));
+        let (pool, finished, lost) = (store.pool.clone(), done.clone(), failed.clone());
         store.rt.spawn(async move {
             while let Some(e) = rx.recv().await {
-                // A row that cannot be written is lost; the call it describes has already ended.
-                let _ = sqlx::query(
+                // A row that cannot be written is lost (and counted); the call it describes has already ended.
+                let written = sqlx::query(
                     "insert into calls (at_ms, workspace_id, actor, tool, file, risk, decision, outcome) \
                      values ($1, $2, $3, $4, $5, $6, $7, $8)",
                 )
@@ -56,6 +60,9 @@ impl PgCallLog {
                 .bind(&e.outcome)
                 .execute(&pool)
                 .await;
+                if written.is_err() {
+                    lost.fetch_add(1, Ordering::Relaxed);
+                }
                 finished.fetch_add(1, Ordering::SeqCst);
             }
         });
@@ -66,6 +73,7 @@ impl PgCallLog {
             sent: Arc::default(),
             done,
             dropped: Arc::default(),
+            failed,
         }
     }
 
@@ -77,6 +85,11 @@ impl PgCallLog {
         {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
+    }
+
+    /// Entries the database did not take.
+    pub fn failed(&self) -> u64 {
+        self.failed.load(Ordering::Relaxed)
     }
 
     /// Entries dropped because the writer was behind by [`CALL_QUEUE`].

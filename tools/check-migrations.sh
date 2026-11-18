@@ -63,7 +63,23 @@ begin
 end $$;
 SQL
 
-echo "[3/3] ops are append-only and idempotent per actor and file"
+echo "[3/3] ops and calls are append-only; ops are idempotent per actor and file"
+psql "$URL" -q -v ON_ERROR_STOP=1 <<'SQL'
+do $$
+begin
+  insert into calls (at_ms, workspace_id, actor, tool, file, risk, decision, outcome)
+    values (1, 'ws', 'a1', 'paint', 'f1', 'change', 'allow', 'ok');
+  begin update calls set outcome = 'x';
+    raise exception 'a call was updated';
+  exception when others then
+    if sqlerrm not like 'calls are append-only%' then raise; end if;
+  end;
+  begin insert into calls (at_ms, workspace_id, actor, tool, file, risk, decision, outcome)
+      values (1, 'ws', 'a1', 'paint', 'f1', 'huge', 'allow', 'ok');
+    raise exception 'an unknown risk was accepted';
+  exception when check_violation then null; end;
+end $$;
+SQL
 psql "$URL" -q -v ON_ERROR_STOP=1 <<'SQL'
 do $$
 begin
