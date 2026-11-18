@@ -87,6 +87,29 @@ fn storage_counts_the_bytes_of_admitted_ops_per_workspace() {
 }
 
 #[test]
+fn bytes_held_besides_ops_count_against_the_same_storage_limit() {
+    // Workspace `a` holds 590 bytes of assets; one op is more than the 10 bytes that are left. `b` holds none.
+    let mut gate = Gate::new()
+        .storage_limit(600)
+        .extra_storage(|ws| if ws == "a" { 590 } else { 0 });
+    let err = gate.submit(&who("a"), ops("k", 1)).unwrap_err();
+    assert_eq!(err, Refusal::StorageExceeded { limit: 600 });
+    assert_eq!(gate.storage_used("a"), 0, "nothing was charged");
+    gate.submit(&who("b"), ops("k", 1)).unwrap();
+    assert_eq!(gate.storage_cap(), Some(600));
+}
+
+#[test]
+fn the_ops_of_a_workspace_are_counted_from_the_store_before_its_first_call() {
+    // A restarted server: the store holds 500 bytes of ops of `a`, which has not made a call yet.
+    let mut gate = Gate::new()
+        .storage_limit(600)
+        .usage(|ws| (ws == "a").then_some((3, 500)));
+    assert_eq!(gate.storage_of("a"), 500);
+    assert_eq!(gate.storage_of("b"), 0);
+}
+
+#[test]
 fn a_refused_batch_charges_neither_rate_nor_storage() {
     let (_t, now) = clock();
     let mut gate = Gate::new().ops_per_minute(1, now).storage_limit(1_000_000);

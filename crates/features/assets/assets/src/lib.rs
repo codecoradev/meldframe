@@ -15,6 +15,9 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 mod disk;
+mod usage;
+
+pub use usage::{Reservation, Reserve, Usage};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use disk::DiskBlobs;
@@ -161,6 +164,9 @@ pub struct Stored {
     pub id: String,
     pub kind: ImageType,
     pub bytes: usize,
+    /// This call wrote the file; `false` when the workspace held the image already (or another call wrote it
+    /// first), so the storage quota charges it once.
+    pub created: bool,
 }
 
 /// The seam: keep the assets of each workspace. Methods take `&self` and a store is `Sync`: calls run at once, so a
@@ -172,6 +178,8 @@ pub trait BlobStore: Send + Sync {
     fn put(&self, workspace: &str, bytes: &[u8]) -> Result<Stored, AssetError>;
     /// The type and the bytes of an asset of `workspace`.
     fn get(&self, workspace: &str, id: &str) -> Result<(ImageType, Vec<u8>), AssetError>;
+    /// The bytes of every asset `workspace` holds (what its storage quota counts).
+    fn used(&self, workspace: &str) -> Result<u64, AssetError>;
     /// Whether `workspace` has the asset.
     fn has(&self, workspace: &str, id: &str) -> Result<bool, AssetError> {
         match self.get(workspace, id) {
@@ -191,19 +199,49 @@ pub struct MemoryBlobs {
 /// The assets by workspace and id.
 type Blobs = HashMap<(String, String), (ImageType, Vec<u8>)>;
 
+/// Insert only what is not there; whether it was.
+trait InsertNew {
+    fn insert_new(&mut self, key: (String, String), value: (ImageType, Vec<u8>)) -> bool;
+}
+
+impl InsertNew for Blobs {
+    fn insert_new(&mut self, key: (String, String), value: (ImageType, Vec<u8>)) -> bool {
+        match self.entry(key) {
+            std::collections::hash_map::Entry::Occupied(_) => false,
+            std::collections::hash_map::Entry::Vacant(v) => {
+                v.insert(value);
+                true
+            }
+        }
+    }
+}
+
 impl BlobStore for MemoryBlobs {
     fn put(&self, workspace: &str, bytes: &[u8]) -> Result<Stored, AssetError> {
         let (kind, id) = check_upload(bytes)?;
-        self.blobs
+        let created = self
+            .blobs
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .entry((workspace.to_owned(), id.clone()))
-            .or_insert_with(|| (kind, bytes.to_vec()));
+            .insert_new((workspace.to_owned(), id.clone()), (kind, bytes.to_vec()));
         Ok(Stored {
             id,
             kind,
             bytes: bytes.len(),
+            created,
         })
+    }
+
+    fn used(&self, workspace: &str) -> Result<u64, AssetError> {
+        let blobs = self
+            .blobs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        Ok(blobs
+            .iter()
+            .filter(|((w, _), _)| w == workspace)
+            .map(|(_, (_, bytes))| bytes.len() as u64)
+            .sum())
     }
 
     fn get(&self, workspace: &str, id: &str) -> Result<(ImageType, Vec<u8>), AssetError> {

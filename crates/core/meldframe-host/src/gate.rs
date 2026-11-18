@@ -76,6 +76,8 @@ const MINUTE_MS: u64 = 60_000;
 
 type UsageFn = Box<dyn Fn(&str) -> Option<(u64, u64)> + Send + Sync>;
 
+type ExtraFn = Box<dyn Fn(&str) -> u64 + Send + Sync>;
+
 type RecentFn = Box<dyn Fn(&str, u64) -> Option<u64> + Send + Sync>;
 
 type Clock = Box<dyn Fn() -> u64 + Send + Sync>;
@@ -97,6 +99,9 @@ pub struct Gate {
     stored: HashMap<String, u64>,
     /// What a workspace wrote before this gate existed, asked once per workspace (see [`Gate::usage`]).
     usage: Option<UsageFn>,
+    /// Bytes a workspace holds besides its ops, which count against the same storage limit (see
+    /// [`Gate::extra_storage`]).
+    extra_storage: Option<ExtraFn>,
     /// Ops a workspace wrote since a time, asked with `usage` (see [`Gate::recent`]).
     recent: Option<RecentFn>,
     seen: HashSet<String>,
@@ -144,6 +149,7 @@ impl Gate {
             storage_limit: None,
             stored: HashMap::new(),
             usage: None,
+            extra_storage: None,
             recent: None,
             seen: HashSet::new(),
             seen_minute: HashSet::new(),
@@ -181,6 +187,18 @@ impl Gate {
         self
     }
 
+    /// Count `extra(workspace)` bytes (the assets of the workspace) against the storage limit too: an op is
+    /// refused with `quota_storage` when its bytes, the ops written and the extra bytes pass the limit.
+    pub fn extra_storage(mut self, extra: impl Fn(&str) -> u64 + Send + Sync + 'static) -> Self {
+        self.extra_storage = Some(Box::new(extra));
+        self
+    }
+
+    /// The storage limit, if one is set.
+    pub fn storage_cap(&self) -> Option<u64> {
+        self.storage_limit
+    }
+
     /// Let each workspace write at most `limit` bytes of ops (the JSON size of each command).
     pub fn storage_limit(mut self, limit: u64) -> Self {
         self.storage_limit = Some(limit);
@@ -210,6 +228,13 @@ impl Gate {
     ) -> Self {
         self.recent = Some(Box::new(recent));
         self
+    }
+
+    /// Bytes of ops a workspace holds, asking the store for what it wrote before this gate existed when it has not
+    /// been named yet (a restarted server counts them before the first call of the workspace).
+    pub fn storage_of(&mut self, workspace: &str) -> u64 {
+        self.seed(workspace);
+        self.storage_used(workspace)
     }
 
     /// Bytes of ops admitted so far for a workspace.
@@ -294,8 +319,13 @@ impl Gate {
             .map(|o| serde_json::to_vec(&o.command).map_or(0, |v| v.len() as u64))
             .sum();
         let stored = self.storage_used(&who.workspace);
+        // Asked only when there is a limit to compare with: counting the assets can mean a walk of a disk.
+        let extra = match self.storage_limit {
+            Some(_) => self.extra_storage.as_ref().map_or(0, |f| f(&who.workspace)),
+            None => 0,
+        };
         if let Some(limit) = self.storage_limit
-            && stored.saturating_add(bytes) > limit
+            && stored.saturating_add(extra).saturating_add(bytes) > limit
         {
             return Err(Refusal::StorageExceeded { limit });
         }

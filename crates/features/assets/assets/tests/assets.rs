@@ -2,9 +2,10 @@
 //! its bytes, and is kept per workspace on local disk behind the blob seam.
 
 use assets::{
-    AssetError, BlobStore, DiskBlobs, ImageType, MAX_ASSET_BYTES, MemoryBlobs, asset_id,
-    check_upload,
+    AssetError, BlobStore, DiskBlobs, ImageType, MAX_ASSET_BYTES, MemoryBlobs, Reserve, Usage,
+    asset_id, check_upload,
 };
+use std::sync::Arc;
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
 const JPEG: &[u8] = b"\xff\xd8\xff\xe0\0\x10JFIF";
@@ -89,7 +90,12 @@ fn round_trip(store: &dyn BlobStore) {
     );
     // The same bytes again are the same asset: nothing new is written.
     let again = store.put("ws_1", PNG).unwrap();
-    assert_eq!(again, a);
+    assert_eq!(
+        (&again.id, again.kind, again.bytes),
+        (&a.id, a.kind, a.bytes)
+    );
+    assert!(a.created, "the first upload made the file");
+    assert!(!again.created, "the second found it held");
     let (kind, bytes) = store.get("ws_1", &a.id).unwrap();
     assert_eq!((kind, bytes.as_slice()), (ImageType::Png, PNG));
     assert!(store.has("ws_1", &a.id).unwrap());
@@ -185,5 +191,132 @@ fn a_workspace_name_of_any_length_or_bytes_gets_a_directory_of_its_own() {
         store.get("\0", &asset_id(GIF)).unwrap_err().code(),
         "asset_not_found"
     );
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn a_store_says_how_many_bytes_a_workspace_holds_and_a_half_written_file_is_not_one() {
+    let root = scratch("used");
+    let disk = DiskBlobs::new(&root);
+    let memory = MemoryBlobs::default();
+    for store in [&disk as &dyn BlobStore, &memory] {
+        assert_eq!(store.used("ws_1").unwrap(), 0);
+        store.put("ws_1", PNG).unwrap();
+        store.put("ws_1", JPEG).unwrap();
+        store.put("ws_1", PNG).unwrap();
+        store.put("ws_2", GIF).unwrap();
+        assert_eq!(store.used("ws_1").unwrap(), (PNG.len() + JPEG.len()) as u64);
+        assert_eq!(store.used("ws_2").unwrap(), GIF.len() as u64);
+    }
+    // A name that starts with a dot is what a crash left between the write and the rename.
+    let path = disk.path_of("ws_1", &asset_id(PNG)).unwrap();
+    std::fs::write(path.with_file_name(".left.tmp"), vec![0u8; 1000]).unwrap();
+    assert_eq!(disk.used("ws_1").unwrap(), (PNG.len() + JPEG.len()) as u64);
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn usage_starts_from_the_store_reserves_against_the_limit_and_gives_bytes_back_when_dropped() {
+    let store = Arc::new(MemoryBlobs::default());
+    store.put("ws_1", PNG).unwrap();
+    let held = PNG.len() as u64;
+    // A restarted server counts what the store holds.
+    let usage = Usage::new(store);
+    assert_eq!(usage.used("ws_1"), Some(held));
+    assert_eq!(usage.used("ws_2"), Some(0));
+    // `others` (the bytes of ops) and the assets and the new bytes must fit in the limit.
+    assert_eq!(
+        usage.reserve("ws_1", 10, 5, held + 14).err(),
+        Some(Reserve::Full(held + 14))
+    );
+    assert_eq!(usage.used("ws_1"), Some(held), "a refusal takes nothing");
+    let r = usage.reserve("ws_1", 10, 4, held + 14).unwrap();
+    assert_eq!(usage.used("ws_1"), Some(held + 10));
+    // The same room cannot be taken twice.
+    assert!(usage.reserve("ws_1", 1, 4, held + 14).is_err());
+    // Dropped (a failed write, a panic, an image written first by another call): the bytes go back.
+    drop(r);
+    assert_eq!(usage.used("ws_1"), Some(held));
+    // Kept (the write created the file): they stay.
+    usage.reserve("ws_1", 10, 4, held + 14).unwrap().keep();
+    assert_eq!(usage.used("ws_1"), Some(held + 10));
+    // Another workspace has its own room.
+    usage.reserve("ws_2", 100, 0, 100).unwrap().keep();
+}
+
+#[test]
+fn a_reservation_dropped_by_a_panic_gives_its_bytes_back() {
+    let usage = Usage::new(Arc::new(MemoryBlobs::default()));
+    let u = usage.clone();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+        let _r = u.reserve("ws_1", 50, 0, 1_000).unwrap();
+        panic!("the write panicked");
+    }));
+    assert!(result.is_err());
+    assert_eq!(usage.used("ws_1"), Some(0));
+}
+
+#[test]
+fn exactly_one_of_two_puts_of_the_same_image_creates_it() {
+    let root = scratch("created");
+    let disk = DiskBlobs::new(&root);
+    let memory = MemoryBlobs::default();
+    for store in [&disk as &dyn BlobStore, &memory] {
+        assert!(store.put("ws_1", PNG).unwrap().created);
+        assert!(!store.put("ws_1", PNG).unwrap().created, "held already");
+        assert!(store.put("ws_2", PNG).unwrap().created, "another workspace");
+    }
+    // Eight threads send one new image at once: one of them writes it.
+    let shared = Arc::new(DiskBlobs::new(&root));
+    let start = Arc::new(std::sync::Barrier::new(8));
+    let made: usize = (0..8)
+        .map(|_| {
+            let (s, start) = (shared.clone(), start.clone());
+            std::thread::spawn(move || {
+                start.wait();
+                s.put("ws_1", JPEG).unwrap().created
+            })
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .map(|h| usize::from(h.join().unwrap()))
+        .sum();
+    assert_eq!(made, 1);
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+/// A store that cannot say what it holds.
+struct Broken;
+impl BlobStore for Broken {
+    fn put(&self, _: &str, _: &[u8]) -> Result<assets::Stored, AssetError> {
+        Err(AssetError::Unavailable("down".into()))
+    }
+    fn get(&self, _: &str, _: &str) -> Result<(ImageType, Vec<u8>), AssetError> {
+        Err(AssetError::Unavailable("down".into()))
+    }
+    fn used(&self, _: &str) -> Result<u64, AssetError> {
+        Err(AssetError::Unavailable("down".into()))
+    }
+}
+
+#[test]
+fn a_store_that_cannot_say_what_it_holds_is_unknown_not_over_the_limit() {
+    let usage = Usage::new(Arc::new(Broken));
+    assert_eq!(usage.used("ws_1"), None);
+    assert_eq!(
+        usage.reserve("ws_1", 1, 0, u64::MAX).err(),
+        Some(Reserve::Unknown)
+    );
+}
+
+#[test]
+fn a_stray_file_in_a_workspace_directory_does_not_break_the_count() {
+    let root = scratch("stray");
+    let disk = DiskBlobs::new(&root);
+    disk.put("ws_1", PNG).unwrap();
+    let ws_dir = disk.path_of("ws_1", &asset_id(PNG)).unwrap();
+    let ws_dir = ws_dir.parent().unwrap().parent().unwrap();
+    std::fs::write(ws_dir.join("notes.txt"), b"not an asset").unwrap();
+    assert_eq!(disk.used("ws_1").unwrap(), PNG.len() as u64);
     std::fs::remove_dir_all(&root).unwrap();
 }

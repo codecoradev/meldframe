@@ -73,6 +73,14 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     let spec = std::env::var("MELDFRAME_DEV_TOKENS").map_err(
         |_| "set MELDFRAME_DEV_TOKENS to token:workspace:actor entries, comma separated",
     )?;
+    // The assets count against the storage limit of their workspace, in the gate and in the upload route.
+    #[cfg(feature = "assets")]
+    let (blobs, usage) = open_assets(release)?;
+    #[cfg(feature = "assets")]
+    let server = {
+        let held = usage.clone();
+        server.with_extra_storage(move |ws| held.used(ws).unwrap_or(0))
+    };
     #[cfg(feature = "capture")]
     let capture_policy = server.registry().policy_for("capture");
     // `shared` outlives `block_on`: the last reference to a PgStore runtime must not drop inside one.
@@ -121,22 +129,13 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     }
     #[cfg(feature = "assets")]
     {
-        let dir = assets_dir(
-            release,
-            std::env::var("MELDFRAME_ASSETS_DIR").ok().as_deref(),
-        )?;
-        // A directory that cannot be made or written is an error now, not a 503 on the first upload.
-        std::fs::create_dir_all(&dir)
-            .and_then(|()| std::fs::metadata(&dir))
-            .and_then(|m| match m.permissions().readonly() {
-                true => Err(std::io::Error::other("the directory is read-only")),
-                false => Ok(()),
-            })
-            .map_err(|e| format!("MELDFRAME_ASSETS_DIR {dir}: {e}"))?;
-        println!("assets in {dir}");
-        app = app.merge(meldframe_http_assets::routes(
+        let ops = shared.clone();
+        app = app.merge(meldframe_http_assets::routes_with(
             state.clone(),
-            std::sync::Arc::new(assets::DiskBlobs::new(dir)),
+            blobs,
+            usage,
+            Arc::new(move |ws| ops.ops_storage(ws)),
+            meldframe_http_assets::Options::default(),
         ));
     }
     #[cfg(feature = "mcp")]
@@ -173,6 +172,29 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     });
     drop(shared); // after block_on: see above
     Ok(served?)
+}
+
+/// The store of the assets in its directory (checked now, so a bad one is an error at start and not a 503 on the
+/// first upload) and the count of their bytes.
+#[cfg(feature = "assets")]
+fn open_assets(
+    release: bool,
+) -> Result<(Arc<dyn assets::BlobStore>, assets::Usage), Box<dyn std::error::Error>> {
+    let dir = assets_dir(
+        release,
+        std::env::var("MELDFRAME_ASSETS_DIR").ok().as_deref(),
+    )?;
+    std::fs::create_dir_all(&dir)
+        .and_then(|()| std::fs::metadata(&dir))
+        .and_then(|m| match m.permissions().readonly() {
+            true => Err(std::io::Error::other("the directory is read-only")),
+            false => Ok(()),
+        })
+        .map_err(|e| format!("MELDFRAME_ASSETS_DIR {dir}: {e}"))?;
+    println!("assets in {dir}");
+    let blobs: Arc<dyn assets::BlobStore> = Arc::new(assets::DiskBlobs::new(dir));
+    let usage = assets::Usage::new(blobs.clone());
+    Ok((blobs, usage))
 }
 
 /// The directory of the assets (`MELDFRAME_ASSETS_DIR`, ADR-0015): required in a release build, so images are

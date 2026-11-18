@@ -88,3 +88,20 @@ fn a_refused_quota_call_is_in_the_log_with_its_code_and_no_content() {
     assert_eq!(log.last().unwrap().outcome, "quota_ops_per_minute");
     assert!(!format!("{:?}", log.last().unwrap()).contains("Card"));
 }
+
+#[test]
+fn the_assets_of_a_workspace_count_against_its_storage_limit() {
+    // `a` holds 990 of its 1,000 bytes as assets, so no op fits; `b` holds none.
+    let (s, _t) = server(1_000, 1_000);
+    let mut s = s.with_extra_storage(|ws| if ws == "ws_a" { 990 } else { 0 });
+    let a = Principal::new("ws_a", "agent:x");
+    let err = s
+        .submit_tool("paint", "f", &a, vec![add("k0")])
+        .expect_err("the assets leave no room for an op");
+    assert_eq!(code(&err), "quota_storage");
+    let b = Principal::new("ws_b", "agent:x");
+    s.submit_tool("paint", "f", &b, vec![add("k0")]).unwrap();
+    // The view the upload route reads: the ops written and the limit.
+    assert_eq!(s.ops_storage("ws_a"), (0, Some(1_000)));
+    assert!(s.ops_storage("ws_b").0 > 0);
+}

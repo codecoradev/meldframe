@@ -22,7 +22,7 @@ The owner accepted every proposal on 18 Nov 2026:
 4. A storage quota for assets: counted with `quota_storage` of the workspace, not a limit of its own.
 5. The root directory is `MELDFRAME_ASSETS_DIR`, required in a release build (a development build keeps assets in `.dev-assets`).
 
-What is built: the routes (1, 2) and the root directory (5). The agent tool (3), the quota (4) and the canvas that renders image fills are the next slices.
+What is built: the routes (1, 2), the quota (4) and the root directory (5). The quota: `assets::Usage` keeps the bytes of the assets of each workspace (it starts from what the store holds, so a restart loses nothing); an upload of an image the workspace does not hold yet reserves its bytes against the storage limit together with the bytes of its ops (the reservation goes back when the write fails or finds the image already written by another call, so the same image sent twice at once is charged once) and is refused with `quota_storage` when it does not fit (a store that cannot say what the workspace holds is `unavailable`, retryable), and the gate counts the same asset bytes when it admits an op (`Gate::extra_storage`). An image the workspace holds already costs nothing. The agent tool (3) and the canvas that renders image fills are the next slices.
 
 ## Considered options
 

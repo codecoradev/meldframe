@@ -34,6 +34,11 @@ impl SharedServer {
         })
     }
 
+    /// The bytes of ops a workspace has written and its storage limit (for the asset quota).
+    pub fn ops_storage(&self, workspace: &str) -> (u64, Option<u64>) {
+        self.lock().ops_storage(workspace)
+    }
+
     /// Send an ephemeral frame (a capture request, a touch hint) to one stream of `file` in the principal's
     /// workspace, or to all of them; returns how many streams queued it. Open sockets pick it up on their
     /// next look at the stream.

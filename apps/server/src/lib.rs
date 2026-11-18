@@ -149,6 +149,21 @@ impl Server {
         self
     }
 
+    /// Count the bytes `extra(workspace)` gives (its assets, ADR-0015) against the storage limit of the workspace,
+    /// together with the bytes of its ops.
+    pub fn with_extra_storage(
+        mut self,
+        extra: impl Fn(&str) -> u64 + Send + Sync + 'static,
+    ) -> Self {
+        self.gate = std::mem::take(&mut self.gate).extra_storage(extra);
+        self
+    }
+
+    /// The bytes of ops a workspace has written and the storage limit it is held to.
+    pub fn ops_storage(&mut self, workspace: &str) -> (u64, Option<u64>) {
+        (self.gate.storage_of(workspace), self.gate.storage_cap())
+    }
+
     /// Close rooms idle for `ms` milliseconds at the start of each write (default [`IDLE_AFTER_MS`]).
     pub fn with_idle_after(mut self, ms: u64) -> Self {
         self.idle_after = ms;

@@ -48,10 +48,11 @@ impl BlobStore for DiskBlobs {
     fn put(&self, workspace: &str, bytes: &[u8]) -> Result<Stored, AssetError> {
         let (kind, id) = check_upload(bytes)?;
         let path = self.path_of(workspace, &id)?;
-        let stored = Stored {
+        let mut stored = Stored {
             id: id.clone(),
             kind,
             bytes: bytes.len(),
+            created: false,
         };
         // The same bytes are there already, unless the file was changed or cut short: then write it anew. The
         // bytes in hand are compared with the file, so a repeat upload costs a read, not a second hash.
@@ -69,9 +70,35 @@ impl BlobStore for DiskBlobs {
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
+        let existed = path.exists();
         let written = std::fs::File::create(&tmp)
             .and_then(|mut f| f.write_all(bytes).and_then(|()| f.sync_all()))
-            .and_then(|()| std::fs::rename(&tmp, &path));
+            .and_then(|()| {
+                if existed {
+                    // A file that no longer matches is written anew, in place of the old one.
+                    return std::fs::rename(&tmp, &path);
+                }
+                // A new name is made by a hard link, which fails when another upload of the same image got there
+                // first: exactly one call creates the file, so the quota charges it once.
+                match std::fs::hard_link(&tmp, &path) {
+                    Ok(()) => {
+                        stored.created = true;
+                        // The name is made; a temporary file that stays is not a failure of the upload.
+                        let _ = std::fs::remove_file(&tmp);
+                        Ok(())
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                        let _ = std::fs::remove_file(&tmp);
+                        Ok(())
+                    }
+                    // A file system without hard links: rename, and count the file as created unless another
+                    // call has made it in the meantime (a small window, on such a file system only).
+                    Err(_) => {
+                        let taken = path.exists();
+                        std::fs::rename(&tmp, &path).inspect(|()| stored.created = !taken)
+                    }
+                }
+            });
         if let Err(e) = written {
             let _ = std::fs::remove_file(&tmp);
             return Err(unavailable(e));
@@ -81,6 +108,32 @@ impl BlobStore for DiskBlobs {
             .and_then(|d| d.sync_all())
             .map_err(unavailable)?;
         Ok(stored)
+    }
+
+    fn used(&self, workspace: &str) -> Result<u64, AssetError> {
+        let dir = self.root.join(asset_id(workspace.as_bytes()));
+        let top = match std::fs::read_dir(&dir) {
+            Ok(top) => top,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+            Err(e) => return Err(unavailable(e)),
+        };
+        let mut total = 0u64;
+        for sub in top {
+            let sub = sub.map_err(unavailable)?;
+            // Only the two-character directories hold assets; anything else in the workspace directory is not one.
+            if !sub.file_type().map_err(unavailable)?.is_dir() {
+                continue;
+            }
+            for file in std::fs::read_dir(sub.path()).map_err(unavailable)? {
+                let file = file.map_err(unavailable)?;
+                // A file a crash left half written (a name that starts with a dot) is not an asset.
+                if file.file_name().to_string_lossy().starts_with('.') {
+                    continue;
+                }
+                total = total.saturating_add(file.metadata().map_err(unavailable)?.len());
+            }
+        }
+        Ok(total)
     }
 
     fn get(&self, workspace: &str, id: &str) -> Result<(ImageType, Vec<u8>), AssetError> {

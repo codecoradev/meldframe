@@ -11,7 +11,9 @@
 //! An error is `{"error": {"code", "message", "retryable"}}`, as on the other routes; the codes are those of
 //! `docs/error-codes.md` ("Asset codes").
 
-use assets::{AssetError, BlobStore, ImageType, MAX_ASSET_BYTES, is_asset_id};
+use assets::{
+    AssetError, BlobStore, ImageType, MAX_ASSET_BYTES, Reserve, Usage, check_upload, is_asset_id,
+};
 use axum::{
     Router,
     body::Body,
@@ -21,7 +23,7 @@ use axum::{
     routing::{get, post},
 };
 use futures_util::StreamExt;
-use meldframe_host::Principal;
+use meldframe_host::{Principal, Refusal};
 use meldframe_http::{Failure, Reply, Shared, Slots, bearer, peer};
 use serde_json::json;
 use std::sync::Arc;
@@ -48,24 +50,47 @@ impl Default for Options {
     }
 }
 
+/// What a workspace has written besides its assets and the storage limit it is held to: `(bytes of ops, limit)`.
+/// The server answers it from its gate.
+pub type OpsStorage = Arc<dyn Fn(&str) -> (u64, Option<u64>) + Send + Sync>;
+
 struct State_ {
     shared: Arc<Shared>,
     blobs: Arc<dyn BlobStore>,
+    usage: Usage,
+    ops_storage: OpsStorage,
     uploads: Slots,
     upload_timeout: Duration,
 }
 
-/// The asset routes of one server, with the default options.
+/// The asset routes of one server, with the default options and no storage limit (the assets are counted).
 pub fn routes(shared: Arc<Shared>, blobs: Arc<dyn BlobStore>) -> Router {
-    routes_with(shared, blobs, Options::default())
+    let usage = Usage::new(blobs.clone());
+    routes_with(
+        shared,
+        blobs,
+        usage,
+        Arc::new(|_| (0, None)),
+        Options::default(),
+    )
 }
 
 /// The asset routes of one server. The store is shared by every call: it takes `&self`, so a slow write of one
-/// image never makes another call wait.
-pub fn routes_with(shared: Arc<Shared>, blobs: Arc<dyn BlobStore>, options: Options) -> Router {
+/// image never makes another call wait. An upload that is not stored yet counts against the storage limit of the
+/// workspace together with its ops (`usage` holds the bytes of its assets; give the same `usage` to the gate with
+/// `Server::with_extra_storage`), and is refused with `quota_storage` when it does not fit.
+pub fn routes_with(
+    shared: Arc<Shared>,
+    blobs: Arc<dyn BlobStore>,
+    usage: Usage,
+    ops_storage: OpsStorage,
+    options: Options,
+) -> Router {
     let state = Arc::new(State_ {
         shared,
         blobs,
+        usage,
+        ops_storage,
         uploads: Slots::new(options.uploads, options.uploads_per_principal),
         upload_timeout: options.upload_timeout,
     });
@@ -97,7 +122,48 @@ fn failure(e: &AssetError) -> Response {
         .into_response()
 }
 
+/// Why a store call stopped: the asset is wrong, or the workspace has no room for it.
+enum Refused {
+    Asset(AssetError),
+    Storage(u64),
+}
+
 impl State_ {
+    /// Store the upload. A new image takes its bytes against the storage limit first, in a reservation that goes
+    /// back when the write fails, panics, or finds that the image was there already (another upload wrote it first),
+    /// so the same image sent twice at once is charged once. An image the workspace holds costs nothing.
+    fn store(&self, workspace: &str, bytes: &[u8]) -> Result<assets::Stored, Refused> {
+        let (_, id) = check_upload(bytes).map_err(Refused::Asset)?;
+        // Held already (a file that no longer matches counts as held: its bytes were counted and the write below
+        // mends it).
+        if matches!(
+            self.blobs.has(workspace, &id),
+            Ok(true) | Err(AssetError::Corrupt)
+        ) {
+            return self.blobs.put(workspace, bytes).map_err(Refused::Asset);
+        }
+        let (ops, limit) = (self.ops_storage)(workspace);
+        let reservation = self
+            .usage
+            .reserve(
+                workspace,
+                bytes.len() as u64,
+                ops,
+                limit.unwrap_or(u64::MAX),
+            )
+            .map_err(|e| match e {
+                Reserve::Full(limit) => Refused::Storage(limit),
+                Reserve::Unknown => {
+                    Refused::Asset(AssetError::Unavailable("the asset count is unknown".into()))
+                }
+            })?;
+        let stored = self.blobs.put(workspace, bytes).map_err(Refused::Asset)?;
+        if stored.created {
+            reservation.keep();
+        }
+        Ok(stored)
+    }
+
     fn who(&self, req: &Request<Body>) -> Result<Principal, Reply> {
         self.shared
             .client_ok(&peer(req))
@@ -159,11 +225,14 @@ async fn upload(State(s): State<Arc<State_>>, req: Request<Body>) -> Response {
     let (state, ws) = (s.clone(), who.workspace.clone());
     let done = s
         .shared
-        .blocking(&who, move || state.blobs.put(&ws, &body))
+        .blocking(&who, move || state.store(&ws, &body))
         .await;
     match done {
         Err(reply) => reply.into_response(),
-        Ok(Err(e)) => failure(&e),
+        Ok(Err(Refused::Asset(e))) => failure(&e),
+        Ok(Err(Refused::Storage(limit))) => {
+            Reply::failure(&Failure::Refused(Refusal::StorageExceeded { limit })).into_response()
+        }
         Ok(Ok(stored)) => axum::Json(json!({"ok": true, "id": stored.id,
             "type": stored.kind.mime(), "bytes": stored.bytes}))
         .into_response(),

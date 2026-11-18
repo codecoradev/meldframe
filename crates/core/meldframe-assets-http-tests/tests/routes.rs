@@ -3,7 +3,7 @@
 
 #[path = "../../meldframe-http-tests/tests/common/mod.rs"]
 mod common;
-use assets::{MAX_ASSET_BYTES, MemoryBlobs, asset_id};
+use assets::{BlobStore, MAX_ASSET_BYTES, MemoryBlobs, Usage, asset_id};
 use axum::{
     Router,
     body::Body,
@@ -203,7 +203,14 @@ async fn an_upload_over_the_limit_is_refused_by_its_declared_length_and_by_its_s
 }
 
 fn app_with(blobs: Arc<dyn assets::BlobStore>, options: meldframe_http_assets::Options) -> Router {
-    meldframe_http_assets::routes_with(shared(tokens(), Fake::ok(), config()), blobs, options)
+    let usage = Usage::new(blobs.clone());
+    meldframe_http_assets::routes_with(
+        shared(tokens(), Fake::ok(), config()),
+        blobs,
+        usage,
+        Arc::new(|_| (0, None)),
+        options,
+    )
 }
 
 #[tokio::test]
@@ -284,4 +291,101 @@ async fn an_upload_that_never_ends_times_out_and_a_full_set_of_places_is_unavail
     )
     .await;
     assert_eq!(status, 200);
+}
+
+/// A router whose workspace holds `ops` bytes of ops and may hold `limit` bytes in all.
+fn app_limited(ops: u64, limit: u64) -> (Router, Usage) {
+    let blobs: Arc<dyn BlobStore> = Arc::new(MemoryBlobs::default());
+    let usage = Usage::new(blobs.clone());
+    let router = meldframe_http_assets::routes_with(
+        shared(tokens(), Fake::ok(), config()),
+        blobs,
+        usage.clone(),
+        Arc::new(move |_| (ops, Some(limit))),
+        meldframe_http_assets::Options::default(),
+    );
+    (router, usage)
+}
+
+#[tokio::test]
+async fn an_upload_that_does_not_fit_the_storage_limit_is_quota_storage_and_writes_nothing() {
+    let first = png(b"first");
+    let second = png(b"second image");
+    // Room for the first image and the ops, not for both images.
+    let (app, usage) = app_limited(100, 100 + first.len() as u64 + 5);
+    let (status, _) = json(
+        app.clone()
+            .oneshot(upload(Some(TOKEN), first.clone()))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(usage.used("ws_1"), Some(first.len() as u64));
+    let (status, body) = json(
+        app.clone()
+            .oneshot(upload(Some(TOKEN), second.clone()))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!((status, code(&body)), (413, "quota_storage"));
+    assert_eq!(
+        usage.used("ws_1"),
+        Some(first.len() as u64),
+        "nothing was taken"
+    );
+    let (status, body) = json(
+        app.oneshot(fetch(Some(TOKEN), &asset_id(&second)))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!((status, code(&body)), (404, "asset_not_found"));
+}
+
+#[tokio::test]
+async fn an_image_the_workspace_holds_already_costs_nothing_even_at_the_limit() {
+    let bytes = png(b"again");
+    let (app, usage) = app_limited(0, bytes.len() as u64);
+    for _ in 0..3 {
+        let (status, _) = json(
+            app.clone()
+                .oneshot(upload(Some(TOKEN), bytes.clone()))
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(status, 200);
+    }
+    assert_eq!(usage.used("ws_1"), Some(bytes.len() as u64), "counted once");
+}
+
+/// A store that cannot say what it holds.
+struct Down;
+impl BlobStore for Down {
+    fn put(&self, _: &str, _: &[u8]) -> Result<assets::Stored, assets::AssetError> {
+        Err(assets::AssetError::Unavailable("down".into()))
+    }
+    fn get(&self, _: &str, _: &str) -> Result<(assets::ImageType, Vec<u8>), assets::AssetError> {
+        Err(assets::AssetError::Unavailable("down".into()))
+    }
+    fn used(&self, _: &str) -> Result<u64, assets::AssetError> {
+        Err(assets::AssetError::Unavailable("down".into()))
+    }
+}
+
+#[tokio::test]
+async fn a_store_that_cannot_say_what_it_holds_makes_an_upload_unavailable_and_retryable() {
+    let blobs: Arc<dyn BlobStore> = Arc::new(Down);
+    let app = meldframe_http_assets::routes_with(
+        shared(tokens(), Fake::ok(), config()),
+        blobs.clone(),
+        Usage::new(blobs),
+        Arc::new(|_| (0, Some(1 << 30))),
+        meldframe_http_assets::Options::default(),
+    );
+    let (status, body) = json(app.oneshot(upload(Some(TOKEN), png(b"x"))).await.unwrap()).await;
+    assert_eq!((status, code(&body)), (503, "unavailable"));
+    assert_eq!(body["error"]["retryable"], true);
 }

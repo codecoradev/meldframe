@@ -140,7 +140,7 @@ A test in `crates/core/meldframe-sync-scenarios/tests/outbox_cap.rs` reads this 
 
 ## Asset codes
 
-The `assets` feature crate (E2.5, ADR-0015) fails with these codes. `POST /v1/assets` and `GET /v1/assets/{id}` answer them as `{"error": {"code", "message", "retryable"}}` with these statuses: `invalid` 400, `asset_too_large` 413, `asset_type_refused` 415, `asset_not_found` 404, `asset_corrupt` 422, `unavailable` 503. The routes also answer the codes of every route (`unauthenticated` 401, `rate_limited` 429), `bad_request` 400 when the body cannot be read, `request_timeout` 408 when an upload takes longer than a minute to arrive (retryable), and `unavailable` 503 when every upload place is taken (retryable). The asset tool is not built yet.
+The `assets` feature crate (E2.5, ADR-0015) fails with these codes. `POST /v1/assets` and `GET /v1/assets/{id}` answer them as `{"error": {"code", "message", "retryable"}}` with these statuses: `invalid` 400, `asset_too_large` 413, `asset_type_refused` 415, `asset_not_found` 404, `asset_corrupt` 422, `unavailable` 503. The routes also answer the codes of every route (`unauthenticated` 401, `rate_limited` 429), and `quota_storage` 413 when a new image does not fit the storage limit of the workspace (assets and ops count together), `bad_request` 400 when the body cannot be read, `request_timeout` 408 when an upload takes longer than a minute to arrive (retryable), and `unavailable` 503 when every upload place is taken (retryable). The asset tool is not built yet.
 
 | Code | Meaning and typical cause | What a caller should do next |
 | --- | --- | --- |
