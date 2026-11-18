@@ -123,3 +123,55 @@ fn a_clock_that_steps_back_does_not_reset_the_count() {
     t.store(10_000, Ordering::SeqCst);
     assert!(gate.submit(&who("a"), ops("y", 1)).is_err());
 }
+
+#[test]
+fn the_first_sight_of_a_workspace_starts_from_what_it_already_wrote() {
+    let seen = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let s2 = seen.clone();
+    let mut gate = Gate::new()
+        .quota(5)
+        .storage_limit(100_000)
+        .usage(move |ws| {
+            s2.fetch_add(1, Ordering::SeqCst);
+            Some(if ws == "full" { (5, 99_990) } else { (0, 0) })
+        });
+    // `full` has used its ops and nearly all its bytes before this gate saw it (a restart).
+    assert_eq!(
+        gate.submit(&who("full"), ops("x", 1)).unwrap_err().code(),
+        "quota_exceeded"
+    );
+    assert_eq!(gate.used("full"), 5);
+    assert_eq!(gate.storage_used("full"), 99_990);
+    gate.submit(&who("fresh"), ops("x", 1)).unwrap();
+    gate.submit(&who("fresh"), ops("y", 1)).unwrap();
+    // Asked once per workspace, not once per call.
+    assert_eq!(seen.load(Ordering::SeqCst), 2);
+}
+
+#[test]
+fn a_malformed_call_does_not_ask_for_usage() {
+    let asked = std::sync::Arc::new(AtomicU64::new(0));
+    let a2 = asked.clone();
+    let mut gate = Gate::new().usage(move |_| {
+        a2.fetch_add(1, Ordering::SeqCst);
+        Some((0, 0))
+    });
+    assert!(gate.submit(&who("a"), vec![]).is_err());
+    assert_eq!(asked.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn a_usage_lookup_that_fails_is_asked_again_on_the_next_call() {
+    let calls = std::sync::Arc::new(AtomicU64::new(0));
+    let c2 = calls.clone();
+    let mut gate = Gate::new().quota(3).usage(move |_| {
+        // The store is down on the first call and says 3 ops are used on the second.
+        (c2.fetch_add(1, Ordering::SeqCst) > 0).then_some((3, 0))
+    });
+    gate.submit(&who("a"), ops("x", 1)).unwrap();
+    assert_eq!(
+        gate.submit(&who("a"), ops("y", 1)).unwrap_err().code(),
+        "quota_exceeded"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+}

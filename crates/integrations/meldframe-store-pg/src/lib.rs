@@ -37,6 +37,37 @@ fn unavailable(e: impl Display) -> StoreError {
     StoreError::Unavailable(e.to_string())
 }
 
+/// The key of a file in the registry and the store: the workspace's length in bytes, a colon, the workspace, then
+/// the file. The length prefix makes it injective (workspace `a/b` with file `c` is not workspace `a` with file
+/// `b/c`), so a workspace never reaches another workspace's file by choosing its name.
+pub fn room_key(workspace: &str, file: &str) -> String {
+    format!("{}:{workspace}{file}", workspace.len())
+}
+
+/// The workspace and the file of a key made by [`room_key`]; `None` for any other string (including a length with
+/// a sign or a leading zero, or one past the end, or inside a character). The SQL of migration 0003 follows the
+/// same rule.
+pub fn split_room_key(key: &str) -> Option<(&str, &str)> {
+    let (len, rest) = key.split_once(':')?;
+    let canonical =
+        len == "0" || (len.len() <= 9 && len.starts_with(|c: char| ('1'..='9').contains(&c)));
+    if !canonical || !len.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let n: usize = len.parse().ok()?;
+    rest.is_char_boundary(n).then(|| rest.split_at(n))
+}
+
+/// The workspace a key outside the key form belongs to; the server never accepts a name with a control character.
+pub const RAW_WORKSPACE: &str = "\u{1}raw";
+
+/// What a workspace has written: ops and the bytes of their commands (as stored, in JSON).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Usage {
+    pub ops: u64,
+    pub bytes: u64,
+}
+
 /// The text that starts a store error that can never succeed (the one place that writes it, and the text a
 /// transport reads back with `starts_with`; the rest of the message comes from the database, after it).
 pub const PERMANENT_STORE_ERROR: &str = "data refused, retrying cannot succeed";
@@ -108,6 +139,26 @@ impl PgStore {
         .map_err(db_err)
     }
 
+    /// The ops a workspace has written and their size: read from its own rows, so it survives a restart. The size
+    /// is that of the stored JSON of each command.
+    pub fn workspace_usage(&self, workspace: &str) -> Result<Usage, StoreError> {
+        let row = self
+            .rt
+            .block_on(
+                sqlx::query(
+                    "select count(*) as ops, coalesce(sum(o.bytes), 0)::bigint as bytes \
+                     from ops o join files f on f.id = o.file_id where f.workspace_id = $1",
+                )
+                .bind(workspace)
+                .fetch_one(&self.pool),
+            )
+            .map_err(db_err)?;
+        Ok(Usage {
+            ops: from_db_seq(row.get("ops")),
+            bytes: from_db_seq(row.get("bytes")),
+        })
+    }
+
     fn open(url: &str, schema: Option<String>) -> Result<Self, StoreError> {
         let rt = Arc::new(Runtime::new().map_err(unavailable)?);
         let options = PgConnectOptions::from_str(url).map_err(db_err)?;
@@ -163,11 +214,15 @@ impl PgStore {
 
     async fn append_async(&self, room: &str, op: NewOp) -> Result<Appended, StoreError> {
         let mut tx = self.pool.begin().await.map_err(db_err)?;
+        // A key that is not in key form (a tool writing straight to the store) lives in the raw workspace.
+        let (workspace, name) = split_room_key(room).unwrap_or((RAW_WORKSPACE, room));
         sqlx::query(
-            "insert into files (id, schema_version) values ($1, $2) on conflict (id) do nothing",
+            "insert into files (id, schema_version, workspace_id, name) values ($1, $2, $3, $4) on conflict (id) do nothing",
         )
         .bind(room)
         .bind(SCHEMA_VERSION as i32)
+        .bind(workspace)
+        .bind(name)
         .execute(&mut *tx)
         .await
         .map_err(db_err)?;
@@ -199,7 +254,7 @@ impl PgStore {
         }
         let seq = head + 1;
         sqlx::query(
-            "insert into ops (file_id, seq, idempotency_key, actor, command, schema_version) values ($1, $2, $3, $4, $5, $6)",
+            "insert into ops (file_id, seq, idempotency_key, actor, command, schema_version, bytes) values ($1, $2, $3, $4, $5, $6, $7)",
         )
         .bind(room)
         .bind(seq)
@@ -207,6 +262,8 @@ impl PgStore {
         .bind(&op.actor)
         .bind(Json(&op.command))
         .bind(SCHEMA_VERSION as i32)
+        // The size the gate counts: the compact JSON of the command.
+        .bind(serde_json::to_vec(&op.command).map_or(0, |v| i32::try_from(v.len()).unwrap_or(i32::MAX)))
         .execute(&mut *tx)
         .await
         .map_err(db_err)?;

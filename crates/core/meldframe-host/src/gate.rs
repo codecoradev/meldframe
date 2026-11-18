@@ -74,6 +74,8 @@ impl NodeFacts for () {
 
 const MINUTE_MS: u64 = 60_000;
 
+type UsageFn = Box<dyn Fn(&str) -> Option<(u64, u64)> + Send + Sync>;
+
 type Clock = Box<dyn Fn() -> u64 + Send + Sync>;
 
 type PolicyFn = Box<dyn Fn(&Principal, RiskTier) -> Policy + Send + Sync>;
@@ -91,6 +93,9 @@ pub struct Gate {
     batch_limit: Option<usize>,
     storage_limit: Option<u64>,
     stored: HashMap<String, u64>,
+    /// What a workspace wrote before this gate existed, asked once per workspace (see [`Gate::usage`]).
+    usage: Option<UsageFn>,
+    seen: HashSet<String>,
 }
 
 impl std::fmt::Debug for Gate {
@@ -132,6 +137,8 @@ impl Gate {
             batch_limit: None,
             storage_limit: None,
             stored: HashMap::new(),
+            usage: None,
+            seen: HashSet::new(),
         }
     }
 
@@ -169,6 +176,17 @@ impl Gate {
     /// Let each workspace write at most `limit` bytes of ops (the JSON size of each command).
     pub fn storage_limit(mut self, limit: u64) -> Self {
         self.storage_limit = Some(limit);
+        self
+    }
+
+    /// Start each workspace from what it already wrote: `usage(workspace)` returns its `(ops, bytes)` and is asked
+    /// once, the first time a well-formed call names the workspace. A restarted server passes what the store
+    /// holds, so the total and the storage quotas survive it; `None` (the store could not say) is asked again on the next call. The per-minute count is not seeded: it starts empty.
+    pub fn usage(
+        mut self,
+        usage: impl Fn(&str) -> Option<(u64, u64)> + Send + Sync + 'static,
+    ) -> Self {
+        self.usage = Some(Box::new(usage));
         self
     }
 
@@ -213,6 +231,14 @@ impl Gate {
                     return Err(Refusal::Forbidden { tier, policy });
                 }
             }
+        }
+        if let Some(usage) = &self.usage
+            && !self.seen.contains(&who.workspace)
+            && let Some((ops, bytes)) = usage(&who.workspace)
+        {
+            self.seen.insert(who.workspace.clone());
+            self.used.insert(who.workspace.clone(), ops);
+            self.stored.insert(who.workspace.clone(), bytes);
         }
         let used = self.used(&who.workspace);
         if let Some(limit) = self.quota

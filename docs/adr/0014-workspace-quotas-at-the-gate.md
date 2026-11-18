@@ -25,5 +25,7 @@ Counting where the policy is decided means a refused call costs no store read, e
 
 - Known limit: the gate charges when it admits a batch, before the room accepts. A batch that stops at a failing op leaves the later ops charged, and a retry is charged again. The window never moves back when the clock does.
 
-- The counters live in the gate, in memory. They survive a restart only when the next slice persists them (a workspace column on the stored tables and a counters table); until then a restart starts the counts again from zero, and the epic box stays open.
+- The counters live in the gate, and a workspace starts from what the store holds the first time the gate sees it (`Gate::usage`; with Postgres, `PgStore::workspace_usage` counts the ops and `ops.bytes` of the workspace's own rows, found by the `workspace_id` column of migration 0003; `ops.bytes` is the compact JSON size the gate counts, and rows older than the migration get the size of their stored text, a little larger). So the total and the storage quotas survive a restart. The per-minute count starts empty after a restart: it only ever allows one more minute of ops, and the store has no clock the gate shares.
 - `Server::with_quotas` sets the limits and the clock; the defaults are `MAX_OPS_PER_MINUTE` and `MAX_STORAGE_BYTES`.
+- The first well-formed call of a workspace asks the store for its totals while the server holds its lock, so that one call is slower and other workspaces wait for it; a lookup that fails is asked again on the next call, and a workspace is never started from a guess.
+- Migration 0003 takes a brief lock and an older server would write `files` rows without the new columns: stop writers while it runs (pre-alpha, one server).

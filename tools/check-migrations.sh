@@ -41,20 +41,20 @@ begin
 end $$;
 
 -- The version the protocol crate declares is accepted.
-insert into files (id, schema_version) values ('f1', :v);
-insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
-  values ('f1', 1, 'k1', 'a1', '{"type":"removeNode","id":"n"}', :v);
+insert into files (id, schema_version, workspace_id, name) values ('f1', :v, 'ws', 'f1');
+insert into ops (file_id, seq, idempotency_key, actor, command, schema_version, bytes)
+  values ('f1', 1, 'k1', 'a1', '{"type":"removeNode","id":"n"}', :v, 0);
 insert into snapshots (file_id, seq, state, schema_version) values ('f1', 1, '{}', :v);
 
 -- A missing or non-positive version is refused.
 do $$
 begin
-  begin insert into files (id) values ('f2'); raise exception 'files accepted a missing schema_version';
+  begin insert into files (id, workspace_id, name) values ('f2', 'ws', 'f2'); raise exception 'files accepted a missing schema_version';
   exception when not_null_violation then null; end;
-  begin insert into files (id, schema_version) values ('f2', 0); raise exception 'files accepted version 0';
+  begin insert into files (id, schema_version, workspace_id, name) values ('f2', 0, 'ws', 'f2'); raise exception 'files accepted version 0';
   exception when check_violation then null; end;
   begin
-    insert into ops (file_id, seq, idempotency_key, actor, command, schema_version) values ('f1', 2, 'k2', 'a', '{}', 0);
+    insert into ops (file_id, seq, idempotency_key, actor, command, schema_version, bytes) values ('f1', 2, 'k2', 'a', '{}', 0, 0);
     raise exception 'ops accepted version 0';
   exception when check_violation then null; end;
   begin insert into snapshots (file_id, seq, state, schema_version) values ('f1', 2, '{}', 0);
@@ -72,23 +72,23 @@ begin
   exception when others then
     if sqlerrm not like 'ops are append-only%' then raise; end if;
   end;
-  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
-      values ('f1', 3, 'k1', 'a1', '{}', 1);
+  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version, bytes)
+      values ('f1', 3, 'k1', 'a1', '{}', 1, 0);
     raise exception 'a repeated idempotency key was accepted';
   exception when unique_violation then null; end;
-  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
-      values ('f1', 1, 'k9', 'a1', '{}', 1);
+  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version, bytes)
+      values ('f1', 1, 'k9', 'a1', '{}', 1, 0);
     raise exception 'a repeated seq was accepted';
   exception when unique_violation then null; end;
-  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
-      values ('missing', 1, 'k1', 'a1', '{}', 1);
+  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version, bytes)
+      values ('missing', 1, 'k1', 'a1', '{}', 1, 0);
     raise exception 'an op for an unknown file was accepted';
   exception when foreign_key_violation then null; end;
   -- The key is unique per actor within a file (the Store seam's contract): another actor may reuse it.
-  insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
-    values ('f1', 4, 'k1', 'a2', '{}', 1);
-  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version)
-      values ('f1', 5, 'k1', 'a2', '{}', 1);
+  insert into ops (file_id, seq, idempotency_key, actor, command, schema_version, bytes)
+    values ('f1', 4, 'k1', 'a2', '{}', 1, 0);
+  begin insert into ops (file_id, seq, idempotency_key, actor, command, schema_version, bytes)
+      values ('f1', 5, 'k1', 'a2', '{}', 1, 0);
     raise exception 'a repeated key of the same actor was accepted';
   exception when unique_violation then null; end;
   -- Deleting a file removes its history with it.

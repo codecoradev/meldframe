@@ -18,7 +18,9 @@ pub use limits::{
 pub use live::{
     Frame, LIVE_CONFIG, MAX_LIVE_STREAMS, StreamId, SubscribeError, Subscription, TOUCH_WINDOW_MS,
 };
-pub use meldframe_store_pg::{PERMANENT_STORE_ERROR, PgStore};
+pub use meldframe_store_pg::{
+    PERMANENT_STORE_ERROR, PgStore, RAW_WORKSPACE, Usage, room_key, split_room_key,
+};
 pub use meldframe_stream::{Config, StreamError};
 
 use meldframe_calls::{CallEntry, CallLog, MemoryCallLog};
@@ -61,13 +63,6 @@ pub struct Server {
     calls: Box<dyn CallLog>,
 }
 
-/// The key of a file in the registry and the store: the workspace's length, the workspace, then the file.
-/// The length prefix makes it injective (workspace `a/b` with file `c` is not workspace `a` with file `b/c`),
-/// so a workspace never reaches another workspace's file by choosing its name.
-fn room_key(workspace: &str, file: &str) -> String {
-    format!("{}:{workspace}{file}", workspace.len())
-}
-
 /// Entries the default call log keeps; the oldest go first.
 pub const MAX_CALL_LOG: usize = 10_000;
 
@@ -102,13 +97,22 @@ impl Server {
                 .register(module.as_ref())
                 .expect("modules do not clash");
         }
+        // With Postgres a workspace starts from what the store holds, so its totals survive a restart.
+        let pg = match &backing {
+            Backing::Postgres(p) => Some(p.clone()),
+            Backing::Memory(_) => None,
+        };
         let factory: Factory = Box::new(move |_file| backing.store());
+        let mut gate = Gate::new()
+            .batch_limit(MAX_BATCH_OPS)
+            .ops_per_minute(MAX_OPS_PER_MINUTE, now)
+            .storage_limit(MAX_STORAGE_BYTES);
+        if let Some(pg) = pg {
+            gate = gate.usage(move |ws| pg.workspace_usage(ws).ok().map(|u| (u.ops, u.bytes)));
+        }
         Server {
             registry,
-            gate: Gate::new()
-                .batch_limit(MAX_BATCH_OPS)
-                .ops_per_minute(MAX_OPS_PER_MINUTE, now)
-                .storage_limit(MAX_STORAGE_BYTES),
+            gate,
             rooms: meldframe_rooms::Rooms::new(MAX_OPEN_ROOMS, factory, MemoryActivityLog::new())
                 .with_workspace_limit(MAX_ROOMS_PER_WORKSPACE),
             idle_after: IDLE_AFTER_MS,
