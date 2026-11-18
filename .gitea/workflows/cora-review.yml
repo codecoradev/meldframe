@@ -43,10 +43,10 @@ jobs:
 
       - name: Install Cora (prebuilt, pinned, checksum verified)
         run: |
-          V=v0.20.0
+          V=v0.21.1
           case "$(uname -m)" in
-            aarch64) SHA=0e65a874286c4288e12870e937d9275910ef4ec4610ba1736633d069f8c32c76 ;;
-            x86_64)  SHA=6080dada5b01876cc62e777798b18ad479aa8beb819fd2338972cfd62f8d43dd ;;
+            aarch64) SHA=bcc2511e7d3211a693b59c10ab648559fbdd7cefe8663c31e3f899dc2d718c4b ;;
+            x86_64)  SHA=48bd958d68b76154e15387f0053fc37669e003125a14ea9cb21af5b857e48b66 ;;
             *) echo "::error::Unsupported runner architecture $(uname -m): add its Cora release asset and checksum"; exit 1 ;;
           esac
           curl -sSL --retry 2 -o "$RUNNER_TEMP/cora.tgz" \
