@@ -1,4 +1,3 @@
-use axum::serve::ListenerExt;
 use meldframe_http::{
     CappedListener, Config, DevTokens, check_dev_listen, check_dev_tokens_allowed,
     dev_tokens_warning,
@@ -12,6 +11,8 @@ use std::sync::Arc;
 const MAX_CONNECTIONS: usize = 512;
 /// Open connections one client (an IPv4 address or an IPv6 /64) may hold.
 const MAX_PER_CLIENT: usize = 32;
+/// A connection whose request headers are not complete within this time is closed (issue 170).
+const HEADER_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// The capture relay's limits: 4 MiB images (about 5.5 MiB as base64) of up to 16 million pixels, 20 seconds
 /// for the editor to answer.
@@ -144,13 +145,9 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
         println!("listening on {addr}");
         // Heartbeats and the reaping of silent live clients (ADR-0009) run on this timer.
         tokio::spawn(timer.run());
-        let listener =
-            CappedListener::new(listener, MAX_CONNECTIONS, MAX_PER_CLIENT).tap_io(|_| {});
-        axum::serve(
-            listener,
-            app.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await
+        let listener = CappedListener::new(listener, MAX_CONNECTIONS, MAX_PER_CLIENT);
+        meldframe_http::serve(listener, app, HEADER_READ_TIMEOUT).await;
+        Ok::<(), std::io::Error>(())
     });
     drop(shared); // after block_on: see above
     Ok(served?)
