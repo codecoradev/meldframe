@@ -11,8 +11,10 @@
 // The canvas draws what it is given: no layout, no editor rules (clamping, snapping, constraints) live here.
 import { containsPoint, intersectRects, rectsEqual, type Rect } from './geometry';
 import { sameGradient, type SceneGradient } from './gradient';
+import { sameImage, type SceneImage } from './image';
 
 export type { SceneGradient } from './gradient';
+export type { SceneImage, SceneImageFit } from './image';
 export type NodeKind = 'frame' | 'rect' | 'text';
 export type SceneSpace = 'parent' | 'world';
 
@@ -43,6 +45,8 @@ export interface SceneNode {
   opacity?: number;
   /** Painted over the fill; absent means none. */
   gradient?: SceneGradient;
+  /** Painted over the fill and the gradient; absent means none. */
+  image?: SceneImage;
 }
 
 export interface Scene {
@@ -75,6 +79,7 @@ export interface ResolvedNode {
   visible: boolean;
   opacity: number;
   gradient: SceneGradient | undefined;
+  image: SceneImage | undefined;
   /** The intersection of the clipping ancestors' rectangles; null when nothing clips it. */
   clipRect: Rect | null;
 }
@@ -101,7 +106,7 @@ function sameNode(a: ResolvedNode, b: ResolvedNode): boolean {
     a.parent === b.parent && a.kind === b.kind && a.depth === b.depth &&
     rectsEqual(a, b) && a.lx === b.lx && a.ly === b.ly &&
     a.fill === b.fill && a.radius === b.radius && a.text === b.text && a.fontSize === b.fontSize &&
-    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) &&
+    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) && sameImage(a.image, b.image) &&
     (a.clipRect === b.clipRect || (!!a.clipRect && !!b.clipRect && rectsEqual(a.clipRect, b.clipRect)))
   );
 }
@@ -142,6 +147,7 @@ function resolveAll(scene: Scene): ResolvedNode[] {
         visible: (n.visible ?? true) && (parent ? parent.visible : true),
         opacity: n.opacity ?? 1,
         gradient: n.gradient,
+        image: n.image,
         clipRect: parentClip,
       };
       out.push(node);

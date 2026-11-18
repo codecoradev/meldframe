@@ -182,3 +182,23 @@ describe('gradient', () => {
     expect(gone.patch.changed).toEqual(['a']);
   });
 });
+
+describe('image', () => {
+  const img = { assetId: 'a'.repeat(64), fit: 'cover' as const };
+  const node = (extra = {}) => ({ id: 'a', parent: null, kind: 'rect' as const, x: 0, y: 0, w: 10, h: 10, fill: 0x112233, ...extra });
+  it('is carried to the resolved node, and absent when the node has none', () => {
+    expect(resolveScene({ space: 'parent', nodes: [node({ image: img })] }).scene.items[0]!.image).toEqual(img);
+    expect(resolveScene({ space: 'parent', nodes: [node()] }).scene.items[0]!.image).toBeUndefined();
+  });
+  it('a changed image or fit makes the node changed, an equal one does not', () => {
+    const first = resolveScene({ space: 'parent', nodes: [node({ image: img })] }).scene;
+    const same = resolveScene({ space: 'parent', nodes: [node({ image: { ...img } })] }, first);
+    expect(same.patch.changed).toEqual([]);
+    const fit = resolveScene({ space: 'parent', nodes: [node({ image: { ...img, fit: 'contain' } })] }, first);
+    expect(fit.patch.changed).toEqual(['a']);
+    const other = resolveScene({ space: 'parent', nodes: [node({ image: { ...img, assetId: 'b'.repeat(64) } })] }, first);
+    expect(other.patch.changed).toEqual(['a']);
+    const gone = resolveScene({ space: 'parent', nodes: [node()] }, first);
+    expect(gone.patch.changed).toEqual(['a']);
+  });
+});

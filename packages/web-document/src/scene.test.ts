@@ -57,6 +57,17 @@ describe('gradient', () => {
   });
 });
 
+describe('image', () => {
+  const image = { assetId: 'c'.repeat(64), fit: 'contain' };
+  it('is carried to the canvas with its asset and fit', () => {
+    expect(sceneFromNodes([node({ id: 'a', image } as never)]).nodes[0]!.image).toEqual(image);
+  });
+  it('a node without one carries none, and text carries none even if the file names one', () => {
+    expect(sceneFromNodes([node({ id: 'a' })]).nodes[0]!.image).toBeUndefined();
+    expect(sceneFromNodes([node({ id: 't', type: 'text', image } as never)]).nodes[0]!.image).toBeUndefined();
+  });
+});
+
 describe('sceneFromNodes', () => {
   it('maps the node kinds the canvas draws and keeps parent-relative positions', () => {
     const s = sceneFromNodes([

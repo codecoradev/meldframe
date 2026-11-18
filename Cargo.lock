@@ -1620,6 +1620,10 @@ name = "meldframe-web"
 version = "0.0.0"
 
 [[package]]
+name = "meldframe-web-assets"
+version = "0.0.0"
+
+[[package]]
 name = "meldframe-web-canvas"
 version = "0.0.0"
 

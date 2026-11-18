@@ -16,6 +16,7 @@
   import { selectionBox } from '@meldframe/web-canvas/overlay';
   import { EMPTY_SCENE, contentBounds, hitTest, rectsOf, resolveScene, type Scene } from '@meldframe/web-canvas/scene';
   import { WorldView } from './stage';
+  import { AssetCache } from '@meldframe/web-assets/assets';
   import { duration, pixiColors, type Theme } from '../tokens';
 
   interface Props {
@@ -44,6 +45,8 @@
     /** The renderer that started, or the error when none could. */
     onReady?: (info: { renderer: string }) => void;
     onError?: (error: unknown) => void;
+    /** An image of an image fill is missing or could not be loaded: its asset id and the stable error code. */
+    onAssetProblem?: (id: string, code: string) => void;
   }
 
   let {
@@ -55,7 +58,7 @@
     theme = 'dark',
     reducedMotion,
     label = 'Canvas',
-    onSelect, onMove, onResize, onCreate, onCameraChange, onHover, onActivate, onReady, onError,
+    onSelect, onMove, onResize, onCreate, onCameraChange, onHover, onActivate, onReady, onError, onAssetProblem,
   }: Props = $props();
 
   interface HostEvents {
@@ -83,6 +86,11 @@
   // Not reactive on purpose: the Pixi objects are driven from effects and the frame loop.
   let app: Application | null = null;
   let world: WorldView | null = null;
+  let assets: AssetCache | null = null;
+  let retryTimer: ReturnType<typeof setInterval> | undefined;
+  /** The longest one asset request may take, and how often the failed ones are looked at. */
+  const ASSET_TIMEOUT_MS = 15_000;
+  const ASSET_RETRY_EVERY_MS = 5_000;
   let overlay: OverlayView | null = null;
   let resolved = EMPTY_SCENE;
   let viewport: Size = { w: 0, h: 0 };
@@ -262,6 +270,10 @@
   /** The world in `box` at `scale` as a PNG, without the overlay; the view is drawn again afterwards. */
   export async function capture(box: Rect, scale: number): Promise<Blob> {
     if (!app || !world) throw new Error('The canvas is not ready.');
+    // Every picture the view asked for is in the image (a missing one is drawn as its fill, as on the screen), unless one
+    // takes too long: the capture then shows that node by its fill.
+    await assets?.idle(ASSET_TIMEOUT_MS);
+    if (!app || !world) throw new Error('The canvas is not ready.');
     const width = Math.ceil(box.w * scale);
     const height = Math.ceil(box.h * scale);
     let image: HTMLCanvasElement;
@@ -428,7 +440,17 @@
       }
       app = a;
       a.ticker.stop();
-      world = new WorldView();
+      // The images of image fills: fetched through the same origin (the dev proxy adds the token), decoded off the main thread.
+      assets = new AssetCache({ fetch: (url) => fetch(url, { signal: AbortSignal.timeout(ASSET_TIMEOUT_MS) }), decode: (blob) => createImageBitmap(blob) });
+      // An image that failed a while ago (the server was restarting, the image was not uploaded yet) is asked for again.
+      retryTimer = setInterval(() => assets?.retryProblems(), ASSET_RETRY_EVERY_MS);
+      assets.onProblem = (id, code) => onAssetProblem?.(id, code);
+      assets.onChange((id) => {
+        world?.repaintAsset(id);
+        needCull = true;
+        schedule();
+      });
+      world = new WorldView(assets);
       overlay = new OverlayView();
       a.stage.addChild(world.root, overlay.root);
       a.stage.eventMode = 'none';
@@ -454,6 +476,9 @@
       renderer = '';
       overlay?.destroy();
       world?.destroy();
+      clearInterval(retryTimer);
+      assets?.destroy();
+      assets = null;
       app?.destroy({ removeView: false }, { children: true });
       app = null;
       world = null;

@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { closeSync, openSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
+import { deflateSync } from 'node:zlib';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const web = process.argv[2] ?? 'http://localhost:5173';
@@ -85,6 +87,30 @@ async function bbox(page, hex) {
   }, { b64, want: rgb(hex) });
 }
 const zoomOf = async (page) => Number.parseInt(await page.textContent('[data-testid=zoom]'), 10) / 100;
+
+/** A PNG of `w` x `h` pixels from `rowColour(y)` (a row is one colour): enough to tell where each fit puts an image. */
+function pngOf(w, h, rowColour) {
+  const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = (buf) => { let c = 0xffffffff; for (const b of buf) c = crcTable[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const sum = Buffer.alloc(4); sum.writeUInt32BE(crc(body));
+    return Buffer.concat([len, body, sum]);
+  };
+  const head = Buffer.alloc(13); head.writeUInt32BE(w, 0); head.writeUInt32BE(h, 4); head[8] = 8; head[9] = 2;
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) { const o = y * (w * 3 + 1); raw[o] = 0; const [r, g, b] = rgb(rowColour(y)); for (let x = 0; x < w; x++) { raw[o + 1 + x * 3] = r; raw[o + 2 + x * 3] = g; raw[o + 3 + x * 3] = b; } }
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', head), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+/** Uploads an image to the workspace of the token and returns its id. */
+async function upload(bytes) {
+  const res = await fetch(`${server}/v1/assets`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: bytes });
+  const body = await res.json();
+  assert.equal(res.status, 200, `upload refused: ${res.status} ${JSON.stringify(body)}`);
+  assert.equal(body.id, createHash('sha256').update(bytes).digest('hex'));
+  return body.id;
+}
 async function drag(page, from, to) {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
@@ -314,6 +340,43 @@ const id = `e2e_${run}`;
     await until('the change made while it reconnected', async () => (await count(page, C)) > 300, 30000);
     assert.equal(await page.evaluate(() => window.__stay), true, 'the page was not reloaded');
   });
+  // Image fills (E2.5): an image the server holds is drawn in the box of its node by its fit; one it does not hold is said
+  // once, with its code, and the node shows its fill. Before the preset check below: that frame is large and lies over the others.
+  if (results.every(Boolean)) {
+    const S = ['#e91e63', '#00bcd4', '#8bc34a']; // three stripes: top, middle, bottom
+    const F = '#204060'; // the fill under the image, seen where the image does not reach
+    await check('an image fill is drawn by its fit: cover crops, contain leaves the fill beside it, fill stretches', async () => {
+      const asset = await upload(pngOf(20, 20, (y) => (y < 7 ? S[0] : y < 14 ? S[1] : S[2])));
+      const fits = ['fill', 'contain', 'cover'];
+      const aspect = {};
+      for (const fit of fits) {
+        // One node at a time, so the stripes of each can be found by their colours.
+        const nid = `${id}_img_${fit}`;
+        await post({ type: 'addNode', node: { id: nid, name: `Image ${fit}`, type: 'rect', parentId: id, x: 10, y: 10, w: 120, h: 60, fill: F, image: { assetId: asset, fit } } });
+        const top = await until(`the ${fit} image is drawn`, async () => bbox(page, S[0]));
+        const mid = await until(`the middle stripe of the ${fit} image`, async () => bbox(page, S[1]));
+        aspect[fit] = { w: top.x1 - top.x0 + 1, h: top.y1 - top.y0 + 1, mid: mid.y1 - mid.y0 + 1, fill: await count(page, F) };
+        await post({ type: 'removeNode', id: nid });
+        await until(`the ${fit} image is gone`, async () => (await bbox(page, S[0])) === null);
+      }
+      // The top stripe of the image, as a box: stretched over the whole width, a stripe a third of the height (fill); a
+      // half-width stripe (contain: the image is a square in a box twice as wide); a wide, thin sliver (cover: the box
+      // shows the middle of the image, so the top stripe is cut to its last rows).
+      const ratio = (f) => aspect[f].w / aspect[f].h;
+      assert.ok(ratio('contain') > 2 && ratio('contain') < 4, `contain: ${JSON.stringify(aspect.contain)}`);
+      assert.ok(ratio('fill') > 4.5 && ratio('fill') < 7.5, `fill: ${JSON.stringify(aspect.fill)}`);
+      assert.ok(ratio('cover') > 8, `cover: ${JSON.stringify(aspect.cover)}`);
+      assert.ok(aspect.contain.fill > 50, 'contain leaves the fill of the node beside the image');
+    });
+    await check('an image the server does not hold is reported as asset_not_found and the node shows its fill', async () => {
+      const nid = `${id}_img_missing`;
+      await post({ type: 'addNode', node: { id: nid, name: 'Image missing', type: 'rect', parentId: id, x: 10, y: 80, w: 120, h: 60, fill: '#a0522d', image: { assetId: 'f'.repeat(64), fit: 'cover' } } });
+      const notice = page.locator('[data-testid=notice]');
+      await notice.waitFor({ state: 'visible', timeout: 8000 });
+      assert.match((await notice.textContent()) ?? '', /asset_not_found/);
+      assert.ok((await count(page, '#a0522d')) > 100, 'the fill shows instead of the image');
+    });
+  }
   // Last among the edits: the new frame is large and lies over the others.
   if (results.every(Boolean)) {
     await check('a frame preset makes a top-level frame of its size and name, and selects it', async () => {

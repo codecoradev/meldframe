@@ -4,7 +4,9 @@
 // pointer events (the canvas hit-tests the scene model itself), and display objects are culled by hand.
 import { Container, Culler, Graphics, RenderTexture, Sprite, Text, Texture, type Rectangle, type Renderer } from 'pixi.js';
 import { sameGradient } from '@meldframe/web-canvas/gradient';
-import { paintGradient } from './gradientcanvas';
+import { sameImage } from '@meldframe/web-canvas/image';
+import type { AssetCache } from '@meldframe/web-assets/assets';
+import { paintBody, type Drawable } from './bodycanvas';
 import type { Rect } from '@meldframe/web-canvas/geometry';
 import type { Camera } from '@meldframe/web-canvas/camera';
 import type { ResolvedNode, ResolvedScene, ScenePatch } from '@meldframe/web-canvas/scene';
@@ -29,7 +31,8 @@ export class WorldView {
   readonly root = new Container({ isRenderGroup: true, label: 'world' });
   private views = new Map<string, NodeView>();
 
-  constructor() {
+  /** Where the images of image fills come from; without it a node draws its fill and gradient only. */
+  constructor(private assets: AssetCache | null = null) {
     this.root.eventMode = 'none';
   }
 
@@ -127,7 +130,7 @@ export class WorldView {
     v.c.visible = n.visible;
     v.c.alpha = n.opacity;
     const geometry = first || prev.w !== n.w || prev.h !== n.h || prev.radius !== n.radius || prev.kind !== n.kind;
-    const fill = first || prev.fill !== n.fill || !sameGradient(prev.gradient, n.gradient);
+    const fill = first || prev.fill !== n.fill || !sameGradient(prev.gradient, n.gradient) || !sameImage(prev.image, n.image);
     if (n.kind === 'text') this.updateText(v, n, first || geometry || fill || prev.text !== n.text || prev.fontSize !== n.fontSize);
     else if (geometry || fill) this.updateBody(v, n);
     if (first || prev.clip !== n.clip || (n.clip && geometry)) this.updateMask(v, n);
@@ -147,16 +150,33 @@ export class WorldView {
     v.body = null;
   }
 
+  /** Draws again every node whose image is the asset `id`, now that it has arrived (or failed). */
+  repaintAsset(id: string): void {
+    for (const v of this.views.values()) {
+      if (v.node.image?.assetId !== id || v.node.kind === 'text') continue;
+      this.updateBody(v, v.node);
+      this.placeParts(v);
+    }
+  }
+
   private updateBody(v: NodeView, n: ResolvedNode): void {
     const plain = n.radius <= 0;
-    if ((n.fill === null && !n.gradient) || n.w <= 0 || n.h <= 0) {
+    // The image is there once the asset has arrived; until then (and for a missing one) the node shows its fill.
+    const asset = n.image && this.assets ? this.assets.want(n.image.assetId) : null;
+    const image = n.image && asset?.state === 'ready' ? { bitmap: asset.bitmap as Drawable, fit: n.image.fit } : undefined;
+    if ((n.fill === null && !n.gradient && !image) || n.w <= 0 || n.h <= 0) {
       this.dropBody(v);
       return;
     }
-    if (n.gradient) {
-      // The fill, the gradient over it and the rounded corners are one texture (see gradientcanvas.ts).
+    if (n.gradient || image) {
+      // The fill, the gradient over it, the image over both and the rounded corners are one texture (see bodycanvas.ts).
       this.dropBody(v);
-      const { canvas, k } = paintGradient({ w: n.w, h: n.h, radius: n.radius, fill: n.fill === null ? null : `#${n.fill.toString(16).padStart(6, '0')}`, gradient: n.gradient });
+      const { canvas, k } = paintBody({
+        w: n.w, h: n.h, radius: n.radius,
+        fill: n.fill === null ? null : `#${n.fill.toString(16).padStart(6, '0')}`,
+        gradient: n.gradient,
+        image,
+      });
       const s = new Sprite(Texture.from(canvas));
       s.eventMode = 'none';
       s.scale.set(1 / k);

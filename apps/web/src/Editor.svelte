@@ -197,6 +197,15 @@
   let ready = $state(false);
   let fitted = false;
   const onReady = () => (ready = true);
+  // An image that is missing or cannot be loaded is said once, with its code; the node shows its fill meanwhile.
+  // (a plain Set: it is read only here, not by the template, so it needs no reactivity)
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
+  const shownAssets = new Set<string>();
+  function onAssetProblem(id: string, code: string) {
+    if (shownAssets.has(id)) return;
+    shownAssets.add(id);
+    showNotice(`An image could not be loaded (${code}).`);
+  }
   $effect(() => {
     if (ready && !fitted && nodes.length) {
       fitted = true;
@@ -279,6 +288,7 @@
     onActivate={startEdit}
     {onReady}
     onError={(e) => (canvasError = e instanceof Error ? e.message : String(e))}
+    {onAssetProblem}
   />
   {#if editing && editBox}
     <TextEditor text={editing.before} box={editBox} onCommit={endEdit} onCancel={() => endEdit(null)} />
