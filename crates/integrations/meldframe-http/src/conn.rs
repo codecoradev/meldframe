@@ -139,11 +139,16 @@ pub async fn serve(
 ) {
     loop {
         let (io, addr) = Listener::accept(&mut listener).await;
-        let app = app
-            .clone()
-            .layer(axum::Extension(axum::extract::ConnectInfo(addr)));
+        let app = app.clone();
         tokio::spawn(async move {
-            let svc = hyper_util::service::TowerToHyperService::new(app);
+            // The client address goes into each request, as `axum::serve` does, without rebuilding the router.
+            let svc = hyper::service::service_fn(
+                move |mut req: hyper::Request<hyper::body::Incoming>| {
+                    req.extensions_mut()
+                        .insert(axum::extract::ConnectInfo(addr));
+                    tower::Service::call(&mut app.clone(), req)
+                },
+            );
             let mut http = hyper::server::conn::http1::Builder::new();
             http.timer(hyper_util::rt::TokioTimer::new())
                 .header_read_timeout(header_read_timeout);
