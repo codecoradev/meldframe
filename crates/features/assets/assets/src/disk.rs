@@ -45,7 +45,7 @@ impl DiskBlobs {
 }
 
 impl BlobStore for DiskBlobs {
-    fn put(&mut self, workspace: &str, bytes: &[u8]) -> Result<Stored, AssetError> {
+    fn put(&self, workspace: &str, bytes: &[u8]) -> Result<Stored, AssetError> {
         let (kind, id) = check_upload(bytes)?;
         let path = self.path_of(workspace, &id)?;
         let stored = Stored {
@@ -55,10 +55,14 @@ impl BlobStore for DiskBlobs {
         };
         // The same bytes are there already, unless the file was changed or cut short: then write it anew. The
         // bytes in hand are compared with the file, so a repeat upload costs a read, not a second hash.
+        let dir = path.parent().expect("the path has a directory");
         if std::fs::read(&path).is_ok_and(|on_disk| on_disk == bytes) {
+            // The first upload may have answered before its name was flushed: flush it before this one answers.
+            std::fs::File::open(dir)
+                .and_then(|d| d.sync_all())
+                .map_err(unavailable)?;
             return Ok(stored);
         }
-        let dir = path.parent().expect("the path has a directory");
         std::fs::create_dir_all(dir).map_err(unavailable)?;
         let tmp = dir.join(format!(
             ".{id}.{}.{}.tmp",

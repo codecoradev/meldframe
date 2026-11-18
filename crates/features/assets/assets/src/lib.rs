@@ -21,6 +21,7 @@ pub use disk::DiskBlobs;
 
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// The largest upload: 10 MiB. The transport must stop reading past it.
 pub const MAX_ASSET_BYTES: usize = 10 * 1024 * 1024;
@@ -162,12 +163,13 @@ pub struct Stored {
     pub bytes: usize,
 }
 
-/// The seam: keep the assets of each workspace. Every method checks its input first ([`check_upload`], the form of
+/// The seam: keep the assets of each workspace. Methods take `&self` and a store is `Sync`: calls run at once, so a
+/// slow write of one image never makes a read of another wait. Every method checks its input first ([`check_upload`], the form of
 /// the id), so no implementation sees an unchecked id or an unchecked upload.
-pub trait BlobStore: Send {
+pub trait BlobStore: Send + Sync {
     /// Store `bytes` for `workspace`; the same bytes again are the same asset and write nothing, unless the stored
     /// copy no longer matches them.
-    fn put(&mut self, workspace: &str, bytes: &[u8]) -> Result<Stored, AssetError>;
+    fn put(&self, workspace: &str, bytes: &[u8]) -> Result<Stored, AssetError>;
     /// The type and the bytes of an asset of `workspace`.
     fn get(&self, workspace: &str, id: &str) -> Result<(ImageType, Vec<u8>), AssetError>;
     /// Whether `workspace` has the asset.
@@ -183,13 +185,18 @@ pub trait BlobStore: Send {
 /// Assets in memory, for tests and a server without a disk.
 #[derive(Debug, Default)]
 pub struct MemoryBlobs {
-    blobs: HashMap<(String, String), (ImageType, Vec<u8>)>,
+    blobs: Mutex<Blobs>,
 }
 
+/// The assets by workspace and id.
+type Blobs = HashMap<(String, String), (ImageType, Vec<u8>)>;
+
 impl BlobStore for MemoryBlobs {
-    fn put(&mut self, workspace: &str, bytes: &[u8]) -> Result<Stored, AssetError> {
+    fn put(&self, workspace: &str, bytes: &[u8]) -> Result<Stored, AssetError> {
         let (kind, id) = check_upload(bytes)?;
         self.blobs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .entry((workspace.to_owned(), id.clone()))
             .or_insert_with(|| (kind, bytes.to_vec()));
         Ok(Stored {
@@ -202,6 +209,8 @@ impl BlobStore for MemoryBlobs {
     fn get(&self, workspace: &str, id: &str) -> Result<(ImageType, Vec<u8>), AssetError> {
         check_id(id)?;
         self.blobs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(&(workspace.to_owned(), id.to_owned()))
             .cloned()
             .ok_or(AssetError::NotFound)

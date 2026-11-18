@@ -81,7 +81,7 @@ fn the_id_is_the_lowercase_hex_sha256_of_the_bytes() {
     assert_eq!(id, asset_id(PNG));
 }
 
-fn round_trip(store: &mut dyn BlobStore) {
+fn round_trip(store: &dyn BlobStore) {
     let a = store.put("ws_1", PNG).unwrap();
     assert_eq!(
         (a.id.as_str(), a.kind, a.bytes),
@@ -122,14 +122,14 @@ fn round_trip(store: &mut dyn BlobStore) {
 
 #[test]
 fn memory_blobs_keep_assets_per_workspace() {
-    round_trip(&mut MemoryBlobs::default());
+    round_trip(&MemoryBlobs::default());
 }
 
 #[test]
 fn disk_blobs_keep_assets_per_workspace_and_survive_a_new_store() {
     let root = scratch("disk");
-    let mut store = DiskBlobs::new(&root);
-    round_trip(&mut store);
+    let store = DiskBlobs::new(&root);
+    round_trip(&store);
     // Storing the same bytes again does not write the file again.
     let path = store.path_of("ws_1", &asset_id(PNG)).unwrap();
     let before = std::fs::metadata(&path).unwrap().modified().unwrap();
@@ -144,7 +144,7 @@ fn disk_blobs_keep_assets_per_workspace_and_survive_a_new_store() {
     let (kind, bytes) = fresh.get("ws_1", &asset_id(PNG)).unwrap();
     assert_eq!((kind, bytes.as_slice()), (ImageType::Png, PNG));
     // A workspace name with a slash or dots stays inside the root.
-    let mut s = DiskBlobs::new(&root);
+    let s = DiskBlobs::new(&root);
     let a = s.put("../ws/..", GIF).unwrap();
     assert_eq!(s.get("../ws/..", &a.id).unwrap().1, GIF);
     for entry in std::fs::read_dir(&root).unwrap() {
@@ -157,7 +157,7 @@ fn disk_blobs_keep_assets_per_workspace_and_survive_a_new_store() {
 #[test]
 fn a_file_changed_on_disk_is_not_served_under_its_old_id() {
     let root = scratch("tamper");
-    let mut store = DiskBlobs::new(&root);
+    let store = DiskBlobs::new(&root);
     let a = store.put("ws_1", PNG).unwrap();
     let path = store.path_of("ws_1", &a.id).unwrap();
     std::fs::write(&path, JPEG).unwrap();
@@ -174,7 +174,7 @@ fn a_file_changed_on_disk_is_not_served_under_its_old_id() {
 #[test]
 fn a_workspace_name_of_any_length_or_bytes_gets_a_directory_of_its_own() {
     let root = scratch("names");
-    let mut store = DiskBlobs::new(&root);
+    let store = DiskBlobs::new(&root);
     // 128 bytes, the longest workspace name the server takes: twice that in hex is over the file-name limit.
     let long = "w".repeat(128);
     store.put(&long, PNG).unwrap();

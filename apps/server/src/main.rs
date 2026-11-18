@@ -119,6 +119,26 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     {
         app = app.merge(cap.routes());
     }
+    #[cfg(feature = "assets")]
+    {
+        let dir = assets_dir(
+            release,
+            std::env::var("MELDFRAME_ASSETS_DIR").ok().as_deref(),
+        )?;
+        // A directory that cannot be made or written is an error now, not a 503 on the first upload.
+        std::fs::create_dir_all(&dir)
+            .and_then(|()| std::fs::metadata(&dir))
+            .and_then(|m| match m.permissions().readonly() {
+                true => Err(std::io::Error::other("the directory is read-only")),
+                false => Ok(()),
+            })
+            .map_err(|e| format!("MELDFRAME_ASSETS_DIR {dir}: {e}"))?;
+        println!("assets in {dir}");
+        app = app.merge(meldframe_http_assets::routes(
+            state.clone(),
+            std::sync::Arc::new(assets::DiskBlobs::new(dir)),
+        ));
+    }
     #[cfg(feature = "mcp")]
     let app = {
         // MCP answers to loopback host names unless MELDFRAME_MCP_HOSTS lists others (comma separated).
@@ -155,6 +175,19 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     Ok(served?)
 }
 
+/// The directory of the assets (`MELDFRAME_ASSETS_DIR`, ADR-0015): required in a release build, so images are
+/// never written to a place nobody chose; a development build keeps them in `.dev-assets`.
+#[cfg(feature = "assets")]
+fn assets_dir(release: bool, set: Option<&str>) -> Result<String, Box<dyn std::error::Error>> {
+    match (set.map(str::trim).filter(|d| !d.is_empty()), release) {
+        (Some(dir), _) => Ok(dir.to_owned()),
+        (None, false) => Ok(".dev-assets".to_owned()),
+        (None, true) => {
+            Err("set MELDFRAME_ASSETS_DIR to the directory that keeps the assets".into())
+        }
+    }
+}
+
 /// The addresses of `MELDFRAME_TRUSTED_PROXIES`: comma-separated, blanks ignored; one that is not an address is an
 /// error, so a typo does not silently trust nothing.
 fn trusted_proxies(spec: &str) -> Result<Vec<std::net::IpAddr>, Box<dyn std::error::Error>> {
@@ -167,4 +200,21 @@ fn trusted_proxies(spec: &str) -> Result<Vec<std::net::IpAddr>, Box<dyn std::err
             })
         })
         .collect()
+}
+
+#[cfg(all(test, feature = "assets"))]
+mod tests {
+    use super::assets_dir;
+
+    #[test]
+    fn a_release_build_needs_the_assets_directory_and_a_development_build_has_a_default() {
+        assert_eq!(assets_dir(false, None).unwrap(), ".dev-assets");
+        assert_eq!(assets_dir(false, Some("  ")).unwrap(), ".dev-assets");
+        assert!(assets_dir(true, None).is_err());
+        assert!(assets_dir(true, Some("")).is_err());
+        assert_eq!(
+            assets_dir(true, Some("/srv/assets")).unwrap(),
+            "/srv/assets"
+        );
+    }
 }

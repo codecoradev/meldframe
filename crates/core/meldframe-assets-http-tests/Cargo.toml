@@ -1,0 +1,26 @@
+[package]
+name = "meldframe-assets-http-tests"
+description = "Tests of the asset routes (POST /v1/assets, GET /v1/assets/{id}) with the real router and the in-memory blob store. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+assets = { path = "../../features/assets/assets" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-http = { path = "../../integrations/meldframe-http" }
+meldframe-http-assets = { path = "../../integrations/meldframe-http-assets" }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+futures-util = "0.3"
+
+[lints]
+workspace = true

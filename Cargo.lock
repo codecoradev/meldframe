@@ -1066,6 +1066,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-assets-http-tests"
+version = "0.0.0"
+dependencies = [
+ "assets",
+ "axum",
+ "futures-util",
+ "http-body-util",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-http-assets",
+ "meldframe-protocol",
+ "serde_json",
+ "tokio",
+ "tower",
+]
+
+[[package]]
 name = "meldframe-batch"
 version = "0.0.0"
 dependencies = [
@@ -1196,6 +1213,19 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower",
+]
+
+[[package]]
+name = "meldframe-http-assets"
+version = "0.0.0"
+dependencies = [
+ "assets",
+ "axum",
+ "futures-util",
+ "meldframe-host",
+ "meldframe-http",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -1409,6 +1439,7 @@ dependencies = [
 name = "meldframe-server"
 version = "0.0.0"
 dependencies = [
+ "assets",
  "axum",
  "capture",
  "example",
@@ -1416,6 +1447,7 @@ dependencies = [
  "meldframe-calls",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-http-assets",
  "meldframe-http-capture",
  "meldframe-http-live",
  "meldframe-http-snapshot",

@@ -1,9 +1,9 @@
 ---
-status: proposed
+status: accepted
 ---
 # Assets are images kept on local disk per workspace, content-addressed, with the type told by their bytes
 
-E2.5 needs images for image fills. This ADR records the choices of the first slice (the `assets` feature crate) and names the ones the next slices still need from the owner.
+E2.5 needs images for image fills. This ADR records the choices of the first slice (the `assets` feature crate) and the answers of the owner for the next slices.
 
 Decided in the first slice:
 
@@ -12,13 +12,17 @@ Decided in the first slice:
 - Assets belong to one workspace (ADR-0006, E2.3): the store keys them by workspace and id, so the same image in two workspaces is kept twice and one workspace never reads another's asset, even with its id (`asset_not_found`).
 - `BlobStore` is the seam; `DiskBlobs` keeps `<root>/<SHA-256 of the workspace>/<id[..2]>/<id>` (a fixed-length directory for any workspace name), written to a temporary name, flushed and renamed (and the directory flushed), and checks the id again when it reads: a file changed on disk or cut short is `asset_corrupt`, never served under the old id, and uploading the same image again writes it anew. An upload is at most 10 MiB, checked before it is hashed. `DiskBlobs` is not built for wasm32.
 
-## Open for the owner (the next slices)
+## Decided by the owner (the next slices)
 
-1. Upload route: a raw body `POST /v1/assets` with the image bytes (proposed; no multipart parser), or multipart.
-2. How the browser fetches an asset (whatever the route, it is served with its sniffed `image/*` type, `X-Content-Type-Options: nosniff` and a CSP that allows no script, since only the first bytes are checked): `GET /v1/assets/{id}` with the Bearer token through the dev proxy now, and with the Gatehouse session later (proposed), or signed URLs.
-3. An agent tool to upload (base64 in a JSON call, which the MCP body limit bounds) or uploads by people only.
-4. A storage quota for assets: counted with `quota_storage` of the workspace (proposed) or a limit of its own.
-5. The root directory: `MELDFRAME_ASSETS_DIR`, required in a release build (proposed).
+The owner accepted every proposal on 18 Nov 2026:
+
+1. Upload route: a raw body `POST /v1/assets` with the image bytes; no multipart parser. It answers `{"ok": true, "id", "type", "bytes"}`.
+2. How the browser fetches an asset: `GET /v1/assets/{id}` with the Bearer token (through the dev proxy now, with the Gatehouse session later). It is served with its sniffed `image/*` type, `X-Content-Type-Options: nosniff` and a CSP that allows no script (only the first bytes are checked), `Cache-Control: private, max-age=31536000, immutable` (the id is the content, and the asset is private to the workspace).
+3. An agent tool to upload: base64 in a JSON call, which the MCP body limit bounds.
+4. A storage quota for assets: counted with `quota_storage` of the workspace, not a limit of its own.
+5. The root directory is `MELDFRAME_ASSETS_DIR`, required in a release build (a development build keeps assets in `.dev-assets`).
+
+What is built: the routes (1, 2) and the root directory (5). The agent tool (3), the quota (4) and the canvas that renders image fills are the next slices.
 
 ## Considered options
 
