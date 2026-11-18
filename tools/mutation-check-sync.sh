@@ -6,8 +6,11 @@
 #   tools/mutation-check-sync.sh NAME ...   run the named ones
 #   tools/mutation-check-sync.sh --list     print the names
 #
-# Each run takes about a minute (a build and 600 property-test seeds). The working tree must be clean
-# in the files a mutation touches; they are restored with `git checkout`.
+# Each mutant runs in two passes. The quick pass stops at the first failing test binary and runs the
+# property tests with MELDFRAME_MUTATION_SEEDS seeds (100 by default); most mutants die there in seconds.
+# A mutant that survives it gets the full pass (every test, MELDFRAME_SEEDS seeds, 600 by default), so a
+# mutant is only reported as surviving when the full suite misses it. The working tree must be clean in
+# the files a mutation touches; they are restored with `git checkout`.
 #
 # Every mutation is one line of tab-separated fields: name, file, sed pattern (# is the delimiter),
 # replacement, and what it switches off.
@@ -78,6 +81,7 @@ want=("$@")
 current=""
 trap '[ -n "$current" ] && git checkout -- "$current"' EXIT
 killed=0; survived=0
+crates=(-p meldframe-history -p meldframe-sync -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-app -p meldframe-app-tests)
 while IFS=$'\t' read -r name file from to what; do
   if [ ${#want[@]} -gt 0 ] && [[ ! " ${want[*]} " == *" $name "* ]]; then continue; fi
   if ! git diff --quiet -- "$file"; then echo "FAIL: $file has local changes; commit or stash them first"; exit 2; fi
@@ -85,14 +89,20 @@ while IFS=$'\t' read -r name file from to what; do
   sed -i "s#$from#$to#" "$file"
   if git diff --quiet -- "$file"; then echo "FAIL: $name: the pattern was not found in $file"; exit 2; fi
   # A mutant that does not compile, or a cargo failure unrelated to it, is not a kill: build first.
-  if ! cargo test -p meldframe-history -p meldframe-sync -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-app -p meldframe-app-tests --no-run >"/tmp/mutation-$name.build.log" 2>&1; then
+  if ! cargo test "${crates[@]}" --no-run >"/tmp/mutation-$name.build.log" 2>&1; then
     git checkout -- "$file"
     current=""
     echo "BROKEN:   $name does not build (see /tmp/mutation-$name.build.log)"
     exit 2
   fi
-  cargo test -p meldframe-history -p meldframe-sync -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-app -p meldframe-app-tests --no-fail-fast >"/tmp/mutation-$name.log" 2>&1
+  MELDFRAME_SEEDS=${MELDFRAME_MUTATION_SEEDS:-100} cargo test "${crates[@]}" >"/tmp/mutation-$name.log" 2>&1
   status=$?
+  # The full pass runs when the quick pass found nothing, and also when it stopped without a failing test (a test
+  # binary that crashed hides the binaries after it), so BROKEN is only decided on the full suite.
+  if [ $status -eq 0 ] || ! grep -qE '^test [A-Za-z0-9_:]+ \.\.\. FAILED$' "/tmp/mutation-$name.log"; then
+    cargo test "${crates[@]}" --no-fail-fast >"/tmp/mutation-$name.log" 2>&1
+    status=$?
+  fi
   git checkout -- "$file"
   current=""
   # Killed means at least one test really failed, not just a non-zero exit.
