@@ -1280,6 +1280,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-live-slot-tests"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "futures-util",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-http-live",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-rooms",
+ "meldframe-server",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite 0.26.2",
+ "tower",
+]
+
+[[package]]
 name = "meldframe-live-tests"
 version = "0.0.0"
 dependencies = [

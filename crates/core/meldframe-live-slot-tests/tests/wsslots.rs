@@ -4,6 +4,7 @@
 //! "Z" is a principal of the other workspace (BETA) whose calls are stuck on purpose to hold a place; "Y" is
 //! the principal under test (ALPHA).
 
+#[path = "../../meldframe-live-tests/tests/common/mod.rs"]
 mod common;
 
 use common::*;
@@ -39,7 +40,10 @@ async fn pings_keep_a_stream_alive_while_every_live_place_is_taken() {
     next(&mut y).await;
     // Z's polls wait inside the source and hold the only live place.
     e.hooks.stick("ws_2", "poll");
-    eventually("Z holds the live place", || e.hooks.running_of("ws_2") >= 1).await;
+    eventually("Z holds the live place", || {
+        e.hooks.waiting_of("ws_2", "poll") >= 1
+    })
+    .await;
     e.now.store(1_800, std::sync::atomic::Ordering::SeqCst);
     send(&mut y, json!({"type": "ping"})).await;
     assert_eq!(next_data(&mut y).await["type"], "pong");
@@ -94,7 +98,10 @@ async fn a_poll_with_no_place_is_tried_again_and_delivers_when_a_place_frees() {
     next(&mut z).await;
     next(&mut y).await;
     e.hooks.stick("ws_2", "poll");
-    eventually("Z holds the live place", || e.hooks.running_of("ws_2") >= 1).await;
+    eventually("Z holds the live place", || {
+        e.hooks.waiting_of("ws_2", "poll") >= 1
+    })
+    .await;
     assert_eq!(rest(&e, ALPHA, 1, 1).await, 200);
     assert!(
         next_within(&mut y, Duration::from_millis(400))
@@ -150,7 +157,13 @@ async fn a_subscribe_that_finds_no_place_costs_one_frame_not_four_and_says_when_
     let mut z = connect(&e, BETA, None).await;
     next(&mut z).await;
     e.hooks.stick("ws_2", "poll");
-    eventually("Z holds the live place", || e.hooks.running_of("ws_2") >= 1).await;
+    // Wait for a poll of Z that is held, not for any call of Z: a poll of Z that started before the stick returns at
+    // once and frees the place, and the next one comes up to `live_poll` later, so a subscribe sent in that gap
+    // could find the place free (issue 236).
+    eventually("Z holds the live place", || {
+        e.hooks.waiting_of("ws_2", "poll") >= 1
+    })
+    .await;
     for n in 0..5 {
         send(
             &mut y,

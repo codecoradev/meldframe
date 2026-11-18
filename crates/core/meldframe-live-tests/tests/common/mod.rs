@@ -57,6 +57,8 @@ pub struct Hooks {
     per_ws: Mutex<HashMap<String, (usize, usize)>>,
     /// Calls started and ended, by `"kind:start"` and `"kind:end"`.
     counts: Mutex<HashMap<String, usize>>,
+    /// Calls waiting now on a switch (`stuck` or `stick`), by workspace and kind.
+    waiting: Mutex<HashMap<(String, &'static str), usize>>,
 }
 
 impl Hooks {
@@ -79,6 +81,17 @@ impl Hooks {
     /// Calls of workspace `ws` running now.
     pub fn running_of(&self, ws: &str) -> usize {
         self.per_ws.lock().unwrap().get(ws).map_or(0, |p| p.0)
+    }
+
+    /// Calls of `kind` of workspace `ws` that wait now on a switch: a place is held for sure, not just for a
+    /// moment by a call that is about to end.
+    pub fn waiting_of(&self, ws: &str, kind: &'static str) -> usize {
+        self.waiting
+            .lock()
+            .unwrap()
+            .get(&(ws.to_owned(), kind))
+            .copied()
+            .unwrap_or(0)
     }
 
     /// How many calls hit `"kind:start"` or `"kind:end"`.
@@ -128,8 +141,19 @@ impl<'a> Running<'a> {
             p.1 = p.1.max(p.0);
         }
         hooks.bump(format!("{kind}:start"));
-        while hooks.waits(&ws, kind) {
-            std::thread::sleep(Duration::from_millis(5));
+        if hooks.waits(&ws, kind) {
+            *hooks
+                .waiting
+                .lock()
+                .unwrap()
+                .entry((ws.clone(), kind))
+                .or_insert(0) += 1;
+            while hooks.waits(&ws, kind) {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            if let Some(n) = hooks.waiting.lock().unwrap().get_mut(&(ws.clone(), kind)) {
+                *n -= 1;
+            }
         }
         Running { hooks, ws, kind }
     }
