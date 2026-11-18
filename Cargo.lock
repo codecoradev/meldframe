@@ -1411,7 +1411,9 @@ dependencies = [
 name = "meldframe-store-pg"
 version = "0.0.0"
 dependencies = [
+ "meldframe-calls",
  "meldframe-host",
+ "meldframe-module",
  "meldframe-protocol",
  "serde_json",
  "sqlx",
