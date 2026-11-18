@@ -5,11 +5,10 @@
 //! and submitter); reads go through the [`Reader`] seam on the same blocking pool. The tool text and schemas
 //! are in [`TOOLS`]; `docs/mcp-tools.json` lists them and a test compares.
 
-mod defs;
 mod tools;
-mod view;
+mod variant;
 
-pub use defs::{MAX_BATCH, MAX_KEY, TOOLS, ToolDef};
+pub use meldframe_mcp_defs::{MAX_BATCH, MAX_KEY, TOOLS, ToolDef};
 
 use crate::{Failure, Shared, rest};
 use axum::{
@@ -110,7 +109,7 @@ pub struct McpConfig {
     pub allowed_hosts: Vec<String>,
 }
 
-/// Registers the MCP tools in the registry with their tiers (`apply_commands` is a Change, the rest Reads).
+/// Registers the MCP tools in the registry with their tiers (`apply_commands` and `make_variant` are Changes, the rest Reads).
 /// Without it `apply_commands` is refused as `forbidden`.
 #[derive(Debug, Clone, Copy)]
 pub struct McpModule;
@@ -162,7 +161,7 @@ fn tool_of(d: &ToolDef) -> Tool {
 impl ServerHandler for Handler {
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_instructions(
-            "Meldframe design files. Call whoami first, read with get_tree and get_nodes, change with apply_commands (atomic, idempotent, ifSeq-guarded) and check a call with batch_status.",
+            "Meldframe design files. Call whoami first, read with get_tree and get_nodes, change with apply_commands (atomic, idempotent, ifSeq-guarded), copy a frame with make_variant and check a call with batch_status.",
         )
     }
 
@@ -222,6 +221,7 @@ impl ServerHandler for Handler {
             "get_nodes" => self.get_nodes(&who, a).await,
             "apply_commands" => self.apply_commands(&who, a).await,
             "batch_status" => self.batch_status(&who, a).await,
+            "make_variant" => self.make_variant(&who, a).await,
             other => {
                 return Err(ErrorData::invalid_params(
                     format!("unknown tool {other}; list the tools with tools/list"),

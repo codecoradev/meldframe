@@ -72,6 +72,7 @@ fn every_tool_and_code_the_skill_names_exists() {
         "get_nodes",
         "apply_commands",
         "batch_status",
+        "make_variant",
         "capture",
     ] {
         assert!(known.iter().any(|k| k == t), "{t} is a tool");

@@ -1,4 +1,4 @@
-//! The five tools through a real MCP client: read tools, whoami, atomic apply_commands, both spellings of
+//! The tools of the MCP surface (apart from make_variant, which has its own file) through a real MCP client: read tools, whoami, atomic apply_commands, both spellings of
 //! the idempotency key and of `ifSeq`, conflict details, batch status.
 
 mod common;

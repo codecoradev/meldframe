@@ -1186,9 +1186,11 @@ dependencies = [
  "meldframe-check",
  "meldframe-host",
  "meldframe-layout",
+ "meldframe-mcp-defs",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-ratelimit",
+ "meldframe-variant",
  "rmcp",
  "serde",
  "serde_json",
@@ -1316,6 +1318,17 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.26.2",
  "tower",
+]
+
+[[package]]
+name = "meldframe-mcp-defs"
+version = "0.0.0"
+dependencies = [
+ "meldframe-batch",
+ "meldframe-host",
+ "meldframe-module",
+ "meldframe-protocol",
+ "serde_json",
 ]
 
 [[package]]

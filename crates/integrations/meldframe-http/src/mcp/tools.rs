@@ -1,8 +1,6 @@
-//! The five tools. Each takes the caller's principal (from the token, never from the arguments) and the
+//! The tools of the MCP surface. Each takes the caller's principal (from the token, never from the arguments) and the
 //! arguments as JSON, and returns the body of its result: `Ok` for a success, `Err` for a tool error.
 
-use super::defs::{MAX_BATCH, MAX_KEY};
-use super::view;
 use super::{FileView, Handler, Reader};
 use crate::Guard;
 use crate::reply::{Failure, Reply};
@@ -10,6 +8,8 @@ use axum::http::StatusCode;
 use meldframe_batch::touches;
 use meldframe_check::Limits;
 use meldframe_host::{Op, Principal};
+use meldframe_mcp_defs::view;
+use meldframe_mcp_defs::{MAX_BATCH, MAX_KEY};
 use meldframe_protocol::Command;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
@@ -21,20 +21,20 @@ const TREE_WINDOW: usize = 2_000;
 /// A tool's answer: the body of a success, or the body of a tool error.
 pub(super) type Body = Result<Value, Value>;
 
-fn error(code: &str, message: impl Into<String>, retryable: bool) -> Value {
+pub(super) fn error(code: &str, message: impl Into<String>, retryable: bool) -> Value {
     json!({"ok": false, "error": {"code": code, "message": message.into(), "retryable": retryable}})
 }
 
-fn invalid(message: impl Into<String>) -> Value {
+pub(super) fn invalid(message: impl Into<String>) -> Value {
     error("invalid", message, false)
 }
 
 /// A refused call, as the one handler words it: the same code, message and extras as REST.
-fn failed(reply: &Reply) -> Value {
+pub(super) fn failed(reply: &Reply) -> Value {
     json!({"ok": false, "error": reply.body["error"]})
 }
 
-fn args<T: for<'de> Deserialize<'de>>(a: Map<String, Value>) -> Result<T, Value> {
+pub(super) fn args<T: for<'de> Deserialize<'de>>(a: Map<String, Value>) -> Result<T, Value> {
     serde_json::from_value(Value::Object(a)).map_err(|e| {
         error(
             "bad_request",
@@ -44,7 +44,7 @@ fn args<T: for<'de> Deserialize<'de>>(a: Map<String, Value>) -> Result<T, Value>
     })
 }
 
-fn check_file(file: &str) -> Result<(), Value> {
+pub(super) fn check_file(file: &str) -> Result<(), Value> {
     if crate::valid_file(file) {
         Ok(())
     } else {
@@ -53,7 +53,11 @@ fn check_file(file: &str) -> Result<(), Value> {
 }
 
 /// One value from its two spellings: exactly one may be given.
-fn one_of<T>(camel: Option<T>, snake: Option<T>, name: &str) -> Result<Option<T>, Value> {
+pub(super) fn one_of<T>(
+    camel: Option<T>,
+    snake: Option<T>,
+    name: &str,
+) -> Result<Option<T>, Value> {
     match (camel, snake) {
         (Some(_), Some(_)) => Err(invalid(format!(
             "send {name} or its snake_case spelling, not both"
@@ -62,7 +66,7 @@ fn one_of<T>(camel: Option<T>, snake: Option<T>, name: &str) -> Result<Option<T>
     }
 }
 
-fn check_key(key: &str) -> Result<(), Value> {
+pub(super) fn check_key(key: &str) -> Result<(), Value> {
     if key.is_empty() || key.chars().count() > MAX_KEY || key.chars().any(char::is_control) {
         return Err(invalid(format!(
             "the idempotency key is 1 to {MAX_KEY} characters without control characters"
@@ -273,7 +277,7 @@ impl Handler {
     }
 
     /// Run a read on the blocking pool under the same slot and time limit as a write.
-    async fn read<T: Send + 'static>(
+    pub(super) async fn read<T: Send + 'static>(
         &self,
         who: &Principal,
         f: impl FnOnce(&dyn Reader, &Principal) -> Result<T, Failure> + Send + 'static,

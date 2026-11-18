@@ -72,7 +72,7 @@ async fn the_read_only_annotation_follows_the_registry_tier() {
 fn descriptions_are_english_ascii_and_apply_commands_names_the_batch_limit() {
     let file: Value = serde_json::from_str(CATALOGUE).unwrap();
     let tools = file["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 6);
+    assert_eq!(tools.len(), 7);
     for t in tools {
         let d = t["description"].as_str().unwrap();
         assert!(d.is_ascii() && d.len() > 40, "{}", t["name"]);

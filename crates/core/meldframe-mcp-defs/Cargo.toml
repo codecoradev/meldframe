@@ -1,0 +1,20 @@
+[package]
+name = "meldframe-mcp-defs"
+description = "The MCP tool definitions (name, description, risk tier, input schema) and the JSON the read tools answer with; split from meldframe-http, which is at its ceiling."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dependencies]
+meldframe-batch = { path = "../meldframe-batch" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-module = { path = "../meldframe-module" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+serde_json = "1"
+
+[lints]
+workspace = true
