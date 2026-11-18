@@ -1,0 +1,13 @@
+[package]
+name = "meldframe-ratelimit"
+description = "A token bucket per key with a caller-supplied clock: the rate limits of the transports. Standard library only."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[lints]
+workspace = true

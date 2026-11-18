@@ -8,7 +8,6 @@
 
 mod auth;
 mod conn;
-mod limit;
 #[cfg(feature = "mcp")]
 pub mod mcp;
 mod reply;
@@ -21,8 +20,8 @@ pub use auth::{
     check_dev_tokens_allowed, dev_tokens_warning,
 };
 pub use conn::CappedListener;
-pub use limit::{Clock, Rate, RateLimiter};
 pub use meldframe_batch::Guard;
+pub use meldframe_ratelimit::{Clock, Rate, RateLimiter};
 pub use reply::{Failure, Reply};
 pub use rest::{bearer, peer};
 pub use slots::{Slot, Slots};

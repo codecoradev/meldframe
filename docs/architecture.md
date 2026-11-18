@@ -89,6 +89,7 @@ crates/
     meldframe-module      Module trait, registry, risk tiers
     meldframe-host        room, store, admission gate; jobs later
     meldframe-rooms       activity log of accepted ops and the room registry (open, close, a bound, idle close by a caller-supplied clock); split from host, which is near its 2,000-line ceiling
+    meldframe-ratelimit   a token bucket per key with a caller-supplied clock (std only), the rate limits of the transports; split from meldframe-http, which is at its ceiling
     meldframe-calls       the call log: one entry for every call to a tool, written or refused, with the policy's decision and the outcome code, and no content (E2.4); the server keeps one and `Server::calls` reads it
     meldframe-stream      live event stream logic (ADR-0009), pure and transport-free: a `Hub` per file with a bounded window of durable frames, replay from a sequence number, bounded per-client queues with a resync marker, ephemeral frames, the coalescer of touch hints (`Touches`), a stream cap and a heartbeat schedule driven by a caller-supplied clock
     meldframe-approvals   approval path for a call with policy Ask (pending, approved, denied, expired; log of decisions); depends on host and rooms
