@@ -206,3 +206,47 @@ fn a_rate_of_zero_refuses_every_batch_as_a_wait_not_as_too_large() {
     let err = gate.submit(&who("a"), ops("x", 1)).unwrap_err();
     assert_eq!(err.code(), "quota_ops_per_minute");
 }
+
+#[test]
+fn the_first_sight_of_a_workspace_starts_its_minute_from_what_it_wrote_in_it() {
+    let (t, now) = clock();
+    t.store(125_000, Ordering::SeqCst);
+    let asked = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let a2 = asked.clone();
+    let mut gate = Gate::new()
+        .ops_per_minute(5, now)
+        .usage(|_| Some((0, 0)))
+        .recent(move |ws, since_ms| {
+            a2.lock().unwrap().push((ws.to_string(), since_ms));
+            Some(4)
+        });
+    // Four ops were written in this minute before the gate existed (a restart): two more do not fit.
+    assert_eq!(
+        gate.submit(&who("a"), ops("x", 2)).unwrap_err().code(),
+        "quota_ops_per_minute"
+    );
+    gate.submit(&who("a"), ops("y", 1)).unwrap();
+    // Asked once, from the start of the current minute.
+    assert_eq!(*asked.lock().unwrap(), [("a".to_string(), 120_000)]);
+    // The next minute starts empty as usual.
+    t.store(180_000, Ordering::SeqCst);
+    gate.submit(&who("a"), ops("z", 5)).unwrap();
+}
+
+#[test]
+fn a_recent_lookup_that_fails_is_asked_again_with_the_usage() {
+    let (_t, now) = clock();
+    let calls = std::sync::Arc::new(AtomicU64::new(0));
+    let c2 = calls.clone();
+    let mut gate = Gate::new()
+        .ops_per_minute(3, now)
+        .usage(|_| Some((0, 0)))
+        .recent(move |_, _| (c2.fetch_add(1, Ordering::SeqCst) > 0).then_some(3));
+    gate.submit(&who("a"), ops("x", 1)).unwrap();
+    // The store answers on the second call: three ops already in this minute.
+    assert_eq!(
+        gate.submit(&who("a"), ops("y", 1)).unwrap_err().code(),
+        "quota_ops_per_minute"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+}

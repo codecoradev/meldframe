@@ -159,6 +159,24 @@ impl PgStore {
         })
     }
 
+    /// The ops a workspace wrote since `since_ms` (milliseconds since the Unix epoch, compared with the time the
+    /// database gave each op), for the per-minute quota of a restarted server.
+    pub fn ops_since(&self, workspace: &str, since_ms: u64) -> Result<u64, StoreError> {
+        let row = self
+            .rt
+            .block_on(
+                sqlx::query(
+                    "select count(*) as ops from ops o join files f on f.id = o.file_id \
+                     where f.workspace_id = $1 and o.created_at >= to_timestamp($2::double precision / 1000)",
+                )
+                .bind(workspace)
+                .bind(since_ms as f64)
+                .fetch_one(&self.pool),
+            )
+            .map_err(db_err)?;
+        Ok(from_db_seq(row.get("ops")))
+    }
+
     fn open(url: &str, schema: Option<String>) -> Result<Self, StoreError> {
         let rt = Arc::new(Runtime::new().map_err(unavailable)?);
         let options = PgConnectOptions::from_str(url).map_err(db_err)?;

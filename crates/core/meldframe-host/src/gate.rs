@@ -76,6 +76,8 @@ const MINUTE_MS: u64 = 60_000;
 
 type UsageFn = Box<dyn Fn(&str) -> Option<(u64, u64)> + Send + Sync>;
 
+type RecentFn = Box<dyn Fn(&str, u64) -> Option<u64> + Send + Sync>;
+
 type Clock = Box<dyn Fn() -> u64 + Send + Sync>;
 
 type PolicyFn = Box<dyn Fn(&Principal, RiskTier) -> Policy + Send + Sync>;
@@ -95,6 +97,8 @@ pub struct Gate {
     stored: HashMap<String, u64>,
     /// What a workspace wrote before this gate existed, asked once per workspace (see [`Gate::usage`]).
     usage: Option<UsageFn>,
+    /// Ops a workspace wrote since a time, asked with `usage` (see [`Gate::recent`]).
+    recent: Option<RecentFn>,
     seen: HashSet<String>,
 }
 
@@ -138,6 +142,7 @@ impl Gate {
             storage_limit: None,
             stored: HashMap::new(),
             usage: None,
+            recent: None,
             seen: HashSet::new(),
         }
     }
@@ -181,12 +186,25 @@ impl Gate {
 
     /// Start each workspace from what it already wrote: `usage(workspace)` returns its `(ops, bytes)` and is asked
     /// once, the first time a well-formed call names the workspace. A restarted server passes what the store
-    /// holds, so the total and the storage quotas survive it; `None` (the store could not say) is asked again on the next call. The per-minute count is not seeded: it starts empty.
+    /// holds, so the total and the storage quotas survive it; `None` (the store could not say) is asked again on the
+    /// next call. The per-minute count is seeded by [`Gate::recent`].
     pub fn usage(
         mut self,
         usage: impl Fn(&str) -> Option<(u64, u64)> + Send + Sync + 'static,
     ) -> Self {
         self.usage = Some(Box::new(usage));
+        self
+    }
+
+    /// Start the minute of each workspace from what it already wrote in it: `recent(workspace, since_ms)` returns the
+    /// ops written since `since_ms` (the start of the current minute on the gate's clock), asked with
+    /// [`Gate::usage`] the first time a well-formed call names the workspace. A restarted server passes what the
+    /// store holds, so the per-minute quota survives it too. `None` asks again on the next call, as for `usage`.
+    pub fn recent(
+        mut self,
+        recent: impl Fn(&str, u64) -> Option<u64> + Send + Sync + 'static,
+    ) -> Self {
+        self.recent = Some(Box::new(recent));
         self
     }
 
@@ -242,13 +260,8 @@ impl Gate {
                 }
             }
         }
-        if let Some(usage) = &self.usage
-            && !self.seen.contains(&who.workspace)
-            && let Some((ops, bytes)) = usage(&who.workspace)
-        {
-            self.seen.insert(who.workspace.clone());
-            self.used.insert(who.workspace.clone(), ops);
-            self.stored.insert(who.workspace.clone(), bytes);
+        if !self.seen.contains(&who.workspace) {
+            self.seed(&who.workspace);
         }
         let used = self.used(&who.workspace);
         if let Some(limit) = self.quota
@@ -301,6 +314,46 @@ impl Gate {
             })
             .collect();
         Ok(Report { admitted })
+    }
+}
+
+impl Gate {
+    /// The first sight of a workspace: take what it wrote before this gate existed, all of it or nothing, so a
+    /// lookup that failed is asked again on the next call.
+    fn seed(&mut self, ws: &str) {
+        if self.usage.is_none() && self.recent.is_none() {
+            return;
+        }
+        let totals = match &self.usage {
+            Some(usage) => match usage(ws) {
+                Some(t) => Some(t),
+                None => return,
+            },
+            None => None,
+        };
+        let minute = match (&self.recent, &self.rate) {
+            (Some(recent), Some((_, now))) => {
+                let w = now() / MINUTE_MS;
+                match recent(ws, w.saturating_mul(MINUTE_MS)) {
+                    Some(n) => Some((w, n)),
+                    None => return,
+                }
+            }
+            _ => None,
+        };
+        self.seen.insert(ws.to_owned());
+        if let Some((ops, bytes)) = totals {
+            self.used.insert(ws.to_owned(), ops);
+            self.stored.insert(ws.to_owned(), bytes);
+        }
+        if let Some((w, n)) = minute {
+            // Ops this gate already counted in the minute are in the store too once written; take the larger.
+            let count = match self.windows.get(ws) {
+                Some(&(at, mine)) if at == w => mine.max(n),
+                _ => n,
+            };
+            self.windows.insert(ws.to_owned(), (w, count));
+        }
     }
 }
 
