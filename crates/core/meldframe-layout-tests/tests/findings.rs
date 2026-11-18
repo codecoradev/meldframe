@@ -194,3 +194,112 @@ fn a_tidy_file_has_no_findings_and_the_layout_is_unchanged_by_asking() {
         before
     );
 }
+
+#[test]
+fn g1_on_the_cross_axis_of_a_hug_parent_says_the_canvas_gives_it_the_whole() {
+    // A row that hugs its height: the core stretches a child that fills the height to the tallest sibling (40),
+    // so the finding must not say that the child keeps its own 10.
+    let nodes = [
+        row(json!({"sh": "hug"})),
+        node("a", "rect", Some("f"), json!({"w": 30, "h": 40})),
+        node(
+            "b",
+            "rect",
+            Some("f"),
+            json!({"sh": "fill", "w": 30, "h": 10}),
+        ),
+    ];
+    let f = layout_findings(&nodes, &StubMeasurer);
+    assert_eq!(f.len(), 1, "{f:?}");
+    assert_eq!((f[0].id.as_str(), f[0].code), ("b", "fill_under_hug"));
+    assert!(
+        f[0].message.contains("the whole of the height"),
+        "{}",
+        f[0].message
+    );
+    assert!(
+        !f[0].message.contains("it keeps its own"),
+        "{}",
+        f[0].message
+    );
+}
+
+#[test]
+fn a_frame_with_hug_text_deeper_down_is_left_out_of_the_size_rules() {
+    // A fixed row of 100 holds a button that hugs a text that hugs: the stub measurer's width of the text is not
+    // the browser's, so the fit of the row cannot be told and no overflow is reported for it.
+    let nodes = [
+        row(json!({"w": 100})),
+        node(
+            "btn",
+            "frame",
+            Some("f"),
+            json!({"layout": "row", "sw": "hug", "sh": "hug", "padding": 8}),
+        ),
+        node(
+            "label",
+            "text",
+            Some("btn"),
+            json!({"sw": "hug", "sh": "hug", "text": "A rather long button label here"}),
+        ),
+    ];
+    assert_eq!(codes(&nodes), []);
+}
+
+#[test]
+fn g1_in_a_hug_column_the_width_is_the_cross_axis_and_the_height_the_main() {
+    let nodes = [
+        node(
+            "f",
+            "frame",
+            None,
+            json!({"layout": "column", "sw": "hug", "sh": "hug", "padding": 0, "gap": 0}),
+        ),
+        node("a", "rect", Some("f"), json!({"w": 50, "h": 20})),
+        node(
+            "b",
+            "rect",
+            Some("f"),
+            json!({"sw": "fill", "sh": "fill", "w": 10, "h": 10}),
+        ),
+    ];
+    let f = layout_findings(&nodes, &StubMeasurer);
+    let says = |axis: &str| {
+        f.iter()
+            .find(|x| x.id == "b" && x.message.contains(&format!("fill on the {axis}")))
+            .map(|x| x.message.clone())
+            .unwrap()
+    };
+    assert!(says("width").contains("the whole of the width"), "{f:?}");
+    assert!(says("height").contains("a share of the height"), "{f:?}");
+    // What the canvas does: the column hugs the widest child (50), and b fills that whole width.
+    let rects = meldframe_layout::compute_rects(&nodes, &StubMeasurer);
+    let b = rects
+        .iter()
+        .find(|(id, _)| id == "b")
+        .map(|(_, r)| r.w)
+        .unwrap();
+    assert_eq!(b, 50.0);
+}
+
+#[test]
+fn hug_text_inside_a_hug_frame_without_layout_does_not_skip_the_size_rules() {
+    // A frame without layout keeps its own size even when it says hug, so the row around it can be checked: 150 in a
+    // content box of 100 overflows.
+    let nodes = [
+        row(json!({"w": 100})),
+        node(
+            "box",
+            "frame",
+            Some("f"),
+            json!({"sw": "hug", "sh": "hug", "w": 150, "h": 20}),
+        ),
+        node(
+            "label",
+            "text",
+            Some("box"),
+            json!({"sw": "hug", "sh": "hug", "text": "Label"}),
+        ),
+    ];
+    assert_eq!(codes(&nodes), [("f".to_string(), "overflow")]);
+}

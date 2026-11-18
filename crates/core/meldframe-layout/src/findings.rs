@@ -1,15 +1,16 @@
 //! Layout findings: the validator rules of the fidelity contract (G1 to G3). They report, they never change the
 //! layout: the core lays a node out the same way with or without a finding on it.
 //!
-//! - `fill_under_hug` (G1): `fill` on an axis where the parent hugs, or where the parent has no layout. The core
-//!   uses the node's own size there, so the fill does nothing; the export treats it as fixed.
+//! - `fill_under_hug` (G1): `fill` on an axis where the parent hugs, or where the parent has no layout. The export
+//!   treats it as fixed. The canvas keeps the node's own size in a frame without layout, and sizes it from what a hug
+//!   layout frame hugs (an equal share on the main axis, the whole on the cross axis); the finding says which.
 //! - `overflow` (G3): the flow children of a fixed-size layout frame, with their margins and the gaps, are larger
 //!   than its content box.
 //! - `zero_fill` (G3): a `fill` that resolves to less than 1 px.
 //! - `smaller_than_padding` (G3): a layout frame smaller than its own padding.
 //!
-//! A frame whose children include hug text is left out of the size rules: the text measurer of the caller may not be
-//! the browser's, so the fit of such a frame cannot be told here.
+//! A frame whose children include hug text, directly or through hugging layout frames, is left out of the size rules:
+//! the text measurer of the caller may not be the browser's, so the fit of such a frame cannot be told here.
 
 use super::tree::is_layout_frame;
 use super::{Layout, Rect, TextMeasurer};
@@ -33,7 +34,8 @@ fn finding(n: &Node, code: &'static str, message: String) -> LayoutFinding {
     }
 }
 
-/// The findings for a file, in the order of the nodes. Frames with hug text children are skipped by the size rules.
+/// The findings for a file, in the order of the nodes. Frames with hug text among their children, directly or through
+/// hugging layout frames, are skipped by the size rules.
 pub fn layout_findings(nodes: &[Node], measurer: &dyn TextMeasurer) -> Vec<LayoutFinding> {
     let rects: HashMap<usize, Rect> = Layout::new(nodes, measurer).run().into_iter().collect();
     let by_id: HashMap<&str, usize> = nodes
@@ -51,9 +53,28 @@ pub fn layout_findings(nodes: &[Node], measurer: &dyn TextMeasurer) -> Vec<Layou
             continue;
         }
         let layout = is_layout_frame(parent);
-        for (axis, mode, parent_mode) in [("width", n.sw, parent.sw), ("height", n.sh, parent.sh)] {
+        let row = parent.layout == LayoutMode::Row;
+        for (axis, mode, parent_mode, main) in [
+            ("width", n.sw, parent.sw, row),
+            ("height", n.sh, parent.sh, !row),
+        ] {
             if mode == SizeMode::Fill && (!layout || parent_mode == SizeMode::Hug) {
-                out.push(finding(n, "fill_under_hug", format!("{} is fill on the {axis}, but its parent does not give it a size there (the parent hugs, or has no layout): it keeps its own {axis}", n.name)));
+                // In a hug layout frame the canvas still sizes the child from what the parent hugs: an equal share
+                // of it on the main axis, the whole of it on the cross axis (as CSS `align-self: stretch` does). In a
+                // frame without layout the child keeps its own size. The export treats both as fixed (rule G1).
+                let canvas = if layout {
+                    let how = if main {
+                        format!(
+                            "a share of the {axis} the parent hugs (its own {axis} when it is the only fill)"
+                        )
+                    } else {
+                        format!("the whole of the {axis} the parent hugs")
+                    };
+                    format!("the canvas gives it {how}, while the export keeps its own {axis}")
+                } else {
+                    format!("it keeps its own {axis}")
+                };
+                out.push(finding(n, "fill_under_hug", format!("{} is fill on the {axis}, but its parent does not give it a size of its own there (the parent hugs, or has no layout): {canvas}", n.name)));
             }
         }
     }
@@ -64,10 +85,7 @@ pub fn layout_findings(nodes: &[Node], measurer: &dyn TextMeasurer) -> Vec<Layou
         }
         let Some(r) = rects.get(&i) else { continue };
         let kids = layout.flow_children(&n.id);
-        if kids.iter().any(|&c| {
-            nodes[c].kind == NodeKind::Text
-                && (nodes[c].sw == SizeMode::Hug || nodes[c].sh == SizeMode::Hug)
-        }) {
+        if has_hug_text(&layout, nodes, &kids) {
             continue;
         }
         let pad = n.pad();
@@ -125,4 +143,22 @@ pub fn layout_findings(nodes: &[Node], measurer: &dyn TextMeasurer) -> Vec<Layou
         }
     }
     out
+}
+
+/// Whether the size of any of `kids` depends on a text the caller's measurer sizes: a hug text among them, or a
+/// hugging frame whose own flow children reach one.
+fn has_hug_text(layout: &Layout, nodes: &[Node], kids: &[usize]) -> bool {
+    kids.iter().any(|&c| {
+        let k = &nodes[c];
+        let hugs = k.sw == SizeMode::Hug || k.sh == SizeMode::Hug;
+        match k.kind {
+            NodeKind::Text => hugs,
+            // A hug frame without layout keeps its own size (the core treats its hug as fixed).
+            NodeKind::Frame => {
+                hugs && is_layout_frame(k)
+                    && has_hug_text(layout, nodes, &layout.flow_children(&k.id))
+            }
+            _ => false,
+        }
+    })
 }
