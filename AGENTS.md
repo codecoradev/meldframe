@@ -76,6 +76,10 @@ Needs `just`, `psql` and either Docker or local Postgres 16 binaries. Copy `.env
 - `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5433/meldframe_dev` and `TEST_DATABASE_URL=...meldframe_test`; override the port with `MELDFRAME_PG_PORT`.
 - Development seed (`scripts/dev-seed.sh`): workspace `ws_dev`, file `file_dev` and a random per-install token (printed once, saved to the git-ignored `.dev-token`, only its hash is stored). It is idempotent, only runs against `meldframe_dev` or `meldframe_test` on this machine (`scripts/dev-seed-test.sh` checks the guards), and refuses to run when `MELDFRAME_ENV` is `release`, `production` or `prod`, `MELDFRAME_RELEASE` is `1`, or `PROFILE` is `release`. The server must never load it in a release build.
 
+## Skill for agents
+
+`skills/meldframe/SKILL.md` tells an agent how to work in a Meldframe file through MCP (E5.5); `meldframe-mcp-tests/tests/skill.rs` checks that every tool and code it names exists. Update it with any change to the tool text.
+
 ## Knowledge
 
 Team notes live in uteke room `project:meldframe`; the spike history and its docs live in the `rust-core-spikes` repository.
