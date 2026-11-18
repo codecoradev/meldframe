@@ -231,6 +231,15 @@ mod read {
     }
 
     impl Reader for SharedServer {
+        fn record(&self, who: &Principal, tool: &str, file: &str, code: Option<&str>) {
+            self.lock().record_call_code(tool, file, who, code);
+        }
+
+        fn head(&self, who: &Principal, file: &str) -> Result<u64, Failure> {
+            // Allowed under the same read policy as `get_nodes`; the calling tool has its own log entry.
+            self.read_unlogged("get_nodes", who, file, |r| r.seq())
+        }
+
         fn view(&self, who: &Principal, file: &str) -> Result<FileView, Failure> {
             self.read("get_nodes", who, file, |r| FileView {
                 seq: r.seq(),

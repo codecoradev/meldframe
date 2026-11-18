@@ -110,10 +110,10 @@ impl CaptureTool {
             ));
         }
         let file = hub.file_of(&who, args.file.as_deref())?;
-        // The whole file is read for its sequence number: the Reader has no cheaper call.
+        // The sequence number of the file, read as part of this call (the call log has one entry, `capture`).
         let (reader, w, f) = (hub.reader.clone(), who.clone(), file.clone());
-        let min_seq = match hub.shared.blocking(&who, move || reader.view(&w, &f)).await {
-            Ok(Ok(view)) => view.seq,
+        let min_seq = match hub.shared.blocking(&who, move || reader.head(&w, &f)).await {
+            Ok(Ok(seq)) => seq,
             Ok(Err(failure)) => return Err(read_failure(&failure)),
             Err(_) => return Err(CaptureError::Busy),
         };

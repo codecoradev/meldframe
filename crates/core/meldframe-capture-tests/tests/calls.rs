@@ -96,3 +96,54 @@ async fn read_calls_are_logged_under_their_own_tool_name_and_a_conflict_adds_no_
     assert_eq!(log[1].risk, Some(RiskTier::Read));
     assert_eq!(log[1].decision, Some(Decision::Allow));
 }
+
+#[tokio::test]
+async fn whoami_and_capture_are_logged_too() {
+    let h = start().await;
+    let a = agent(&h, AGENT).await;
+    let me = call(&a, "whoami", json!({})).await;
+    assert_ne!(me.is_error, Some(true), "{me:?}");
+    // No client of the file can render, so the capture fails with its own code; it is still a call.
+    let shot = call(&a, "capture", json!({"file": "f1", "nodeId": "hero"})).await;
+    let shot_code = code(&shot);
+    let log = h.server.with_server(|s| s.calls(10));
+    let seen: Vec<(&str, &str, &str)> = log
+        .iter()
+        .map(|e| (e.tool.as_str(), e.file.as_str(), e.outcome.as_str()))
+        .collect();
+    assert_eq!(
+        seen,
+        [("whoami", "", "ok"), ("capture", "f1", shot_code.as_str())],
+        "{log:?}"
+    );
+    assert!(
+        !format!("{log:?}").contains("hero"),
+        "no node id in the log"
+    );
+    for e in &log {
+        assert_eq!(e.actor, "agent:alpha");
+        assert_eq!(
+            (e.risk, e.decision),
+            (Some(RiskTier::Read), Some(Decision::Allow)),
+            "{e:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_capture_with_bad_arguments_is_logged_as_malformed() {
+    let h = start().await;
+    let a = agent(&h, AGENT).await;
+    let bad = call(&a, "capture", json!({"file": "f1", "scale": 9})).await;
+    assert_eq!(code(&bad), "invalid");
+    let log = h.server.with_server(|s| s.calls(10));
+    assert_eq!(log.len(), 1, "{log:?}");
+    assert_eq!(
+        (
+            log[0].tool.as_str(),
+            log[0].outcome.as_str(),
+            log[0].decision
+        ),
+        ("capture", "invalid", None)
+    );
+}

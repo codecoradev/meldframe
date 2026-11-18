@@ -162,3 +162,21 @@ fn calls_come_in_order_and_name_their_own_workspace() {
     assert_eq!(s.calls(1).len(), 1, "a limit returns the newest");
     assert_eq!(s.calls(1)[0].workspace, "ws_2");
 }
+
+#[test]
+fn a_code_that_is_not_a_stable_code_is_logged_as_internal() {
+    use meldframe_calls::describe_code;
+    assert_eq!(describe_code(None), (Some(Decision::Allow), "ok".into()));
+    assert_eq!(
+        describe_code(Some("forbidden")),
+        (Some(Decision::Deny), "forbidden".into())
+    );
+    assert_eq!(describe_code(Some("invalid")), (None, "invalid".into()));
+    assert_eq!(
+        describe_code(Some("no_capable_client")),
+        (Some(Decision::Allow), "no_capable_client".into())
+    );
+    for text in ["Hero title: Buy now", "", "a\nb", &"x".repeat(65)] {
+        assert_eq!(describe_code(Some(text)).1, "internal", "{text:?}");
+    }
+}

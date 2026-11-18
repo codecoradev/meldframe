@@ -81,6 +81,14 @@ pub trait Reader: Send + Sync {
         file: &str,
         keys: &[String],
     ) -> Result<Vec<Option<u64>>, Failure>;
+    /// The sequence number of the file, for a tool that reads it as part of its own call: not logged as a read
+    /// call of its own. The default reads the whole file through [`Reader::view`].
+    fn head(&self, who: &Principal, file: &str) -> Result<u64, Failure> {
+        self.view(who, file).map(|v| v.seq)
+    }
+    /// Log a call that reads no file through this seam (`whoami`, a tool of another crate): `code` is `None` when
+    /// it succeeded, else its stable error code. The default keeps no log.
+    fn record(&self, _who: &Principal, _tool: &str, _file: &str, _code: Option<&str>) {}
 }
 
 /// A tool another crate contributes (capture): listed with the others, called with the request's principal.
@@ -125,6 +133,16 @@ pub(crate) struct Handler {
     pub(crate) shared: Arc<Shared>,
     pub(crate) reader: Arc<dyn Reader>,
     extra: Option<Arc<dyn Extra>>,
+}
+
+impl Handler {
+    /// One entry in the call log through the reader, in a slot of the principal with the call time limit, like the
+    /// other calls of the server (a busy server loses the entry rather than holding the reply).
+    async fn record(&self, who: Principal, tool: String, file: String, code: Option<String>) {
+        let (reader, w) = (self.reader.clone(), who.clone());
+        let job = move || reader.record(&w, &tool, &file, code.as_deref());
+        let _ = self.shared.blocking(&who, job).await;
+    }
 }
 
 fn tool_of(d: &ToolDef) -> Tool {
@@ -177,10 +195,29 @@ impl ServerHandler for Handler {
             .as_ref()
             .filter(|x| x.tool().name == request.name)
         {
-            return Ok(x.call(who, a).await.into());
+            let file = a
+                .get("file")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned();
+            let out = x.call(who.clone(), a).await;
+            let code = (out.is_error == Some(true)).then(|| {
+                out.structured_content
+                    .as_ref()
+                    .and_then(|v| v["error"]["code"].as_str())
+                    .unwrap_or("internal")
+                    .to_owned()
+            });
+            self.record(who, request.name.to_string(), file, code).await;
+            return Ok(out.into());
         }
         let body = match request.name.as_ref() {
-            "whoami" => self.whoami(&who),
+            "whoami" => {
+                let body = self.whoami(&who);
+                self.record(who.clone(), "whoami".into(), String::new(), None)
+                    .await;
+                body
+            }
             "get_tree" => self.get_tree(&who, a).await,
             "get_nodes" => self.get_nodes(&who, a).await,
             "apply_commands" => self.apply_commands(&who, a).await,

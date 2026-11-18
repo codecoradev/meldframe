@@ -119,6 +119,25 @@ pub fn describe(
     }
 }
 
+/// How a call that has only a stable code reads in the log (a tool that does not go through the gate, such as
+/// `whoami` or `capture`): `None` is `ok` and allowed; `forbidden` is denied; `invalid` and `bad_request` are malformed
+/// calls with no decision; any other code is a call the policy let through that then failed with it.
+/// A code that is not 1 to 64 of `a-z`, `0-9` and `_` (a tool that put text there) is logged as `internal`.
+pub fn describe_code(code: Option<&str>) -> (Option<Decision>, String) {
+    let stable = |c: &str| {
+        (1..=64).contains(&c.len())
+            && c.bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+    };
+    let code = code.map(|c| if stable(c) { c } else { "internal" });
+    match code {
+        None => (Some(Decision::Allow), "ok".into()),
+        Some("forbidden") => (Some(Decision::Deny), "forbidden".into()),
+        Some(c @ ("invalid" | "bad_request")) => (None, c.into()),
+        Some(c) => (Some(Decision::Allow), c.into()),
+    }
+}
+
 impl CallEntry {
     /// The entry for a call. Names are cut at 128 characters, so a caller cannot grow an entry by what it sends.
     pub fn new(
@@ -138,6 +157,29 @@ impl CallEntry {
             tool: cap(tool),
             file: cap(file),
             risk,
+            decision,
+            outcome,
+        }
+    }
+
+    /// The entry for a call that has only a stable code (see [`describe_code`]).
+    pub fn with_code(
+        at: u64,
+        who: &Principal,
+        tool: &str,
+        file: &str,
+        tier: Option<RiskTier>,
+        code: Option<&str>,
+    ) -> Self {
+        let cap = |s: &str| s.chars().take(128).collect::<String>();
+        let (decision, outcome) = describe_code(code);
+        Self {
+            at,
+            workspace: cap(&who.workspace),
+            actor: cap(&who.actor),
+            tool: cap(tool),
+            file: cap(file),
+            risk: tier,
             decision,
             outcome,
         }
