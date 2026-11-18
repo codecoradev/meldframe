@@ -44,3 +44,19 @@ fn undo_of_removing_or_replacing_restores_the_old_gradient() {
     s.undo().unwrap();
     assert_eq!(s.node("a").unwrap().gradient, Some(g("#111111")));
 }
+
+#[test]
+fn a_remote_edit_of_another_field_keeps_the_undo_and_redo_of_my_gradient() {
+    let mut s = base();
+    s.apply(&upd("a", |p| p.gradient = Some(Some(g("#ffffff")))))
+        .unwrap();
+    // Another actor writes a different field of the same node: my step still holds the gradient.
+    s.apply_remote(&upd("a", |p| p.x = Some(12.0))).unwrap();
+    assert!(s.undo().is_some(), "the gradient step is still there");
+    let a = s.node("a").unwrap();
+    assert!(a.gradient.is_none(), "my gradient is undone");
+    assert_eq!(a.x, 12.0, "the other actor's field stays");
+    s.apply_remote(&upd("a", |p| p.y = Some(3.0))).unwrap();
+    assert!(s.redo().is_some(), "the redo step is still there");
+    assert_eq!(s.node("a").unwrap().gradient, Some(g("#ffffff")));
+}

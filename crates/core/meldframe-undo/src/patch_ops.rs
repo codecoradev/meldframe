@@ -57,6 +57,7 @@ pub fn patch_is_empty(p: &NodePatch) -> bool {
         ($($f:ident),*) => { true $( && p.$f.is_none() )* };
     }
     p.image.is_none()
+        && p.gradient.is_none()
         && [p.pad_t, p.pad_r, p.pad_b, p.pad_l]
             .iter()
             .all(Option::is_none)
