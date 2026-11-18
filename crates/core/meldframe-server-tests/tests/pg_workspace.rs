@@ -305,12 +305,19 @@ fn the_ops_of_this_minute_survive_a_restart() {
         eprintln!("SKIPPED: DATABASE_URL is not set");
         return;
     };
-    // One fixed instant for both servers: every op below is written after it, so all of them fall in its minute
-    // whatever second the test starts at.
-    let t0 = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
+    // One fixed instant for both servers: every op below is written after it, so all of them fall in its minute.
+    // The database stamps the ops with its own clock, so stay clear of the first seconds of a minute, where a
+    // database clock a little behind would put them in the minute before.
+    let wall = || {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64
+    };
+    if wall() % 60_000 < 5_000 {
+        std::thread::sleep(std::time::Duration::from_millis(5_000));
+    }
+    let t0 = wall();
     let node = |id: &str| -> Op { Op::new(id, add(id)) };
     let who = Principal::new("ws_a", "agent:x");
     let make =

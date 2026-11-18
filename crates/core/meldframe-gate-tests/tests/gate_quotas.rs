@@ -234,7 +234,7 @@ fn the_first_sight_of_a_workspace_starts_its_minute_from_what_it_wrote_in_it() {
 }
 
 #[test]
-fn a_recent_lookup_that_fails_is_asked_again_with_the_usage() {
+fn a_recent_lookup_that_fails_is_asked_again() {
     let (_t, now) = clock();
     let calls = std::sync::Arc::new(AtomicU64::new(0));
     let c2 = calls.clone();
@@ -249,4 +249,38 @@ fn a_recent_lookup_that_fails_is_asked_again_with_the_usage() {
         "quota_ops_per_minute"
     );
     assert_eq!(calls.load(Ordering::SeqCst), 2);
+}
+
+#[test]
+fn a_failed_minute_lookup_keeps_the_totals_it_already_has() {
+    let (_t, now) = clock();
+    let mut gate = Gate::new()
+        .quota(5)
+        .ops_per_minute(100, now)
+        .usage(|_| Some((5, 0)))
+        .recent(|_, _| None);
+    // The minute is unknown, but the totals were read: the workspace is still full.
+    assert_eq!(
+        gate.submit(&who("a"), ops("x", 1)).unwrap_err().code(),
+        "quota_exceeded"
+    );
+}
+
+#[test]
+fn a_late_minute_lookup_keeps_a_newer_window_the_gate_counted() {
+    let (t, now) = clock();
+    t.store(185_000, Ordering::SeqCst);
+    let calls = std::sync::Arc::new(AtomicU64::new(0));
+    let c2 = calls.clone();
+    let mut gate = Gate::new()
+        .ops_per_minute(3, now)
+        .recent(move |_, _| (c2.fetch_add(1, Ordering::SeqCst) > 0).then_some(0));
+    // The store is down: the gate counts three ops in the minute that starts at 180 000 itself.
+    gate.submit(&who("a"), ops("x", 3)).unwrap();
+    // The clock steps back a minute and the store answers now: the newer, full window stays.
+    t.store(125_000, Ordering::SeqCst);
+    assert_eq!(
+        gate.submit(&who("a"), ops("y", 1)).unwrap_err().code(),
+        "quota_ops_per_minute"
+    );
 }
