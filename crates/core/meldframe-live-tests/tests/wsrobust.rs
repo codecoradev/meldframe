@@ -103,10 +103,23 @@ async fn stuck_live_calls_stay_within_their_caps_per_principal_and_in_all() {
     );
     assert!(all <= 4, "{all} live calls at once");
     e.hooks.unstick();
-    eventually("the stuck jobs end", || e.hooks.running.load(SeqCst) == 0).await;
+    // Close the sockets first (issue 204). At most four calls were stuck (the caps above), and the sockets whose
+    // poll timed out were already closed by the server, but the other open sockets keep polling every few
+    // milliseconds, so on a loaded runner the count of running calls was rarely zero when it was read. Once the
+    // server sees the sockets close, their sessions only unsubscribe and stop; the wait gets more than the usual
+    // 5 s for a busy shared runner.
+    drop(sockets);
+    eventually_within("the stuck jobs end", Duration::from_secs(30), || {
+        e.hooks.running.load(SeqCst) == 0
+    })
+    .await;
     let mut fresh = connect(&e, ALPHA, Some(0)).await;
     next(&mut fresh).await;
     assert_eq!(events(&mut fresh, 1).await, [1]);
+    // The handshake replays op 1 without a live slot; a new op reaches the socket only through a poll, which
+    // needs a live slot of the principal, so this shows at least one of them is free again after the stuck period.
+    assert_eq!(rest(&e, ALPHA, 2, 2).await, 200);
+    assert_eq!(events(&mut fresh, 1).await, [2]);
 }
 
 #[tokio::test]

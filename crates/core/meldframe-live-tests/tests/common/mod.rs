@@ -432,8 +432,13 @@ pub async fn send(ws: &mut Ws, v: Value) {
 }
 
 /// Poll `ok` every 20 ms for up to 5 s.
-pub async fn eventually(what: &str, mut ok: impl FnMut() -> bool) {
-    let end = tokio::time::Instant::now() + Duration::from_secs(5);
+pub async fn eventually(what: &str, ok: impl FnMut() -> bool) {
+    eventually_within(what, Duration::from_secs(5), ok).await;
+}
+
+/// Poll `ok` every 20 ms for up to `limit`.
+pub async fn eventually_within(what: &str, limit: Duration, mut ok: impl FnMut() -> bool) {
+    let end = tokio::time::Instant::now() + limit;
     while !ok() {
         assert!(tokio::time::Instant::now() < end, "never happened: {what}");
         tokio::time::sleep(Duration::from_millis(20)).await;
