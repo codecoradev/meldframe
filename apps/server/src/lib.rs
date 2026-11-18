@@ -108,7 +108,10 @@ impl Server {
             .ops_per_minute(MAX_OPS_PER_MINUTE, now)
             .storage_limit(MAX_STORAGE_BYTES);
         if let Some(pg) = pg {
-            gate = gate.usage(move |ws| pg.workspace_usage(ws).ok().map(|u| (u.ops, u.bytes)));
+            let recent = pg.clone();
+            gate = gate
+                .usage(move |ws| pg.workspace_usage(ws).ok().map(|u| (u.ops, u.bytes)))
+                .recent(move |ws, since| recent.ops_since(ws, since).ok());
         }
         Server {
             registry,
@@ -125,7 +128,9 @@ impl Server {
 
     /// Set the quotas of every workspace: at most `ops_per_minute` ops in a minute and `storage_bytes` bytes of ops,
     /// with `now_ms` as the clock (milliseconds). Defaults are [`MAX_OPS_PER_MINUTE`] and [`MAX_STORAGE_BYTES`].
-    /// The counts start from zero: a gate built here does not know what was written before.
+    /// With Postgres a workspace starts from what the store holds the first time a call names it (its totals, and
+    /// the ops of the current minute on `now_ms`, compared with the time the database gave each op); in memory
+    /// the counts start from zero.
     pub fn with_quotas(
         mut self,
         ops_per_minute: u64,

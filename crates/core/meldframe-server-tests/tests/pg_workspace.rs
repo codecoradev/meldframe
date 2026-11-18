@@ -286,3 +286,70 @@ fn a_key_splits_only_in_the_one_canonical_form() {
         assert_eq!(split_room_key(bad), None, "{bad:?}");
     }
 }
+
+#[test]
+fn the_ops_of_this_minute_survive_a_restart() {
+    use meldframe_host::{Op, Principal};
+    use meldframe_module::{Module, Registrar, RiskTier};
+    use meldframe_server::{Backing, Server};
+    struct Tools;
+    impl Module for Tools {
+        fn name(&self) -> &'static str {
+            "tools"
+        }
+        fn register(&self, r: &mut Registrar) {
+            r.agent_tool("paint", "Paint a node.", RiskTier::Change);
+        }
+    }
+    let Some(db) = common::fresh() else {
+        eprintln!("SKIPPED: DATABASE_URL is not set");
+        return;
+    };
+    // One fixed instant for both servers: every op below is written after it, so all of them fall in its minute.
+    // The database stamps the ops with its own clock, so stay clear of the first seconds of a minute, where a
+    // database clock a little behind would put them in the minute before.
+    let wall = || {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64
+    };
+    if wall() % 60_000 < 5_000 {
+        std::thread::sleep(std::time::Duration::from_millis(5_000));
+    }
+    let t0 = wall();
+    let node = |id: &str| -> Op { Op::new(id, add(id)) };
+    let who = Principal::new("ws_a", "agent:x");
+    let make =
+        || {
+            Server::assemble_in(vec![Box::new(Tools)], Backing::Postgres(db.reconnect()))
+                .with_quotas(3, 1 << 30, move || t0)
+        };
+    let mut s = make();
+    for i in 0..3 {
+        s.submit_tool("paint", "f", &who, vec![node(&format!("n{i}"))])
+            .unwrap();
+    }
+    drop(s);
+    // A new process: the workspace already sent its three ops of this minute, another workspace has not.
+    let mut s = make();
+    let err = s
+        .submit_tool("paint", "f", &who, vec![node("again")])
+        .unwrap_err();
+    assert_eq!(
+        err.refusal().map(|r| r.code()),
+        Some("quota_ops_per_minute")
+    );
+    s.submit_tool(
+        "paint",
+        "f",
+        &Principal::new("ws_b", "agent:x"),
+        vec![node("n0")],
+    )
+    .unwrap();
+    // The store counts from the start of a minute: none of these ops is older than t0's minute, none is
+    // newer than now.
+    let pg = db.reconnect();
+    assert_eq!(pg.ops_since("ws_a", t0 / 60_000 * 60_000).unwrap(), 3);
+    assert_eq!(pg.ops_since("ws_a", t0 + 3_600_000).unwrap(), 0);
+}
