@@ -90,6 +90,38 @@ fn a_refused_correction_whose_dependent_op_falls_is_still_sent_once_more() {
     a.check_consistency().unwrap();
 }
 
+#[test]
+fn a_refused_resend_takes_its_dependent_with_it_and_nothing_is_sent_again() {
+    // Issue 164: a resend that the server refuses ends there, also when a later op of mine depended on it.
+    let mut a = replica();
+    a.apply(&upd("a", |p| p.x = Some(10.0))).unwrap();
+    assert!(a.undo().unwrap());
+    let sent = a.take_outbox();
+    a.on_event(1, "user:b", &upd("a", |p| p.x = Some(5.0)))
+        .unwrap();
+    let fix = a.take_outbox();
+    a.on_event(2, "user:a", &sent[0].command).unwrap();
+    a.on_event(3, "user:a", &sent[1].command).unwrap();
+    assert!(a.on_reject(&fix[0].key));
+    let again = a.take_outbox();
+    assert_eq!(again.len(), 1, "the correction is sent once more");
+    // A later op of mine names the resend as its dependency.
+    a.apply_dependent(&upd("k", |p| p.x = Some(3.0)), &[again[0].key.clone()])
+        .unwrap();
+    let later = a.take_outbox();
+    assert_eq!(later.len(), 1);
+    assert!(a.on_reject(&again[0].key));
+    assert!(
+        a.unconfirmed().iter().all(|o| o.key != later[0].key),
+        "the dependent op fell with the resend"
+    );
+    assert!(
+        a.take_outbox().is_empty(),
+        "neither the resend nor its dependent is sent again"
+    );
+    a.check_consistency().unwrap();
+}
+
 /// A server in its smallest form, and a way to run two replicas against it.
 struct Room {
     nodes: Vec<meldframe_protocol::Node>,
