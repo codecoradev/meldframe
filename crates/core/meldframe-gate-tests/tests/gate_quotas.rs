@@ -175,3 +175,34 @@ fn a_usage_lookup_that_fails_is_asked_again_on_the_next_call() {
     );
     assert_eq!(calls.load(Ordering::SeqCst), 2);
 }
+
+#[test]
+fn a_batch_larger_than_the_rate_itself_is_batch_too_large_not_a_wait() {
+    // No minute can ever hold seven ops when the rate is five, so waiting does not help: the refusal must not
+    // be retryable and must name the limit to split by.
+    let (_t, now) = clock();
+    let mut gate = Gate::new().ops_per_minute(5, now);
+    let err = gate.submit(&who("a"), ops("x", 7)).unwrap_err();
+    assert_eq!(err, Refusal::BatchTooLarge { limit: 5 });
+    assert!(!err.retryable());
+    gate.submit(&who("a"), ops("y", 5)).unwrap();
+}
+
+#[test]
+fn a_batch_larger_than_the_rate_is_refused_before_the_policy_and_the_total_quota() {
+    let (_t, now) = clock();
+    // The total quota is spent and the policy denies, yet the size is what the caller must fix first.
+    let mut gate = Gate::with_policy(|_, _| meldframe_module::Policy::Deny)
+        .ops_per_minute(2, now)
+        .quota(0);
+    let err = gate.submit(&who("a"), ops("x", 3)).unwrap_err();
+    assert_eq!(err, Refusal::BatchTooLarge { limit: 2 });
+}
+
+#[test]
+fn a_rate_of_zero_refuses_every_batch_as_a_wait_not_as_too_large() {
+    let (_t, now) = clock();
+    let mut gate = Gate::new().ops_per_minute(0, now);
+    let err = gate.submit(&who("a"), ops("x", 1)).unwrap_err();
+    assert_eq!(err.code(), "quota_ops_per_minute");
+}

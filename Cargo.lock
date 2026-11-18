@@ -1293,6 +1293,7 @@ name = "meldframe-mcp-tests"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "meldframe-calls",
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-capture",

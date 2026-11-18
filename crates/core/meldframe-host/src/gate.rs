@@ -200,9 +200,10 @@ impl Gate {
         self.used.get(workspace).copied().unwrap_or(0)
     }
 
-    /// Decide a batch. Order of checks: shape (`invalid`), batch limit (`batch_too_large`), policy (`forbidden`),
-    /// total quota (`quota_exceeded`), rate (`quota_ops_per_minute`), storage (`quota_storage`). Everything the gate
-    /// can know without the file; the room decides the rest. Nothing is charged unless every check passes.
+    /// Decide a batch. Order of checks: shape (`invalid`), batch limit and a batch larger than the rate itself
+    /// (`batch_too_large`), policy (`forbidden`), total quota (`quota_exceeded`), rate (`quota_ops_per_minute`),
+    /// storage (`quota_storage`). Everything the gate can know without the file; the room decides the rest. Nothing
+    /// is charged unless every check passes.
     pub fn submit(&mut self, who: &Principal, ops: Vec<Op>) -> Result<Report, Refusal> {
         self.submit_with(who, ops, &())
     }
@@ -222,6 +223,15 @@ impl Gate {
             return Err(Refusal::BatchTooLarge {
                 limit: limit as u64,
             });
+        }
+        // A batch larger than a (non-zero) rate never fits a minute: waiting does not help, splitting does. Checked
+        // with the batch limit, before the policy, so it is never reported as a wait. A rate of 0 refuses every
+        // batch as a wait instead, since no split could pass.
+        if let Some((limit, _)) = &self.rate
+            && *limit > 0
+            && ops.len() as u64 > *limit
+        {
+            return Err(Refusal::BatchTooLarge { limit: *limit });
         }
         let tiers = Op::batch_tiers(&ops, facts);
         for tier in tiers.iter().copied() {

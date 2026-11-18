@@ -6,7 +6,7 @@ status: accepted
 The gate (ADR-0010) already decides every write before a room sees it, so it also decides the quotas of a workspace: ops per minute, ops per call, and storage. Each limit has its own stable refusal code, so an agent can tell a wait from a stop.
 
 - `quota_ops_per_minute`: the workspace sent more ops in this minute than its rate allows. Retryable; the reply says when the next minute starts (HTTP 429 with `Retry-After`).
-- `batch_too_large`: one call carries more ops than the batch limit (100). Not retryable as sent (HTTP 413). It was `invalid` before; it is a different mistake and needs a different fix.
+- `batch_too_large`: one call carries more ops than the batch limit (100), or more than the ops per minute of the workspace (no minute can hold it; a rate of 0 refuses every batch as a wait instead). Not retryable as sent (HTTP 413). It was `invalid` before; it is a different mistake and needs a different fix.
 - `quota_storage`: the workspace wrote as many bytes of ops as it may (the JSON size of each command). Not retryable (HTTP 413).
 - `quota_exceeded` (the older total-ops limit) keeps its meaning.
 
@@ -14,7 +14,7 @@ A refused batch charges nothing. The minute is a fixed window of the gate's cloc
 
 ## Why
 
-Counting where the policy is decided means a refused call costs no store read, every transport (REST, WebSocket, MCP) gets the same answer, and the call log of E2.4 already records the refusal with its code. A fixed window is simple to reason about and to persist (one row per workspace and minute); a sliding window would need the timestamps of recent ops.
+Counting where the policy is decided means every transport (REST, WebSocket, MCP) gets the same answer, and the call log of E2.4 already records the refusal with its code. A fixed window is simple to reason about and to persist (one row per workspace and minute); a sliding window would need the timestamps of recent ops.
 
 ## Considered options
 
@@ -23,7 +23,10 @@ Counting where the policy is decided means a refused call costs no store read, e
 
 ## Consequences
 
-- Known limit: the gate charges when it admits a batch, before the room accepts. A batch that stops at a failing op leaves the later ops charged, and a retry is charged again. The window never moves back when the clock does.
+- Known limit: the gate charges when it admits a batch, before the room accepts. A batch that stops at a failing op leaves the later ops charged, and a retry is charged again. The window never moves back when the clock does: after the server clock steps back, a workspace stays in the newer window it counted until the clock reaches it again.
+- A batch larger than the ops per minute can never pass, so it is `batch_too_large` with that limit, not a retryable `quota_ops_per_minute`.
+- Storage counts the op log, which only grows: a remove does not give room back and is itself refused once the storage is used up.
+- The gate runs after the server opened the room of the file (a closed file is restored from the store) and looked up the keys of the batch for idempotent replays, so a refused call is not free of store reads; the checks themselves read nothing.
 
 - The counters live in the gate, and a workspace starts from what the store holds the first time the gate sees it (`Gate::usage`; with Postgres, `PgStore::workspace_usage` counts the ops and `ops.bytes` of the workspace's own rows, found by the `workspace_id` column of migration 0003; `ops.bytes` is the compact JSON size the gate counts, and rows older than the migration get the size of their stored text, a little larger). So the total and the storage quotas survive a restart. The per-minute count starts empty after a restart: it only ever allows one more minute of ops, and the store has no clock the gate shares.
 - `Server::with_quotas` sets the limits and the clock; the defaults are `MAX_OPS_PER_MINUTE` and `MAX_STORAGE_BYTES`.

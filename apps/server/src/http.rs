@@ -196,13 +196,33 @@ mod read {
             f: impl FnOnce(&Room<AnyStore>) -> R,
         ) -> Result<R, Failure> {
             let done = self.read_unlogged(tool, who, file, f);
-            let refusal = match &done {
+            self.log_read(tool, who, file, &done);
+            done
+        }
+
+        /// `read` for a read whose own query can fail in the store: that failure is the outcome of the call, so
+        /// the log says `unavailable`, as the caller hears, and not `ok`.
+        fn read_try<T>(
+            &self,
+            tool: &str,
+            who: &Principal,
+            file: &str,
+            f: impl FnOnce(&Room<AnyStore>) -> Result<T, StoreError>,
+        ) -> Result<T, Failure> {
+            let done = self
+                .read_unlogged(tool, who, file, f)
+                .and_then(|r| r.map_err(unavailable));
+            self.log_read(tool, who, file, &done);
+            done
+        }
+
+        fn log_read<R>(&self, tool: &str, who: &Principal, file: &str, done: &Result<R, Failure>) {
+            let refusal = match done {
                 Err(Failure::Refused(r)) => Some(r),
                 _ => None,
             };
             let outcome = done.as_ref().map(|_| ()).map_err(|_| refusal);
             self.lock().record_call_as(tool, file, who, outcome);
-            done
         }
     }
 
@@ -224,7 +244,7 @@ mod read {
             file: &str,
             window: usize,
         ) -> Result<(FileView, Vec<StoredOp>), Failure> {
-            self.read("get_tree", who, file, |r| {
+            self.read_try("get_tree", who, file, |r| {
                 let from = r.seq().saturating_sub(window as u64);
                 let recent = r.store().ops_after(r.id(), from, window)?;
                 Ok((
@@ -234,8 +254,7 @@ mod read {
                     },
                     recent,
                 ))
-            })?
-            .map_err(unavailable)
+            })
         }
 
         fn conflict(
@@ -264,12 +283,11 @@ mod read {
             file: &str,
             keys: &[String],
         ) -> Result<Vec<Option<u64>>, Failure> {
-            self.read("batch_status", who, file, |r| {
+            self.read_try("batch_status", who, file, |r| {
                 keys.iter()
                     .map(|k| r.store().find(r.id(), &who.actor, k))
                     .collect::<Result<Vec<_>, _>>()
-            })?
-            .map_err(unavailable)
+            })
         }
     }
 }
