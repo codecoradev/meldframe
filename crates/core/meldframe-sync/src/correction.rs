@@ -11,7 +11,7 @@ use meldframe_core::normalize_positions;
 use meldframe_history::FileState;
 use meldframe_protocol::{Command, Node, NodePatch};
 use serde_json::{Map, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 fn fields(n: &Node) -> Map<String, Value> {
     match serde_json::to_value(n) {
@@ -31,17 +31,65 @@ pub(crate) fn inverse_in(want: &[Node], cmd: &Command) -> Option<Vec<Command>> {
     scratch.undo()
 }
 
+/// The nodes that commands wrote, so a comparison of two trees that started equal looks only at them.
+/// A command that is not a plain field update may change any node (a reparent moves a subtree, a
+/// reorder resolves the positions of its siblings): after one, every node is a candidate.
+#[derive(Debug, Clone)]
+pub(crate) struct Touched(Option<HashSet<String>>);
+
+impl Touched {
+    pub(crate) fn new() -> Self {
+        Touched(Some(HashSet::new()))
+    }
+
+    pub(crate) fn add(&mut self, c: &Command) {
+        match (c, self.0.as_mut()) {
+            (Command::UpdateNode { id, .. }, Some(ids)) => {
+                ids.insert(id.clone());
+            }
+            (Command::UpdateNode { .. }, None) => {}
+            _ => self.0 = None,
+        }
+    }
+
+    pub(crate) fn add_all(&mut self, cs: &[Command]) {
+        cs.iter().for_each(|c| self.add(c));
+    }
+
+    fn has(&self, id: &str) -> bool {
+        self.0.as_ref().is_none_or(|ids| ids.contains(id))
+    }
+}
+
 /// `UpdateNode` commands that give each node of `have` the field values it holds in `want`. An image
-/// that `want` does not have is a `null` patch.
-pub(crate) fn field_diff(have: &[Node], want: &[Node]) -> Vec<Command> {
-    let have: HashMap<&str, Map<String, Value>> =
-        have.iter().map(|n| (n.id.as_str(), fields(n))).collect();
+/// that `want` does not have is a `null` patch. Only the nodes in `touched` are compared: the two trees
+/// must be equal everywhere else, so the cost does not grow with the size of the document (the check
+/// that they are is made in debug builds, by `field_diff_all`).
+pub(crate) fn field_diff(have: &[Node], want: &[Node], touched: &Touched) -> Vec<Command> {
+    let out = diff_of(have, want, Some(touched));
+    debug_assert_eq!(
+        serde_json::to_string(&out).ok(),
+        serde_json::to_string(&diff_of(have, want, None)).ok(),
+        "a node outside the touched set differs"
+    );
+    out
+}
+
+fn diff_of(have: &[Node], want: &[Node], only: Option<&Touched>) -> Vec<Command> {
+    let have: HashMap<&str, Map<String, Value>> = have
+        .iter()
+        .filter(|n| only.is_none_or(|t| t.has(&n.id)))
+        .map(|n| (n.id.as_str(), fields(n)))
+        .collect();
     let single = |k: &str, v: &Value| {
         let one = Value::Object(Map::from_iter([(k.to_string(), v.clone())]));
         serde_json::from_value::<NodePatch>(one).is_ok()
     };
     let mut out = Vec::new();
     for w in want {
+        if only.is_some_and(|t| !t.has(&w.id)) {
+            continue;
+        }
         let Some(h) = have.get(w.id.as_str()) else {
             continue;
         };
@@ -213,5 +261,43 @@ mod tests {
             &upd("a", json!({"x": 5.0}))
         ));
         assert!(!within(&c, &upd("k", json!({"x": 5.0}))));
+    }
+
+    fn at(id: &str, x: f64) -> Node {
+        let mut n = node(json!({"x": x}));
+        n.id = id.into();
+        n
+    }
+
+    #[test]
+    fn only_the_touched_nodes_are_compared() {
+        let have = [at("a", 0.0), at("b", 0.0), at("c", 0.0)];
+        let want = [at("a", 1.0), at("b", 2.0), at("c", 0.0)];
+        let mut t = Touched::new();
+        t.add(&upd("a", json!({"x": 1.0})));
+        let ids = |cs: Vec<Command>| -> Vec<String> {
+            cs.into_iter()
+                .map(|c| match c {
+                    Command::UpdateNode { id, .. } => id,
+                    _ => String::new(),
+                })
+                .collect()
+        };
+        // `b` differs too, but nothing touched it: the walk does not look (the debug check in `field_diff`
+        // exists to catch that case, so this goes through `diff_of`).
+        assert_eq!(ids(diff_of(&have, &want, Some(&t))), ["a"]);
+        assert_eq!(ids(diff_of(&have, &want, None)), ["a", "b"]);
+    }
+
+    #[test]
+    fn a_structural_command_makes_every_node_a_candidate() {
+        let mut t = Touched::new();
+        t.add(&upd("a", json!({"x": 1.0})));
+        assert!(t.has("a") && !t.has("b"));
+        t.add(&Command::RemoveNode { id: "k".into() });
+        assert!(t.has("b"), "after a remove any node may differ");
+        // It stays so: a later update does not narrow it.
+        t.add(&upd("a", json!({"x": 1.0})));
+        assert!(t.has("zz"));
     }
 }

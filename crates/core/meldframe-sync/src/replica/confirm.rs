@@ -19,7 +19,7 @@ impl Replica {
         if i == 0 {
             self.advance_ideal(cmd);
         } else {
-            self.ideal = None;
+            self.drop_ideal();
         }
         apply_command(&mut self.base, cmd, &self.limits)
             .map_err(|e| ReplicaError::Diverged(e.to_string()))?;
@@ -52,7 +52,7 @@ impl Replica {
         if seq > self.seq {
             return None;
         }
-        self.ideal = None;
+        self.drop_ideal();
         self.settle(i);
         Some(self.rebuild(HashSet::new(), None, None, false, None))
     }

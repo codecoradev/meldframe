@@ -37,7 +37,7 @@ impl Replica {
         self.base = view.nodes().to_vec();
         self.view = view;
         self.seq = seq;
-        self.ideal = None;
+        self.drop_ideal();
         self.run_left.clear();
         let done: HashSet<&str> = applied.iter().map(String::as_str).collect();
         let (mut dead, mut dropped) = (HashSet::new(), 0);

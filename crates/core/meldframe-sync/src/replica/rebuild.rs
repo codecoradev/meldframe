@@ -1,7 +1,7 @@
 //! Building the view again after a remote op or a refusal, and the corrections that go with it.
 
 use super::{OpKind, Replica, Source, footprint};
-use crate::correction::{field_diff, inverse_in, left_in_base, within, without_fields};
+use crate::correction::{Touched, field_diff, inverse_in, left_in_base, within, without_fields};
 use meldframe_core::apply_command;
 use meldframe_protocol::{Command, Node};
 use std::collections::HashSet;
@@ -34,6 +34,12 @@ impl Replica {
                 .iter()
                 .any(|p| p.run.is_some() || p.is_correction());
         let mut want = track.then(|| self.ideal.clone().unwrap_or_else(|| self.base.clone()));
+        // The nodes where the view and `want` can differ: what `ideal` took, and what the ops write.
+        let mut touched = if self.ideal.is_some() {
+            self.ideal_touched.clone()
+        } else {
+            Touched::new()
+        };
         let mut seen = HashSet::new();
         let mut dropped = 0;
         for mut p in std::mem::take(&mut self.pending) {
@@ -61,6 +67,8 @@ impl Replica {
                     }
                     _ => vec![],
                 };
+                touched.add(cmd);
+                touched.add_all(&cmds);
                 if let Some(w) = want.as_mut() {
                     cmds.iter()
                         .for_each(|c| drop(apply_command(w, c, &self.limits)));
@@ -88,11 +96,11 @@ impl Replica {
         // stale op always drops its correction (it depends on it), so this covers it. `ideal` goes, and the
         // stale value that a confirmed stale op left in `base` is forgotten.
         if dropped > 0 || self.pending.is_empty() {
-            self.ideal = None;
+            self.drop_ideal();
             want = want.filter(|_| dropped == 0);
         }
         match want.filter(|_| correct || !lost.is_empty()) {
-            Some(w) => self.correct(&w, &lost),
+            Some(w) => self.correct(&w, &lost, &touched),
             // No `want`: send what `base` lacks of them. A correction that fell with a refused stale op
             // is not sent: that value never landed.
             None => {
@@ -114,7 +122,7 @@ impl Replica {
         if self.pending.len() < 2
             || (self.ideal.is_none() && front.is_none_or(|p| p.ideal_cmds.is_none()))
         {
-            self.ideal = None;
+            self.drop_ideal();
             return;
         }
         let own = [cmd.clone()];
@@ -122,13 +130,16 @@ impl Replica {
         let mut w = self.ideal.take().unwrap_or_else(|| self.base.clone());
         cmds.iter()
             .for_each(|c| drop(apply_command(&mut w, c, &self.limits)));
+        self.ideal_touched.add_all(cmds);
+        // The op that goes into `base` may be a part of the step that `ideal_cmds` no longer holds.
+        self.ideal_touched.add(cmd);
         self.ideal = Some(w);
     }
 
     /// Send what sets right the fields where the view, which holds stale undo or redo ops that are on
     /// their way, differs from `want` (see `correction`).
-    fn correct(&mut self, want: &[Node], lost: &[Command]) {
-        for c in field_diff(self.view.nodes(), want) {
+    fn correct(&mut self, want: &[Node], lost: &[Command], touched: &Touched) {
+        for c in field_diff(self.view.nodes(), want, touched) {
             let resent = lost.iter().any(|l| within(&c, l));
             self.send_correction(c, resent);
         }

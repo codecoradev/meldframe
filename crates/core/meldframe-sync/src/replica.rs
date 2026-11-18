@@ -13,6 +13,7 @@
 //! Undo and redo are worked out by the `FileState` and sent as ordinary ops with an idempotency key.
 //! One replica is one actor.
 
+use crate::correction::Touched;
 use crate::footprint::{Pairs, footprint, premise};
 use crate::types::{EventOutcome, OpKind, Outgoing, ReplicaError, SubmitError};
 use meldframe_check::LoadError;
@@ -83,6 +84,8 @@ pub struct Replica {
     /// The confirmed state as it would be had every stale op been the op the rebuilt step works out, while
     /// that differs from `base` (a stale op that the server applied leaves its value in `base`).
     ideal: Option<Vec<Node>>,
+    /// The nodes that the commands behind `ideal` wrote since it was taken from `base`.
+    ideal_touched: Touched,
     counter: u64,
     limits: Limits,
     max_pending: usize,
@@ -112,6 +115,7 @@ impl Replica {
             outbox: Vec::new(),
             run_left: HashMap::new(),
             ideal: None,
+            ideal_touched: Touched::new(),
             counter: 0,
             limits,
             max_pending: DEFAULT_MAX_PENDING,
@@ -396,6 +400,7 @@ impl Replica {
         self.view.transform_remote(cmd, &self.base);
         if let Some(w) = self.ideal.as_mut() {
             drop(apply_command(w, cmd, &self.limits));
+            self.ideal_touched.add(cmd);
         }
         self.base = next;
         self.seq = seq;
@@ -414,6 +419,12 @@ impl Replica {
                 self.view.finish_run(m);
             }
         }
+    }
+
+    /// `ideal` goes: nothing is owed any more.
+    fn drop_ideal(&mut self) {
+        self.ideal = None;
+        self.ideal_touched = Touched::new();
     }
 
     /// Steps whose ops fell: the history goes back, newest step first, so a step built on the result
