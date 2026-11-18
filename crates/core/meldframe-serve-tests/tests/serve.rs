@@ -2,6 +2,7 @@
 //! connection and sends nothing, is closed after the header-read timeout (issue 170), so it cannot hold one of the
 //! capped connections for ever; ordinary calls and WebSocket upgrades are served as before.
 
+#[path = "../../meldframe-http-tests/tests/common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_http::{CappedListener, real_client, serve};

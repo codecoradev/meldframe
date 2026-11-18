@@ -1,0 +1,28 @@
+[package]
+name = "meldframe-serve-tests"
+description = "Tests of the accept loop of the HTTP adapter (meldframe_http::serve): header-read timeout, client address, trusted proxies. No library code; separate because meldframe-http-tests is at its ceiling."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dependencies]
+meldframe-check = { path = "../meldframe-check" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-module = { path = "../meldframe-module" }
+meldframe-rooms = { path = "../meldframe-rooms" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-http = { path = "../../integrations/meldframe-http" }
+meldframe-server = { path = "../../../apps/server" }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }
+tower = { version = "0.5", features = ["util"] }
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+
+[lints]
+workspace = true

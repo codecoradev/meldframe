@@ -84,6 +84,7 @@ crates/
     meldframe-sync-scenarios (tool) scenario tests of refused ops and of the limits of the correction; no library code
     meldframe-live-tests  (tool) tests of the live streams of `apps/server` (accepted ops reach subscribers, reconnect from a number); no library code; separate because the server crate is near its ceiling
     meldframe-snapshot-tests (tool) tests of `GET /v1/files/{file}` and of the last actor of each node against the real server; no library code; separate because `meldframe-http-tests` is at its ceiling
+    meldframe-serve-tests (tool) tests of the accept loop `meldframe_http::serve` (header-read timeout, client address, trusted proxies); no library code; separate because `meldframe-http-tests` is at its ceiling
     meldframe-app-tests   (tool) scripted editor sessions that drive `meldframe-app` against the real in-memory server (two editors, an agent, a dropped connection, a resync); no library code
     meldframe-sync-props  (tool) property tests of replicas against an in-memory server and the host room; no library code
     meldframe-module      Module trait, registry, risk tiers
