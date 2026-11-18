@@ -19,7 +19,7 @@ pub use auth::{
     Authenticator, DevTokens, DevTokensRefused, MIN_TOKEN_LEN, SpecError, check_dev_listen,
     check_dev_tokens_allowed, dev_tokens_warning,
 };
-pub use conn::{CappedListener, serve};
+pub use conn::{CappedListener, real_client, serve};
 pub use meldframe_batch::Guard;
 pub use meldframe_ratelimit::{Clock, Rate, RateLimiter};
 pub use reply::{Failure, Reply};

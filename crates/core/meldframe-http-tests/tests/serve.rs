@@ -4,7 +4,7 @@
 
 mod common;
 use common::*;
-use meldframe_http::{CappedListener, serve};
+use meldframe_http::{CappedListener, real_client, serve};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -18,7 +18,7 @@ async fn start() -> SocketAddr {
     let addr = tcp.local_addr().unwrap();
     let listener = CappedListener::new(tcp, 100, 100);
     let router = app(Fake::ok(), config());
-    tokio::spawn(async move { serve(listener, router, HEADER_READ).await });
+    tokio::spawn(async move { serve(listener, router, HEADER_READ, Vec::new()).await });
     addr
 }
 
@@ -110,7 +110,12 @@ async fn each_request_carries_the_client_address() {
             |ConnectInfo(peer): ConnectInfo<SocketAddr>| async move { peer.to_string() },
         ),
     );
-    tokio::spawn(serve(CappedListener::new(tcp, 10, 10), router, HEADER_READ));
+    tokio::spawn(serve(
+        CappedListener::new(tcp, 10, 10),
+        router,
+        HEADER_READ,
+        Vec::new(),
+    ));
     let mut s = TcpStream::connect(addr).await.unwrap();
     let me = s.local_addr().unwrap();
     s.write_all(b"GET /who HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
@@ -141,4 +146,77 @@ async fn a_kept_alive_connection_idle_between_requests_is_closed() {
     // No second request follows: the connection is closed after the timeout.
     let took = closed_within(&mut s, Duration::from_secs(5)).await;
     assert!(took.is_some(), "an idle kept-alive connection stayed open");
+}
+
+fn xff(v: &[&str]) -> axum::http::HeaderMap {
+    let mut h = axum::http::HeaderMap::new();
+    for x in v {
+        h.append("x-forwarded-for", x.parse().unwrap());
+    }
+    h
+}
+
+#[test]
+fn the_client_behind_a_trusted_proxy_is_the_rightmost_address_the_proxies_did_not_add() {
+    let proxy: SocketAddr = "10.0.0.1:5000".parse().unwrap();
+    let trusted = ["10.0.0.1".parse().unwrap(), "10.0.0.2".parse().unwrap()];
+    let ip = |h, peer: SocketAddr| real_client(peer, &h, &trusted).ip().to_string();
+    // The proxy appended the address it saw; whatever the client wrote before it is not believed.
+    assert_eq!(ip(xff(&["1.2.3.4"]), proxy), "1.2.3.4");
+    assert_eq!(ip(xff(&["6.6.6.6, 1.2.3.4"]), proxy), "1.2.3.4");
+    // Two proxies in a row: the second one's own entry is skipped.
+    assert_eq!(ip(xff(&["6.6.6.6, 1.2.3.4, 10.0.0.2"]), proxy), "1.2.3.4");
+    assert_eq!(
+        ip(xff(&["6.6.6.6", "1.2.3.4"]), proxy),
+        "1.2.3.4",
+        "headers in order"
+    );
+    assert_eq!(ip(xff(&["2001:db8::7"]), proxy), "2001:db8::7");
+    // No header, or one that does not parse: the proxy itself is the client.
+    assert_eq!(ip(xff(&[]), proxy), "10.0.0.1");
+    assert_eq!(ip(xff(&["not an address"]), proxy), "10.0.0.1");
+    // A peer that is not a trusted proxy is the client, whatever it says.
+    let direct: SocketAddr = "5.5.5.5:1".parse().unwrap();
+    assert_eq!(ip(xff(&["1.2.3.4"]), direct), "5.5.5.5");
+}
+
+#[tokio::test]
+async fn two_clients_behind_one_trusted_proxy_are_two_addresses() {
+    use axum::extract::ConnectInfo;
+    let tcp = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = tcp.local_addr().unwrap();
+    let router = axum::Router::new().route(
+        "/who",
+        axum::routing::get(|ConnectInfo(peer): ConnectInfo<SocketAddr>| async move {
+            peer.ip().to_string()
+        }),
+    );
+    let trusted = vec!["127.0.0.1".parse().unwrap()];
+    tokio::spawn(serve(
+        CappedListener::new(tcp, 10, 10),
+        router,
+        HEADER_READ,
+        trusted,
+    ));
+    let mut seen = Vec::new();
+    for client in ["1.2.3.4", "5.6.7.8"] {
+        let mut s = TcpStream::connect(addr).await.unwrap();
+        let req = format!(
+            "GET /who HTTP/1.1\r\nHost: x\r\nX-Forwarded-For: {client}\r\nConnection: close\r\n\r\n"
+        );
+        s.write_all(req.as_bytes()).await.unwrap();
+        let mut out = Vec::new();
+        tokio::time::timeout(Duration::from_secs(5), s.read_to_end(&mut out))
+            .await
+            .unwrap()
+            .unwrap();
+        seen.push(
+            String::from_utf8_lossy(&out)
+                .rsplit("\r\n")
+                .next()
+                .unwrap()
+                .to_string(),
+        );
+    }
+    assert_eq!(seen, ["1.2.3.4", "5.6.7.8"]);
 }
