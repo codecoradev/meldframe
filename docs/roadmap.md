@@ -67,9 +67,9 @@ Counted from the acceptance-criteria boxes in `docs/epics.md` (a box is ticked o
 | M2 Platform and agent identity | 1 | 13 | 8% | E2.3 quotas are in (they survive a restart); the rest of E2.3 (variable collections and assets) and E2.1, E2.2, E2.4, E2.5 are open |
 | M3 Model round 2 and variables | 4 | 13 | 31% | E3.5 (layer names) and E3.2 (layout and paint round 2) are in; E3.1, E3.3 and E3.4 are open |
 | M4 Export and fidelity | 1 | 6 | 17% | E4.3 (PNG export from the editor and through capture) is in; E4.1 and E4.2 wait for the render model and ADR-0003 |
-| M5 Agent review and design quality | 0 | 8 | 0% | not started |
+| M5 Agent review and design quality | 1 | 8 | 13% | E5.4 frame duplication as a variant is in (editor button and MCP `make_variant`); E5.1, E5.2, E5.3, the `design_review` tool of E5.4 and E5.5 wait for per-batch notes and ADR-0005 |
 | M6 V2 and the W1 gate | 0 | 4 | 0% | not started |
-| Total | 50 | 88 | 57% | |
+| Total | 51 | 88 | 58% | |
 
 M0 and M1 are complete. The M1 demonstration runs with Claude Code as the MCP client in the real browser editor (`apps/web/scripts/m1-claude-demo.mjs`); the backend, MCP surface, live events, capture relay, app layer and the web editor (layers, canvas, properties, tool bar, text editing, actor labels, touch rings, capture) are covered by tests and by the browser checks that are run by hand.
 

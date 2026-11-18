@@ -328,6 +328,21 @@ const id = `e2e_${run}`;
       await until('the new frame is selected', async () => (await page.locator(`[data-testid=layer][data-id="${made.id}"]`).getAttribute('data-selected')) === 'true');
       // (Undoing the creation of a frame is refused by the server until the approval path of E2.4: a frame delete is Ask.)
     });
+    await check('the Variant button copies the selected frame beside it, names it, and selects the copy', async () => {
+      const known = new Set((await nodesOnServer()).map((x) => x.id));
+      const source = await page.locator('[data-testid=layer][data-selected=true]').first().getAttribute('data-id');
+      assert.ok(source, 'a frame is selected');
+      const from = (await nodesOnServer()).find((x) => x.id === source);
+      assert.equal(await page.locator('[data-testid=make-variant]').isDisabled(), false);
+      await page.click('[data-testid=make-variant]');
+      const all = await until('the variant on the server', async () => { const a = await nodesOnServer(); return a.length === known.size + 1 ? a : null; });
+      const copy = all.find((x) => !known.has(x.id));
+      assert.equal(copy.name, `${from.name} variant`);
+      assert.equal(copy.parentId, from.parentId);
+      assert.ok(copy.x >= from.x + from.w + 40 - 0.5, `the copy lies right of the original: ${copy.x} vs ${from.x + from.w}`);
+      assert.equal(copy.y, from.y);
+      await until('the copy is selected', async () => (await page.locator(`[data-testid=layer][data-id="${copy.id}"]`).getAttribute('data-selected')) === 'true');
+    });
   }
   await check('no uncaught error in the page', async () => assert.deepEqual(pageErrors, []));
   await browser.close();
