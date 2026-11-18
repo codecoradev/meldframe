@@ -175,6 +175,15 @@ fn the_client_behind_a_trusted_proxy_is_the_rightmost_address_the_proxies_did_no
     // No header, or one that does not parse: the proxy itself is the client.
     assert_eq!(ip(xff(&[]), proxy), "10.0.0.1");
     assert_eq!(ip(xff(&["not an address"]), proxy), "10.0.0.1");
+    // An IPv4 proxy seen through an IPv6 socket, and a mapped client address, are their IPv4 selves.
+    let mapped: SocketAddr = "[::ffff:10.0.0.1]:5000".parse().unwrap();
+    assert_eq!(ip(xff(&["1.2.3.4"]), mapped), "1.2.3.4");
+    assert_eq!(ip(xff(&["::ffff:1.2.3.4"]), proxy), "1.2.3.4");
+    assert_eq!(ip(xff(&["1.2.3.4, ::ffff:10.0.0.2"]), proxy), "1.2.3.4");
+    // Ports, brackets and empty entries some proxies write.
+    assert_eq!(ip(xff(&["1.2.3.4:5678"]), proxy), "1.2.3.4");
+    assert_eq!(ip(xff(&["[2001:db8::7]:443"]), proxy), "2001:db8::7");
+    assert_eq!(ip(xff(&["1.2.3.4, "]), proxy), "1.2.3.4");
     // A peer that is not a trusted proxy is the client, whatever it says.
     let direct: SocketAddr = "5.5.5.5:1".parse().unwrap();
     assert_eq!(ip(xff(&["1.2.3.4"]), direct), "5.5.5.5");

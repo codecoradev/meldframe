@@ -167,14 +167,21 @@ pub async fn serve(
 
 /// The client of a request: `peer` itself, unless `peer` is one of `trusted` proxies; then the rightmost address of
 /// the `X-Forwarded-For` headers (read in order) that is not a trusted proxy, since each proxy appends the address it
-/// saw and anything left of that is what the client wrote. No such header, or an entry that is not an address,
-/// leaves `peer`. The port of a forwarded client is 0.
+/// saw and anything left of that is what the client wrote. Addresses are compared as IPv4 when they are IPv4-mapped
+/// IPv6 (an IPv4 proxy seen through an IPv6 socket); an entry may carry a port (`1.2.3.4:80`, `[::1]:80`); empty
+/// entries are skipped. No such header, or an entry that is not an address, leaves `peer`. Only `X-Forwarded-For` is
+/// read, not `Forwarded`. The port of a forwarded client is 0.
 pub fn real_client(
     peer: std::net::SocketAddr,
     headers: &axum::http::HeaderMap,
     trusted: &[std::net::IpAddr],
 ) -> std::net::SocketAddr {
-    if !trusted.contains(&peer.ip()) {
+    let trusted_ip = |ip: std::net::IpAddr| {
+        trusted
+            .iter()
+            .any(|t| t.to_canonical() == ip.to_canonical())
+    };
+    if !trusted_ip(peer.ip()) {
         return peer;
     }
     let entries: Vec<&str> = headers
@@ -183,11 +190,15 @@ pub fn real_client(
         .filter_map(|v| v.to_str().ok())
         .flat_map(|v| v.split(','))
         .map(str::trim)
+        .filter(|e| !e.is_empty())
         .collect();
     for e in entries.iter().rev() {
-        match e.parse::<std::net::IpAddr>() {
-            Ok(ip) if trusted.contains(&ip) => continue,
-            Ok(ip) => return std::net::SocketAddr::new(ip, 0),
+        let ip = e
+            .parse::<std::net::IpAddr>()
+            .or_else(|_| e.parse::<std::net::SocketAddr>().map(|a| a.ip()));
+        match ip {
+            Ok(ip) if trusted_ip(ip) => continue,
+            Ok(ip) => return std::net::SocketAddr::new(ip.to_canonical(), 0),
             Err(_) => return peer,
         }
     }
