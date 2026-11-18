@@ -30,8 +30,8 @@ pub struct App {
     pub(crate) link: Link,
     pub(crate) retries: Retries,
     pub(crate) level: Level,
-    prefix: String,
-    next_id: u64,
+    pub(crate) prefix: String,
+    pub(crate) next_id: u64,
 }
 
 impl App {

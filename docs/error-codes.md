@@ -151,6 +151,16 @@ The `assets` feature crate (E2.5, ADR-0015) fails with these codes. The upload r
 | `asset_corrupt` | The stored file no longer matches its id (changed on disk, or cut short by a crash). Not retryable as a read. | Upload the same image again: that writes the file anew. |
 | `unavailable` | The disk failed. | Try again later; report it if it stays. |
 
+## Variant codes
+
+A variant of a frame (`meldframe-variant`, E5.4) fails with these codes before any command is sent: the copy is applied to a copy of the file first, so it is refused whole or applied whole. The app layer reports them as `Event::Refused` with its own codes (`not_found`, `not_a_frame`; a copy that does not fit is `limit`, or `invalid` when its place would be past the coordinate limit; a copy of more nodes than the queue of pending ops holds, 10,000, is `outbox_full` and never fits).
+
+| Code | Meaning and typical cause | What to do next |
+| --- | --- | --- |
+| `E_NODE_NOT_FOUND` | No node with the id. | Use the id of a frame that exists. |
+| `E_NOT_A_FRAME` | The node is not a frame; only a frame has a variant. | Pick the frame that holds the node. |
+| the code of the command check (`E_TOO_MANY_NODES` and the like) | The copy would not fit the file. | Make room, or make a variant of a smaller frame. |
+
 ## Capture codes
 
 The `capture` tool (feature module `capture`, Read tier) fails with these codes. A client message in `render_failed` is cut to 200 bytes and stripped of control characters. The strings are shared with the

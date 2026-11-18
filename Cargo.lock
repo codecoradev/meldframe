@@ -1027,6 +1027,7 @@ dependencies = [
  "meldframe-check",
  "meldframe-protocol",
  "meldframe-sync",
+ "meldframe-variant",
  "serde",
  "serde_json",
  "ts-rs",
@@ -1521,6 +1522,16 @@ name = "meldframe-undo"
 version = "0.0.0"
 dependencies = [
  "meldframe-protocol",
+]
+
+[[package]]
+name = "meldframe-variant"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-core",
+ "meldframe-protocol",
+ "serde_json",
 ]
 
 [[package]]

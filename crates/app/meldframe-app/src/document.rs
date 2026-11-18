@@ -7,6 +7,7 @@ use crate::state::Tool;
 use meldframe_check::{ApplyError, Limits, check_command};
 use meldframe_protocol::{Command, Node, NodePatch};
 use meldframe_sync::{Replica, SubmitError};
+use meldframe_variant::VariantError;
 use serde_json::json;
 
 fn update(id: &str, patch: NodePatch) -> Command {
@@ -63,6 +64,35 @@ impl App {
                 let done = self.replica.apply(&Command::AddNode { node, index: None });
                 select = done.is_ok().then_some(id);
                 done
+            }
+            Action::MakeVariant { id } => {
+                let (prefix, mut n) = (self.prefix.clone(), self.next_id);
+                let made = meldframe_variant::variant_of(
+                    self.replica.nodes(),
+                    &id,
+                    || {
+                        n += 1;
+                        format!("{prefix}-n{n}")
+                    },
+                    &Limits::default(),
+                );
+                self.next_id = n;
+                // The whole copy was applied to a copy of the file already, so it applies here as one step.
+                match made {
+                    Ok(v) => self.check_room(&v.commands).and_then(|()| {
+                        let done = apply_all(&mut self.replica, &v.commands);
+                        select = done.is_ok().then_some(v.root);
+                        done
+                    }),
+                    Err(VariantError::Apply(e)) => Err(e.into()),
+                    Err(VariantError::NotFound) => Err(ApplyError::NotFound(id).into()),
+                    Err(VariantError::NotAFrame) => {
+                        self.events.push(crate::Event::Refused {
+                            code: "not_a_frame".into(),
+                        });
+                        Ok(())
+                    }
+                }
             }
             Action::CreateNode { x, y, w, h, .. }
                 if ![Some(x), Some(y), w, h]
@@ -177,13 +207,19 @@ impl App {
         }
     }
 
-    /// Every command is valid on the current document and the queue has room for all of them: checked
-    /// before any is applied, so a list that would fail half way applies nothing.
-    fn validate(&self, cmds: &[Command]) -> Result<(), SubmitError> {
+    /// Whether a list action of `cmds` fits the queue of pending ops, before anything is applied.
+    fn check_room(&self, cmds: &[Command]) -> Result<(), SubmitError> {
         let max = self.replica.max_pending();
         if self.replica.pending_len() + cmds.len() > max {
             return Err(SubmitError::OutboxFull { max });
         }
+        Ok(())
+    }
+
+    /// Every command is valid on the current document and the queue has room for all of them: checked
+    /// before any is applied, so a list that would fail half way applies nothing.
+    fn validate(&self, cmds: &[Command]) -> Result<(), SubmitError> {
+        self.check_room(cmds)?;
         let limits = Limits::default();
         cmds.iter()
             .try_for_each(|c| check_command(self.replica.nodes(), c, &limits))

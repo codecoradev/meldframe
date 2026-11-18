@@ -66,6 +66,11 @@ pub enum Action {
         y: f64,
         parent: Option<String>,
     },
+    /// Copy a frame and its subtree beside the original as a variant, with new ids, and select the copy (one undo
+    /// step).
+    MakeVariant {
+        id: String,
+    },
     Move {
         id: String,
         x: f64,

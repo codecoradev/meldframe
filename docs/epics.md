@@ -215,7 +215,7 @@ Goal: people can follow, review and revert agent work (FR-16 to FR-18, FR-21; AD
 
 ### E5.4 Design review and variants (M)
 - [ ] A `design_review` tool stores a numbered critique list per file and links items to the batches that address them.
-- [ ] Frame duplication as a variant from the editor and through MCP.
+- [ ] Frame duplication as a variant from the editor and through MCP. (In: `meldframe-variant` builds the commands (the frame and its subtree, new ids, right of every sibling, named "<name> variant", checked whole against the limits before anything is applied), and the app layer has `Action::MakeVariant`, one undo step that selects the copy. Open: the MCP tool and the editor control.)
 
 ### E5.5 Agent guidance (S)
 - [ ] A shipped skill or prompt tells agents to use small top-down batches, semantic names, notes, `atomic` for multi-command edits and `ifSeq` for edits of existing nodes, and to duplicate a frame before a large rewrite.
