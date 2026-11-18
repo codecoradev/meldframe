@@ -88,6 +88,9 @@ impl Reader for Spy {
     ) -> Result<Vec<Option<u64>>, Failure> {
         self.server.applied(who, file, keys)
     }
+    fn record(&self, who: &Principal, tool: &str, file: &str, code: Option<&str>) {
+        self.server.record(who, tool, file, code);
+    }
 }
 
 pub struct Harness {

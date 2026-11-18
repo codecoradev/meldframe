@@ -177,7 +177,7 @@ pub async fn start_setup(tweak: impl FnOnce(&mut Setup)) -> Harness {
     let (live_routes, timer) =
         meldframe_http_live::routes(shared.clone(), source.clone(), live, clock);
     let mcp = McpConfig {
-        extra: Some(cap.tool()),
+        extra: vec![cap.tool()],
         ..McpConfig::default()
     };
     let app = meldframe_http::routes(shared.clone())

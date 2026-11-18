@@ -34,6 +34,11 @@ impl SharedServer {
         })
     }
 
+    /// The newest `limit` entries of the call log, oldest first.
+    pub fn calls(&self, limit: usize) -> Vec<meldframe_calls::CallEntry> {
+        self.lock().calls(limit)
+    }
+
     /// The bytes of ops a workspace has written and its storage limit (for the asset quota).
     pub fn ops_storage(&self, workspace: &str) -> (u64, Option<u64>) {
         self.lock().ops_storage(workspace)

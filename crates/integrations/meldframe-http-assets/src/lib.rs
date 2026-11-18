@@ -26,6 +26,10 @@ use futures_util::StreamExt;
 use meldframe_host::{Principal, Refusal};
 use meldframe_http::{Failure, Reply, Shared, Slots, bearer, peer};
 use serde_json::json;
+mod tool;
+
+pub use tool::input_schema as upload_input_schema;
+
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -54,8 +58,8 @@ impl Default for Options {
 /// The server answers it from its gate.
 pub type OpsStorage = Arc<dyn Fn(&str) -> (u64, Option<u64>) + Send + Sync>;
 
-struct State_ {
-    shared: Arc<Shared>,
+pub(crate) struct State_ {
+    pub(crate) shared: Arc<Shared>,
     blobs: Arc<dyn BlobStore>,
     usage: Usage,
     ops_storage: OpsStorage,
@@ -86,18 +90,61 @@ pub fn routes_with(
     ops_storage: OpsStorage,
     options: Options,
 ) -> Router {
-    let state = Arc::new(State_ {
-        shared,
-        blobs,
-        usage,
-        ops_storage,
-        uploads: Slots::new(options.uploads, options.uploads_per_principal),
-        upload_timeout: options.upload_timeout,
-    });
-    Router::new()
-        .route("/v1/assets", post(upload))
-        .route("/v1/assets/{id}", get(download))
-        .with_state(state)
+    Assets::new(shared, blobs, usage, ops_storage, options).routes()
+}
+
+/// The assets of one server: the routes and the MCP tool, which share the store, the count and the limits.
+#[derive(Clone)]
+pub struct Assets {
+    state: Arc<State_>,
+}
+
+impl std::fmt::Debug for Assets {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Assets").finish_non_exhaustive()
+    }
+}
+
+impl Assets {
+    /// See [`routes_with`] for what the arguments mean.
+    pub fn new(
+        shared: Arc<Shared>,
+        blobs: Arc<dyn BlobStore>,
+        usage: Usage,
+        ops_storage: OpsStorage,
+        options: Options,
+    ) -> Self {
+        Assets {
+            state: Arc::new(State_ {
+                shared,
+                blobs,
+                usage,
+                ops_storage,
+                uploads: Slots::new(options.uploads, options.uploads_per_principal),
+                upload_timeout: options.upload_timeout,
+            }),
+        }
+    }
+
+    /// `POST /v1/assets` and `GET /v1/assets/{id}`, to merge into the router.
+    pub fn routes(&self) -> Router {
+        Router::new()
+            .route("/v1/assets", post(upload))
+            .route("/v1/assets/{id}", get(download))
+            .with_state(self.state.clone())
+    }
+
+    /// The MCP tool `upload_asset`, for `McpConfig::extra`. `policy` is the registry's policy for the tool: only
+    /// `Some(Policy::Auto)` lets a call run.
+    pub fn tool(
+        &self,
+        policy: Option<meldframe_module::Policy>,
+    ) -> Arc<dyn meldframe_http::mcp::Extra> {
+        Arc::new(tool::UploadTool {
+            state: self.state.clone(),
+            policy,
+        })
+    }
 }
 
 fn failure(e: &AssetError) -> Response {
@@ -123,7 +170,7 @@ fn failure(e: &AssetError) -> Response {
 }
 
 /// Why a store call stopped: the asset is wrong, or the workspace has no room for it.
-enum Refused {
+pub(crate) enum Refused {
     Asset(AssetError),
     Storage(u64),
 }
@@ -132,7 +179,7 @@ impl State_ {
     /// Store the upload. A new image takes its bytes against the storage limit first, in a reservation that goes
     /// back when the write fails, panics, or finds that the image was there already (another upload wrote it first),
     /// so the same image sent twice at once is charged once. An image the workspace holds costs nothing.
-    fn store(&self, workspace: &str, bytes: &[u8]) -> Result<assets::Stored, Refused> {
+    pub(crate) fn store(&self, workspace: &str, bytes: &[u8]) -> Result<assets::Stored, Refused> {
         let (_, id) = check_upload(bytes).map_err(Refused::Asset)?;
         // Held already (a file that no longer matches counts as held: its bytes were counted and the write below
         // mends it).

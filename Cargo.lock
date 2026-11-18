@@ -21,6 +21,7 @@ dependencies = [
 name = "assets"
 version = "0.0.0"
 dependencies = [
+ "meldframe-module",
  "sha2 0.10.9",
 ]
 
@@ -1221,9 +1222,13 @@ version = "0.0.0"
 dependencies = [
  "assets",
  "axum",
+ "base64 0.22.1",
  "futures-util",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-module",
+ "rmcp",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -1351,6 +1356,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-mcp-asset-tests"
+version = "0.0.0"
+dependencies = [
+ "assets",
+ "axum",
+ "meldframe-calls",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-http-assets",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-server",
+ "reqwest",
+ "rmcp",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "meldframe-mcp-defs"
 version = "0.0.0"
 dependencies = [
@@ -1369,6 +1393,7 @@ dependencies = [
  "meldframe-calls",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-http-assets",
  "meldframe-http-capture",
  "meldframe-module",
  "meldframe-protocol",

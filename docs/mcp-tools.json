@@ -243,6 +243,25 @@
       },
       "name": "capture",
       "tier": "read"
+    },
+    {
+      "description": "Upload an image to the workspace so that a node can use it as an image fill. Pass data, the bytes of one png, jpeg, webp or gif image as base64 (SVG and anything else is refused with asset_type_refused; at most 10 MiB, but a call is bounded by the size of an MCP request, which is about 1 MiB of base64 by default, so an image of up to roughly 700 KiB fits; a larger image goes to POST /v1/assets as the raw body, with the same Bearer token). The result carries id, the SHA-256 of the bytes: the same bytes are the same asset, so uploading an image again is safe and costs nothing. Use the id in an updateNode or addNode command as image {assetId: id} (also fit: cover, contain or fill). An asset belongs to the workspace of your token: another workspace cannot read it. Assets count against the same storage limit as the file's changes: a new image that does not fit is refused with quota_storage.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "description": "The bytes of one png, jpeg, webp or gif image, as base64 (standard alphabet, padding allowed).",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "name": "upload_asset",
+      "tier": "change"
     }
   ]
 }

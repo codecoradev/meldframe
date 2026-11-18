@@ -254,3 +254,27 @@ impl BlobStore for MemoryBlobs {
             .ok_or(AssetError::NotFound)
     }
 }
+
+/// The name of the agent tool that uploads an image.
+pub const UPLOAD_TOOL: &str = "upload_asset";
+
+/// What the `upload_asset` tool says about itself: it is the text an agent reads.
+pub const UPLOAD_DESCRIPTION: &str = "Upload an image to the workspace so that a node can use it as an image fill. Pass data, the bytes of one png, jpeg, webp or gif image as base64 (SVG and anything else is refused with asset_type_refused; at most 10 MiB, but a call is bounded by the size of an MCP request, which is about 1 MiB of base64 by default, so an image of up to roughly 700 KiB fits; a larger image goes to POST /v1/assets as the raw body, with the same Bearer token). The result carries id, the SHA-256 of the bytes: the same bytes are the same asset, so uploading an image again is safe and costs nothing. Use the id in an updateNode or addNode command as image {assetId: id} (also fit: cover, contain or fill). An asset belongs to the workspace of your token: another workspace cannot read it. Assets count against the same storage limit as the file's changes: a new image that does not fit is refused with quota_storage.";
+
+/// The assets module. It registers one Change-tier agent tool: an upload writes a file to the workspace's store.
+#[derive(Debug, Clone, Copy)]
+pub struct AssetsModule;
+
+impl meldframe_module::Module for AssetsModule {
+    fn name(&self) -> &'static str {
+        "assets"
+    }
+
+    fn register(&self, registrar: &mut meldframe_module::Registrar) {
+        registrar.agent_tool(
+            UPLOAD_TOOL,
+            UPLOAD_DESCRIPTION,
+            meldframe_module::RiskTier::Change,
+        );
+    }
+}

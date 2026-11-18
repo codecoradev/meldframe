@@ -100,7 +100,7 @@ crates/
   engines/                text measurer, rasteriser (traits and adapters)
   integrations/           MCP (rmcp), Gatehouse OIDC/OAuth, Uteke memory
   features/<name>/        <name> (domain) and <name>-ui (view): variables, export, review, capture, assets, import-tokens
-                          today the placeholder `example/`, `capture/` and `assets/` (the blob seam of E2.5, ADR-0015; its routes are `meldframe-http-assets`: `POST /v1/assets` and `GET /v1/assets/{id}`) exist
+                          today the placeholder `example/`, `capture/` and `assets/` (the blob seam of E2.5, ADR-0015; its routes and the MCP tool `upload_asset` are `meldframe-http-assets`: `POST /v1/assets`, `GET /v1/assets/{id}`) exist
   app/
     meldframe-app         UI-neutral state, actions, effects, events (compiled to WASM); holds a sync Replica for the document
     meldframe-wasm        thin wasm-bindgen glue over core and app

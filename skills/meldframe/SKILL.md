@@ -41,6 +41,14 @@ Give every layer a semantic name that says what it is: "Hero heading", "Pricing 
 default name ("Frame 3", "Rectangle", "Text", the node's id) does not fail a call, but it comes back under `warnings`
 and makes the layers panel useless to the person. Rename such layers when you see them.
 
+## Images
+
+An image fill needs an uploaded image. Call `upload_asset` with `data`, the bytes of a png, jpeg, webp or gif as
+base64, and use the `id` it returns as `image {assetId: id, fit: cover}` in an `addNode` or `updateNode` command. The
+same bytes give the same id, so sending an image again is safe. A call carries a small image (about 700 KiB); a larger one
+goes to `POST /v1/assets` as the raw body, with the same token. SVG is refused (`asset_type_refused`), and a new image that does not fit the
+workspace's storage is `quota_storage`.
+
 ## Before a large rewrite
 
 Do not rewrite a frame the person made in place. Keep the original and work on a variant beside it, so the two can be

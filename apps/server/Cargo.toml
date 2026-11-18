@@ -18,8 +18,9 @@ example = ["dep:example"]
 mcp = ["meldframe-http/mcp"]
 # The capture tool, its live-socket hook and its upload route (E1.7); it is an MCP tool, so it needs `mcp`.
 capture = ["mcp", "dep:capture", "dep:meldframe-http-capture"]
-# The asset routes (E2.5, ADR-0015): images kept on local disk under MELDFRAME_ASSETS_DIR.
-assets = ["dep:assets", "dep:meldframe-http-assets"]
+# The asset routes and the upload_asset tool (E2.5, ADR-0015): images kept on local disk under MELDFRAME_ASSETS_DIR; it
+# is an MCP tool, so it needs `mcp`.
+assets = ["mcp", "dep:assets", "dep:meldframe-http-assets"]
 
 [dependencies]
 meldframe-http = { path = "../../crates/integrations/meldframe-http" }

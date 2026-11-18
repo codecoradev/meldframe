@@ -83,6 +83,8 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     };
     #[cfg(feature = "capture")]
     let capture_policy = server.registry().policy_for("capture");
+    #[cfg(feature = "assets")]
+    let upload_policy = server.registry().policy_for(assets::UPLOAD_TOOL);
     // `shared` outlives `block_on`: the last reference to a PgStore runtime must not drop inside one.
     let shared = Arc::new(SharedServer::new(server));
     let auth = Arc::new(DevTokens::parse(&spec)?);
@@ -127,16 +129,24 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     {
         app = app.merge(cap.routes());
     }
+    // The tools of other crates, served by MCP besides its own.
+    #[cfg(feature = "mcp")]
+    #[allow(unused_mut, reason = "only the features that add a tool push to it")]
+    let mut extra_tools: Vec<Arc<dyn meldframe_http::mcp::Extra>> = Vec::new();
+    #[cfg(feature = "capture")]
+    extra_tools.push(cap.tool());
     #[cfg(feature = "assets")]
     {
         let ops = shared.clone();
-        app = app.merge(meldframe_http_assets::routes_with(
+        let assets = meldframe_http_assets::Assets::new(
             state.clone(),
             blobs,
             usage,
             Arc::new(move |ws| ops.ops_storage(ws)),
             meldframe_http_assets::Options::default(),
-        ));
+        );
+        app = app.merge(assets.routes());
+        extra_tools.push(assets.tool(upload_policy));
     }
     #[cfg(feature = "mcp")]
     let app = {
@@ -149,10 +159,7 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
                 .filter(|h| !h.is_empty())
                 .map(str::to_owned)
                 .collect(),
-            #[cfg(feature = "capture")]
-            extra: Some(cap.tool()),
-            #[cfg(not(feature = "capture"))]
-            extra: None,
+            extra: extra_tools,
         };
         app.merge(meldframe_http::mcp::routes(state, shared.clone(), mcp))
     };

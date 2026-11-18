@@ -101,8 +101,8 @@ pub type ExtraCall<'a> = Pin<Box<dyn Future<Output = CallToolResult> + Send + 'a
 /// Settings of the MCP route.
 #[derive(Debug, Clone, Default)]
 pub struct McpConfig {
-    /// A tool of another crate to serve besides [`TOOLS`].
-    pub extra: Option<Arc<dyn Extra>>,
+    /// Tools of other crates to serve besides [`TOOLS`] (capture, upload_asset).
+    pub extra: Vec<Arc<dyn Extra>>,
     /// Host names the route answers to besides the loopback names (`localhost`, `127.0.0.1`, `::1`), which it
     /// always answers to: the guard against DNS rebinding. A public deployment lists its own names.
     /// `Origin` is not validated: the route has no cookies and no CORS, a call needs the Bearer token.
@@ -131,7 +131,7 @@ impl Module for McpModule {
 pub(crate) struct Handler {
     pub(crate) shared: Arc<Shared>,
     pub(crate) reader: Arc<dyn Reader>,
-    extra: Option<Arc<dyn Extra>>,
+    extra: Vec<Arc<dyn Extra>>,
 }
 
 impl Handler {
@@ -189,11 +189,7 @@ impl ServerHandler for Handler {
             .cloned()
             .ok_or_else(|| ErrorData::internal_error("the call carries no principal", None))?;
         let a = request.arguments.unwrap_or_default();
-        if let Some(x) = self
-            .extra
-            .as_ref()
-            .filter(|x| x.tool().name == request.name)
-        {
+        if let Some(x) = self.extra.iter().find(|x| x.tool().name == request.name) {
             let file = a
                 .get("file")
                 .and_then(Value::as_str)
