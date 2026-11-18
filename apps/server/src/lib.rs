@@ -19,7 +19,7 @@ pub use live::{
     Frame, LIVE_CONFIG, MAX_LIVE_STREAMS, StreamId, SubscribeError, Subscription, TOUCH_WINDOW_MS,
 };
 pub use meldframe_store_pg::{
-    PERMANENT_STORE_ERROR, PgStore, RAW_WORKSPACE, Usage, room_key, split_room_key,
+    PERMANENT_STORE_ERROR, PgCallLog, PgStore, RAW_WORKSPACE, Usage, room_key, split_room_key,
 };
 pub use meldframe_stream::{Config, StreamError};
 
@@ -107,6 +107,11 @@ impl Server {
             .batch_limit(MAX_BATCH_OPS)
             .ops_per_minute(MAX_OPS_PER_MINUTE, now)
             .storage_limit(MAX_STORAGE_BYTES);
+        // With Postgres the call log is kept there too, so it survives a restart (E2.4).
+        let calls: Box<dyn CallLog> = match &pg {
+            Some(p) => Box::new(PgCallLog::new(p.clone())),
+            None => Box::new(MemoryCallLog::with_capacity(MAX_CALL_LOG)),
+        };
         if let Some(pg) = pg {
             let recent = pg.clone();
             gate = gate
@@ -122,7 +127,7 @@ impl Server {
             live: meldframe_stream::Streams::new(LIVE_CONFIG, MAX_LIVE_STREAMS),
             owners: owners::Owners::default(),
             open_keys: HashSet::new(),
-            calls: Box::new(MemoryCallLog::with_capacity(MAX_CALL_LOG)),
+            calls,
         }
     }
 
