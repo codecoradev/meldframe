@@ -17,6 +17,7 @@ mod emit;
 mod names;
 mod report;
 mod tw;
+mod vars;
 
 pub use report::{Finding, Report};
 

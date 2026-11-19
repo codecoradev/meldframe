@@ -3,10 +3,10 @@
 use crate::decl::{Cx, Place, Style, attrs, style, tag};
 use crate::names::escape;
 use crate::report::Report;
-use crate::{Export, ExportError, ExportOptions, Format, tw};
+use crate::{Export, ExportError, ExportOptions, Format, tw, vars};
 use meldframe_layout::{Rect, compute_rects, layout_findings};
 use meldframe_protocol::{LayoutMode, Node, NodeKind, SizeMode, Variables};
-use meldframe_render::{PaintedBox, resolve_with};
+use meldframe_render::{Fields, ModeChoice, PaintedBox, resolve_with};
 use std::collections::{HashMap, HashSet};
 
 /// The elements and rules of the frame, in drawing order, built by one walk.
@@ -50,7 +50,17 @@ pub(crate) fn export(
     collect(root_box, &kids, &mut HashSet::new(), &mut order);
 
     let mut report = Report::default();
+    check_modes(vars_in, &options.modes, &mut report);
     let in_frame: HashSet<&str> = order.iter().map(|b| b.id.as_str()).collect();
+    let fields = Fields::new(vars_in, &options.modes);
+    let used: HashSet<String> = order
+        .iter()
+        .filter_map(|b| by_id.get(b.id.as_str()))
+        .flat_map(|n| [n.fill.var_id(), n.radius.var_id(), n.opacity.var_id()])
+        .flatten()
+        .map(str::to_owned)
+        .collect();
+    let var_css = vars::build(vars_in, &used, &options.modes, &fields, &mut report);
     let rects: HashMap<String, Rect> = compute_rects(nodes, options.measurer).into_iter().collect();
     for f in layout_findings(nodes, options.measurer) {
         if in_frame.contains(f.id.as_str()) {
@@ -58,6 +68,7 @@ pub(crate) fn export(
         }
     }
     let cx = Cx {
+        names: &var_css.names,
         rects: &rects,
         measurer: options.measurer,
         asset_base: &options.asset_base,
@@ -84,8 +95,13 @@ pub(crate) fn export(
     } else {
         &root.name
     };
+    let attr_text: String = var_css
+        .attrs
+        .iter()
+        .map(|(k, v)| format!(" {k}=\"{v}\""))
+        .collect();
     let base = base_css(options, options.format == Format::Tailwind);
-    let head_css = base;
+    let head_css = format!("{base}{}", var_css.rules);
     let (style_tag, css) = match options.format {
         Format::Css => (
             format!("<style>\n{head_css}{}</style>", w.css),
@@ -100,7 +116,7 @@ pub(crate) fn export(
         ),
     };
     let html = format!(
-        "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{}</title>\n{style_tag}\n</head>\n<body>\n{}</body>\n</html>\n",
+        "<!doctype html>\n<html lang=\"en\"{attr_text}>\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{}</title>\n{style_tag}\n</head>\n<body>\n{}</body>\n</html>\n",
         escape(title),
         w.html
     );
@@ -147,6 +163,23 @@ fn base_css(options: &ExportOptions<'_>, layered: bool) -> String {
         format!("{font}@layer base{{{reset}}}\n")
     } else {
         format!("{font}{reset}\n")
+    }
+}
+
+/// A collection or a mode of the options that is not in the file says so; the export shows the default mode there.
+fn check_modes(vars: &Variables, choice: &ModeChoice, report: &mut Report) {
+    for (collection, mode) in choice.iter() {
+        let known = vars
+            .collection(collection)
+            .is_some_and(|c| c.modes.iter().any(|m| m.id == mode));
+        if !known {
+            report.warn(
+                "unknown_mode",
+                None,
+                "a collection or mode in `modes` is not in the file; its default mode is exported"
+                    .into(),
+            );
+        }
     }
 }
 

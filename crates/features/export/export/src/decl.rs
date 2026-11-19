@@ -8,7 +8,7 @@ use crate::names::{escape, hex, num, px};
 use crate::report::Report;
 use meldframe_layout::{Rect, TextMeasurer};
 use meldframe_protocol::{
-    Align, BorderPosition, ImageFit, Justify, LayoutMode, Node, NodeKind, SizeMode, TextAlign,
+    Align, Bind, BorderPosition, ImageFit, Justify, LayoutMode, Node, NodeKind, SizeMode, TextAlign,
 };
 use meldframe_render::{Paint, PaintedBox, PaintedGradient};
 use std::collections::HashMap;
@@ -29,6 +29,7 @@ pub(crate) struct Style {
 
 /// What the styles of one export read.
 pub(crate) struct Cx<'a> {
+    pub names: &'a HashMap<String, String>,
     pub rects: &'a HashMap<String, Rect>,
     pub measurer: &'a dyn TextMeasurer,
     pub asset_base: &'a str,
@@ -95,9 +96,53 @@ fn axis(n: &Node, mode: SizeMode, place: &Place, horizontal: bool) -> Axis {
     }
 }
 
-/// The colour of a fill as the render step painted it.
-fn colour(painted: Option<u32>) -> Option<String> {
+/// The color of a bound or literal fill: `var(--x)` when the variable is in the export, else what was painted.
+fn colour(
+    cx: &Cx,
+    bind: &Bind<String>,
+    painted: Option<u32>,
+    id: &str,
+    rep: &mut Report,
+) -> Option<String> {
+    if let Bind::Var(r) = bind {
+        if let Some(name) = cx.names.get(&r.var) {
+            return Some(format!("var({name})"));
+        }
+        rep.warn(
+            "unresolved_binding",
+            Some(id),
+            format!(
+                "fill is bound to {}, which does not resolve; exported as the default fill",
+                r.var
+            ),
+        );
+    }
     painted.map(hex)
+}
+
+/// A number that is a length: `calc(var(--x) * 1px)` when bound, else the painted value in px.
+fn length(
+    cx: &Cx,
+    bind: &Bind<f64>,
+    painted: f64,
+    field: &str,
+    id: &str,
+    rep: &mut Report,
+) -> String {
+    if let Bind::Var(r) = bind {
+        if let Some(name) = cx.names.get(&r.var) {
+            return format!("calc(var({name}) * 1px)");
+        }
+        rep.warn(
+            "unresolved_binding",
+            Some(id),
+            format!(
+                "{field} is bound to {}, which does not resolve; exported as the default",
+                r.var
+            ),
+        );
+    }
+    px(painted)
 }
 
 fn gradient_css(g: &PaintedGradient) -> String {
@@ -240,7 +285,7 @@ pub(crate) fn style(cx: &Cx, n: &Node, b: &PaintedBox, place: &Place, rep: &mut 
             TextAlign::Center => s.main.push(d("text-align", "center")),
             TextAlign::Right => s.main.push(d("text-align", "right")),
         }
-        let c = colour(b.fill).unwrap_or_else(|| "transparent".into());
+        let c = colour(cx, &n.fill, b.fill, &n.id, rep).unwrap_or_else(|| "transparent".into());
         s.main.push(d("color", c));
         for (field, on) in [
             ("border", n.border.width > 0.0),
@@ -262,11 +307,21 @@ pub(crate) fn style(cx: &Cx, n: &Node, b: &PaintedBox, place: &Place, rep: &mut 
     } else {
         paint(cx, n, b, &mut s, rep);
     }
-    if b.opacity < 1.0 {
-        s.main.push(d("opacity", num(b.opacity)));
+    match (
+        n.opacity.var_id(),
+        n.opacity.var_id().and_then(|v| cx.names.get(v)),
+    ) {
+        (_, Some(name)) => s.main.push(d("opacity", format!("var({name})"))),
+        (Some(v), None) => rep.warn(
+            "unresolved_binding",
+            Some(&n.id),
+            format!("opacity is bound to {v}, which does not resolve; exported as the default"),
+        ),
+        (None, None) if b.opacity < 1.0 => s.main.push(d("opacity", num(b.opacity))),
+        (None, None) => {}
     }
     if border {
-        after(n, b, rect, &mut s);
+        after(cx, n, b, rect, &mut s);
     }
     s
 }
@@ -283,7 +338,7 @@ fn text_outside_contract(t: &str) -> bool {
 /// Fill, gradient, image, radius, shadows and opacity of a box that is not text.
 fn paint(cx: &Cx, n: &Node, b: &PaintedBox, s: &mut Style, rep: &mut Report) {
     let id = &n.id;
-    let fill = colour(b.fill);
+    let fill = colour(cx, &n.fill, b.fill, id, rep);
     let mut layers: Vec<(String, &str)> = Vec::new();
     if let Some(img) = &b.image {
         rep.asset(&img.asset_id);
@@ -321,8 +376,11 @@ fn paint(cx: &Cx, n: &Node, b: &PaintedBox, s: &mut Style, rep: &mut Report) {
     }
     if n.kind == NodeKind::Ellipse {
         s.main.push(d("border-radius", "50%"));
-    } else if b.radius > 0.0 {
-        s.main.push(d("border-radius", px(b.radius)));
+    } else if b.radius > 0.0 || matches!(n.radius, Bind::Var(_)) {
+        let v = length(cx, &n.radius, b.radius, "radius", id, rep);
+        if v != "0px" {
+            s.main.push(d("border-radius", v));
+        }
     }
     if !n.shadows.is_empty() {
         // The model draws the first shadow at the bottom; CSS draws the first at the top.
@@ -346,7 +404,7 @@ fn paint(cx: &Cx, n: &Node, b: &PaintedBox, s: &mut Style, rep: &mut Report) {
 }
 
 /// The border: paint only, as `::after` on the box, so that it takes no room (contract, section 4.2).
-fn after(n: &Node, b: &PaintedBox, rect: Rect, s: &mut Style) {
+fn after(cx: &Cx, n: &Node, b: &PaintedBox, rect: Rect, s: &mut Style) {
     let w = n.border.width;
     let (inset, grow) = match n.border.position {
         BorderPosition::Inside => (0.0, 0.0),
@@ -355,6 +413,12 @@ fn after(n: &Node, b: &PaintedBox, rect: Rect, s: &mut Style) {
     };
     let radius = if n.kind == NodeKind::Ellipse {
         Some("50%".to_owned())
+    } else if let Some(name) = n.radius.var_id().and_then(|v| cx.names.get(v)) {
+        let (hw, hh) = (px(rect.w / 2.0), px(rect.h / 2.0));
+        Some(format!(
+            "calc(min(var({name}) * 1px, {hw}, {hh}) + {})",
+            px(grow)
+        ))
     } else if b.radius > 0.0 {
         Some(px(b.radius.min(rect.w / 2.0).min(rect.h / 2.0) + grow))
     } else {
