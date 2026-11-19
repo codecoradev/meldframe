@@ -3,7 +3,6 @@
 -- passes the hash of a random per-install token as :token_hash (no token value lives in the repository).
 -- Idempotent. Until the real migrations land (E0.3, E1.2) the rows live in the `dev_seed` schema; the
 -- seed then moves to the real tables with the same ids, and the token stays random per install.
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE SCHEMA IF NOT EXISTS dev_seed;
 
 CREATE TABLE IF NOT EXISTS dev_seed.workspace (
