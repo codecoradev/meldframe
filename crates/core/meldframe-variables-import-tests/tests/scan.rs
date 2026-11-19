@@ -353,6 +353,25 @@ fn what_a_rule_is_called_in_the_scan_has_no_invisible_character_in_it() {
 }
 
 #[test]
+fn the_message_for_an_at_rule_without_a_block_is_clean_and_short() {
+    // The name runs to the first white space, `(` or `"`, so it can hold invisible characters and be very long.
+    for c in invisible_chars().into_iter().filter(|c| !c.is_whitespace()) {
+        let s = scan(&format!("@foo{c}bar;"));
+        assert_eq!(
+            s.left[0].message, "@foobar is not read",
+            "U+{:04X}",
+            c as u32
+        );
+    }
+    let s = scan(&format!("@{};", "a".repeat(100_000)));
+    assert!(
+        s.left[0].message.chars().count() < 120,
+        "{} chars",
+        s.left[0].message.chars().count()
+    );
+}
+
+#[test]
 fn what_a_scan_leaves_out_is_counted_and_only_the_first_are_kept() {
     // 60,000 rules that are not on the root: a note for each would be many times the input.
     let text = "a{}".repeat(60_000);

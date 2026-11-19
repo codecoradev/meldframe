@@ -328,6 +328,7 @@ impl<'a> Reader<'a> {
                     "@import is never followed: send the text of that file as well",
                 );
             } else {
+                let name = short(name);
                 self.leave("at_rule_skipped", pre, format!("@{name} is not read"));
             }
             return;
