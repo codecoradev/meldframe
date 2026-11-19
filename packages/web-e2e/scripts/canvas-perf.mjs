@@ -1,4 +1,4 @@
-// Frame-time measurement of the canvas with generated scenes: node scripts/canvas-perf.mjs [base-url] [nodes]
+// Frame-time measurement of the canvas with generated scenes: node packages/web-e2e/scripts/canvas-perf.mjs [base-url] [nodes]
 // Needs the dev server (npm run dev) and Playwright. Headless Chromium on the software renderer (SwiftShader),
 // so the numbers are an upper bound for a machine with a GPU and say nothing about one. Prints one JSON object.
 import { createRequire } from 'node:module';

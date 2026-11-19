@@ -1,4 +1,4 @@
-// Browser check of the canvas through the development harness: node scripts/canvas-e2e.mjs [base-url]
+// Browser check of the canvas through the development harness: node packages/web-e2e/scripts/canvas-e2e.mjs [base-url]
 // Needs the dev server (npm run dev) and Playwright (resolved from the global module path). Not part of
 // `npm test`: it needs a browser. Each check prints one line; a failure exits non-zero.
 import assert from 'node:assert/strict';

@@ -1,0 +1,16 @@
+[package]
+name = "meldframe-web-e2e"
+description = "Browser checks and demonstrations of the web client, run by hand with Playwright against the development server (Node scripts; this manifest makes the package a unit of the size and layering checks)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[lib]
+path = "rust/lib.rs"
+
+[lints]
+workspace = true

@@ -23,10 +23,10 @@ pointer events (`eventMode = 'none'`). One pointer move costs a scan of the scen
 
 ## Scripts (need the dev server and a global Playwright; not part of `npm test`)
 
-- `node scripts/canvas-e2e.mjs [url]`: click, drag, cancel, resize, wheel, pinch, hover, no leaked listeners over
+- `node packages/web-e2e/scripts/canvas-e2e.mjs [url]`: click, drag, cancel, resize, wheel, pinch, hover, no leaked listeners over
   three mounts, device pixel ratio 2 and the 2D canvas fallback.
-- `node scripts/canvas-perf.mjs [url] [nodes]`: build time and frame times with generated scenes.
-- `node scripts/canvas-shot.mjs <out.png> [query] [url]`: a screenshot of the harness.
+- `node packages/web-e2e/scripts/canvas-perf.mjs [url] [nodes]`: build time and frame times with generated scenes.
+- `node packages/web-e2e/scripts/canvas-shot.mjs <out.png> [query] [url]`: a screenshot of the harness.
 
 ## Performance (measured 16 Nov 2026)
 
