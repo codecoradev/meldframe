@@ -76,6 +76,7 @@ fn every_tool_and_code_the_skill_names_exists() {
         "make_variant",
         "capture",
         "export_frame",
+        "import_tokens",
     ] {
         assert!(known.iter().any(|k| k == t), "{t} is a tool");
         assert!(

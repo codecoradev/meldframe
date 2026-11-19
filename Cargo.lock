@@ -1594,6 +1594,7 @@ dependencies = [
  "meldframe-http-capture",
  "meldframe-http-export",
  "meldframe-http-review",
+ "meldframe-http-variables-import",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-server",
@@ -1601,6 +1602,7 @@ dependencies = [
  "rmcp",
  "serde_json",
  "tokio",
+ "variables-import",
 ]
 
 [[package]]
