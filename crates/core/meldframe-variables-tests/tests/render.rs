@@ -14,22 +14,22 @@ fn nodes(v: Value) -> Vec<Node> {
     serde_json::from_value(v).unwrap()
 }
 
-/// `theme` (light, dark): `bg` and `brand` (an alias of `base`'s blue), the numbers `round` and `fade`.
+/// `appearance` (light, dark): `bg` and `brand` (an alias of `base`'s blue), the numbers `round` and `fade`.
 fn doc(bound: Value) -> Doc {
     let mut d = Doc::of_nodes(nodes(bound));
     for c in [
         json!({"type": "addCollection", "collection": {"id": "base", "name": "base", "modes": [{"id": "m", "name": "m"}]}}),
-        json!({"type": "addCollection", "collection": {"id": "theme", "name": "theme",
+        json!({"type": "addCollection", "collection": {"id": "appearance", "name": "appearance",
             "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}}),
         json!({"type": "addVariable", "variable": {"id": "blue", "collection": "base", "name": "color/blue", "type": "color",
             "values": {"m": "#2563eb"}}}),
-        json!({"type": "addVariable", "variable": {"id": "bg", "collection": "theme", "name": "color/bg", "type": "color",
+        json!({"type": "addVariable", "variable": {"id": "bg", "collection": "appearance", "name": "color/bg", "type": "color",
             "values": {"light": "#ffffff", "dark": "#101010"}}}),
-        json!({"type": "addVariable", "variable": {"id": "brand", "collection": "theme", "name": "color/brand", "type": "color",
+        json!({"type": "addVariable", "variable": {"id": "brand", "collection": "appearance", "name": "color/brand", "type": "color",
             "values": {"light": {"var": "blue"}, "dark": "#38bdf8"}}}),
-        json!({"type": "addVariable", "variable": {"id": "round", "collection": "theme", "name": "radius/card", "type": "number",
+        json!({"type": "addVariable", "variable": {"id": "round", "collection": "appearance", "name": "radius/card", "type": "number",
             "values": {"light": 8, "dark": 16}}}),
-        json!({"type": "addVariable", "variable": {"id": "fade", "collection": "theme", "name": "opacity/muted", "type": "number",
+        json!({"type": "addVariable", "variable": {"id": "fade", "collection": "appearance", "name": "opacity/muted", "type": "number",
             "values": {"light": 0.9, "dark": 0.5}}}),
     ] {
         meldframe_core::apply_doc(
@@ -69,7 +69,7 @@ fn a_bound_field_paints_the_value_of_its_variable() {
 fn switching_the_mode_repaints_and_never_changes_the_nodes() {
     let d = bound();
     let before = serde_json::to_string(&d.nodes).unwrap();
-    let dark = ModeChoice::of([("theme", "dark")]);
+    let dark = ModeChoice::of([("appearance", "dark")]);
     let boxes = painted(&d, &dark);
     assert_eq!(boxes[0].fill, Some(0x101010));
     assert_eq!((boxes[0].radius, boxes[0].opacity), (16.0, 0.5));
@@ -78,7 +78,7 @@ fn switching_the_mode_repaints_and_never_changes_the_nodes() {
     // Back to the default mode: the first paint again.
     assert_eq!(
         painted(&d, &ModeChoice::default()),
-        painted(&d, &ModeChoice::of([("theme", "light")]))
+        painted(&d, &ModeChoice::of([("appearance", "light")]))
     );
 }
 
@@ -145,7 +145,7 @@ fn the_coverage_table_names_exactly_the_fields_that_can_be_bound_and_each_paints
             .extend(literal.as_object().unwrap().clone());
         let lit = resolve(&nodes(json!([want])));
         assert_eq!(
-            painted(&d, &ModeChoice::of([("theme", mode)])),
+            painted(&d, &ModeChoice::of([("appearance", mode)])),
             lit,
             "{mode}"
         );

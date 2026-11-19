@@ -30,10 +30,10 @@ pub fn bind_fill(id: &str, var: &str) -> Command {
     }
 }
 
-/// The collection `t` (theme: light, dark) of every test.
-pub fn theme() -> Command {
+/// The collection `t` (appearance: light, dark) of every test.
+pub fn appearance() -> Command {
     cmd(
-        json!({"type": "addCollection", "collection": {"id": "t", "name": "theme",
+        json!({"type": "addCollection", "collection": {"id": "t", "name": "appearance",
         "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}}),
     )
 }

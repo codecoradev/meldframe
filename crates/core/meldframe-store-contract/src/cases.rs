@@ -273,7 +273,7 @@ pub fn a_snapshot_comes_back_unchanged(s: &mut dyn Store) {
 /// Variables are kept with the snapshot, and a variable command comes back from the log unchanged (E3.3).
 pub fn variables_come_back_with_the_snapshot_and_the_log(s: &mut dyn Store) {
     let vars: meldframe_protocol::Variables = serde_json::from_value(serde_json::json!({
-        "collections": [{"id": "t", "name": "theme", "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}],
+        "collections": [{"id": "t", "name": "appearance", "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}],
         "variables": [{"id": "bg", "collection": "t", "name": "color/bg", "type": "color",
             "values": {"light": "#ffffff", "dark": {"var": "bg2"}}}]
     }))

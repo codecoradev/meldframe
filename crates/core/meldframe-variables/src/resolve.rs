@@ -42,7 +42,7 @@ impl ModeChoice {
 }
 
 /// The value of variable `id` for the modes in `choice`. An alias is followed with the choice for the
-/// collection of the variable it points at, so one switch of `theme` reaches the variables that `theme` aliases
+/// collection of the variable it points at, so one switch of `appearance` reaches the variables that `appearance` aliases
 /// in other collections. `None` when the variable is missing, the chain has a cycle or is longer than
 /// [`MAX_ALIAS_DEPTH`], or a value does not have the variable's type; it never panics.
 pub fn resolve(vars: &Variables, id: &str, choice: &ModeChoice) -> Option<Value> {

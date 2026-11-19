@@ -4,10 +4,7 @@
 
 use crate::error::VarError;
 use crate::limits::VarLimits;
-use crate::{
-    Binding, MAX_ALIAS_DEPTH, alias_depth, alias_height, alias_reaches, node_bindings,
-    patch_bindings, users,
-};
+use crate::{Aliases, Binding, MAX_ALIAS_DEPTH, node_bindings, patch_bindings, users};
 use meldframe_protocol::{
     Bind, Collection, Command, Node, NodePatch, Value, VarType, Variable, Variables,
 };
@@ -141,7 +138,8 @@ pub fn check_patch_bindings(vars: &Variables, p: &NodePatch) -> Result<(), VarEr
 /// type that closes no cycle and keeps every chain within [`MAX_ALIAS_DEPTH`] steps. `vars` already holds
 /// the alias when the file is loaded and does not yet when a command is checked; the answer is the same.
 fn check_value(
-    vars: &Variables,
+    aliases: &Aliases<'_>,
+    loaded: bool,
     owner: (&str, VarType),
     mode: &str,
     value: &Bind<Value>,
@@ -163,7 +161,9 @@ fn check_value(
             }
         }
         Bind::Var(r) => {
-            let target = variable_of(vars, &r.var)?;
+            let target = aliases
+                .variable(&r.var)
+                .ok_or_else(|| VarError::VariableNotFound(r.var.clone()))?;
             if target.kind != owner.1 {
                 return Err(VarError::TypeMismatch {
                     field,
@@ -171,10 +171,20 @@ fn check_value(
                     got: target.kind,
                 });
             }
-            if alias_reaches(vars, &target.id, owner.0) {
+            // A stored file holds the alias already, so a cycle shows as the owner reaching one; a command
+            // is checked before its alias is in, so the question is whether the target leads back.
+            let cycle = if loaded {
+                aliases.reaches_a_cycle(owner.0)
+            } else {
+                aliases.reaches(&target.id, owner.0)
+            };
+            if cycle {
                 return Err(VarError::AliasCycle(owner.0.to_string()));
             }
-            let chain = alias_height(vars, owner.0) + 1 + alias_depth(vars, &target.id);
+            let chain = aliases
+                .height(owner.0)
+                .saturating_add(1)
+                .saturating_add(aliases.depth(&target.id));
             if chain > MAX_ALIAS_DEPTH {
                 return Err(VarError::AliasTooDeep(MAX_ALIAS_DEPTH));
             }
@@ -186,7 +196,8 @@ fn check_value(
 /// A variable of collection `col` as `AddVariable` or a stored file holds it: its name, one value for each
 /// mode, each value valid.
 fn check_variable(
-    vars: &Variables,
+    aliases: &Aliases<'_>,
+    loaded: bool,
     col: &Collection,
     v: &Variable,
     l: &VarLimits,
@@ -197,7 +208,7 @@ fn check_variable(
         return Err(VarError::IncompleteValues(v.id.clone()));
     }
     for (mode, value) in &v.values {
-        check_value(vars, (&v.id, v.kind), mode, value, l)?;
+        check_value(aliases, loaded, (&v.id, v.kind), mode, value, l)?;
     }
     Ok(())
 }
@@ -310,7 +321,7 @@ pub fn check_variable_command(
             {
                 return Err(VarError::DuplicateName(variable.name.clone()));
             }
-            check_variable(vars, col, variable, l)
+            check_variable(&Aliases::new(vars), false, col, variable, l)
         }
         Command::RemoveVariable { id } => {
             variable_of(vars, id)?;
@@ -327,7 +338,7 @@ pub fn check_variable_command(
             if !col.modes.iter().any(|m| m.id == *mode) {
                 return Err(VarError::ModeNotFound(mode.clone()));
             }
-            check_value(vars, (&v.id, v.kind), mode, value, l)
+            check_value(&Aliases::new(vars), false, (&v.id, v.kind), mode, value, l)
         }
         _ => Ok(()),
     }
@@ -354,6 +365,7 @@ pub fn check_variables(vars: &Variables, l: &VarLimits) -> Result<(), (String, V
             .and_then(|()| check_modes(c, l))
             .map_err(|e| at(&c.id, e))?;
     }
+    let aliases = Aliases::new(vars);
     let mut var_ids = HashSet::new();
     let mut names = HashSet::new();
     for v in &vars.variables {
@@ -365,7 +377,7 @@ pub fn check_variables(vars: &Variables, l: &VarLimits) -> Result<(), (String, V
             return Err(at(&v.id, VarError::DuplicateName(v.name.clone())));
         }
         let col = collection_of(vars, &v.collection).map_err(|e| at(&v.id, e))?;
-        check_variable(vars, col, v, l).map_err(|e| at(&v.id, e))?;
+        check_variable(&aliases, true, col, v, l).map_err(|e| at(&v.id, e))?;
     }
     Ok(())
 }

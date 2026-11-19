@@ -20,7 +20,7 @@ describe('loadFile', () => {
     expect(await loadFile(answer(404, { error: { code: 'not_found' } }) as typeof fetch, 'file_dev')).toEqual({ seq: 0, nodes: [], variables: { collections: [], variables: [] }, attribution: {} });
   });
   it('takes the collections and variables of the snapshot along', async () => {
-    const variables = { collections: [{ id: 't', name: 'theme', modes: [{ id: 'light', name: 'light' }] }], variables: [] };
+    const variables = { collections: [{ id: 't', name: 'appearance', modes: [{ id: 'light', name: 'light' }] }], variables: [] };
     const f = await loadFile(answer(200, { seq: 2, nodes: [], variables }) as typeof fetch, 'file_dev');
     expect(f.variables).toEqual(variables);
   });

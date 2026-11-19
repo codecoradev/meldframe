@@ -16,12 +16,12 @@ fn run(d: &mut Doc, v: Value) -> Result<(), String> {
     apply_doc(d, &cmd(v), &Limits::default()).map_err(|e| e.code().to_string())
 }
 
-fn with_theme() -> Doc {
+fn with_appearance() -> Doc {
     let mut d = Doc::default();
     for c in [
-        json!({"type": "addCollection", "collection": {"id": "theme", "name": "theme",
+        json!({"type": "addCollection", "collection": {"id": "appearance", "name": "appearance",
             "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}}),
-        json!({"type": "addVariable", "variable": {"id": "bg", "collection": "theme", "name": "color/bg", "type": "color",
+        json!({"type": "addVariable", "variable": {"id": "bg", "collection": "appearance", "name": "color/bg", "type": "color",
             "values": {"light": "#ffffff", "dark": "#000000"}}}),
         json!({"type": "addNode", "node": {"id": "card", "type": "rect"}}),
     ] {
@@ -32,7 +32,7 @@ fn with_theme() -> Doc {
 
 #[test]
 fn a_node_binds_a_variable_and_the_binding_is_part_of_the_document() {
-    let mut d = with_theme();
+    let mut d = with_appearance();
     run(
         &mut d,
         json!({"type": "updateNode", "id": "card", "patch": {"fill": {"var": "bg"}}}),
@@ -46,7 +46,7 @@ fn a_node_binds_a_variable_and_the_binding_is_part_of_the_document() {
 
 #[test]
 fn a_refused_command_changes_nothing() {
-    let mut d = with_theme();
+    let mut d = with_appearance();
     run(
         &mut d,
         json!({"type": "updateNode", "id": "card", "patch": {"fill": {"var": "bg"}}}),
@@ -68,7 +68,7 @@ fn a_refused_command_changes_nothing() {
 
 #[test]
 fn removing_a_node_frees_its_variable() {
-    let mut d = with_theme();
+    let mut d = with_appearance();
     run(
         &mut d,
         json!({"type": "updateNode", "id": "card", "patch": {"radius": {"var": "r"}}}),
@@ -85,13 +85,17 @@ fn removing_a_node_frees_its_variable() {
     );
     run(&mut d, json!({"type": "removeNode", "id": "card"})).unwrap();
     run(&mut d, json!({"type": "removeVariable", "id": "bg"})).unwrap();
-    run(&mut d, json!({"type": "removeCollection", "id": "theme"})).unwrap();
+    run(
+        &mut d,
+        json!({"type": "removeCollection", "id": "appearance"}),
+    )
+    .unwrap();
     assert!(d.vars.is_empty());
 }
 
 #[test]
 fn plan_does_not_change_the_document() {
-    let d = with_theme();
+    let d = with_appearance();
     let c =
         cmd(json!({"type": "setVariableValue", "id": "bg", "mode": "dark", "value": "#111111"}));
     assert_eq!(plan_doc(&d, &c, &Limits::default()), Ok(None));

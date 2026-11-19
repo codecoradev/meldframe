@@ -108,7 +108,7 @@ describe.skipIf(!built)('Engine re-reads only what changed', () => {
   it('paints variables and a mode switch repaints without changing the document', () => {
     const nodes = [{ id: 'card', type: 'rect', pos: 'a0', fill: { var: 'bg' } }] as unknown as Parameters<typeof Engine.create>[0]['nodes'];
     const variables = {
-      collections: [{ id: 't', name: 'theme', modes: [{ id: 'light', name: 'light' }, { id: 'dark', name: 'dark' }] }],
+      collections: [{ id: 't', name: 'appearance', modes: [{ id: 'light', name: 'light' }, { id: 'dark', name: 'dark' }] }],
       variables: [{ id: 'bg', collection: 't', name: 'color/bg', type: 'color', values: { light: '#ffffff', dark: '#000000' } }],
     } as Parameters<typeof Engine.create>[0]['variables'];
     const e = Engine.create({ actor: 'usr_me', nodes, seq: 0, session: 1, variables });

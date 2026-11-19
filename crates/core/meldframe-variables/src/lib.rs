@@ -11,7 +11,7 @@ mod footprint;
 mod limits;
 mod resolve;
 
-pub use alias::{alias_depth, alias_height, alias_reaches};
+pub use alias::{Aliases, alias_depth, alias_height, alias_reaches};
 pub use apply::{apply, invert, is_variable_command, touched};
 pub use bindings::{Binding, node_bindings, patch_bindings, users};
 pub use check::{

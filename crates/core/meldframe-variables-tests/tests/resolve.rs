@@ -12,19 +12,19 @@ fn vars(v: serde_json::Value) -> Variables {
     serde_json::from_value(v).unwrap()
 }
 
-/// `theme` has light and dark; `brand` aliases `blue` of the one-mode collection `base`.
+/// `appearance` has light and dark; `brand` aliases `blue` of the one-mode collection `base`.
 fn design_system() -> Variables {
     vars(json!({
         "collections": [
             {"id": "base", "name": "base", "modes": [{"id": "m0", "name": "default"}]},
-            {"id": "theme", "name": "theme", "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}
+            {"id": "appearance", "name": "appearance", "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}
         ],
         "variables": [
             {"id": "blue", "collection": "base", "name": "color/blue", "type": "color", "values": {"m0": "#2563eb"}},
             {"id": "sky", "collection": "base", "name": "color/sky", "type": "color", "values": {"m0": "#38bdf8"}},
-            {"id": "brand", "collection": "theme", "name": "color/brand", "type": "color",
+            {"id": "brand", "collection": "appearance", "name": "color/brand", "type": "color",
              "values": {"light": {"var": "blue"}, "dark": {"var": "sky"}}},
-            {"id": "bg", "collection": "theme", "name": "color/bg", "type": "color",
+            {"id": "bg", "collection": "appearance", "name": "color/bg", "type": "color",
              "values": {"light": "#ffffff", "dark": "#0a0a0a"}}
         ]
     }))
@@ -42,7 +42,7 @@ fn a_literal_resolves_in_the_default_mode_and_an_alias_follows_the_chosen_mode()
         resolve(&v, "brand", &none),
         Some(Value::Color("#2563eb".into()))
     );
-    let dark = ModeChoice::of([("theme", "dark")]);
+    let dark = ModeChoice::of([("appearance", "dark")]);
     assert_eq!(
         resolve(&v, "bg", &dark),
         Some(Value::Color("#0a0a0a".into()))
@@ -56,7 +56,7 @@ fn a_literal_resolves_in_the_default_mode_and_an_alias_follows_the_chosen_mode()
 #[test]
 fn an_unknown_mode_falls_back_to_the_default_mode() {
     let v = design_system();
-    let bad = ModeChoice::of([("theme", "no-such-mode")]);
+    let bad = ModeChoice::of([("appearance", "no-such-mode")]);
     assert_eq!(
         resolve(&v, "bg", &bad),
         Some(Value::Color("#ffffff".into()))

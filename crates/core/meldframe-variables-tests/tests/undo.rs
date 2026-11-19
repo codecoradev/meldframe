@@ -7,7 +7,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod common;
 
-use common::{add, bg, bind_fill, cmd, theme};
+use common::{add, appearance, bg, bind_fill, cmd};
 use meldframe_history::FileState;
 use meldframe_protocol::{Bind, Value};
 use serde_json::json;
@@ -15,7 +15,7 @@ use serde_json::json;
 /// The collection `t`, the variable `bg` and the rect `card`.
 fn file() -> FileState {
     let mut s = FileState::new();
-    s.apply(&theme()).unwrap();
+    s.apply(&appearance()).unwrap();
     s.apply(&bg()).unwrap();
     s.apply(&add("card", "rect", None)).unwrap();
     s
@@ -53,7 +53,7 @@ fn undo_and_redo_walk_back_through_variable_and_node_commands_in_one_history() {
 fn undoing_the_add_of_a_variable_that_another_actor_bound_is_skipped() {
     let mut s = FileState::new();
     for c in [
-        json!({"type": "addCollection", "collection": {"id": "t", "name": "theme", "modes": [{"id": "m", "name": "m"}]}}),
+        json!({"type": "addCollection", "collection": {"id": "t", "name": "appearance", "modes": [{"id": "m", "name": "m"}]}}),
         json!({"type": "addVariable", "variable": {"id": "bg", "collection": "t", "name": "color/bg", "type": "color",
             "values": {"m": "#ffffff"}}}),
     ] {

@@ -17,7 +17,7 @@ fn node(v: Value) -> Node {
     serde_json::from_value(v).unwrap()
 }
 
-/// `theme` (light, dark) with the colour `bg` and the number `radius`, `base` with the colour `blue`; a rect `r`
+/// `appearance` (light, dark) with the colour `bg` and the number `radius`, `base` with the colour `blue`; a rect `r`
 /// whose fill is bound to `bg`.
 fn doc() -> Doc {
     let mut d = Doc::of_nodes(vec![
@@ -25,12 +25,12 @@ fn doc() -> Doc {
         node(json!({"id": "p", "type": "rect", "pos": "a1"})),
     ]);
     for c in [
-        json!({"type": "addCollection", "collection": {"id": "theme", "name": "theme",
+        json!({"type": "addCollection", "collection": {"id": "appearance", "name": "appearance",
             "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}}),
         json!({"type": "addCollection", "collection": {"id": "base", "name": "base", "modes": [{"id": "m", "name": "m"}]}}),
-        json!({"type": "addVariable", "variable": {"id": "bg", "collection": "theme", "name": "color/bg", "type": "color",
+        json!({"type": "addVariable", "variable": {"id": "bg", "collection": "appearance", "name": "color/bg", "type": "color",
             "values": {"light": "#ffffff", "dark": "#000000"}}}),
-        json!({"type": "addVariable", "variable": {"id": "round", "collection": "theme", "name": "radius/card", "type": "number",
+        json!({"type": "addVariable", "variable": {"id": "round", "collection": "appearance", "name": "radius/card", "type": "number",
             "values": {"light": 8, "dark": 12}}}),
         json!({"type": "addVariable", "variable": {"id": "blue", "collection": "base", "name": "color/blue", "type": "color",
             "values": {"m": "#2563eb"}}}),
@@ -55,11 +55,11 @@ fn the_good_commands_pass() {
         json!({"type": "updateNode", "id": "p", "patch": {"fill": {"var": "blue"}}}),
         json!({"type": "updateNode", "id": "p", "patch": {"radius": {"var": "round"}, "opacity": 0.5}}),
         json!({"type": "addNode", "node": {"id": "q", "type": "rect", "fill": {"var": "bg"}}}),
-        json!({"type": "addVariable", "variable": {"id": "fg", "collection": "theme", "name": "color/fg", "type": "color",
+        json!({"type": "addVariable", "variable": {"id": "fg", "collection": "appearance", "name": "color/fg", "type": "color",
             "values": {"light": {"var": "blue"}, "dark": "#ffffff"}}}),
         json!({"type": "setVariableValue", "id": "bg", "mode": "dark", "value": {"var": "blue"}}),
-        json!({"type": "addMode", "collection": "theme", "mode": {"id": "hc", "name": "contrast"}, "index": 1}),
-        json!({"type": "removeMode", "collection": "theme", "mode": "dark"}),
+        json!({"type": "addMode", "collection": "appearance", "mode": {"id": "hc", "name": "contrast"}, "index": 1}),
+        json!({"type": "removeMode", "collection": "appearance", "mode": "dark"}),
         json!({"type": "removeVariable", "id": "round"}),
     ] {
         assert_eq!(check(&d, c.clone()), Ok(()), "{c}");
@@ -236,7 +236,7 @@ fn ids_names_and_modes_are_checked() {
     );
     // The same name in another collection is fine.
     let other = var(
-        json!({"id": "x", "collection": "theme", "name": "color/blue", "type": "color",
+        json!({"id": "x", "collection": "appearance", "name": "color/blue", "type": "color",
         "values": {"light": "#fff", "dark": "#000"}}),
     );
     assert_eq!(check(&d, other), Ok(()));
@@ -257,32 +257,32 @@ fn ids_names_and_modes_are_checked() {
     assert_eq!(
         code(
             &d,
-            col(json!({"id": "theme", "name": "c", "modes": [{"id": "a", "name": "a"}]}))
+            col(json!({"id": "appearance", "name": "c", "modes": [{"id": "a", "name": "a"}]}))
         ),
         "E_DUPLICATE_ID"
     );
-    let mode = |m: &str, idx: Value| json!({"type": "addMode", "collection": "theme", "mode": {"id": m, "name": m}, "index": idx});
+    let mode = |m: &str, idx: Value| json!({"type": "addMode", "collection": "appearance", "mode": {"id": m, "name": m}, "index": idx});
     assert_eq!(code(&d, mode("dark", json!(null))), "E_INVALID_MODES");
     assert_eq!(code(&d, mode("hc", json!(0))), "E_DEFAULT_MODE");
     assert_eq!(code(&d, mode("hc", json!(9))), "E_OUT_OF_RANGE");
     assert_eq!(
         code(
             &d,
-            json!({"type": "addMode", "collection": "theme", "mode": {"id": "hc", "name": "hc"}, "copyFrom": "nope"})
+            json!({"type": "addMode", "collection": "appearance", "mode": {"id": "hc", "name": "hc"}, "copyFrom": "nope"})
         ),
         "E_MODE_NOT_FOUND"
     );
     assert_eq!(
         code(
             &d,
-            json!({"type": "removeMode", "collection": "theme", "mode": "light"})
+            json!({"type": "removeMode", "collection": "appearance", "mode": "light"})
         ),
         "E_DEFAULT_MODE"
     );
     assert_eq!(
         code(
             &d,
-            json!({"type": "removeMode", "collection": "theme", "mode": "nope"})
+            json!({"type": "removeMode", "collection": "appearance", "mode": "nope"})
         ),
         "E_MODE_NOT_FOUND"
     );

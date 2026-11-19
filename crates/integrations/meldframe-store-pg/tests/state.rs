@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 
 fn variables() -> Variables {
     serde_json::from_value(json!({
-        "collections": [{"id": "t", "name": "theme", "modes": [{"id": "m", "name": "m"}]}],
+        "collections": [{"id": "t", "name": "appearance", "modes": [{"id": "m", "name": "m"}]}],
         "variables": [{"id": "bg", "collection": "t", "name": "color/bg", "type": "color", "values": {"m": "#fff"}}]
     }))
     .unwrap()

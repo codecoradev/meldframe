@@ -8,7 +8,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod common;
 
-use common::{add, bg, bind_fill, cmd, set_bg, theme};
+use common::{add, appearance, bg, bind_fill, cmd, set_bg};
 use meldframe_protocol::{Bind, Value};
 use meldframe_sync::{EventOutcome, Replica};
 use serde_json::json;
@@ -23,7 +23,7 @@ fn color(c: &str) -> Bind<Value> {
 
 fn replica() -> Replica {
     let mut r = Replica::new("user:a", "ca", vec![], 0).unwrap();
-    r.apply(&theme()).unwrap();
+    r.apply(&appearance()).unwrap();
     r.apply(&bg()).unwrap();
     r
 }
@@ -47,7 +47,7 @@ fn my_variable_commands_apply_at_once_queue_as_ops_and_undo() {
 fn a_remote_variable_command_moves_the_confirmed_state_and_my_pending_ops_stay_on_top() {
     let mut r = Replica::new("user:a", "ca", vec![], 0).unwrap();
     assert_eq!(
-        r.on_event(1, "user:b", &theme()),
+        r.on_event(1, "user:b", &appearance()),
         Ok(EventOutcome::Rebased { dropped: 0 })
     );
     assert_eq!(
@@ -69,7 +69,7 @@ fn a_remote_variable_command_moves_the_confirmed_state_and_my_pending_ops_stay_o
 #[test]
 fn a_pending_op_that_a_remote_variable_command_makes_invalid_is_dropped() {
     let mut r = Replica::new("user:a", "ca", vec![], 0).unwrap();
-    r.on_event(1, "user:b", &theme()).unwrap();
+    r.on_event(1, "user:b", &appearance()).unwrap();
     r.on_event(2, "user:b", &bg()).unwrap();
     r.apply(&set_bg("dark", "#111111")).unwrap();
     // The other actor removes the variable first: my value no longer applies.

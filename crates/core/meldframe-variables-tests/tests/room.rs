@@ -3,7 +3,7 @@
 
 mod common;
 
-use common::{add, bg, cmd, theme};
+use common::{add, appearance, bg, cmd};
 use meldframe_host::{Admission, Gate, MemoryStore, Op, Principal, Refusal, Room, RoomError};
 use meldframe_protocol::{Bind, Command};
 use serde_json::json;
@@ -39,7 +39,7 @@ fn put(
 }
 
 fn setup() -> Vec<Command> {
-    vec![theme(), bg()]
+    vec![appearance(), bg()]
 }
 
 #[test]

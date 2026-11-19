@@ -8,7 +8,7 @@ use meldframe_protocol::{Doc, Node};
 use serde_json::json;
 
 mod common;
-use common::{bg, cmd, set_bg, theme};
+use common::{appearance, bg, cmd, set_bg};
 
 fn file() -> Doc {
     let node: Node = serde_json::from_value(
@@ -16,7 +16,7 @@ fn file() -> Doc {
     )
     .unwrap();
     let mut d = Doc::of_nodes(vec![node]);
-    for c in [theme(), bg()] {
+    for c in [appearance(), bg()] {
         meldframe_core::apply_doc(&mut d, &c, &Default::default()).unwrap();
     }
     d
@@ -151,7 +151,7 @@ fn a_list_of_variable_commands_is_checked_in_order_and_is_one_undo_step() {
     let steps = a.state().history.undo_steps;
     // The variable needs the collection that comes before it in the same list.
     a.dispatch(Action::EditVariables {
-        commands: vec![theme(), bg(), set_bg("dark", "#111111")],
+        commands: vec![appearance(), bg(), set_bg("dark", "#111111")],
     });
     assert_eq!(a.vars().variables.len(), 1);
     assert_eq!(a.state().history.undo_steps, steps + 1);

@@ -120,7 +120,7 @@ fn the_scene_paints_variables_and_a_mode_switch_repaints_without_touching_the_no
     let nodes =
         json!([{"id": "card", "type": "rect", "pos": "a0", "fill": {"var": "bg"}}]).to_string();
     let vars = json!({
-        "collections": [{"id": "t", "name": "theme", "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}],
+        "collections": [{"id": "t", "name": "appearance", "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}],
         "variables": [{"id": "bg", "collection": "t", "name": "color/bg", "type": "color",
             "values": {"light": "#ffffff", "dark": "#000000"}}]
     })

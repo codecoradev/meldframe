@@ -14,7 +14,7 @@ fn cmd(v: serde_json::Value) -> Command {
 fn seed() -> Variables {
     let mut v = Variables::default();
     for c in [
-        json!({"type": "addCollection", "collection": {"id": "t", "name": "theme",
+        json!({"type": "addCollection", "collection": {"id": "t", "name": "appearance",
             "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}}),
         json!({"type": "addVariable", "variable": {"id": "bg", "collection": "t", "name": "color/bg", "type": "color",
             "values": {"light": "#ffffff", "dark": "#000000"}}}),
