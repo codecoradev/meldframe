@@ -19,9 +19,9 @@ describe('noticeFor', () => {
 
 describe('noticeFor approvals', () => {
   const rejected = (code: string) => ({ type: 'opRejected', key: 'k', code, retryable: false }) as Event;
-  it('says a delete waits for the owner and is not done, without promising an answer screen', () => {
+  it('says a delete needs the owner\'s approval and was not done, without promising an answer screen', () => {
     const text = noticeFor(rejected('approval_required'))!;
-    expect(text).toMatch(/waits for the owner/i);
+    expect(text).toMatch(/needs the owner's approval/i);
     expect(text).toMatch(/not done/i);
     expect(text).not.toMatch(/not available yet/i);
   });

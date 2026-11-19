@@ -281,7 +281,7 @@ describe('Shell with a scripted engine', () => {
     expect(env.posts[0]!.path).toBe('/v1/files/file_dev/tools/apply_commands');
   });
 
-  it.each(['approval_required', 'approval_denied', 'approval_expired', 'approval_limit'])('%s is passed on as not retryable, so the app rolls back at once', async (code) => {
+  it.each(['approval_required', 'approval_denied', 'approval_expired', 'approval_limit'])('%s is reported as rejected and not retryable', async (code) => {
     const { engine, env, shell } = setup();
     shell.start();
     env.reply = async () => ({ status: code === 'approval_limit' ? 429 : 403, body: { error: { code, retryable: false } } });

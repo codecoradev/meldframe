@@ -3,10 +3,10 @@ import type { Event } from '@meldframe/protocol';
 
 const WORDS: Record<string, string> = {
   forbidden: 'This change is not allowed.',
-  approval_required: 'This delete waits for the owner and is not done.',
+  approval_required: "This delete needs the owner's approval and was not done.",
   approval_denied: 'The owner said no. The change was not made.',
-  approval_expired: 'The approval ran out before the owner answered. The change was not made.',
-  approval_limit: 'Too many approvals are open. Wait until the owner answers some, then try again.',
+  approval_expired: 'The approval ran out. The change was not made.',
+  approval_limit: 'Too many approvals are open. Try again later.',
   conflict: 'Someone changed this node first. Look at the new version and try again.',
   not_found: 'That node no longer exists.',
   stale_client: 'This page is out of date. Reload it.',
