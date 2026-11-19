@@ -1,4 +1,4 @@
-// Browser check of the editor against a real server: node scripts/editor-e2e.mjs [web-url] [server-url]
+// Browser check of the editor against a real server: node packages/web-e2e/scripts/editor-e2e.mjs [web-url] [server-url]
 // Needs `just dev` (server on 8080) and `just web` (Vite on 5173) running, the WASM bridge built (`just wasm-build`),
 // and Playwright from the global module path. It restarts the server (bash scripts/dev.sh) for the reconnect check, so
 // run it against the development server only. Not part of `npm test`: it needs a browser, a server and Postgres.

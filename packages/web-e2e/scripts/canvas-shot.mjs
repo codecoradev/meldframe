@@ -1,4 +1,4 @@
-// Screenshots of the canvas harness (development): node scripts/canvas-shot.mjs <outfile> [query]
+// Screenshots of the canvas harness (development): node packages/web-e2e/scripts/canvas-shot.mjs <outfile> [query]
 // Needs the dev server (npm run dev) and Playwright (resolved from the global module path).
 import { createRequire } from 'node:module';
 

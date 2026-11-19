@@ -72,7 +72,7 @@ Counted from the acceptance-criteria boxes in `docs/epics.md` (a box is ticked o
 | M6 V2 and the W1 gate | 0 | 4 | 0% | not started |
 | Total | 54 | 88 | 61% | |
 
-M0 and M1 are complete. The M1 demonstration runs with Claude Code as the MCP client in the real browser editor (`apps/web/scripts/m1-claude-demo.mjs`); the backend, MCP surface, live events, capture relay, app layer and the web editor (layers, canvas, properties, tool bar, text editing, actor labels, touch rings, capture) are covered by tests and by the browser checks that are run by hand.
+M0 and M1 are complete. The M1 demonstration runs with Claude Code as the MCP client in the real browser editor (`packages/web-e2e/scripts/m1-claude-demo.mjs`); the backend, MCP surface, live events, capture relay, app layer and the web editor (layers, canvas, properties, tool bar, text editing, actor labels, touch rings, capture) are covered by tests and by the browser checks that are run by hand.
 
 ## Earlier build order (superseded by the milestones)
 

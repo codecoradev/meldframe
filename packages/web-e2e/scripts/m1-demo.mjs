@@ -1,9 +1,9 @@
 // The M1 demonstration (docs/epics.md, "M1 exit criteria") in the real browser editor, against the real server:
-//   node scripts/m1-demo.mjs [web-url] [server-url]
+//   node packages/web-e2e/scripts/m1-demo.mjs [web-url] [server-url]
 // Needs the development server started with two tokens, `just web` on the same file, the WASM bridge built and Playwright:
 //   MELDFRAME_DEV_TOKENS="<.dev-token>:ws_dev:agent:dev,<token 2>:ws_dev:agent:claude" just dev-server
 //   MELDFRAME_WEB_FILE=<file> just web
-//   MELDFRAME_WEB_FILE=<file> MELDFRAME_DEMO_TOKEN2=<token 2> node scripts/m1-demo.mjs
+//   MELDFRAME_WEB_FILE=<file> MELDFRAME_DEMO_TOKEN2=<token 2> node packages/web-e2e/scripts/m1-demo.mjs
 // The agent is token 2, speaking MCP over HTTP (JSON-RPC `tools/call`); the person is the browser editor (token 1, added by
 // the dev proxy). Prints one line per step and exits non-zero if a step fails. Run against the development server only.
 import assert from 'node:assert/strict';
