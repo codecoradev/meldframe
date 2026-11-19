@@ -386,3 +386,62 @@ fn a_batch_with_only_some_of_its_ops_in_the_log_reverts_those_and_the_key_says_s
     assert_eq!(meldframe_revert::batch_index("ui-1"), None);
     assert_eq!(meldframe_revert::batch_index("b:x:7"), Some(("b:x", 7)));
 }
+
+fn cmd(v: serde_json::Value) -> Command {
+    serde_json::from_value(v).unwrap()
+}
+
+#[test]
+fn a_variable_command_of_the_batch_is_listed_as_not_reverted_and_the_node_part_still_reverts() {
+    use serde_json::json;
+    let start = before();
+    let (log, now) = run(
+        &start,
+        vec![
+            (
+                "human",
+                "ui-1",
+                cmd(
+                    json!({"type": "addCollection", "collection": {"id": "c", "name": "c", "modes": [{"id": "m", "name": "m"}]}}),
+                ),
+            ),
+            (
+                "human",
+                "ui-2",
+                cmd(
+                    json!({"type": "addVariable", "variable": {"id": "v", "collection": "c", "name": "color/x", "type": "color", "values": {"m": "#102030"}}}),
+                ),
+            ),
+            (
+                "human",
+                "ui-3",
+                cmd(json!({"type": "updateNode", "id": "a", "patch": {"x": 1.0}})),
+            ),
+            // The batch: change a node field and add another variable.
+            (
+                "agent:x",
+                "b1:0",
+                cmd(json!({"type": "updateNode", "id": "a", "patch": {"x": 9.0}})),
+            ),
+            (
+                "agent:x",
+                "b1:1",
+                cmd(
+                    json!({"type": "addVariable", "variable": {"id": "w", "collection": "c", "name": "color/y", "type": "color", "values": {"m": "#203040"}}}),
+                ),
+            ),
+        ],
+    );
+    let r = revert_batch(&start, &log, agent("b1")).unwrap();
+    // The node part comes back; the variable stays where it is and the revert says so.
+    let s = after_revert(&now, &r.commands);
+    assert_eq!(s.node("a").unwrap().x, 1.0);
+    assert_eq!(
+        r.skipped,
+        vec![meldframe_revert::Skipped {
+            node: "w".into(),
+            what: "variable".into(),
+            reason: SkipReason::NotApplicable
+        }]
+    );
+}

@@ -63,7 +63,8 @@ pub enum SkipReason {
 }
 
 /// A part of the batch that was not reverted. `what` is a field name (`fill`), `place` for the parent and order
-/// of the node, or `node` for the node as a whole.
+/// of the node, `node` for the node as a whole, or `variable` for a variable command (`node` then holds the id of
+/// the variable or collection; a revert does not take those back).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Skipped {
     pub node: String,
@@ -159,8 +160,13 @@ pub fn revert_batch(
                     run.push(cmd.clone(), id, "node");
                 }
             }
-            // A variable command is not taken back by a revert (ADR-0017, known limit).
-            _ => {}
+            // A variable command is not taken back by a revert (ADR-0017, known limit): it is listed, so that
+            // `skipped` does not report a full revert that is not one.
+            other => {
+                if let Some(id) = variable_target(other) {
+                    run.skip(&id, "variable", SkipReason::NotApplicable);
+                }
+            }
         }
     }
     Ok(run.out)
@@ -252,6 +258,21 @@ fn named(c: &Command) -> Vec<String> {
             .collect(),
         // Revert covers node commands only (variable commands are a known limit, see ADR-0017).
         _ => Vec::new(),
+    }
+}
+
+/// The variable or collection a variable command is about (`None` for a node command).
+fn variable_target(c: &Command) -> Option<String> {
+    match c {
+        Command::AddCollection { collection } => Some(collection.id.clone()),
+        Command::RemoveCollection { id }
+        | Command::RemoveVariable { id }
+        | Command::SetVariableValue { id, .. } => Some(id.clone()),
+        Command::AddMode { collection, .. } | Command::RemoveMode { collection, .. } => {
+            Some(collection.clone())
+        }
+        Command::AddVariable { variable } => Some(variable.id.clone()),
+        _ => None,
     }
 }
 
