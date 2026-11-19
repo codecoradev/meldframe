@@ -190,9 +190,11 @@ impl ServerHandler for Handler {
             .ok_or_else(|| ErrorData::internal_error("the call carries no principal", None))?;
         let a = request.arguments.unwrap_or_default();
         if let Some(x) = self.extra.iter().find(|x| x.tool().name == request.name) {
+            // The log holds a file name only when it is one: what a caller sent that is not is logged as no file.
             let file = a
                 .get("file")
                 .and_then(Value::as_str)
+                .filter(|f| crate::valid_file(f))
                 .unwrap_or("")
                 .to_owned();
             let out = x.call(who.clone(), a).await;

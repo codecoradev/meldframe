@@ -1183,6 +1183,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-export-http-tests"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "export",
+ "meldframe-calls",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-http-assets",
+ "meldframe-http-capture",
+ "meldframe-http-export",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-server",
+ "reqwest",
+ "rmcp",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "meldframe-export-tests"
 version = "0.0.0"
 dependencies = [
