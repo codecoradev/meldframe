@@ -389,7 +389,7 @@ const id = `e2e_${run}`;
       assert.equal(made.parentId, null);
       assert.equal(`${made.w}x${made.h}`, '390x844');
       await until('the new frame is selected', async () => (await page.locator(`[data-testid=layer][data-id="${made.id}"]`).getAttribute('data-selected')) === 'true');
-      // (Undoing the creation of a frame is refused by the server until the approval path of E2.4: a frame delete is Ask.)
+      // (Undoing the creation of a frame sends a delete of a frame, which is Ask: the server answers approval_required and the delete waits for an owner who cannot answer yet, so it is not done.)
     });
     await check('the Variant button copies the selected frame beside it, names it, and selects the copy', async () => {
       const known = new Set((await nodesOnServer()).map((x) => x.id));
