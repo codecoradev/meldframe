@@ -126,12 +126,17 @@ pub fn describe(
 /// `whoami` or `capture`): `None` is `ok` and allowed; `forbidden` is denied; `approval_required` is an ask and
 /// `approval_denied`, `approval_expired` and `approval_limit` are denied; `invalid` and `bad_request` are malformed
 /// calls with no decision; any other code is a call the policy let through that then failed with it.
-/// A code that is not 1 to 64 of `a-z`, `0-9` and `_` (a tool that put text there) is logged as `internal`.
+/// A code that is not 1 to 64 of `a-z`, `0-9` and `_`, or an `E_...` code of `docs/error-codes.md` (`E_` and then
+/// `A-Z`, `0-9` and `_`), is logged as `internal`: a tool that put text there does not get it into the log.
 pub fn describe_code(code: Option<&str>) -> (Option<Decision>, String) {
     let stable = |c: &str| {
+        let upper = |b: u8| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_';
         (1..=64).contains(&c.len())
-            && c.bytes()
+            && (c
+                .bytes()
                 .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+                || c.strip_prefix("E_")
+                    .is_some_and(|r| !r.is_empty() && r.bytes().all(upper)))
     };
     let code = code.map(|c| if stable(c) { c } else { "internal" });
     match code {

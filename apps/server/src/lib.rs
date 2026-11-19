@@ -494,5 +494,7 @@ fn modules() -> Vec<Box<dyn Module>> {
         Box::new(assets::AssetsModule),
         #[cfg(feature = "design-review")]
         Box::new(design_review::DesignReviewModule),
+        #[cfg(feature = "export")]
+        Box::new(export::ExportModule),
     ]
 }

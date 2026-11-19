@@ -254,6 +254,23 @@ mod read {
         Failure::Unavailable(e.to_string())
     }
 
+    /// The file for `export_frame`: the nodes and the variables under one lock. Not logged here: the MCP handler writes
+    /// the one entry of the call.
+    #[cfg(feature = "export")]
+    impl meldframe_http_export::FrameSource for SharedServer {
+        fn read(
+            &self,
+            who: &Principal,
+            file: &str,
+        ) -> Result<meldframe_http_export::Frames, Failure> {
+            self.read_unlogged(export::TOOL, who, file, |r| meldframe_http_export::Frames {
+                seq: r.seq(),
+                nodes: r.nodes().to_vec(),
+                vars: r.vars().clone(),
+            })
+        }
+    }
+
     impl Reader for SharedServer {
         fn record(&self, who: &Principal, tool: &str, file: &str, code: Option<&str>) {
             self.lock().record_call_code(tool, file, who, code);

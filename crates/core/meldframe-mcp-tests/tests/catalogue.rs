@@ -27,7 +27,10 @@ async fn the_catalogue_equals_what_a_client_lists() {
         .as_array()
         .unwrap()
         .iter()
-        .filter(|t| !["capture", "upload_asset", "design_review"].contains(&t["name"].as_str().unwrap()))
+        .filter(|t| {
+            !["capture", "upload_asset", "design_review", "export_frame"]
+                .contains(&t["name"].as_str().unwrap())
+        })
         .map(|t| json!({"name": t["name"], "description": t["description"], "inputSchema": t["inputSchema"]}))
         .collect();
     assert_eq!(
@@ -53,6 +56,7 @@ fn the_catalogue_equals_the_registry_with_tiers() {
             // The upload tool is served by the assets module; its own test crate lists it.
             "upload_asset" => "assets",
             "design_review" => "design-review",
+            "export_frame" => "export",
             _ => "mcp",
         };
         assert_eq!(reg.module, module);
@@ -78,7 +82,7 @@ async fn the_read_only_annotation_follows_the_registry_tier() {
 fn descriptions_are_english_ascii_and_apply_commands_names_the_batch_limit() {
     let file: Value = serde_json::from_str(CATALOGUE).unwrap();
     let tools = file["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 9);
+    assert_eq!(tools.len(), 10);
     for t in tools {
         let d = t["description"].as_str().unwrap();
         assert!(d.is_ascii() && d.len() > 40, "{}", t["name"]);

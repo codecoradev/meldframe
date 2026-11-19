@@ -12,7 +12,7 @@ kind = "bin"
 [features]
 # Each feature module is compiled in only when its cargo feature is on; leaving one out removes its
 # tools from the registry (ADR-0007). The example module is the first.
-default = ["example", "mcp", "capture", "assets", "design-review"]
+default = ["example", "mcp", "capture", "assets", "design-review", "export"]
 example = ["dep:example"]
 # The MCP surface: its tools in the registry and the read path behind them (E1.5).
 mcp = ["meldframe-http/mcp"]
@@ -24,6 +24,8 @@ assets = ["mcp", "dep:assets", "dep:meldframe-http-assets"]
 # The design_review tool (E5.4): a numbered critique list per file, in memory or in Postgres with the files; it is an
 # MCP tool, so it needs `mcp`.
 design-review = ["mcp", "dep:design-review", "dep:meldframe-http-review"]
+# The export_frame tool (E4.1, ADR-0019): a frame as HTML with CSS or Tailwind; it is an MCP tool, so it needs `mcp`.
+export = ["mcp", "dep:export", "dep:meldframe-http-export"]
 
 [dependencies]
 meldframe-http = { path = "../../crates/integrations/meldframe-http" }
@@ -42,6 +44,8 @@ assets = { path = "../../crates/features/assets/assets", optional = true }
 meldframe-http-assets = { path = "../../crates/integrations/meldframe-http-assets", optional = true }
 design-review = { path = "../../crates/features/design-review/design-review", optional = true }
 meldframe-http-review = { path = "../../crates/integrations/meldframe-http-review", optional = true }
+export = { path = "../../crates/features/export/export", optional = true }
+meldframe-http-export = { path = "../../crates/integrations/meldframe-http-export", optional = true }
 meldframe-protocol = { path = "../../crates/core/meldframe-protocol" }
 meldframe-stream = { path = "../../crates/core/meldframe-stream" }
 serde_json = "1"
