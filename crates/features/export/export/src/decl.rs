@@ -4,7 +4,7 @@
 //! under a hug parent is a fixed size, rule G1; `safe` alignment, rule G2). Paint comes from the painted box of the
 //! render step, except where the field is bound: a bound fill, radius or opacity is `var(--...)`.
 
-use crate::names::{escape, hex, num, px};
+use crate::names::{asset_id_ok, css_escape, escape, hex, hex_colour, num, px};
 use crate::report::Report;
 use meldframe_layout::{Rect, TextMeasurer};
 use meldframe_protocol::{
@@ -160,6 +160,22 @@ fn gradient_css(g: &PaintedGradient) -> String {
                 "radial-gradient(circle farthest-corner,{})",
                 stops.join(",")
             )
+        }
+    }
+}
+
+/// A colour field that a stylesheet may carry: the hex text as it is, else `transparent` and an `invalid_colour`
+/// finding (the text is never copied: a stylesheet takes hex colours only).
+fn safe_colour(text: &str, field: &str, id: &str, rep: &mut Report) -> String {
+    match hex_colour(text) {
+        Some(c) => c.to_owned(),
+        None => {
+            rep.unsupported(
+                "invalid_colour",
+                id,
+                &format!("{field} is not a hex colour; exported as transparent"),
+            );
+            "transparent".into()
         }
     }
 }
@@ -321,7 +337,7 @@ pub(crate) fn style(cx: &Cx, n: &Node, b: &PaintedBox, place: &Place, rep: &mut 
         (None, None) => {}
     }
     if border {
-        after(cx, n, b, rect, &mut s);
+        after(cx, n, b, rect, &mut s, rep);
     }
     s
 }
@@ -340,24 +356,34 @@ fn paint(cx: &Cx, n: &Node, b: &PaintedBox, s: &mut Style, rep: &mut Report) {
     let id = &n.id;
     let fill = colour(cx, &n.fill, b.fill, id, rep);
     let mut layers: Vec<(String, &str)> = Vec::new();
-    if let Some(img) = &b.image {
+    let mut image = b.image.as_ref();
+    if let Some(img) = image
+        && !asset_id_ok(&img.asset_id)
+    {
+        rep.unsupported(
+            "invalid_asset",
+            id,
+            "the image is not an asset id (64 hex digits); it was left out",
+        );
+        image = None;
+    }
+    if let Some(img) = image {
         rep.asset(&img.asset_id);
         let size = match img.fit {
             ImageFit::Cover => "cover",
             ImageFit::Contain => "contain",
             ImageFit::Fill => "100% 100%",
         };
-        layers.push((format!("url({}{})", cx.asset_base, img.asset_id), size));
+        let base = css_escape(cx.asset_base, "-_./:");
+        layers.push((format!("url({base}{})", img.asset_id), size));
     }
     if let Some(g) = &b.gradient {
         layers.push((gradient_css(g), "100% 100%"));
     }
     if n.kind == NodeKind::Shader {
         let c1 = fill.clone().unwrap_or_else(|| "transparent".into());
-        layers.push((
-            format!("linear-gradient(135deg,{c1},{})", n.fill2),
-            "100% 100%",
-        ));
+        let c2 = safe_colour(&n.fill2, "fill2", id, rep);
+        layers.push((format!("linear-gradient(135deg,{c1},{c2})"), "100% 100%"));
         rep.unsupported("shader_approximated", id, "a shader has no CSS form: it is exported as a gradient from fill to fill2, whatever its preset");
     } else if let Some(c) = fill {
         s.main.push(d("background-color", c));
@@ -365,7 +391,7 @@ fn paint(cx: &Cx, n: &Node, b: &PaintedBox, s: &mut Style, rep: &mut Report) {
     if !layers.is_empty() {
         let urls: Vec<&str> = layers.iter().map(|l| l.0.as_str()).collect();
         s.main.push(d("background-image", urls.join(",")));
-        if b.image.is_some() {
+        if image.is_some() {
             let size: Vec<&str> = layers.iter().map(|l| l.1).collect();
             s.main.extend([
                 d("background-size", size.join(",")),
@@ -395,7 +421,7 @@ fn paint(cx: &Cx, n: &Node, b: &PaintedBox, s: &mut Style, rep: &mut Report) {
                     px(w.y),
                     px(w.blur),
                     px(w.spread),
-                    w.color
+                    safe_colour(&w.color, "shadows.color", id, rep)
                 )
             })
             .collect();
@@ -404,7 +430,7 @@ fn paint(cx: &Cx, n: &Node, b: &PaintedBox, s: &mut Style, rep: &mut Report) {
 }
 
 /// The border: paint only, as `::after` on the box, so that it takes no room (contract, section 4.2).
-fn after(cx: &Cx, n: &Node, b: &PaintedBox, rect: Rect, s: &mut Style) {
+fn after(cx: &Cx, n: &Node, b: &PaintedBox, rect: Rect, s: &mut Style, rep: &mut Report) {
     let w = n.border.width;
     let (inset, grow) = match n.border.position {
         BorderPosition::Inside => (0.0, 0.0),
@@ -430,8 +456,9 @@ fn after(cx: &Cx, n: &Node, b: &PaintedBox, rect: Rect, s: &mut Style) {
         d("pointer-events", "none"),
         d("inset", px(inset)),
     ]);
+    let colour = safe_colour(&n.border.color, "border.color", &n.id, rep);
     s.after
-        .push(d("border", format!("{} solid {}", px(w), n.border.color)));
+        .push(d("border", format!("{} solid {colour}", px(w))));
     if let Some(r) = radius {
         s.after.push(d("border-radius", r));
     }

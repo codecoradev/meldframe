@@ -1,7 +1,7 @@
 //! The walk over the frame: the render step, the styles, the variables, and the document.
 
 use crate::decl::{Cx, Place, Style, attrs, style, tag};
-use crate::names::escape;
+use crate::names::{css_escape, escape};
 use crate::report::Report;
 use crate::{Export, ExportError, ExportOptions, Format, tw, vars};
 use meldframe_layout::{Rect, compute_rects, layout_findings};
@@ -242,7 +242,7 @@ const TAILWIND_HEAD: &str = "@layer theme, base, utilities;\n@import \"tailwindc
 fn base_css(options: &ExportOptions<'_>, layered: bool) -> String {
     let font = format!(
         "@font-face{{font-family:'Inter Variable';src:url('{}') format('woff2');font-weight:100 900;font-display:block}}\n",
-        options.font_href
+        css_escape(&options.font_href, "-_./:")
     );
     let reset = "*,::before,::after{box-sizing:border-box}body{margin:0;font-family:'Inter Variable'}p{margin:0}";
     if layered {
@@ -330,6 +330,7 @@ impl<'a> Walk<'a> {
     }
 
     fn rules(&mut self, id: &str, st: &Style) {
+        let id = css_escape(id, "-_");
         for (suffix, decls) in [("", &st.main), ("::after", &st.after)] {
             if !decls.is_empty() {
                 let body: Vec<String> = decls
