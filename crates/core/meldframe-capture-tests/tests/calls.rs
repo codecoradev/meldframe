@@ -23,7 +23,7 @@ async fn an_agents_allowed_and_refused_calls_are_logged_with_the_decision_and_no
     )
     .await;
     assert_ne!(ok.is_error, Some(true), "{ok:?}");
-    // Asked: removing a frame with content needs the owner's approval (E2.4).
+    // Asked: a delete of a frame with content, sent alone, is answered approval_required; it waits for the owner (no owner can answer yet) and writes nothing.
     let refused = call(
         &a,
         "apply_commands",
