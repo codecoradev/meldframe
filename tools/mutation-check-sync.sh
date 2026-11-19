@@ -39,7 +39,7 @@ ideal-persist	crates/core/meldframe-sync/src/replica/rebuild.rs	self\.ideal = So
 ideal-reset	crates/core/meldframe-sync/src/replica/rebuild.rs	if dropped > 0 || self\.pending\.is_empty() {	if self.pending.is_empty() {	a refused or dropped op leaves ideal and the correction with what its step would have added
 refused-resend	crates/core/meldframe-sync/src/replica.rs	(p\.is_correction() && !p\.resent)\.then(	(false \&\& p.is_correction() \&\& !p.resent).then(	a refused correction is not sent once more, so the stale value stays in the confirmed state
 resent-flag	crates/core/meldframe-sync/src/replica/rebuild.rs	last\.resent = resent;	let _ = resent;	a correction that was sent once more is sent again after its refusal, without end
-lost-base	crates/core/meldframe-sync/src/replica/rebuild.rs	\.filter_map(|c| left_in_base(&self\.base, self\.view\.nodes(), &pend, c))	.filter_map(|_| None::<Command>)	a refused correction whose dependent ops fell is not sent once more
+lost-base	crates/core/meldframe-sync/src/replica/rebuild.rs	\.filter_map(|c| left_in_base(&self\.base\.nodes, self\.view\.nodes(), &pend, c))	.filter_map(|_| None::<Command>)	a refused correction whose dependent ops fell is not sent once more
 lost-cascade	crates/core/meldframe-sync/src/replica/rebuild.rs	if chain && p\.is_correction() && !p\.resent {	if false \&\& chain \&\& p.is_correction() \&\& !p.resent {	a correction that falls with a refused correction is not sent once more
 pending-written	crates/core/meldframe-sync/src/correction.rs	!written\.contains(k) && 	true \&\&	a resend overwrites a pending edit of the field that holds the same value as the stale one
 cap-check	crates/core/meldframe-sync/src/replica.rs	self\.check_room()?;	let _ = self.check_room();	a local op, undo or redo is accepted although the queue of pending ops is full
@@ -49,7 +49,7 @@ resync-applied	crates/core/meldframe-sync/src/replica/resync.rs	if done\.contain
 resync-deps	crates/core/meldframe-sync/src/replica/resync.rs	let live = !p\.out\.deps\.iter()\.any(|d| dead\.contains(d))	let live = true	after a resync an op whose dependency was dropped is kept
 resync-outbox	crates/core/meldframe-sync/src/replica/resync.rs	self\.outbox = self\.pending\.iter()\.map(|p| p\.out\.clone())\.collect();	self.outbox.clear();	a resync does not queue the pending ops to be sent again
 app-key	crates/app/meldframe-app/src/app.rs	\.on_event_keyed(seq, actor, key, command)	.on_event_keyed(seq, actor, None, command)	the app ignores the key an event frame carries and compares actor and command
-app-reload-applied	crates/app/meldframe-app/src/link.rs	self\.replica\.resync(nodes, seq, applied)	self.replica.resync(nodes, seq, \&[])	a reload replays ops the snapshot already holds
+app-reload-applied	crates/app/meldframe-app/src/link.rs	self\.replica\.resync_doc(doc, seq, applied)	self.replica.resync_doc(doc, seq, \&[])	a reload replays ops the snapshot already holds
 app-reload-subscribe	crates/app/meldframe-app/src/link.rs	self\.start(now_ms, fx);	let _ = now_ms;	a reload does not go to connecting and subscribe from the snapshot
 app-reload-halted	crates/app/meldframe-app/src/app.rs	!ui \&\& !reload {	!ui {	a halted app ignores a reload like any other action
 app-room	crates/app/meldframe-app/src/document.rs	if self\.replica\.pending_len() + cmds\.len() > max {	if false {	a list action that does not fit the queue is applied in part
