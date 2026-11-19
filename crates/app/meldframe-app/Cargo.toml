@@ -13,6 +13,7 @@ kind = "app"
 meldframe-variant = { path = "../../core/meldframe-variant" }
 meldframe-check = { path = "../../core/meldframe-check" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
+meldframe-render = { path = "../../core/meldframe-render" }
 meldframe-sync = { path = "../../core/meldframe-sync" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -18,6 +18,13 @@ assert.ok(fx.some((e) => e.type === 'sendOps'), 'creating a node sends an op');
 
 const nodes = JSON.parse(app.nodesJson());
 assert.equal(nodes.length, 1);
+// The scene: the painted boxes of the same document, from the Rust render step (E3.1).
+const scene = JSON.parse(app.sceneJson());
+assert.equal(scene.length, 1);
+assert.equal(scene[0].id, nodes[0].id);
+assert.equal(scene[0].paint, 'rect');
+assert.equal(scene[0].parent, null);
+assert.deepEqual([scene[0].x, scene[0].y], [10, 20]);
 const state = JSON.parse(app.stateJson());
 assert.equal(state.selection.length, 1);
 assert.equal(state.history.canUndo, true);
