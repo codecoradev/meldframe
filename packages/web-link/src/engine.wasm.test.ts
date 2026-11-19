@@ -125,3 +125,33 @@ describe.skipIf(!built)('Engine re-reads only what changed', () => {
     expect(e.stats.nodeReads).toBe(reads.nodeReads);
   });
 });
+
+describe.skipIf(!built)('The Variables panel and the mode over the real app layer (WASM)', () => {
+  const nodes = [{ id: 'card', type: 'rect', pos: 'a0', fill: { var: 'bg' } }] as unknown as import('@meldframe/protocol').Node[];
+  const variables = {
+    collections: [{ id: 't', name: 'appearance', modes: [{ id: 'light', name: 'light' }, { id: 'dark', name: 'dark' }] }],
+    variables: [{ id: 'bg', collection: 't', name: 'color/bg', type: 'color', values: { light: '#ffffff', dark: '#000000' } }],
+  } as import('@meldframe/protocol').Variables;
+  const make2 = () => Engine.create({ actor: 'usr_me', nodes, seq: 0, session: 1, variables });
+  const fill = (e: EngineType) => e.snapshot().scene.nodes.find((n) => n.id === 'card')?.fill;
+
+  it('switching the mode repaints the scene and leaves the nodes as they were', () => {
+    const e = make2();
+    const first = fill(e);
+    const nodesBefore = e.snapshot().nodes;
+    e.dispatch({ type: 'setMode', collection: 't', mode: 'dark' });
+    expect(fill(e)).not.toEqual(first);
+    expect(e.snapshot().nodes).toBe(nodesBefore);
+    e.dispatch({ type: 'setMode', collection: 't', mode: null });
+    expect(fill(e)).toEqual(first);
+  });
+
+  it('lists the variables once the panel is open and follows the search', () => {
+    const e = make2();
+    expect(e.snapshot().state.variables.collections).toEqual([]);
+    e.dispatch({ type: 'setPanel', panel: 'variables', open: true });
+    expect(e.snapshot().state.variables.collections[0]?.variables[0]?.id).toBe('bg');
+    e.dispatch({ type: 'setVariablesQuery', query: 'zzz' });
+    expect(e.snapshot().state.variables.matched).toBe(0);
+  });
+});

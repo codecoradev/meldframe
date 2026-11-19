@@ -153,3 +153,61 @@ fn the_scene_paints_variables_and_a_mode_switch_repaints_without_touching_the_no
         "load: E_INCOMPLETE_VALUES"
     );
 }
+
+#[test]
+fn the_variables_panel_is_state_and_its_actions_are_json() {
+    let nodes = json!([{"id": "card", "type": "rect", "pos": "a0"}]).to_string();
+    let vars = json!({
+        "collections": [{"id": "t", "name": "appearance", "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}],
+        "variables": [{"id": "bg", "collection": "t", "name": "color/bg", "type": "color",
+            "values": {"light": "#ffffff", "dark": "#000000"}}]
+    })
+    .to_string();
+    let mut b = Bridge::new("usr_me", "web", 7, &nodes, 0, Some(&vars)).expect("the file loads");
+    let state = |b: &Bridge| -> Value { serde_json::from_str(&b.state_json()).unwrap() };
+    let fill = |b: &Bridge| -> Value {
+        let scene: Vec<Value> = serde_json::from_str(&b.scene_json()).unwrap();
+        scene[0]["fill"].clone()
+    };
+    // Closed: nothing is listed.
+    assert_eq!(state(&b)["panels"]["variables"], false);
+    assert_eq!(state(&b)["variables"]["collections"], json!([]));
+    run(
+        &mut b,
+        json!({"type": "setPanel", "panel": "variables", "open": true}),
+    );
+    run(&mut b, json!({"type": "select", "ids": ["card"]}));
+    let row = state(&b)["variables"]["collections"][0]["variables"][0].clone();
+    assert_eq!(row["id"], "bg");
+    assert_eq!(row["type"], "color");
+    assert_eq!(row["binds"], json!([{"field": "fill", "bound": false}]));
+    assert_eq!(
+        row["values"][0],
+        json!({"mode": "light", "text": "#ffffff", "resolved": "#ffffff"})
+    );
+    // Bind, switch the mode, edit a value: the canvas follows each.
+    run(
+        &mut b,
+        json!({"type": "bindProperty", "id": "card", "field": "fill", "variable": "bg"}),
+    );
+    assert_eq!(fill(&b), json!(0xffffff));
+    run(
+        &mut b,
+        json!({"type": "setMode", "collection": "t", "mode": "dark"}),
+    );
+    assert_eq!(fill(&b), json!(0));
+    assert_eq!(state(&b)["variables"]["collections"][0]["active"], "dark");
+    run(
+        &mut b,
+        json!({"type": "setVariableValue", "variable": "bg", "mode": "dark",
+            "value": {"type": "literal", "text": "#102030"}}),
+    );
+    assert_eq!(fill(&b), json!(0x102030));
+    run(
+        &mut b,
+        json!({"type": "setVariablesQuery", "query": "nothing"}),
+    );
+    assert_eq!(state(&b)["variables"]["matched"], 0);
+    let events: Vec<Value> = serde_json::from_str(&b.take_events_json()).unwrap();
+    assert!(events.contains(&json!({"type": "variablesQueryChanged", "query": "nothing"})));
+}
