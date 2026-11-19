@@ -1,5 +1,5 @@
 use meldframe_protocol::{Bind, Value, Variable, Variables};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// The longest chain of aliases `resolve` follows (and the longest a command may build).
 pub const MAX_ALIAS_DEPTH: usize = 16;
@@ -41,21 +41,48 @@ impl ModeChoice {
     }
 }
 
+/// Resolves variables for one choice of modes against one file. It indexes the variables once, so a caller that
+/// resolves many bindings (the render step does, for every node) does not scan the list for each one.
+#[derive(Debug)]
+pub struct Resolver<'a> {
+    vars: &'a Variables,
+    choice: &'a ModeChoice,
+    index: HashMap<&'a str, &'a Variable>,
+}
+
+impl<'a> Resolver<'a> {
+    pub fn new(vars: &'a Variables, choice: &'a ModeChoice) -> Self {
+        let mut index = HashMap::with_capacity(vars.variables.len());
+        for v in &vars.variables {
+            index.entry(v.id.as_str()).or_insert(v);
+        }
+        Resolver {
+            vars,
+            choice,
+            index,
+        }
+    }
+
+    /// The value of variable `id` in the chosen modes; see [`resolve`].
+    pub fn value(&self, id: &str) -> Option<Value> {
+        let mut cur = *self.index.get(id)?;
+        for _ in 0..=MAX_ALIAS_DEPTH {
+            match value_in(self.vars, cur, self.choice)? {
+                Bind::Lit(v) => return (v.var_type() == cur.kind).then(|| v.clone()),
+                Bind::Var(r) => cur = *self.index.get(r.var.as_str())?,
+            }
+        }
+        None
+    }
+}
+
 /// The value of variable `id` for the modes in `choice`. An alias is followed with the choice for the
 /// collection of the variable it points at, so one switch of `appearance` reaches the variables that `appearance` aliases
 /// in other collections. `None` when the variable is missing, the chain has a cycle or is longer than
 /// [`MAX_ALIAS_DEPTH`], or a value does not have the variable's type; it never panics.
 pub fn resolve(vars: &Variables, id: &str, choice: &ModeChoice) -> Option<Value> {
-    let mut cur = vars.variable(id)?;
-    for _ in 0..=MAX_ALIAS_DEPTH {
-        match value_in(vars, cur, choice)? {
-            Bind::Lit(v) => return (v.var_type() == cur.kind).then(|| v.clone()),
-            Bind::Var(r) => cur = vars.variable(&r.var)?,
-        }
-    }
-    None
+    Resolver::new(vars, choice).value(id)
 }
-
 /// The value of `v` in the mode `choice` picks for its collection, else in the default mode.
 fn value_in<'a>(
     vars: &'a Variables,

@@ -70,11 +70,15 @@ export class Engine {
     // Every change of state or document raises an event; a dispatch without events (a quiet tick, a
     // heartbeat) leaves the snapshot as it is, so the views have nothing to redo.
     if (events.length) {
-      // The scene is painted from the nodes and the mode, so a mode switch (view state) redraws it too.
-      const changed = events.some((e) => e.type === 'documentChanged' || e.type === 'modeChanged');
+      // The scene is painted from the nodes and the mode: a change of the document reads both, and a mode switch
+      // (view state, the nodes are the same) reads the scene only.
+      const documentChanged = events.some((e) => e.type === 'documentChanged');
+      const modeChanged = events.some((e) => e.type === 'modeChanged');
       this.snap = {
         state: this.readState(),
-        ...(changed ? this.readDocument() : { nodes: this.snap.nodes, scene: this.snap.scene }),
+        ...(documentChanged
+          ? this.readDocument()
+          : { nodes: this.snap.nodes, scene: modeChanged ? this.readScene() : this.snap.scene }),
         events,
       };
       for (const fn of this.listeners) fn(this.snap);
@@ -91,8 +95,12 @@ export class Engine {
   /** The nodes and the scene of the same document, each read once. */
   private readDocument(): { nodes: Node[]; scene: Scene } {
     this.stats.nodeReads++;
+    return { nodes: JSON.parse(this.app.nodesJson()), scene: this.readScene() };
+  }
+
+  private readScene(): Scene {
     this.stats.sceneReads++;
     const boxes: PaintedBox[] = JSON.parse(this.app.sceneJson());
-    return { nodes: JSON.parse(this.app.nodesJson()), scene: sceneFromBoxes(boxes) };
+    return sceneFromBoxes(boxes);
   }
 }

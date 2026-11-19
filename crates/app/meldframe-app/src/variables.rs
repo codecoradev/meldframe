@@ -7,11 +7,10 @@ use crate::effect::Effect;
 use crate::event::Event;
 use crate::state::Properties;
 use meldframe_check::{ApplyError, Limits, check_command_with};
-use meldframe_protocol::{Bind, Command, Node, Value};
+use meldframe_protocol::{Command, Node};
+use meldframe_render::Fields;
 use meldframe_sync::SubmitError;
-use meldframe_variables::{
-    ModeChoice, VarError, apply, is_variable_command, node_bindings, resolve,
-};
+use meldframe_variables::{ModeChoice, VarError, apply, is_variable_command, node_bindings};
 
 impl App {
     /// The modes the canvas is painted in, from `AppState::modes`.
@@ -91,7 +90,14 @@ impl App {
 
     /// Apply variable commands as one undo step, after every one of them was checked on what the ones before it
     /// make of the variables.
+    ///
+    /// Every command is checked before any is applied, and the replica applies them under the same rules, so a
+    /// failure after the check is not expected; if one came (the checks and the replica disagree), the commands
+    /// before it stay applied as the one step and the error is returned.
     pub(crate) fn edit_variables(&mut self, commands: &[Command]) -> Result<(), SubmitError> {
+        if commands.is_empty() {
+            return Ok(());
+        }
         let max = self.replica.max_pending();
         if self.replica.pending_len() + commands.len() > max {
             return Err(SubmitError::OutboxFull { max });
@@ -115,27 +121,15 @@ impl App {
         done
     }
 
-    /// The editable values of a node as they are painted: a bound field shows what its variable resolves to.
+    /// The editable values of a node as they are painted: a bound field shows what the render step resolves it to
+    /// (`Fields` is the one place that does it, so the panel and the canvas agree, unresolved defaults included).
     pub(crate) fn properties(&self, n: &Node) -> Properties {
         let choice = self.choice();
+        let fields = Fields::new(self.vars(), &choice);
         let bound: Vec<String> = node_bindings(n)
             .iter()
             .map(|b| b.field.to_string())
             .collect();
-        let number = |b: &Bind<f64>| match b {
-            Bind::Lit(v) => *v,
-            Bind::Var(r) => match resolve(self.vars(), &r.var, &choice) {
-                Some(Value::Number(v)) => v,
-                _ => 0.0,
-            },
-        };
-        let fill = match &n.fill {
-            Bind::Lit(s) => s.clone(),
-            Bind::Var(r) => match resolve(self.vars(), &r.var, &choice) {
-                Some(Value::Color(s)) => s,
-                _ => String::new(),
-            },
-        };
         Properties {
             id: n.id.clone(),
             name: n.name.clone(),
@@ -144,8 +138,8 @@ impl App {
             y: n.y,
             w: n.w,
             h: n.h,
-            fill,
-            radius: number(&n.radius),
+            fill: fields.fill_text(&n.fill),
+            radius: fields.radius(&n.radius),
             text: n.text.clone(),
             font_size: n.font_size,
             bound,

@@ -189,9 +189,9 @@ pub enum Action {
         #[ts(type = "number")]
         now_ms: u64,
         nodes: Vec<Node>,
-        /// The collections and variables of the snapshot; left out for a file without any.
+        /// The collections and variables of the snapshot (empty for a file without any; the JSON may leave the field out).
         #[serde(default)]
-        #[ts(as = "Option<Variables>", optional)]
+        #[ts(as = "Variables")]
         variables: Variables,
         #[ts(type = "number")]
         seq: u64,

@@ -12,4 +12,6 @@ pub mod coverage;
 mod resolve;
 
 pub use meldframe_variables::ModeChoice;
-pub use resolve::{Paint, PaintedBox, PaintedGradient, PaintedImage, resolve, resolve_with};
+pub use resolve::{
+    Fields, Paint, PaintedBox, PaintedGradient, PaintedImage, resolve, resolve_with,
+};

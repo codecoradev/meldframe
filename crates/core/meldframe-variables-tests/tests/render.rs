@@ -4,6 +4,7 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
+use meldframe_protocol::VarType;
 use meldframe_protocol::{Doc, Node};
 use meldframe_render::coverage::NODE_FIELDS;
 use meldframe_render::{ModeChoice, PaintedBox, resolve, resolve_with};
@@ -125,6 +126,18 @@ fn the_coverage_table_names_exactly_the_fields_that_can_be_bound_and_each_paints
     in_model.sort_unstable();
     in_table.sort_unstable();
     assert_eq!(in_table, in_model);
+    // ... and they agree on the type of the variable each field takes.
+    let mut types_in_model: Vec<(&str, VarType)> = node_bindings(&all)
+        .iter()
+        .map(|b| (b.field, b.expects))
+        .collect();
+    let mut types_in_table: Vec<(&str, VarType)> = NODE_FIELDS
+        .iter()
+        .filter_map(|f| f.bindable.map(|t| (f.field, t)))
+        .collect();
+    types_in_model.sort_unstable_by_key(|t| t.0);
+    types_in_table.sort_unstable_by_key(|t| t.0);
+    assert_eq!(types_in_table, types_in_model);
     // A bound field paints exactly what the literal of its resolved value paints, in every mode.
     for (mode, literal) in [
         (
@@ -150,4 +163,81 @@ fn the_coverage_table_names_exactly_the_fields_that_can_be_bound_and_each_paints
             "{mode}"
         );
     }
+}
+
+fn set(d: &mut Doc, c: Value) {
+    meldframe_core::apply_doc(d, &serde_json::from_value(c).unwrap(), &Default::default()).unwrap();
+}
+
+#[test]
+fn a_cycle_in_a_bad_file_paints_the_default_and_does_not_hang() {
+    // The load check refuses a cycle; the render step must still survive one.
+    let mut d = bound();
+    let brand = d
+        .vars
+        .variables
+        .iter_mut()
+        .find(|v| v.id == "brand")
+        .unwrap();
+    brand
+        .values
+        .insert("light".into(), meldframe_protocol::Bind::var("bg"));
+    let bg = d.vars.variables.iter_mut().find(|v| v.id == "bg").unwrap();
+    bg.values
+        .insert("light".into(), meldframe_protocol::Bind::var("brand"));
+    let boxes = painted(&d, &ModeChoice::default());
+    assert_eq!(
+        (boxes[0].fill, boxes[1].fill),
+        (Some(0x3f3f46), Some(0x3f3f46))
+    );
+}
+
+#[test]
+fn a_variable_of_the_wrong_type_paints_the_default_of_the_field() {
+    // A colour variable on a number field and a number variable on the fill (a bad file).
+    let d = doc(json!([
+        {"id": "a", "type": "rect", "fill": {"var": "round"}, "radius": {"var": "bg"}, "opacity": {"var": "bg"}}
+    ]));
+    let b = &painted(&d, &ModeChoice::default())[0];
+    assert_eq!((b.fill, b.radius, b.opacity), (Some(0x3f3f46), 0.0, 1.0));
+}
+
+#[test]
+fn a_chosen_mode_that_the_collection_does_not_have_shows_the_default_mode() {
+    let d = bound();
+    assert_eq!(
+        painted(&d, &ModeChoice::of([("appearance", "no-such-mode")])),
+        painted(&d, &ModeChoice::default())
+    );
+}
+
+#[test]
+fn two_collections_are_picked_independently_through_an_alias() {
+    // `accent` (appearance: light, dark) aliases `swatch` of `palette` (warm, cool); each collection takes its
+    // own pick, and a collection that is not picked shows its default.
+    let mut d = doc(json!([{"id": "a", "type": "rect", "fill": {"var": "accent"}}]));
+    for c in [
+        json!({"type": "addCollection", "collection": {"id": "palette", "name": "palette",
+            "modes": [{"id": "warm", "name": "warm"}, {"id": "cool", "name": "cool"}]}}),
+        json!({"type": "addVariable", "variable": {"id": "swatch", "collection": "palette", "name": "color/swatch", "type": "color",
+            "values": {"warm": "#ff8800", "cool": "#0088ff"}}}),
+        json!({"type": "addVariable", "variable": {"id": "accent", "collection": "appearance", "name": "color/accent", "type": "color",
+            "values": {"light": {"var": "swatch"}, "dark": "#222222"}}}),
+    ] {
+        set(&mut d, c);
+    }
+    let fill =
+        |choice: &[(&str, &str)]| painted(&d, &ModeChoice::of(choice.iter().copied()))[0].fill;
+    assert_eq!(fill(&[]), Some(0xff8800));
+    assert_eq!(fill(&[("palette", "cool")]), Some(0x0088ff));
+    assert_eq!(
+        fill(&[("appearance", "light"), ("palette", "cool")]),
+        Some(0x0088ff)
+    );
+    assert_eq!(
+        fill(&[("appearance", "dark"), ("palette", "cool")]),
+        Some(0x222222),
+        "dark does not alias the palette"
+    );
+    assert_eq!(fill(&[("appearance", "dark")]), Some(0x222222));
 }

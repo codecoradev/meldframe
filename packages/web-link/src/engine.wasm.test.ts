@@ -114,9 +114,14 @@ describe.skipIf(!built)('Engine re-reads only what changed', () => {
     const e = Engine.create({ actor: 'usr_me', nodes, seq: 0, session: 1, variables });
     expect(e.snapshot().scene.nodes[0]!.fill).toBe(0xffffff);
     const before = JSON.stringify(e.snapshot().nodes);
+    const reads = { ...e.stats };
     const fx = e.dispatch({ type: 'setMode', collection: 't', mode: 'dark' });
     expect(fx).toContainEqual({ type: 'render', nodes: [] });
     expect(e.snapshot().state.modes).toEqual({ t: 'dark' });
     expect(JSON.stringify(e.snapshot().nodes)).toBe(before);
+    // The scene is read again and repaints with the dark value; the nodes (the document) are not read again.
+    expect(e.snapshot().scene.nodes[0]!.fill).toBe(0x000000);
+    expect(e.stats.sceneReads).toBe(reads.sceneReads + 1);
+    expect(e.stats.nodeReads).toBe(reads.nodeReads);
   });
 });

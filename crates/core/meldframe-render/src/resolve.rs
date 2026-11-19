@@ -1,5 +1,8 @@
-use meldframe_protocol::{Bind, GradientKind, ImageFit, Node, NodeKind, Value, Variables};
-use meldframe_variables::{ModeChoice, resolve as resolve_variable};
+use meldframe_protocol::{
+    Bind, DEFAULT_FILL, DEFAULT_OPACITY, DEFAULT_RADIUS, GradientKind, ImageFit, Node, NodeKind,
+    Value, Variables,
+};
+use meldframe_variables::{ModeChoice, Resolver};
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
@@ -69,7 +72,7 @@ pub fn resolve(nodes: &[Node]) -> Vec<PaintedBox> {
 /// paints the default of its field, never an error, so a bad file stays visible. The choice is view state:
 /// it changes what is painted and never the nodes.
 pub fn resolve_with(nodes: &[Node], vars: &Variables, choice: &ModeChoice) -> Vec<PaintedBox> {
-    let cx = Cx { vars, choice };
+    let cx = Fields::new(vars, choice);
     let ids: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
     let mut kids: HashMap<Option<&str>, Vec<&Node>> = HashMap::new();
     for n in nodes {
@@ -91,16 +94,46 @@ pub fn resolve_with(nodes: &[Node], vars: &Variables, choice: &ModeChoice) -> Ve
     out
 }
 
-/// The variables and modes a bound field is resolved with.
-struct Cx<'a> {
-    vars: &'a Variables,
-    choice: &'a ModeChoice,
+/// The one place a bound field becomes the value that is painted: the render step and the properties panel both
+/// read through it, so the panel shows what the canvas paints. The variables are indexed once.
+#[derive(Debug)]
+pub struct Fields<'a> {
+    resolver: Resolver<'a>,
 }
 
-impl Cx<'_> {
+impl<'a> Fields<'a> {
+    pub fn new(vars: &'a Variables, choice: &'a ModeChoice) -> Self {
+        Fields {
+            resolver: Resolver::new(vars, choice),
+        }
+    }
+
     /// The value of a variable in the chosen modes.
     fn value(&self, var: &str) -> Option<Value> {
-        resolve_variable(self.vars, var, self.choice)
+        self.resolver.value(var)
+    }
+
+    /// The corner radius that is painted: the literal or the resolved number, held to zero or more; a binding
+    /// that does not resolve is the default radius.
+    pub fn radius(&self, b: &Bind<f64>) -> f64 {
+        self.number(b, 0.0, f64::MAX).unwrap_or(DEFAULT_RADIUS)
+    }
+
+    /// The opacity that is painted, between 0 and 1; a binding that does not resolve is the default.
+    pub fn opacity(&self, b: &Bind<f64>) -> f64 {
+        self.number(b, 0.0, 1.0).unwrap_or(DEFAULT_OPACITY)
+    }
+
+    /// The fill as the properties panel shows it: the literal as it is stored, or the colour the variable
+    /// resolves to; a binding that does not resolve shows the default fill, as the canvas paints it.
+    pub fn fill_text(&self, b: &Bind<String>) -> String {
+        match b {
+            Bind::Lit(css) => css.clone(),
+            Bind::Var(r) => match self.value(&r.var) {
+                Some(Value::Color(css)) => css,
+                _ => DEFAULT_FILL.to_string(),
+            },
+        }
     }
 
     /// A number field: the literal, or the variable's number held to `lo..=hi`; `None` when a binding does not
@@ -116,7 +149,7 @@ impl Cx<'_> {
     }
 
     /// The fill: `0xRRGGBB`, or `None` for no fill. An unresolved binding paints the default fill.
-    fn fill(&self, b: &Bind<String>) -> Option<u32> {
+    pub fn fill(&self, b: &Bind<String>) -> Option<u32> {
         match b {
             Bind::Lit(css) => parse_fill(css),
             Bind::Var(r) => match self.value(&r.var) {
@@ -127,15 +160,12 @@ impl Cx<'_> {
     }
 }
 
-/// The fill of a node that has none of its own (`Node`'s default).
-const DEFAULT_FILL: &str = "#3f3f46";
-
 fn visit<'a>(
     parent: Option<&'a str>,
     kids: &HashMap<Option<&'a str>, Vec<&'a Node>>,
     seen: &mut HashSet<&'a str>,
     out: &mut Vec<PaintedBox>,
-    cx: &Cx,
+    cx: &Fields,
 ) {
     for n in kids.get(&parent).into_iter().flatten() {
         if seen.insert(n.id.as_str()) {
@@ -182,7 +212,7 @@ fn is_hex_colour(css: &str) -> bool {
     })
 }
 
-fn paint(n: &Node, parent: Option<&str>, cx: &Cx) -> PaintedBox {
+fn paint(n: &Node, parent: Option<&str>, cx: &Fields) -> PaintedBox {
     let is_text = n.kind == NodeKind::Text;
     let gradient = n
         .gradient
@@ -197,8 +227,8 @@ fn paint(n: &Node, parent: Option<&str>, cx: &Cx) -> PaintedBox {
         asset_id: i.asset_id.clone(),
         fit: i.fit,
     });
-    let radius = cx.number(&n.radius, 0.0, f64::MAX).unwrap_or(0.0);
-    let opacity = cx.number(&n.opacity, 0.0, 1.0).unwrap_or(1.0);
+    let radius = cx.radius(&n.radius);
+    let opacity = cx.opacity(&n.opacity);
     let (paint, radius) = match n.kind {
         NodeKind::Frame => (Paint::Frame, radius),
         NodeKind::Text => (Paint::Text, 0.0),

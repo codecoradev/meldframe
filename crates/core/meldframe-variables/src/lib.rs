@@ -21,4 +21,4 @@ pub use check::{
 pub use error::{VAR_ERROR_CODES, VarError};
 pub use footprint::{Pairs, footprint};
 pub use limits::VarLimits;
-pub use resolve::{MAX_ALIAS_DEPTH, ModeChoice, resolve};
+pub use resolve::{MAX_ALIAS_DEPTH, ModeChoice, Resolver, resolve};
