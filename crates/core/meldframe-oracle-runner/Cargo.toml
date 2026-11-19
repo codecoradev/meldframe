@@ -1,0 +1,24 @@
+[package]
+name = "meldframe-oracle-runner"
+description = "The runner of the fidelity oracle (E4.2): reads fixture files as JSON, lays them out with the layout core and exports each top-level frame with the export feature, and prints the core rects and the export (CSS form and Tailwind form) as JSON for the Node harness in tools/fidelity-oracle. Text is measured from a table the harness records in a browser. Not part of any product build."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[[bin]]
+name = "oracle-runner"
+path = "src/main.rs"
+
+[dependencies]
+export = { path = "../../features/export/export" }
+meldframe-layout = { path = "../meldframe-layout" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lints]
+workspace = true
