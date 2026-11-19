@@ -3,4 +3,4 @@
 /**
  * Why a checkpoint exists.
  */
-export type CheckpointKind = "manual" | "agentRun" | "beforeRevert" | "beforeRestore";
+export type CheckpointKind = "manual" | "otherActorRun" | "beforeRevert" | "beforeRestore";

@@ -65,16 +65,17 @@ pub enum Event {
     OpsDropped {
         count: usize,
     },
-    /// A batch was reverted: `commands` ops were made as the person's change, and `skipped` lists what was left
-    /// as it is.
+    /// A revert of a batch was requested: `requested` ops were applied to the person's view and queued for the
+    /// server, one by one, so the server may still refuse some (each refusal is an `OpRejected`; the ones that
+    /// depend on it fall with it). `skipped` lists what the revert left as it is.
     Reverted {
-        commands: usize,
+        requested: usize,
         skipped: Vec<RevertSkip>,
     },
-    /// A checkpoint was restored with `commands` new ops.
+    /// A restore of a checkpoint was requested with `requested` new ops, queued like those of `Reverted`.
     Restored {
         id: String,
-        commands: usize,
+        requested: usize,
     },
     /// A checkpoint was added (or the oldest dropped): how many there are now.
     CheckpointsChanged {

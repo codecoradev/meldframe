@@ -33,7 +33,8 @@ pub struct AppState {
     pub checkpoints: Vec<Checkpoint>,
 }
 
-/// A named point in the file's history that can be restored: the file as it was after op `seq`.
+/// A named point in the file's history that can be restored: the file as the server confirmed it after op `seq`.
+/// The person's own pending ops (sent, not yet confirmed) are not in it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -44,7 +45,7 @@ pub struct Checkpoint {
     /// What the person typed (`Manual`); empty for the checkpoints the app takes: the front end words those.
     pub label: String,
     pub kind: CheckpointKind,
-    /// The agent whose run (`AgentRun`) or batch (`BeforeRevert`) it is about.
+    /// The actor whose run (`OtherActorRun`) or batch (`BeforeRevert`) it is about.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub actor: Option<String>,
@@ -57,8 +58,8 @@ pub struct Checkpoint {
 pub enum CheckpointKind {
     /// The person saved it.
     Manual,
-    /// An agent's run started.
-    AgentRun,
+    /// A run of another actor (an agent, or another person) started.
+    OtherActorRun,
     /// Taken before a revert of a batch.
     BeforeRevert,
     /// Taken before a restore.

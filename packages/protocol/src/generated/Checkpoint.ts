@@ -2,7 +2,8 @@
 import type { CheckpointKind } from "./CheckpointKind";
 
 /**
- * A named point in the file's history that can be restored: the file as it was after op `seq`.
+ * A named point in the file's history that can be restored: the file as the server confirmed it after op `seq`.
+ * The person's own pending ops (sent, not yet confirmed) are not in it.
  */
 export type Checkpoint = { id: string, seq: number, 
 /**
@@ -10,6 +11,6 @@ export type Checkpoint = { id: string, seq: number,
  */
 label: string, kind: CheckpointKind, 
 /**
- * The agent whose run (`AgentRun`) or batch (`BeforeRevert`) it is about.
+ * The actor whose run (`OtherActorRun`) or batch (`BeforeRevert`) it is about.
  */
 actor?: string, };
