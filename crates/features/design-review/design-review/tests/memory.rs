@@ -41,3 +41,23 @@ fn every_code_is_stable_lower_case() {
         );
     }
 }
+
+const DOC: &str = include_str!("../../../../../docs/error-codes.md");
+
+#[test]
+fn error_codes_doc_lists_exactly_the_codes() {
+    let section = DOC
+        .split("\n## Design review codes\n")
+        .nth(1)
+        .expect("section");
+    let section = section.split("\n## ").next().unwrap();
+    let mut doc: Vec<&str> = section
+        .lines()
+        .filter(|l| l.starts_with("| `"))
+        .map(|l| l[3..].split('`').next().unwrap())
+        .collect();
+    let mut code: Vec<&str> = design_review::CODES.to_vec();
+    doc.sort();
+    code.sort();
+    assert_eq!(doc, code);
+}

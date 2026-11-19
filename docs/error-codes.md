@@ -207,6 +207,20 @@ A revert of a batch and a restore of a checkpoint (`meldframe-revert`, E5.2 and 
 
 A checkpoint is of the file as the server confirmed it: the person's own ops that are sent and not yet confirmed are not in it. A restore works out its commands against the person's view, pending ops included.
 
+## Design review codes
+
+The `design_review` tool (feature module `design-review`, E5.4; Change tier, with the list action a Read) fails with these codes, as `{"ok": false, "error": {"code", "message", "retryable"}}`. It also answers `forbidden` when the policy of the tier does not allow the call and `bad_request` for an argument that does not fit its schema (an unknown one, a workspace among them: the workspace comes from the token only), with the meaning they have above. A refused call changes nothing, so an agent can correct it and send it again, except `add`, which is not idempotent: after a timeout, list before adding again.
+
+A test in `crates/features/design-review/design-review/tests/memory.rs` reads this table and fails if a row has no code or a code has no row.
+
+| Code | Meaning and typical cause | What an agent should do next |
+| --- | --- | --- |
+| `invalid` | An argument is wrong: an `add` with no items, more than 20, or a text that is empty, over 500 characters or holds a control character other than a line break; a `link` without `item` or `batch`, or with a batch key that is empty, over 100 characters or holds a control character; a `mark` with a status other than `open` or `addressed`; an argument the action does not take; a bad file name. | Fix the call as the message says. |
+| `review_full` | The file already holds 200 items (an `add` that would pass 200 writes none of its items), or the item already links 20 batches. Not retryable. | Mark the items that are done and write fewer, broader items; link the batch to another item, or stop linking more. |
+| `review_item_not_found` | The file has no item with that number in your workspace (an item of another file or workspace is not found either). | List the file and use a number it shows. |
+| `batch_not_found` | None of your `apply_commands` calls in this file used that idempotency key (a batch written by another actor is not yours to link). | Pass the `idempotencyKey` of your own call, and check it with `batch_status`. |
+| `unavailable` | The store failed or the server is busy. Retryable. | Try again later; list first if the call was an `add`. |
+
 ## Capture codes
 
 The `capture` tool (feature module `capture`, Read tier) fails with these codes. A client message in `render_failed` is cut to 200 bytes and stripped of control characters. The strings are shared with the

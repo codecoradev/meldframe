@@ -262,6 +262,65 @@
       },
       "name": "upload_asset",
       "tier": "change"
+    },
+    {
+      "description": "Keep a numbered critique list for a file, so that what is wrong with a design is written down once and each item can be traced to the change that fixed it. Pass file and action. add: pass items, 1 to 20 plain texts of at most 500 characters each (what is wrong and where, naming the node); they are numbered after the last item of the file (the first item is 1, a number is never reused) and the result lists them. list: every item with its number, text, the actor that added it, its status (open or addressed) and the batches linked to it, and how many are still open. link: pass item (the number) and batch, the idempotencyKey of the apply_commands call that addressed it; the call must be one of yours in this file, or the call is refused with batch_not_found; an item can link up to 20 batches and linking the same batch again changes nothing. mark: pass item and status (addressed or open); mark an item addressed after you linked the batch that fixes it, and open again if it came back. A file holds at most 200 items (review_full otherwise). The list belongs to your workspace and the file: it is not part of the design, so add, link and mark do not change the file and revert_batch does not touch them. add is not idempotent: after a timeout, list before you add again.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "add: add items; list: read them; link: tie an item to a batch; mark: set an item's status.",
+            "enum": [
+              "add",
+              "list",
+              "link",
+              "mark"
+            ]
+          },
+          "batch": {
+            "description": "For link: the idempotencyKey of your apply_commands call that addressed the item.",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "file": {
+            "description": "The name of the file whose list this is: 1 to 128 characters, no slashes or control characters. The list belongs to the workspace of your token.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "item": {
+            "description": "For link and mark: the number of the item, as list shows it.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "items": {
+            "description": "For add: 1 to 20 plain texts of at most 500 characters, one critique each.",
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array"
+          },
+          "status": {
+            "description": "For mark: the new status.",
+            "enum": [
+              "open",
+              "addressed"
+            ]
+          }
+        },
+        "required": [
+          "file",
+          "action"
+        ],
+        "type": "object"
+      },
+      "name": "design_review",
+      "tier": "change"
     }
   ]
 }

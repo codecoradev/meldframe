@@ -34,6 +34,14 @@ impl Backing {
         }
     }
 
+    /// The critique lists of the files (E5.4): in Postgres with the files, else in memory (a restart loses them).
+    pub fn reviews(&self) -> Arc<dyn design_review::ReviewStore> {
+        match self {
+            Backing::Memory(_) => Arc::new(design_review::MemoryReviews::default()),
+            Backing::Postgres(p) => Arc::new(p.clone()),
+        }
+    }
+
     /// The store of one room: a clone of the backing, so rooms of one backing share its durable state.
     pub fn store(&self) -> AnyStore {
         match self {

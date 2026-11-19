@@ -40,6 +40,8 @@ mod feature_on {
                 .filter(|_| cfg!(feature = "capture")),
         );
         expected.extend(["assets"].into_iter().filter(|_| cfg!(feature = "assets")));
+        let review = cfg!(feature = "design-review");
+        expected.extend(["design-review"].into_iter().filter(|_| review));
         assert_eq!(server.registry().module_names(), expected);
         let tool = server.registry().agent_tool("example_ping").unwrap();
         assert_eq!(tool.tier, RiskTier::Read);

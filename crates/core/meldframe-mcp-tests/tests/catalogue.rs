@@ -27,7 +27,7 @@ async fn the_catalogue_equals_what_a_client_lists() {
         .as_array()
         .unwrap()
         .iter()
-        .filter(|t| t["name"] != "capture" && t["name"] != "upload_asset")
+        .filter(|t| !["capture", "upload_asset", "design_review"].contains(&t["name"].as_str().unwrap()))
         .map(|t| json!({"name": t["name"], "description": t["description"], "inputSchema": t["inputSchema"]}))
         .collect();
     assert_eq!(
@@ -52,6 +52,7 @@ fn the_catalogue_equals_the_registry_with_tiers() {
             "capture" => "capture",
             // The upload tool is served by the assets module; its own test crate lists it.
             "upload_asset" => "assets",
+            "design_review" => "design-review",
             _ => "mcp",
         };
         assert_eq!(reg.module, module);
@@ -77,7 +78,7 @@ async fn the_read_only_annotation_follows_the_registry_tier() {
 fn descriptions_are_english_ascii_and_apply_commands_names_the_batch_limit() {
     let file: Value = serde_json::from_str(CATALOGUE).unwrap();
     let tools = file["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 8);
+    assert_eq!(tools.len(), 9);
     for t in tools {
         let d = t["description"].as_str().unwrap();
         assert!(d.is_ascii() && d.len() > 40, "{}", t["name"]);
@@ -93,36 +94,6 @@ fn descriptions_are_english_ascii_and_apply_commands_names_the_batch_limit() {
             .contains("100 commands")
     );
     assert_eq!(file["batchLimit"], 100);
-}
-
-/// Rewrites `docs/mcp-tools.json` from the server: `cargo test -p meldframe-mcp-tests --test catalogue
-/// -- --ignored regenerate`. The other tests then check the file against a client and the registry.
-#[test]
-#[ignore = "writes docs/mcp-tools.json"]
-fn regenerate() {
-    let server = Server::assemble();
-    let tools: Vec<Value> = meldframe_http::mcp::TOOLS
-        .iter()
-        .map(|t| {
-            let tier = server.registry().agent_tool(t.name).unwrap().tier;
-            json!({"name": t.name, "tier": tier.as_str(), "description": t.description,
-                "inputSchema": t.input_schema()})
-        })
-        .collect();
-    let mut tools = tools;
-    let cap = server.registry().agent_tool("capture").unwrap();
-    tools.push(
-        json!({"name": cap.name, "tier": cap.tier.as_str(), "description": cap.description,
-        "inputSchema": meldframe_http_capture::input_schema()}),
-    );
-    let up = server.registry().agent_tool("upload_asset").unwrap();
-    tools.push(
-        json!({"name": up.name, "tier": up.tier.as_str(), "description": up.description,
-        "inputSchema": meldframe_http_assets::upload_input_schema()}),
-    );
-    let doc = json!({"batchLimit": meldframe_http::mcp::MAX_BATCH, "tools": tools});
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../docs/mcp-tools.json");
-    std::fs::write(path, serde_json::to_string_pretty(&doc).unwrap() + "\n").unwrap();
 }
 
 #[test]
