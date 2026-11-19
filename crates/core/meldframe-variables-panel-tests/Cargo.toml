@@ -1,0 +1,25 @@
+[package]
+name = "meldframe-variables-panel-tests"
+description = "The Variables panel at the seam of the app layer: the rows and the search, the edit of a value and the binding of a field, with their refusals. Split from meldframe-variables-tests to keep it under the size ceiling. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-app = { path = "../../app/meldframe-app" }
+meldframe-core = { path = "../meldframe-core" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+serde_json = "1"
+
+# The tests run under WASM through wasm-bindgen-test (`just wasm-test`); each test file
+# imports it as `test` on wasm32 only. Keep the version in step with the `wasm-bindgen-cli` that
+# provides `wasm-bindgen-test-runner` (0.2.130 pairs with 0.3.80).
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
+
+[lints]
+workspace = true

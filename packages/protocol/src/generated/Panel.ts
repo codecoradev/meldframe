@@ -3,4 +3,4 @@
 /**
  * A side panel of the editor.
  */
-export type Panel = "layers" | "properties";
+export type Panel = "layers" | "properties" | "variables";

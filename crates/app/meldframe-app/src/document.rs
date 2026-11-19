@@ -1,9 +1,10 @@
 //! Document actions: what the person meant becomes commands in the replica.
 
 use crate::action::{Action, CreateKind, Property};
-use crate::app::{App, render_set};
+use crate::app::App;
 use crate::effect::Effect;
 use crate::state::Tool;
+use crate::touched::render_set;
 use meldframe_check::{ApplyError, Limits, check_command_with};
 use meldframe_protocol::{Command, Node, NodePatch};
 use meldframe_sync::{Replica, SubmitError};
@@ -196,6 +197,16 @@ impl App {
             Action::CreateCheckpoint { label } => self.create_checkpoint(label),
             Action::RestoreCheckpoint { id } => self.restore_checkpoint(&id),
             Action::EditVariables { commands } => self.edit_variables(&commands),
+            Action::SetVariableValue {
+                variable,
+                mode,
+                value,
+            } => self.set_variable_value(variable, mode, value),
+            Action::BindProperty {
+                id,
+                field,
+                variable,
+            } => self.bind_property(&id, field, variable),
             Action::Undo {} => self.step(true),
             Action::Redo {} => self.step(false),
             // The other actions are not about the document.

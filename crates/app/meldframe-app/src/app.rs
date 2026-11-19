@@ -4,13 +4,14 @@ use crate::action::{Action, Frame};
 use crate::effect::{Effect, OutOp};
 use crate::event::Event;
 use crate::link::Link;
+use crate::panel::PanelCache;
 use crate::retry::Retries;
 use crate::review::Review;
 use crate::state::{AppState, Connection, History, Panel};
+use crate::touched::{render_set, touched};
 use meldframe_protocol::{Command, Doc, Node, Variables};
 use meldframe_render::{PaintedBox, resolve_with};
 use meldframe_sync::{EventOutcome, LoadError, Outgoing, Replica, ReplicaError};
-use meldframe_variables::is_variable_command;
 use std::collections::HashSet;
 
 /// How much of the derived state one dispatch has to bring up to date.
@@ -33,6 +34,7 @@ pub struct App {
     pub(crate) link: Link,
     pub(crate) retries: Retries,
     pub(crate) review: Review,
+    pub(crate) panel: PanelCache,
     pub(crate) level: Level,
     pub(crate) prefix: String,
     pub(crate) next_id: u64,
@@ -75,6 +77,7 @@ impl App {
             link: Link::default(),
             retries: Retries::default(),
             review: Review::new(review_nodes, seq),
+            panel: PanelCache::default(),
             level: Level::Full,
             prefix,
             next_id: 0,
@@ -134,6 +137,7 @@ impl App {
                 | Action::TogglePanel { .. }
                 | Action::ToggleCollapsed { .. }
                 | Action::SetMode { .. }
+                | Action::SetVariablesQuery { .. }
         );
         let reload = matches!(action, Action::Reload { .. });
         if self.state.connection == Connection::Halted && !ui && !reload {
@@ -173,6 +177,7 @@ impl App {
             }
             Action::ToggleCollapsed { id } => self.toggle_collapsed(id),
             Action::SetMode { collection, mode } => self.set_mode(collection, mode, &mut fx),
+            Action::SetVariablesQuery { query } => self.set_variables_query(query),
             Action::Start { now_ms } => self.start(now_ms, &mut fx),
             Action::Connected { now_ms } => self.connected(now_ms, &mut fx),
             Action::Disconnected {} => self.disconnected(&mut fx),
@@ -199,7 +204,10 @@ impl App {
         }
         match self.level {
             Level::Nothing => {}
-            Level::Ui => self.refresh_properties(),
+            Level::Ui => {
+                self.refresh_properties();
+                self.refresh_variables();
+            }
             Level::Full => self.refresh(&mut fx),
         }
         fx
@@ -229,6 +237,7 @@ impl App {
         match panel {
             Panel::Layers => self.state.panels.layers,
             Panel::Properties => self.state.panels.properties,
+            Panel::Variables => self.state.panels.variables,
         }
     }
 
@@ -237,6 +246,7 @@ impl App {
             match panel {
                 Panel::Layers => self.state.panels.layers = open,
                 Panel::Properties => self.state.panels.properties = open,
+                Panel::Variables => self.state.panels.variables = open,
             }
             self.events.push(Event::PanelChanged { panel, open });
         }
@@ -418,6 +428,7 @@ impl App {
         }
         self.prune_modes();
         self.refresh_properties();
+        self.refresh_variables();
         let history = History {
             can_undo: self.replica.can_undo(),
             can_redo: self.replica.can_redo(),
@@ -458,33 +469,4 @@ pub(crate) fn out_ops(ops: Vec<Outgoing>) -> Vec<OutOp> {
             deps: o.deps,
         })
         .collect()
-}
-
-/// The nodes to redraw after these commands. Removing a node removes its subtree, which the command does
-/// not list, and a variable command changes every node bound to the variable: both are an empty list, which
-/// means everything.
-pub(crate) fn render_set(commands: &[Command]) -> Vec<String> {
-    if commands
-        .iter()
-        .any(|c| matches!(c, Command::RemoveNode { .. }) || is_variable_command(c))
-    {
-        return Vec::new();
-    }
-    let mut ids: Vec<String> = commands.iter().flat_map(touched).collect();
-    ids.dedup();
-    ids
-}
-
-/// The id of the node a command changes.
-pub(crate) fn touched(command: &Command) -> Vec<String> {
-    let id = match command {
-        Command::UpdateNode { id, .. }
-        | Command::RemoveNode { id }
-        | Command::Reparent { id, .. }
-        | Command::Reorder { id, .. } => id,
-        Command::AddNode { node, .. } => &node.id,
-        // `render_set` redraws everything after a variable command, so no node is named.
-        _ => return Vec::new(),
-    };
-    vec![id.clone()]
 }

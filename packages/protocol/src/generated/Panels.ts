@@ -5,6 +5,10 @@
  */
 export type Panels = { layers: boolean, properties: boolean, 
 /**
+ * The Variables panel; closed until the person opens it.
+ */
+variables: boolean, 
+/**
  * Ids of the nodes whose children the layers panel hides, in the order they were collapsed.
  */
 collapsed: Array<string>, };

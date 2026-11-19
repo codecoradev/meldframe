@@ -1,5 +1,6 @@
 //! Everything a front end needs to draw the editor.
 
+use crate::variables::VariablesPanel;
 use meldframe_protocol::NodeKind;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -34,6 +35,8 @@ pub struct AppState {
     /// The mode picked for each collection that is not on its default mode (collection id to mode id). View
     /// state: it decides what the canvas paints and is never written to the file.
     pub modes: BTreeMap<String, String>,
+    /// The Variables panel (E3.4): filled while `panels.variables` is open, empty otherwise.
+    pub variables: VariablesPanel,
 }
 
 /// A named point in the file's history that can be restored: the file as the server confirmed it after op `seq`.
@@ -90,6 +93,8 @@ pub enum Panel {
     Layers,
     /// The properties of the selection.
     Properties,
+    /// The collections and variables of the file.
+    Variables,
 }
 
 /// Which side panels are open, and which layers are collapsed.
@@ -99,6 +104,8 @@ pub enum Panel {
 pub struct Panels {
     pub layers: bool,
     pub properties: bool,
+    /// The Variables panel; closed until the person opens it.
+    pub variables: bool,
     /// Ids of the nodes whose children the layers panel hides, in the order they were collapsed.
     pub collapsed: Vec<String>,
 }
@@ -108,6 +115,7 @@ impl Default for Panels {
         Self {
             layers: true,
             properties: true,
+            variables: false,
             collapsed: Vec::new(),
         }
     }

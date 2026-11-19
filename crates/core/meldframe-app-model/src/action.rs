@@ -1,6 +1,7 @@
 //! Inputs to the app layer. They are UI-neutral: no toolkit events (standard rule U6).
 
 use crate::state::{Panel, Tool};
+use crate::variables::{BindField, VariableValue};
 use meldframe_protocol::{Command, Node, Variables};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -115,6 +116,27 @@ pub enum Action {
     /// (`not_a_variable_command`).
     EditVariables {
         commands: Vec<Command>,
+    },
+    /// Search the Variables panel (view state: nothing is written to the file). The text is trimmed and cut at 200
+    /// characters; every word has to match (see `VariablesPanel::query`).
+    SetVariablesQuery {
+        query: String,
+    },
+    /// Set the value of a variable in one mode (one undo step). A literal is read by the type of the variable: a
+    /// `#hex` colour or a number (text that is not a number is refused as `invalid_value`); the rest is checked as
+    /// any variable command is, and refused with its `E_` code. A value equal to the one it has makes no step.
+    SetVariableValue {
+        variable: String,
+        mode: String,
+        value: VariableValue,
+    },
+    /// Bind a field of a node to a variable (`Some`), or unbind it (`None`): the field then holds the value that
+    /// is painted in the modes on view, as a literal. One undo step. A field the node kind has no use for is
+    /// refused as `not_bindable`; a variable of the wrong type or a missing one with its `E_` code.
+    BindProperty {
+        id: String,
+        field: BindField,
+        variable: Option<String>,
     },
     /// Remove the nodes with their descendants, as one undo step.
     Delete {
