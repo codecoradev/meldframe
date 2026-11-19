@@ -20,6 +20,8 @@ describe('sceneFromBoxes', () => {
   it('carries the paint, the offset in the parent, colour, opacity, gradient and image', () => {
     const nested = sceneFromBoxes(byName('nested frames, back to front')).nodes;
     expect(nested.find((n) => n.id === 'g1')).toMatchObject({ kind: 'frame', parent: 'f1', x: 20, y: 30, radius: 8, clip: false, fill: 0xeeeeee });
+    // The text, its size and the name are read by the canvas too: a field renamed in Rust must fail here.
+    expect(nested.find((n) => n.id === 't1')).toMatchObject({ kind: 'text', parent: 'g1', text: 'Hello', fontSize: 24, name: '' });
     expect(sceneFromBoxes(byName('opacity')).nodes.map((n) => n.opacity)).toEqual([1, 0.5, 1, 0, 0.25]);
     const paint = sceneFromBoxes(byName('gradient and image')).nodes;
     expect(paint.find((n) => n.id === 'r')).toMatchObject({
