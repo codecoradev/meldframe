@@ -17,6 +17,7 @@ query: string,
 total: number, matched: number, 
 /**
  * The collections that hold a match (all of them while the search is empty). At most 200 variables are
- * listed in all: when `matched` is more, the search has to be narrower.
+ * listed in all, so a collection can be listed with no rows when its matches (`CollectionRow::matched`) all fall
+ * beyond the cap: the search has to be narrower.
  */
 collections: Array<CollectionRow>, };

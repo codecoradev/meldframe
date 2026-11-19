@@ -6,4 +6,8 @@ export type CollectionRow = { id: string, name: string, modes: Array<Mode>,
 /**
  * The id of the mode the canvas shows for this collection.
  */
-active: string, variables: Array<VariableRow>, };
+active: string, 
+/**
+ * How many variables of this collection match the search. The rows listed may be fewer (the cap of the panel).
+ */
+matched: number, variables: Array<VariableRow>, };
