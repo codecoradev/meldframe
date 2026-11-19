@@ -165,5 +165,7 @@ pub fn check_command(nodes: &[Node], cmd: &Command, l: &Limits) -> Result<(), Ap
             }
             Ok(())
         }
+        // A variable command: the file holds no variables yet.
+        _ => Err(ApplyError::NoVariables),
     }
 }

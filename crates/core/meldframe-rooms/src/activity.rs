@@ -21,19 +21,22 @@ pub enum ActivityKind {
     RemoveNode,
     Reparent,
     Reorder,
+    /// Any variable command (`add_variable`, `set_variable_value`, a collection or a mode).
+    Variable,
 }
 
 impl ActivityKind {
     /// Every kind, in a fixed order.
-    pub const ALL: [ActivityKind; 5] = [
+    pub const ALL: [ActivityKind; 6] = [
         ActivityKind::AddNode,
         ActivityKind::UpdateNode,
         ActivityKind::RemoveNode,
         ActivityKind::Reparent,
         ActivityKind::Reorder,
+        ActivityKind::Variable,
     ];
 
-    /// The stable name (`add_node`, `update_node`, `remove_node`, `reparent`, `reorder`).
+    /// The stable name (`add_node`, `update_node`, `remove_node`, `reparent`, `reorder`, `variable`).
     pub fn as_str(self) -> &'static str {
         match self {
             ActivityKind::AddNode => "add_node",
@@ -41,6 +44,7 @@ impl ActivityKind {
             ActivityKind::RemoveNode => "remove_node",
             ActivityKind::Reparent => "reparent",
             ActivityKind::Reorder => "reorder",
+            ActivityKind::Variable => "variable",
         }
     }
 
@@ -77,6 +81,8 @@ impl ActivityEntry {
             Command::RemoveNode { id } => (ActivityKind::RemoveNode, id.clone()),
             Command::Reparent { id, .. } => (ActivityKind::Reparent, id.clone()),
             Command::Reorder { id, .. } => (ActivityKind::Reorder, id.clone()),
+            // A variable command is refused before it gets here.
+            _ => (ActivityKind::Variable, String::new()),
         }
     }
 }

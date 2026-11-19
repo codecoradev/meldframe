@@ -149,6 +149,8 @@ fn command_id(c: &Command) -> String {
         | Command::Reparent { id, .. }
         | Command::Reorder { id, .. } => id.clone(),
         Command::AddNode { node, .. } => node.id.clone(),
+        // Restore plans node commands only; a variable command is never planned here.
+        _ => String::new(),
     }
 }
 

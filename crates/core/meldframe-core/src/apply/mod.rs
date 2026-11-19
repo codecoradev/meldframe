@@ -69,7 +69,7 @@ pub fn plan_command(
                 Some(resolved)
             }
         }
-        Command::UpdateNode { .. } | Command::RemoveNode { .. } => None,
+        _ => None,
     })
 }
 
@@ -121,5 +121,7 @@ pub fn apply_planned(nodes: &mut Vec<Node>, cmd: &Command, pos: Option<String>) 
             }
             nodes.retain(|n| !doomed.contains(&n.id));
         }
+        // A variable command changes the variables, not the nodes.
+        _ => {}
     }
 }

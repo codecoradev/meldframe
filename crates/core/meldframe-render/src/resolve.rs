@@ -1,4 +1,6 @@
-use meldframe_protocol::{GradientKind, ImageFit, Node, NodeKind};
+use meldframe_protocol::{
+    Bind, DEFAULT_FILL, DEFAULT_OPACITY, DEFAULT_RADIUS, GradientKind, ImageFit, Node, NodeKind,
+};
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
@@ -147,11 +149,14 @@ fn paint(n: &Node, parent: Option<&str>) -> PaintedBox {
         asset_id: i.asset_id.clone(),
         fit: i.fit,
     });
+    // A binding is not resolved yet: it paints the default of its field.
+    let radius = n.radius.lit().copied().unwrap_or(DEFAULT_RADIUS);
+    let opacity = n.opacity.lit().copied().unwrap_or(DEFAULT_OPACITY);
     let (paint, radius) = match n.kind {
-        NodeKind::Frame => (Paint::Frame, n.radius),
+        NodeKind::Frame => (Paint::Frame, radius),
         NodeKind::Text => (Paint::Text, 0.0),
         NodeKind::Ellipse => (Paint::Rect, n.w.min(n.h) / 2.0),
-        NodeKind::Rect | NodeKind::Shader => (Paint::Rect, n.radius),
+        NodeKind::Rect | NodeKind::Shader => (Paint::Rect, radius),
     };
     PaintedBox {
         id: n.id.clone(),
@@ -161,7 +166,10 @@ fn paint(n: &Node, parent: Option<&str>) -> PaintedBox {
         y: n.y,
         w: n.w,
         h: n.h,
-        fill: parse_fill(&n.fill),
+        fill: match &n.fill {
+            Bind::Lit(css) => parse_fill(css),
+            Bind::Var(_) => parse_fill(DEFAULT_FILL),
+        },
         radius,
         text: if is_text {
             n.text.clone()
@@ -172,7 +180,7 @@ fn paint(n: &Node, parent: Option<&str>) -> PaintedBox {
         name: n.name.clone(),
         clip: n.clip,
         // Like the canvas, an opacity counts only when it is a number below 1.
-        opacity: if n.opacity < 1.0 { n.opacity } else { 1.0 },
+        opacity: if opacity < 1.0 { opacity } else { 1.0 },
         gradient,
         image,
     }

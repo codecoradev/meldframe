@@ -46,6 +46,8 @@ pub enum ApplyError {
     InvalidPos(String),
     /// A `pos` (sent or computed) is longer than `Limits::max_pos`: the gap is too crowded.
     PosTooLong { max: usize },
+    /// A variable command: the file holds no variables yet, so it is refused.
+    NoVariables,
     /// A `Reorder` is not coherent: more than one of `before`/`after`/`pos`, or the anchor is not a sibling.
     BadReorder(String),
 }
@@ -77,6 +79,7 @@ impl ApplyError {
             ApplyError::ImageOnText => "E_IMAGE_ON_TEXT",
             ApplyError::InvalidGradient(_) => "E_INVALID_GRADIENT",
             ApplyError::GradientOnText => "E_GRADIENT_ON_TEXT",
+            ApplyError::NoVariables => "E_NO_VARIABLES",
         }
     }
 }
@@ -128,6 +131,7 @@ impl fmt::Display for ApplyError {
                     "gradient does not apply to text nodes (use frame, rect, ellipse or shader)"
                 )
             }
+            ApplyError::NoVariables => write!(f, "variables are not available here"),
             ApplyError::InvalidPos(p) => write!(f, "invalid pos: {p:?}"),
             ApplyError::BadReorder(m) => write!(f, "invalid reorder: {m}"),
             ApplyError::PosTooLong { max } => {

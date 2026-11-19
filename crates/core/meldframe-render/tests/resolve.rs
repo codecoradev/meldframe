@@ -109,7 +109,7 @@ fn opacity_that_is_not_below_one_or_not_a_number_is_one() {
         assert_eq!(b.opacity, 1.0, "opacity {o}");
     }
     let mut n: Node = serde_json::from_value(json!({"id": "n", "type": "rect"})).unwrap();
-    n.opacity = f64::NAN;
+    n.opacity = f64::NAN.into();
     assert_eq!(resolve(&[n])[0].opacity, 1.0, "opacity NaN");
 }
 

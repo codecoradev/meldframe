@@ -35,10 +35,11 @@ fn index(e: &ApplyError) -> usize {
         ApplyError::ImageOnText => 18,
         ApplyError::InvalidGradient(_) => 19,
         ApplyError::GradientOnText => 20,
+        ApplyError::NoVariables => 21,
     }
 }
 
-const VARIANTS: usize = 21;
+const VARIANTS: usize = 22;
 
 /// The same for `LoadError`. Its `Node` variant carries an `ApplyError` and has that error's code, so it
 /// adds no row of its own; every other variant needs one.
@@ -93,6 +94,7 @@ fn samples() -> Vec<ApplyError> {
         ApplyError::ImageOnText,
         ApplyError::InvalidGradient("gradient.stops needs at least 2 stops"),
         ApplyError::GradientOnText,
+        ApplyError::NoVariables,
     ]
 }
 

@@ -63,6 +63,8 @@ pub fn touches(cmd: &Command) -> Vec<String> {
             v.extend(parent_id.clone());
             v
         }
+        // A variable command is refused before it gets here.
+        _ => Vec::new(),
     }
 }
 
@@ -228,5 +230,12 @@ pub fn command_name(c: &Command) -> &'static str {
         Command::RemoveNode { .. } => "removeNode",
         Command::Reparent { .. } => "reparent",
         Command::Reorder { .. } => "reorder",
+        Command::AddCollection { .. } => "addCollection",
+        Command::RemoveCollection { .. } => "removeCollection",
+        Command::AddMode { .. } => "addMode",
+        Command::RemoveMode { .. } => "removeMode",
+        Command::AddVariable { .. } => "addVariable",
+        Command::RemoveVariable { .. } => "removeVariable",
+        Command::SetVariableValue { .. } => "setVariableValue",
     }
 }

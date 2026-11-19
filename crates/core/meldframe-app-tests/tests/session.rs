@@ -103,7 +103,10 @@ fn move_resize_text_and_properties_reach_the_server_and_the_other_editor() {
     w.pump_all();
     let r = node_of(&w, b, &rect);
     assert_eq!((r.x, r.y, r.w, r.h), (30.0, 40.0, 200.0, 80.0));
-    assert_eq!((r.fill.as_str(), r.name.as_str()), ("#00ff00", "Card"));
+    assert_eq!(
+        (r.fill.lit().unwrap().as_str(), r.name.as_str()),
+        ("#00ff00", "Card")
+    );
     assert_eq!(node_of(&w, b, "t1").text, "Hello");
     let p = w.app(a).state().properties.clone().unwrap();
     assert_eq!((p.w, p.name.as_str()), (200.0, "Card"));

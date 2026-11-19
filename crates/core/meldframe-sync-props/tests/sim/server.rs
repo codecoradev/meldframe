@@ -79,7 +79,8 @@ fn writes(c: &Command) -> Vec<Field> {
             .keys()
             .map(|k| f(&node.id, k))
             .collect(),
-        Command::RemoveNode { .. } => vec![],
+        // The simulation drives node commands only (variables have their own tests).
+        _ => vec![],
     }
 }
 
@@ -210,7 +211,7 @@ impl Server {
                 | Command::Reparent { id, .. }
                 | Command::Reorder { id, .. } => id.as_str(),
                 Command::AddNode { node, .. } => node.id.as_str(),
-                Command::RemoveNode { .. } => "",
+                _ => "",
             };
             if n.id == id {
                 self.remember(n);

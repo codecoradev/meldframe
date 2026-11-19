@@ -100,6 +100,8 @@ impl FileState {
                 .into_iter()
                 .map(|node| Command::AddNode { node, index: None })
                 .collect(),
+            // A variable command is refused before it gets here.
+            _ => Vec::new(),
         }
     }
 }
