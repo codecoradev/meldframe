@@ -26,7 +26,10 @@ use futures_util::StreamExt;
 use meldframe_host::{Principal, Refusal};
 use meldframe_http::{Failure, Reply, Shared, Slots, bearer, peer};
 use serde_json::json;
+mod dir;
 mod tool;
+
+pub use dir::assets_dir;
 
 pub use tool::input_schema as upload_input_schema;
 
