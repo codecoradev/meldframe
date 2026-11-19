@@ -5,6 +5,7 @@ use crate::effect::{Effect, OutOp};
 use crate::event::Event;
 use crate::link::Link;
 use crate::retry::Retries;
+use crate::review::Review;
 use crate::state::{AppState, Connection, History, Panel, Properties};
 use meldframe_protocol::{Command, Node};
 use meldframe_render::{PaintedBox, resolve};
@@ -30,6 +31,7 @@ pub struct App {
     pub(crate) replica: Replica,
     pub(crate) link: Link,
     pub(crate) retries: Retries,
+    pub(crate) review: Review,
     pub(crate) level: Level,
     pub(crate) prefix: String,
     pub(crate) next_id: u64,
@@ -52,13 +54,14 @@ impl App {
         seq: u64,
     ) -> Result<Self, LoadError> {
         let prefix = format!("{key_prefix}-{session:x}");
-        let replica = Replica::new(actor, &prefix, nodes, seq)?;
+        let replica = Replica::new(actor, &prefix, nodes.clone(), seq)?;
         let mut app = App {
             state: AppState::default(),
             events: Vec::new(),
             replica,
             link: Link::default(),
             retries: Retries::default(),
+            review: Review::new(nodes, seq),
             level: Level::Full,
             prefix,
             next_id: 0,
@@ -273,12 +276,13 @@ impl App {
                 actor,
                 key,
                 command,
-            } => self.server_event(seq, &actor, key.as_deref(), &command, fx),
+            } => self.server_event(now_ms, seq, &actor, key.as_deref(), &command, fx),
         }
     }
 
     fn server_event(
         &mut self,
+        now_ms: u64,
         seq: u64,
         actor: &str,
         key: Option<&str>,
@@ -288,10 +292,12 @@ impl App {
         match self.replica.on_event_keyed(seq, actor, key, command) {
             Ok(EventOutcome::Confirmed) => {
                 self.gap_closed();
+                self.record_op(seq, actor, key, command, now_ms);
                 self.stamp(actor, command);
             }
             Ok(EventOutcome::Rebased { dropped }) => {
                 self.gap_closed();
+                self.record_op(seq, actor, key, command, now_ms);
                 self.stamp(actor, command);
                 let nodes = if dropped > 0 {
                     Vec::new()

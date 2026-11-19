@@ -28,6 +28,42 @@ pub struct AppState {
     pub pending: Vec<String>,
     /// For the layers panel: the actor of the last change to each node, as the server stamped it.
     pub last_actor: BTreeMap<String, String>,
+    /// The checkpoints of this session, oldest first (E5.3): saved by the person, or taken on their own at the
+    /// start of an agent run and before a revert or a restore.
+    pub checkpoints: Vec<Checkpoint>,
+}
+
+/// A named point in the file's history that can be restored: the file as the server confirmed it after op `seq`.
+/// The person's own pending ops (sent, not yet confirmed) are not in it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Checkpoint {
+    pub id: String,
+    #[ts(type = "number")]
+    pub seq: u64,
+    /// What the person typed (`Manual`); empty for the checkpoints the app takes: the front end words those.
+    pub label: String,
+    pub kind: CheckpointKind,
+    /// The actor whose run (`OtherActorRun`) or batch (`BeforeRevert`) it is about.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub actor: Option<String>,
+}
+
+/// Why a checkpoint exists.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum CheckpointKind {
+    /// The person saved it.
+    Manual,
+    /// A run of another actor (an agent, or another person) started.
+    OtherActorRun,
+    /// Taken before a revert of a batch.
+    BeforeRevert,
+    /// Taken before a restore.
+    BeforeRestore,
 }
 
 /// The tool that decides what a press on the canvas does.

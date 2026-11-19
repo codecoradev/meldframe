@@ -253,6 +253,7 @@ fn a_rejected_op_leaves_the_view_and_raises_an_event() {
     assert!(app.take_events().contains(&Event::OpRejected {
         key: ops[0].key.clone(),
         code: "conflict".into(),
+        node: None,
         retryable: false
     }));
 }

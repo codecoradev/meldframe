@@ -191,6 +191,22 @@ A variant of a frame (`meldframe-variant`, E5.4) fails with these codes before a
 | `E_NOT_A_FRAME` | The node is not a frame; only a frame has a variant. | Pick the frame that holds the node. |
 | the code of the command check (`E_TOO_MANY_NODES` and the like) | The copy would not fit the file. | Make room, or make a variant of a smaller frame. |
 
+## Review and checkpoint codes
+
+A revert of a batch and a restore of a checkpoint (`meldframe-revert`, E5.2 and E5.3) are worked out in the app layer from the ops it has seen since it loaded the file, before any command is sent, so a refusal changes nothing. The app layer words them as `Event::Refused` with its own codes (a queue too full for the commands is `outbox_full`, as above; a skipped part of a revert is not a refusal: it is listed in `Event::Reverted`; a label of a checkpoint over 128 characters is `limit`). The server has no wire code for them: what the commands do is judged by the gate like any edit of the person. A refused op is dropped and nothing files an approval request for it: a frame removal (Delete tier) in a revert or restore is refused, the frame stays empty until an approval path exists (E2.4), and `Event::OpRejected` carries the `node` of a refused removal.
+
+| Code | Meaning and typical cause | What to do next |
+| --- | --- | --- |
+| `unknown_batch` | No confirmed op of that actor has a key `{prefix}:{n}` since the file was loaded (a reload starts the record again, and the app keeps the newest 2,000 to 2,255 ops). | Pick a batch from the list of recent batches; a batch from before the load cannot be reverted from here. |
+| `batch_incomplete` | Some ops of the batch were folded into the base tree because the record outgrew its size, so a revert from the ops that are left would take back only the end of the batch. Nothing is sent. | The batch cannot be reverted from here; restore a checkpoint taken after it, or undo by hand. |
+| `nothing_to_revert` | Every field of the batch was written by someone else since, or the nodes are gone. | Nothing to do: the batch no longer owns anything. |
+| `log_mismatch` | The ops the app kept do not replay on its base tree, or a restore could not be worked out (the commands do not give the checkpoint's tree, such as a moved node whose order cannot be written back). | Load the file again (`Action::Reload`) and retry. |
+| `unknown_checkpoint` | No checkpoint of this session has that id, or it was dropped: a checkpoint older than the record is dropped when the record moves on or the file is loaded again, and past 100 the oldest the app took goes first. | Use an id from `AppState.checkpoints`. |
+| `not_in_log` | The checkpoint is older than the ops the app still keeps. The app drops such checkpoints when the record moves, so this is a guard that no sequence of actions reaches today. | Restore from a newer checkpoint. |
+| `nothing_to_restore` | The file is as the checkpoint has it. | Nothing to do. |
+
+A checkpoint is of the file as the server confirmed it: the person's own ops that are sent and not yet confirmed are not in it. A restore works out its commands against the person's view, pending ops included.
+
 ## Capture codes
 
 The `capture` tool (feature module `capture`, Read tier) fails with these codes. A client message in `render_failed` is cut to 200 bytes and stripped of control characters. The strings are shared with the

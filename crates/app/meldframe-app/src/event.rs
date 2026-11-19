@@ -55,9 +55,11 @@ pub enum Event {
         attempt: u32,
     },
     /// The server refused one of the person's ops for good (or the retries ran out); the view went back. The front end words the message.
+    /// `node` is the node of a refused removal (a revert or restore that touches a frame ends in one), else `None`.
     OpRejected {
         key: String,
         code: String,
+        node: Option<String>,
         retryable: bool,
     },
     /// A reload dropped this many unconfirmed ops: they no longer apply to the new file. The front end
@@ -65,7 +67,43 @@ pub enum Event {
     OpsDropped {
         count: usize,
     },
+    /// A revert of a batch was requested: `requested` ops were applied to the person's view and queued for the
+    /// server, one by one, so the server may still refuse some (each refusal is an `OpRejected`; the ones that
+    /// depend on it fall with it). `skipped` lists what the revert left as it is.
+    Reverted {
+        requested: usize,
+        skipped: Vec<RevertSkip>,
+    },
+    /// A restore of a checkpoint was requested with `requested` new ops, queued like those of `Reverted`.
+    Restored {
+        id: String,
+        requested: usize,
+    },
+    /// A checkpoint was added (or the oldest dropped): how many there are now.
+    CheckpointsChanged {
+        count: usize,
+    },
     /// The file and the events no longer fit. The app halts (`Connection::Halted`) and ignores frames and
     /// edits; the shell loads the file again and dispatches `Action::Reload` (or makes a new `App`).
     Diverged {},
+}
+
+/// A part of a batch that a revert left alone. `what` is a field name, `place` or `node`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RevertSkip {
+    pub node: String,
+    pub what: String,
+    pub reason: RevertSkipReason,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum RevertSkipReason {
+    /// Someone else wrote it after the batch.
+    ChangedSince,
+    /// It no longer applies to the file.
+    NotApplicable,
 }

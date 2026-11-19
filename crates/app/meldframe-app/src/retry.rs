@@ -6,6 +6,7 @@ use crate::effect::Effect;
 use crate::event::Event;
 use crate::link::backoff;
 use crate::state::Connection;
+use meldframe_protocol::Command;
 use std::collections::BTreeMap;
 
 /// How many times an op is sent again after a retryable refusal.
@@ -48,12 +49,22 @@ impl App {
         }
         self.retries.tries.remove(&key);
         self.retries.due.retain(|(_, k)| *k != key);
+        let node = self
+            .replica
+            .unconfirmed()
+            .into_iter()
+            .find(|o| o.key == key)
+            .and_then(|o| match o.command {
+                Command::RemoveNode { id } => Some(id),
+                _ => None,
+            });
         if !self.replica.on_reject(&key) {
             return false;
         }
         self.events.push(Event::OpRejected {
             key,
             code,
+            node,
             retryable,
         });
         true
