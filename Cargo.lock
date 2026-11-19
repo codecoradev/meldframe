@@ -1036,7 +1036,6 @@ dependencies = [
  "meldframe-variant",
  "serde",
  "serde_json",
- "ts-rs",
 ]
 
 [[package]]
