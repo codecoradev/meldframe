@@ -347,6 +347,11 @@ pub fn failure_of(e: &SubmitError) -> Failure {
                 reason: reason.clone(),
             })
         }
+        // A stored file that fails the load check is the operator's to repair, never the caller's: 503
+        // `unavailable`, with the stable code in the text for the log (the caller is not told).
+        SubmitError::Rooms(RegistryError::Room(RoomError::BadSnapshot { error, .. })) => {
+            Failure::Unavailable(format!("{}: {e}", error.code()))
+        }
         _ => Failure::Unavailable(e.to_string()),
     }
 }
