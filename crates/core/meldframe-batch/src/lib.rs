@@ -15,9 +15,9 @@
 //! way. Both can still stop a batch after earlier ops were written; they are rare and the retry with the
 //! same keys is safe.
 
-use meldframe_core::{Limits, apply_planned, plan_command};
+use meldframe_core::{Limits, apply_planned_doc, plan_doc};
 use meldframe_host::{Op, Refusal, Room, Store, StoreError, StoredOp};
-use meldframe_protocol::{Command, Node};
+use meldframe_protocol::{Command, Doc};
 use std::collections::{HashMap, HashSet, hash_map::Entry};
 
 /// How many log entries are read at a time when looking for changes after an `ifSeq`.
@@ -63,8 +63,7 @@ pub fn touches(cmd: &Command) -> Vec<String> {
             v.extend(parent_id.clone());
             v
         }
-        // A variable command is refused before it gets here.
-        _ => Vec::new(),
+        other => meldframe_variables::touched(other),
     }
 }
 
@@ -77,7 +76,10 @@ pub fn check<S: Store>(
     guards: &[Guard],
 ) -> Result<(), Stop> {
     let limits = Limits::default();
-    let mut scratch: Vec<Node> = room.nodes().to_vec();
+    let mut scratch = Doc {
+        nodes: room.nodes().to_vec(),
+        vars: room.vars().clone(),
+    };
     let mut fresh_keys: HashSet<&str> = HashSet::new();
     let mut batch_touched: HashSet<String> = HashSet::new();
     // Per `ifSeq` value: the nodes the log shows as touched after it, read once.
@@ -118,8 +120,8 @@ pub fn check<S: Store>(
             }
         }
         let pos =
-            plan_command(&scratch, &op.command, &limits).map_err(|e| refuse(Refusal::Apply(e)))?;
-        apply_planned(&mut scratch, &op.command, pos);
+            plan_doc(&scratch, &op.command, &limits).map_err(|e| refuse(Refusal::Apply(e)))?;
+        apply_planned_doc(&mut scratch, &op.command, pos);
         batch_touched.extend(touches(&op.command));
         fresh_keys.insert(&op.key);
     }

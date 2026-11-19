@@ -2,6 +2,7 @@
 //! after `seq`.
 
 use crate::node::Node;
+use crate::variables::Variables;
 use serde::Serialize;
 use ts_rs::TS;
 
@@ -31,4 +32,8 @@ pub struct FileSnapshot {
     #[ts(type = "number")]
     pub seq: u64,
     pub nodes: Vec<SnapshotNode>,
+    /// Collections and variables; left out when the file has none, so a file without variables reads as before.
+    #[serde(skip_serializing_if = "Variables::is_empty")]
+    #[ts(as = "Option<Variables>", optional)]
+    pub variables: Variables,
 }

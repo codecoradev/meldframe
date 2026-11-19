@@ -127,6 +127,7 @@ pub fn there_is_no_snapshot_until_one_is_saved_and_the_newest_wins(s: &mut dyn S
     let snap = |seq| Snapshot {
         seq,
         nodes: vec![node("root", "frame", None)],
+        variables: Default::default(),
     };
     s.save_snapshot("r1", snap(2)).unwrap();
     s.save_snapshot("r1", snap(4)).unwrap();
@@ -139,7 +140,11 @@ pub fn there_is_no_snapshot_until_one_is_saved_and_the_newest_wins(s: &mut dyn S
 pub fn a_snapshot_ahead_of_the_log_or_older_than_the_last_is_refused(s: &mut dyn Store) {
     s.append("r1", new_op("a", "k1", "n1")).unwrap();
     s.append("r1", new_op("a", "k2", "n2")).unwrap();
-    let snap = |seq| Snapshot { seq, nodes: vec![] };
+    let snap = |seq| Snapshot {
+        seq,
+        nodes: vec![],
+        variables: Default::default(),
+    };
     assert_eq!(
         s.save_snapshot("r1", snap(3)),
         Err(StoreError::SnapshotAhead { seq: 3, log: 2 })
@@ -159,6 +164,7 @@ pub fn a_snapshot_never_changes_the_log(s: &mut dyn Store) {
         Snapshot {
             seq: 1,
             nodes: vec![],
+            variables: Default::default(),
         },
     )
     .unwrap();
@@ -182,6 +188,7 @@ pub fn a_snapshot_must_be_newer_than_the_latest_and_a_failed_save_keeps_the_old_
     let snap = |seq| Snapshot {
         seq,
         nodes: vec![node("n1", "frame", None)],
+        variables: Default::default(),
     };
     s.save_snapshot("r1", snap(1)).unwrap();
     assert_eq!(
@@ -202,6 +209,7 @@ pub fn a_snapshot_restores_with_the_log_after_it(s: &mut dyn Store) {
         Snapshot {
             seq: 2,
             nodes: vec![node("n1", "frame", None), node("n2", "frame", None)],
+            variables: Default::default(),
         },
     )
     .unwrap();
@@ -251,6 +259,7 @@ pub fn a_snapshot_comes_back_unchanged(s: &mut dyn Store) {
         Snapshot {
             seq: 1,
             nodes: nodes.clone(),
+            variables: Default::default(),
         },
     )
     .unwrap();
@@ -258,5 +267,39 @@ pub fn a_snapshot_comes_back_unchanged(s: &mut dyn Store) {
     assert_eq!(
         serde_json::to_value(&got.nodes).unwrap(),
         serde_json::to_value(&nodes).unwrap()
+    );
+}
+
+/// Variables are kept with the snapshot, and a variable command comes back from the log unchanged (E3.3).
+pub fn variables_come_back_with_the_snapshot_and_the_log(s: &mut dyn Store) {
+    let vars: meldframe_protocol::Variables = serde_json::from_value(serde_json::json!({
+        "collections": [{"id": "t", "name": "appearance", "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}],
+        "variables": [{"id": "bg", "collection": "t", "name": "color/bg", "type": "color",
+            "values": {"light": "#ffffff", "dark": {"var": "bg2"}}}]
+    }))
+    .unwrap();
+    let command: Command = serde_json::from_value(serde_json::json!(
+        {"type": "setVariableValue", "id": "bg", "mode": "dark", "value": {"var": "bg2"}}
+    ))
+    .unwrap();
+    let op = NewOp {
+        actor: "a".into(),
+        key: "k1".into(),
+        command: command.clone(),
+    };
+    s.append("r1", op).unwrap();
+    s.save_snapshot(
+        "r1",
+        Snapshot {
+            seq: 1,
+            nodes: vec![],
+            variables: vars.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(s.latest_snapshot("r1").unwrap().unwrap().variables, vars);
+    assert_eq!(
+        serde_json::to_value(&s.ops_after("r1", 0, 10).unwrap()[0].command).unwrap(),
+        serde_json::to_value(&command).unwrap()
     );
 }

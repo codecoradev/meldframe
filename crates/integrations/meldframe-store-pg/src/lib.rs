@@ -11,12 +11,14 @@
 mod backing;
 mod calls;
 mod review;
+mod state;
 
 pub use backing::{AnyStore, Backing};
 pub use calls::{CALL_QUEUE, PgCallLog};
+pub use state::{snapshot_from_state, state_json};
 
 use meldframe_host::{Appended, NewOp, Snapshot, Store, StoreError, StoredOp};
-use meldframe_protocol::{Command, Node, SCHEMA_VERSION};
+use meldframe_protocol::{Command, SCHEMA_VERSION};
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::types::Json;
 use sqlx::{PgPool, Row};
@@ -342,7 +344,7 @@ impl PgStore {
         )
         .bind(room)
         .bind(db_seq(snapshot.seq))
-        .bind(Json(&snapshot.nodes))
+        .bind(Json(state_json(&snapshot)))
         .bind(SCHEMA_VERSION as i32)
         .execute(&mut *tx)
         .await
@@ -426,10 +428,11 @@ impl Store for PgStore {
             )
             .map_err(db_err)?;
         row.map(|row| {
-            let nodes: Json<Vec<Node>> = row.try_get("state").map_err(db_err)?;
-            Ok(Snapshot {
-                seq: from_db_seq(row.get("seq")),
-                nodes: nodes.0,
+            let state: Json<serde_json::Value> = row.try_get("state").map_err(db_err)?;
+            snapshot_from_state(from_db_seq(row.get("seq")), state.0).map_err(|why| {
+                StoreError::Unavailable(format!(
+                    "{PERMANENT_STORE_ERROR}: bad snapshot state: {why}"
+                ))
             })
         })
         .transpose()
