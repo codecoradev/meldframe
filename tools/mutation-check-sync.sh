@@ -31,7 +31,7 @@ seq-guard	crates/core/meldframe-sync/src/replica.rs	if seq <= self.seq {	if fals
 reparent-survivor	crates/core/meldframe-undo/src/remote.rs	let parent_id = ctx\.survivor\.clone();	let parent_id: Option<String> = None;	undo of a move into a deleted parent goes to the top instead of the nearest surviving ancestor
 held-recs	crates/core/meldframe-undo/src/runs.rs	let hit = |r: &Rec| r\.pending || held\.contains(&r\.id);	let hit = |r: \&Rec| false \&\& r.pending;	the step an undo or redo made from a pending edit is rewritten against a remote op that is ordered before the edit (the redo loses its field)
 refresh-run	crates/core/meldframe-undo/src/runs.rs	if self\.held_recs()\.contains(&rec) {	if false {	the step an undo or redo made keeps the stale value its op carried
-correction	crates/core/meldframe-sync/src/replica/rebuild.rs	Some(w) => self\.correct(&w, &lost),	Some(w) => { let _ = \&w; },	a stale undo or redo that is already on its way is not set right
+correction	crates/core/meldframe-sync/src/replica/rebuild.rs	Some(w) => self\.correct(&w, &lost, &touched),	Some(w) => { let _ = (\&w, \&touched); },	a stale undo or redo that is already on its way is not set right
 strip-remote	crates/core/meldframe-sync/src/replica/rebuild.rs	p\.intent = p\.intent\.take()\.and_then(|i| without_fields(&i, r));	let _ = r;	a correction is kept for a field another actor wrote after it was made
 want-undo	crates/core/meldframe-sync/src/replica/rebuild.rs	self\.view\.set_undo(r, own\.unwrap_or(inverse));	self.view.set_undo(r, inverse);	the undo of an edit made after a stale undo is worked out in the stale view
 refused-correction	crates/core/meldframe-sync/src/replica.rs	!p\.is_correction(),	true,	a refused correction is sent again without end
@@ -63,7 +63,7 @@ ack-guard	crates/core/meldframe-sync/src/replica/confirm.rs	if seq > self\.seq {
 resync-behind	crates/core/meldframe-sync/src/replica/resync.rs	if seq < self\.seq {	if false {	a snapshot older than the replica is accepted
 resync-kind	crates/core/meldframe-sync/src/replica/resync.rs	if p\.out\.kind != OpKind::Edit {	if false {	a replayed undo or redo op is not kept as an op that sets its value (the replica then corrects it)
 resync-optimistic	crates/core/meldframe-sync/src/replica/resync.rs	view\.set_optimistic(true);	view.set_optimistic(false);	the view after a resync is not optimistic
-resync-ideal	crates/core/meldframe-sync/src/replica/resync.rs	self\.ideal = None;	self.ideal = self.ideal.take();	a resync keeps the confirmed state a stale undo was worked out against
+resync-ideal	crates/core/meldframe-sync/src/replica/resync.rs	self\.drop_ideal();	{}	a resync keeps the confirmed state a stale undo was worked out against
 undo-empty	crates/core/meldframe-sync/src/replica.rs	if !self\.view\.can_undo() {	if false {	undo at the cap with nothing to undo is an error, not false
 redo-empty	crates/core/meldframe-sync/src/replica.rs	if !self\.view\.can_redo() {	if false {	redo at the cap with nothing to redo is an error, not false
 app-acked	crates/app/meldframe-app/src/app.rs	if let Some(dropped) = self\.replica\.on_ack(&key, seq) {	if let Some(dropped) = None::<usize> {	the app ignores the answer to a repeated send, so an op the snapshot holds stays pending
