@@ -14,14 +14,15 @@ use meldframe_protocol::{
 use meldframe_render::Fields;
 use meldframe_sync::SubmitError;
 use meldframe_variables::{ModeChoice, Resolver, node_bindings};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// The most variables the panel lists at once; `VariablesPanel::matched` says how many matched.
 const MAX_LISTED: usize = 200;
 
-/// Whether a field of a node of this kind can hold a binding the panel offers: a text node has no corners.
+/// Whether a field of a node of this kind can hold a binding the panel offers: text and an ellipse have no corners to set.
 fn bindable(kind: NodeKind, field: BindField) -> bool {
-    !(kind == NodeKind::Text && field == BindField::Radius)
+    // The canvas draws no corners on text, and an ellipse takes its radius from its size.
+    !(matches!(kind, NodeKind::Text | NodeKind::Ellipse) && field == BindField::Radius)
 }
 
 fn field_name(field: BindField) -> &'static str {
@@ -43,10 +44,69 @@ fn value_text(v: &Value) -> String {
     }
 }
 
+/// The longest search text, in characters.
+const MAX_QUERY: usize = 200;
+
+/// What the view was built from, and how often it was built. A dispatch that changes none of these (a move, a
+/// resize, a timer) leaves the view as it is: the check reads the file but allocates only when something differs.
+#[derive(Debug, Default)]
+pub(crate) struct PanelCache {
+    key: Option<Key>,
+    builds: u64,
+}
+
+#[derive(Debug, PartialEq)]
+struct Key {
+    query: String,
+    modes: BTreeMap<String, String>,
+    selection: Vec<String>,
+    kind: Option<NodeKind>,
+    vars: Variables,
+    /// Every bound field of every node: `(node, field, variable)`; the use counts and the buttons read them.
+    bound: Vec<(String, &'static str, String)>,
+}
+
+impl PanelCache {
+    fn is_current(&self, a: &App) -> bool {
+        let Some(k) = &self.key else { return false };
+        k.query == a.state.variables.query
+            && k.modes == a.state.modes
+            && k.selection == a.state.selection
+            && k.kind == selected(a).map(|n| n.kind)
+            && k.vars == *a.vars()
+            && k.bound == bound_fields(a.nodes())
+    }
+}
+
+fn selected(a: &App) -> Option<&Node> {
+    match a.state.selection.as_slice() {
+        [id] => a.nodes().iter().find(|n| n.id == *id),
+        _ => None,
+    }
+}
+
+fn bound_fields(nodes: &[Node]) -> Vec<(String, &'static str, String)> {
+    nodes
+        .iter()
+        .flat_map(|n| {
+            node_bindings(n)
+                .into_iter()
+                .map(|b| (n.id.clone(), b.field, b.var.to_string()))
+        })
+        .collect()
+}
+
 impl App {
-    /// Search the panel. View state: no op, no undo step.
+    /// How many times the view of the panel was built (a test seam: it must not grow on a dispatch that changes
+    /// nothing the panel reads).
+    #[doc(hidden)]
+    pub fn variables_view_builds(&self) -> u64 {
+        self.panel.builds
+    }
+
+    /// Search the panel. View state: no op, no undo step. The text is trimmed and cut at 200 characters.
     pub(crate) fn set_variables_query(&mut self, query: String) {
-        let query = query.trim().to_string();
+        let query: String = query.trim().chars().take(MAX_QUERY).collect();
         if self.state.variables.query != query {
             self.events.push(Event::VariablesQueryChanged {
                 query: query.clone(),
@@ -56,20 +116,30 @@ impl App {
     }
 
     /// Bring `AppState::variables` in line with the document, the modes, the selection and the search. Nothing is
-    /// listed while the panel is closed.
+    /// listed while the panel is closed, and nothing is built again while what the view reads is as it was.
     pub(crate) fn refresh_variables(&mut self) {
         let query = self.state.variables.query.clone();
-        let view = if self.state.panels.variables {
-            self.variables_view(&query)
-        } else {
-            VariablesPanel {
-                query,
-                ..Default::default()
+        if !self.state.panels.variables {
+            self.panel.key = None;
+            if self.state.variables != VariablesPanel::default_for(&query) {
+                self.state.variables = VariablesPanel::default_for(&query);
             }
-        };
-        if self.state.variables != view {
-            self.state.variables = view;
+            return;
         }
+        if self.panel.is_current(self) {
+            return;
+        }
+        let view = self.variables_view(&query);
+        self.panel.builds += 1;
+        self.panel.key = Some(Key {
+            query,
+            modes: self.state.modes.clone(),
+            selection: self.state.selection.clone(),
+            kind: selected(self).map(|n| n.kind),
+            vars: self.vars().clone(),
+            bound: bound_fields(self.nodes()),
+        });
+        self.state.variables = view;
     }
 
     fn variables_view(&self, query: &str) -> VariablesPanel {
@@ -79,10 +149,7 @@ impl App {
         let by_id: HashMap<&str, &Variable> =
             vars.variables.iter().map(|v| (v.id.as_str(), v)).collect();
         let uses = use_counts(self.nodes(), vars);
-        let selected = match self.state.selection.as_slice() {
-            [id] => self.nodes().iter().find(|n| n.id == *id),
-            _ => None,
-        };
+        let selected = selected(self);
         let (mut matched, mut listed) = (0, 0);
         let mut collections = Vec::new();
         for col in &vars.collections {
@@ -97,28 +164,34 @@ impl App {
                 .collect();
             // The indexes are built when the first row of the collection is listed.
             let mut resolvers: Option<Vec<Resolver<'_>>> = None;
-            let mut rows = Vec::new();
+            let (mut in_col, mut rows) = (0, Vec::new());
             for v in vars.variables.iter().filter(|v| v.collection == col.id) {
-                let texts = texts_of(col, v, &by_id);
-                let hay = format!(
-                    "{} {} {}",
-                    v.name,
-                    col.name,
-                    texts
-                        .iter()
-                        .map(|(t, _)| t.as_str())
-                        .collect::<Vec<_>>()
-                        .join(" ")
-                )
-                .to_lowercase();
-                if !words.iter().all(|w| hay.contains(w)) {
-                    continue;
+                // The words are looked for in the texts only when there are words; a row is built only when listed.
+                let mut texts = None;
+                if !words.is_empty() {
+                    let t = texts_of(col, v, &by_id);
+                    let hay = format!(
+                        "{} {} {}",
+                        v.name,
+                        col.name,
+                        t.iter()
+                            .map(|(x, _)| x.as_str())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    )
+                    .to_lowercase();
+                    if !words.iter().all(|w| hay.contains(w)) {
+                        continue;
+                    }
+                    texts = Some(t);
                 }
                 matched += 1;
+                in_col += 1;
                 if listed >= MAX_LISTED {
                     continue;
                 }
                 listed += 1;
+                let texts = texts.unwrap_or_else(|| texts_of(col, v, &by_id));
                 let rs = resolvers
                     .get_or_insert_with(|| modes.iter().map(|c| Resolver::new(vars, c)).collect());
                 let values = col
@@ -142,7 +215,7 @@ impl App {
                     binds: selected.map(|n| binds_of(n, v)).unwrap_or_default(),
                 });
             }
-            if !rows.is_empty() || words.is_empty() {
+            if in_col > 0 || words.is_empty() {
                 let active = choice
                     .get(&col.id)
                     .filter(|m| col.modes.iter().any(|x| x.id == *m))
@@ -153,6 +226,7 @@ impl App {
                     name: col.name.clone(),
                     modes: col.modes.clone(),
                     active: active.to_string(),
+                    matched: in_col,
                     variables: rows,
                 });
             }
@@ -208,6 +282,14 @@ impl App {
         if !bindable(node.kind, field) {
             return refuse(&mut self.events, "not_bindable");
         }
+        let bound = node_bindings(node)
+            .into_iter()
+            .find(|b| b.field == field_name(field))
+            .map(|b| b.var.to_string());
+        if bound == variable {
+            // Already so: bind the same variable again, or unbind a field that is a literal.
+            return Ok(());
+        }
         let mut patch = NodePatch::default();
         match variable {
             Some(v) => match field {
@@ -216,12 +298,6 @@ impl App {
                 BindField::Opacity => patch.opacity = Some(Bind::var(v)),
             },
             None => {
-                if !node_bindings(node)
-                    .iter()
-                    .any(|b| b.field == field_name(field))
-                {
-                    return Ok(());
-                }
                 let choice = self.choice();
                 let f = Fields::new(self.vars(), &choice);
                 match field {

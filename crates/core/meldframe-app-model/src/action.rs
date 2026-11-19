@@ -117,8 +117,8 @@ pub enum Action {
     EditVariables {
         commands: Vec<Command>,
     },
-    /// Search the Variables panel (view state: nothing is written to the file). The text is trimmed; every word has
-    /// to match (see `VariablesPanel::query`).
+    /// Search the Variables panel (view state: nothing is written to the file). The text is trimmed and cut at 200
+    /// characters; every word has to match (see `VariablesPanel::query`).
     SetVariablesQuery {
         query: String,
     },

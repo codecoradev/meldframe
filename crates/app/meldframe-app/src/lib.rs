@@ -18,6 +18,7 @@ mod link;
 mod panel;
 mod retry;
 mod review;
+mod touched;
 mod variables;
 
 pub(crate) use meldframe_app_model::{action, effect, event, state};

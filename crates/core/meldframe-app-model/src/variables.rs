@@ -5,6 +5,16 @@ use meldframe_protocol::{Mode, VarType};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+impl VariablesPanel {
+    /// The panel with nothing listed, for this search text.
+    pub fn default_for(query: &str) -> Self {
+        VariablesPanel {
+            query: query.to_string(),
+            ..Default::default()
+        }
+    }
+}
+
 /// The Variables panel: the search, the counts and the collections with the variables that match. Empty while the
 /// panel is closed.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -18,7 +28,8 @@ pub struct VariablesPanel {
     pub total: usize,
     pub matched: usize,
     /// The collections that hold a match (all of them while the search is empty). At most 200 variables are
-    /// listed in all: when `matched` is more, the search has to be narrower.
+    /// listed in all, so a collection can be listed with no rows when its matches (`CollectionRow::matched`) all fall
+    /// beyond the cap: the search has to be narrower.
     pub collections: Vec<CollectionRow>,
 }
 
@@ -31,6 +42,8 @@ pub struct CollectionRow {
     pub modes: Vec<Mode>,
     /// The id of the mode the canvas shows for this collection.
     pub active: String,
+    /// How many variables of this collection match the search. The rows listed may be fewer (the cap of the panel).
+    pub matched: usize,
     pub variables: Vec<VariableRow>,
 }
 
