@@ -1,0 +1,19 @@
+[package]
+name = "export"
+description = "Export feature module: a frame of a file as HTML with plain CSS or Tailwind v4 utilities, CSS variables for bound fields, and a report of what it cannot carry."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "feature"
+group = "export"
+
+[lints]
+workspace = true
+
+[dependencies]
+meldframe-layout = { path = "../../../core/meldframe-layout" }
+meldframe-protocol = { path = "../../../core/meldframe-protocol" }
+meldframe-render = { path = "../../../core/meldframe-render" }
