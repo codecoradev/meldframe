@@ -1,5 +1,5 @@
 <!--
-  The tool bar: the four tools, the presets, PNG export and a variant of the selected frame, undo and redo, and the two panels. It shows app
+  The tool bar: the four tools, the presets, PNG export and a variant of the selected frame, undo and redo, and the three panels. It shows app
   state and dispatches actions only.
 -->
 <script lang="ts">
@@ -60,4 +60,5 @@
   <span class="mx-1 h-5 w-px bg-hairline" aria-hidden="true"></span>
   <button type="button" class="{base} {state.panels.layers ? 'text-text-strong' : 'text-text-muted'} hover:bg-field" aria-pressed={state.panels.layers} data-testid="toggle-layers" onclick={() => dispatch({ type: 'togglePanel', panel: 'layers' })}>Layers</button>
   <button type="button" class="{base} {state.panels.properties ? 'text-text-strong' : 'text-text-muted'} hover:bg-field" aria-pressed={state.panels.properties} data-testid="toggle-properties" onclick={() => dispatch({ type: 'togglePanel', panel: 'properties' })}>Properties</button>
+  <button type="button" class="{base} {state.panels.variables ? 'text-text-strong' : 'text-text-muted'} hover:bg-field" aria-pressed={state.panels.variables} data-testid="toggle-variables" onclick={() => dispatch({ type: 'togglePanel', panel: 'variables' })}>Variables</button>
 </div>

@@ -14,8 +14,9 @@
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
   import Toolbar from './Toolbar.svelte';
-  import LayersPanel from './LayersPanel.svelte';
-  import PropertiesPanel from './PropertiesPanel.svelte';
+  import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
+  import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
+  import VariablesPanel from '@meldframe/web-panels/VariablesPanel.svelte';
   import { layerRows } from '@meldframe/web-document/layers';
   import { boxAction, propertyAction, type BoxField, type PropertyField } from '@meldframe/web-document/properties';
   import { noticeFromEvents } from '@meldframe/web-document/notices';
@@ -314,6 +315,9 @@
     </div>
   {/if}
   </div>
+  {#if snap.state.panels.variables}
+    <VariablesPanel panel={snap.state.variables} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} />
+  {/if}
   {#if snap.state.panels.properties}
     <PropertiesPanel properties={snap.state.properties} {onProperty} {onBox} />
   {/if}

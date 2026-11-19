@@ -1,0 +1,16 @@
+[package]
+name = "meldframe-web-panels"
+description = "The side panels of the web client (layers, properties, variables): Svelte views that draw what the app layer gives them, and the pure functions that turn their input into actions (this manifest makes the package a unit of the size and layering checks)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "ui"
+
+[lib]
+path = "rust/lib.rs"
+
+[lints]
+workspace = true
