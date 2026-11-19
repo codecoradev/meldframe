@@ -5,6 +5,7 @@ import type { History } from "./History";
 import type { Panels } from "./Panels";
 import type { Properties } from "./Properties";
 import type { Tool } from "./Tool";
+import type { VariablesPanel } from "./VariablesPanel";
 
 /**
  * The state of the editor: what is selected, which tool is active, which panels are open, how the
@@ -42,4 +43,8 @@ checkpoints: Array<Checkpoint>,
  * The mode picked for each collection that is not on its default mode (collection id to mode id). View
  * state: it decides what the canvas paints and is never written to the file.
  */
-modes: { [key in string]: string }, };
+modes: { [key in string]: string }, 
+/**
+ * The Variables panel (E3.4): filled while `panels.variables` is open, empty otherwise.
+ */
+variables: VariablesPanel, };
