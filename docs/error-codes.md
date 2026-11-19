@@ -67,15 +67,31 @@ other refusal passes through with its own code (`forbidden` for a Deny policy, `
 Each of the three carries the approval id. A call sent straight to the gate is unchanged: Ask is `forbidden`.
 
 Besides the three codes the seam has one more, `approval_limit`: too many approvals are open (20 for an actor, 100
-for a workspace, 2,000 in all), and an idempotency key of more than 100 characters opens no approval and is refused
-as `forbidden`. None of the codes is a reason to retry by itself: the call stays refused until the owner has
+for a workspace, 2,000 in all), and an op key of more than 100 characters opens no approval and is refused
+as `forbidden` (over MCP the op key is the call key plus `:` and the index of the command, so a call key near 100
+characters is refused too). None of the codes is a reason to retry by itself: the call stays refused until the owner has
 answered. `Approvals::decide` takes the owner's answer; `Approvals::answer` does the same for a principal and refuses
 the actor that asked and an approval of another workspace. A pending or approved approval lives for the ttl the
 caller gives it; `Approvals::prune` keeps a finished one one more ttl, so a retry in that time meets
 `approval_denied` or `approval_expired`, and after it the same op asks again. An approval covers the exact op:
-the same key, command, `ifSeq` and dependencies. A new idempotency key is a new request, so a denied ask can be
+the same key, command, `ifSeq` and dependencies. A new idempotency key makes a new op, so a denied ask can be
 asked again with a new key. An approval is not tied to the state of the tree: a retry without `ifSeq` is admitted
-even if the node gained content after the ask.
+even if the node gained content after the ask. An approved op that the room then refuses (`conflict`, `invalid`) has
+spent its approval, and after a server restart the approvals are gone: the same call asks again under a new id.
+
+The server uses the seam for a call of exactly one op that deletes (a frame, or a subtree above the small-delete
+limit) through a Change tool, over REST, WebSocket and MCP. The codes answer with HTTP 403 and `approvalId` in the
+error (`approval_limit`: HTTP 429, no id) and none is `retryable`: a client must not send the call again by itself,
+only after the owner has answered. A call of several ops that holds such a delete is still `forbidden`: an approval
+covers one op, and the ops of the call are counted as sent (a retry of ops already written still counts them). A
+delete of a node that is not in the file is not asked about and keeps its refusal. The owner answers with
+`Server::decide_approval` (approve or deny; an actor cannot answer its own request); no route or tool offers that
+yet, because the server cannot tell an owner from an agent until sign-in exists. The ttl is 15 minutes
+(`APPROVAL_TTL_MS`). The retry must be the same op, and the approval is not tied to the state of the tree: a retry
+without `ifSeq` can delete a frame that gained content after the ask, so send the retry with the same `ifSeq` (tying
+an approval to the subtree it was asked about is a follow-up). Each step is in the call log: `approval_required` is
+an ask, `approval_denied`, `approval_expired` and `approval_limit` are denies, and the owner's answer is an entry of
+the tool `decide_approval`.
 
 A test in `crates/core/meldframe-approvals/tests/approval_codes.rs` reads this table and fails if a code has no
 row or a row has no code.
@@ -135,7 +151,7 @@ batch the server refuses is a `Refusal::BatchTooLarge` (code `batch_too_large`, 
 
 ## MCP tool errors
 
-An MCP tool call that fails returns a tool error (`isError: true`) whose structured body is `{"ok": false, "error": {"code", "message", "retryable", ...}}`: the same shape as the transport above. A refusal keeps its code from the tables above (`conflict`, `forbidden`, `E_...`) and adds, when they apply, `index` (the command of an atomic batch that would be refused, from 0), `nodeId` (a conflict) and, from `apply_commands` with `ifSeq`, `currentSeq`, `current` (the node now, `null` if removed) and `changes` (`seq`, `actor`, `command` of each op since `ifSeq` that touched the node). REST carries `nodeId` and `index` too. Two codes are worded by the MCP tools: `invalid` also covers a missing, empty or doubled idempotency key (or `ifSeq`), an `ifSeq` more than 2,000 changes behind the file, an `ifSeq` that cannot guard a command of a non-atomic call (with its `index`), a batch of 0 or more than 100 commands, a bad file name, and an `ids` list of 0 or more than 100; `bad_request` covers arguments that do not fit the input schema (an unknown field, a wrong type) and a command that is not a command (with its `index`). A call refused before MCP sees it (`unauthenticated`, `rate_limited`, `too_large`) is an HTTP answer in the transport shape, not a tool error.
+An MCP tool call that fails returns a tool error (`isError: true`) whose structured body is `{"ok": false, "error": {"code", "message", "retryable", ...}}`: the same shape as the transport above. A refusal keeps its code from the tables above (`conflict`, `forbidden`, `E_...`) and adds, when they apply, `index` (the command of an atomic batch that would be refused, from 0), `nodeId` (a conflict), `approvalId` (an approval refusal, but not `approval_limit`) and, from `apply_commands` with `ifSeq`, `currentSeq`, `current` (the node now, `null` if removed) and `changes` (`seq`, `actor`, `command` of each op since `ifSeq` that touched the node). REST carries `nodeId` and `index` too. Two codes are worded by the MCP tools: `invalid` also covers a missing, empty or doubled idempotency key (or `ifSeq`), an `ifSeq` more than 2,000 changes behind the file, an `ifSeq` that cannot guard a command of a non-atomic call (with its `index`), a batch of 0 or more than 100 commands, a bad file name, and an `ids` list of 0 or more than 100; `bad_request` covers arguments that do not fit the input schema (an unknown field, a wrong type) and a command that is not a command (with its `index`). A call refused before MCP sees it (`unauthenticated`, `rate_limited`, `too_large`) is an HTTP answer in the transport shape, not a tool error.
 
 ## Replica codes
 
