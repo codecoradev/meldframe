@@ -15,4 +15,10 @@
 //! report says that too. Nothing is changed without a line in the report.
 
 pub mod color;
+pub mod scan;
+mod text;
 pub mod value;
+
+/// The bytes of text the report helpers have cut (a test reads it; nothing else does).
+#[doc(hidden)]
+pub static TEXT_WORK: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);

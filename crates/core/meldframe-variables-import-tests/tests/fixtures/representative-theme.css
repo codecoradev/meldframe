@@ -1,0 +1,108 @@
+/*
+ * A representative Tailwind v4 theme, written for the import tests. It is NOT the owner's Uteke Cloud theme: it has
+ * the shapes a real design system has (a brand scale in hex, shadcn-style semantic variables in oklch on :root and
+ * .dark, @theme inline aliases, sizes in rem, shadows, fonts, a dark block that uses rgb and hsl) so that the import
+ * is tested on those shapes. Drop the real theme file in the same folder to test on it.
+ */
+@import "tailwindcss";
+@import url("https://fonts.example/inter.css");
+@plugin "@tailwindcss/typography";
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --border: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --brand: var(--color-brand-600);
+  --surface-raised: #ffffff;
+  --overlay: rgb(0 0 0 / 0.5);
+  --chart-1: hsl(12 76% 61%);
+  --chart-2: oklch(0.7 0.4 150);
+  --sidebar: 0 0% 98%;
+  --shadow-ring: 0 0 0 1px var(--border);
+  --nav-height: calc(var(--radius) * 8);
+  --font-body: "Inter", system-ui, sans-serif;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --border: rgb(255 255 255 / 10%);
+  --ring: oklch(0.556 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --brand: var(--color-brand-400);
+  --surface-raised: hsl(240 10% 12%);
+  --overlay: rgba(0, 0, 0, 0.7);
+  --sidebar: 240 5.9% 10%;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-primary: var(--primary);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-destructive: var(--destructive);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+}
+
+@theme {
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  --color-brand-950: #172554;
+  --color-accent: hsl(262 83% 58%);
+  --spacing: 0.25rem;
+  --spacing-gutter: 1.5rem;
+  --radius-xl: 1rem;
+  --radius-pill: 9999px;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --breakpoint-md: 48rem;
+  --font-sans: "Inter", ui-sans-serif, system-ui;
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+  --animate-fade: fade 0.2s ease-out;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --hero-glow: #7c3aed;
+  }
+}
+
+@keyframes fade {
+  from { opacity: 0 }
+  to { opacity: 1 }
+}
+
+.card {
+  --card-padding: 1rem;
+  padding: var(--card-padding);
+}
