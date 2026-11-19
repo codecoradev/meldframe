@@ -1,0 +1,17 @@
+[package]
+name = "design-review"
+description = "Design review feature module: a numbered critique list per file, with items linked to the batches that address them (E5.4)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "feature"
+group = "design-review"
+
+[lints]
+workspace = true
+
+[dependencies]
+meldframe-module = { path = "../../../core/meldframe-module" }

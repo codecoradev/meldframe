@@ -1,0 +1,18 @@
+[package]
+name = "meldframe-review-tests"
+description = "Tests of the design review lists in Postgres and of the design_review MCP tool. No library code; separate because meldframe-server-tests and meldframe-mcp-tests are at their ceilings."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+design-review = { path = "../../features/design-review/design-review" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-server = { path = "../../../apps/server" }
+
+[lints]
+workspace = true

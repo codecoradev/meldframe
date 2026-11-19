@@ -331,6 +331,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "design-review"
+version = "0.0.0"
+dependencies = [
+ "meldframe-module",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1458,6 +1465,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-review-tests"
+version = "0.0.0"
+dependencies = [
+ "design-review",
+ "meldframe-host",
+ "meldframe-server",
+]
+
+[[package]]
 name = "meldframe-rooms"
 version = "0.0.0"
 dependencies = [
@@ -1559,6 +1575,7 @@ dependencies = [
 name = "meldframe-store-pg"
 version = "0.0.0"
 dependencies = [
+ "design-review",
  "meldframe-calls",
  "meldframe-host",
  "meldframe-module",
