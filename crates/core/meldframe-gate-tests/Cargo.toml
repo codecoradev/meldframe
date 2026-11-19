@@ -11,9 +11,12 @@ kind = "tool"
 
 [dev-dependencies]
 meldframe-check = { path = "../meldframe-check" }
+meldframe-history = { path = "../meldframe-history" }
 meldframe-host = { path = "../meldframe-host" }
 meldframe-module = { path = "../meldframe-module" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-revert = { path = "../meldframe-revert" }
+meldframe-rooms = { path = "../meldframe-rooms" }
 serde_json = "1"
 
 [lints]

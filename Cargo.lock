@@ -1153,9 +1153,12 @@ name = "meldframe-gate-tests"
 version = "0.0.0"
 dependencies = [
  "meldframe-check",
+ "meldframe-history",
  "meldframe-host",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-revert",
+ "meldframe-rooms",
  "serde_json",
 ]
 
@@ -1437,6 +1440,17 @@ version = "0.0.0"
 dependencies = [
  "meldframe-protocol",
  "serde",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
+name = "meldframe-revert"
+version = "0.0.0"
+dependencies = [
+ "meldframe-history",
+ "meldframe-order",
+ "meldframe-protocol",
  "serde_json",
  "wasm-bindgen-test",
 ]
