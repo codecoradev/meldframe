@@ -176,6 +176,14 @@ fn a_code_that_is_not_a_stable_code_is_logged_as_internal() {
         describe_code(Some("no_capable_client")),
         (Some(Decision::Allow), "no_capable_client".into())
     );
+    assert_eq!(
+        describe_code(Some("E_EXPORT_TOO_LARGE")),
+        (Some(Decision::Allow), "E_EXPORT_TOO_LARGE".into())
+    );
+    // Upper case is for the `E_...` codes only: a one-word title is not a code.
+    for text in ["Hero", "Buy_now", "E_", "e_X", "E_a", "E_X Y"] {
+        assert_eq!(describe_code(Some(text)).1, "internal", "{text:?}");
+    }
     for text in ["Hero title: Buy now", "", "a\nb", &"x".repeat(65)] {
         assert_eq!(describe_code(Some(text)).1, "internal", "{text:?}");
     }
