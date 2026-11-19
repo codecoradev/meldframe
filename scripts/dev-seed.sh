@@ -33,7 +33,7 @@ allowed_target() {
   [[ "$1" =~ $re ]]
 }
 if ! allowed_target "$URL"; then
-  echo "refusing to seed: DATABASE_URL must point at a database named meldframe_dev or meldframe_test on this machine (127.0.0.1, localhost or [::1]). The development seed publishes a known token." >&2
+  echo "refusing to seed: DATABASE_URL must point at a database named meldframe_dev or meldframe_test on this machine (127.0.0.1, localhost or [::1]). The development seed publishes a known token. The URL must be plain: user and password only of [A-Za-z0-9._~-] (no percent-encoding), and a query only of sslmode, connect_timeout and application_name." >&2
   exit 3
 fi
 # libpq reads these from the environment and some win over what the URL says (PGHOSTADDR and a
@@ -44,7 +44,7 @@ unset PGHOSTADDR PGSERVICE PGSERVICEFILE PGHOST PGPORT PGDATABASE
 # The value is generated here from /dev/urandom on every run that needs one; no secret is in the file.
 TOKEN="mf_dev_$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')" # cora-ignore: sec-hardcoded-secret
 if command -v sha256sum >/dev/null 2>&1; then HASH=$(printf %s "$TOKEN" | sha256sum | cut -d' ' -f1); else HASH=$(printf %s "$TOKEN" | shasum -a 256 | cut -d' ' -f1); fi
-ISSUED=$(PGOPTIONS="-c client_min_messages=warning" psql "$URL" -v ON_ERROR_STOP=1 -q -At -v token_hash="$HASH" -f "$ROOT/scripts/dev-seed.sql" | tail -1)
+ISSUED=$(PGOPTIONS="-c client_min_messages=warning" psql -X "$URL" -v ON_ERROR_STOP=1 -q -At -v token_hash="$HASH" -f "$ROOT/scripts/dev-seed.sql" | tail -1)
 echo "seeded: workspace ws_dev, file file_dev"
 if [ "$ISSUED" = 1 ]; then
   (umask 077; printf '%s\n' "$TOKEN" > "$ROOT/.dev-token")
