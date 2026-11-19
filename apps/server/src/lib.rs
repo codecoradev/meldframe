@@ -10,6 +10,7 @@ mod error;
 mod http;
 mod limits;
 mod live;
+mod modules;
 mod owners;
 
 pub use approval::APPROVAL_TTL_MS;
@@ -33,6 +34,7 @@ use meldframe_calls::{CallEntry, CallLog, MemoryCallLog};
 use meldframe_host::{Accepted, Op, Principal, Refusal, Room, Store, StoredOp};
 use meldframe_module::{Module, Policy, Registry, RiskTier, default_policy};
 use meldframe_rooms::{MemoryActivityLog, RegistryError, TreeFacts};
+use modules::modules;
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -479,22 +481,4 @@ fn rank(tier: RiskTier) -> u8 {
 
 fn forbidden(tier: RiskTier, policy: Policy) -> Refusal {
     Refusal::Forbidden { tier, policy }
-}
-
-/// The feature modules compiled into this build: one entry per enabled cargo feature.
-fn modules() -> Vec<Box<dyn Module>> {
-    vec![
-        #[cfg(feature = "example")]
-        Box::new(example::ExampleModule),
-        #[cfg(feature = "mcp")]
-        Box::new(meldframe_http::mcp::McpModule),
-        #[cfg(feature = "capture")]
-        Box::new(capture::CaptureModule),
-        #[cfg(feature = "assets")]
-        Box::new(assets::AssetsModule),
-        #[cfg(feature = "design-review")]
-        Box::new(design_review::DesignReviewModule),
-        #[cfg(feature = "export")]
-        Box::new(export::ExportModule),
-    ]
 }

@@ -101,6 +101,8 @@ fn serve(
     let review_policy = server.registry().policy_for(design_review::TOOL);
     #[cfg(feature = "export")]
     let export_policy = server.registry().policy_for(export::TOOL);
+    #[cfg(feature = "variables-import")]
+    let import_policy = server.registry().policy_for(variables_import::TOOL);
     // `shared` outlives `block_on`: the last reference to a PgStore runtime must not drop inside one.
     let shared = Arc::new(SharedServer::new(server));
     let auth = Arc::new(DevTokens::parse(&spec)?);
@@ -180,6 +182,11 @@ fn serve(
         state.clone(),
         shared.clone(),
         export_policy,
+    ));
+    #[cfg(feature = "variables-import")]
+    extra_tools.push(meldframe_http_variables_import::tool(
+        state.clone(),
+        import_policy,
     ));
     #[cfg(feature = "mcp")]
     let app = {

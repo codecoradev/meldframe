@@ -37,8 +37,10 @@ impl From<Refusal> for Failure {
 /// A status and a JSON body: `{"accepted": [...]}` or `{"error": {"code", "message", "retryable"}}`.
 #[derive(Debug)]
 pub struct Reply {
-    pub(crate) status: StatusCode,
-    pub(crate) body: Value,
+    /// The HTTP status of the answer.
+    pub status: StatusCode,
+    /// `{"accepted": [...]}` or `{"error": {...}}`.
+    pub body: Value,
     retry_after: Option<Duration>,
 }
 

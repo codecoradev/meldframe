@@ -17,6 +17,8 @@ meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-http = { path = "../../integrations/meldframe-http", features = ["mcp"] }
 meldframe-http-capture = { path = "../../integrations/meldframe-http-capture" }
 meldframe-http-assets = { path = "../../integrations/meldframe-http-assets" }
+variables-import = { path = "../../features/variables-import/variables-import" }
+meldframe-http-variables-import = { path = "../../integrations/meldframe-http-variables-import" }
 meldframe-server = { path = "../../../apps/server" }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
 rmcp = { version = "3.10", default-features = false, features = ["client", "server", "transport-streamable-http-client-reqwest"] }

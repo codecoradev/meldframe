@@ -1402,6 +1402,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-http-variables-import"
+version = "0.0.0"
+dependencies = [
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-module",
+ "meldframe-protocol",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "variables-import",
+]
+
+[[package]]
 name = "meldframe-layout"
 version = "0.0.0"
 dependencies = [
@@ -1641,6 +1655,7 @@ dependencies = [
  "meldframe-http-live",
  "meldframe-http-review",
  "meldframe-http-snapshot",
+ "meldframe-http-variables-import",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-rooms",
@@ -1648,6 +1663,7 @@ dependencies = [
  "meldframe-stream",
  "serde_json",
  "tokio",
+ "variables-import",
 ]
 
 [[package]]
@@ -1803,6 +1819,7 @@ dependencies = [
  "meldframe-http",
  "meldframe-http-assets",
  "meldframe-http-capture",
+ "meldframe-http-variables-import",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-server",
@@ -1810,6 +1827,7 @@ dependencies = [
  "rmcp",
  "serde_json",
  "tokio",
+ "variables-import",
 ]
 
 [[package]]
@@ -3217,6 +3235,7 @@ name = "variables-import"
 version = "0.0.0"
 dependencies = [
  "meldframe-check",
+ "meldframe-module",
  "meldframe-protocol",
  "meldframe-variables",
 ]
