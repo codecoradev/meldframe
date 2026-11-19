@@ -7,7 +7,7 @@ use ts_rs::TS;
 
 /// The state of the editor: what is selected, which tool is active, which panels are open, how the
 /// connection to the room is doing and whether undo and redo are available. The document itself is read
-/// with [`App::nodes`](crate::App::nodes).
+/// with `App::nodes`.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -31,6 +31,9 @@ pub struct AppState {
     /// The checkpoints of this session, oldest first (E5.3): saved by the person, or taken on their own at the
     /// start of an agent run and before a revert or a restore.
     pub checkpoints: Vec<Checkpoint>,
+    /// The mode picked for each collection that is not on its default mode (collection id to mode id). View
+    /// state: it decides what the canvas paints and is never written to the file.
+    pub modes: BTreeMap<String, String>,
 }
 
 /// A named point in the file's history that can be restored: the file as the server confirmed it after op `seq`.
@@ -158,8 +161,11 @@ pub struct Properties {
     pub y: f64,
     pub w: f64,
     pub h: f64,
+    /// The colour that is painted: the literal, or what the bound variable has in the picked modes.
     pub fill: String,
     pub radius: f64,
     pub text: String,
     pub font_size: f64,
+    /// The fields bound to a variable (`fill`, `radius`, `opacity`); their value above is the resolved one.
+    pub bound: Vec<String>,
 }

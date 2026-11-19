@@ -4,4 +4,12 @@ import type { NodeKind } from "./NodeKind";
 /**
  * The editable values of the selected node.
  */
-export type Properties = { id: string, name: string, kind: NodeKind, x: number, y: number, w: number, h: number, fill: string, radius: number, text: string, fontSize: number, };
+export type Properties = { id: string, name: string, kind: NodeKind, x: number, y: number, w: number, h: number, 
+/**
+ * The colour that is painted: the literal, or what the bound variable has in the picked modes.
+ */
+fill: string, radius: number, text: string, fontSize: number, 
+/**
+ * The fields bound to a variable (`fill`, `radius`, `opacity`); their value above is the resolved one.
+ */
+bound: Array<string>, };

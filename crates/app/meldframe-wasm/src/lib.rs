@@ -5,7 +5,7 @@
 //! only converts. [`Bridge`] is plain Rust (tested natively); [`WasmApp`] is its wasm-bindgen face.
 
 use meldframe_app::{Action, App};
-use meldframe_protocol::Node;
+use meldframe_protocol::{Doc, Node, Variables};
 use wasm_bindgen::prelude::*;
 
 /// The largest whole number a JS number holds exactly (2^53 - 1).
@@ -27,17 +27,24 @@ pub struct Bridge {
 }
 
 impl Bridge {
-    /// `nodes_json` is the file's node list as of server sequence number `seq`.
+    /// `nodes_json` is the file's node list as of server sequence number `seq`; `variables_json` holds its
+    /// collections and variables (`None`: the file has none).
     pub fn new(
         actor: &str,
         key_prefix: &str,
         session: u64,
         nodes_json: &str,
         seq: u64,
+        variables_json: Option<&str>,
     ) -> Result<Self, String> {
         let nodes: Vec<Node> =
             serde_json::from_str(nodes_json).map_err(|e| format!("nodes: {e}"))?;
-        let app = App::new(actor, key_prefix, session, nodes, seq)
+        let vars: Variables = variables_json
+            .map(serde_json::from_str)
+            .transpose()
+            .map_err(|e| format!("variables: {e}"))?
+            .unwrap_or_default();
+        let app = App::with_doc(actor, key_prefix, session, Doc { nodes, vars }, seq)
             .map_err(|e| format!("load: {}", e.code()))?;
         Ok(Self { app })
     }
@@ -56,6 +63,11 @@ impl Bridge {
 
     pub fn nodes_json(&self) -> String {
         to_json(&self.app.nodes())
+    }
+
+    /// The collections and variables of the document (JSON; `meldframe_protocol::Variables`).
+    pub fn variables_json(&self) -> String {
+        to_json(self.app.vars())
     }
 
     /// The painted boxes of the document, back to front (JSON array; `meldframe_render::PaintedBox`).
@@ -109,7 +121,7 @@ fn install_panic_hook() {
 #[cfg(not(target_arch = "wasm32"))]
 fn install_panic_hook() {}
 
-/// The app for the browser: the same six calls as [`Bridge`].
+/// The app for the browser: the same calls as [`Bridge`].
 #[wasm_bindgen]
 #[derive(Debug)]
 pub struct WasmApp {
@@ -126,6 +138,7 @@ impl WasmApp {
         session: f64,
         nodes_json: &str,
         seq: f64,
+        variables_json: Option<String>,
     ) -> Result<WasmApp, JsValue> {
         install_panic_hook();
         // JS numbers are coerced silently by wasm-bindgen for integer parameters (-1 becomes 4294967295, NaN
@@ -133,8 +146,15 @@ impl WasmApp {
         let session = whole_number("session", session, f64::from(u32::MAX))
             .map_err(|e| JsValue::from_str(&e))?;
         let seq = whole_number("seq", seq, MAX_SAFE_INTEGER).map_err(|e| JsValue::from_str(&e))?;
-        let bridge = Bridge::new(actor, key_prefix, session, nodes_json, seq)
-            .map_err(|e| JsValue::from_str(&e))?;
+        let bridge = Bridge::new(
+            actor,
+            key_prefix,
+            session,
+            nodes_json,
+            seq,
+            variables_json.as_deref(),
+        )
+        .map_err(|e| JsValue::from_str(&e))?;
         Ok(WasmApp { bridge })
     }
 
@@ -147,6 +167,11 @@ impl WasmApp {
     #[wasm_bindgen(js_name = stateJson)]
     pub fn state_json(&self) -> String {
         self.bridge.state_json()
+    }
+
+    #[wasm_bindgen(js_name = variablesJson)]
+    pub fn variables_json(&self) -> String {
+        self.bridge.variables_json()
     }
 
     #[wasm_bindgen(js_name = nodesJson)]

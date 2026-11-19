@@ -4,7 +4,7 @@ use meldframe_wasm::Bridge;
 use serde_json::{Value, json};
 
 fn bridge() -> Bridge {
-    Bridge::new("usr_me", "web", 7, "[]", 0).expect("empty file loads")
+    Bridge::new("usr_me", "web", 7, "[]", 0, None).expect("empty file loads")
 }
 
 fn run(b: &mut Bridge, action: Value) -> Value {
@@ -59,7 +59,7 @@ fn bad_json_and_unknown_actions_are_errors_not_panics() {
 
 #[test]
 fn a_file_that_does_not_load_is_an_error() {
-    assert!(Bridge::new("usr_me", "web", 1, "{", 0).is_err());
+    assert!(Bridge::new("usr_me", "web", 1, "{", 0, None).is_err());
 }
 
 #[test]
@@ -74,7 +74,7 @@ fn a_file_that_does_not_load_names_its_stable_code() {
     );
     let nodes: Vec<Value> = serde_json::from_str(&b.nodes_json()).unwrap();
     let doubled = json!([nodes[0], nodes[0]]).to_string();
-    let err = Bridge::new("usr_me", "web", 1, &doubled, 0).unwrap_err();
+    let err = Bridge::new("usr_me", "web", 1, &doubled, 0, None).unwrap_err();
     assert_eq!(err, "load: E_DUPLICATE_ID");
 }
 
@@ -113,4 +113,43 @@ fn the_scene_is_the_painted_boxes_of_the_document_as_json() {
         (Some(10.0), Some(20.0))
     );
     assert_eq!(scene[0]["parent"], Value::Null);
+}
+
+#[test]
+fn the_scene_paints_variables_and_a_mode_switch_repaints_without_touching_the_nodes() {
+    let nodes =
+        json!([{"id": "card", "type": "rect", "pos": "a0", "fill": {"var": "bg"}}]).to_string();
+    let vars = json!({
+        "collections": [{"id": "t", "name": "appearance", "modes": [{"id": "light", "name": "light"}, {"id": "dark", "name": "dark"}]}],
+        "variables": [{"id": "bg", "collection": "t", "name": "color/bg", "type": "color",
+            "values": {"light": "#ffffff", "dark": "#000000"}}]
+    })
+    .to_string();
+    let mut b = Bridge::new("usr_me", "web", 7, &nodes, 0, Some(&vars)).expect("the file loads");
+    let fill = |b: &Bridge| -> Value {
+        let scene: Vec<Value> = serde_json::from_str(&b.scene_json()).unwrap();
+        scene[0]["fill"].clone()
+    };
+    assert_eq!(fill(&b), json!(0xffffff));
+    let before = b.nodes_json();
+    let fx = run(
+        &mut b,
+        json!({"type": "setMode", "collection": "t", "mode": "dark"}),
+    );
+    assert_eq!(fill(&b), json!(0));
+    assert!(fx.to_string().contains(r#""type":"render""#), "{fx}");
+    assert_eq!(b.nodes_json(), before, "the document is the same");
+    let v: Value = serde_json::from_str(&b.variables_json()).unwrap();
+    assert_eq!(v["variables"][0]["id"], "bg");
+    // A variables file that does not load names its code.
+    let mut broken: Value = serde_json::from_str(&vars).unwrap();
+    broken["variables"][0]["values"]
+        .as_object_mut()
+        .unwrap()
+        .remove("dark");
+    let broken = broken.to_string();
+    assert_eq!(
+        Bridge::new("usr_me", "web", 1, &nodes, 0, Some(&broken)).unwrap_err(),
+        "load: E_INCOMPLETE_VALUES"
+    );
 }

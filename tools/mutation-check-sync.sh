@@ -49,7 +49,7 @@ resync-applied	crates/core/meldframe-sync/src/replica/resync.rs	if done\.contain
 resync-deps	crates/core/meldframe-sync/src/replica/resync.rs	let live = !p\.out\.deps\.iter()\.any(|d| dead\.contains(d))	let live = true	after a resync an op whose dependency was dropped is kept
 resync-outbox	crates/core/meldframe-sync/src/replica/resync.rs	self\.outbox = self\.pending\.iter()\.map(|p| p\.out\.clone())\.collect();	self.outbox.clear();	a resync does not queue the pending ops to be sent again
 app-key	crates/app/meldframe-app/src/app.rs	\.on_event_keyed(seq, actor, key, command)	.on_event_keyed(seq, actor, None, command)	the app ignores the key an event frame carries and compares actor and command
-app-reload-applied	crates/app/meldframe-app/src/link.rs	self\.replica\.resync(nodes, seq, applied)	self.replica.resync(nodes, seq, \&[])	a reload replays ops the snapshot already holds
+app-reload-applied	crates/app/meldframe-app/src/link.rs	self\.replica\.resync_doc(doc, seq, applied)	self.replica.resync_doc(doc, seq, \&[])	a reload replays ops the snapshot already holds
 app-reload-subscribe	crates/app/meldframe-app/src/link.rs	self\.start(now_ms, fx);	let _ = now_ms;	a reload does not go to connecting and subscribe from the snapshot
 app-reload-halted	crates/app/meldframe-app/src/app.rs	!ui \&\& !reload {	!ui {	a halted app ignores a reload like any other action
 app-room	crates/app/meldframe-app/src/document.rs	if self\.replica\.pending_len() + cmds\.len() > max {	if false {	a list action that does not fit the queue is applied in part
