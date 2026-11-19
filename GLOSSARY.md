@@ -47,6 +47,7 @@ _Avoid_: Version, branch
 **Variable**:
 A named, typed value that nodes can bind to instead of holding a literal (color, number or string; shadow, gradient and typography later).
 _Avoid_: Token, style, theme value
+The agent tool `import_tokens` keeps the name the epic gave it: there "token" names the source of an import (a design-token style sheet); everywhere else the word is Variable.
 
 **Collection**:
 A group of variables that share modes.

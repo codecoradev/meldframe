@@ -84,6 +84,15 @@ lowercase segments joined by slashes (`color/brand-500`). A variable that a node
 removed (`E_VARIABLE_IN_USE`): unbind first. Switching a mode does not change the file; setting a value does, and every
 node bound to it shows it.
 
+To start from a project's own design system, read its CSS yourself (the file with `:root`, the dark rule and the Tailwind
+`@theme` blocks, and what its `@import` lines name) and send the text to `import_tokens` with the `file`, the `css` and
+an `idempotencyKey`. Nothing is run or fetched on the server, so resolve a `tailwind.config.js` or an `@import` first.
+Send it once with `dryRun` true to read the `report`: every colour that was converted to hex (an oklch colour outside
+sRGB is clamped), every value that was skipped (shadows, fonts, `calc()`) and why. Then send it for real. A long import
+comes in `parts` of 100 commands: send the same call again with `part` 2, 3 and so on, in order, with the same key. The
+import adds and does not update: text whose variables the file holds is refused as `E_DUPLICATE_ID`. Then read the ids
+with `get_variables` and bind the frames you design.
+
 ## Handing a frame to code
 
 Call `export_frame` with the `file`, the `frame` (the id of a frame) and, if you want it, `format` (`css`, the default, or

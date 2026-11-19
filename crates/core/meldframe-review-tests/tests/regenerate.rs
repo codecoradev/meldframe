@@ -38,6 +38,14 @@ fn regenerate() {
         json!({"name": ex.name, "tier": ex.tier.as_str(), "description": ex.description,
         "inputSchema": meldframe_http_export::input_schema()}),
     );
+    let vi = server
+        .registry()
+        .agent_tool(variables_import::TOOL)
+        .unwrap();
+    tools.push(
+        json!({"name": vi.name, "tier": vi.tier.as_str(), "description": vi.description,
+        "inputSchema": meldframe_http_variables_import::input_schema()}),
+    );
     let doc = json!({"batchLimit": meldframe_http::mcp::MAX_BATCH, "tools": tools});
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../docs/mcp-tools.json");
     std::fs::write(path, serde_json::to_string_pretty(&doc).unwrap() + "\n").unwrap();
