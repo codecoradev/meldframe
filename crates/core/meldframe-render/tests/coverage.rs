@@ -80,7 +80,7 @@ fn change(field: &str, i: usize, n: &mut Node) {
         "sh" => n.sh = meldframe_protocol::SizeMode::Fill,
         "fill" => n.fill = "#112233".into(),
         "fill2" => n.fill2 = "#445566".into(),
-        "radius" => n.radius += 3.0,
+        "radius" => n.radius = 3.0.into(),
         "layout" => n.layout = meldframe_protocol::LayoutMode::Row,
         "gap" => n.gap += 3.0,
         "padding" => n.padding += 3.0,
@@ -103,7 +103,7 @@ fn change(field: &str, i: usize, n: &mut Node) {
         "marB" => n.mar_b = 4.0,
         "marL" => n.mar_l = 4.0,
         "absolute" => n.absolute = true,
-        "opacity" => n.opacity = 0.5,
+        "opacity" => n.opacity = 0.5.into(),
         "gradient" => {
             n.gradient = Some(Gradient {
                 kind: Default::default(),

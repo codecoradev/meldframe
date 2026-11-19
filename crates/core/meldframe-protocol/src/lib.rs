@@ -13,6 +13,7 @@ mod enums;
 mod node;
 mod patch;
 mod snapshot;
+mod variables;
 mod version;
 mod wire;
 
@@ -25,5 +26,6 @@ pub use enums::{
 pub use node::{Node, Pad};
 pub use patch::NodePatch;
 pub use snapshot::{FileSnapshot, SnapshotNode};
+pub use variables::{Bind, Collection, Doc, Mode, Value, VarRef, VarType, Variable, Variables};
 pub use version::SCHEMA_VERSION;
 pub use wire::{ClientMsg, MAX_OP_DEPS, ServerMsg};

@@ -4,7 +4,7 @@ use crate::action::{Action, CreateKind, Property};
 use crate::app::{App, render_set};
 use crate::effect::Effect;
 use crate::state::Tool;
-use meldframe_check::{ApplyError, Limits, check_command};
+use meldframe_check::{ApplyError, Limits, check_command_with};
 use meldframe_protocol::{Command, Node, NodePatch};
 use meldframe_sync::{Replica, SubmitError};
 use meldframe_variant::VariantError;
@@ -176,8 +176,8 @@ impl App {
                 let mut patch = NodePatch::default();
                 match property {
                     Property::Name(v) => patch.name = Some(v),
-                    Property::Fill(v) => patch.fill = Some(v),
-                    Property::Radius(v) => patch.radius = Some(v),
+                    Property::Fill(v) => patch.fill = Some(v.into()),
+                    Property::Radius(v) => patch.radius = Some(v.into()),
                     Property::FontSize(v) => patch.font_size = Some(v),
                 }
                 self.replica.apply(&update(&id, patch))
@@ -231,7 +231,9 @@ impl App {
         self.check_room(cmds)?;
         let limits = Limits::default();
         cmds.iter()
-            .try_for_each(|c| check_command(self.replica.nodes(), c, &limits))
+            .try_for_each(|c| {
+                check_command_with(self.replica.nodes(), self.replica.vars(), c, &limits)
+            })
             .map_err(SubmitError::Invalid)
     }
 

@@ -41,6 +41,7 @@ fn the_workspace_is_a_column_of_files_and_the_other_tables_follow_it() {
         Snapshot {
             seq: 2,
             nodes: vec![],
+            variables: Default::default(),
         },
     )
     .unwrap();

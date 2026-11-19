@@ -29,7 +29,14 @@ fn store_with(nodes: Vec<Node>) -> MemoryStore {
         .unwrap();
     let mut store = r.into_store();
     store
-        .save_snapshot("file_1", Snapshot { seq: 1, nodes })
+        .save_snapshot(
+            "file_1",
+            Snapshot {
+                seq: 1,
+                nodes,
+                variables: Default::default(),
+            },
+        )
         .unwrap();
     store
 }

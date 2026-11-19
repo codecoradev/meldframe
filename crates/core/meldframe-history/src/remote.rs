@@ -5,7 +5,7 @@
 
 use crate::file_state::FileState;
 use crate::inverse::descendants;
-use meldframe_core::{ApplyError, apply_planned, plan_command};
+use meldframe_core::{ApplyError, apply_planned_doc, plan_doc};
 use meldframe_protocol::{Command, Node};
 use meldframe_undo::RemoteCtx;
 
@@ -40,12 +40,12 @@ impl FileState {
     /// Apply a command of another actor (already put in order by the server) without recording it, and
     /// rewrite my undo and redo steps against it. A refused command changes nothing, history included.
     pub fn apply_remote(&mut self, cmd: &Command) -> Result<(), ApplyError> {
-        let pos = plan_command(&self.nodes, cmd, &self.limits)?;
-        let ctx = remote_ctx(&self.nodes, cmd);
+        let pos = plan_doc(&self.doc, cmd, &self.limits)?;
+        let ctx = remote_ctx(&self.doc.nodes, cmd);
         self.hist.rewrite(cmd, &ctx);
         // A remote edit closes any keyed merge run: the step it would join may have been pruned or changed.
         self.hist.close_merge();
-        apply_planned(&mut self.nodes, cmd, pos);
+        apply_planned_doc(&mut self.doc, cmd, pos);
         self.version += 1;
         Ok(())
     }

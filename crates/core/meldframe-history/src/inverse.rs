@@ -3,6 +3,7 @@
 
 use crate::file_state::FileState;
 use meldframe_check::position;
+use meldframe_core::invert_variables;
 use meldframe_protocol::{Command, Node};
 use meldframe_undo::inverse_patch;
 use std::collections::HashSet;
@@ -68,7 +69,7 @@ impl FileState {
     pub(crate) fn invert(&self, cmd: &Command) -> Vec<Command> {
         match cmd {
             Command::UpdateNode { id, patch } => {
-                let old = &self.nodes[position(&self.nodes, id).expect("checked")];
+                let old = &self.doc.nodes[position(&self.doc.nodes, id).expect("checked")];
                 vec![Command::UpdateNode {
                     id: id.clone(),
                     patch: inverse_patch(old, patch),
@@ -78,7 +79,7 @@ impl FileState {
                 id: node.id.clone(),
             }],
             Command::Reparent { id, .. } => {
-                let old = &self.nodes[position(&self.nodes, id).expect("checked")];
+                let old = &self.doc.nodes[position(&self.doc.nodes, id).expect("checked")];
                 vec![Command::Reparent {
                     id: id.clone(),
                     parent_id: old.parent_id.clone(),
@@ -86,7 +87,7 @@ impl FileState {
                 }]
             }
             Command::Reorder { id, .. } => {
-                let old = &self.nodes[position(&self.nodes, id).expect("checked")];
+                let old = &self.doc.nodes[position(&self.doc.nodes, id).expect("checked")];
                 vec![Command::Reorder {
                     id: id.clone(),
                     before: None,
@@ -96,10 +97,12 @@ impl FileState {
             }
             // Each node keeps its own `pos`, so the sibling order comes back exactly. If another sibling
             // holds that `pos` by then, the apply rule puts the node right behind it.
-            Command::RemoveNode { id } => subtree(&self.nodes, id)
+            Command::RemoveNode { id } => subtree(&self.doc.nodes, id)
                 .into_iter()
                 .map(|node| Command::AddNode { node, index: None })
                 .collect(),
+            // Every other command is a variable command: its inverse, from the variables as they are now.
+            _ => invert_variables(&self.doc.vars, cmd),
         }
     }
 }

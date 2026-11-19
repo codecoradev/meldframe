@@ -69,7 +69,7 @@ fn a_pending_op_is_applied_again_on_top_of_an_earlier_remote_op() {
     // Undo goes back to what the server had before my op (5), not to what I saw (0).
     assert!(r.undo().unwrap());
     let a = r.nodes().iter().find(|n| n.id == "a").unwrap();
-    assert_eq!((a.x, a.fill.as_str()), (5.0, "#111111"));
+    assert_eq!((a.x, a.fill.lit().unwrap().as_str()), (5.0, "#111111"));
 }
 
 #[test]

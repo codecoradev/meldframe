@@ -2,9 +2,13 @@
 
 use crate::decoration::{Border, Gradient, ImageFill, Shadow};
 use crate::enums::{Align, Justify, LayoutMode, NodeKind, ShaderPreset, SizeMode, TextAlign};
+use crate::variables::Bind;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+fn d_zero() -> Bind<f64> {
+    Bind::Lit(0.0)
+}
 fn d_w() -> f64 {
     100.0
 }
@@ -17,8 +21,8 @@ fn d_pad() -> f64 {
 fn d_true() -> bool {
     true
 }
-fn d_fill() -> String {
-    "#3f3f46".into()
+fn d_fill() -> Bind<String> {
+    Bind::Lit("#3f3f46".into())
 }
 fn d_fill2() -> String {
     "#22d3ee".into()
@@ -26,8 +30,8 @@ fn d_fill2() -> String {
 fn d_weight() -> u16 {
     400
 }
-fn d_one() -> f64 {
-    1.0
+fn d_one() -> Bind<f64> {
+    Bind::Lit(1.0)
 }
 
 /// One node of a file's tree (same shape as the node objects in the web client).
@@ -62,11 +66,13 @@ pub struct Node {
     #[serde(default)]
     pub sh: SizeMode,
     #[serde(default = "d_fill")]
-    pub fill: String,
+    /// A colour, the word `none`, or a binding to a colour variable.
+    pub fill: Bind<String>,
     #[serde(default = "d_fill2")]
     pub fill2: String,
-    #[serde(default)]
-    pub radius: f64,
+    /// Corner radius: a number, or a binding to a number variable.
+    #[serde(default = "d_zero")]
+    pub radius: Bind<f64>,
     #[serde(default)]
     pub layout: LayoutMode,
     #[serde(default = "d_gap")]
@@ -132,7 +138,7 @@ pub struct Node {
     pub absolute: bool,
     /// Opacity of the node and what is inside it: 0 (invisible) to 1 (opaque, the default; old files have none).
     #[serde(default = "d_one")]
-    pub opacity: f64,
+    pub opacity: Bind<f64>,
     /// A gradient over `fill`, under the image. Absent = none (old files stay valid).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

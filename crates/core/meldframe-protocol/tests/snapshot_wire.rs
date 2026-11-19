@@ -17,6 +17,7 @@ fn a_snapshot_node_adds_the_last_actor_and_sequence_number_to_the_node() {
             last_actor: Some("agent:a".into()),
             last_seq: Some(7),
         }],
+        variables: Default::default(),
     };
     let v = serde_json::to_value(&snap).unwrap();
     assert_eq!(v["seq"], 7);

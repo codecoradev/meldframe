@@ -1031,6 +1031,7 @@ dependencies = [
  "meldframe-render",
  "meldframe-revert",
  "meldframe-sync",
+ "meldframe-variables",
  "meldframe-variant",
  "serde",
  "serde_json",
@@ -1093,6 +1094,7 @@ dependencies = [
  "meldframe-core",
  "meldframe-host",
  "meldframe-protocol",
+ "meldframe-variables",
  "serde_json",
 ]
 
@@ -1134,6 +1136,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-order",
  "meldframe-protocol",
+ "meldframe-variables",
  "serde_json",
  "wasm-bindgen-test",
 ]
@@ -1145,6 +1148,7 @@ dependencies = [
  "meldframe-check",
  "meldframe-order",
  "meldframe-protocol",
+ "meldframe-variables",
  "serde",
  "serde_json",
  "wasm-bindgen-test",
@@ -1196,6 +1200,7 @@ dependencies = [
  "meldframe-core",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-variables",
  "serde_json",
 ]
 
@@ -1464,6 +1469,7 @@ dependencies = [
  "meldframe-host",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-variables",
  "serde_json",
  "trybuild",
 ]
@@ -1563,6 +1569,7 @@ dependencies = [
  "meldframe-host",
  "meldframe-module",
  "meldframe-protocol",
+ "serde",
  "serde_json",
  "sqlx",
  "tokio",
@@ -1581,6 +1588,7 @@ dependencies = [
  "meldframe-history",
  "meldframe-order",
  "meldframe-protocol",
+ "meldframe-variables",
  "serde_json",
  "wasm-bindgen-test",
 ]
@@ -1621,6 +1629,28 @@ name = "meldframe-undo"
 version = "0.0.0"
 dependencies = [
  "meldframe-protocol",
+]
+
+[[package]]
+name = "meldframe-variables"
+version = "0.0.0"
+dependencies = [
+ "meldframe-protocol",
+]
+
+[[package]]
+name = "meldframe-variables-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-core",
+ "meldframe-history",
+ "meldframe-host",
+ "meldframe-protocol",
+ "meldframe-sync",
+ "meldframe-variables",
+ "serde_json",
+ "wasm-bindgen-test",
 ]
 
 [[package]]

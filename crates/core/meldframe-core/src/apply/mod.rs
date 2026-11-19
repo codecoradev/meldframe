@@ -5,8 +5,9 @@
 
 mod order;
 
-use meldframe_check::{ApplyError, Limits, check_command, position};
-use meldframe_protocol::{Command, Node};
+use meldframe_check::{ApplyError, Limits, check_command, check_command_with, position};
+use meldframe_protocol::{Command, Doc, Node, Variables};
+use meldframe_variables::is_variable_command;
 use order::{Want, resolve_pos};
 use std::collections::HashSet;
 
@@ -15,13 +16,24 @@ pub use order::{
 };
 
 /// The final `pos` of the node a command touches (`None` = unchanged), worked out against the current
-/// nodes. Fails if the command is refused.
+/// nodes, for a caller that holds no variables (`check_command`). Fails if the command is refused.
 pub fn plan_command(
     nodes: &[Node],
     cmd: &Command,
     l: &Limits,
 ) -> Result<Option<String>, ApplyError> {
     check_command(nodes, cmd, l)?;
+    plan_nodes(nodes, cmd, l)
+}
+
+/// Like [`plan_command`] for a document with variables.
+pub fn plan_doc(doc: &Doc, cmd: &Command, l: &Limits) -> Result<Option<String>, ApplyError> {
+    check_command_with(&doc.nodes, &doc.vars, cmd, l)?;
+    plan_nodes(&doc.nodes, cmd, l)
+}
+
+/// The `pos` part of a command that `check_command` or `check_command_with` accepted.
+fn plan_nodes(nodes: &[Node], cmd: &Command, l: &Limits) -> Result<Option<String>, ApplyError> {
     Ok(match cmd {
         Command::AddNode { node, index } => {
             // An explicit pos wins over the deprecated index.
@@ -69,15 +81,38 @@ pub fn plan_command(
                 Some(resolved)
             }
         }
-        Command::UpdateNode { .. } | Command::RemoveNode { .. } => None,
+        _ => None,
     })
 }
 
-/// Validate, then apply. If validation fails, `nodes` is unchanged.
+/// Validate, then apply. If validation fails, `nodes` is unchanged. For a caller that holds no variables:
+/// see [`apply_doc`].
 pub fn apply_command(nodes: &mut Vec<Node>, cmd: &Command, l: &Limits) -> Result<(), ApplyError> {
     let pos = plan_command(nodes, cmd, l)?;
     apply_planned(nodes, cmd, pos);
     Ok(())
+}
+
+/// Validate, then apply, to a document with variables. If validation fails, `doc` is unchanged.
+pub fn apply_doc(doc: &mut Doc, cmd: &Command, l: &Limits) -> Result<(), ApplyError> {
+    let pos = plan_doc(doc, cmd, l)?;
+    apply_planned_doc(doc, cmd, pos);
+    Ok(())
+}
+
+/// Apply a command that `plan_doc` already validated and planned: a variable command changes the variables,
+/// every other command the nodes.
+pub fn apply_planned_doc(doc: &mut Doc, cmd: &Command, pos: Option<String>) {
+    if is_variable_command(cmd) {
+        meldframe_variables::apply(&mut doc.vars, cmd);
+    } else {
+        apply_planned(&mut doc.nodes, cmd, pos);
+    }
+}
+
+/// The commands that undo `cmd` on the variables, worked out before it is applied.
+pub fn invert_variables(vars: &Variables, cmd: &Command) -> Vec<Command> {
+    meldframe_variables::invert(vars, cmd)
 }
 
 /// Apply a command that `plan_command` already validated and planned. History uses it to compute the
@@ -121,5 +156,7 @@ pub fn apply_planned(nodes: &mut Vec<Node>, cmd: &Command, pos: Option<String>) 
             }
             nodes.retain(|n| !doomed.contains(&n.id));
         }
+        // A variable command changes the variables, not the nodes: see `apply_planned_doc`.
+        _ => {}
     }
 }

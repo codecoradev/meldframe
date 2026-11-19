@@ -18,6 +18,7 @@
 
 use crate::history::{History, Rec};
 use crate::patch_ops::{drop_fields, patch_is_empty};
+use crate::remote_vars::xform_var;
 use meldframe_protocol::Command;
 use std::collections::HashSet;
 
@@ -136,6 +137,7 @@ fn xform_list(list: &mut Vec<Command>, r: &Command, ctx: &RemoteCtx) {
                     pos,
                 }),
             },
+            other => xform_var(other, r, list),
         }
     }
 }

@@ -220,7 +220,8 @@ fn kinds_have_stable_names_that_read_back() {
             "update_node",
             "remove_node",
             "reparent",
-            "reorder"
+            "reorder",
+            "variable"
         ]
     );
     for k in ActivityKind::ALL {

@@ -7,6 +7,7 @@ mod history;
 mod patch_fields;
 mod patch_ops;
 mod remote;
+mod remote_vars;
 mod runs;
 
 pub use history::{Entry, History, Rec};

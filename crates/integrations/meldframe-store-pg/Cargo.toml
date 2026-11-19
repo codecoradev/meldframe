@@ -16,6 +16,7 @@ meldframe-calls = { path = "../../core/meldframe-calls" }
 meldframe-module = { path = "../../core/meldframe-module" }
 # No TLS feature: a deployment that needs it turns it on deliberately.
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "json", "migrate", "macros"] }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync"] }
 

@@ -2,7 +2,7 @@
 
 use crate::{ApplyError, Limits};
 use meldframe_order::fracindex;
-use meldframe_protocol::{Border, Gradient, ImageFill, Node, NodeKind, NodePatch, Shadow};
+use meldframe_protocol::{Bind, Border, Gradient, ImageFill, Node, NodeKind, NodePatch, Shadow};
 
 fn num(field: &'static str, v: f64, lo: f64, hi: f64) -> Result<(), ApplyError> {
     if !v.is_finite() {
@@ -33,12 +33,21 @@ fn hex_color(field: &'static str, s: &str) -> Result<(), ApplyError> {
     }
 }
 
-/// The fill: a colour, or the word `none` for no fill.
-fn fill(s: &str) -> Result<(), ApplyError> {
-    if s == "none" {
-        return Ok(());
+/// The fill: a colour, the word `none` for no fill, or a binding (the variable is checked against the file).
+fn fill(b: &Bind<String>) -> Result<(), ApplyError> {
+    match b {
+        Bind::Var(_) => Ok(()),
+        Bind::Lit(s) if s == "none" => Ok(()),
+        Bind::Lit(s) => color("fill", s),
     }
-    color("fill", s)
+}
+
+/// A number field that may be bound: the literal is checked, a binding is checked against the file.
+fn bound_num(field: &'static str, b: &Bind<f64>, lo: f64, hi: f64) -> Result<(), ApplyError> {
+    match b {
+        Bind::Lit(v) => num(field, *v, lo, hi),
+        Bind::Var(_) => Ok(()),
+    }
 }
 
 /// A colour field: bounded length first, then hex form.
@@ -182,7 +191,7 @@ pub fn check_node(n: &Node, l: &Limits) -> Result<(), ApplyError> {
         check_pos(&n.pos, l)?;
     }
     font_weight(n.font_weight)?;
-    num("opacity", n.opacity, 0.0, 1.0)?;
+    bound_num("opacity", &n.opacity, 0.0, 1.0)?;
     check_border(&n.border, l)?;
     check_shadows(&n.shadows, l)?;
     check_numbers(
@@ -190,7 +199,7 @@ pub fn check_node(n: &Node, l: &Limits) -> Result<(), ApplyError> {
         [Some(n.x), Some(n.y)],
         [Some(n.w), Some(n.h)],
         &[
-            ("radius", Some(n.radius)),
+            ("radius", n.radius.lit().copied()),
             ("gap", Some(n.gap)),
             ("padding", Some(n.padding)),
             ("marT", Some(n.mar_t)),
@@ -229,8 +238,8 @@ pub fn check_patch(p: &NodePatch, l: &Limits) -> Result<(), ApplyError> {
     if let Some(w) = p.font_weight {
         font_weight(w)?;
     }
-    if let Some(o) = p.opacity {
-        num("opacity", o, 0.0, 1.0)?;
+    if let Some(o) = &p.opacity {
+        bound_num("opacity", o, 0.0, 1.0)?;
     }
     if let Some(b) = &p.border {
         check_border(b, l)?;
@@ -243,7 +252,7 @@ pub fn check_patch(p: &NodePatch, l: &Limits) -> Result<(), ApplyError> {
         [p.x, p.y],
         [p.w, p.h],
         &[
-            ("radius", p.radius),
+            ("radius", p.radius.as_ref().and_then(Bind::lit).copied()),
             ("gap", p.gap),
             ("padding", p.padding),
             ("marT", p.mar_t),

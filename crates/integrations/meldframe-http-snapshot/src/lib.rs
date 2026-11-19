@@ -136,6 +136,7 @@ fn build<S: Store>(room: &Room<S>, last: &Last) -> FileSnapshot {
     FileSnapshot {
         seq: room.seq(),
         nodes,
+        variables: room.vars().clone(),
     }
 }
 

@@ -1,12 +1,10 @@
 //! The room: one total order per file, and the only write entry, [`Room::accept`].
 
 use crate::{Admission, Appended, NewOp, Refusal, Snapshot, Store, StoreError};
-use meldframe_check::{LoadError, check_file};
-use meldframe_core::{
-    Limits, apply_command, apply_planned, normalize_positions_with, plan_command,
-};
+use meldframe_check::{LoadError, check_file_with};
+use meldframe_core::{Limits, apply_doc, apply_planned_doc, normalize_positions_with, plan_doc};
 use meldframe_module::{Policy, RiskTier};
-use meldframe_protocol::{Command, Node, NodeKind};
+use meldframe_protocol::{Command, Doc, Node, NodeKind, Variables};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -85,7 +83,7 @@ pub struct Room<S: Store> {
     workspace: String,
     id: String,
     store: S,
-    nodes: Vec<Node>,
+    doc: Doc,
     limits: Limits,
     /// Node id to the sequence number of the last op that touched it. A node that is not here was
     /// last touched at `floor` or before.
@@ -107,16 +105,22 @@ impl<S: Store> Room<S> {
     ) -> Result<Self, RoomError> {
         let id = id.into();
         let limits = Limits::default();
-        let (mut nodes, floor) = match store.latest_snapshot(&id)? {
+        let (mut doc, floor) = match store.latest_snapshot(&id)? {
             Some(mut s) => {
-                // As `FileState::try_from_nodes` does: the old-file migration (a snapshot from before
+                // As `FileState::try_from_doc` does: the old-file migration (a snapshot from before
                 // position keys), then the whole-file check. Only the copy in memory is migrated.
                 normalize_positions_with(&mut s.nodes, &limits);
-                check_file(&s.nodes, &limits)
+                check_file_with(&s.nodes, &s.variables, &limits)
                     .map_err(|error| RoomError::BadSnapshot { seq: s.seq, error })?;
-                (s.nodes, s.seq)
+                (
+                    Doc {
+                        nodes: s.nodes,
+                        vars: s.variables,
+                    },
+                    s.seq,
+                )
             }
-            None => (Vec::new(), 0),
+            None => (Doc::default(), 0),
         };
         let mut touched = HashMap::new();
         let mut after = floor;
@@ -130,7 +134,7 @@ impl<S: Store> Room<S> {
                 return Err(RoomError::Corrupt { seq: last });
             }
             for op in &page {
-                apply_command(&mut nodes, &op.command, &limits)
+                apply_doc(&mut doc, &op.command, &limits)
                     .map_err(|_| RoomError::Corrupt { seq: op.seq })?;
                 for node in touches(&op.command) {
                     touched.insert(node, op.seq);
@@ -143,7 +147,7 @@ impl<S: Store> Room<S> {
             workspace: workspace.into(),
             id,
             store,
-            nodes,
+            doc,
             limits,
             touched,
             floor,
@@ -162,7 +166,12 @@ impl<S: Store> Room<S> {
 
     /// The tree after the last accepted op.
     pub fn nodes(&self) -> &[Node] {
-        &self.nodes
+        &self.doc.nodes
+    }
+
+    /// The collections and variables after the last accepted op.
+    pub fn vars(&self) -> &Variables {
+        &self.doc.vars
     }
 
     /// The file id this room serves.
@@ -266,7 +275,7 @@ impl<S: Store> Room<S> {
         // A delete the gate relaxed was a non-frame leaf at submit; an id can have been reused since.
         if let Command::RemoveNode { id } = &op.command
             && permit.tier() != RiskTier::Delete
-            && self.nodes.iter().any(|n| {
+            && self.doc.nodes.iter().any(|n| {
                 (n.id == *id && n.kind == NodeKind::Frame) || n.parent_id.as_deref() == Some(id)
             })
         {
@@ -276,7 +285,7 @@ impl<S: Store> Room<S> {
             }
             .into());
         }
-        let pos = plan_command(&self.nodes, &op.command, &self.limits).map_err(Refusal::Apply)?;
+        let pos = plan_doc(&self.doc, &op.command, &self.limits).map_err(Refusal::Apply)?;
         let Appended { seq, written } = self.store.append(
             &self.id,
             NewOp {
@@ -285,7 +294,7 @@ impl<S: Store> Room<S> {
                 command: op.command.clone(),
             },
         )?;
-        apply_planned(&mut self.nodes, &op.command, pos);
+        apply_planned_doc(&mut self.doc, &op.command, pos);
         self.seq = seq;
         for node in touches(&op.command) {
             self.touched.insert(node, seq);
@@ -293,7 +302,8 @@ impl<S: Store> Room<S> {
         if seq.is_multiple_of(self.snapshot_every) {
             let snapshot = Snapshot {
                 seq,
-                nodes: self.nodes.clone(),
+                nodes: self.doc.nodes.clone(),
+                variables: self.doc.vars.clone(),
             };
             self.snapshot_warning = match self.store.save_snapshot(&self.id, snapshot) {
                 Ok(()) => None,
@@ -319,5 +329,6 @@ fn touches(cmd: &Command) -> Vec<String> {
             v.extend(parent_id.clone());
             v
         }
+        other => meldframe_variables::touched(other),
     }
 }

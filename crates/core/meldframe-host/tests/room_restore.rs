@@ -235,6 +235,7 @@ fn a_restart_starts_from_the_snapshot_not_from_an_empty_file() {
             meldframe_host::Snapshot {
                 seq: 2,
                 nodes: vec![common::node("from_snapshot", "frame", None)],
+                variables: Default::default(),
             },
         )
         .unwrap();

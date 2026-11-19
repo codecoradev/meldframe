@@ -1,0 +1,29 @@
+[package]
+name = "meldframe-variables-tests"
+description = "The tests of variables (E3.3) at every seam they cross: resolve, apply and inverse, the checks, the document apply, undo, the replica and the room. Split from the crates so that they stay under the size ceiling. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-check = { path = "../meldframe-check" }
+meldframe-core = { path = "../meldframe-core" }
+meldframe-history = { path = "../meldframe-history" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-sync = { path = "../meldframe-sync" }
+meldframe-variables = { path = "../meldframe-variables" }
+serde_json = "1"
+
+# The tests run under WASM through wasm-bindgen-test (`just wasm-test`); each test file
+# imports it as `test` on wasm32 only. Keep the version in step with the `wasm-bindgen-cli` that
+# provides `wasm-bindgen-test-runner` (0.2.130 pairs with 0.3.80).
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
+
+[lints]
+workspace = true

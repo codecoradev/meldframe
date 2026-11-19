@@ -50,7 +50,7 @@ fn write(mask: usize, v: u32) -> Command {
         p.y = Some(n);
     }
     if mask & 4 != 0 {
-        p.fill = Some(format!("#{v:06x}"));
+        p.fill = Some(format!("#{v:06x}").into());
     }
     Command::UpdateNode {
         id: "s1".into(),

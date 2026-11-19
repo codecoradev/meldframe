@@ -2,6 +2,7 @@
 
 use crate::node::Node;
 use crate::patch::NodePatch;
+use crate::variables::{Bind, Collection, Mode, Value, Variable};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -56,5 +57,45 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pos: Option<String>,
+    },
+    /// Add a collection with its modes (at least one; the first is the default mode).
+    AddCollection {
+        collection: Collection,
+    },
+    /// Remove an empty collection (remove its variables first).
+    RemoveCollection {
+        id: String,
+    },
+    /// Add a mode to a collection at `index` (1 to the number of modes; absent = last; the default mode stays
+    /// first). Every variable of the collection gets the value of mode `copy_from` (absent = the default mode)
+    /// for the new mode, so a collection is always complete.
+    AddMode {
+        collection: String,
+        mode: Mode,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional, type = "number")]
+        index: Option<usize>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        copy_from: Option<String>,
+    },
+    /// Remove a mode other than the default one, and its value of every variable of the collection.
+    RemoveMode {
+        collection: String,
+        mode: String,
+    },
+    /// Add a variable. `variable.values` holds one value for every mode of its collection.
+    AddVariable {
+        variable: Variable,
+    },
+    /// Remove a variable that no node field is bound to and no alias points at.
+    RemoveVariable {
+        id: String,
+    },
+    /// Set the value of a variable in one mode: a literal of its type or an alias (`{"var": id}`).
+    SetVariableValue {
+        id: String,
+        mode: String,
+        value: Bind<Value>,
     },
 }

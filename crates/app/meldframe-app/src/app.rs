@@ -10,6 +10,7 @@ use crate::state::{AppState, Connection, History, Panel, Properties};
 use meldframe_protocol::{Command, Node};
 use meldframe_render::{PaintedBox, resolve};
 use meldframe_sync::{EventOutcome, LoadError, Outgoing, Replica, ReplicaError};
+use meldframe_variables::is_variable_command;
 use std::collections::HashSet;
 
 /// How much of the derived state one dispatch has to bring up to date.
@@ -427,8 +428,8 @@ fn properties(n: &Node) -> Properties {
         y: n.y,
         w: n.w,
         h: n.h,
-        fill: n.fill.clone(),
-        radius: n.radius,
+        fill: n.fill.lit().cloned().unwrap_or_default(),
+        radius: n.radius.lit().copied().unwrap_or_default(),
         text: n.text.clone(),
         font_size: n.font_size,
     }
@@ -445,11 +446,12 @@ pub(crate) fn out_ops(ops: Vec<Outgoing>) -> Vec<OutOp> {
 }
 
 /// The nodes to redraw after these commands. Removing a node removes its subtree, which the command does
-/// not list: that is an empty list, which means everything.
+/// not list, and a variable command changes every node bound to the variable: both are an empty list, which
+/// means everything.
 pub(crate) fn render_set(commands: &[Command]) -> Vec<String> {
     if commands
         .iter()
-        .any(|c| matches!(c, Command::RemoveNode { .. }))
+        .any(|c| matches!(c, Command::RemoveNode { .. }) || is_variable_command(c))
     {
         return Vec::new();
     }
@@ -466,6 +468,8 @@ pub(crate) fn touched(command: &Command) -> Vec<String> {
         | Command::Reparent { id, .. }
         | Command::Reorder { id, .. } => id,
         Command::AddNode { node, .. } => &node.id,
+        // `render_set` redraws everything after a variable command, so no node is named.
+        _ => return Vec::new(),
     };
     vec![id.clone()]
 }

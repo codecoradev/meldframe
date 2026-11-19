@@ -87,7 +87,10 @@ fn move_resize_text_and_properties_update_the_node_and_the_panel() {
     });
     let r = get(&l.app, "r1");
     assert_eq!((r.x, r.y, r.w, r.h), (5.0, 6.0, 30.0, 40.0));
-    assert_eq!((r.fill.as_str(), r.name.as_str()), ("#ff0000", "Box"));
+    assert_eq!(
+        (r.fill.lit().unwrap().as_str(), r.name.as_str()),
+        ("#ff0000", "Box")
+    );
     assert_eq!(get(&l.app, "t1").text, "Hello");
     let p = l.app.state().properties.clone().unwrap();
     assert_eq!(
