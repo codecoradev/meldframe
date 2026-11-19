@@ -10,5 +10,5 @@
     "noEmit": true,
     "paths": { "vitest": ["./node_modules/vitest"], "@meldframe/web-canvas/*": ["../../packages/web-canvas/src/*"], "@meldframe/web-input/*": ["../../packages/web-input/src/*"], "@meldframe/web-assets/*": ["../../packages/web-assets/src/*"], "@meldframe/web-link/*": ["../../packages/web-link/src/*"], "@meldframe/web-document/*": ["../../packages/web-document/src/*"], "@meldframe/web-panels/*": ["../../packages/web-panels/src/*"], "@meldframe/protocol": ["../../packages/protocol/src/index.ts"] }
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte", "dev/**/*.ts", "vite.config.ts", "../../packages/web-*/src/**/*.ts", "../../packages/web-*/src/**/*.svelte"]
+  "include": ["src/**/*.ts", "src/**/*.svelte", "vite.config.ts", "../../packages/web-*/src/**/*.ts", "../../packages/web-*/src/**/*.svelte"]
 }

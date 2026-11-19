@@ -1,4 +1,4 @@
-// Usage: node scripts/licences.mjs  (from apps/web). Lists the npm licences and fails on one outside the allowed set.
+// Usage: node ../../packages/web-tools/scripts/licences.mjs  (from apps/web). Lists the npm licences and fails on one outside the allowed set.
 import { readFileSync } from 'node:fs';
 import { checkLock } from './licences-lib.mjs';
 
