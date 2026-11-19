@@ -1,0 +1,18 @@
+{
+  "name": "@meldframe/fidelity-oracle",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The fidelity oracle (E4.2): the product export in Chromium against the boxes of the layout core. Versions are exact on purpose: a browser or Tailwind upgrade is its own change that must pass the gate.",
+  "scripts": {
+    "oracle": "node oracle.mjs",
+    "sensitivity": "node sensitivity.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "pixi.js": "8.23.0",
+    "playwright": "1.63.0",
+    "tailwindcss": "4.3.5"
+  }
+}
