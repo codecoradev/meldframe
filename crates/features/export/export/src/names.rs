@@ -57,3 +57,30 @@ pub(crate) fn escape(s: &str) -> String {
 pub(crate) fn hex(rgb: u32) -> String {
     format!("#{rgb:06x}")
 }
+
+/// `s` for CSS: ASCII letters, digits and the characters of `keep` as they are, every other character as a hex
+/// escape (`\3c ` for `<`, with the space that ends it), so that nothing a user wrote can end a string, a rule, a
+/// `url(...)` or the `<style>` element that holds the stylesheet.
+pub(crate) fn css_escape(s: &str, keep: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        if c.is_ascii_alphanumeric() || keep.contains(c) {
+            out.push(c);
+        } else {
+            out.push_str(&format!("\\{:x} ", c as u32));
+        }
+    }
+    out
+}
+
+/// The text of a hex colour (`#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`), else `None`: the only colour text the
+/// export copies into a stylesheet.
+pub(crate) fn hex_colour(s: &str) -> Option<&str> {
+    let h = s.strip_prefix('#')?;
+    (matches!(h.len(), 3 | 4 | 6 | 8) && h.bytes().all(|b| b.is_ascii_hexdigit())).then_some(s)
+}
+
+/// An asset id as the file stores it: 64 lowercase hex digits.
+pub(crate) fn asset_id_ok(s: &str) -> bool {
+    s.len() == 64 && s.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
