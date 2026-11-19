@@ -191,6 +191,19 @@ A variant of a frame (`meldframe-variant`, E5.4) fails with these codes before a
 | `E_NOT_A_FRAME` | The node is not a frame; only a frame has a variant. | Pick the frame that holds the node. |
 | the code of the command check (`E_TOO_MANY_NODES` and the like) | The copy would not fit the file. | Make room, or make a variant of a smaller frame. |
 
+## Review and checkpoint codes
+
+A revert of a batch and a restore of a checkpoint (`meldframe-revert`, E5.2 and E5.3) are worked out in the app layer from the ops it has seen since it loaded the file, before any command is sent, so a refusal changes nothing. The app layer words them as `Event::Refused` with its own codes (a queue too full for the commands is `outbox_full`, as above; a label of a checkpoint over 128 characters is `limit`). The server has no wire code for them: what the commands do is judged by the gate like any edit of the person.
+
+| Code | Meaning and typical cause | What to do next |
+| --- | --- | --- |
+| `unknown_batch` | No confirmed op of that actor has a key `{prefix}:{n}` since the file was loaded (a reload starts the record again, and the app keeps the newest 2,000 ops). | Pick a batch from the list of recent batches; a batch from before the load cannot be reverted from here. |
+| `nothing_to_revert` | Every field of the batch was written by someone else since, or the nodes are gone. | Nothing to do: the batch no longer owns anything. |
+| `log_mismatch` | The ops the app kept do not replay on its base tree, or a restore could not be worked out. | Load the file again (`Action::Reload`) and retry. |
+| `unknown_checkpoint` | No checkpoint of this session has that id. | Use an id from `AppState.checkpoints`. |
+| `not_in_log` | The checkpoint is older than the ops the app still keeps, or than the file it was loaded at. | Restore from a newer checkpoint. |
+| `nothing_to_restore` | The file is as the checkpoint has it. | Nothing to do. |
+
 ## Capture codes
 
 The `capture` tool (feature module `capture`, Read tier) fails with these codes. A client message in `render_failed` is cut to 200 bytes and stripped of control characters. The strings are shared with the
