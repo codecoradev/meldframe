@@ -311,3 +311,12 @@ fn a_closed_file_comes_back_from_its_store_with_its_content() {
     assert_eq!(s.open("ws_1", "f").unwrap(), 2);
     assert_eq!(ids(&s, "f"), ["a1", "a2"]);
 }
+
+#[test]
+fn close_all_closes_a_room_that_only_a_subscription_opened() {
+    let mut s = server();
+    s.subscribe(&who("ws_1"), "f", 0, 0).unwrap();
+    assert!(s.with_room("ws_1", "f", |_| ()).is_some());
+    s.close_all();
+    assert!(s.with_room("ws_1", "f", |_| ()).is_none());
+}

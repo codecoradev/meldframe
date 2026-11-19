@@ -150,6 +150,34 @@ async fn file_names_the_server_should_not_see_are_invalid() {
     assert_eq!(fake.calls(), 0);
 }
 
+/// A stored file that fails the load check is answered as `unavailable` 503 (the operator repairs it), with
+/// the load code in the log text and not in the body.
+#[tokio::test]
+async fn a_file_that_fails_the_load_check_is_unavailable_with_its_code_in_the_log() {
+    use meldframe_check::LoadError;
+    use meldframe_host::RoomError;
+    use meldframe_rooms::RegistryError;
+    use meldframe_server::{SubmitError, failure_of};
+    let err = SubmitError::Rooms(RegistryError::Room(RoomError::BadSnapshot {
+        seq: 3,
+        error: LoadError::MissingPos("a".into()),
+    }));
+    match failure_of(&err) {
+        Failure::Unavailable(text) => assert!(text.starts_with("E_MISSING_POS: "), "{text}"),
+        other => panic!("expected Unavailable, got {other:?}"),
+    }
+    let res = app(Fake::failing(failure_of(&err)), config())
+        .oneshot(post("paint", Some(TOKEN), body(vec![add("k", "a")])))
+        .await
+        .unwrap();
+    let (status, v) = json(res).await;
+    assert_eq!(
+        (status, v["error"]["code"].as_str()),
+        (503, Some("unavailable"))
+    );
+    assert!(!v.to_string().contains("E_MISSING_POS"));
+}
+
 #[tokio::test]
 async fn data_the_store_can_never_hold_is_not_retryable() {
     use meldframe_host::{RoomError, StoreError};
