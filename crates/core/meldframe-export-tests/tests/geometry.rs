@@ -188,6 +188,12 @@ fn rule_g2_justify_center_and_end_are_safe() {
         let e = css(frame(json!({"layout": "row", "justify": j}), vec![]));
         has(rule(&e, "f"), &[&format!("justify-content:{css_value}")]);
     }
+    let e = tailwind(frame(json!({"layout": "row", "justify": "center"}), vec![]));
+    assert!(
+        classes(&e, "f").contains(&"[justify-content:safe_center]"),
+        "{:?}",
+        classes(&e, "f")
+    );
 }
 
 #[test]
@@ -243,4 +249,61 @@ fn a_frame_without_layout_that_has_children_is_positioned_when_nested() {
         .push(json!({"id": "k", "type": "rect", "parentId": "g", "pos": "a"}));
     let e = css(list);
     has(rule(&e, "g"), &["position:relative"]);
+}
+
+#[test]
+fn the_tailwind_form_of_the_geometry_uses_the_contracts_utilities() {
+    let t = json!({"id": "t", "type": "text", "text": "Hello", "fontSize": 20, "sw": "hug", "sh": "hug", "textAlign": "center"});
+    let a = json!({"id": "a", "type": "rect", "sw": "fill", "sh": "fill"});
+    let e = tailwind(frame(
+        json!({"layout": "row", "gap": 12, "padding": 16, "align": "center"}),
+        vec![t, a],
+    ));
+    let f = classes(&e, "f");
+    for c in [
+        "absolute",
+        "left-[10px]",
+        "top-[20px]",
+        "w-[400px]",
+        "h-[200px]",
+        "flex",
+        "flex-row",
+        "gap-[12px]",
+        "p-[16px]",
+        "items-center",
+        "justify-start",
+        "overflow-hidden",
+    ] {
+        assert!(f.contains(&c), "{c} is not in {f:?}");
+    }
+    let t = classes(&e, "t");
+    for c in [
+        "w-auto",
+        "min-w-[50px]",
+        "h-auto",
+        "leading-[24px]",
+        "whitespace-pre",
+        "text-center",
+        "text-[length:20px]",
+    ] {
+        assert!(t.contains(&c), "{c} is not in {t:?}");
+    }
+    let a = classes(&e, "a");
+    for c in ["flex-[1_1_0%]", "min-w-[0]", "self-stretch"] {
+        assert!(a.contains(&c), "{c} is not in {a:?}");
+    }
+    assert!(
+        e.html
+            .contains("<link rel=\"stylesheet\" href=\"meldframe.css\">")
+    );
+    assert!(
+        e.css.starts_with("@layer theme, base, utilities;"),
+        "{}",
+        e.css
+    );
+    assert!(
+        !e.css.contains("[data-node"),
+        "the node rules are utilities in the html: {}",
+        e.css
+    );
 }
