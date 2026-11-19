@@ -3602,6 +3602,15 @@ version = "0.0.0"
 dependencies = [
  "serde_json",
  "toml",
+ "xtask-licences",
+]
+
+[[package]]
+name = "xtask-licences"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "toml",
 ]
 
 [[package]]

@@ -1,6 +1,5 @@
 //! Repository checks: layering rules, build matrix, portability and other gates.
 
-mod licences;
 mod matrix;
 mod metadata;
 mod plan;
@@ -11,6 +10,8 @@ mod size;
 mod ui_literals;
 
 use std::process::{Command, ExitCode};
+
+use xtask_licences as licences;
 
 fn main() -> ExitCode {
     match std::env::args().nth(1).as_deref() {
