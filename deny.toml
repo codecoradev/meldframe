@@ -8,7 +8,7 @@ targets = [
 ]
 
 [licenses]
-# Permissive licences only (the product is closed source). Add an entry only after the owner
+# Permissive licences only. Add an entry only after the owner
 # agrees; copyleft licences are not on this list on purpose.
 allow = [
     "MIT",
