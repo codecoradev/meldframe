@@ -1,15 +1,17 @@
-//! The walk over the frame: the render step, the styles and the document.
+//! The walk over the frame: the render step, the styles, the variables, and the document.
 
-use crate::decl::{Style, attrs, style, tag};
+use crate::decl::{Cx, Place, Style, attrs, style, tag};
 use crate::names::escape;
 use crate::report::Report;
 use crate::{Export, ExportError, ExportOptions};
-use meldframe_protocol::{Node, NodeKind, Variables};
+use meldframe_layout::{Rect, compute_rects, layout_findings};
+use meldframe_protocol::{LayoutMode, Node, NodeKind, SizeMode, Variables};
 use meldframe_render::{PaintedBox, resolve_with};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// The elements and rules of the frame, in drawing order, built by one walk.
 struct Walk<'a> {
+    cx: &'a Cx<'a>,
     nodes: HashMap<&'a str, &'a Node>,
     kids: HashMap<&'a str, Vec<&'a PaintedBox>>,
     html: String,
@@ -43,12 +45,28 @@ pub(crate) fn export(
         .iter()
         .find(|b| b.id == frame)
         .ok_or(ExportError::NotFound)?;
+    let mut order = Vec::new();
+    collect(root_box, &kids, &mut HashSet::new(), &mut order);
+
+    let mut report = Report::default();
+    let in_frame: HashSet<&str> = order.iter().map(|b| b.id.as_str()).collect();
+    let rects: HashMap<String, Rect> = compute_rects(nodes, options.measurer).into_iter().collect();
+    for f in layout_findings(nodes, options.measurer) {
+        if in_frame.contains(f.id.as_str()) {
+            report.warn(f.code, Some(&f.id), f.message);
+        }
+    }
+    let cx = Cx {
+        rects: &rects,
+        measurer: options.measurer,
+    };
     let mut w = Walk {
+        cx: &cx,
         nodes: by_id,
         kids,
         html: String::new(),
         css: String::new(),
-        report: Report::default(),
+        report,
     };
     // A top-level frame is where it is; a frame inside another is the origin of its own page.
     let top = root
@@ -56,7 +74,7 @@ pub(crate) fn export(
         .as_deref()
         .is_none_or(|p| !w.nodes.contains_key(p));
     let origin = if top { (root.x, root.y) } else { (0.0, 0.0) };
-    w.element(root_box, Some(origin), 2);
+    w.element(root_box, None, Some(origin), 2);
 
     let title = if root.name.is_empty() {
         &root.id
@@ -85,6 +103,21 @@ pub(crate) fn export(
     })
 }
 
+/// The frame and its descendants, parent before children, siblings as the render step ordered them.
+fn collect<'a>(
+    b: &'a PaintedBox,
+    kids: &HashMap<&str, Vec<&'a PaintedBox>>,
+    seen: &mut HashSet<&'a str>,
+    out: &mut Vec<&'a PaintedBox>,
+) {
+    if seen.insert(&b.id) {
+        out.push(b);
+        for k in kids.get(b.id.as_str()).into_iter().flatten() {
+            collect(k, kids, seen, out);
+        }
+    }
+}
+
 /// The font, the box model and the margins every export needs.
 fn base_css(options: &ExportOptions<'_>) -> String {
     let font = format!(
@@ -96,10 +129,28 @@ fn base_css(options: &ExportOptions<'_>) -> String {
 }
 
 impl<'a> Walk<'a> {
-    fn element(&mut self, b: &'a PaintedBox, root: Option<(f64, f64)>, depth: usize) {
+    fn element(
+        &mut self,
+        b: &'a PaintedBox,
+        parent: Option<&'a Node>,
+        root: Option<(f64, f64)>,
+        depth: usize,
+    ) {
         let n = self.nodes[b.id.as_str()];
         let kids: Vec<&PaintedBox> = self.kids.get(b.id.as_str()).cloned().unwrap_or_default();
-        let st = style(n, root);
+        let holds_absolute = n.kind == NodeKind::Frame
+            && kids.iter().any(|k| {
+                let kn = self.nodes[k.id.as_str()];
+                n.layout == LayoutMode::None || kn.absolute
+            });
+        let basis = parent.and_then(|p| fill_basis(p, n, &self.kids, &self.nodes, self.cx.rects));
+        let place = Place {
+            parent,
+            root,
+            holds_absolute,
+            basis,
+        };
+        let st = style(self.cx, n, &place, &mut self.report);
         let t = tag(b);
         let pad = "  ".repeat(depth);
         let open = format!("{pad}<{t} {}", attrs(n));
@@ -115,7 +166,7 @@ impl<'a> Walk<'a> {
         }
         self.html.push_str(&format!("{open}>\n"));
         for k in kids {
-            self.element(k, None, depth + 1);
+            self.element(k, Some(n), None, depth + 1);
         }
         self.html.push_str(&format!("{pad}</{t}>\n"));
     }
@@ -134,4 +185,43 @@ impl<'a> Walk<'a> {
             }
         }
     }
+}
+
+/// The size a fill takes on the main axis of `p` when the fills of that axis have unequal padding (the contract's
+/// `flex:1 1 <core px>`): the core's size of the node, else `None`, which is `0%`.
+fn fill_basis(
+    p: &Node,
+    n: &Node,
+    kids: &HashMap<&str, Vec<&PaintedBox>>,
+    nodes: &HashMap<&str, &Node>,
+    rects: &HashMap<String, Rect>,
+) -> Option<f64> {
+    let row = p.layout == LayoutMode::Row;
+    let mode = |c: &Node| if row { c.sw } else { c.sh };
+    let parent_mode = if row { p.sw } else { p.sh };
+    if p.kind != NodeKind::Frame
+        || p.layout == LayoutMode::None
+        || n.absolute
+        || mode(n) != SizeMode::Fill
+        || parent_mode == SizeMode::Hug
+    {
+        return None;
+    }
+    let pad = |c: &Node| {
+        let q = c.pad();
+        if c.kind == NodeKind::Frame && c.layout != LayoutMode::None {
+            if row { q.horizontal() } else { q.vertical() }
+        } else {
+            0.0
+        }
+    };
+    let fills: Vec<&Node> = kids
+        .get(p.id.as_str())?
+        .iter()
+        .filter_map(|b| nodes.get(b.id.as_str()).copied())
+        .filter(|c| !c.absolute && mode(c) == SizeMode::Fill)
+        .collect();
+    let equal = fills.iter().all(|c| pad(c) == pad(n));
+    let r = rects.get(n.id.as_str())?;
+    (!equal).then_some(if row { r.w } else { r.h })
 }
