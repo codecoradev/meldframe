@@ -280,7 +280,7 @@ impl Shared {
 
     /// The one handler every transport ends in, MCP included: validate the names, take a slot, call the
     /// submitter (`Some(guards)` picks [`Submitter::submit_atomic`]) and map the answer.
-    pub(crate) async fn submit_ops(
+    pub async fn submit_ops(
         &self,
         who: Principal,
         tool: String,

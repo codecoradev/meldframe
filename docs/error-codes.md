@@ -268,3 +268,11 @@ A test in `crates/features/capture/capture/tests/registration.rs` reads this tab
 | `E_NODE_NOT_FOUND` | No node with the `frame` id in the file of your workspace. | Read the tree with `get_tree` and use the id of a frame that exists. |
 | `E_NOT_A_FRAME` | The node is not a frame; only a frame is exported. | Export the frame that holds the node. |
 | `E_EXPORT_TOO_LARGE` | The HTML and the stylesheet together would be over 256 KiB. Nothing is returned. | Export a smaller frame, such as one section of the page. |
+
+## Variables import codes
+
+`import_tokens` (E3.4, `docs/adr/0020-*`) answers a tool error with this code before it writes anything. The commands it writes are checked as `apply_commands` checks them, so a refused part carries the codes of the variable commands (`E_DUPLICATE_ID` when the file already holds what the text defines, `E_VARIABLE_NOT_FOUND` or `E_COLLECTION_NOT_FOUND` for a part sent before the one it depends on). What the import leaves out of the text is not an error: it is listed in the `report` of the answer. Calls refused for the arguments or the policy use the codes of the MCP surface (`invalid`, `bad_request`, `forbidden`, `unavailable`).
+
+| Code | Meaning and typical cause | What to do next |
+| --- | --- | --- |
+| `E_IMPORT_TOO_LARGE` | The `css` text is over 256 KiB. Nothing is read or written. | Send the style sheet in parts, or only the files that hold the variables (the theme, the root rule). |
