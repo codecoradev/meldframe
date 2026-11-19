@@ -11,7 +11,9 @@ use crate::scan;
 pub const FILE_LIMIT: usize = 500;
 pub const CRATE_LIMIT: usize = 2000;
 /// Source extensions that count towards the ceilings.
-pub const EXTENSIONS: &[&str] = &["rs", "ts", "tsx", "js", "css"];
+pub const EXTENSIONS: &[&str] = &[
+    "rs", "ts", "tsx", "js", "mjs", "css", "scss", "svelte", "html",
+];
 /// Path of the allow-list, relative to the workspace root.
 pub const ALLOW_FILE: &str = "xtask/size-allow.toml";
 
@@ -152,6 +154,18 @@ pub fn check_not_raised(base: &Allow, now: &Allow) -> Vec<Violation> {
     out
 }
 
+/// The value of `--base` in the arguments of `size-check`: `None` without the flag, an error when
+/// the flag has no value (last argument, or followed by another flag).
+pub fn base_arg(args: &[String]) -> Result<Option<&str>, String> {
+    let Some(i) = args.iter().position(|a| a == "--base") else {
+        return Ok(None);
+    };
+    match args.get(i + 1) {
+        Some(v) if !v.starts_with("--") && !v.is_empty() => Ok(Some(v)),
+        _ => Err("size-check: --base needs a git ref, e.g. --base origin/develop".into()),
+    }
+}
+
 /// Measure every package's source files.
 pub fn measure(root: &Path, packages: &[Package]) -> Vec<Sized> {
     let count = |path: String| {
@@ -278,6 +292,26 @@ mod tests {
         let base = allow(&[("a/x.rs", 600), ("a/y.rs", 700)], &[("a", 2500)]);
         let now = allow(&[("a/x.rs", 550)], &[("a", 2400)]);
         assert_eq!(check_not_raised(&base, &now), vec![]);
+    }
+
+    #[test]
+    fn web_client_sources_count_towards_the_ceilings() {
+        for ext in ["svelte", "mjs", "scss", "html", "ts", "css"] {
+            assert!(EXTENSIONS.contains(&ext), "{ext} is not measured");
+        }
+    }
+
+    #[test]
+    fn base_needs_a_value() {
+        let a = |v: &[&str]| v.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
+        assert_eq!(base_arg(&a(&["size-check"])), Ok(None));
+        assert_eq!(
+            base_arg(&a(&["size-check", "--base", "origin/develop"])),
+            Ok(Some("origin/develop"))
+        );
+        assert!(base_arg(&a(&["size-check", "--base"])).is_err());
+        assert!(base_arg(&a(&["size-check", "--base", "--other"])).is_err());
+        assert!(base_arg(&a(&["size-check", "--base", ""])).is_err());
     }
 
     #[test]

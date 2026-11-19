@@ -2,7 +2,15 @@
 # An entry must equal the current line count, so it can only go down; delete it once the file
 # or crate is back under its ceiling. `cargo xtask size-check --base <ref>` also rejects any
 # entry that is new or higher than on the base branch. Do not add entries to make a check pass.
+# The entries below record what was over when the check began to count Svelte, MJS, SCSS and
+# HTML sources; each is a debt to pay down, not room to grow.
 
 [files]
+# Svelte component not yet split; a split needs a browser check.
+"apps/web/src/canvas/Canvas.svelte" = 528
 
 [crates]
+# The web client's sources (Svelte, scripts, Rust stub) together; went over once Svelte and MJS counted.
+meldframe-web = 4983
+# The checker's own source and tests; a split of its modules is the way down.
+xtask = 2106

@@ -138,12 +138,21 @@ fn size_check(packages: &[rules::Package]) -> Result<ExitCode, String> {
     let allow = size::parse_allow(&scan::read(&root, size::ALLOW_FILE))?;
     let mut violations = size::check(&size::measure(&root, packages), &allow);
     let args: Vec<String> = std::env::args().collect();
-    if let Some(base) = args
-        .iter()
-        .position(|a| a == "--base")
-        .and_then(|i| args.get(i + 1))
-    {
-        // A missing file on the base means the list is being introduced: start from empty.
+    if let Some(base) = size::base_arg(&args)? {
+        // The ref must resolve: a bad ref is an error, never an empty base.
+        let resolves = |spec: &str| {
+            Command::new("git")
+                .args(["rev-parse", "--verify", "--quiet", spec])
+                .current_dir(&root)
+                .output()
+                .is_ok_and(|o| o.status.success())
+        };
+        if !resolves(&format!("{base}^{{commit}}")) {
+            return Err(format!(
+                "size-check: --base `{base}` is not a git ref that resolves"
+            ));
+        }
+        // A file missing on a resolved base means the list is being introduced: start from empty.
         let out = Command::new("git")
             .args(["show", &format!("{base}:{}", size::ALLOW_FILE)])
             .current_dir(&root)
