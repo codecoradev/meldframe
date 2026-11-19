@@ -1,0 +1,13 @@
+[package]
+name = "meldframe-activity"
+description = "The rules of the activity panel (E5.1, ADR-0021): the batch header, the note and its hidden-text rule, the review state and the bounds. No I/O."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[lints]
+workspace = true

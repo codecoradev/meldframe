@@ -1040,6 +1040,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-activity"
+version = "0.0.0"
+
+[[package]]
+name = "meldframe-activity-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-activity",
+ "meldframe-mcp-defs",
+]
+
+[[package]]
 name = "meldframe-app"
 version = "0.0.0"
 dependencies = [
