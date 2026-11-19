@@ -1,0 +1,21 @@
+[package]
+name = "meldframe-activity-pg-tests"
+description = "The tests of the activity stack that need a database or the server (E5.1, ADR-0021): the batch store in Postgres, and the server and MCP parts that follow. No library code; split from meldframe-activity-tests so the rules and store tests do not depend on the server."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+activity-store = { path = "../../features/activity/activity-store", features = ["contract"] }
+meldframe-activity = { path = "../meldframe-activity" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-server = { path = "../../../apps/server" }
+serde_json = "1"
+
+[lints]
+workspace = true
