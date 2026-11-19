@@ -1,6 +1,8 @@
 use meldframe_protocol::{
     Bind, DEFAULT_FILL, DEFAULT_OPACITY, DEFAULT_RADIUS, GradientKind, ImageFit, Node, NodeKind,
+    Value, Variables,
 };
+use meldframe_variables::{ModeChoice, Resolver};
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
@@ -62,6 +64,15 @@ pub struct PaintedBox {
 /// the order of their position then id. A node whose parent is missing is a root, and nodes that
 /// only point at each other are kept after the rest, so a bad file stays visible.
 pub fn resolve(nodes: &[Node]) -> Vec<PaintedBox> {
+    resolve_with(nodes, &Variables::default(), &ModeChoice::default())
+}
+
+/// Like [`resolve`] for a file with variables: a bound field paints the value its variable has in the modes
+/// `choice` picks. A binding that cannot be resolved (a variable that is not there, a chain that does not end)
+/// paints the default of its field, never an error, so a bad file stays visible. The choice is view state:
+/// it changes what is painted and never the nodes.
+pub fn resolve_with(nodes: &[Node], vars: &Variables, choice: &ModeChoice) -> Vec<PaintedBox> {
+    let cx = Fields::new(vars, choice);
     let ids: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
     let mut kids: HashMap<Option<&str>, Vec<&Node>> = HashMap::new();
     for n in nodes {
@@ -73,14 +84,80 @@ pub fn resolve(nodes: &[Node]) -> Vec<PaintedBox> {
     }
     let mut out = Vec::with_capacity(nodes.len());
     let mut seen = HashSet::new();
-    visit(None, &kids, &mut seen, &mut out);
+    visit(None, &kids, &mut seen, &mut out, &cx);
     for n in nodes {
         if seen.insert(n.id.as_str()) {
-            out.push(paint(n, None));
-            visit(Some(&n.id), &kids, &mut seen, &mut out);
+            out.push(paint(n, None, &cx));
+            visit(Some(&n.id), &kids, &mut seen, &mut out, &cx);
         }
     }
     out
+}
+
+/// The one place a bound field becomes the value that is painted: the render step and the properties panel both
+/// read through it, so the panel shows what the canvas paints. The variables are indexed once.
+#[derive(Debug)]
+pub struct Fields<'a> {
+    resolver: Resolver<'a>,
+}
+
+impl<'a> Fields<'a> {
+    pub fn new(vars: &'a Variables, choice: &'a ModeChoice) -> Self {
+        Fields {
+            resolver: Resolver::new(vars, choice),
+        }
+    }
+
+    /// The value of a variable in the chosen modes.
+    fn value(&self, var: &str) -> Option<Value> {
+        self.resolver.value(var)
+    }
+
+    /// The corner radius that is painted: the literal or the resolved number, held to zero or more; a binding
+    /// that does not resolve is the default radius.
+    pub fn radius(&self, b: &Bind<f64>) -> f64 {
+        self.number(b, 0.0, f64::MAX).unwrap_or(DEFAULT_RADIUS)
+    }
+
+    /// The opacity that is painted, between 0 and 1; a binding that does not resolve is the default.
+    pub fn opacity(&self, b: &Bind<f64>) -> f64 {
+        self.number(b, 0.0, 1.0).unwrap_or(DEFAULT_OPACITY)
+    }
+
+    /// The fill as the properties panel shows it: the literal as it is stored, or the colour the variable
+    /// resolves to; a binding that does not resolve shows the default fill, as the canvas paints it.
+    pub fn fill_text(&self, b: &Bind<String>) -> String {
+        match b {
+            Bind::Lit(css) => css.clone(),
+            Bind::Var(r) => match self.value(&r.var) {
+                Some(Value::Color(css)) => css,
+                _ => DEFAULT_FILL.to_string(),
+            },
+        }
+    }
+
+    /// A number field: the literal, or the variable's number held to `lo..=hi`; `None` when a binding does not
+    /// resolve to a finite number.
+    fn number(&self, b: &Bind<f64>, lo: f64, hi: f64) -> Option<f64> {
+        match b {
+            Bind::Lit(v) => Some(*v),
+            Bind::Var(r) => match self.value(&r.var) {
+                Some(Value::Number(v)) if v.is_finite() => Some(v.clamp(lo, hi)),
+                _ => None,
+            },
+        }
+    }
+
+    /// The fill: `0xRRGGBB`, or `None` for no fill. An unresolved binding paints the default fill.
+    pub fn fill(&self, b: &Bind<String>) -> Option<u32> {
+        match b {
+            Bind::Lit(css) => parse_fill(css),
+            Bind::Var(r) => match self.value(&r.var) {
+                Some(Value::Color(css)) => parse_fill(&css),
+                _ => parse_fill(DEFAULT_FILL),
+            },
+        }
+    }
 }
 
 fn visit<'a>(
@@ -88,11 +165,12 @@ fn visit<'a>(
     kids: &HashMap<Option<&'a str>, Vec<&'a Node>>,
     seen: &mut HashSet<&'a str>,
     out: &mut Vec<PaintedBox>,
+    cx: &Fields,
 ) {
     for n in kids.get(&parent).into_iter().flatten() {
         if seen.insert(n.id.as_str()) {
-            out.push(paint(n, parent));
-            visit(Some(n.id.as_str()), kids, seen, out);
+            out.push(paint(n, parent, cx));
+            visit(Some(n.id.as_str()), kids, seen, out, cx);
         }
     }
 }
@@ -134,7 +212,7 @@ fn is_hex_colour(css: &str) -> bool {
     })
 }
 
-fn paint(n: &Node, parent: Option<&str>) -> PaintedBox {
+fn paint(n: &Node, parent: Option<&str>, cx: &Fields) -> PaintedBox {
     let is_text = n.kind == NodeKind::Text;
     let gradient = n
         .gradient
@@ -149,9 +227,8 @@ fn paint(n: &Node, parent: Option<&str>) -> PaintedBox {
         asset_id: i.asset_id.clone(),
         fit: i.fit,
     });
-    // A binding is not resolved yet: it paints the default of its field.
-    let radius = n.radius.lit().copied().unwrap_or(DEFAULT_RADIUS);
-    let opacity = n.opacity.lit().copied().unwrap_or(DEFAULT_OPACITY);
+    let radius = cx.radius(&n.radius);
+    let opacity = cx.opacity(&n.opacity);
     let (paint, radius) = match n.kind {
         NodeKind::Frame => (Paint::Frame, radius),
         NodeKind::Text => (Paint::Text, 0.0),
@@ -166,10 +243,7 @@ fn paint(n: &Node, parent: Option<&str>) -> PaintedBox {
         y: n.y,
         w: n.w,
         h: n.h,
-        fill: match &n.fill {
-            Bind::Lit(css) => parse_fill(css),
-            Bind::Var(_) => parse_fill(DEFAULT_FILL),
-        },
+        fill: cx.fill(&n.fill),
         radius,
         text: if is_text {
             n.text.clone()
