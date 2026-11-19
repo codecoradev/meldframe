@@ -1,0 +1,23 @@
+[package]
+name = "meldframe-http-review"
+description = "The design_review MCP tool (E5.4): a numbered critique list per file, kept in the workspace of the token."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "bin"
+
+[dependencies]
+design-review = { path = "../../features/design-review/design-review" }
+meldframe-http = { path = "../meldframe-http", features = ["mcp"] }
+meldframe-host = { path = "../../core/meldframe-host" }
+meldframe-mcp-defs = { path = "../../core/meldframe-mcp-defs" }
+meldframe-module = { path = "../../core/meldframe-module" }
+rmcp = { version = "3.10", default-features = false, features = ["server"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lints]
+workspace = true

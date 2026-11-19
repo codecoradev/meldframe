@@ -38,6 +38,9 @@ fn main() {
     } else {
         Backing::memory()
     };
+    // The critique lists live where the files do.
+    #[cfg(feature = "design-review")]
+    let reviews = backing.reviews();
     let server = Server::assemble_in(Vec::new(), backing).with_touch_hints(TOUCH_WINDOW_MS);
     for module in server.registry().module_names() {
         println!("module {module}");
@@ -46,7 +49,12 @@ fn main() {
         println!("tool {} ({})", tool.name, tool.tier.as_str());
     }
     if let Some(listen) = listen
-        && let Err(e) = serve(&listen, server)
+        && let Err(e) = serve(
+            &listen,
+            server,
+            #[cfg(feature = "design-review")]
+            reviews,
+        )
     {
         fail(&e);
     }
@@ -57,7 +65,11 @@ fn fail(e: &dyn std::fmt::Display) -> ! {
     std::process::exit(1);
 }
 
-fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>> {
+fn serve(
+    listen: &str,
+    server: Server,
+    #[cfg(feature = "design-review")] reviews: Arc<dyn design_review::ReviewStore>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = listen.parse()?;
     // Gatehouse (M2) replaces this adapter; until then only development tokens exist.
     let release = !cfg!(debug_assertions);
@@ -85,6 +97,8 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
     let capture_policy = server.registry().policy_for("capture");
     #[cfg(feature = "assets")]
     let upload_policy = server.registry().policy_for(assets::UPLOAD_TOOL);
+    #[cfg(feature = "design-review")]
+    let review_policy = server.registry().policy_for(design_review::TOOL);
     // `shared` outlives `block_on`: the last reference to a PgStore runtime must not drop inside one.
     let shared = Arc::new(SharedServer::new(server));
     let auth = Arc::new(DevTokens::parse(&spec)?);
@@ -148,6 +162,17 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
         app = app.merge(assets.routes());
         extra_tools.push(assets.tool(upload_policy));
     }
+    #[cfg(feature = "design-review")]
+    extra_tools.push(meldframe_http_review::tool(
+        state.clone(),
+        shared.clone(),
+        reviews,
+        // A list is a Read of the one tool, which is registered as a Change.
+        Some(meldframe_module::default_policy(
+            meldframe_module::RiskTier::Read,
+        )),
+        review_policy,
+    ));
     #[cfg(feature = "mcp")]
     let app = {
         // MCP answers to loopback host names unless MELDFRAME_MCP_HOSTS lists others (comma separated).
@@ -187,7 +212,7 @@ fn serve(listen: &str, server: Server) -> Result<(), Box<dyn std::error::Error>>
 fn open_assets(
     release: bool,
 ) -> Result<(Arc<dyn assets::BlobStore>, assets::Usage), Box<dyn std::error::Error>> {
-    let dir = assets_dir(
+    let dir = meldframe_http_assets::assets_dir(
         release,
         std::env::var("MELDFRAME_ASSETS_DIR").ok().as_deref(),
     )?;
@@ -204,19 +229,6 @@ fn open_assets(
     Ok((blobs, usage))
 }
 
-/// The directory of the assets (`MELDFRAME_ASSETS_DIR`, ADR-0015): required in a release build, so images are
-/// never written to a place nobody chose; a development build keeps them in `.dev-assets`.
-#[cfg(feature = "assets")]
-fn assets_dir(release: bool, set: Option<&str>) -> Result<String, Box<dyn std::error::Error>> {
-    match (set.map(str::trim).filter(|d| !d.is_empty()), release) {
-        (Some(dir), _) => Ok(dir.to_owned()),
-        (None, false) => Ok(".dev-assets".to_owned()),
-        (None, true) => {
-            Err("set MELDFRAME_ASSETS_DIR to the directory that keeps the assets".into())
-        }
-    }
-}
-
 /// The addresses of `MELDFRAME_TRUSTED_PROXIES`: comma-separated, blanks ignored; one that is not an address is an
 /// error, so a typo does not silently trust nothing.
 fn trusted_proxies(spec: &str) -> Result<Vec<std::net::IpAddr>, Box<dyn std::error::Error>> {
@@ -229,21 +241,4 @@ fn trusted_proxies(spec: &str) -> Result<Vec<std::net::IpAddr>, Box<dyn std::err
             })
         })
         .collect()
-}
-
-#[cfg(all(test, feature = "assets"))]
-mod tests {
-    use super::assets_dir;
-
-    #[test]
-    fn a_release_build_needs_the_assets_directory_and_a_development_build_has_a_default() {
-        assert_eq!(assets_dir(false, None).unwrap(), ".dev-assets");
-        assert_eq!(assets_dir(false, Some("  ")).unwrap(), ".dev-assets");
-        assert!(assets_dir(true, None).is_err());
-        assert!(assets_dir(true, Some("")).is_err());
-        assert_eq!(
-            assets_dir(true, Some("/srv/assets")).unwrap(),
-            "/srv/assets"
-        );
-    }
 }

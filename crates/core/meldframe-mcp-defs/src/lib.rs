@@ -15,6 +15,13 @@ pub const MAX_BATCH: usize = 100;
 /// The longest idempotency key of a call. Each command's own key is the call's key, a colon and its index.
 pub const MAX_KEY: usize = 100;
 
+/// Characters that change how a text reads without showing: bidi controls, zero-width marks, line and paragraph
+/// separators, the byte order mark. A file name and a review text refuse them.
+pub fn is_invisible(c: char) -> bool {
+    matches!(c, '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2028}' | '\u{2029}'
+        | '\u{2066}'..='\u{2069}' | '\u{FEFF}')
+}
+
 /// One tool as a client sees it.
 #[derive(Debug, Clone, Copy)]
 pub struct ToolDef {

@@ -331,6 +331,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "design-review"
+version = "0.0.0"
+dependencies = [
+ "meldframe-mcp-defs",
+ "meldframe-module",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1274,6 +1282,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-http-review"
+version = "0.0.0"
+dependencies = [
+ "design-review",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-mcp-defs",
+ "meldframe-module",
+ "rmcp",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-http-snapshot"
 version = "0.0.0"
 dependencies = [
@@ -1458,6 +1480,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-review-tests"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "design-review",
+ "meldframe-calls",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-http-assets",
+ "meldframe-http-capture",
+ "meldframe-http-review",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-server",
+ "reqwest",
+ "rmcp",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "meldframe-rooms"
 version = "0.0.0"
 dependencies = [
@@ -1494,6 +1537,7 @@ dependencies = [
  "assets",
  "axum",
  "capture",
+ "design-review",
  "example",
  "meldframe-approvals",
  "meldframe-batch",
@@ -1503,6 +1547,7 @@ dependencies = [
  "meldframe-http-assets",
  "meldframe-http-capture",
  "meldframe-http-live",
+ "meldframe-http-review",
  "meldframe-http-snapshot",
  "meldframe-module",
  "meldframe-protocol",
@@ -1559,6 +1604,7 @@ dependencies = [
 name = "meldframe-store-pg"
 version = "0.0.0"
 dependencies = [
+ "design-review",
  "meldframe-calls",
  "meldframe-host",
  "meldframe-module",

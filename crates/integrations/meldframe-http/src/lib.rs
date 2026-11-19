@@ -159,13 +159,6 @@ pub fn client_key(ip: std::net::IpAddr) -> String {
     }
 }
 
-/// Characters that change how a name reads without showing: bidi controls, zero-width marks, line and
-/// paragraph separators, the byte order mark.
-fn is_invisible(c: char) -> bool {
-    matches!(c, '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2028}' | '\u{2029}'
-        | '\u{2066}'..='\u{2069}' | '\u{FEFF}')
-}
-
 /// A file name the server should see: 1 to 128 bytes, not `.` or `..`, not only whitespace, no slash or
 /// backslash, no control or invisible formatting character.
 pub fn valid_file(name: &str) -> bool {
@@ -176,7 +169,7 @@ pub fn valid_file(name: &str) -> bool {
         && !name.trim().is_empty()
         && !name
             .chars()
-            .any(|c| c == '/' || c == '\\' || c.is_control() || is_invisible(c))
+            .any(|c| c == '/' || c == '\\' || c.is_control() || meldframe_mcp_defs::is_invisible(c))
 }
 
 /// A tool name: 1 to 64 bytes of ASCII letters, digits, `_`, `-` and `.`.
