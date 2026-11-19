@@ -191,13 +191,17 @@ impl History {
             .chain(self.runs.iter_mut().map(|m| &mut m.shadow))
     }
 
-    /// Drop recs and steps that no longer hold a command.
+    /// Drop recs and steps that no longer hold a command, and per stack the steps that have nothing left to
+    /// run there: an undo step with no undo command, a redo step with no do command (a pending rec stays, its
+    /// op may still come back). Running such a step only passes it, so it is not counted as one.
     pub(crate) fn prune(&mut self) {
         for e in self.entries_mut() {
             e.recs.retain(|r| !(r.do_.is_empty() && r.undo_.is_empty()));
         }
-        self.undo.retain(|e| !e.recs.is_empty());
-        self.redo.retain(|e| !e.recs.is_empty());
+        self.undo
+            .retain(|e| e.recs.iter().any(|r| r.pending || !r.undo_.is_empty()));
+        self.redo
+            .retain(|e| e.recs.iter().any(|r| r.pending || !r.do_.is_empty()));
     }
 
     fn push(&mut self, e: Entry) {

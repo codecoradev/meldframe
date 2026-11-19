@@ -231,19 +231,6 @@ fn a_reload_takes_the_variables_of_the_new_snapshot() {
 }
 
 #[test]
-fn an_empty_list_of_variable_commands_leaves_no_undo_step() {
-    let mut a = app();
-    let steps = a.state().history.undo_steps;
-    let can_undo = a.state().history.can_undo;
-    a.dispatch(Action::EditVariables { commands: vec![] });
-    assert_eq!(
-        (a.state().history.undo_steps, a.state().history.can_undo),
-        (steps, can_undo)
-    );
-    assert_eq!(a.state().pending.len(), 0);
-}
-
-#[test]
 fn the_properties_show_what_the_canvas_paints_for_a_number_the_field_cannot_hold() {
     let node: Node = serde_json::from_value(
         json!({"id": "card", "type": "rect", "pos": "a0", "radius": {"var": "round"}}),

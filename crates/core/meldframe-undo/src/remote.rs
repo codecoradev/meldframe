@@ -13,10 +13,13 @@
 //!   `pos`; if the node itself was deleted, the step goes. This holds for undo and redo alike.
 //! - A remote `RemoveVariable` of `X` leaves nothing that would name `X` again: a field of `UpdateNode` or
 //!   `AddNode` bound to `X` is let go (the node comes back with that field as it is, or with its default one
-//!   when the node is added again), and a `SetVariableValue` or `AddVariable` whose value aliases `X` goes. A
-//!   step whose undo is left empty by that stays, as one whose undo the remote command already did: undoing it
-//!   changes nothing and redo does it again. Otherwise the undo would be refused for the missing
-//!   variable for ever and block the stack. The smaller choice of the two: rewrite, not skip at undo time.
+//!   when the node is added again), and a `SetVariableValue` or `AddVariable` whose value aliases `X` goes.
+//!   Without it a command that names `X` is refused as a whole at undo time (it never blocked the stack: the
+//!   step is passed, as for a node another actor deleted), so an `AddNode` bound to `X` would be lost and a
+//!   patch like `{fill: Var X, x: 5}` would not restore `x`. With it the node comes back and `x` is restored.
+//!   A step whose undo is left empty by this is pruned from the undo stack (and a step whose do side is
+//!   left empty from the redo stack), so it is not counted as a step. The smaller choice of the two:
+//!   rewrite, not skip at undo time.
 //! - `Reparent` writes the parent and the `pos` together, so a remote `Reparent` or `Reorder` of the
 //!   same node beats my `Reorder`, and a remote `Reparent` beats my `Reparent`. A remote `Reorder` writes
 //!   only `pos`: my `Reparent` keeps its parent and loses its `pos`, but only when the remote `pos` was

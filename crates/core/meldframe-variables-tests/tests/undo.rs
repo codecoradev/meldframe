@@ -155,7 +155,8 @@ fn a_step_on_a_variable_that_another_actor_removed_goes() {
     let depth = s.undo_depth();
     s.apply_remote(&cmd(json!({"type": "removeVariable", "id": "bg"})))
         .unwrap();
-    assert_eq!(s.undo_depth(), depth - 1);
+    // The value step goes, and so does the add of `bg`: its undo (a removal) has nothing left to remove.
+    assert_eq!(s.undo_depth(), depth - 2);
     assert!(s.vars().variable("bg").is_none());
 }
 
@@ -174,7 +175,7 @@ fn literal_fill(id: &str, c: &str) -> meldframe_protocol::Command {
 }
 
 #[test]
-fn an_undo_that_would_bind_a_variable_the_other_actor_removed_does_not_block_the_stack() {
+fn a_step_whose_only_change_was_a_binding_to_a_removed_variable_is_passed_over_by_undo() {
     let mut s = bound_by_the_other_actor();
     // I paint the card red: my undo puts the binding back. Nothing uses `bg` then, and the other actor removes it.
     s.apply(&literal_fill("card", "#ff0000")).unwrap();
@@ -193,6 +194,37 @@ fn an_undo_that_would_bind_a_variable_the_other_actor_removed_does_not_block_the
 }
 
 #[test]
+fn a_step_whose_undo_the_rewrite_emptied_is_not_counted_as_a_step() {
+    let mut s = bound_by_the_other_actor();
+    s.apply(&literal_fill("card", "#ff0000")).unwrap();
+    let depth = s.undo_depth();
+    s.apply_remote(&cmd(json!({"type": "removeVariable", "id": "bg"})))
+        .unwrap();
+    // The red fill's undo is empty now, and so is the undo of the add of `bg` (a removal of what is gone): neither
+    // is counted, so one press does not seem to undo two things.
+    assert_eq!(s.undo_depth(), depth - 2);
+}
+
+#[test]
+fn an_undo_of_a_mixed_patch_keeps_the_other_field_when_the_variable_it_binds_is_gone() {
+    let mut s = bound_by_the_other_actor();
+    // One patch writes the fill and `x`: its undo is `{fill: Var bg, x: 0}`.
+    s.apply(&cmd(
+        json!({"type": "updateNode", "id": "card", "patch": {"fill": "#ff0000", "x": 5.0}}),
+    ))
+    .unwrap();
+    s.apply_remote(&cmd(json!({"type": "removeVariable", "id": "bg"})))
+        .unwrap();
+    // Without the rewrite the whole undo names the removed variable and is refused, so `x` stays at 5.
+    assert!(s.undo().is_some());
+    let card = s.node("card").unwrap();
+    assert_eq!(
+        (card.x, card.fill.clone()),
+        (0.0, Bind::Lit("#ff0000".into()))
+    );
+}
+
+#[test]
 fn undoing_the_delete_of_a_bound_node_brings_it_back_unbound_when_the_variable_is_gone() {
     let mut s = bound_by_the_other_actor();
     s.apply(&cmd(json!({"type": "removeNode", "id": "card"})))
@@ -208,7 +240,7 @@ fn undoing_the_delete_of_a_bound_node_brings_it_back_unbound_when_the_variable_i
 }
 
 #[test]
-fn an_undo_that_would_alias_a_variable_the_other_actor_removed_does_not_block_the_stack() {
+fn a_step_whose_only_change_was_an_alias_to_a_removed_variable_is_passed_over_by_undo() {
     let mut s = FileState::new();
     s.apply(&appearance()).unwrap();
     s.apply(&bg()).unwrap();
