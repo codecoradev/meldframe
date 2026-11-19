@@ -7,6 +7,7 @@ use crate::link::Link;
 use crate::retry::Retries;
 use crate::state::{AppState, Connection, History, Panel, Properties};
 use meldframe_protocol::{Command, Node};
+use meldframe_render::{PaintedBox, resolve};
 use meldframe_sync::{EventOutcome, LoadError, Outgoing, Replica, ReplicaError};
 use std::collections::HashSet;
 
@@ -80,6 +81,12 @@ impl App {
     /// The document as the person sees it: the confirmed file plus their pending ops.
     pub fn nodes(&self) -> &[Node] {
         self.replica.nodes()
+    }
+
+    /// The boxes the canvas paints, back to front: the one `resolve` step of the render model (E3.1) over
+    /// [`App::nodes`]. The canvas reads this and computes nothing of its own.
+    pub fn scene(&self) -> Vec<PaintedBox> {
+        resolve(self.nodes())
     }
 
     /// The confirmed document.

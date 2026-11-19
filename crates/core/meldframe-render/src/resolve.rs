@@ -1,10 +1,12 @@
 use meldframe_protocol::{GradientKind, ImageFit, Node, NodeKind};
+use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 /// What a box is drawn as. An ellipse is a rounded rectangle and a shader its plain box: the canvas
 /// has no better drawing for them yet.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Paint {
     Frame,
     Rect,
@@ -12,7 +14,7 @@ pub enum Paint {
 }
 
 /// A gradient over the fill; every stop colour is a valid hex colour.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PaintedGradient {
     pub kind: GradientKind,
     pub angle: f64,
@@ -20,14 +22,18 @@ pub struct PaintedGradient {
 }
 
 /// An image over the fill and the gradient.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaintedImage {
     pub asset_id: String,
     pub fit: ImageFit,
 }
 
-/// One box ready to paint. `x` and `y` are the offset inside the parent, as the node stores them.
-#[derive(Debug, Clone, PartialEq)]
+/// One box ready to paint. `x` and `y` are the offset inside the parent, as the node stores them. It
+/// serialises as the JSON the canvas reads (camel case; a gradient is `{kind, angle, stops: [[pos,
+/// colour]]}`, and an absent gradient or image is left out).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaintedBox {
     pub id: String,
     pub parent: Option<String>,
@@ -44,7 +50,9 @@ pub struct PaintedBox {
     pub name: String,
     pub clip: bool,
     pub opacity: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gradient: Option<PaintedGradient>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<PaintedImage>,
 }
 

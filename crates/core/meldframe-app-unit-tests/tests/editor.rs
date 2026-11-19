@@ -103,3 +103,20 @@ fn panels_open_close_and_layers_collapse() {
         collapsed: true
     }));
 }
+
+#[test]
+fn the_scene_is_the_render_step_over_the_document_as_the_person_sees_it() {
+    let mut l = Loopback::live();
+    let ids: Vec<_> = l.app.scene().into_iter().map(|b| b.id).collect();
+    assert_eq!(ids, ["root", "r1", "t1"]);
+    l.send(Action::Move {
+        id: "r1".into(),
+        x: 7.0,
+        y: 8.0,
+    });
+    let b = l.app.scene().into_iter().find(|b| b.id == "r1").unwrap();
+    assert_eq!((b.x, b.y, b.parent.as_deref()), (7.0, 8.0, Some("root")));
+    l.send(Action::Undo {});
+    let b = l.app.scene().into_iter().find(|b| b.id == "r1").unwrap();
+    assert_eq!((b.x, b.y), (0.0, 0.0));
+}

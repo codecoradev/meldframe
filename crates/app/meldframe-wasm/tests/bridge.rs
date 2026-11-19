@@ -91,3 +91,26 @@ fn whole_numbers_are_checked_not_coerced() {
     }
     assert_eq!(whole_number("seq", -0.0, 10.0), Ok(0));
 }
+
+#[test]
+fn the_scene_is_the_painted_boxes_of_the_document_as_json() {
+    let mut b = bridge();
+    assert_eq!(b.scene_json(), "[]");
+    run(&mut b, json!({"type": "start", "nowMs": 1}));
+    run(&mut b, json!({"type": "connected", "nowMs": 2}));
+    run(
+        &mut b,
+        json!({"type": "createNode", "kind": "frame", "x": 10.0, "y": 20.0, "parent": null}),
+    );
+    // The new node is still pending (not confirmed by the server), and the scene already shows it.
+    let nodes: Vec<Value> = serde_json::from_str(&b.nodes_json()).unwrap();
+    let scene: Vec<Value> = serde_json::from_str(&b.scene_json()).unwrap();
+    assert_eq!(scene.len(), 1);
+    assert_eq!(scene[0]["id"], nodes[0]["id"]);
+    assert_eq!(scene[0]["paint"], "frame");
+    assert_eq!(
+        (scene[0]["x"].as_f64(), scene[0]["y"].as_f64()),
+        (Some(10.0), Some(20.0))
+    );
+    assert_eq!(scene[0]["parent"], Value::Null);
+}

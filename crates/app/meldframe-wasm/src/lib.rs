@@ -1,7 +1,7 @@
 //! Thin wasm-bindgen glue over core and the app layer.
 //!
 //! The boundary is JSON text in and out: the browser sends an `Action` and gets the `Effect`s back, and
-//! reads `AppState`, the nodes and the `Event`s as JSON. The rules stay in `meldframe-app`; this crate
+//! reads `AppState`, the nodes, the painted boxes (the scene) and the `Event`s as JSON. The rules stay in `meldframe-app`; this crate
 //! only converts. [`Bridge`] is plain Rust (tested natively); [`WasmApp`] is its wasm-bindgen face.
 
 use meldframe_app::{Action, App};
@@ -58,6 +58,11 @@ impl Bridge {
         to_json(&self.app.nodes())
     }
 
+    /// The painted boxes of the document, back to front (JSON array; `meldframe_render::PaintedBox`).
+    pub fn scene_json(&self) -> String {
+        to_json(&self.app.scene())
+    }
+
     /// The events since the last call (JSON array); empties the queue.
     pub fn take_events_json(&mut self) -> String {
         to_json(&self.app.take_events())
@@ -104,7 +109,7 @@ fn install_panic_hook() {
 #[cfg(not(target_arch = "wasm32"))]
 fn install_panic_hook() {}
 
-/// The app for the browser: the same five calls as [`Bridge`].
+/// The app for the browser: the same six calls as [`Bridge`].
 #[wasm_bindgen]
 #[derive(Debug)]
 pub struct WasmApp {
@@ -147,6 +152,11 @@ impl WasmApp {
     #[wasm_bindgen(js_name = nodesJson)]
     pub fn nodes_json(&self) -> String {
         self.bridge.nodes_json()
+    }
+
+    #[wasm_bindgen(js_name = sceneJson)]
+    pub fn scene_json(&self) -> String {
+        self.bridge.scene_json()
     }
 
     #[wasm_bindgen(js_name = takeEventsJson)]
