@@ -98,6 +98,18 @@ fn opacity_defaults_to_one() {
 }
 
 #[test]
+fn opacity_that_is_not_below_one_or_not_a_number_is_one() {
+    // The canvas keeps an opacity only when it is a number below 1 (`scene.ts`).
+    for o in [json!(1.0), json!(1.5)] {
+        let b = one(json!({"id": "n", "type": "rect", "opacity": o}));
+        assert_eq!(b.opacity, 1.0, "opacity {o}");
+    }
+    let mut n: Node = serde_json::from_value(json!({"id": "n", "type": "rect"})).unwrap();
+    n.opacity = f64::NAN;
+    assert_eq!(resolve(&[n])[0].opacity, 1.0, "opacity NaN");
+}
+
+#[test]
 fn gradient_and_image_are_painted_except_on_text_or_with_a_bad_stop() {
     let g = json!({"kind": "radial", "angle": 90, "stops": [{"pos": 0, "color": "#fff"}, {"pos": 1, "color": "#000000ff"}]});
     let b = one(

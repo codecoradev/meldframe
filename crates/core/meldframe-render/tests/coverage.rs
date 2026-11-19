@@ -43,17 +43,20 @@ fn the_table_lists_exactly_the_fields_of_a_node() {
     );
 }
 
-/// A rectangle and a text under a frame, so that every field has a node that shows it.
+/// A frame with a rectangle, a text and a shader under it, so that every field has a node that shows
+/// it: the frame is a parent with children (layout fields), the shader node shows `shader`.
 fn base() -> Vec<Node> {
     let n = |v: Value| -> Node { serde_json::from_value(v).unwrap() };
     vec![
         n(json!({"id": "p", "type": "frame"})),
         n(json!({"id": "r", "type": "rect", "parentId": "p", "pos": "b"})),
         n(json!({"id": "t", "type": "text", "parentId": "p", "pos": "a", "text": "x"})),
+        n(json!({"id": "s", "type": "shader", "parentId": "p", "pos": "c"})),
     ]
 }
 
-/// Changes `field` on the node at `i` of `base` (1 the rectangle, 2 the text) to a different value.
+/// Changes `field` on the node at `i` of `base` (0 the frame, 1 the rectangle, 2 the text, 3 the
+/// shader) to a different value.
 fn change(field: &str, i: usize, n: &mut Node) {
     let stop = |pos: f64, color: &str| GradientStop {
         pos,
@@ -117,10 +120,11 @@ fn change(field: &str, i: usize, n: &mut Node) {
 #[test]
 fn a_rendered_field_changes_the_painted_boxes_and_an_unsupported_one_does_not() {
     let before = resolve(&base());
-    assert_eq!(before.len(), 3);
+    assert_eq!(before.len(), 4);
     for f in NODE_FIELDS {
         let mut nodes = base();
-        for (i, n) in nodes.iter_mut().enumerate().skip(1) {
+        // Every node, the parent frame included: a layout field only shows on a node that has children.
+        for (i, n) in nodes.iter_mut().enumerate() {
             change(f.field, i, n);
         }
         let moved = resolve(&nodes) != before;

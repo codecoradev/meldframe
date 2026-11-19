@@ -163,7 +163,8 @@ fn paint(n: &Node, parent: Option<&str>) -> PaintedBox {
         font_size: if is_text { n.font_size } else { 0.0 },
         name: n.name.clone(),
         clip: n.clip,
-        opacity: n.opacity,
+        // Like the canvas, an opacity counts only when it is a number below 1.
+        opacity: if n.opacity < 1.0 { n.opacity } else { 1.0 },
         gradient,
         image,
     }
