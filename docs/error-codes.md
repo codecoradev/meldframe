@@ -49,7 +49,7 @@ row, a row has no variant, or two variants share a code.
 
 | Code | Meaning and typical cause | What an agent should do next |
 | --- | --- | --- |
-| `forbidden` | The policy for the call's risk tier does not let this principal do it. Today a delete of a frame, of a node that is not in the file, or of a subtree above the small-delete limit is `Ask`, which is refused here; through the approval seam it opens an approval instead (see the approval codes above) (a small delete is Auto; today only a frame can have children, so in practice every non-frame delete is small and every frame delete is Ask, and a relaxed delete whose node became a frame or gained children before the room applied it is refused with this code too); with no readable policy only reads pass. It also covers a call that is not allowed to the tool: a tool the server was not built with (left out of the build), or an op of a higher risk tier than its tool. | Do not retry the same call unchanged. Use a lower-risk call, ask the owner to change the policy, or, where the server offers the approval seam, expect `approval_required` instead and follow it. |
+| `forbidden` | The policy for the call's risk tier does not let this principal do it. Today a delete of a frame, of a node that is not in the file, or of a subtree above the small-delete limit is `Ask`, which the gate refuses here; a single-op delete through the server opens an approval instead (see the approval codes below) (a small delete is Auto; today only a frame can have children, so in practice every non-frame delete is small and every frame delete is Ask, and a relaxed delete whose node became a frame or gained children before the room applied it is refused with this code too); with no readable policy only reads pass. It also covers a call that is not allowed to the tool: a tool the server was not built with (left out of the build), or an op of a higher risk tier than its tool. | Do not retry the same call unchanged. Use a lower-risk call, ask the owner to change the policy, or, where the server offers the approval seam, expect `approval_required` instead and follow it. |
 | `quota_exceeded` | The workspace used up its quota of ops. Retryable. | Wait, then send the same batch again; the refused batch was not counted. |
 | `quota_ops_per_minute` | The workspace sent more ops in this minute than its rate allows (the count starts again at the next minute). Retryable. HTTP 429 with `Retry-After`. | Wait the time in the message (or `Retry-After`), then send the same batch again; the refused batch was not counted. |
 | `batch_too_large` | One call carries more ops than the batch limit (100), or more than the ops per minute of the workspace (no minute can hold it). HTTP 413. | Split the batch into calls of at most the limit in the message. |
@@ -66,6 +66,17 @@ gate codes: lower-case strings, never changed in meaning, never reused, and a re
 other refusal passes through with its own code (`forbidden` for a Deny policy, `quota_exceeded`, `invalid`).
 Each of the three carries the approval id. A call sent straight to the gate is unchanged: Ask is `forbidden`.
 
+Besides the three codes the seam has one more, `approval_limit`: too many approvals are open (20 for an actor, 100
+for a workspace, 2,000 in all), and an idempotency key of more than 100 characters opens no approval and is refused
+as `forbidden`. None of the codes is a reason to retry by itself: the call stays refused until the owner has
+answered. `Approvals::decide` takes the owner's answer; `Approvals::answer` does the same for a principal and refuses
+the actor that asked and an approval of another workspace. A pending or approved approval lives for the ttl the
+caller gives it; `Approvals::prune` keeps a finished one one more ttl, so a retry in that time meets
+`approval_denied` or `approval_expired`, and after it the same op asks again. An approval covers the exact op:
+the same key, command, `ifSeq` and dependencies. A new idempotency key is a new request, so a denied ask can be
+asked again with a new key. An approval is not tied to the state of the tree: a retry without `ifSeq` is admitted
+even if the node gained content after the ask.
+
 A test in `crates/core/meldframe-approvals/tests/approval_codes.rs` reads this table and fails if a code has no
 row or a row has no code.
 
@@ -74,6 +85,7 @@ row or a row has no code.
 | `approval_required` | The policy for the call is Ask and the owner has not approved it. An approval is pending; sending the same op again while it is pending returns the same id. | Wait for the owner's decision, then send the same op again (same key, command, `ifSeq` and dependencies). An approval admits one call, once; a second call asks again. |
 | `approval_denied` | The owner denied this op. It stays refused. | Do not retry it. To ask again, send a new op with a new key. |
 | `approval_expired` | The approval ran out (pending or approved) before it was used. It stays refused. | Send a new op with a new key to ask again. |
+| `approval_limit` | Too many approvals are open: 20 for the actor, 100 for the workspace, 2,000 in all. A transport answers HTTP 429. Not retryable by itself. | Wait until the owner answers one of the open approvals or one runs out, then ask again. Do not send more deletes meanwhile. |
 
 ## Transport codes
 

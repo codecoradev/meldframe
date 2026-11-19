@@ -7,6 +7,6 @@
 mod approvals;
 
 pub use approvals::{
-    Approval, ApprovalGate, ApprovalRefusal, ApprovalState, Approvals, DecideError, Decision,
-    Verdict,
+    AnswerError, Approval, ApprovalGate, ApprovalRefusal, ApprovalState, Approvals, DecideError,
+    Decision, Verdict,
 };
