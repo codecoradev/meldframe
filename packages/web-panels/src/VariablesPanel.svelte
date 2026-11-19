@@ -71,7 +71,7 @@
             {#each c.modes as m (m.id)}
               <button
                 type="button"
-                class="rounded-md px-2 py-1 text-caption {c.active === m.id ? 'bg-accent text-on-accent' : 'bg-field text-text-muted hover:text-text'}"
+                class="rounded-md px-2 py-1 text-caption {c.active === m.id ? 'bg-accent-strong text-on-accent' : 'bg-field text-text-muted hover:text-text'}"
                 aria-pressed={c.active === m.id}
                 data-testid="var-mode"
                 data-mode={m.id}
@@ -85,7 +85,7 @@
             <li class="flex flex-col gap-1 px-3 py-2 hover:bg-field" data-testid="var-row" data-id={v.id}>
               <div class="flex items-baseline justify-between gap-2">
                 <span class="truncate text-text-strong" title={v.name}>{v.name}</span>
-                <span class="shrink-0 text-caption text-text-faint">{v.usedBy > 0 ? `used ${v.usedBy}` : 'unused'}</span>
+                <span class="shrink-0 text-caption text-text-muted">{v.usedBy > 0 ? `used ${v.usedBy}` : 'unused'}</span>
               </div>
               {#each v.values as val (val.mode)}
                 {@const colour = swatch(v, val.mode)}
@@ -111,7 +111,7 @@
                   {#each v.binds as b (b.field)}
                     <button
                       type="button"
-                      class="rounded-md px-2 py-1 text-caption {b.bound ? 'bg-accent text-on-accent' : 'bg-field text-text-muted hover:text-text'}"
+                      class="rounded-md px-2 py-1 text-caption {b.bound ? 'bg-accent-strong text-on-accent' : 'bg-field text-text-muted hover:text-text'}"
                       aria-pressed={b.bound}
                       title={b.bound ? `Unbind ${FIELDS[b.field]}` : `Bind ${FIELDS[b.field]} to ${v.name}`}
                       data-testid="var-bind"
@@ -125,17 +125,17 @@
           {/each}
         </ul>
         {#if c.matched > c.variables.length}
-          <p class="px-3 pb-2 text-caption text-text-faint" data-testid="var-more">{c.matched - c.variables.length} more in {c.name}</p>
+          <p class="px-3 pb-2 text-caption text-text-muted" data-testid="var-more">{c.matched - c.variables.length} more in {c.name}</p>
         {/if}
       </section>
     {/each}
     {#if panel.total === 0}
-      <p class="px-3 py-3 text-text-faint">This file has no variables yet. An agent can import variables or add them.</p>
+      <p class="px-3 py-3 text-text-muted">This file has no variables yet. An agent can import variables or add them.</p>
     {:else if panel.matched === 0}
-      <p class="px-3 py-3 text-text-faint">No variable matches the search.</p>
+      <p class="px-3 py-3 text-text-muted">No variable matches the search.</p>
     {/if}
     {#if truncated(panel)}
-      <p class="px-3 py-2 text-caption text-text-faint" data-testid="var-truncated">Showing {listedCount(panel)} of {panel.matched}. Narrow the search to see the rest.</p>
+      <p class="px-3 py-2 text-caption text-text-muted" data-testid="var-truncated">Showing {listedCount(panel)} of {panel.matched}. Narrow the search to see the rest.</p>
     {/if}
   </div>
 </aside>

@@ -34,7 +34,7 @@
           <span class="w-4"></span>
         {/if}
         <button type="button" class="min-w-0 flex-1 truncate py-1 text-left" onclick={(e) => onSelect(r.id, e.shiftKey)}>
-          <span class="text-text-faint">{r.kind}</span> {r.name}
+          <span class="text-text-muted">{r.kind}</span> {r.name}
         </button>
         {#if who}
           <span
@@ -46,7 +46,7 @@
       </li>
     {/each}
     {#if rows.length === 0}
-      <li class="px-3 py-2 text-text-faint">Nothing here yet.</li>
+      <li class="px-3 py-2 text-text-muted">Nothing here yet.</li>
     {/if}
   </ul>
 </aside>
