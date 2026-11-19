@@ -1153,9 +1153,12 @@ name = "meldframe-gate-tests"
 version = "0.0.0"
 dependencies = [
  "meldframe-check",
+ "meldframe-history",
  "meldframe-host",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-revert",
+ "meldframe-rooms",
  "serde_json",
 ]
 

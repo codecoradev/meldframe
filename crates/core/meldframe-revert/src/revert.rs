@@ -39,13 +39,18 @@ pub struct Batch<'a> {
 
 impl Batch<'_> {
     fn has(&self, op: &LoggedOp) -> bool {
-        op.actor == self.actor
-            && op
-                .key
-                .strip_prefix(self.key_prefix)
-                .and_then(|rest| rest.strip_prefix(':'))
-                .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+        op.actor == self.actor && batch_index(&op.key).is_some_and(|(p, _)| p == self.key_prefix)
     }
+}
+
+/// Splits an op key `{prefix}:{n}` (the key of command `n` of one `apply_commands` call) into the prefix and `n`;
+/// `None` for any other key, such as the one-op keys of the editor.
+pub fn batch_index(key: &str) -> Option<(&str, u64)> {
+    let (prefix, n) = key.rsplit_once(':')?;
+    if n.is_empty() || !n.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some((prefix, n.parse().ok()?))
 }
 
 /// Why a part of the batch was left as it is.
@@ -144,6 +149,9 @@ pub fn revert_batch(
                     run.push(Command::RemoveNode { id: id.clone() }, id, "node");
                 } else if run.scratch.node(id).is_some() {
                     run.skip(id, "node", SkipReason::ChangedSince);
+                } else {
+                    // Someone else removed it since: there is nothing left to take back.
+                    run.skip(id, "node", SkipReason::NotApplicable);
                 }
             }
             Command::RemoveNode { id } => {

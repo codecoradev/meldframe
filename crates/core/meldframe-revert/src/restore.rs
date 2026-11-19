@@ -12,6 +12,8 @@ use std::collections::{HashMap, HashSet};
 pub enum RestoreError {
     /// A command for node `id` does not apply or does not read back as a patch. Nothing was changed.
     DoesNotApply { id: String },
+    /// The commands apply but do not give the target (a node whose order cannot be written, say). Nothing was changed.
+    Mismatch,
 }
 
 /// The tree as it was after op `seq`: `base` is the tree before the first op of `log`, and the ops with a
@@ -29,7 +31,10 @@ pub fn state_at(base: &[Node], log: &[LoggedOp], seq: u64) -> Result<Vec<Node>, 
 /// sibling holds by then is resolved by the apply rule, so its string can differ. In the order to apply them: remove the nodes that must be
 /// replaced, add what is missing (parents first), move the nodes that stayed (parents first, so no move makes a
 /// cycle), remove what is left over, then set the fields that differ. A node whose kind differs is replaced with
-/// its whole subtree. Checked against `current` before it is returned, so the list applies whole.
+/// its whole subtree. Every removal is of a node with nothing under it by then (leaves first), so the gate
+/// tiers it as the removal of that node alone. The list is replayed on `current` before it is returned: it must
+/// apply whole and give `target` (sibling order included), else it is an error and nothing is sent. A moved node
+/// whose target has an empty `pos` cannot be put back in order; that is `Mismatch` when the order then differs.
 pub fn restore_commands(target: &[Node], current: &[Node]) -> Result<Vec<Command>, RestoreError> {
     let want: HashMap<&str, &Node> = target.iter().map(|n| (n.id.as_str(), n)).collect();
     let have: HashMap<&str, &Node> = current.iter().map(|n| (n.id.as_str(), n)).collect();
@@ -49,17 +54,16 @@ pub fn restore_commands(target: &[Node], current: &[Node]) -> Result<Vec<Command
         .map(|n| n.id.as_str())
         .collect();
     let mut cmds = Vec::new();
-    // 1. Remove the roots of what is replaced, so their ids are free again.
-    for id in &replaced {
-        if !under_any(&have, id, &replaced_above(&have, id, &replaced)) {
-            cmds.push(Command::RemoveNode { id: id.to_string() });
-        }
-    }
     let removed_early: HashSet<&str> = current
         .iter()
         .filter(|n| under_any(&have, &n.id, &replaced) || replaced.contains(n.id.as_str()))
         .map(|n| n.id.as_str())
         .collect();
+    // 1. Remove what is replaced, leaves first: the gate tiers a removal by the tree as it is then, so a node
+    // that still has content would be a Delete that waits for approval (ADR-0010).
+    for id in leaves_first(&have, &removed_early) {
+        cmds.push(Command::RemoveNode { id });
+    }
     // 2. Add what the file lacks, parents first.
     let mut order: Vec<&Node> = target.iter().collect();
     order.sort_by(|a, b| {
@@ -79,21 +83,16 @@ pub fn restore_commands(target: &[Node], current: &[Node]) -> Result<Vec<Command
             cmds.push(Command::Reparent {
                 id: t.id.clone(),
                 parent_id: t.parent_id.clone(),
+                // A target without a `pos` cannot be written back; the check at the end refuses when the order
+                // then differs from the target.
                 pos: (!t.pos.is_empty()).then(|| t.pos.clone()),
             });
         }
     }
-    // 4. Remove what is left over: the top of each leftover subtree.
-    for n in current {
-        let id = n.id.as_str();
-        let leftover = gone.contains(id) && !removed_early.contains(id);
-        let parent_leftover = n
-            .parent_id
-            .as_deref()
-            .is_some_and(|p| gone.contains(p) && !removed_early.contains(p));
-        if leftover && !parent_leftover {
-            cmds.push(Command::RemoveNode { id: id.to_string() });
-        }
+    // 4. Remove what is left over, leaves first (see step 1).
+    let leftover: HashSet<&str> = gone.difference(&removed_early).copied().collect();
+    for id in leaves_first(&have, &leftover) {
+        cmds.push(Command::RemoveNode { id });
     }
     // 5. Set the fields that differ.
     for t in order.iter().filter(|n| keep(&n.id)) {
@@ -110,7 +109,37 @@ pub fn restore_commands(target: &[Node], current: &[Node]) -> Result<Vec<Command
             .replay_pending(c)
             .map_err(|_| RestoreError::DoesNotApply { id: command_id(c) })?;
     }
+    if canonical(check.nodes()) != canonical(target) {
+        return Err(RestoreError::Mismatch);
+    }
     Ok(cmds)
+}
+
+/// The ids of `set`, each node after everything under it (deepest first, then by id for a fixed order).
+fn leaves_first(nodes: &HashMap<&str, &Node>, set: &HashSet<&str>) -> Vec<String> {
+    let mut ids: Vec<&str> = set.iter().copied().collect();
+    ids.sort_by(|a, b| depth(nodes, b).cmp(&depth(nodes, a)).then(a.cmp(b)));
+    ids.into_iter().map(String::from).collect()
+}
+
+/// The tree with list order dropped and `pos` turned into the rank among the siblings: a `pos` that another
+/// sibling holds is resolved by the apply rule, so the string can differ while the order is the same.
+fn canonical(nodes: &[Node]) -> Vec<serde_json::Value> {
+    let mut v: Vec<&Node> = nodes.iter().collect();
+    v.sort_by(|a, b| (&a.parent_id, &a.pos, &a.id).cmp(&(&b.parent_id, &b.pos, &b.id)));
+    let mut rank: HashMap<Option<&str>, usize> = HashMap::new();
+    let mut out: Vec<(String, serde_json::Value)> = v
+        .into_iter()
+        .map(|n| {
+            let r = rank.entry(n.parent_id.as_deref()).or_default();
+            let mut j = serde_json::to_value(n).unwrap_or_default();
+            j["pos"] = (*r).into();
+            *r += 1;
+            (n.id.clone(), j)
+        })
+        .collect();
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out.into_iter().map(|(_, j)| j).collect()
 }
 
 fn command_id(c: &Command) -> String {
@@ -152,33 +181,6 @@ fn under_any(nodes: &HashMap<&str, &Node>, id: &str, set: &HashSet<&str>) -> boo
         at = nodes.get(p).and_then(|n| n.parent_id.as_deref());
     }
     false
-}
-
-/// The replaced nodes that are strict ancestors of `id`.
-fn replaced_above<'a>(
-    nodes: &HashMap<&str, &Node>,
-    id: &str,
-    replaced: &HashSet<&'a str>,
-) -> HashSet<&'a str> {
-    replaced
-        .iter()
-        .copied()
-        .filter(|r| {
-            let mut steps = 0;
-            let mut at = nodes.get(id).and_then(|n| n.parent_id.as_deref());
-            while let Some(p) = at {
-                if p == *r {
-                    return true;
-                }
-                steps += 1;
-                if steps > nodes.len() {
-                    break;
-                }
-                at = nodes.get(p).and_then(|n| n.parent_id.as_deref());
-            }
-            false
-        })
-        .collect()
 }
 
 /// The patch that turns node `have` into `want` (same id and kind): every field that differs, a field that

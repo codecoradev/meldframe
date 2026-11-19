@@ -228,3 +228,90 @@ fn restore_after_random_edits_brings_back_the_target() {
         assert_eq!(canon(r.nodes()), canon(target.nodes()), "seed {seed}");
     }
 }
+
+#[test]
+fn removals_come_leaves_first_for_leftovers_and_for_replaced_nodes() {
+    let order = |cmds: &[Command]| -> Vec<String> {
+        cmds.iter()
+            .filter_map(|c| match c {
+                Command::RemoveNode { id } => Some(id.clone()),
+                _ => None,
+            })
+            .collect()
+    };
+    let t = state(&[add("root", "frame", None)]);
+    let s = state(&[
+        add("root", "frame", None),
+        add("f", "frame", Some("root")),
+        add("g", "frame", Some("f")),
+        add("x", "rect", Some("g")),
+        add("y", "rect", Some("f")),
+    ]);
+    let ids = order(&restore_commands(t.nodes(), s.nodes()).unwrap());
+    let at = |id: &str| ids.iter().position(|i| i == id).unwrap();
+    assert_eq!(
+        ids.len(),
+        4,
+        "every node of the leftover subtree is removed on its own"
+    );
+    assert!(at("x") < at("g") && at("g") < at("f") && at("y") < at("f"));
+    // A node whose kind changed: its content goes before it.
+    let t = state(&[add("root", "frame", None), add("a", "rect", Some("root"))]);
+    let s = state(&[
+        add("root", "frame", None),
+        add("a", "frame", Some("root")),
+        add("c", "rect", Some("a")),
+    ]);
+    let ids = order(&restore_commands(t.nodes(), s.nodes()).unwrap());
+    assert_eq!(ids, vec!["c", "a"]);
+}
+
+#[test]
+fn a_moved_node_whose_target_has_no_pos_is_put_back_when_the_order_allows() {
+    // `a` is alone under `q` in the target, with no `pos` (a file loaded without one).
+    let mut nodes = state(&[
+        add("root", "frame", None),
+        add("p", "frame", Some("root")),
+        add("q", "frame", Some("root")),
+        add("a", "rect", Some("q")),
+    ])
+    .nodes()
+    .to_vec();
+    nodes.iter_mut().find(|n| n.id == "a").unwrap().pos = String::new();
+    let current = state(&[
+        add("root", "frame", None),
+        add("p", "frame", Some("root")),
+        add("q", "frame", Some("root")),
+        add("a", "rect", Some("p")),
+    ]);
+    let cmds = restore_commands(&nodes, current.nodes()).unwrap();
+    assert!(
+        cmds.iter()
+            .any(|c| matches!(c, Command::Reparent { pos: None, .. }))
+    );
+}
+
+#[test]
+fn a_target_order_that_cannot_be_written_back_is_refused_not_applied_out_of_order() {
+    // Two siblings in the target: `b` has an empty `pos` and sorts first; moving it back puts it last.
+    let mut target = state(&[
+        add("root", "frame", None),
+        add("p", "frame", Some("root")),
+        add("a", "rect", Some("p")),
+        add("b", "rect", Some("p")),
+    ])
+    .nodes()
+    .to_vec();
+    target.iter_mut().find(|n| n.id == "b").unwrap().pos = String::new();
+    let current = state(&[
+        add("root", "frame", None),
+        add("p", "frame", Some("root")),
+        add("q", "frame", Some("root")),
+        add("a", "rect", Some("p")),
+        add("b", "rect", Some("q")),
+    ]);
+    assert_eq!(
+        restore_commands(&target, current.nodes()).unwrap_err(),
+        meldframe_revert::RestoreError::Mismatch
+    );
+}

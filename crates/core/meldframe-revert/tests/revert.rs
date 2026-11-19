@@ -284,7 +284,16 @@ fn a_move_goes_back_unless_someone_moved_the_node_since() {
     );
     let r = revert_batch(&start, &log, agent("b1")).unwrap();
     assert!(r.commands.is_empty());
-    assert_eq!(after_revert(&now, &r.commands).nodes().len(), now.len());
+    assert_eq!(
+        r.skipped,
+        vec![meldframe_revert::Skipped {
+            node: "a".into(),
+            what: "place".into(),
+            reason: SkipReason::ChangedSince
+        }]
+    );
+    let moved = |nodes: &[Node]| nodes.iter().find(|n| n.id == "a").unwrap().pos.clone();
+    assert_eq!(moved(after_revert(&now, &r.commands).nodes()), moved(&now));
 }
 
 #[test]
@@ -301,5 +310,79 @@ fn a_revert_is_one_list_that_applies_whole() {
     let r = revert_batch(&start, &log, agent("b1")).unwrap();
     // `after_revert` panics when a command of the list does not apply.
     let s = after_revert(&now, &r.commands);
-    assert_eq!(s.nodes().len(), start.len());
+    assert!(r.skipped.is_empty());
+    let canon = |nodes: &[Node]| {
+        let mut v: Vec<(String, Option<String>, String, f64)> = nodes
+            .iter()
+            .map(|n| (n.id.clone(), n.parent_id.clone(), n.pos.clone(), n.x))
+            .collect();
+        v.sort_by(|a, b| a.0.cmp(&b.0));
+        v
+    };
+    assert_eq!(
+        canon(s.nodes()),
+        canon(&start),
+        "the tree is as before the batch"
+    );
+}
+
+#[test]
+fn a_later_batch_of_the_same_actor_keeps_the_field_it_wrote() {
+    let start = before();
+    let (log, now) = run(
+        &start,
+        vec![
+            ("agent:x", "b1:0", upd("a", |p| p.x = Some(10.0))),
+            ("agent:x", "b2:0", upd("a", |p| p.x = Some(20.0))),
+        ],
+    );
+    let r = revert_batch(&start, &log, agent("b1")).unwrap();
+    assert!(r.commands.is_empty());
+    assert_eq!(after_revert(&now, &r.commands).node("a").unwrap().x, 20.0);
+    assert_eq!(
+        r.skipped,
+        vec![meldframe_revert::Skipped {
+            node: "a".into(),
+            what: "x".into(),
+            reason: SkipReason::ChangedSince
+        }]
+    );
+}
+
+#[test]
+fn a_node_the_batch_added_and_someone_else_removed_is_listed_as_not_applicable() {
+    let start = before();
+    let (log, now) = run(
+        &start,
+        vec![
+            ("agent:x", "b1:0", add("hero", "rect", Some("root"))),
+            ("human", "ui-1", remove("hero")),
+        ],
+    );
+    let r = revert_batch(&start, &log, agent("b1")).unwrap();
+    assert!(r.commands.is_empty());
+    assert_eq!(after_revert(&now, &r.commands).nodes().len(), start.len());
+    assert_eq!(
+        r.skipped,
+        vec![meldframe_revert::Skipped {
+            node: "hero".into(),
+            what: "node".into(),
+            reason: SkipReason::NotApplicable
+        }]
+    );
+}
+
+#[test]
+fn a_batch_with_only_some_of_its_ops_in_the_log_reverts_those_and_the_key_says_so() {
+    // Op `b1:0` is not in the log (folded out, or refused): the rest reverts, and `batch_index` tells the caller.
+    let start = before();
+    let (log, now) = run(
+        &start,
+        vec![("agent:x", "b1:1", upd("a", |p| p.x = Some(5.0)))],
+    );
+    let r = revert_batch(&start, &log, agent("b1")).unwrap();
+    assert_eq!(after_revert(&now, &r.commands).node("a").unwrap().x, 0.0);
+    assert_eq!(meldframe_revert::batch_index("b1:1"), Some(("b1", 1)));
+    assert_eq!(meldframe_revert::batch_index("ui-1"), None);
+    assert_eq!(meldframe_revert::batch_index("b:x:7"), Some(("b:x", 7)));
 }
