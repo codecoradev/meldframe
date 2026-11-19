@@ -233,4 +233,12 @@ add('f17-fill-under-hug', 'fill width and height under a hug parent: the core ta
   rect('b', 'r', { w: 49, h: 62, sw: 'fill', fill: '#60a5fa' }),
 ]);
 
+// 18. opacity of a node and of what is inside it, probed on pixels (probes.mjs)
+add('f18-opacity', 'opacity 0.5 on a rect, and on a frame whose child is painted with the frame', [
+  frame('stage', null, { w: 300, h: 100, layout: 'none', fill: '#ffffff', clip: false }),
+  rect('o1', 'stage', { x: 20, y: 20, w: 100, h: 60, fill: '#ff0000', opacity: 0.5 }),
+  frame('o2', 'stage', { x: 160, y: 20, w: 100, h: 60, layout: 'none', fill: '#00ff00', opacity: 0.5, clip: false }),
+  rect('o3', 'o2', { x: 20, y: 10, w: 40, h: 40, fill: '#0000ff' }),
+]);
+
 export default fixtures;

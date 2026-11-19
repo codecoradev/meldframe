@@ -5,9 +5,9 @@ import { pathToFileURL } from 'node:url';
 import { KNOWN_GAPS } from './known-gaps.mjs';
 import { OUT } from './lib.mjs';
 
-export const LIMITS = { geometry: 0.05, tailwind: 0.001 };
+export const LIMITS = { geometry: 0.05, tailwind: 0.001, ink: 1, blur: 20 };
 /** A run that checks less than this is not a run of the oracle: the hand-written fixtures, and the share of the seeds the gate must hold. */
-export const FLOORS = { fixtures: 16, gatedShare: 0.3 };
+export const FLOORS = { fixtures: 17, gatedShare: 0.3 };
 
 /** The violations in a results object, as lines of text. */
 export function evaluate(results) {
@@ -23,6 +23,21 @@ export function evaluate(results) {
     if (gated < Math.floor(results.seeds * FLOORS.gatedShare)) fail.push(`only ${gated} of ${results.seeds} fuzz files are inside the contract and gated (at least ${FLOORS.gatedShare * 100}%): the generator or rule G3 changed`);
     for (const gap of Object.keys(KNOWN_GAPS)) if (!names.has(gap)) fail.push(`known gap ${gap} is not a fixture any more: remove it from known-gaps.mjs`);
   }
+  if (!results.only && !results.geometryOnly) {
+    // a missing or empty section is a run that checked nothing
+    if (!results.paint?.probes?.length) fail.push('the paint oracle ran no probes');
+    if (!results.paint?.forms?.length) fail.push('the paint oracle compared no pages of the two forms');
+    if (!results.ink?.rows?.length) fail.push('the text ink oracle ran no case');
+    if (!results.blur?.length) fail.push('the blur check ran no case');
+  }
+  for (const p of results.paint?.probes ?? []) if (!p.ok) fail.push(`paint probe failed: ${p.id} at ${p.at}, wanted ${p.want}, got rgb(${p.got})`);
+  for (const f of results.paint?.forms ?? []) if (!(f.differing === 0)) fail.push(`${f.fixture}: the Tailwind page and the CSS page differ in ${f.differing} pixels`);
+  for (const r of results.ink?.rows ?? []) {
+    if (r.noInk) fail.push(`text ink ${r.id} (${r.form}): no ink found on ${r.noInk}, so nothing was compared`);
+    const worst = Math.max(...['dLeft', 'dRight', 'dTop', 'dBottom'].map((k) => Math.abs(r[k])));
+    if (worst > LIMITS.ink) fail.push(`text ink ${r.id} (${r.form}): an edge is ${worst} px from the canvas text (limit ${LIMITS.ink})`);
+  }
+  for (const b of results.blur ?? []) if (b.maxAbs > LIMITS.blur) fail.push(`shadow blur ${b.blur}px: the CSS falloff differs from the Pixi blur by ${b.maxAbs}/255 (limit ${LIMITS.blur})`);
   for (const d of files) {
     // each problem has a kind: 'error' and 'missing' and 'font' are never excused, 'box' and 'tailwind' are the geometry ones
     const problems = [];
@@ -65,6 +80,9 @@ export function report(results, failures, log) {
   log(`fuzz ${fuzz.length} seeds (${fuzz.reduce((n, d) => n + d.nodes, 0)} nodes), gated ${gated.length}, outside the contract (rule G3) ${fuzz.length - gated.length}, of which the export did not warn ${fuzz.filter((d) => d.silentG3).length}`);
   log(`  max box delta in the gated seeds: ${max(gated, (r) => r.max).toFixed(4)} px`);
   log(`  max tailwind vs css delta: ${Math.max(0, ...docs.filter((d) => !KNOWN_GAPS[d.name] && d.twVsCss).map((d) => d.twVsCss.max)).toFixed(4)} px`);
+  if (results.paint) log(`paint probes ${results.paint.probes.filter((p) => p.ok).length}/${results.paint.probes.length}, pixels differing between the forms ${results.paint.forms.reduce((n, f) => n + f.differing, 0)}`);
+  if (results.ink) log(`text ink: ${new Set(results.ink.rows.map((r) => r.id)).size} cases, largest edge difference ${results.ink.worst} px (limit ${LIMITS.ink})`);
+  if (results.blur) log(`CSS blur model against Pixi (not the export): largest falloff difference ${Math.max(...results.blur.map((b) => b.maxAbs))}/255 (limit ${LIMITS.blur})`);
   log(failures.length ? `FAIL\n${failures.join('\n')}` : 'fidelity gate: PASS');
 }
 

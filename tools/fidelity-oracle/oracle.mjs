@@ -1,8 +1,11 @@
-// Runs the oracle and the gate. `node oracle.mjs [--seeds N] [--only name ...]`; exit 1 on a violation.
+// Runs the oracle and the gate. `node oracle.mjs [--seeds N] [--geometry-only] [name ...]`; exit 1 on a violation. Named files run
+// the geometry oracle only.
 import fs from 'node:fs';
 import path from 'node:path';
 import { serve, launch, openMeasurePage, OUT } from './lib.mjs';
 import { geometry } from './geometry.mjs';
+import { blur, paint } from './probes.mjs';
+import { textInk } from './ink.mjs';
 import { evaluate, report } from './gate.mjs';
 
 const args = process.argv.slice(2);
@@ -15,10 +18,15 @@ const log = (m) => console.log(m);
 fs.rmSync(path.join(OUT, 'pages'), { recursive: true, force: true });
 const { base, close } = await serve();
 const browser = await launch();
-const results = { seeds, only: only.length > 0, version: await browser.version() };
+const results = { seeds, only: only.length > 0, geometryOnly: args.includes('--geometry-only'), version: await browser.version() };
 try {
   const mp = await openMeasurePage(browser, base);
   results.geometry = await geometry({ browser, base, mp, seeds, only, log });
+  if (!only.length && !args.includes('--geometry-only')) {
+    results.paint = await paint({ browser, base, log });
+    results.blur = await blur({ browser, base, log });
+    results.ink = await textInk({ browser, base, log });
+  }
 } finally {
   await browser.close();
   close();

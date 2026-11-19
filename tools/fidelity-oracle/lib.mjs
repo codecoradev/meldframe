@@ -168,4 +168,31 @@ export function diffRects(expected, actual) {
   });
 }
 
+/** How many pixels differ between two decoded screenshots of the same size. */
+export function diffPixels(a, b) {
+  if (a.width !== b.width || a.height !== b.height) return Infinity;
+  let n = 0;
+  for (let i = 0; i < a.data.length; i += 4) if (a.data[i] !== b.data[i] || a.data[i + 1] !== b.data[i + 1] || a.data[i + 2] !== b.data[i + 2]) n++;
+  return n;
+}
+
+const decoders = new WeakMap();
+/** A PNG as a pixel reader: `(x, y) => [r, g, b]`, decoded by a page of `browser` (no image library); `.data` is RGBA. */
+export async function decodePng(browser, png) {
+  if (!decoders.has(browser)) decoders.set(browser, browser.newContext().then((c) => c.newPage()));
+  const page = await decoders.get(browser);
+  const img = await page.evaluate(async (b64) => {
+    const i = new Image(); i.src = `data:image/png;base64,${b64}`; await i.decode();
+    const c = document.createElement('canvas'); c.width = i.width; c.height = i.height;
+    const g = c.getContext('2d'); g.drawImage(i, 0, 0);
+    const d = g.getImageData(0, 0, i.width, i.height).data;
+    let s = '';
+    for (let k = 0; k < d.length; k += 8192) s += String.fromCharCode(...d.subarray(k, k + 8192));
+    return { width: i.width, height: i.height, data: btoa(s) };
+  }, png.toString('base64'));
+  const data = Buffer.from(img.data, 'base64');
+  const px = (x, y) => { const o = (y * img.width + x) * 4; return [data[o], data[o + 1], data[o + 2]]; };
+  return Object.assign(px, { width: img.width, height: img.height, data });
+}
+
 export const SETTINGS = [['1280@1', { width: 1280, height: 900 }, 1], ['700@1', { width: 700, height: 500 }, 1], ['1280@2', { width: 1280, height: 900 }, 2]];

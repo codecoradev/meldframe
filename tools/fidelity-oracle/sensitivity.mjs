@@ -4,6 +4,7 @@
 // height that is a pixel off.
 import { serve, launch, openMeasurePage } from './lib.mjs';
 import { geometry } from './geometry.mjs';
+import { paint } from './probes.mjs';
 import { evaluate } from './gate.mjs';
 
 export const MUTATIONS = {
@@ -21,9 +22,15 @@ export const MUTATIONS = {
   }),
 };
 
+/** Mistakes the pixel probes must catch: an image fit and a shadow offset that are wrong in both forms. */
+export const PAINT_MUTATIONS = {
+  'image cover becomes contain': (form, e) => ({ ...e, html: e.html.replaceAll('background-size:cover', 'background-size:contain'), css: e.css.replaceAll('background-size:cover', 'background-size:contain') }),
+  'a hard shadow moves 10 px': (form, e) => ({ ...e, html: e.html.replace(/20px 0px 0px 0px #ff0000ff/g, '30px 0px 0px 0px #ff0000ff'), css: e.css.replace(/20px 0px 0px 0px #ff0000ff/g, '30px 0px 0px 0px #ff0000ff') }),
+};
+
 /** The failures the gate reports for a run with `mutate` (none for the identity). Returns lines. */
 export async function check({ browser, base, mp, mutate, seeds = 10 }) {
-  const results = { seeds, geometry: await geometry({ browser, base, mp, seeds, mutate }) };
+  const results = { seeds, geometryOnly: true, geometry: await geometry({ browser, base, mp, seeds, mutate }) };
   return evaluate(results);
 }
 
@@ -36,6 +43,12 @@ if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1]
     const baseline = await check({ browser, base, mp, mutate: (_f, e) => e });
     console.log(baseline.length ? `FAIL: the unmutated run fails:\n${baseline.join('\n')}` : 'unmutated run: passes');
     bad += baseline.length ? 1 : 0;
+    for (const [name, mutate] of Object.entries(PAINT_MUTATIONS)) {
+      const results = { seeds: 1, only: true, paint: await paint({ browser, base, mutate }) };
+      const failures = evaluate(results);
+      console.log(`${failures.length ? 'caught ' : 'MISSED '} "${name}": ${failures.length} violation(s)${failures[0] ? `, first: ${failures[0]}` : ''}`);
+      if (!failures.length) bad++;
+    }
     for (const [name, mutate] of Object.entries(MUTATIONS)) {
       const failures = await check({ browser, base, mp, mutate });
       console.log(`${failures.length ? 'caught ' : 'MISSED '} "${name}": ${failures.length} violation(s)${failures[0] ? `, first: ${failures[0].split('\n')[0]}` : ''}`);
