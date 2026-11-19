@@ -17,6 +17,18 @@ ignore:
     - "*.lock"
     - "*.png"
     - "*.svg"
+  rules:
+    # The removed-symbol rule matches a deleted definition by name against the symbol index of the whole
+    # repository, across languages, so a deleted test helper named like a Rust function reads as a breaking
+    # change (the known case: a TypeScript test helper named `node` against Rust callers). The scope below is
+    # the file that held the removed definition. Removing a helper from a test file breaks no production
+    # caller; a test that still calls it fails its own build anyway.
+    - rule: index-breaking-change
+      files:
+        - "**/tests/**"
+        - "**/*.test.ts"
+        - "**/*.spec.ts"
+      reason: "A removed test helper breaks no production caller, and a test that still used it fails its own build; the rule matches by name across languages."
 
 hook:
   mode: block
