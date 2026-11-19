@@ -41,6 +41,8 @@ pub struct ExportOptions<'a> {
     pub measurer: &'a dyn TextMeasurer,
     /// Where the font file is, relative to the document.
     pub font_href: String,
+    /// A prefix for the asset id in `url(...)`; the ids the document uses are in [`Report::assets`].
+    pub asset_base: String,
     /// The most bytes of HTML and stylesheet together; more is [`ExportError::TooLarge`].
     pub max_bytes: usize,
 }
@@ -52,6 +54,7 @@ impl<'a> ExportOptions<'a> {
             modes: ModeChoice::default(),
             measurer,
             font_href: "inter.woff2".into(),
+            asset_base: "assets/".into(),
             max_bytes: MAX_OUTPUT_BYTES,
         }
     }

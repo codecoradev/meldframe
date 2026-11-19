@@ -59,6 +59,7 @@ pub(crate) fn export(
     let cx = Cx {
         rects: &rects,
         measurer: options.measurer,
+        asset_base: &options.asset_base,
     };
     let mut w = Walk {
         cx: &cx,
@@ -150,7 +151,7 @@ impl<'a> Walk<'a> {
             holds_absolute,
             basis,
         };
-        let st = style(self.cx, n, &place, &mut self.report);
+        let st = style(self.cx, n, b, &place, &mut self.report);
         let t = tag(b);
         let pad = "  ".repeat(depth);
         let open = format!("{pad}<{t} {}", attrs(n));

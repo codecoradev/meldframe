@@ -4,11 +4,13 @@
 //! under a hug parent is a fixed size, rule G1; `safe` alignment, rule G2). Paint comes from the painted box of the
 //! render step, except where the field is bound: a bound fill, radius or opacity is `var(--...)`.
 
-use crate::names::{escape, px};
+use crate::names::{escape, hex, num, px};
 use crate::report::Report;
 use meldframe_layout::{Rect, TextMeasurer};
-use meldframe_protocol::{Align, Justify, LayoutMode, Node, NodeKind, SizeMode, TextAlign};
-use meldframe_render::{Paint, PaintedBox};
+use meldframe_protocol::{
+    Align, BorderPosition, ImageFit, Justify, LayoutMode, Node, NodeKind, SizeMode, TextAlign,
+};
+use meldframe_render::{Paint, PaintedBox, PaintedGradient};
 use std::collections::HashMap;
 
 /// One CSS declaration.
@@ -29,6 +31,7 @@ pub(crate) struct Style {
 pub(crate) struct Cx<'a> {
     pub rects: &'a HashMap<String, Rect>,
     pub measurer: &'a dyn TextMeasurer,
+    pub asset_base: &'a str,
 }
 
 /// The place of a node in its parent, worked out by the caller.
@@ -92,20 +95,51 @@ fn axis(n: &Node, mode: SizeMode, place: &Place, horizontal: bool) -> Axis {
     }
 }
 
+/// The colour of a fill as the render step painted it.
+fn colour(painted: Option<u32>) -> Option<String> {
+    painted.map(hex)
+}
+
+fn gradient_css(g: &PaintedGradient) -> String {
+    let stops: Vec<String> = g
+        .stops
+        .iter()
+        .map(|(pos, c)| format!("{c} {}%", num((pos * 100.0 * 1e4).round() / 1e4)))
+        .collect();
+    match g.kind {
+        meldframe_protocol::GradientKind::Linear => {
+            format!("linear-gradient({}deg,{})", num(g.angle), stops.join(","))
+        }
+        meldframe_protocol::GradientKind::Radial => {
+            format!(
+                "radial-gradient(circle farthest-corner,{})",
+                stops.join(",")
+            )
+        }
+    }
+}
+
 /// The declarations of one node.
-pub(crate) fn style(cx: &Cx, n: &Node, place: &Place, rep: &mut Report) -> Style {
+pub(crate) fn style(cx: &Cx, n: &Node, b: &PaintedBox, place: &Place, rep: &mut Report) -> Style {
     let mut s = Style::default();
     let text = n.kind == NodeKind::Text;
     let parent_layout = place.parent.filter(|p| is_layout(p));
     let in_flow = parent_layout.is_some() && !n.absolute;
     let at_own_place = place.root.is_some() || (!in_flow && place.parent.is_some());
+    let border = !text && n.border.width > 0.0;
+    let rect = cx.rects.get(n.id.as_str()).copied().unwrap_or(Rect {
+        x: n.x,
+        y: n.y,
+        w: n.w,
+        h: n.h,
+    });
 
     // Position: an absolute box at its own x and y, or relative when it positions a child or its border.
     if at_own_place {
         let (x, y) = place.root.unwrap_or((n.x, n.y));
         s.main
             .extend([d("position", "absolute"), d("left", px(x)), d("top", px(y))]);
-    } else if place.holds_absolute {
+    } else if place.holds_absolute || border {
         s.main.push(d("position", "relative"));
     }
 
@@ -177,6 +211,13 @@ pub(crate) fn style(cx: &Cx, n: &Node, place: &Place, rep: &mut Report) -> Style
     }
     if n.kind == NodeKind::Frame && n.clip {
         s.main.push(d("overflow", "hidden"));
+        if border && n.border.position != BorderPosition::Inside {
+            rep.unsupported(
+                "border_clipped",
+                &n.id,
+                "a frame that clips also clips a border drawn outside or on its edge",
+            );
+        }
     }
 
     // Text.
@@ -199,9 +240,33 @@ pub(crate) fn style(cx: &Cx, n: &Node, place: &Place, rep: &mut Report) -> Style
             TextAlign::Center => s.main.push(d("text-align", "center")),
             TextAlign::Right => s.main.push(d("text-align", "right")),
         }
+        let c = colour(b.fill).unwrap_or_else(|| "transparent".into());
+        s.main.push(d("color", c));
+        for (field, on) in [
+            ("border", n.border.width > 0.0),
+            ("gradient", n.gradient.is_some()),
+            ("image", n.image.is_some()),
+            ("shadows", !n.shadows.is_empty()),
+        ] {
+            if on {
+                rep.unsupported(
+                    "on_text",
+                    &n.id,
+                    &format!("a text node paints no {field}; it was left out"),
+                );
+            }
+        }
         if text_outside_contract(&n.text) {
             rep.warn("text_outside_contract", Some(&n.id), "the text has a tab, a URL or a script (CJK) that the browser breaks differently from the canvas".into());
         }
+    } else {
+        paint(cx, n, b, &mut s, rep);
+    }
+    if b.opacity < 1.0 {
+        s.main.push(d("opacity", num(b.opacity)));
+    }
+    if border {
+        after(n, b, rect, &mut s);
     }
     s
 }
@@ -213,6 +278,99 @@ fn text_outside_contract(t: &str) -> bool {
         || t.chars().any(|c| {
             ('\u{3000}'..='\u{9fff}').contains(&c) || ('\u{ac00}'..='\u{d7af}').contains(&c)
         })
+}
+
+/// Fill, gradient, image, radius, shadows and opacity of a box that is not text.
+fn paint(cx: &Cx, n: &Node, b: &PaintedBox, s: &mut Style, rep: &mut Report) {
+    let id = &n.id;
+    let fill = colour(b.fill);
+    let mut layers: Vec<(String, &str)> = Vec::new();
+    if let Some(img) = &b.image {
+        rep.asset(&img.asset_id);
+        let size = match img.fit {
+            ImageFit::Cover => "cover",
+            ImageFit::Contain => "contain",
+            ImageFit::Fill => "100% 100%",
+        };
+        layers.push((format!("url({}{})", cx.asset_base, img.asset_id), size));
+    }
+    if let Some(g) = &b.gradient {
+        layers.push((gradient_css(g), "100% 100%"));
+    }
+    if n.kind == NodeKind::Shader {
+        let c1 = fill.clone().unwrap_or_else(|| "transparent".into());
+        layers.push((
+            format!("linear-gradient(135deg,{c1},{})", n.fill2),
+            "100% 100%",
+        ));
+        rep.unsupported("shader_approximated", id, "a shader has no CSS form: it is exported as a gradient from fill to fill2, whatever its preset");
+    } else if let Some(c) = fill {
+        s.main.push(d("background-color", c));
+    }
+    if !layers.is_empty() {
+        let urls: Vec<&str> = layers.iter().map(|l| l.0.as_str()).collect();
+        s.main.push(d("background-image", urls.join(",")));
+        if b.image.is_some() {
+            let size: Vec<&str> = layers.iter().map(|l| l.1).collect();
+            s.main.extend([
+                d("background-size", size.join(",")),
+                d("background-position", "center"),
+                d("background-repeat", "no-repeat"),
+            ]);
+        }
+    }
+    if n.kind == NodeKind::Ellipse {
+        s.main.push(d("border-radius", "50%"));
+    } else if b.radius > 0.0 {
+        s.main.push(d("border-radius", px(b.radius)));
+    }
+    if !n.shadows.is_empty() {
+        // The model draws the first shadow at the bottom; CSS draws the first at the top.
+        let list: Vec<String> = n
+            .shadows
+            .iter()
+            .rev()
+            .map(|w| {
+                format!(
+                    "{} {} {} {} {}",
+                    px(w.x),
+                    px(w.y),
+                    px(w.blur),
+                    px(w.spread),
+                    w.color
+                )
+            })
+            .collect();
+        s.main.push(d("box-shadow", list.join(",")));
+    }
+}
+
+/// The border: paint only, as `::after` on the box, so that it takes no room (contract, section 4.2).
+fn after(n: &Node, b: &PaintedBox, rect: Rect, s: &mut Style) {
+    let w = n.border.width;
+    let (inset, grow) = match n.border.position {
+        BorderPosition::Inside => (0.0, 0.0),
+        BorderPosition::Center => (-w / 2.0, w / 2.0),
+        BorderPosition::Outside => (-w, w),
+    };
+    let radius = if n.kind == NodeKind::Ellipse {
+        Some("50%".to_owned())
+    } else if b.radius > 0.0 {
+        Some(px(b.radius.min(rect.w / 2.0).min(rect.h / 2.0) + grow))
+    } else {
+        None
+    };
+    s.after.extend([
+        d("content", "\"\""),
+        d("position", "absolute"),
+        d("pointer-events", "none"),
+        d("inset", px(inset)),
+    ]);
+    s.after
+        .push(d("border", format!("{} solid {}", px(w), n.border.color)));
+    if let Some(r) = radius {
+        s.after.push(d("border-radius", r));
+    }
 }
 
 /// The tag and the attributes that name a node, for the element.
