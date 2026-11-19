@@ -10,8 +10,9 @@
   import { HOME, fitRect, rectToWorld, screenToWorld, visibleWorldRect, type Camera } from '@meldframe/web-canvas/camera';
   import { containsRect, unionRects, type Rect, type Size } from '@meldframe/web-canvas/geometry';
   import {
-    Interaction, type CreateIntent, type Env, type Intents, type MoveIntent, type Mods, type ResizeIntent, type ToolMode,
+    Interaction, type CreateIntent, type Env, type Intents, type MoveIntent, type ResizeIntent, type ToolMode,
   } from '@meldframe/web-canvas/interaction';
+  import { attachInput } from '@meldframe/web-input/hostinput';
   import { OverlayView, type Touch } from './overlayview';
   import { selectionBox } from '@meldframe/web-canvas/overlay';
   import { EMPTY_SCENE, contentBounds, hitTest, rectsOf, resolveScene, type Scene } from '@meldframe/web-canvas/scene';
@@ -60,21 +61,6 @@
     label = 'Canvas',
     onSelect, onMove, onResize, onCreate, onCameraChange, onHover, onActivate, onReady, onError, onAssetProblem,
   }: Props = $props();
-
-  interface HostEvents {
-    pointerdown: PointerEvent;
-    pointermove: PointerEvent;
-    pointerup: PointerEvent;
-    pointercancel: PointerEvent;
-    lostpointercapture: PointerEvent;
-    pointerleave: PointerEvent;
-    wheel: WheelEvent;
-    keydown: KeyboardEvent;
-    keyup: KeyboardEvent;
-    blur: FocusEvent;
-    contextmenu: MouseEvent;
-    dblclick: MouseEvent;
-  }
 
   let host: HTMLDivElement;
   let surface: HTMLCanvasElement;
@@ -291,18 +277,6 @@
     return { timing: { ...timing }, nodes: world?.nodeCount ?? 0, drawn: world?.countRenderable() ?? 0, renderer: app?.renderer.name ?? '', dpr };
   }
 
-  const modsOf = (e: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean; metaKey: boolean }): Mods =>
-    ({ shift: e.shiftKey, alt: e.altKey, ctrl: e.ctrlKey, meta: e.metaKey });
-
-  function pointer(e: PointerEvent) {
-    const r = host.getBoundingClientRect();
-    return { id: e.pointerId, x: e.clientX - r.left, y: e.clientY - r.top, button: e.button, pointerType: e.pointerType, mods: modsOf(e) };
-  }
-
-  const refreshCursor = () => {
-    host.style.cursor = interaction.cursor;
-  };
-
   function resize(): void {
     const r = host.getBoundingClientRect();
     viewport = { w: Math.max(1, Math.round(r.width)), h: Math.max(1, Math.round(r.height)) };
@@ -313,64 +287,16 @@
 
   onMount(() => {
     let disposed = false;
-    const ac = new AbortController();
-    const on = <K extends keyof HostEvents>(type: K, fn: (e: HostEvents[K]) => void, opts?: { passive?: boolean }) =>
-      host.addEventListener(type, fn as (e: Event) => void, { ...opts, signal: ac.signal });
-
-    on('pointerdown', (e) => {
-      host.focus({ preventScroll: true });
-      try {
-        host.setPointerCapture(e.pointerId);
-      } catch {
-        // a synthetic or already-ended pointer cannot be captured: the gesture still works inside the element
-      }
-      interaction.down(pointer(e));
-      refreshCursor();
-      schedule();
+    const detachInput = attachInput(host, {
+      interaction,
+      tool: () => tool,
+      camera: () => camera,
+      hit: (x, y) => hitTest(resolved, x, y),
+      schedule,
+      dropDraft: () => (draft = null),
+      settleSoon,
+      activate: (id) => onActivate?.(id),
     });
-    on('pointermove', (e) => {
-      interaction.move(pointer(e));
-      refreshCursor();
-      schedule();
-    });
-    on('pointerup', (e) => {
-      interaction.up(pointer(e));
-      refreshCursor();
-      schedule();
-    });
-    on('pointercancel', () => {
-      interaction.cancel();
-      draft = null;
-      refreshCursor();
-      schedule();
-    });
-    on('pointerleave', () => interaction.leave());
-    on('dblclick', (e) => {
-      if (tool !== 'move') return;
-      const r = host.getBoundingClientRect();
-      const w = screenToWorld(camera, e.clientX - r.left, e.clientY - r.top);
-      const id = hitTest(resolved, w.x, w.y);
-      if (id) onActivate?.(id);
-    });
-    on('wheel', (e) => {
-      e.preventDefault();
-      const r = host.getBoundingClientRect();
-      interaction.wheel({ x: e.clientX - r.left, y: e.clientY - r.top, deltaX: e.deltaX, deltaY: e.deltaY, deltaMode: e.deltaMode, ctrlKey: e.ctrlKey, metaKey: e.metaKey });
-      settleSoon();
-    }, { passive: false });
-    const key = (down: boolean) => (e: KeyboardEvent) => {
-      if (interaction.key({ key: e.key, code: e.code, down, mods: modsOf(e) })) e.preventDefault();
-      draft = interaction.cursor === 'crosshair' ? draft : null;
-      refreshCursor();
-      schedule();
-    };
-    on('keydown', key(true));
-    on('keyup', key(false));
-    on('blur', () => {
-      interaction.key({ key: ' ', down: false, mods: modsOf({ shiftKey: false, altKey: false, ctrlKey: false, metaKey: false }) });
-      refreshCursor();
-    });
-    on('contextmenu', (e) => e.preventDefault());
 
     const observer = new ResizeObserver(() => resize());
     observer.observe(host);
@@ -464,7 +390,7 @@
     return () => {
       disposed = true;
       document.fonts?.removeEventListener('loadingdone', onFonts);
-      ac.abort();
+      detachInput();
       observer.disconnect();
       motion?.removeEventListener('change', onMotion);
       density?.removeEventListener('change', onDensity);

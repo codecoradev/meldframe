@@ -84,6 +84,7 @@ export default defineConfig(({ command }) => {
       // The canvas model is the package packages/web-canvas (its own unit of the size check), used as source.
       alias: {
         '@meldframe/web-canvas': fileURLToPath(new URL('../../packages/web-canvas/src', import.meta.url)),
+        '@meldframe/web-input': fileURLToPath(new URL('../../packages/web-input/src', import.meta.url)),
         '@meldframe/web-assets': fileURLToPath(new URL('../../packages/web-assets/src', import.meta.url)),
         '@meldframe/web-link': fileURLToPath(new URL('../../packages/web-link/src', import.meta.url)),
         '@meldframe/web-document': fileURLToPath(new URL('../../packages/web-document/src', import.meta.url)),
