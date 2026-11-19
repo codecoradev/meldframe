@@ -6,8 +6,10 @@
 //! unsupported does change what is painted. A new node field therefore needs a row (and, for a
 //! rendered one, a change in `resolve`) in the same pull request.
 //!
-//! The canvas column is proven against `resolve`. The export column stays `Unsupported` until the
-//! export (E4.1) exists; that feature flips a row when it renders the field and adds its own check.
+//! The canvas column is proven against `resolve`, in this crate. The export column is proven against the
+//! export, in the tests of the `export` crate (a feature crate cannot be a dependency of a core one): a field
+//! marked `Rendered` there changes the export when it changes, and one marked unsupported does not. A field that
+//! one consumer renders and the other does not carries a reason on the side that does not.
 
 use meldframe_protocol::VarType;
 
@@ -31,7 +33,6 @@ pub struct FieldSupport {
     pub bindable: Option<VarType>,
 }
 
-const NO_EXPORT: Support = Support::Unsupported("the export does not exist yet (E4.1)");
 const FROM_LAYOUT: Support = Support::Unsupported(
     "an input of layout; resolve reads the stored box, so the canvas does not apply it yet",
 );
@@ -41,7 +42,7 @@ const fn row(field: &'static str, canvas: Support) -> FieldSupport {
     FieldSupport {
         field,
         canvas,
-        export: NO_EXPORT,
+        export: Support::Rendered,
         bindable: None,
     }
 }
@@ -89,10 +90,15 @@ pub const NODE_FIELDS: &[FieldSupport] = &[
     row("clip", R),
     row("text", R),
     row("fontSize", R),
-    row(
-        "shader",
-        Support::Unsupported("the canvas draws a shader as its plain box"),
-    ),
+    FieldSupport {
+        export: Support::Unsupported(
+            "a shader preset has no CSS form: every preset is exported as one gradient from fill to fill2, and the report says so",
+        ),
+        ..row(
+            "shader",
+            Support::Unsupported("the canvas draws a shader as its plain box"),
+        )
+    },
     row("fontWeight", NOT_DRAWN),
     row("textAlign", NOT_DRAWN),
     row("border", NOT_DRAWN),
