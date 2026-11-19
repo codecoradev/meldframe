@@ -39,7 +39,7 @@ test:
 
 # The core crates' tests under WASM on Node (needs wasm-bindgen-test-runner; see AGENTS.md)
 wasm-test:
-    cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-layout-tests -p meldframe-render -p meldframe-history -p meldframe-revert -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-variables-tests
+    cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-layout-tests -p meldframe-render -p meldframe-history -p meldframe-revert -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-variables-tests -p meldframe-variables-limits-tests
 
 # Build the wasm bridge for the web client into apps/web/.wasm (git-ignored); needs wasm-bindgen-cli, see AGENTS.md
 wasm-build:

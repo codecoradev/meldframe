@@ -87,6 +87,7 @@ crates/
     meldframe-sync        `Replica`: the optimistic layer over a `FileState` (pending ops, the server's order, rebase, op dependencies)
     meldframe-store-contract (tool) the `Store` seam cases as functions and a `store_contract!` macro; both adapters run them
     meldframe-variables-tests (tool) the tests of variables at every seam they cross (resolve, apply and inverse, the checks, the document apply, undo, the replica, the room, the render step and the app layer); no library code; separate because `meldframe-check`, `-core`, `-host` and `-sync` are near their ceilings
+    meldframe-variables-limits-tests (tool) the ceilings of the variable model and the linear cost of the alias checks (a layered file with 16^12 paths); no library code
     meldframe-sync-scenarios (tool) scenario tests of refused ops and of the limits of the correction; no library code
     meldframe-live-tests  (tool) tests of the live streams of `apps/server` (accepted ops reach subscribers, reconnect from a number); no library code; separate because the server crate is near its ceiling
     meldframe-live-slot-tests (tool) the live-place tests (`wsslots.rs`) of `apps/server`, with the helpers of `meldframe-live-tests` by path; separate because that crate is at its ceiling

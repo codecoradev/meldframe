@@ -1651,6 +1651,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-variables-limits-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-protocol",
+ "meldframe-variables",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-variables-tests"
 version = "0.0.0"
 dependencies = [
