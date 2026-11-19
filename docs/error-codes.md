@@ -258,3 +258,13 @@ A test in `crates/features/capture/capture/tests/registration.rs` reads this tab
 | `client_disconnected` | The editor closed before it answered. | Try again once the file is open in an editor. |
 | `busy` | Too many captures are pending (in all, for the workspace, for you, or on one editor), the editor was refused as one too many for its workspace, or the file could not be read just now. Retryable. | Wait a moment, then try again. |
 | `forbidden` | The policy for the capture tool does not allow the call, or the file is not yours to read. | Do not retry the same call; ask the owner to change the policy. |
+
+## Export codes
+
+`export_frame` (E4.1, `docs/adr/0019-*`) answers a tool error with one of these before it builds anything that is returned. The call log records the code of a failed call as its outcome. Calls refused for the arguments or the policy use the codes of the MCP surface (`invalid`, `bad_request`, `forbidden`, `unavailable`).
+
+| Code | Meaning and typical cause | What to do next |
+| --- | --- | --- |
+| `E_NODE_NOT_FOUND` | No node with the `frame` id in the file of your workspace. | Read the tree with `get_tree` and use the id of a frame that exists. |
+| `E_NOT_A_FRAME` | The node is not a frame; only a frame is exported. | Export the frame that holds the node. |
+| `E_EXPORT_TOO_LARGE` | The HTML and the stylesheet together would be over 256 KiB. Nothing is returned. | Export a smaller frame, such as one section of the page. |

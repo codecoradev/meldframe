@@ -42,6 +42,7 @@ mod feature_on {
         expected.extend(["assets"].into_iter().filter(|_| cfg!(feature = "assets")));
         let review = cfg!(feature = "design-review");
         expected.extend(["design-review"].into_iter().filter(|_| review));
+        expected.extend(["export"].into_iter().filter(|_| cfg!(feature = "export")));
         assert_eq!(server.registry().module_names(), expected);
         let tool = server.registry().agent_tool("example_ping").unwrap();
         assert_eq!(tool.tier, RiskTier::Read);

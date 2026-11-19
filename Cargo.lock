@@ -1307,6 +1307,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-http-export"
+version = "0.0.0"
+dependencies = [
+ "export",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-layout",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-render",
+ "rmcp",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-http-live"
 version = "0.0.0"
 dependencies = [
@@ -1524,11 +1540,13 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "design-review",
+ "export",
  "meldframe-calls",
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-assets",
  "meldframe-http-capture",
+ "meldframe-http-export",
  "meldframe-http-review",
  "meldframe-module",
  "meldframe-protocol",
@@ -1579,6 +1597,7 @@ dependencies = [
  "capture",
  "design-review",
  "example",
+ "export",
  "meldframe-approvals",
  "meldframe-batch",
  "meldframe-calls",
@@ -1586,6 +1605,7 @@ dependencies = [
  "meldframe-http",
  "meldframe-http-assets",
  "meldframe-http-capture",
+ "meldframe-http-export",
  "meldframe-http-live",
  "meldframe-http-review",
  "meldframe-http-snapshot",

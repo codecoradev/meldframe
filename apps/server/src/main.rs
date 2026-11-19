@@ -99,6 +99,8 @@ fn serve(
     let upload_policy = server.registry().policy_for(assets::UPLOAD_TOOL);
     #[cfg(feature = "design-review")]
     let review_policy = server.registry().policy_for(design_review::TOOL);
+    #[cfg(feature = "export")]
+    let export_policy = server.registry().policy_for(export::TOOL);
     // `shared` outlives `block_on`: the last reference to a PgStore runtime must not drop inside one.
     let shared = Arc::new(SharedServer::new(server));
     let auth = Arc::new(DevTokens::parse(&spec)?);
@@ -172,6 +174,12 @@ fn serve(
             meldframe_module::RiskTier::Read,
         )),
         review_policy,
+    ));
+    #[cfg(feature = "export")]
+    extra_tools.push(meldframe_http_export::tool(
+        state.clone(),
+        shared.clone(),
+        export_policy,
     ));
     #[cfg(feature = "mcp")]
     let app = {
