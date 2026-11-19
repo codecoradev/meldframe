@@ -95,6 +95,7 @@ crates/
     meldframe-export-tests (tool) the tests of the export (E4.1): the CSS and Tailwind it generates per supported property, its variables, and the coverage table against its output; no library code; separate because the `export` crate would pass the size ceiling with them
     meldframe-variables-limits-tests (tool) the ceilings of the variable model and the linear cost of the alias checks (a layered file with 16^12 paths); no library code
     meldframe-sync-scenarios (tool) scenario tests of refused ops and of the limits of the correction; no library code
+    meldframe-oracle-runner (tool) the runner of the fidelity oracle (E4.2): lays fixture files out with the layout core, exports each top-level frame with `export` in both forms and prints rects and exports as JSON for `tools/fidelity-oracle`; text comes from a table recorded in a browser; not in any product build
     meldframe-live-tests  (tool) tests of the live streams of `apps/server` (accepted ops reach subscribers, reconnect from a number); no library code; separate because the server crate is near its ceiling
     meldframe-live-slot-tests (tool) the live-place tests (`wsslots.rs`) of `apps/server`, with the helpers of `meldframe-live-tests` by path; separate because that crate is at its ceiling
     meldframe-snapshot-tests (tool) tests of `GET /v1/files/{file}` and of the last actor of each node against the real server; no library code; separate because `meldframe-http-tests` is at its ceiling
