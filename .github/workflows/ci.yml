@@ -1,0 +1,154 @@
+# CI for pull requests (docs/epics.md E0.2, docs/standards/modular-thin-ui.md section 5).
+#
+# This is the FAST set that every pull request must pass, in two jobs so that a runner with little
+# capacity is not flooded: `checks` (scripts self-test, then the cheap rules, format, layering,
+# size limits, licences, UI literals and the protocol drift check, then the web client (npm ci,
+# typecheck, lint, tests, build, UI literals, licences), then the build-heavy lint and Rust tests, run one after
+# another on one toolchain and one cache; a broken rule fails the run in about a minute) and `migrations` (needs a Postgres service). The heaviest gates (build-matrix,
+# portable-check) run nightly (.gitea/workflows/nightly.yml; the GitHub copy is tracked in issue #1), and locally with `just check`
+# before a pull request is opened.
+#
+# Runs on pull requests only: a branch is checked once, through its pull request, and a newer push
+# to the same pull request cancels the run in progress. `develop` receives changes only through a
+# pull request that already ran this workflow.
+#
+# Contexts the `develop-protection` ruleset requires: `checks`, `migrations` and `pr checks` (the job of
+# pr-checks.yml). Keep the job names as they are. The Cora review in CI is disabled.
+#
+# This is the GitHub Actions copy. The Gitea copy in .gitea/workflows/ is kept (Actions are off in the Gitea repository) for the day it is
+# hosted there again; the check scripts in scripts/ci/ are shared by both.
+name: ci
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # A runner has a small disk. Debug information is what made the debug build of the whole workspace
+  # (about forty crates, their tests and the web server's dependencies) fill one ("No space left on
+  # device" while linking). No step reads it, so build without it.
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      # kache caches each compiled crate by content, so a change to Cargo.lock reuses every crate that
+      # did not change (rust-cache drops the whole target directory then). rust-cache stays for the
+      # registry only. See scripts/ci/install-kache.sh (pinned version, checked sha256).
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          cache-targets: false
+      - name: Install kache
+        run: sh scripts/ci/install-kache.sh
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/kache-store
+          key: kache-checks-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: kache-checks-
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Check scripts (good and bad examples for the branch, message and description checks)
+        run: sh scripts/ci/selftest.sh
+      # Cheap steps first, so a rule break fails the run in a minute instead of after the build and the tests.
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Layering (kinds, groups, UI toolkit usage)
+        run: cargo xtask deps-check
+      - name: Size limits (500 lines per file, 2,000 per crate, tests included)
+        run: cargo xtask size-check
+      - name: Licences of third-party crates
+        run: cargo xtask licences --check
+      - name: UI literals (colours, fonts and sizes come from the tokens)
+        run: cargo xtask ui-literals
+      - name: Protocol drift (generated TypeScript matches the committed files)
+        run: bash tools/check-protocol.sh
+      # Web client (apps/web): after the cheap Rust gates, before the build-heavy Rust steps. npm is cached.
+      - name: Web install
+        run: npm ci --prefix apps/web
+      - name: Web typecheck (svelte-check)
+        run: npm run typecheck --prefix apps/web
+      - name: Web lint
+        run: npm run lint --prefix apps/web
+      - name: Web unit tests
+        run: npm test --prefix apps/web
+      - name: Web UI literals (colours, fonts and sizes come from the tokens)
+        run: npm run ui-literals --prefix apps/web
+      - name: Web licences (npm packages)
+        run: npm run licences --prefix apps/web
+      - name: Web build
+        run: npm run build --prefix apps/web
+      - name: Lint
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+      # The daemon's control socket sits in the store and makes the cache save (tar) fail; stopping it removes it.
+      - name: Stop kache (so the store can be saved)
+        if: always()
+        run: command -v kache >/dev/null && kache daemon stop || true
+
+  # Migrations apply from an empty database and keep the schema_version rules (tools/check-migrations.sh).
+  # The job runs on the host, so the service publishes its port and is reached on localhost.
+  migrations:
+    name: migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      meldframe-pg:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: install the PostgreSQL client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          fi
+      - run: bash tools/check-migrations.sh
+      # The Postgres adapter of the Store seam runs the shared store contract and the restart tests here;
+      # without DATABASE_URL they skip, so the `checks` job (no database) stays green.
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: Store contract and restart tests against Postgres
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          # A missing DATABASE_URL fails the tests here instead of skipping them.
+          MELDFRAME_REQUIRE_PG: "1"
+        run: cargo test -p meldframe-server-tests --test pg_contract --test pg_restore --test pg_isolation
+      # The server binary on Postgres: REST submit, restart, file restored (tools/dev-smoke.sh).
+      - name: Server smoke test against Postgres
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          MELDFRAME_REQUIRE_PG: "1"
+        run: bash tools/dev-smoke.sh
