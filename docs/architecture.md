@@ -125,7 +125,7 @@ crates/
     meldframe-app         the app layer state machine over `meldframe-app-model` (compiled to WASM); holds a sync Replica for the document
     meldframe-wasm        thin wasm-bindgen glue over core and app
   ui/                     tokens and plain-data *-model crates beside views
-xtask/                    deps-check, build-matrix, portable-check, size-check, ui-literals, licences
+xtask/                    deps-check, build-matrix, portable-check, size-check, ui-literals, licences (the licence check itself is the tool crate `xtask-licences`, split from xtask for the crate ceiling)
 ```
 
 Allowed dependencies: core to core; engine and integration to core and engine; feature to core, engine, integration and (only if marked composite) other features; app to core, engine, integration and feature; ui to core, app and ui. UI toolkits are allowed only in ui, feature-ui and bin crates. Core, engine, integration, feature and app crates must compile for `wasm32`. A product build with each feature alone, and with none, must pass its tests.
