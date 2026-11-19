@@ -2,7 +2,7 @@
 
 use meldframe_batch::{command_name, touches};
 use meldframe_host::StoredOp;
-use meldframe_protocol::Node;
+use meldframe_protocol::{Node, Variables};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 
@@ -97,4 +97,79 @@ pub fn changes_of(ops: &[StoredOp], node_id: &str) -> Vec<Value> {
         .filter(|o| touches(&o.command).iter().any(|id| id == node_id))
         .map(|o| json!({"seq": o.seq, "actor": o.actor, "command": command_name(&o.command)}))
         .collect()
+}
+
+/// Why `variables` could not answer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VariablesError {
+    /// The collection id is not in the file.
+    NoCollection,
+    /// An argument is out of bounds, or `after` is not one of the variables that match.
+    Invalid(String),
+}
+
+/// The collections of a file and a page of its variables, in the order they were added. `collection` and `prefix`
+/// narrow the variables; at most `limit` (1 to [`crate::MAX_VARIABLES_PAGE`], default 100) are listed, after the
+/// variable `after`. `next` is the id to pass as `after` for the following page, or null at the end.
+pub fn variables(
+    vars: &Variables,
+    (collection, prefix, after): (Option<&str>, Option<&str>, Option<&str>),
+    limit: Option<usize>,
+) -> Result<Value, VariablesError> {
+    let limit = limit.unwrap_or(100);
+    let long = |s: Option<&str>, max: usize| s.is_some_and(|s| s.chars().count() > max);
+    if !(1..=crate::MAX_VARIABLES_PAGE).contains(&limit)
+        || long(collection, 64)
+        || long(after, 64)
+        || long(prefix, 256)
+    {
+        return Err(VariablesError::Invalid(format!(
+            "limit is 1 to {}; collection and after are at most 64 characters, prefix at most 256",
+            crate::MAX_VARIABLES_PAGE
+        )));
+    }
+    if collection.is_some_and(|c| vars.collection(c).is_none()) {
+        return Err(VariablesError::NoCollection);
+    }
+    let matching: Vec<_> = vars
+        .variables
+        .iter()
+        .filter(|v| collection.is_none_or(|c| v.collection == c))
+        .filter(|v| prefix.is_none_or(|p| v.name.starts_with(p)))
+        .collect();
+    let start = match after {
+        None => 0,
+        Some(id) => {
+            1 + matching.iter().position(|v| v.id == id).ok_or_else(|| {
+                VariablesError::Invalid(
+                    "after is not a variable that matches this call; start again without it".into(),
+                )
+            })?
+        }
+    };
+    let page: Vec<Value> = matching
+        .iter()
+        .skip(start)
+        .take(limit)
+        .map(|v| json!({"id": v.id, "collection": v.collection, "name": v.name, "type": v.kind, "values": v.values}))
+        .collect();
+    let next = (start + page.len() < matching.len())
+        .then(|| page.last().map(|v| v["id"].clone()))
+        .flatten()
+        .unwrap_or(Value::Null);
+    let collections: Vec<Value> = vars
+        .collections
+        .iter()
+        .map(|c| {
+            let count = vars
+                .variables
+                .iter()
+                .filter(|v| v.collection == c.id)
+                .count();
+            json!({"id": c.id, "name": c.name, "modes": c.modes, "variables": count})
+        })
+        .collect();
+    Ok(
+        json!({"collections": collections, "variables": page, "total": matching.len(), "next": next}),
+    )
 }

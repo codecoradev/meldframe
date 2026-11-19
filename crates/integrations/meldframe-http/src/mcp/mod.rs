@@ -6,6 +6,7 @@
 //! are in [`TOOLS`]; `docs/mcp-tools.json` lists them and a test compares.
 
 mod tools;
+mod variables;
 mod variant;
 
 pub use meldframe_mcp_defs::{MAX_BATCH, MAX_KEY, TOOLS, ToolDef};
@@ -19,7 +20,7 @@ use axum::{
 };
 use meldframe_host::{Principal, StoredOp};
 use meldframe_module::{Module, Registrar};
-use meldframe_protocol::Node;
+use meldframe_protocol::{Node, Variables};
 use rmcp::{
     ErrorData, ServerHandler,
     model::{
@@ -56,6 +57,8 @@ pub struct Conflict {
 pub trait Reader: Send + Sync {
     /// The file of the principal's workspace as it is now (a file that does not exist reads as seq 0, empty).
     fn view(&self, who: &Principal, file: &str) -> Result<FileView, Failure>;
+    /// The sequence number and the variables (collections and variables) of the file as it is now.
+    fn variables(&self, who: &Principal, file: &str) -> Result<(u64, Variables), Failure>;
     /// The file and the last `window` ops of its log (fewer when the log is shorter), in order.
     fn tree(
         &self,
@@ -161,7 +164,7 @@ fn tool_of(d: &ToolDef) -> Tool {
 impl ServerHandler for Handler {
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_instructions(
-            "Meldframe design files. Call whoami first, read with get_tree and get_nodes, change with apply_commands (atomic, idempotent, ifSeq-guarded), copy a frame with make_variant and check a call with batch_status.",
+            "Meldframe design files. Call whoami first, read with get_tree, get_nodes and get_variables, change with apply_commands (atomic, idempotent, ifSeq-guarded), copy a frame with make_variant and check a call with batch_status.",
         )
     }
 
@@ -217,6 +220,7 @@ impl ServerHandler for Handler {
             }
             "get_tree" => self.get_tree(&who, a).await,
             "get_nodes" => self.get_nodes(&who, a).await,
+            "get_variables" => self.get_variables(&who, a).await,
             "apply_commands" => self.apply_commands(&who, a).await,
             "batch_status" => self.batch_status(&who, a).await,
             "make_variant" => self.make_variant(&who, a).await,

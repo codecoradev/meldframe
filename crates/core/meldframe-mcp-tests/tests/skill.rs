@@ -70,6 +70,7 @@ fn every_tool_and_code_the_skill_names_exists() {
         "whoami",
         "get_tree",
         "get_nodes",
+        "get_variables",
         "apply_commands",
         "batch_status",
         "make_variant",

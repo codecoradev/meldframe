@@ -288,6 +288,14 @@ mod read {
             })
         }
 
+        fn variables(
+            &self,
+            who: &Principal,
+            file: &str,
+        ) -> Result<(u64, meldframe_protocol::Variables), Failure> {
+            self.read("get_variables", who, file, |r| (r.seq(), r.vars().clone()))
+        }
+
         fn tree(
             &self,
             who: &Principal,
