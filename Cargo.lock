@@ -1898,6 +1898,10 @@ name = "meldframe-web-document"
 version = "0.0.0"
 
 [[package]]
+name = "meldframe-web-input"
+version = "0.0.0"
+
+[[package]]
 name = "meldframe-web-link"
 version = "0.0.0"
 

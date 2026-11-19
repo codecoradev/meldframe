@@ -1,0 +1,8 @@
+{
+  "name": "@meldframe/web-input",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The DOM input of the web client: events of the canvas host turned into calls on the canvas interaction. Plain structural types, no Pixi; tested by the apps/web test run.",
+  "types": "src/hostinput.ts"
+}

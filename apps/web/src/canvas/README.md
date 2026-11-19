@@ -9,6 +9,7 @@ intents; it holds no document state and applies no edit (`docs/standards/modular
 | `camera.ts` | pan, zoom around a point, limits (2% to 6400%), fit, wheel and pinch, zoom readout | no |
 | `overlay.ts` | selection box, handle positions, size badge text and place, touch ring geometry and fade | no |
 | `interaction.ts` | pointer, wheel and key state machine: input in, intents out | no |
+| `packages/web-input/src/hostinput.ts` | the host element's DOM events turned into calls on the interaction (listeners, pointer capture, cursor, double click, wheel, keys) | no |
 | `stage.ts` | world container (render group, the camera), one display object per node, manual culling | yes |
 | `overlayview.ts` | paints the overlay (not scaled by the camera) | yes |
 | `Canvas.svelte` | props, events, resize and device pixel ratio, frame loop, cleanup | yes |

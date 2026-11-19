@@ -6,9 +6,7 @@
 # HTML sources; each is a debt to pay down, not room to grow.
 
 [files]
-# Svelte component not yet split; a split needs a browser check.
-"apps/web/src/canvas/Canvas.svelte" = 528
 
 [crates]
 # The web client's sources (Svelte, scripts, Rust stub) together; went over once Svelte and MJS counted.
-meldframe-web = 4864
+meldframe-web = 4791
