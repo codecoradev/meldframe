@@ -138,7 +138,7 @@ jobs:
         run: |
           v=$(cargo metadata --format-version 1 | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"]=="wasm-bindgen"))')
           cargo install wasm-bindgen-cli --version "$v" --locked
-      - run: cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-layout-tests -p meldframe-history -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props
+      - run: cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-layout-tests -p meldframe-render -p meldframe-history -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props
       # The browser bridge (E1.6): build meldframe-wasm with wasm-bindgen and drive it from Node (tools/check-wasm.sh).
       - name: wasm bridge smoke test
         run: bash tools/check-wasm.sh
