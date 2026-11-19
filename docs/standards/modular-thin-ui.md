@@ -93,7 +93,7 @@ Use it when the product has a UI and an MCP or API surface, or will get a second
 - **D5** Keep a local flight recorder per run (events, performance, panic and fatal-signal reports), with caps and retention, free of secrets.
 - **D6** Secrets never appear in arguments, logs or tool output.
 - **D7** Design before code. An unknown that could change the architecture is resolved by a time-boxed spike with a written result in `docs/spikes/`, or, when the owner rules spikes out, by building the first vertical slice in the product repository with exit criteria written first (Meldframe, 13 Nov 2026). Phases end on exit criteria, not dates.
-- **D8** Pull requests stay small (about 1,000 lines). Use an independent review and CI together; each has found real defects the other missed.
+- **D8** Pull requests stay small (15 files or fewer, ceiling 20; under 1,000 changed lines, ceiling 1,500; see CONTRIBUTING.md). Use an independent review and CI together; each has found real defects the other missed.
 - **D9** Status syncs are dated, and code is authoritative over docs. A parked design carries Status, un-park triggers and an anti-goal ("do not build from this note alone").
 
 ## 4. Reference structure

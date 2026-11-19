@@ -16,7 +16,7 @@ Meldframe is a design canvas for people and AI agents. Changes come from the own
 3. Commit with [Conventional Commits](https://www.conventionalcommits.org/) (`feat(core): ...`) and sign off every commit: `git commit -s`.
 4. Rebase onto `develop` (no merge commits) and push with `--force-with-lease`.
 5. Open a pull request into `develop` with the template. It needs four sections, each with text: **What**, **Why**, **Changes**, **Testing**. Link the issue (`Refs #n`).
-6. Keep a pull request small: one logical change, one kind of content (workflow, shell scripts, Rust code, documentation), about 400 changed lines and 10 files at most. Split anything larger. Small pull requests are quick to review; large mixed ones are slow to review and can exhaust the CI Cora time budget.
+6. Keep a pull request small: one logical change, one kind of content (workflow, shell scripts, Rust code, documentation), 15 files or fewer (ceiling 20) and under 1,000 changed lines (ceiling 1,500). Lockfiles, generated files, pure moves, snapshots and large fixtures do not count; tests do. Split anything larger, by layer, crate or feature slice, and say why under `## Why` if a pull request has to go over a ceiling. Small pull requests are quick to review; large mixed ones are slow to review and can exhaust the CI Cora time budget.
 7. A pull request is squash-merged with a clean message, and only after the owner approves.
 
 ## Message Standard
