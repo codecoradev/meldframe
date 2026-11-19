@@ -7,7 +7,7 @@ Status of each item: **decided** (owner confirmed), **proposed** (needs owner co
 | # | Decision | Status |
 |---|---|---|
 | 1 | Name: Meldframe. Trademark search is the owner's responsibility. | decided |
-| 2 | Closed source, private repository. | decided |
+| 2 | Open source in a public repository until the MVP; closed source afterwards, because CI needs infrastructure of its own. The repository has no licence yet: `NOTICE` applies (all rights reserved, readable but not licensed). Replaces "closed source, private repository". | decided |
 | 3 | Core promise: a design surface that agents can drive reliably, with tokens that survive to code. Carousel, slides and motion are extensions, on hold until the core is solid. | decided |
 | 4 | Second user: global developers using Claude Code / Cursor / Codex. UI language: English. | decided |
 | 5 | Web is purely visual: manual canvas, MCP for external agents, REST (snapshot, export). No agent runtime or ACP on web. Desktop (Tauri 2, local agent over ACP) is a later phase after web is stable. | decided |
