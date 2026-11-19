@@ -81,8 +81,14 @@ impl ActivityEntry {
             Command::RemoveNode { id } => (ActivityKind::RemoveNode, id.clone()),
             Command::Reparent { id, .. } => (ActivityKind::Reparent, id.clone()),
             Command::Reorder { id, .. } => (ActivityKind::Reorder, id.clone()),
-            // A variable command is refused before it gets here.
-            _ => (ActivityKind::Variable, String::new()),
+            // The first id a variable command touches (without the `$var:` or `$col:` prefix).
+            other => (
+                ActivityKind::Variable,
+                meldframe_variables::touched(other)
+                    .first()
+                    .and_then(|t| t.split_once(':').map(|(_, id)| id.to_string()))
+                    .unwrap_or_default(),
+            ),
         }
     }
 }

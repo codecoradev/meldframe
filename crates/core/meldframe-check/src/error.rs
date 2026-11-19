@@ -1,5 +1,6 @@
 //! Why a command is refused.
 
+use meldframe_variables::VarError;
 use std::fmt;
 
 /// The reason a command was refused. A refused command leaves the file unchanged.
@@ -46,10 +47,10 @@ pub enum ApplyError {
     InvalidPos(String),
     /// A `pos` (sent or computed) is longer than `Limits::max_pos`: the gap is too crowded.
     PosTooLong { max: usize },
-    /// A variable command: the file holds no variables yet, so it is refused.
-    NoVariables,
     /// A `Reorder` is not coherent: more than one of `before`/`after`/`pos`, or the anchor is not a sibling.
     BadReorder(String),
+    /// A variable command, a binding or a stored variable is refused; the code is the one of the [`VarError`].
+    Variable(VarError),
 }
 
 impl ApplyError {
@@ -79,7 +80,7 @@ impl ApplyError {
             ApplyError::ImageOnText => "E_IMAGE_ON_TEXT",
             ApplyError::InvalidGradient(_) => "E_INVALID_GRADIENT",
             ApplyError::GradientOnText => "E_GRADIENT_ON_TEXT",
-            ApplyError::NoVariables => "E_NO_VARIABLES",
+            ApplyError::Variable(e) => e.code(),
         }
     }
 }
@@ -131,7 +132,7 @@ impl fmt::Display for ApplyError {
                     "gradient does not apply to text nodes (use frame, rect, ellipse or shader)"
                 )
             }
-            ApplyError::NoVariables => write!(f, "variables are not available here"),
+            ApplyError::Variable(e) => write!(f, "{e}"),
             ApplyError::InvalidPos(p) => write!(f, "invalid pos: {p:?}"),
             ApplyError::BadReorder(m) => write!(f, "invalid reorder: {m}"),
             ApplyError::PosTooLong { max } => {

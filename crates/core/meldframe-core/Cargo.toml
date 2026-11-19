@@ -13,6 +13,7 @@ kind = "core"
 meldframe-check = { path = "../meldframe-check" }
 meldframe-order = { path = "../meldframe-order" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-variables = { path = "../meldframe-variables" }
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]

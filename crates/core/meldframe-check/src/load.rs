@@ -6,7 +6,8 @@
 
 use crate::validate::check_node;
 use crate::{ApplyError, Limits};
-use meldframe_protocol::{Node, NodeKind};
+use meldframe_protocol::{Node, NodeKind, Variables};
+use meldframe_variables::{check_file_bindings, check_variables};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
@@ -67,6 +68,23 @@ fn at(id: &str, error: ApplyError) -> LoadError {
 /// are frames (so a text node has no children), no cycle (a node that is its own parent included), the
 /// depth, and a valid, unique `pos` among siblings. Nothing is changed.
 pub fn check_file(nodes: &[Node], l: &Limits) -> Result<(), LoadError> {
+    check_file_with(nodes, &Variables::default(), l)
+}
+
+/// Like [`check_file`] for a file with variables: the variables are checked first, then the nodes, then every
+/// binding of a node must name a variable of the right type. A problem in a variable is a
+/// [`LoadError::Node`] with the variable's id (`None` when it is about the whole set).
+pub fn check_file_with(nodes: &[Node], vars: &Variables, l: &Limits) -> Result<(), LoadError> {
+    let var = |(id, e): (String, _)| LoadError::Node {
+        node: Some(id).filter(|id| !id.is_empty()),
+        error: ApplyError::Variable(e),
+    };
+    check_variables(vars, &l.var_limits()).map_err(var)?;
+    check_file_nodes(nodes, l)?;
+    check_file_bindings(nodes, vars).map_err(var)
+}
+
+fn check_file_nodes(nodes: &[Node], l: &Limits) -> Result<(), LoadError> {
     if nodes.len() > l.max_nodes {
         return Err(LoadError::Node {
             node: None,

@@ -26,6 +26,12 @@ pub struct Limits {
     pub max_shadows: usize,
     /// Most stops in one gradient.
     pub max_gradient_stops: usize,
+    /// Most collections in a file.
+    pub max_collections: usize,
+    /// Most modes in one collection.
+    pub max_modes: usize,
+    /// Most variables in a file.
+    pub max_variables: usize,
 }
 
 impl Default for Limits {
@@ -41,6 +47,23 @@ impl Default for Limits {
             max_pos: 64,
             max_shadows: 4,
             max_gradient_stops: 8,
+            max_collections: 32,
+            max_modes: 16,
+            max_variables: 5_000,
+        }
+    }
+}
+
+impl Limits {
+    /// The ceilings the variable checks use.
+    pub fn var_limits(&self) -> meldframe_variables::VarLimits {
+        meldframe_variables::VarLimits {
+            max_id: self.max_id,
+            max_name: self.max_name,
+            max_size: self.max_size,
+            max_collections: self.max_collections,
+            max_modes: self.max_modes,
+            max_variables: self.max_variables,
         }
     }
 }

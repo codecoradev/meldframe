@@ -12,6 +12,7 @@ kind = "core"
 [dependencies]
 meldframe-order = { path = "../meldframe-order" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-variables = { path = "../meldframe-variables" }
 serde_json = "1"
 
 # The tests run under WASM through wasm-bindgen-test (`just wasm-test`); each test file
