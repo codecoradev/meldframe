@@ -1,0 +1,77 @@
+# Cora Review in CI is DISABLED (owner decision): every pull request is reviewed locally with Cora as an
+# agent reviewer before it is opened, and the verdict goes in its description (CONTRIBUTING.md). The
+# workflow is kept ready. To enable it, uncomment the `pull_request_target` trigger below and set the
+# secrets CORA_API_KEY, CORA_BASE_URL and CORA_MODEL (organisation level). Configuration: .cora.yaml.
+#
+# SECURITY: with `pull_request_target` the job holds secrets while it checks out pull request code. The
+# configuration is therefore taken from the base branch (a pull request cannot change its own review), the
+# job does not persist credentials, and a pull request from a fork is skipped. A manual dispatch runs
+# nothing (the job reads the pull request payload).
+#
+# Before enabling it: do not make this check required (a skipped job, for a fork, counts as passing),
+# and note that under `pull_request_target` the action posts no pull request comment: findings go to
+# Code Scanning and fail the job. Add a step that prints them to the log, as the Cora repository does.
+name: cora-review
+
+on:
+  workflow_dispatch:
+  # pull_request_target:
+  #   branches: [develop, main]
+  #   types: [opened, synchronize, ready_for_review, reopened]
+
+concurrency:
+  group: cora-review-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  cora-review:
+    name: Cora Review
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Require the review secrets
+        env:
+          CORA_API_KEY: ${{ secrets.CORA_API_KEY }}
+          CORA_BASE_URL: ${{ secrets.CORA_BASE_URL }}
+          CORA_MODEL: ${{ secrets.CORA_MODEL }}
+        run: |
+          missing=0
+          for name in CORA_API_KEY CORA_BASE_URL CORA_MODEL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Secret $name is empty or missing. A skipped review must not pass."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Checkout the pull request head (full history, the review diffs against the base branch)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Use the configuration of the base branch
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git cat-file -e "$BASE_SHA:.cora.yaml" 2>/dev/null; then
+            git show "$BASE_SHA:.cora.yaml" > .cora.yaml
+          else
+            rm -f .cora.yaml
+          fi
+
+      - name: Run Cora
+        uses: codecoradev/cora-review-action@f4804f361593078b84aa8d5a82fad084969fd381 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          base-branch: origin/${{ github.base_ref }}
+          cora-api-key: ${{ secrets.CORA_API_KEY }}
+          cora-base-url: ${{ secrets.CORA_BASE_URL }}
+          cora-model: ${{ secrets.CORA_MODEL }}

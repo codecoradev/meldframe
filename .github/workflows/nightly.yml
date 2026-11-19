@@ -1,0 +1,173 @@
+# The heavier gates, kept off the pull request path so reviews stay quick (docs/epics.md E0.2).
+# Run them locally before opening a pull request: `just check`. They run here
+# nightly and on demand, so a gap in local checking is caught within a day. They no longer run on
+# every push to `develop`, so pull request checks stay quick.
+# This is the GitHub Actions copy (a schedule runs on the default branch, `develop`); the Gitea copy in
+# .gitea/workflows/ is kept for the day the repository is hosted there again.
+# A gate whose command is not merged yet is listed in `.gitea/ci-pending.txt` and passes without
+# running (scripts/ci/gate.sh).
+name: nightly
+
+on:
+  schedule:
+    # 19:17 UTC is 02:17 in Jakarta. It used to run at 02:17 UTC (09:17 in Jakarta), in the middle of the
+    # working day, and its heavy jobs filled the runner disk while pull request checks ran.
+    - cron: "17 19 * * *"
+  workflow_dispatch:
+
+# One nightly run at a time; a run that is still going is never cancelled by the next one.
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # A runner has a small disk: the heavy gates build every crate, feature and target. No step reads
+  # debug information, so build without it (the same two settings as ci.yml).
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+
+jobs:
+  build-matrix:
+    name: build-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: gate
+        run: sh scripts/ci/gate.sh build-matrix
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask build-matrix
+
+  portable-check:
+    name: portable-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: gate
+        run: sh scripts/ci/gate.sh portable-check
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask portable-check
+
+  size-check:
+    name: size-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: gate
+        run: sh scripts/ci/gate.sh size-check
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask size-check
+
+  ui-literals:
+    name: ui-literals
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: gate
+        run: sh scripts/ci/gate.sh ui-literals
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask ui-literals
+
+  licences:
+    name: licences
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: gate
+        run: sh scripts/ci/gate.sh licences
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask licences --check
+
+  # The E1.1 "same tests natively and under WASM" criterion: the core crates' tests run in Node
+  # through wasm-bindgen-test-runner (`just wasm-test`). The runner must match the
+  # `wasm-bindgen` version in Cargo.lock, so the step installs exactly that version.
+  wasm-test:
+    name: wasm-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: wasm-bindgen test runner
+        run: |
+          v=$(cargo metadata --format-version 1 | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"]=="wasm-bindgen"))')
+          cargo install wasm-bindgen-cli --version "$v" --locked
+      - run: cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-layout-tests -p meldframe-history -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props
+      # The browser bridge (E1.6): build meldframe-wasm with wasm-bindgen and drive it from Node (tools/check-wasm.sh).
+      - name: wasm bridge smoke test
+        run: bash tools/check-wasm.sh
+
+  # More seeds than a pull request run (600, the default of `cargo test --workspace`).
+  property-tests:
+    name: property-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: more seeds
+        run: MELDFRAME_SEEDS=6000 cargo test --release -p meldframe-history -p meldframe-history-props -p meldframe-sync-props
+
+  # The E1.1 mutation check: each rule switched off must make a test fail (tools/mutation-check-sync.sh).
+  # A job of its own, so its time does not add to the seeds run and one failure does not hide the other.
+  mutation-check:
+    name: mutation-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: mutation check
+        run: bash tools/mutation-check-sync.sh
