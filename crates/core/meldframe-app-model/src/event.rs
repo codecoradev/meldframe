@@ -49,6 +49,10 @@ pub enum Event {
         collection: String,
         mode: Option<String>,
     },
+    /// The search text of the Variables panel changed (trimmed).
+    VariablesQueryChanged {
+        query: String,
+    },
     /// An action could not be carried out; nothing changed. A stable code such as `not_found`.
     Refused {
         code: String,

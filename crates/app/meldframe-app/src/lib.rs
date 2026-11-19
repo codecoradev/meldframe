@@ -15,6 +15,7 @@
 mod app;
 mod document;
 mod link;
+mod panel;
 mod retry;
 mod review;
 mod variables;
@@ -24,8 +25,9 @@ pub(crate) use meldframe_app_model::{action, effect, event, state};
 pub use app::App;
 pub use link::{ATTEMPT_MS, SILENT_MS};
 pub use meldframe_app_model::{
-    Action, AppState, Checkpoint, CheckpointKind, Connection, CreateKind, Effect, Event, Frame,
-    FramePreset, History, OutOp, Panel, Panels, Properties, Property, RevertSkip, RevertSkipReason,
-    Tool,
+    Action, AppState, BindField, BindOption, Checkpoint, CheckpointKind, CollectionRow, Connection,
+    CreateKind, Effect, Event, Frame, FramePreset, History, ModeValue, OutOp, Panel, Panels,
+    Properties, Property, RevertSkip, RevertSkipReason, Tool, VariableRow, VariableValue,
+    VariablesPanel,
 };
 pub use meldframe_sync::LoadError;

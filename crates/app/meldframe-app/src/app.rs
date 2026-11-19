@@ -134,6 +134,7 @@ impl App {
                 | Action::TogglePanel { .. }
                 | Action::ToggleCollapsed { .. }
                 | Action::SetMode { .. }
+                | Action::SetVariablesQuery { .. }
         );
         let reload = matches!(action, Action::Reload { .. });
         if self.state.connection == Connection::Halted && !ui && !reload {
@@ -173,6 +174,7 @@ impl App {
             }
             Action::ToggleCollapsed { id } => self.toggle_collapsed(id),
             Action::SetMode { collection, mode } => self.set_mode(collection, mode, &mut fx),
+            Action::SetVariablesQuery { query } => self.set_variables_query(query),
             Action::Start { now_ms } => self.start(now_ms, &mut fx),
             Action::Connected { now_ms } => self.connected(now_ms, &mut fx),
             Action::Disconnected {} => self.disconnected(&mut fx),
@@ -199,7 +201,10 @@ impl App {
         }
         match self.level {
             Level::Nothing => {}
-            Level::Ui => self.refresh_properties(),
+            Level::Ui => {
+                self.refresh_properties();
+                self.refresh_variables();
+            }
             Level::Full => self.refresh(&mut fx),
         }
         fx
@@ -229,6 +234,7 @@ impl App {
         match panel {
             Panel::Layers => self.state.panels.layers,
             Panel::Properties => self.state.panels.properties,
+            Panel::Variables => self.state.panels.variables,
         }
     }
 
@@ -237,6 +243,7 @@ impl App {
             match panel {
                 Panel::Layers => self.state.panels.layers = open,
                 Panel::Properties => self.state.panels.properties = open,
+                Panel::Variables => self.state.panels.variables = open,
             }
             self.events.push(Event::PanelChanged { panel, open });
         }
@@ -418,6 +425,7 @@ impl App {
         }
         self.prune_modes();
         self.refresh_properties();
+        self.refresh_variables();
         let history = History {
             can_undo: self.replica.can_undo(),
             can_redo: self.replica.can_redo(),

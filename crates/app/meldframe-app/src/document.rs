@@ -196,6 +196,16 @@ impl App {
             Action::CreateCheckpoint { label } => self.create_checkpoint(label),
             Action::RestoreCheckpoint { id } => self.restore_checkpoint(&id),
             Action::EditVariables { commands } => self.edit_variables(&commands),
+            Action::SetVariableValue {
+                variable,
+                mode,
+                value,
+            } => self.set_variable_value(variable, mode, value),
+            Action::BindProperty {
+                id,
+                field,
+                variable,
+            } => self.bind_property(&id, field, variable),
             Action::Undo {} => self.step(true),
             Action::Redo {} => self.step(false),
             // The other actions are not about the document.
