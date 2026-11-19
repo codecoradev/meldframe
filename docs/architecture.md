@@ -19,7 +19,7 @@ Meldframe lets a human and an AI agent edit the same design file, and exports it
 3. **Variables must reach code.** They are rendered on the canvas and exported, not flattened to literals.
 4. **Human control.** A person can take over at any time and can undo agent work without rewriting history.
 5. **A solo owner builds and runs it.** Few moving parts; Postgres, one server binary, one web client.
-6. **Closed source, private repository, personal use first.** Hosting, pricing and scale are not drivers yet.
+6. **Open source until the MVP, closed source afterwards; personal use first.** The repository is public until the MVP, then closes because CI needs infrastructure of its own. It has no licence yet (`NOTICE`: all rights reserved). Hosting, pricing and scale are not drivers yet.
 
 ## 2. Decision summary
 

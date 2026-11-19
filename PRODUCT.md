@@ -37,7 +37,7 @@ The design surface agents can use without breaking things (idempotent, atomic, s
 
 ## Capabilities and Constraints
 
-- Closed source, private repository (decided).
+- Open source, public repository until the MVP; closed source afterwards, because CI needs infrastructure of its own. The repository has no licence yet: `NOTICE` applies, all rights are reserved and the code is readable, not licensed (decided).
 - Output is HTML/Tailwind and CSS variables, PNG, PDF. No Flutter or Dart. PPTX last, only if ordered.
 - Import is limited to variables from a Tailwind config or CSS variables; HTML import is deferred (decided).
 - Auth through Gatehouse; workspace is the tenant; quotas per workspace; assets on local disk first (decided).
