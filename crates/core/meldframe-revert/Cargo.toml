@@ -1,0 +1,26 @@
+[package]
+name = "meldframe-revert"
+description = "Revert of a batch (E5.2) and checkpoints (E5.3): the commands that undo an actor's batch where it is still the last writer, and the commands that bring a file back to an earlier state."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dependencies]
+meldframe-history = { path = "../meldframe-history" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+serde_json = "1"
+
+[dev-dependencies]
+meldframe-order = { path = "../meldframe-order" }
+
+# The tests run under WASM through wasm-bindgen-test (`just wasm-test`); each test file
+# imports it as `test` on wasm32 only. Keep the version in step with `meldframe-history`.
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
+
+[lints]
+workspace = true

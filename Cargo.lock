@@ -1442,6 +1442,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-revert"
+version = "0.0.0"
+dependencies = [
+ "meldframe-history",
+ "meldframe-order",
+ "meldframe-protocol",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-rooms"
 version = "0.0.0"
 dependencies = [
