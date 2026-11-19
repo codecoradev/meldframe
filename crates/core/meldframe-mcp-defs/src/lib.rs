@@ -39,7 +39,7 @@ impl ToolDef {
 }
 
 /// Every tool, in the order a client lists them.
-pub const TOOLS: [ToolDef; 7] = [
+pub const TOOLS: [ToolDef; 6] = [
     ToolDef {
         name: "whoami",
         description: "Report who you are to this server and what limits your calls have: the workspace and actor your token stands for, the batch limit (at most 100 commands per apply_commands call), the limits of a file (nodes, depth, text length) and your call rate. Call it first; it changes nothing.",
@@ -75,12 +75,6 @@ pub const TOOLS: [ToolDef; 7] = [
         description: "Find out what became of an apply_commands call from its idempotencyKey (also accepted as idempotency_key), for example after a timeout: how many of its commands were written, and the sequence number of each. state is none when nothing was written, applied when commands were written, and partial when you pass count (the number of commands the call had) and fewer were written; then send the call again with the same key to write the rest. Looks at the first 100 commands of a call. Changes nothing.",
         tier: RiskTier::Read,
         schema: batch_status_schema,
-    },
-    ToolDef {
-        name: "make_variant",
-        description: "Copy a frame and everything inside it as a variant beside the original, so you can work on a take and keep the original: the copy has new ids, keeps every property and the order of its children, is named \"<name> variant\", and sits under the same parent to the right of every sibling, 40 px past the rightmost one, at the original's height. The copy is written as one atomic call, all or nothing, and the file's limits are checked before anything is written. A frame whose copy would need more than 100 commands (the frame and its descendants together are over 100 nodes) is refused as invalid: duplicate a smaller frame, or build the copy in several apply_commands calls. Only a frame can be copied (E_NOT_A_FRAME otherwise); an id that is not in the file is E_NODE_NOT_FOUND. Every call needs an idempotencyKey (also accepted as idempotency_key): send the same call again with the same key after a timeout and no second copy is made; the answer then has replayed true. The result names the copy's root id (root), the number of nodes written and seq. Name the layers of the copy as you would any others; it keeps the names of the original.",
-        tier: RiskTier::Change,
-        schema: make_variant_schema,
     },
 ];
 
@@ -157,14 +151,5 @@ fn batch_status_schema() -> Value {
         "idempotency_key": key("idempotency_key", "idempotencyKey"),
         "count": {"type": "integer", "minimum": 1, "maximum": MAX_BATCH,
             "description": "How many commands the call had; with it, state can be partial."}
-    }})
-}
-
-fn make_variant_schema() -> Value {
-    json!({"type": "object", "required": ["file", "id"], "additionalProperties": false, "properties": {
-        "file": file(),
-        "id": {"type": "string", "minLength": 1, "description": "The id of the frame to copy."},
-        "idempotencyKey": key("idempotencyKey", "idempotency_key"),
-        "idempotency_key": key("idempotency_key", "idempotencyKey")
     }})
 }

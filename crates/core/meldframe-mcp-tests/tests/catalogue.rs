@@ -28,7 +28,7 @@ async fn the_catalogue_equals_what_a_client_lists() {
         .unwrap()
         .iter()
         .filter(|t| {
-            !["capture", "upload_asset", "design_review", "export_frame", "import_tokens"]
+            !["capture", "upload_asset", "design_review", "export_frame", "import_tokens", "make_variant"]
                 .contains(&t["name"].as_str().unwrap())
         })
         .map(|t| json!({"name": t["name"], "description": t["description"], "inputSchema": t["inputSchema"]}))
@@ -58,6 +58,7 @@ fn the_catalogue_equals_the_registry_with_tiers() {
             "design_review" => "design-review",
             "export_frame" => "export",
             "import_tokens" => "variables-import",
+            "make_variant" => "variant",
             _ => "mcp",
         };
         assert_eq!(reg.module, module);

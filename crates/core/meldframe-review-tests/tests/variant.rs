@@ -1,8 +1,84 @@
 //! `make_variant`: a copy of a frame and its subtree beside it, one atomic call, safe to retry.
 
+#[path = "../../meldframe-mcp-tests/tests/common/mod.rs"]
 mod common;
 use common::*;
+use meldframe_http::{DevTokens, router_with_mcp_config};
+use meldframe_module::RiskTier;
+use meldframe_server::{Server, SharedServer};
 use serde_json::{Value, json};
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+/// The harness of `meldframe-mcp-tests` with the tool of its own crate mounted, as the server does with the
+/// `variant` feature (the tool shares the state of the routes, so it spends the same slots and limits).
+async fn start() -> Harness {
+    let spy = Arc::new(Spy {
+        server: Arc::new(SharedServer::new(Server::assemble())),
+        submits: Default::default(),
+        atomic_submits: Default::default(),
+        reads: Default::default(),
+    });
+    let tokens = Arc::new(
+        DevTokens::parse(&format!(
+            "{AGENT}:ws_1:agent:alpha,{PERSON}:ws_1:user:bea,{OTHER}:ws_2:agent:gamma"
+        ))
+        .unwrap(),
+    );
+    let state = meldframe_http::shared(tokens.clone(), spy.clone(), config());
+    let mcp = meldframe_http::mcp::McpConfig {
+        allowed_hosts: Vec::new(),
+        extra: vec![meldframe_http_variant::tool(state, spy.clone())],
+    };
+    let app = router_with_mcp_config(tokens, spy.clone(), spy.clone(), config(), mcp);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        .unwrap();
+    });
+    Harness { addr, spy }
+}
+
+/// Every `Extra` call is also logged by the MCP route, so a write has two entries of its own tool (the gate's and the
+/// call's) and a refusal before the write has one, with its code: the same as `import_tokens`.
+#[tokio::test]
+async fn the_call_log_has_the_entry_of_the_gate_and_the_entry_of_the_call() {
+    let h = start().await;
+    let c = connect(&h, AGENT).await;
+    hero(&c).await;
+    let before = h.spy.server.calls(100).len();
+    let ok = call(
+        &c,
+        "make_variant",
+        json!({"file": "f", "id": "hero", "idempotencyKey": "v"}),
+    )
+    .await;
+    assert!(!ok.is_error, "{}", ok.body);
+    let refused = call(
+        &c,
+        "make_variant",
+        json!({"file": "f", "id": "title", "idempotencyKey": "w"}),
+    )
+    .await;
+    assert_eq!(refused.body["error"]["code"], "E_NOT_A_FRAME");
+    let log = h.spy.server.calls(100);
+    let mine: Vec<_> = log[before..]
+        .iter()
+        .filter(|e| e.tool == "make_variant")
+        .collect();
+    assert_eq!(mine.len(), 3, "{log:?}");
+    assert!(
+        mine[..2]
+            .iter()
+            .all(|e| e.file == "f" && e.outcome == "ok" && e.risk == Some(RiskTier::Change))
+    );
+    assert_eq!(mine[2].outcome, "E_NOT_A_FRAME");
+}
 
 fn roots(tree: &Value) -> Vec<&Value> {
     tree["roots"].as_array().unwrap().iter().collect()

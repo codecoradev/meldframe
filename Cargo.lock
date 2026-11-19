@@ -1281,7 +1281,6 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-ratelimit",
- "meldframe-variant",
  "rmcp",
  "serde",
  "serde_json",
@@ -1413,6 +1412,20 @@ dependencies = [
  "serde",
  "serde_json",
  "variables-import",
+]
+
+[[package]]
+name = "meldframe-http-variant"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-module",
+ "meldframe-variant",
+ "rmcp",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1595,6 +1608,7 @@ dependencies = [
  "meldframe-http-export",
  "meldframe-http-review",
  "meldframe-http-variables-import",
+ "meldframe-http-variant",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-server",
@@ -1658,6 +1672,7 @@ dependencies = [
  "meldframe-http-review",
  "meldframe-http-snapshot",
  "meldframe-http-variables-import",
+ "meldframe-http-variant",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-rooms",

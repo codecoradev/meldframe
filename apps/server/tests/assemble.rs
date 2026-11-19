@@ -45,6 +45,11 @@ mod feature_on {
         expected.extend(["export"].into_iter().filter(|_| cfg!(feature = "export")));
         let import = cfg!(feature = "variables-import");
         expected.extend(["variables-import"].into_iter().filter(|_| import));
+        expected.extend(
+            ["variant"]
+                .into_iter()
+                .filter(|_| cfg!(feature = "variant")),
+        );
         assert_eq!(server.registry().module_names(), expected);
         let tool = server.registry().agent_tool("example_ping").unwrap();
         assert_eq!(tool.tier, RiskTier::Read);
