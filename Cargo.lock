@@ -1467,6 +1467,7 @@ name = "meldframe-render"
 version = "0.0.0"
 dependencies = [
  "meldframe-protocol",
+ "meldframe-variables",
  "serde",
  "serde_json",
  "wasm-bindgen-test",

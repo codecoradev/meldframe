@@ -9,6 +9,8 @@
 //! The canvas column is proven against `resolve`. The export column stays `Unsupported` until the
 //! export (E4.1) exists; that feature flips a row when it renders the field and adds its own check.
 
+use meldframe_protocol::VarType;
+
 /// Whether a consumer renders a node field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Support {
@@ -23,6 +25,10 @@ pub struct FieldSupport {
     pub field: &'static str,
     pub canvas: Support,
     pub export: Support,
+    /// The type of variable the field can be bound to (E3.3), or `None` when it takes a literal only. A test
+    /// compares these rows with `meldframe_variables::node_bindings` and checks that a bound field paints what
+    /// the literal of its resolved value paints.
+    pub bindable: Option<VarType>,
 }
 
 const NO_EXPORT: Support = Support::Unsupported("the export does not exist yet (E4.1)");
@@ -36,6 +42,15 @@ const fn row(field: &'static str, canvas: Support) -> FieldSupport {
         field,
         canvas,
         export: NO_EXPORT,
+        bindable: None,
+    }
+}
+
+/// A row for a field that a variable of type `to` can be bound to.
+const fn bound(field: &'static str, canvas: Support, to: VarType) -> FieldSupport {
+    FieldSupport {
+        bindable: Some(to),
+        ..row(field, canvas)
     }
 }
 
@@ -54,14 +69,14 @@ pub const NODE_FIELDS: &[FieldSupport] = &[
     row("h", R),
     row("sw", FROM_LAYOUT),
     row("sh", FROM_LAYOUT),
-    row("fill", R),
+    bound("fill", R, VarType::Color),
     row(
         "fill2",
         Support::Unsupported(
             "only the shader uses it, and the canvas draws a shader as its plain box",
         ),
     ),
-    row("radius", R),
+    bound("radius", R, VarType::Number),
     row("layout", FROM_LAYOUT),
     row("gap", FROM_LAYOUT),
     row("padding", FROM_LAYOUT),
@@ -87,7 +102,7 @@ pub const NODE_FIELDS: &[FieldSupport] = &[
     row("marB", FROM_LAYOUT),
     row("marL", FROM_LAYOUT),
     row("absolute", FROM_LAYOUT),
-    row("opacity", R),
+    bound("opacity", R, VarType::Number),
     row("gradient", R),
     row("image", R),
 ];
