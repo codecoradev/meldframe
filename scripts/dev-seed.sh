@@ -24,13 +24,21 @@ URL=${DATABASE_URL:-postgres://postgres:postgres@127.0.0.1:${MELDFRAME_PG_PORT:-
 # this machine whose name says it is for development or tests. Anything else is refused whatever
 # the environment says about releases.
 allowed_target() {
-  local re='^postgres(ql)?://([^@/]*@)?(\[::1\]|127\.0\.0\.1|localhost)(:[0-9]+)?/(meldframe_dev|meldframe_test)(\?.*)?$'
+  # Every part is spelled out so nothing can name a second host or database: userinfo is plain
+  # characters (no '@', '%', ',', '/'), the host is one of three literals, and the query may only
+  # carry keys that cannot move the connection. libpq lets host, hostaddr, port, dbname, service
+  # and more in the query override the URL, so those are refused.
+  local user='[A-Za-z0-9._~-]+' q='(sslmode|connect_timeout|application_name)=[A-Za-z0-9_.-]+'
+  local re="^postgres(ql)?://(${user}(:${user})?@)?(\\[::1\\]|127\\.0\\.0\\.1|localhost)(:[0-9]+)?/(meldframe_dev|meldframe_test)(\\?${q}(&${q})*)?\$"
   [[ "$1" =~ $re ]]
 }
 if ! allowed_target "$URL"; then
   echo "refusing to seed: DATABASE_URL must point at a database named meldframe_dev or meldframe_test on this machine (127.0.0.1, localhost or [::1]). The development seed publishes a known token." >&2
   exit 3
 fi
+# libpq reads these from the environment and some win over what the URL says (PGHOSTADDR and a
+# service file's hostaddr decide where the socket goes whatever the URL host is), so psql gets none.
+unset PGHOSTADDR PGSERVICE PGSERVICEFILE PGHOST PGPORT PGDATABASE
 [ "${MELDFRAME_SEED_DRY_RUN:-}" = 1 ] && { echo "dry run: target allowed"; exit 0; }
 
 # The value is generated here from /dev/urandom on every run that needs one; no secret is in the file.
