@@ -17,6 +17,24 @@ describe('noticeFor', () => {
   });
 });
 
+describe('noticeFor approvals', () => {
+  const rejected = (code: string) => ({ type: 'opRejected', key: 'k', code, retryable: false }) as Event;
+  it('says a delete waits for the owner and is not done, without promising an answer screen', () => {
+    const text = noticeFor(rejected('approval_required'))!;
+    expect(text).toMatch(/waits for the owner/i);
+    expect(text).toMatch(/not done/i);
+    expect(text).not.toMatch(/not available yet/i);
+  });
+  it('has its own words for denied, expired and too many open approvals', () => {
+    expect(noticeFor(rejected('approval_denied'))).toMatch(/owner said no/i);
+    expect(noticeFor(rejected('approval_expired'))).toMatch(/ran out/i);
+    expect(noticeFor(rejected('approval_limit'))).toMatch(/too many approvals/i);
+    for (const code of ['approval_required', 'approval_denied', 'approval_expired', 'approval_limit']) {
+      expect(noticeFor(rejected(code))).not.toContain(code);
+    }
+  });
+});
+
 describe('noticeFromEvents', () => {
   it('is the message of the last refusal among the events', () => {
     const events = [

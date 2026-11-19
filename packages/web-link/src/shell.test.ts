@@ -281,6 +281,15 @@ describe('Shell with a scripted engine', () => {
     expect(env.posts[0]!.path).toBe('/v1/files/file_dev/tools/apply_commands');
   });
 
+  it.each(['approval_required', 'approval_denied', 'approval_expired', 'approval_limit'])('%s is passed on as not retryable, so the app rolls back at once', async (code) => {
+    const { engine, env, shell } = setup();
+    shell.start();
+    env.reply = async () => ({ status: code === 'approval_limit' ? 429 : 403, body: { error: { code, retryable: false } } });
+    engine.effect({ type: 'sendOps', ops: [op('k1')] });
+    await settle();
+    expect(engine.dispatched.at(-1)).toMatchObject({ type: 'frame', frame: { type: 'rejected', key: 'k1', code, retryable: false } });
+  });
+
   it('a refused op is reported as rejected with the server code; a network error stops the rest and loses a live connection', async () => {
     const { engine, env, shell } = setup();
     shell.start();
