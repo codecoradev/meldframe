@@ -13,16 +13,21 @@ const gate = path.join(path.dirname(fileURLToPath(import.meta.url)), '../gate.mj
 const run = (name, max, extra = {}) => ({ name, fuzz: false, nodes: 3, textNodes: 0, errors: [], warnings: [], runs: { 'css@1280@1': { max, worst: 'a', missing: 0, fontOk: true, bad: max > 0.05 ? ['a'] : [] } }, twVsCss: { max: 0, worst: 'a' }, ...extra });
 const exit = (files, more = {}) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'gate-')), 'results.json');
-  fs.writeFileSync(file, JSON.stringify({ seeds: 10, geometry: { files }, ...more }));
+  fs.writeFileSync(file, JSON.stringify({ seeds: 10, geometry: { files }, ...sections, ...more }));
   const r = spawnSync('node', [gate, file], { encoding: 'utf8' });
   return { code: r.status, out: r.stdout };
+};
+const sections = {
+  paint: { probes: [{ id: 'border inside: stripe', at: [43, 80], want: 'red', got: [255, 0, 0], ok: true }], forms: [{ fixture: 'f07-decor', differing: 0 }] },
+  ink: { rows: [{ id: 'hug700', form: 'css', dLeft: 0, dRight: 0, dTop: 0, dBottom: 0 }], worst: 0 },
+  blur: [{ blur: 8, maxAbs: 19 }],
 };
 const gaps = Object.keys(KNOWN_GAPS);
 /** A gap that fails in the way its entry says. */
 const standing = (g, over = {}) => run(g, 5, { warnings: [`${KNOWN_GAPS[g].warning}x`], runs: { 'css@1280@1': { max: 5, worst: KNOWN_GAPS[g].nodes[0], missing: 0, fontOk: true, bad: [KNOWN_GAPS[g].nodes[0]] } }, ...over });
 const fz = (i, over = {}) => run(`fz-${i}`, 0, { fuzz: true, unspecified: false, g3: false, ...over });
 /** A full run: the floor of fixtures, the standing gaps, and 10 seeds of which 7 are inside the contract. */
-const full = () => [...gaps.map((g) => standing(g)), ...Array.from({ length: 16 - gaps.length }, (_, i) => run(`f${i}`, 0.01)), ...Array.from({ length: 10 }, (_, i) => fz(i, i < 3 ? { unspecified: true, g3: true } : {}))];
+const full = () => [...gaps.map((g) => standing(g)), ...Array.from({ length: 17 - gaps.length }, (_, i) => run(`f${i}`, 0.01)), ...Array.from({ length: 10 }, (_, i) => fz(i, i < 3 ? { unspecified: true, g3: true } : {}))];
 const without = (files, name) => files.filter((f) => f.name !== name);
 const swap = (files, name, over) => files.map((f) => (f.name === name ? { ...f, ...over } : f));
 
@@ -77,6 +82,36 @@ test('a fuzz file outside the contract (G3) is excused its box deltas only, and 
 });
 test('a fuzz file that carries fill_under_hug fails: rule G1 was applied to it', () => {
   assert.equal(exit(swap(full(), 'fz-5', { fillUnderHug: true })).code, 1);
+});
+
+test('a run without the paint, ink or blur section, or with an empty one, fails; a geometry-only run is not asked for them', () => {
+  assert.equal(exit(full(), { paint: undefined }).code, 1);
+  assert.equal(exit(full(), { paint: { probes: [], forms: sections.paint.forms } }).code, 1);
+  assert.equal(exit(full(), { paint: { probes: sections.paint.probes, forms: [] } }).code, 1);
+  assert.equal(exit(full(), { ink: undefined }).code, 1);
+  assert.equal(exit(full(), { ink: { rows: [], worst: 0 } }).code, 1);
+  assert.equal(exit(full(), { blur: [] }).code, 1);
+  assert.equal(exit(full(), { paint: undefined, ink: undefined, blur: undefined, geometryOnly: true }).code, 0);
+});
+test('a paint probe that fails, or two forms that draw different pixels, fail', () => {
+  const probe = (ok) => ({ probes: [{ id: 'border inside: stripe', at: [43, 80], want: 'red', got: [0, 255, 0], ok }], forms: [{ fixture: 'f07-decor', differing: 0 }] });
+  assert.equal(exit(full(), { paint: probe(true) }).code, 0);
+  assert.equal(exit(full(), { paint: probe(false) }).code, 1);
+  assert.equal(exit(full(), { paint: { probes: sections.paint.probes, forms: [{ fixture: 'f07-decor', differing: 12 }] } }).code, 1);
+});
+test('text ink more than 1 px from the canvas text fails, and so does a case with no ink to compare', () => {
+  const ink = (d, extra = {}) => ({ rows: [{ id: 'hug700', form: 'css', dLeft: 0, dRight: d, dTop: 0, dBottom: 0, ...extra }], worst: Math.abs(d) });
+  assert.equal(exit(full(), { ink: ink(-1) }).code, 0);
+  const r = exit(full(), { ink: ink(-2) });
+  assert.equal(r.code, 1);
+  assert.match(r.out, /text ink hug700 \(css\): an edge is 2 px/);
+  const none = exit(full(), { ink: ink(0, { noInk: 'the exported page' }) });
+  assert.equal(none.code, 1);
+  assert.match(none.out, /no ink found on the exported page/);
+});
+test('a CSS blur falloff further than 20/255 from Pixi fails', () => {
+  assert.equal(exit(full(), { blur: [{ blur: 8, maxAbs: 20 }] }).code, 0);
+  assert.equal(exit(full(), { blur: [{ blur: 8, maxAbs: 21 }] }).code, 1);
 });
 
 test('overflowing: padding larger than the box, children larger than the content box, a zero fill', () => {
