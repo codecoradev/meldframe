@@ -168,6 +168,7 @@ fn read(scanned: bool) -> Read {
         snapshot: FileSnapshot {
             seq: 1,
             nodes: vec![],
+            variables: Default::default(),
         },
         scanned,
     }

@@ -9,7 +9,7 @@ mod memory;
 
 pub use memory::MemoryStore;
 
-use meldframe_protocol::{Command, Node};
+use meldframe_protocol::{Command, Node, Variables};
 use std::fmt;
 
 /// An op to append.
@@ -38,11 +38,13 @@ pub struct Appended {
     pub written: bool,
 }
 
-/// The tree of a room as it was after op `seq`.
+/// The tree and the variables of a room as they were after op `seq`.
 #[derive(Debug, Clone)]
 pub struct Snapshot {
     pub seq: u64,
     pub nodes: Vec<Node>,
+    /// The collections and variables at `seq`; empty for a file without any.
+    pub variables: Variables,
 }
 
 /// Why a store call failed. These are failures of the store, not refusals of an op.

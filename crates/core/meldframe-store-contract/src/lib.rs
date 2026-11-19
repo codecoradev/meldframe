@@ -33,7 +33,8 @@ macro_rules! store_contract {
             a_snapshot_must_be_newer_than_the_latest_and_a_failed_save_keeps_the_old_one,
             a_snapshot_restores_with_the_log_after_it,
             a_command_comes_back_from_the_log_unchanged,
-            a_snapshot_comes_back_unchanged
+            a_snapshot_comes_back_unchanged,
+            variables_come_back_with_the_snapshot_and_the_log
         );
     };
     (@each $make:path, $($case:ident),+) => {
