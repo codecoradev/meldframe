@@ -36,6 +36,7 @@ Meldframe lets a human and an AI agent edit the same design file, and exports it
 | ADR-0009 | Live events are durable (replayable) or ephemeral (best-effort) | accepted |
 | ADR-0010 | One admission gate in front of every change | accepted |
 | ADR-0016 | Revert and restore are worked out from the log in the app layer; a field reverts only while the batch wrote it last | proposed |
+| ADR-0017 | Variables are a second table of the file; bindings are `{var:..}` objects; resolution happens in the core | proposed |
 
 ## 3. System shape
 
@@ -76,7 +77,8 @@ crates/
     meldframe-order       fractional index and sibling order helpers
     meldframe-check       limits, ApplyError and every check on a value or a command (structure, decoration, image; variable commands and bindings through `meldframe-variables`)
     meldframe-layout      text measurer seam, Rect and layout
-    meldframe-variables   variables of a file (ADR-0016): `resolve` through aliases and modes, the alias graph, apply and exact inverse of the variable commands, their footprint, and the checks that refuse them (`VarError`); portable
+    meldframe-variables   variables of a file (ADR-0017): `resolve` through aliases and modes, the alias graph, apply and exact inverse of the variable commands, their footprint, and the checks that refuse them (`VarError`); portable
+    meldframe-app-model   the plain data of the app layer (Action, Effect, Event, AppState) and its TypeScript types; split from `meldframe-app` for the size ceiling, no logic
     meldframe-core        applying a command to the file (`apply_doc`, `plan_doc`, `apply_planned_doc`; the node-only `apply_command`, `plan_command`, `apply_planned` for a caller without variables); re-exports the check API
     meldframe-render      the render model: `resolve` and `resolve_with` (nodes, variables and the modes picked to painted boxes) and the coverage table of node fields per consumer; the canvas reads it through the app layer (`App::scene`) and the wasm bridge (`sceneJson`, read once per change of the document by the web engine; fixtures in `tests/fixtures/scene.json` are checked by Rust and web tests), and the export (E4.1) and variables (E3.3) plug in later
     meldframe-undo        undo and redo bookkeeping with no tree in it: the steps of a history, their runs, and the rules that rewrite them against a remote command; split from history
@@ -107,7 +109,7 @@ crates/
   features/<name>/        <name> (domain) and <name>-ui (view): variables, export, review, capture, assets, import-tokens
                           today the placeholder `example/`, `capture/` and `assets/` (the blob seam of E2.5, ADR-0015; its routes and the MCP tool `upload_asset` are `meldframe-http-assets`: `POST /v1/assets`, `GET /v1/assets/{id}`) exist
   app/
-    meldframe-app         UI-neutral state, actions, effects, events (compiled to WASM); holds a sync Replica for the document
+    meldframe-app         the app layer state machine over `meldframe-app-model` (compiled to WASM); holds a sync Replica for the document
     meldframe-wasm        thin wasm-bindgen glue over core and app
   ui/                     tokens and plain-data *-model crates beside views
 xtask/                    deps-check, build-matrix, portable-check, size-check, ui-literals, licences

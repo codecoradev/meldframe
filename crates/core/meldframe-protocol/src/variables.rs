@@ -1,5 +1,5 @@
 //! Variables: collections with modes, typed variables, aliases and the binding of a node field (ADR-0004,
-//! ADR-0016). Everything here is data; the rules live in `meldframe-variables` (resolve, alias chains) and
+//! ADR-0017). Everything here is data; the rules live in `meldframe-variables` (resolve, alias chains) and
 //! `meldframe-check` (validation).
 
 use serde::{Deserialize, Serialize};

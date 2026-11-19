@@ -1,7 +1,7 @@
 //! The `state` column of a snapshot. A file without variables keeps the plain array of nodes that every
 //! snapshot was before E3.3, so those rows and the rows written for such files stay byte for byte as they were
 //! and an older server reads them; a file with variables is the object `{"nodes": [...], "variables": {...}}`
-//! (ADR-0016). Reading takes either shape.
+//! (ADR-0017). Reading takes either shape.
 
 use meldframe_host::Snapshot;
 use meldframe_protocol::{Node, Variables};
