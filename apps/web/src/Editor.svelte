@@ -1,7 +1,7 @@
 <!--
   The editor page: the canvas over the document the app layer holds, with the connection state. It only renders
   the app state and dispatches actions (thin UI, ADR-0008). A gesture shows a preview while it goes on and becomes
-  one action when it ends. The panels and the tool bar arrive in the next slice.
+  one action when it ends. The chrome around it is the Layout (packages/web-chrome).
 -->
 <script lang="ts">
   import { onDestroy, onMount, untrack } from 'svelte';
@@ -13,7 +13,9 @@
   import { createActionFor, keyAction, ownsKeys, worldOrigin, moveActionsFor, previewScene, resizeActionFor, resizedBox, toolMode, type Preview } from '@meldframe/web-document/edit';
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
-  import Toolbar from './Toolbar.svelte';
+  import Layout from '@meldframe/web-chrome/Layout.svelte';
+  import Section from '@meldframe/web-chrome/Section.svelte';
+  import { layoutKey } from '@meldframe/web-chrome/keys';
   import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
   import VariablesPanel from '@meldframe/web-panels/VariablesPanel.svelte';
@@ -56,7 +58,7 @@
   // What a gesture in progress shows; the file changes only when it ends (one action, one undo step).
   let preview = $state<Preview | null>(null);
   const shown = $derived(previewScene(scene, preview));
-  const toolLabel = $derived({ select: 'Select', frame: 'Frame', rectangle: 'Rectangle', text: 'Text' }[snap.state.tool]);
+  let helpOpen = $state(false);
   const label = (c: AppState['connection']): string =>
     ({ live: 'Connected', connecting: 'Connecting', reconnecting: 'Reconnecting', offline: 'Offline', halted: 'Out of sync' })[c.type];
 
@@ -240,7 +242,14 @@
   function onKey(e: KeyboardEvent) {
     if (e.repeat || e.isComposing) return; // a held key must not undo a step per repeat; a composition is not a command
     if (ownsKeys(e.target as HTMLElement | null, e)) return;
-    const edit = editKeyTarget(e, snap.state.selection, nodes);
+    const key = layoutKey(e);
+    if (key) {
+      e.preventDefault();
+      if (key === 'help') helpOpen = !helpOpen;
+      else dispatch({ type: 'togglePanel', panel: key === 'layers' ? 'layers' : 'properties' });
+      return;
+    }
+    const edit = editKeyTarget(e, snap.state.selection, nodes, e.target as HTMLElement | null);
     if (edit) {
       e.preventDefault();
       startEdit(edit);
@@ -261,63 +270,77 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="fixed inset-0 flex bg-canvas font-sans text-body text-text">
-  {#if snap.state.panels.layers}
+<Layout
+  fileName={file}
+  tool={snap.state.tool}
+  onTool={(tool) => dispatch({ type: 'setTool', tool })}
+  layersOpen={snap.state.panels.layers}
+  inspectorOpen={snap.state.panels.properties}
+  onToggleLayers={() => dispatch({ type: 'togglePanel', panel: 'layers' })}
+  onToggleInspector={() => dispatch({ type: 'togglePanel', panel: 'properties' })}
+  canUndo={snap.state.history.canUndo}
+  canRedo={snap.state.history.canRedo}
+  onUndo={() => dispatch({ type: 'undo' })}
+  onRedo={() => dispatch({ type: 'redo' })}
+  onPreset={(p) => canvas && dispatch(presetAction(p, canvas.centre()))}
+  canExport={exportable !== null}
+  onExport={(s) => void exportPng(s)}
+  canVariant={exportable !== null}
+  onVariant={() => exportable && dispatch({ type: 'makeVariant', id: exportable.id })}
+  zoomText={formatZoom(camera.zoom)}
+  connection={{ state: snap.state.connection.type, text: label(snap.state.connection) }}
+  {helpOpen}
+  onHelp={(open) => (helpOpen = open)}
+>
+  {#snippet canvasLayer()}
+    <Canvas
+      bind:this={canvas}
+      scene={shown}
+      selection={snap.state.selection}
+      tool={toolMode(snap.state.tool)}
+      bind:camera
+      {theme}
+      {touches}
+      label={`File ${file}`}
+      {onSelect}
+      {onMove}
+      {onResize}
+      {onCreate}
+      onActivate={startEdit}
+      {onReady}
+      onError={(e) => (canvasError = e instanceof Error ? e.message : String(e))}
+      {onAssetProblem}
+    />
+    {#if editing && editBox}
+      <TextEditor text={editing.before} box={editBox} onCommit={endEdit} onCancel={() => endEdit(null)} />
+    {/if}
+    {#if notice}
+      <div role="status" data-testid="notice" class="absolute bottom-24 left-1/2 max-w-80 -translate-x-1/2 rounded-md bg-warning-bg px-4 py-2 text-small text-text-strong shadow-float">{notice}</div>
+    {/if}
+    {#if canvasError}
+      <div role="alert" data-testid="canvas-error" class="absolute inset-x-0 top-4 mx-auto w-fit rounded-md bg-danger-bg px-4 py-2 text-small text-danger">
+        The canvas could not start: {canvasError}
+      </div>
+    {/if}
+    {#if snap.state.connection.type === 'halted'}
+      <div role="alert" class="absolute inset-x-0 top-4 mx-auto w-fit rounded-md bg-danger-bg px-4 py-2 text-small text-danger">
+        This page and the server no longer agree about the file.
+        <button class="ml-2 underline" onclick={() => location.reload()}>Reload</button>
+      </div>
+    {/if}
+  {/snippet}
+  {#snippet layersPanel()}
     <LayersPanel
       {rows}
-      {file}
       self={actor}
       onSelect={(id, additive) => (additive ? dispatch({ type: 'toggleSelect', id }) : dispatch({ type: 'select', ids: [id] }))}
       onToggle={(id) => dispatch({ type: 'toggleCollapsed', id })}
     />
-  {/if}
-  <div class="relative min-w-0 flex-1">
-  <Canvas
-    bind:this={canvas}
-    scene={shown}
-    selection={snap.state.selection}
-    tool={toolMode(snap.state.tool)}
-    bind:camera
-    {theme}
-    {touches}
-    label={`File ${file}`}
-    {onSelect}
-    {onMove}
-    {onResize}
-    {onCreate}
-    onActivate={startEdit}
-    {onReady}
-    onError={(e) => (canvasError = e instanceof Error ? e.message : String(e))}
-    {onAssetProblem}
-  />
-  {#if editing && editBox}
-    <TextEditor text={editing.before} box={editBox} onCommit={endEdit} onCancel={() => endEdit(null)} />
-  {/if}
-  {#if notice}
-    <div role="status" data-testid="notice" class="absolute top-4 right-4 max-w-80 rounded-md bg-warning-bg px-4 py-2 text-small text-text-strong shadow-float">{notice}</div>
-  {/if}
-  {#if canvasError}
-    <div role="alert" data-testid="canvas-error" class="absolute inset-x-0 top-4 mx-auto w-fit rounded-md bg-danger-bg px-4 py-2 text-small text-danger">
-      The canvas could not start: {canvasError}
-    </div>
-  {/if}
-  <Toolbar state={snap.state} {dispatch} onPreset={(p) => canvas && dispatch(presetAction(p, canvas.centre()))} canExport={exportable !== null} onExport={(s) => void exportPng(s)} variantOf={exportable?.id ?? null} />
-  <div class="pointer-events-none absolute top-4 left-4 flex items-center gap-3 text-small text-text-muted">
-    <output data-testid="tool" data-tool={snap.state.tool}>{toolLabel}</output>
-    <output data-testid="connection" data-state={snap.state.connection.type}>{label(snap.state.connection)}</output>
-    <output class="font-mono" data-testid="zoom">{formatZoom(camera.zoom)}</output>
-  </div>
-  {#if snap.state.connection.type === 'halted'}
-    <div role="alert" class="absolute inset-x-0 top-4 mx-auto w-fit rounded-md bg-danger-bg px-4 py-2 text-small text-danger">
-      This page and the server no longer agree about the file.
-      <button class="ml-2 underline" onclick={() => location.reload()}>Reload</button>
-    </div>
-  {/if}
-  </div>
-  {#if snap.state.panels.variables}
-    <VariablesPanel panel={snap.state.variables} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} />
-  {/if}
-  {#if snap.state.panels.properties}
-    <PropertiesPanel properties={snap.state.properties} {onProperty} {onBox} />
-  {/if}
-</div>
+  {/snippet}
+  {#snippet designPanel()}
+    <Section title="Variables" open={snap.state.panels.variables} onToggle={() => dispatch({ type: 'togglePanel', panel: 'variables' })} toggleId="toggle-variables">
+      <VariablesPanel panel={snap.state.variables} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} />
+    </Section>
+    <Section title="Properties"><PropertiesPanel properties={snap.state.properties} {onProperty} {onBox} /></Section>
+  {/snippet}
+</Layout>

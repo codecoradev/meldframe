@@ -2,7 +2,7 @@ import type { Node } from '@meldframe/protocol';
 import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
 import type { Scene } from '@meldframe/web-canvas/scene';
 import { describe, expect, it } from 'vitest';
-import { containerFor, createActionFor, keyAction, moveActionsFor, ownsKeys, previewScene, resizeActionFor, resizedBox, toolMode, worldOrigin } from './edit';
+import { OWNS_KEYS_SELECTOR, containerFor, createActionFor, keyAction, moveActionsFor, ownsKeys, previewScene, resizeActionFor, resizedBox, toolMode, worldOrigin } from './edit';
 
 const node = (id: string, over: Partial<Node> = {}): Node =>
   ({ id, name: id, type: 'rect', parentId: null, x: 0, y: 0, w: 100, h: 50, ...over }) as Node;
@@ -161,23 +161,35 @@ describe('keyAction and toolMode', () => {
 });
 
 describe('ownsKeys', () => {
-  const el = (tagName: string, inPanel = false, isContentEditable = false) => ({ tagName, isContentEditable, closest: (sel: string) => (inPanel && sel === 'aside' ? {} : null) });
+  // `inside` lists what the element sits in, as the selectors that would match it: the fake answers `closest` with the real selector.
+  const el = (tagName: string, inside: string[] = [], isContentEditable = false) => ({
+    tagName,
+    isContentEditable,
+    closest: (sel: string) => (sel.split(',').map((x) => x.trim()).some((alt) => inside.includes(alt)) ? {} : null),
+  });
+  const card = ['[data-owns-keys]'];
   it('leaves the keys to a field that takes text', () => {
     for (const tag of ['INPUT', 'TEXTAREA', 'SELECT']) expect(ownsKeys(el(tag))).toBe(true);
-    expect(ownsKeys(el('DIV', false, true))).toBe(true);
+    expect(ownsKeys(el('DIV', [], true))).toBe(true);
   });
-  it('leaves the keys to anything inside a side panel, a focused button included', () => {
-    expect(ownsKeys(el('BUTTON', true))).toBe(true);
+  it('names the marker of the layout and the roles of a menu and a dialog', () => {
+    expect(OWNS_KEYS_SELECTOR).toBe('[data-owns-keys], [role=menu], [role=dialog]');
   });
-  it('still lets undo and redo through from a button of a panel, but not from a field', () => {
-    const ctrl = { ctrlKey: true, metaKey: false };
-    expect(ownsKeys(el('BUTTON', true), ctrl)).toBe(false);
-    expect(ownsKeys(el('BUTTON', true), { ctrlKey: false, metaKey: true })).toBe(false);
-    expect(ownsKeys(el('INPUT', true), ctrl)).toBe(true);
+  it('leaves the plain keys to a button inside a card of the layout, an item of a menu or a dialog', () => {
+    expect(ownsKeys(el('BUTTON', card))).toBe(true);
+    expect(ownsKeys(el('DIV', ['[role=menu]']))).toBe(true);
+    expect(ownsKeys(el('BUTTON', ['[role=dialog]']))).toBe(true);
+  });
+  it('still lets undo, redo and Option+1 through from a button of a card, but not from a field', () => {
+    expect(ownsKeys(el('BUTTON', card), { ctrlKey: true, metaKey: false })).toBe(false);
+    expect(ownsKeys(el('BUTTON', card), { ctrlKey: false, metaKey: true })).toBe(false);
+    expect(ownsKeys(el('BUTTON', card), { ctrlKey: false, metaKey: false, altKey: true })).toBe(false);
+    expect(ownsKeys(el('INPUT', card), { ctrlKey: true, metaKey: false })).toBe(true);
   });
   it('keeps the keys of the editor for the canvas, the page and the tool bar', () => {
     expect(ownsKeys(el('CANVAS'))).toBe(false);
     expect(ownsKeys(el('BUTTON'))).toBe(false);
+    expect(ownsKeys(el('BUTTON', ['aside']))).toBe(false);
     expect(ownsKeys(null)).toBe(false);
   });
 });
