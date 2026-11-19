@@ -240,20 +240,11 @@ mod change_tool {
     }
 
     #[test]
-    fn a_change_tool_cannot_delete_a_frame() {
+    fn a_change_tool_asks_the_owner_before_it_deletes_a_frame() {
         let err = server_with_nodes()
             .submit_tool("paint", "file_dev", &who(), vec![rm("f")])
             .unwrap_err();
-        assert!(
-            matches!(
-                err,
-                SubmitError::Refused(Refusal::Forbidden {
-                    tier: RiskTier::Delete,
-                    policy: Policy::Deny
-                })
-            ),
-            "{err:?}"
-        );
+        assert_eq!(err.code(), "approval_required", "{err:?}");
     }
 }
 

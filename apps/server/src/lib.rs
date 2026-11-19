@@ -4,6 +4,7 @@
 //! business logic. [`PgStore`] is the
 //! Postgres adapter of the store seam; [`Backing`] picks it.
 
+mod approval;
 mod calls;
 mod error;
 mod http;
@@ -11,6 +12,7 @@ mod limits;
 mod live;
 mod owners;
 
+pub use approval::APPROVAL_TTL_MS;
 pub use error::SubmitError;
 pub use http::{SharedServer, failure_of};
 pub use limits::{
@@ -19,21 +21,20 @@ pub use limits::{
 pub use live::{
     Frame, LIVE_CONFIG, MAX_LIVE_STREAMS, StreamId, SubscribeError, Subscription, TOUCH_WINDOW_MS,
 };
+pub use meldframe_approvals::AnswerError;
 pub use meldframe_store_pg::{
-    PERMANENT_STORE_ERROR, PgCallLog, PgStore, RAW_WORKSPACE, Usage, room_key, split_room_key,
+    AnyStore, Backing, PERMANENT_STORE_ERROR, PgCallLog, PgStore, RAW_WORKSPACE, Usage, room_key,
+    split_room_key,
 };
 pub use meldframe_stream::{Config, StreamError};
 
+use meldframe_approvals::{ApprovalGate, Approvals};
 use meldframe_calls::{CallEntry, CallLog, MemoryCallLog};
-use meldframe_host::{Accepted, Gate, Op, Principal, Refusal, Room, Store, StoredOp};
-use meldframe_module::{Module, Policy, Registry, RiskTier};
+use meldframe_host::{Accepted, Op, Principal, Refusal, Room, Store, StoredOp};
+use meldframe_module::{Module, Policy, Registry, RiskTier, default_policy};
 use meldframe_rooms::{MemoryActivityLog, RegistryError, TreeFacts};
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-mod store;
-
-pub use store::{AnyStore, Backing};
 
 /// How many files the server keeps open at once; opening more fails with `RegistryError::Full`.
 pub const MAX_OPEN_ROOMS: usize = 256;
@@ -53,7 +54,9 @@ pub(crate) type Rooms = meldframe_rooms::Rooms<AnyStore, MemoryActivityLog, Fact
 #[derive(Debug)]
 pub struct Server {
     registry: Registry,
-    gate: Gate,
+    gate: ApprovalGate,
+    /// The approvals of calls the gate said Ask for (E2.4), in memory.
+    approvals: Approvals,
     rooms: Rooms,
     idle_after: u64,
     live: live::Live,
@@ -104,10 +107,13 @@ impl Server {
             Backing::Memory(_) => None,
         };
         let factory: Factory = Box::new(move |_file| backing.store());
-        let mut gate = Gate::new()
-            .batch_limit(MAX_BATCH_OPS)
-            .ops_per_minute(MAX_OPS_PER_MINUTE, now)
-            .storage_limit(MAX_STORAGE_BYTES);
+        let approvals = Approvals::new(APPROVAL_TTL_MS);
+        let mut gate = approvals.gate(|_, tier| default_policy(tier));
+        approval::tune(&mut gate, |g| {
+            g.batch_limit(MAX_BATCH_OPS)
+                .ops_per_minute(MAX_OPS_PER_MINUTE, now)
+                .storage_limit(MAX_STORAGE_BYTES)
+        });
         // With Postgres the call log is kept there too, so it survives a restart (E2.4).
         let calls: Box<dyn CallLog> = match &pg {
             Some(p) => Box::new(PgCallLog::new(p.clone())),
@@ -115,13 +121,15 @@ impl Server {
         };
         if let Some(pg) = pg {
             let recent = pg.clone();
-            gate = gate
-                .usage(move |ws| pg.workspace_usage(ws).ok().map(|u| (u.ops, u.bytes)))
-                .recent(move |ws, since| recent.ops_since(ws, since).ok());
+            approval::tune(&mut gate, |g| {
+                g.usage(move |ws| pg.workspace_usage(ws).ok().map(|u| (u.ops, u.bytes)))
+                    .recent(move |ws, since| recent.ops_since(ws, since).ok())
+            });
         }
         Server {
             registry,
             gate,
+            approvals,
             rooms: meldframe_rooms::Rooms::new(MAX_OPEN_ROOMS, factory, MemoryActivityLog::new())
                 .with_workspace_limit(MAX_ROOMS_PER_WORKSPACE),
             idle_after: IDLE_AFTER_MS,
@@ -143,9 +151,10 @@ impl Server {
         storage_bytes: u64,
         now_ms: impl Fn() -> u64 + Send + Sync + 'static,
     ) -> Self {
-        self.gate = std::mem::take(&mut self.gate)
-            .ops_per_minute(ops_per_minute, now_ms)
-            .storage_limit(storage_bytes);
+        approval::tune(&mut self.gate, |g| {
+            g.ops_per_minute(ops_per_minute, now_ms)
+                .storage_limit(storage_bytes)
+        });
         self
     }
 
@@ -155,7 +164,7 @@ impl Server {
         mut self,
         extra: impl Fn(&str) -> u64 + Send + Sync + 'static,
     ) -> Self {
-        self.gate = std::mem::take(&mut self.gate).extra_storage(extra);
+        approval::tune(&mut self.gate, |g| g.extra_storage(extra));
         self
     }
 
@@ -288,7 +297,7 @@ impl Server {
         let key = room_key(&who.workspace, file);
         let opened = self.open_room(&who.workspace, &key, at)?;
         self.open_keys.insert(key.clone());
-        let done = self.write(tool, &key, who, ops, at);
+        let done = self.write(tool, file, &key, who, ops, at);
         if done.is_err() && !opened.already_open {
             self.rooms.close(&key);
             self.open_keys.remove(&key);
@@ -315,6 +324,7 @@ impl Server {
     fn write(
         &mut self,
         tool: &str,
+        file: &str,
         key: &str,
         who: &Principal,
         ops: Vec<Op>,
@@ -323,10 +333,14 @@ impl Server {
         let Server {
             registry,
             gate,
+            approvals,
             rooms,
             live,
             ..
         } = self;
+        approvals.prune(at);
+        // An approval covers one op: only a call of one op as sent may ask (a larger call is refused whole).
+        let single = ops.len() == 1;
         let mut done: Vec<Option<Accepted>> = ops
             .iter()
             .map(|op| {
@@ -348,8 +362,25 @@ impl Server {
         let report = rooms
             .with_room(key, |room| {
                 let facts = TreeFacts::new(room.nodes());
-                check_tool(registry, tool, &fresh, &facts)?;
-                gate.submit_with(who, fresh, &facts)
+                // A delete of a node that is not in the file asks nobody: it keeps the refusal it had.
+                let ask = single
+                    && match fresh.as_slice() {
+                        [
+                            Op {
+                                command: meldframe_protocol::Command::RemoveNode { id },
+                                ..
+                            },
+                        ] => room.nodes().iter().any(|n| n.id == *id),
+                        other => other.len() == 1,
+                    };
+                check_tool(registry, tool, &fresh, &facts, ask)?;
+                if let (true, [op]) = (ask, fresh.as_slice()) {
+                    approvals
+                        .submit(gate, who, file, op.clone(), &facts, at)
+                        .map_err(SubmitError::from)
+                } else {
+                    Ok(gate.submit_with(who, fresh, &facts)?)
+                }
             })
             .expect("the room was just opened")?;
         let mut written = report.admitted.into_iter();
@@ -419,16 +450,20 @@ fn known_auto_tool(registry: &Registry, tool: &str, ops: &[Op]) -> Result<(), Re
     tool_tier(registry, tool, highest_tier(ops, Op::tier)).map(|_| ())
 }
 
-/// The whole tool check: as above, and no op above the tool's tier, with the tree to tell small deletes.
+/// The whole tool check: as above, and no op above the tool's tier, with the tree to tell small deletes. A Delete op
+/// of a Change tool is let on to the gate when it may ask (`ask`: the only op of the call, and the node exists): the gate says Ask for it, and
+/// the approval path (E2.4) then asks the owner; any other op above the tier is still denied here.
 fn check_tool(
     registry: &Registry,
     tool: &str,
     ops: &[Op],
     facts: &TreeFacts<'_>,
+    ask: bool,
 ) -> Result<(), Refusal> {
     let highest = highest_tier(ops, |op| op.tier_with(facts));
     let tier = tool_tier(registry, tool, highest)?;
     match highest.filter(|t| rank(*t) > rank(tier)) {
+        Some(RiskTier::Delete) if ask && tier == RiskTier::Change => Ok(()),
         Some(op_tier) => Err(forbidden(op_tier, Policy::Deny)),
         None => Ok(()),
     }

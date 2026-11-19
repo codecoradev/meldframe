@@ -1,4 +1,4 @@
-//! Where the server keeps its files: in memory, or in Postgres through [`PgStore`].
+//! Where the files are kept: in memory, or in Postgres through [`PgStore`]. The server picks one with [`Backing`].
 
 use crate::PgStore;
 use meldframe_host::{Appended, MemoryStore, NewOp, Snapshot, Store, StoreError, StoredOp};
@@ -34,7 +34,8 @@ impl Backing {
         }
     }
 
-    pub(crate) fn store(&self) -> AnyStore {
+    /// The store of one room: a clone of the backing, so rooms of one backing share its durable state.
+    pub fn store(&self) -> AnyStore {
         match self {
             Backing::Memory(m) => AnyStore::Memory(m.clone()),
             Backing::Postgres(p) => AnyStore::Pg(p.clone()),

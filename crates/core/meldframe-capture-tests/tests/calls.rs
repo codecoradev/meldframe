@@ -23,15 +23,14 @@ async fn an_agents_allowed_and_refused_calls_are_logged_with_the_decision_and_no
     )
     .await;
     assert_ne!(ok.is_error, Some(true), "{ok:?}");
-    // Refused: removing a frame with content needs the owner's approval, which does not exist yet.
+    // Asked: removing a frame with content needs the owner's approval (E2.4).
     let refused = call(
         &a,
         "apply_commands",
         json!({"file": "f1", "idempotencyKey": "k2", "commands": [{"type": "removeNode", "id": "hero"}]}),
     )
     .await;
-    assert_eq!(code(&refused), "forbidden");
-    // `apply_commands` is a Change tool, so a delete is above its tier: the gate denies it (an approval path for it is P3).
+    assert_eq!(code(&refused), "approval_required");
 
     let log = h.server.with_server(|s| s.calls(10));
     assert_eq!(log.len(), 2, "{log:?}");
@@ -49,7 +48,11 @@ async fn an_agents_allowed_and_refused_calls_are_logged_with_the_decision_and_no
     );
     assert_eq!(
         (log[1].decision, log[1].outcome.as_str(), log[1].risk),
-        (Some(Decision::Deny), "forbidden", Some(RiskTier::Delete))
+        (
+            Some(Decision::Ask),
+            "approval_required",
+            Some(RiskTier::Delete)
+        )
     );
     assert!(
         !format!("{log:?}").contains("SECRET"),

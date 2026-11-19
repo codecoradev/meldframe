@@ -145,6 +145,42 @@ async fn every_refusal_and_failure_maps_to_one_code_and_status() {
             503,
             "unavailable",
         ),
+        (
+            Failure::Approval {
+                code: "approval_required",
+                id: "apr_1".into(),
+                message: "m".into(),
+            },
+            403,
+            "approval_required",
+        ),
+        (
+            Failure::Approval {
+                code: "approval_denied",
+                id: "apr_1".into(),
+                message: "m".into(),
+            },
+            403,
+            "approval_denied",
+        ),
+        (
+            Failure::Approval {
+                code: "approval_expired",
+                id: "apr_1".into(),
+                message: "m".into(),
+            },
+            403,
+            "approval_expired",
+        ),
+        (
+            Failure::Approval {
+                code: "approval_limit",
+                id: String::new(),
+                message: "m".into(),
+            },
+            429,
+            "approval_limit",
+        ),
     ];
     for (failure, status, code) in cases {
         let res = app(Fake::failing(failure), config())
@@ -153,6 +189,14 @@ async fn every_refusal_and_failure_maps_to_one_code_and_status() {
             .unwrap();
         let (got, v) = json(res).await;
         assert_eq!((got, v["error"]["code"].as_str()), (status, Some(code)));
+        // No approval refusal is retryable as it is: a client that retries by itself would only ask again.
+        if code.starts_with("approval_") {
+            assert_eq!(v["error"]["retryable"], false, "{code}");
+            assert_eq!(
+                v["error"]["approvalId"].is_string(),
+                code != "approval_limit"
+            );
+        }
     }
 }
 

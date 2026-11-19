@@ -2,6 +2,7 @@
 
 use crate::{CallEntry, CallLog, Server, SubmitError, now};
 use meldframe_host::{Principal, Refusal};
+use meldframe_module::RiskTier;
 
 impl Server {
     /// Keep one entry for a write call that ended in `failure` (`None`: it was written). `submit_tool` does this by
@@ -14,6 +15,19 @@ impl Server {
         who: &Principal,
         failure: Option<&SubmitError>,
     ) {
+        // The approval path: a call that asks, or whose approval was refused; the tier asked about is Delete.
+        if let Some(SubmitError::Approval(a)) = failure {
+            let entry = CallEntry::with_code(
+                now(),
+                who,
+                tool,
+                file,
+                Some(RiskTier::Delete),
+                Some(a.code()),
+            );
+            self.calls.record(entry);
+            return;
+        }
         self.record_call_as(
             tool,
             file,
