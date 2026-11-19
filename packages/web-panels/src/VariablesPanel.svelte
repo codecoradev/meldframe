@@ -124,10 +124,13 @@
             </li>
           {/each}
         </ul>
+        {#if c.matched > c.variables.length}
+          <p class="px-3 pb-2 text-caption text-text-faint" data-testid="var-more">{c.matched - c.variables.length} more in {c.name}</p>
+        {/if}
       </section>
     {/each}
     {#if panel.total === 0}
-      <p class="px-3 py-3 text-text-faint">This file has no variables yet. An agent can import a theme or add them.</p>
+      <p class="px-3 py-3 text-text-faint">This file has no variables yet. An agent can import variables or add them.</p>
     {:else if panel.matched === 0}
       <p class="px-3 py-3 text-text-faint">No variable matches the search.</p>
     {/if}

@@ -14,10 +14,27 @@ const WORDS: Record<string, string> = {
   outbox_full: 'Too many changes are waiting for the server. Wait until it catches up.',
 };
 
+// Refusals made on this page, before anything is sent: the Variables panel and the checks of the document.
+const LOCAL: Record<string, string> = {
+  invalid_value: 'That is not a number.',
+  not_bindable: 'That field cannot take a variable here.',
+  E_INVALID_COLOR: 'That is not a colour. Use a hex colour.',
+  E_NOT_FINITE: 'That number is not valid.',
+  E_OUT_OF_RANGE: 'That number is out of range.',
+  E_TYPE_MISMATCH: 'That variable has the wrong type for this field.',
+  E_ALIAS_CYCLE: 'An alias cannot lead back to itself.',
+  E_ALIAS_TOO_DEEP: 'That chain of aliases is too long.',
+  E_VARIABLE_NOT_FOUND: 'That variable no longer exists.',
+  E_MODE_NOT_FOUND: 'That mode no longer exists.',
+  E_COLLECTION_NOT_FOUND: 'That collection no longer exists.',
+};
+
 /** The message for a refusal, null for any other event and for a rejection that the app sends again by itself. */
 export function noticeFor(e: Event): string | null {
   if (e.type === 'opRejected' && e.retryable) return null;
   if (e.type !== 'refused' && e.type !== 'opRejected') return null;
+  // A refusal of the app was decided here; only a rejection of an op comes from the server.
+  if (e.type === 'refused') return WORDS[e.code] ?? LOCAL[e.code] ?? `The change was not made (${e.code}).`;
   return WORDS[e.code] ?? `The server refused the change (${e.code}).`;
 }
 

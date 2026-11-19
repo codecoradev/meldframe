@@ -17,6 +17,21 @@ describe('noticeFor', () => {
   });
 });
 
+describe('noticeFor refusals of the panel and of the document checks', () => {
+  const refused = (code: string) => ({ type: 'refused', code }) as Event;
+  it('words the refusals of the Variables panel without blaming the server', () => {
+    for (const code of ['invalid_value', 'not_bindable', 'E_INVALID_COLOR', 'E_NOT_FINITE', 'E_OUT_OF_RANGE', 'E_TYPE_MISMATCH', 'E_ALIAS_CYCLE', 'E_VARIABLE_NOT_FOUND']) {
+      const text = noticeFor(refused(code))!;
+      expect(text, code).not.toMatch(/server/i);
+      expect(text, code).not.toContain(code);
+    }
+  });
+  it('says a refusal made here was not made, and keeps "the server" for what the server refused', () => {
+    expect(noticeFor(refused('E_SOMETHING_NEW'))).toMatch(/was not made.*E_SOMETHING_NEW/);
+    expect(noticeFor({ type: 'opRejected', key: 'k', code: 'E_SOMETHING_NEW', retryable: false } as Event)).toMatch(/server refused/i);
+  });
+});
+
 describe('noticeFor approvals', () => {
   const rejected = (code: string) => ({ type: 'opRejected', key: 'k', code, retryable: false }) as Event;
   it('says a delete needs the owner\'s approval and was not done, without promising an answer screen', () => {

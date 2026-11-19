@@ -43,7 +43,7 @@ describe('bindAction', () => {
 });
 
 describe('modeAction', () => {
-  const c = { id: 't', name: 'appearance', modes: [{ id: 'light', name: 'light' }, { id: 'dark', name: 'dark' }], active: 'light', variables: [] } as CollectionRow;
+  const c = { id: 't', name: 'appearance', modes: [{ id: 'light', name: 'light' }, { id: 'dark', name: 'dark' }], active: 'light', matched: 0, variables: [] } as CollectionRow;
   it('picks a mode of the collection', () => {
     expect(modeAction(c, 'dark')).toEqual({ type: 'setMode', collection: 't', mode: 'dark' });
   });
@@ -63,7 +63,7 @@ describe('the list', () => {
     query: '',
     total: matched,
     matched,
-    collections: [{ id: 't', name: 't', modes: [], active: '', variables: Array.from({ length: n }, () => row()) }],
+    collections: [{ id: 't', name: 't', modes: [], active: '', matched: n, variables: Array.from({ length: n }, () => row()) }],
   });
   it('counts what is listed and says when the search matched more', () => {
     expect(listedCount(panel(5, 5))).toBe(5);

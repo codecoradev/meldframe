@@ -11,6 +11,6 @@
 
 [crates]
 # The web client's sources (Svelte, scripts, Rust stub) together; went over once Svelte and MJS counted.
-meldframe-web = 4865
+meldframe-web = 4864
 # The checker's own source and tests; a split of its modules is the way down.
 xtask = 2201

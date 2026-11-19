@@ -152,6 +152,24 @@ export interface KeyLike {
 
 const toolKeys: Record<string, Tool> = { v: 'select', f: 'frame', r: 'rectangle', t: 'text' };
 
+/** The part of an element that `ownsKeys` reads. */
+export interface KeyTarget {
+  tagName: string;
+  isContentEditable: boolean;
+  closest(selector: string): unknown;
+}
+
+/**
+ * Whether a key pressed with focus on this element belongs to the element, not to the editor: a field that takes text
+ * keeps every key; a button or anything else in a side panel keeps the plain keys (Enter activates it, Delete and the
+ * tool letters must not reach the canvas), while Ctrl or Cmd combinations such as undo still go to the editor.
+ */
+export function ownsKeys(el: KeyTarget | null, k: { ctrlKey: boolean; metaKey: boolean } = { ctrlKey: false, metaKey: false }): boolean {
+  if (!el) return false;
+  if (el.isContentEditable || /^(input|textarea|select)$/i.test(el.tagName)) return true;
+  return el.closest('aside') !== null && !k.ctrlKey && !k.metaKey;
+}
+
 /** The action of a key of the editor: tools, delete, undo and redo. Null for any other key. */
 export function keyAction(k: KeyLike, selection: readonly string[]): Action | null {
   const mod = k.metaKey || k.ctrlKey;

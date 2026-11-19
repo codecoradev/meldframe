@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
-    "lint": "eslint .",
+    "lint": "eslint . && cd ../../packages/web-panels && eslint -c ../../apps/web/eslint.config.js .",
     "test": "vitest run",
     "ui-literals": "node scripts/ui-literals.mjs",
     "licences": "node scripts/licences.mjs",
