@@ -16,7 +16,7 @@ Plan of record for building W1. Status: draft for owner review, 13 Nov 2026. Req
 2. CI is green: format, lint, tests, layering checks, size ceilings, UI literal lint, licence check, a local Cora agent review of the whole diff, recorded in the pull request, with no major or critical finding left.
 3. Docs touched by the change are updated in the same pull request (architecture, ADR, glossary, MCP tool catalogue).
 4. Agent-facing text and errors are English with stable codes.
-5. Commits are signed off and carry no AI attribution; pull requests stay small (15 files or fewer and under 1,000 changed lines, one kind of content) and the heavier gates are run locally before the pull request.
+5. Commits are signed off and carry no AI attribution; pull requests stay small (15 files or fewer and under 1,000 changed lines, ceilings 20 and 1,500, one kind of content) and the heavier gates are run locally before the pull request.
 
 ## Milestones at a glance
 

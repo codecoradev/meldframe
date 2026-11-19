@@ -1,6 +1,6 @@
 <!-- CI checks that the four sections below exist and have text (pr-checks / pr description).
      No AI attribution anywhere in this description (pr-checks / message standard).
-     Keep the pull request around 1,000 changed lines or fewer. -->
+     Keep the pull request to 15 files or fewer (ceiling 20) and under 1,000 changed lines (ceiling 1,500), one kind of content. -->
 
 ## What
 
