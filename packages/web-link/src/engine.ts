@@ -1,7 +1,7 @@
 // The shell's one handle on the app layer: the WASM `App` behind JSON. It dispatches actions, keeps the
 // latest state, nodes and events for the views, and hands effects to whoever carries them out. It holds
 // no editing rules of its own (those live in meldframe-app).
-import type { Action, AppState, Effect, Event, Node } from '@meldframe/protocol';
+import type { Action, AppState, Effect, Event, Node, Variables } from '@meldframe/protocol';
 import type { Scene } from '@meldframe/web-canvas/scene';
 import init, { initSync, WasmApp } from '@meldframe/wasm';
 import { type PaintedBox, sceneFromBoxes } from './scene';
@@ -23,6 +23,8 @@ export interface EngineOptions {
   session: number;
   nodes: Node[];
   seq: number;
+  /** The collections and variables of the file; leave out for a file without any. */
+  variables?: Variables;
 }
 
 /** Loads the WASM module once. Give the bytes in Node; in the browser it fetches the module itself. */
@@ -43,7 +45,8 @@ export class Engine {
   }
 
   static create(o: EngineOptions): Engine {
-    const app = new WasmApp(o.actor, o.keyPrefix ?? 'web', o.session, JSON.stringify(o.nodes), o.seq);
+    const variables = o.variables ? JSON.stringify(o.variables) : null;
+    const app = new WasmApp(o.actor, o.keyPrefix ?? 'web', o.session, JSON.stringify(o.nodes), o.seq, variables);
     return new Engine(app);
   }
 
@@ -67,7 +70,8 @@ export class Engine {
     // Every change of state or document raises an event; a dispatch without events (a quiet tick, a
     // heartbeat) leaves the snapshot as it is, so the views have nothing to redo.
     if (events.length) {
-      const changed = events.some((e) => e.type === 'documentChanged');
+      // The scene is painted from the nodes and the mode, so a mode switch (view state) redraws it too.
+      const changed = events.some((e) => e.type === 'documentChanged' || e.type === 'modeChanged');
       this.snap = {
         state: this.readState(),
         ...(changed ? this.readDocument() : { nodes: this.snap.nodes, scene: this.snap.scene }),

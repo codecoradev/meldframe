@@ -6,7 +6,7 @@ const answer = (status: number, body: unknown) => async () => new Response(typeo
 describe('loadFile', () => {
   it('reads the snapshot of a file', async () => {
     const f = await loadFile(answer(200, { seq: 4, nodes: [{ id: 'a' }] }) as typeof fetch, 'file_dev');
-    expect(f).toEqual({ seq: 4, nodes: [{ id: 'a' }], attribution: {} });
+    expect(f).toEqual({ seq: 4, nodes: [{ id: 'a' }], variables: { collections: [], variables: [] }, attribution: {} });
   });
   it('keeps the attribution of the server (lastActor, lastSeq) apart from the nodes: the app layer refuses unknown fields', async () => {
     const f = await loadFile(
@@ -17,7 +17,12 @@ describe('loadFile', () => {
     expect(f.attribution).toEqual({ a: { actor: 'agent:dev', seq: 7 } });
   });
   it('a file that does not exist yet is an empty file at sequence 0 (it comes to exist with its first op)', async () => {
-    expect(await loadFile(answer(404, { error: { code: 'not_found' } }) as typeof fetch, 'file_dev')).toEqual({ seq: 0, nodes: [], attribution: {} });
+    expect(await loadFile(answer(404, { error: { code: 'not_found' } }) as typeof fetch, 'file_dev')).toEqual({ seq: 0, nodes: [], variables: { collections: [], variables: [] }, attribution: {} });
+  });
+  it('takes the collections and variables of the snapshot along', async () => {
+    const variables = { collections: [{ id: 't', name: 'theme', modes: [{ id: 'light', name: 'light' }] }], variables: [] };
+    const f = await loadFile(answer(200, { seq: 2, nodes: [], variables }) as typeof fetch, 'file_dev');
+    expect(f.variables).toEqual(variables);
   });
   it('asks for the file by its encoded name', async () => {
     let url = '';

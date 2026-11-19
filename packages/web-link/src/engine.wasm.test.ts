@@ -104,4 +104,19 @@ describe.skipIf(!built)('Engine re-reads only what changed', () => {
     expect(e.stats.sceneReads).toBe(3);
     expect(e.snapshot().scene.nodes).toEqual([]);
   });
+
+  it('paints variables and a mode switch repaints without changing the document', () => {
+    const nodes = [{ id: 'card', type: 'rect', pos: 'a0', fill: { var: 'bg' } }] as unknown as Parameters<typeof Engine.create>[0]['nodes'];
+    const variables = {
+      collections: [{ id: 't', name: 'theme', modes: [{ id: 'light', name: 'light' }, { id: 'dark', name: 'dark' }] }],
+      variables: [{ id: 'bg', collection: 't', name: 'color/bg', type: 'color', values: { light: '#ffffff', dark: '#000000' } }],
+    } as Parameters<typeof Engine.create>[0]['variables'];
+    const e = Engine.create({ actor: 'usr_me', nodes, seq: 0, session: 1, variables });
+    expect(e.snapshot().scene.nodes[0]!.fill).toBe(0xffffff);
+    const before = JSON.stringify(e.snapshot().nodes);
+    const fx = e.dispatch({ type: 'setMode', collection: 't', mode: 'dark' });
+    expect(fx).toContainEqual({ type: 'render', nodes: [] });
+    expect(e.snapshot().state.modes).toEqual({ t: 'dark' });
+    expect(JSON.stringify(e.snapshot().nodes)).toBe(before);
+  });
 });

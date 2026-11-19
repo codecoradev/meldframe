@@ -1,6 +1,6 @@
 # Tokens and variables
 
-Status: **draft for owner review** (13 Nov 2026). `[P]` = proposed decision, `[Q]` = open question, `[A]` = assumption. Related decisions: `decisions.md` #3, #6, #7, #15, #17, #19. This is a design document, not product code. The spike (`wonder-proto`, branch `spike/rust-core`) has no token support; its `Node` stores `fill` as a plain string (default `#3f3f46`), uniform `padding`/`radius`/`gap`, uniform `border`, up to 4 `shadows`, `font_weight`, optional `image`. No margin, opacity, gradient, "no fill" or per-side padding.
+Status: **draft for owner review** (13 Nov 2026). What E3.3 built of it, and where it chose differently, is in ADR-0016: the model, bindings (`fill`, `radius`, `opacity` only so far), resolution, the mode switch as view state, undo and storage. Sections 3 to 5 below stay the design; 6 onwards (canvas modes per frame, import, export) are not built. `[P]` = proposed decision, `[Q]` = open question, `[A]` = assumption. Related decisions: `decisions.md` #3, #6, #7, #15, #17, #19. This is a design document, not product code. The spike (`wonder-proto`, branch `spike/rust-core`) has no token support; its `Node` stores `fill` as a plain string (default `#3f3f46`), uniform `padding`/`radius`/`gap`, uniform `border`, up to 4 `shadows`, `font_weight`, optional `image`. No margin, opacity, gradient, "no fill" or per-side padding.
 
 ## 1. Goals and non-goals
 

@@ -173,7 +173,7 @@ An MCP tool call that fails returns a tool error (`isError: true`) whose structu
 
 The client-side `Replica` (`crates/core/meldframe-sync`) refuses a new local op (`apply`, `undo`, `redo`) with a `SubmitError`, and a `resync` with a `ResyncError`. An invalid command keeps the `E_` code of its `ApplyError` from the table above, and a bad snapshot keeps the code of its `LoadError`; the replica adds the two codes below, with the same rules: a code never changes meaning and is never reused, and a refused call changes nothing (the op is not applied, queued or recorded in the history; the replica is left as it was).
 
-The app layer (`meldframe-app`) words a refusal of a document action as `Event::Refused { code }` and has no wire code for these: a full queue is `outbox_full` (a list action, such as moving a selection, is checked whole first), and a refused `Action::Reload` carries the `E_` code of the `ResyncError`.
+The app layer (`meldframe-app`) words a refusal of a document action as `Event::Refused { code }` and has no wire code for these: a full queue is `outbox_full` (a list action, such as moving a selection, is checked whole first), and a refused `Action::Reload` carries the `E_` code of the `ResyncError`. A refusal about variables keeps its `E_` code from the first table (`Action::SetMode` and `Action::EditVariables` too), and `Action::EditVariables` answers `not_a_variable_command` for a command that is about nodes.
 
 A test in `crates/core/meldframe-sync-scenarios/tests/outbox_cap.rs` reads this table and fails if the rows differ from the codes, or if the section stops naming the app's `Event::Refused` and `outbox_full`.
 
