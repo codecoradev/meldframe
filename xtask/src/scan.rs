@@ -27,8 +27,13 @@ fn root_of(manifest_dir: &str) -> PathBuf {
         .unwrap_or_default()
 }
 
+/// Build outputs that exist at a known path, relative to the workspace root. Only these exact
+/// directories are skipped (a `dist` or `target` anywhere else is source and is scanned).
+const SKIPPED_DIRS: &[&str] = &["target", "apps/web/dist"];
+
 /// Every file under `dir` whose extension is in `exts`, as `/`-separated paths relative to
-/// `root`, sorted. Skips `target`, `node_modules`, `dist` and hidden directories.
+/// `root`, sorted. Skips the directories in `SKIPPED_DIRS`, `node_modules` at any depth and hidden
+/// directories, and does not follow symbolic links.
 pub fn files(root: &Path, dir: &str, exts: &[&str]) -> Vec<String> {
     let mut out = Vec::new();
     walk(root, &root.join(dir), exts, &mut out);
@@ -41,21 +46,31 @@ fn walk(root: &Path, dir: &Path, exts: &[&str], out: &mut Vec<String>) {
         return;
     };
     for e in entries.flatten() {
+        // `DirEntry::file_type` does not follow links: a symlink is neither a dir nor a file here.
+        let Ok(kind) = e.file_type() else {
+            continue;
+        };
         let path = e.path();
         let name = e.file_name().to_string_lossy().into_owned();
-        if path.is_dir() {
-            if !matches!(name.as_str(), "target" | "node_modules" | "dist")
+        let rel = path
+            .strip_prefix(root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        if kind.is_dir() {
+            if name != "node_modules"
                 && !name.starts_with('.')
+                && !SKIPPED_DIRS.contains(&rel.as_str())
             {
                 walk(root, &path, exts, out);
             }
-        } else if path
-            .extension()
-            .and_then(|x| x.to_str())
-            .is_some_and(|x| exts.contains(&x))
+        } else if kind.is_file()
+            && path
+                .extension()
+                .and_then(|x| x.to_str())
+                .is_some_and(|x| exts.contains(&x))
         {
-            let rel = path.strip_prefix(root).unwrap_or(&path);
-            out.push(rel.to_string_lossy().replace('\\', "/"));
+            out.push(rel);
         }
     }
 }
@@ -69,6 +84,55 @@ pub fn read(root: &Path, rel: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn tree(name: &str, files: &[&str]) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("xtask-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        for f in files {
+            let p = dir.join(f);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(p, "x\n").unwrap();
+        }
+        dir
+    }
+
+    #[test]
+    fn only_the_top_level_target_and_the_known_build_outputs_are_skipped() {
+        let root = tree(
+            "skip",
+            &[
+                "target/a.rs",
+                "crates/x/target/b.rs",
+                "crates/x/src/dist/c.rs",
+                "apps/web/dist/d.js",
+                "apps/web/src/e.js",
+                "apps/web/node_modules/m/f.js",
+                "crates/x/node_modules/g.js",
+                ".hidden/h.rs",
+            ],
+        );
+        let got = files(&root, "", &["rs", "js"]);
+        fs::remove_dir_all(&root).unwrap();
+        assert_eq!(
+            got,
+            [
+                "apps/web/src/e.js",
+                "crates/x/src/dist/c.rs",
+                "crates/x/target/b.rs"
+            ]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinks_are_not_followed() {
+        let root = tree("link", &["a/real.rs", "b/other.rs"]);
+        std::os::unix::fs::symlink(root.join("a"), root.join("a/loop")).unwrap();
+        std::os::unix::fs::symlink(root.join("b/other.rs"), root.join("a/file.rs")).unwrap();
+        let got = files(&root, "", &["rs"]);
+        fs::remove_dir_all(&root).unwrap();
+        assert_eq!(got, ["a/real.rs", "b/other.rs"]);
+    }
 
     #[test]
     fn the_root_is_the_parent_of_the_xtask_directory() {
