@@ -5,6 +5,10 @@ Status: **proposal** for decision 15 (`docs/decisions.md`). Written 2026-11-13 f
 `experiments/fidelity-oracle/` (see its README). Every number below was produced by that harness unless it is marked
 "from the spike docs".
 
+Since E4.2 the oracle runs against the product export (the `export` crate) from `tools/fidelity-oracle/`, in pull request CI
+and nightly; section 7 says what it checks now and what it cannot prove, and the status of each row of section 4 says what
+the product export emits. The sections that describe the experiment (8, 12) keep the numbers of the spike run.
+
 Section 12 lists what the experiment does **not** prove. Read it before quoting any number from this document.
 
 ## 1. Purpose
@@ -29,7 +33,7 @@ An export is faithful when, for the same document, in a Chromium-class browser w
 | L1 Geometry | For every node, the DOM border box (`getBoundingClientRect`: x, y, width, height) equals the core rect | **<= 0.05 px** (observed maximum 0.034 px); the hard fail line is 1 px | oracle A |
 | L2 Text | Same line breaks (same box height), and glyph ink bounding box edges within **1 px** of the canvas text | 1 px | oracle C |
 | L3 Paint (solid) | Solid areas of fills, borders (inside/center/outside), shadows (offset, spread, hard edge), image fit (cover/contain/fill) and clipping have the same geometry as the model semantics | exact colour at probe points away from edges (tolerance 40/255 per channel to absorb anti-aliasing) | oracle B |
-| L3 Paint (soft) | Blurred shadow falloff | within 20/255 intensity of the canvas blur (measured today: 19/255) | oracle D |
+| L3 Paint (soft) | Blurred shadow falloff | within 20/255 intensity of the canvas blur (measured today: 19/255) | oracle D (CSS model against Pixi, not through the export) |
 
 The tolerances held at every viewport width and device pixel ratio tested (1280 px and 700 px viewport, DPR 1 and 2).
 Document coordinates are in CSS px; the export has absolute roots, so viewport width does not move anything.
@@ -52,12 +56,13 @@ Chromium, and any document that violates a rule in section 5.
 
 ## 4. Supported subset
 
-Status legend: **supported** = emitted by the export today (`crates/export` at the spike commit) and verified by the oracle;
-**planned** = in the model, not emitted by the export today, and the mapping shown was verified by the oracle as an
-experiment overlay (it still has to be implemented in the real export and put under the oracle test); **planned (model)**
-= not in the model yet (concept.md W1 or later); **unsupported** = deliberately outside the contract, with the reason.
+Status legend: **supported** = emitted by the product export (`crates/features/export/export`, E4.1) and checked by the oracle of
+`tools/fidelity-oracle` (E4.2: fixtures `f01` to `f18`, the paint probes, the ink cases); **partly** = emitted, checked, and a
+known gap is listed in `tools/fidelity-oracle/known-gaps.mjs`; **planned (model)** = not in the model yet (concept.md W1 or
+later); **unsupported** = deliberately outside the contract, with the reason. The notes of a row keep what the spike
+experiment found; where they say "the spike emitted ..." that was the spike export, which the product export replaced.
 
-"Tailwind" is the utility the spike emits. It uses arbitrary values everywhere (`p-[16px]`), which is exact but not
+"Tailwind" is the utility the product export emits. It uses arbitrary values everywhere (`p-[16px]`), which is exact but not
 idiomatic; token-based classes arrive with decision 17.
 
 ### 4.1 Structure and geometry
@@ -71,42 +76,42 @@ idiomatic; token-based classes arrive with decision 17.
 | `sw`/`sh` = `hug` on a text node | `width/height:auto`, `min-width:<measured>px`, `line-height:<px>`, `white-space` | `min-w-[..] leading-[..] whitespace-..` | supported | the `min-width` pin makes the box equal to the core's ceil-ed width even when the DOM would be fractional |
 | `sw`/`sh` = `hug` on a layout frame | width `fit-content`, height auto | `w-fit` | supported | hug on rect, ellipse or a frame without layout is treated as `fixed` (core does the same) |
 | `sw`/`sh` = `fill`, parent is a layout frame, parent not hug on that axis | main axis `flex:1 1 0%; min-width:0` (or `flex:1 1 <core px>` when fill siblings have different padding); cross axis `align-self:stretch` | `flex-1 min-w-[0px]`, `self-stretch` | supported | rule G1 |
-| `sw`/`sh` = `fill` where the parent is hug on that axis, or the parent has no layout | none: treated as `fixed` with the node's own `w`/`h` | `w-[..]` | **planned** | the core resolves such a fill to the node's stored `w`/`h` in a frame without layout. In a hug layout frame the core sizes it from what the parent hugs (an equal share among the fill children on the main axis, the whole size on the cross axis, as `align-self: stretch` does), so canvas and export can differ there until rule G1 is applied at write time; `get_tree` says which in the `fill_under_hug` finding. The spike export does this for the main axis only (with a warning) and emits `stretch` for the cross axis, which fails (section 8.3). Rule G1: the validator normalises it to `fixed` |
+| `sw`/`sh` = `fill` where the parent is hug on that axis, or the parent has no layout | none: treated as `fixed` with the node's own `w`/`h` | `w-[..]` | **partly** | the core resolves such a fill to the node's stored `w`/`h` in a frame without layout. In a hug layout frame the core sizes it from what the parent hugs (an equal share among the fill children on the main axis, the whole size on the cross axis, as `align-self: stretch` does), so canvas and export can differ there until rule G1 is applied at write time; `get_tree` says which in the `fill_under_hug` finding. The spike export did this for the main axis only (with a warning) and emitted `stretch` for the cross axis, which failed (section 8.3). Rule G1: the validator normalises it to `fixed`. Product today: the export keeps the node's own size and reports `fill_under_hug`; f17 is a known gap until the write-time validator makes it `fixed`. |
 | `layout` row / column | `display:flex; flex-direction` | `flex flex-row/col` | supported | |
 | `gap` | `gap` (omitted when 0) | `gap-[..]` | supported | |
 | `padding` (one value, all sides) | `padding` (omitted when 0) | `p-[..]` | supported | applies to layout frames only; core ignores padding on frames without layout |
 | `align` start / center / end | `align-items: flex-start/center/flex-end` | `items-start/center/end` | supported | cross axis. Negative free space behaves the same in core and CSS |
 | `justify` start / between | `justify-content: flex-start / space-between` | `justify-start / justify-between` | supported | |
-| `justify` center / end | `justify-content: safe center / safe flex-end` | `[justify-content:safe_center]`, `[justify-content:safe_flex-end]` | **planned** | the spike emits plain `center`/`flex-end`. When children overflow the container, the core clamps to the start edge and plain CSS overflows on both sides (f13: 35 px for center, 70 px for end). With `safe` the error is 0.000 px |
-| `clip` (frame) | `overflow:hidden` | `overflow-hidden` | supported | boxes verified; clipping paint not probed |
+| `justify` center / end | `justify-content: safe center / safe flex-end` | `[justify-content:safe_center]`, `[justify-content:safe_flex-end]` | supported | the spike emitted plain `center`/`flex-end`; the product emits `safe`. When children overflow the container, the core clamps to the start edge and plain CSS overflows on both sides (f13: 35 px for center, 70 px for end). With `safe` the error is 0.000 px |
+| `clip` (frame) | `overflow:hidden` | `overflow-hidden` | supported | boxes verified (f04 has a clipping frame); the paint of the clip is probed only where it meets a radius or an ellipse (f08: the image is clipped at a rounded corner and by an ellipse) |
 | `radius` | `border-radius:<px>` | `rounded-[..]` | supported | verified up to radius = half the height (probe). The canvas clamps to `min(radius, w/2, h/2)`; CSS clamps by its own rule, which gives the same shape for a single radius, but radius above half the size was **not** tested |
 | `fill` colour (frame/rect/ellipse) | `background-color` (omitted when transparent) | `bg-[#..]` | supported | |
 | `fill` on text | `color` | `text-[color:..]` | supported | |
 | `fill` + `fill2` on shader | `background:linear-gradient(135deg, ..)` | `bg-[linear-gradient(..)]` | unsupported | GPU shader has no CSS equivalent; exported as an approximation with a warning. Not part of the fidelity promise |
 
-### 4.2 Typography and decoration (model additions M3A, M3B; the spike export predates them)
+### 4.2 Typography and decoration (model additions M3A, M3B)
 
 | Model property | CSS | Tailwind | Status | Notes |
 |---|---|---|---|---|
 | `fontSize` | `font-size:<px>` | `text-[length:..]` | supported | fractional sizes verified (11.7, 13.5, 14.3 px: max 0.034 px) |
-| `fontWeight` 100..900 | `font-weight:<n>` | `font-[<n>]` | **planned** | the spike hard-codes 400. Weight changes the glyphs (as-exported right ink edge 10 px short at 700, 17 px at 900) and the width; the text measure table must be keyed by weight (section 6). With the mapping, ink edges are within 1 px |
-| `textAlign` left / center / right | `text-align` | `text-center`, `text-right` | **planned** | the spike ignores it (as-exported ink off by 83 px centered, 197 px right-aligned in a 300 px box). With the mapping: within 1 px, including wrapped and multi-line text |
-| `border` `{width, color, position}`, uniform | `::after{position:absolute; inset:0 / -w/2 / -w; border:w solid color; border-radius; pointer-events:none}` on a `position:relative` node | no named utility (arbitrary `after:` variants) | **planned** | NOT a CSS `border`: a real border takes space out of the content box of a border-box element and would move children, while the canvas border is paint only (inside/center/outside all verified by probes, 12/12 for border, rounded corner included). Painting above children matches the canvas. Tailwind form of the pseudo-element not compiled in this experiment |
-| `shadows[]` (x, y, blur, spread, colour) | `box-shadow:` list **reversed** | `shadow-[..]` | **planned** | model order is first = bottom; CSS first = top. Probes: offset, spread, hard edge, order pass. Blur: close but not identical to the canvas filter (section 8.5) |
-| `image` `{assetId, fit}` | `background-image:url(..); background-size: cover / contain / 100% 100%; background-position:center; background-repeat:no-repeat` over `background-color` | `bg-[url(..)] bg-cover / bg-contain / bg-[length:100%_100%] bg-center bg-no-repeat` | **planned** | cover, contain (letterbox shows the fill), fill, rounded rect and ellipse clipping: 14/14 probes. `assetId` must be resolved to a URL by the export (open question 7). Tailwind form not compiled |
-| text `white-space` for hug / wrap / newline | `pre` (hug), `pre-wrap` (wrap) with `word-break:keep-all` | `whitespace-pre`, `whitespace-pre-wrap` | **planned** | the spike emits `nowrap` / `pre-line` / default, which collapse repeated spaces; the canvas keeps them (36 px vs 18 px height in f14) |
-| text `line-height` for text with explicit `\n` | single-line height in px | `leading-[..]` | **planned** (bug fix) | the spike uses the height of the whole multi-line text as the per-line height: a 3-line text becomes 153 px instead of 51 px (+102 px) |
+| `fontWeight` 100..900 | `font-weight:<n>` | `font-[<n>]` | supported | the spike hard-coded 400. Weight changes the glyphs (as-exported right ink edge 10 px short at 700, 17 px at 900) and the width; the text measure table must be keyed by weight (section 6). With the mapping, ink edges are within 1 px |
+| `textAlign` left / center / right | `text-align` | `text-center`, `text-right` | supported | the spike ignored it (as-exported ink off by 83 px centered, 197 px right-aligned in a 300 px box). With the mapping: within 1 px, including wrapped and multi-line text |
+| `border` `{width, color, position}`, uniform | `::after{position:absolute; inset:0 / -w/2 / -w; border:w solid color; border-radius; pointer-events:none}` on a `position:relative` node | no named utility (arbitrary `after:` variants) | supported | NOT a CSS `border`: a real border takes space out of the content box of a border-box element and would move children, while the canvas border is paint only (inside/center/outside all verified by probes, 12/12 for border, rounded corner included). Painting above children matches the canvas. The Tailwind form (arbitrary `after:` classes) is built with the Tailwind v4 compiler by the oracle and draws the same pixels as the CSS form (f07) |
+| `shadows[]` (x, y, blur, spread, colour) | `box-shadow:` list **reversed** | `shadow-[..]` | supported | model order is first = bottom; CSS first = top. Probes: offset, spread, hard edge, order pass. Blur: close but not identical to the canvas filter (section 8.5) |
+| `image` `{assetId, fit}` | `background-image:url(..); background-size: cover / contain / 100% 100%; background-position:center; background-repeat:no-repeat` over `background-color` | `bg-[url(..)] bg-cover / bg-contain / bg-[length:100%_100%] bg-center bg-no-repeat` | supported | cover, contain (letterbox shows the fill), fill, rounded rect and ellipse clipping: 14/14 probes. `assetId` is resolved to `assets/<id>` by the export (`asset_base`); the oracle serves a test image there. The Tailwind form is compiled and draws the same pixels as the CSS form (f08) |
+| text `white-space` for hug / wrap / newline | `pre` (hug), `pre-wrap` (wrap) with `word-break:keep-all` | `whitespace-pre`, `whitespace-pre-wrap` | **partly** | f14 is a known gap (breaks at slashes, URLs, CJK and tabs, and a trailing newline); the spike emitted `nowrap` / `pre-line` / default, which collapse repeated spaces; the canvas keeps them (36 px vs 18 px height in f14) |
+| text `line-height` for text with explicit `\n` | single-line height in px | `leading-[..]` | **partly** | checked with newlines in f05 and the ink cases (nlL, nlC, nlR); f14 (a trailing newline: Pixi keeps the empty last line, the browser does not) is a known gap. The spike used the height of the whole multi-line text as the per-line height: a 3-line text becomes 153 px instead of 51 px (+102 px) |
 
 ### 4.3 Not in the model today, and the contract position
 
 | Property | Status | Position |
 |---|---|---|
-| opacity | in the model and drawn on the canvas (E3.2, ADR-0013); not exported until an oracle probe | maps to `opacity`; becomes supported in export only with an oracle probe (note: opacity creates a stacking context, check overlapping children) |
-| gradients | in the model and on the canvas (E3.2: `gradient`, linear and radial; one gradient per node, over the fill); not exported until an oracle probe |
+| opacity | in the model and drawn on the canvas (E3.2, ADR-0013); exported as `opacity` and probed on pixels (f18: a node and what is inside it, both forms) | maps to `opacity`; supported (f18). Note: opacity creates a stacking context, check overlapping children |
+| gradients | in the model and on the canvas (E3.2: `gradient`, linear and radial; one gradient per node, over the fill); exported, **not probed yet** |
 | multiple fills | planned (model, W1) | `linear-gradient`/`radial-gradient` layers; needs probes for angle conventions |
-| per-side padding | in the model and the layout (E3.2: `padT`, `padR`, `padB`, `padL`); not exported until an oracle probe | `padding: t r b l`; the S9 spike docs report that 12 of 25 frames of a hand-made shop page fell back to free layout when captured, mostly 9 buttons with `padding: 12px 20px` |
-| absolute child inside an auto layout frame | planned (model, W1) | `position:absolute` child of a `position:relative` flex container; removes the child from flow, as `ignoreAutoLayout` in the model would |
-| margin | in the model and the layout (E3.2: `marT`, `marR`, `marB`, `marL`); not exported until an oracle probe (the TypeScript oracle has no margin, so the golden trees do not cover it) | the spike capture turns margins into gap/padding; per-child margin only if round trip is required |
+| per-side padding | in the model and the layout (E3.2: `padT`, `padR`, `padB`, `padL`); exported and checked on boxes (f16) | `padding: t r b l`; the S9 spike docs report that 12 of 25 frames of a hand-made shop page fell back to free layout when captured, mostly 9 buttons with `padding: 12px 20px` |
+| absolute child inside an auto layout frame | in the model (`absolute`); exported and checked on boxes (f16) | `position:absolute` child of a `position:relative` flex container; removes the child from flow, as `ignoreAutoLayout` in the model would |
+| margin | in the model and the layout (E3.2: `marT`, `marR`, `marB`, `marL`); exported and checked on boxes (f16) | the spike capture turns margins into gap/padding; per-child margin only if round trip is required |
 | design tokens as CSS variables | planned (model, W1; decision 17) | `var(--token)`; the oracle resolves variables in the browser, so geometry tests are unchanged |
 | per-corner radius, rotation, scale, skew | unsupported until proposed | rotation changes `getBoundingClientRect`; the oracle would compare untransformed layout boxes |
 | flex-wrap, CSS grid, min/max size, aspect ratio, space-around, baseline alignment, sticky/fixed | unsupported until proposed | each needs a core implementation and its own oracle fixtures first |
@@ -154,28 +159,64 @@ idiomatic; token-based classes arrive with decision 17.
 
 ## 7. Running the oracle in CI
 
-Inputs: the Meldframe export (the crate that will replace `spike-export`), the shipped Inter woff2, the layout core, Chromium
-through Playwright. The experiment harness does this today against the spike export; the CI job for Meldframe should keep
-the same shape.
+The oracle is `tools/fidelity-oracle/` (README there), run by the `oracle` job of `ci.yml` on every pull request and by
+`fidelity-oracle` in `nightly.yml`. The `oracle` job is not a required context yet; the owner decides when it becomes one
+(E4.2 stays unticked until the job is required and green on `develop`).
 
-1. Build the exporter and the core measurement path.
-2. For each fixture document (hand-written fixtures plus seeded fuzz documents): compute core rects with the measure table
-   from the real text engine; export HTML and Tailwind; compile Tailwind (v4 compiler, `@tailwind utilities`, candidates
-   from the `class` attributes); load each in Chromium at three settings (1280 px DPR 1, 700 px DPR 1, 1280 px DPR 2); read
-   every `[data-node]` box.
-3. Gates (exit code 1 on any violation, `experiments/fidelity-oracle/gate.mjs`):
-   - every fixture outside the known-gap list: max box delta <= 0.05 px, all three settings, HTML and Tailwind;
-   - Tailwind output equals plain CSS output for rects (<= 0.001 px);
-   - Rust core equals the reference layout (<= 1e-6) whenever the table is complete;
-   - fuzz documents that satisfy rules G1 to G3: 0 nodes above 0.5 px;
-   - pixel probes (border, shadow, image, clipping) all pass; text ink edges within 1 px; blur falloff within 20/255;
-   - a known-gap fixture that starts passing fails the job, so the contract is updated rather than silently out of date.
-4. Pull-request job: hand-written fixtures plus 50 fuzz seeds. Nightly: 500+ seeds. A failing seed is printed with its
-   document so that it can be added as a fixture.
-5. Pin Chromium and Playwright versions; a browser upgrade is its own change that must pass the gates.
+How it works:
 
-Cost observed here (software rendering, one machine): the 15 hand-written fixtures take 12 s (3 viewport/DPR settings x 2
-formats each); oracles B, C and D together take 46 s; 200 fuzz documents take about 95 s per variant.
+1. `oracle-runner` (`crates/core/meldframe-oracle-runner`, kind tool) reads fixture files as JSON, lays the file out with
+   the layout core (`compute_rects`) and calls `export_frame` for each top-level frame, in the CSS form and the Tailwind
+   form. It prints the core rects and the exports. The geometry the browser is compared with is the core's, computed
+   separately from the export's own layout call.
+2. Text: the core asks a measurer for every text. The runner replays a table recorded in Chromium with Pixi
+   `CanvasTextMetrics` and Inter (`ExportOptions::measurer` is that table), keyed by text, size, weight and wrap width on a
+   1/64 px grid. A query the table lacks is answered by the stub measurer and returned as a miss; the harness measures it
+   in the browser and runs again, until no query is missing (2 or 3 runs).
+3. Tailwind: the v4 compiler (`css` of the export is the input, the classes of the HTML are the candidates).
+4. Each page is loaded as delivered (HTML page, stylesheet, the font and the test image served where the page asks for them)
+   in Chromium at 1280 px DPR 1, 700 px DPR 1 and 1280 px DPR 2 (fuzz files at 1280 px DPR 1), and every `[data-node]`
+   box is read.
+5. Gates (exit code 1 on any violation, `tools/fidelity-oracle/gate.mjs`):
+   - every fixture outside `known-gaps.mjs`: every box within 0.05 px of the core rect, in both forms and all settings,
+     no node missing, the font loaded;
+   - the Tailwind page equals the CSS page: boxes within 0.001 px, and the screenshots of the paint fixtures identical;
+   - fuzz files (rule G1 applied to them) that do not fall under rule G3: every box within 0.05 px; files under G3 are
+     counted and not gated; a failing seed prints its file, to be added as a fixture;
+   - paint probes (border inside, center and outside, shadow offset, spread and order, image cover, contain and fill,
+     clipping, opacity), text ink edges within 1 px, and the CSS blur model within 20/255 of the Pixi blur (that last check compares a hand-written CSS page with Pixi and does not go through the export: it says how close the blur the export writes would be, not that the export wrote it; the shadow probes through the export cover offset, spread and order, not blur);
+   - a fixture in `known-gaps.mjs` that starts passing fails the job, as does an entry that is no longer a fixture: the entry
+     is removed and this contract updated.
+6. Pull requests run the fixtures and 50 fuzz seeds, the nightly 500. Playwright 1.63.0, Pixi 8.23.0, Tailwind 4.3.5 and
+   Inter 5.3.0 are exact in `package.json` and the lockfile; a browser upgrade is its own change that must pass the gates.
+
+Known gaps today: `f14-text-edge` (break opportunities outside section 6.7) and `f17-fill-under-hug` (rule G1).
+
+Measured on the development machine (software rendering): the fixtures and 50 seeds take about 10 to 17 s in the browser,
+500 seeds about 40 s, plus the build of the runner and `npm ci`; the CI time is measured on the first runs of the job and is not known yet.
+
+What the oracle cannot prove (the list for the product oracle; the experiment's own is section 12):
+
+- **The "canvas" side is the layout core, not the editor.** Only the export and the layout findings call the layout core
+  (`compute_rects`) today; the editor paints the stored `x`, `y`, `w` and `h` of each node (`resolve_with` does not lay
+  anything out). The oracle shows that the export reproduces the core's layout in a browser. Whether the boxes stored in a
+  file, and so drawn on the canvas, equal the core's layout is not checked by it.
+- **The text table is Chromium's measurer by assumption.** The core and the export agree on text because both use the one
+  measurer they are given: the export pins `min-width` and `line-height` from it and the core sizes the boxes with it.
+  Here that is a table recorded with Pixi in Chromium, so the boxes are right when the browser breaks lines as Pixi
+  does (section 6). The MCP export tool uses `StubMeasurer` (half an em per character, breaks at spaces only) because the
+  server has no browser: its pinned widths and line heights are the stub's, and a browser that wraps real text
+  differently gives other heights. The oracle does not measure that distance.
+- **Text ink compares against a Pixi page that follows the contract, not the app.** The product canvas draws text without
+  weight and alignment (coverage table: NOT_DRAWN), so those cases test the export against the contract's canvas.
+- **One browser, one machine class.** Chromium 153 headless with software rendering, Inter latin only, three viewport and
+  DPR settings. No other browser or OS. Glyphs outside Inter fall back to system fonts.
+- **The fuzz generator** produces auto layout, hug, fill, fixed, text, rect and ellipse; not borders, shadows, images,
+  weights, alignment, margins, variables or gradients. Those are covered by hand-written fixtures and probes only, so
+  their interactions are not.
+- **Rule G3 files are not gated**, and the export's own `overflow` and `smaller_than_padding` warnings skip every frame
+  that holds a hug text: of 500 seeds, 207 are under G3 and for 89 of them the export gave no such warning.
+- **Pixel probes check points, not whole images.** Variables (`var(--...)`), gradients and shaders have no probe.
 
 ## 8. Experiment results
 
@@ -385,8 +426,8 @@ outside a browser, the cost side of (b) shrinks. Nothing measured here argues fo
 
 Decisions made after this draft (`docs/decisions.md` items 20 to 24; ADR-0003, ADR-0007, ADR-0010):
 
-- **Where the oracle lives.** The oracle becomes the CI test of the `export` feature module and consumes the render model; the harness in `experiments/` is the seed for it and is not product code. Moving it into the product crates follows the layering rules (kind, size ceilings, build matrix); until then it stays under `experiments/`.
+- **Where the oracle lives.** The oracle is the CI test of the `export` feature module (E4.2): `tools/fidelity-oracle/` (Node harness) and `crates/core/meldframe-oracle-runner` (kind tool). `experiments/fidelity-oracle/` stays as the history of the spike run and is not run.
 - **Export is a feature module.** It registers its agent tool (for example an export tool, Read tier) in the module registry and can be left out of a build (ADR-0007). The geometry source of truth stays in the core (ADR-0003).
 - **Headless Chromium.** CI may depend on it (open question 2 stays with the owner). Runtime verification by a headless browser is part of decision 18, which is decided in the repository when a real agent workflow needs it; no separate spike.
-- **Generated results.** The per-node oracle output is not committed; the experiment can be rerun with `run.mjs`. The numbers quoted in section 8 are the recorded results of the run on 13 Nov 2026.
+- **Generated results.** The per-node oracle output is not committed (`tools/fidelity-oracle/out/`, git-ignored). The numbers quoted in section 8 are the recorded results of the spike run on 13 Nov 2026.
 
