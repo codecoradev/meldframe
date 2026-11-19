@@ -6,7 +6,7 @@
 use crate::file_state::FileState;
 use crate::inverse::descendants;
 use meldframe_core::{ApplyError, apply_planned_doc, plan_doc};
-use meldframe_protocol::{Command, Node, Variables};
+use meldframe_protocol::{Command, Doc, Node, Variables};
 use meldframe_undo::RemoteCtx;
 
 /// What the remote command removed, read from the tree before it is applied.
@@ -47,9 +47,10 @@ fn remote_ctx(nodes: &[Node], vars: &Variables, r: &Command) -> RemoteCtx {
 
 impl FileState {
     /// Rewrite my undo and redo steps against a remote command without applying it. `before` is the
-    /// tree the remote command applies to (a replica's confirmed state, not its view).
-    pub fn transform_remote(&mut self, cmd: &Command, before: &[Node]) {
-        let ctx = remote_ctx(before, &self.doc.vars, cmd);
+    /// document the remote command applies to (a replica's confirmed state, not its view): the nodes and the
+    /// variables of the context are both read from it, never from `self.doc`.
+    pub fn transform_remote(&mut self, cmd: &Command, before: &Doc) {
+        let ctx = remote_ctx(&before.nodes, &before.vars, cmd);
         self.hist.rewrite(cmd, &ctx);
     }
 

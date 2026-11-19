@@ -408,7 +408,7 @@ impl Replica {
             .map_err(|e| ReplicaError::Diverged(e.to_string()))?;
         // Another actor (or an op of mine that was dropped): my history is rewritten against it, the
         // confirmed state moves on and the view is built again from it.
-        self.view.transform_remote(cmd, &self.base.nodes);
+        self.view.transform_remote(cmd, &self.base);
         if let Some(w) = self.ideal.as_mut() {
             drop(apply_doc(w, cmd, &self.limits));
             self.ideal_touched.add(cmd);
