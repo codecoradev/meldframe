@@ -74,7 +74,12 @@ jobs:
       - name: Layering (kinds, groups, UI toolkit usage)
         run: cargo xtask deps-check
       - name: Size limits (500 lines per file, 2,000 per crate, tests included)
-        run: cargo xtask size-check
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          # The allow-list may not grow against the pull request's base branch (`--base`), so fetch it.
+          git fetch --no-tags --depth=1 origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          cargo xtask size-check --base "origin/${BASE_REF}"
       - name: Licences of third-party crates
         run: cargo xtask licences --check
       - name: UI literals (colours, fonts and sizes come from the tokens)
