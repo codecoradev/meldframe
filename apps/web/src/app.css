@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 @import './tokens.css';
+/* The panels live in packages/web-panels; Tailwind reads their classes from there. */
+@source '../../../packages/web-panels/src';
 
 /* Tailwind's own palette, type sizes and radii are switched off: only the tokens exist as utilities. */
 @theme inline {

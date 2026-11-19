@@ -10,12 +10,13 @@
   import type { Engine } from '@meldframe/web-link/engine';
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
   import Canvas from './canvas/Canvas.svelte';
-  import { createActionFor, keyAction, worldOrigin, moveActionsFor, previewScene, resizeActionFor, resizedBox, toolMode, type Preview } from '@meldframe/web-document/edit';
+  import { createActionFor, keyAction, ownsKeys, worldOrigin, moveActionsFor, previewScene, resizeActionFor, resizedBox, toolMode, type Preview } from '@meldframe/web-document/edit';
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
   import Toolbar from './Toolbar.svelte';
-  import LayersPanel from './LayersPanel.svelte';
-  import PropertiesPanel from './PropertiesPanel.svelte';
+  import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
+  import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
+  import VariablesPanel from '@meldframe/web-panels/VariablesPanel.svelte';
   import { layerRows } from '@meldframe/web-document/layers';
   import { boxAction, propertyAction, type BoxField, type PropertyField } from '@meldframe/web-document/properties';
   import { noticeFromEvents } from '@meldframe/web-document/notices';
@@ -238,8 +239,7 @@
   /** Keys of the editor (tools, delete, undo, redo), unless the person is typing in a field. */
   function onKey(e: KeyboardEvent) {
     if (e.repeat || e.isComposing) return; // a held key must not undo a step per repeat; a composition is not a command
-    const el = e.target as HTMLElement | null;
-    if (el && (el.isContentEditable || /^(input|textarea|select)$/i.test(el.tagName))) return;
+    if (ownsKeys(e.target as HTMLElement | null, e)) return;
     const edit = editKeyTarget(e, snap.state.selection, nodes);
     if (edit) {
       e.preventDefault();
@@ -314,6 +314,9 @@
     </div>
   {/if}
   </div>
+  {#if snap.state.panels.variables}
+    <VariablesPanel panel={snap.state.variables} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} />
+  {/if}
   {#if snap.state.panels.properties}
     <PropertiesPanel properties={snap.state.properties} {onProperty} {onBox} />
   {/if}

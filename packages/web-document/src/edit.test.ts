@@ -2,7 +2,7 @@ import type { Node } from '@meldframe/protocol';
 import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
 import type { Scene } from '@meldframe/web-canvas/scene';
 import { describe, expect, it } from 'vitest';
-import { containerFor, createActionFor, keyAction, moveActionsFor, previewScene, resizeActionFor, resizedBox, toolMode, worldOrigin } from './edit';
+import { containerFor, createActionFor, keyAction, moveActionsFor, ownsKeys, previewScene, resizeActionFor, resizedBox, toolMode, worldOrigin } from './edit';
 
 const node = (id: string, over: Partial<Node> = {}): Node =>
   ({ id, name: id, type: 'rect', parentId: null, x: 0, y: 0, w: 100, h: 50, ...over }) as Node;
@@ -157,5 +157,27 @@ describe('keyAction and toolMode', () => {
   });
   it('maps the tool of the app to the mode of the canvas', () => {
     expect([toolMode('select'), toolMode('frame'), toolMode('rectangle'), toolMode('text')]).toEqual(['move', 'frame', 'rect', 'text']);
+  });
+});
+
+describe('ownsKeys', () => {
+  const el = (tagName: string, inPanel = false, isContentEditable = false) => ({ tagName, isContentEditable, closest: (sel: string) => (inPanel && sel === 'aside' ? {} : null) });
+  it('leaves the keys to a field that takes text', () => {
+    for (const tag of ['INPUT', 'TEXTAREA', 'SELECT']) expect(ownsKeys(el(tag))).toBe(true);
+    expect(ownsKeys(el('DIV', false, true))).toBe(true);
+  });
+  it('leaves the keys to anything inside a side panel, a focused button included', () => {
+    expect(ownsKeys(el('BUTTON', true))).toBe(true);
+  });
+  it('still lets undo and redo through from a button of a panel, but not from a field', () => {
+    const ctrl = { ctrlKey: true, metaKey: false };
+    expect(ownsKeys(el('BUTTON', true), ctrl)).toBe(false);
+    expect(ownsKeys(el('BUTTON', true), { ctrlKey: false, metaKey: true })).toBe(false);
+    expect(ownsKeys(el('INPUT', true), ctrl)).toBe(true);
+  });
+  it('keeps the keys of the editor for the canvas, the page and the tool bar', () => {
+    expect(ownsKeys(el('CANVAS'))).toBe(false);
+    expect(ownsKeys(el('BUTTON'))).toBe(false);
+    expect(ownsKeys(null)).toBe(false);
   });
 });
