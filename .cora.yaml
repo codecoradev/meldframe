@@ -1,5 +1,7 @@
 # Cora Code Review configuration (cora-cli, https://github.com/codecoradev/cora-cli).
-# The CI workflow .github/workflows/cora-review.yml is disabled; this file configures the local Cora agent review and any manual run.
+# The CI workflow .github/workflows/cora-review.yml reads this file from the base branch; it also configures the local Cora agent review.
+# That job holds secrets: never enable `static_analysis.auto_clippy` or a `system_prompt_file` here, because they
+# run or read code from the pull request.
 
 focus:
   - security
