@@ -208,6 +208,50 @@ fn typography_is_size_weight_and_alignment() {
 }
 
 #[test]
+fn the_tailwind_form_of_the_paint() {
+    let w = json!([{"x": 1, "y": 2, "blur": 3, "spread": 4, "color": "#ff0000"}]);
+    let b = json!({"width": 3, "color": "#ff0000", "position": "center"});
+    let n = r(json!({"fill": "#336699", "radius": 8, "opacity": 0.5, "shadows": w, "border": b}));
+    let e = tailwind(frame(json!({"clip": false, "layout": "row"}), vec![n]));
+    let c = classes(&e, "r");
+    for want in [
+        "bg-[color:#336699]",
+        "rounded-[8px]",
+        "opacity-[0.5]",
+        "shadow-[1px_2px_3px_4px_#ff0000]",
+        "relative",
+        "after:content-['']",
+        "after:absolute",
+        "after:pointer-events-none",
+        "after:inset-[-1.5px]",
+        "after:[border:3px_solid_#ff0000]",
+        "after:rounded-[9.5px]",
+    ] {
+        // Radius 8 on a 100 x 50 rect grows by half the border (3 / 2) on the edge: 9.5.
+        assert!(c.contains(&want), "{want} is not in {c:?}");
+    }
+    let t = json!({"id": "t", "type": "text", "text": "x", "fontWeight": 700, "fill": "#ff0000"});
+    let e = tailwind(frame(json!({}), vec![t]));
+    let c = classes(&e, "t");
+    assert!(
+        c.contains(&"font-[700]") && c.contains(&"text-[color:#ff0000]"),
+        "{c:?}"
+    );
+    let asset = "b".repeat(64);
+    let e = tailwind(frame(
+        json!({}),
+        vec![r(json!({"image": {"assetId": asset, "fit": "fill"}}))],
+    ));
+    let c = classes(&e, "r");
+    assert!(
+        c.iter()
+            .any(|x| x.starts_with("[background-image:url(assets/")),
+        "{c:?}"
+    );
+    assert!(c.contains(&"[background-size:100%_100%]"), "{c:?}");
+}
+
+#[test]
 fn a_shader_is_approximated_by_a_gradient_and_reported() {
     let s = json!({"id": "s", "type": "shader", "fill": "#112233", "fill2": "#445566"});
     let e = css(frame(json!({}), vec![s]));

@@ -101,7 +101,12 @@ fn the_same_file_gives_the_same_bytes() {
             json!({"id": "t", "type": "text", "text": "x"}),
         ],
     );
-    let (a, b) = (css(list.clone()), css(list));
+    let (a, b) = (css(list.clone()), css(list.clone()));
+    assert_eq!(
+        (a.html.as_str(), a.css.as_str()),
+        (b.html.as_str(), b.css.as_str())
+    );
+    let (a, b) = (tailwind(list.clone()), tailwind(list));
     assert_eq!(
         (a.html.as_str(), a.css.as_str()),
         (b.html.as_str(), b.css.as_str())

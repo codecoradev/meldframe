@@ -3,15 +3,16 @@
 use crate::decl::{Cx, Place, Style, attrs, style, tag};
 use crate::names::escape;
 use crate::report::Report;
-use crate::{Export, ExportError, ExportOptions};
+use crate::{Export, ExportError, ExportOptions, Format, tw, vars};
 use meldframe_layout::{Rect, compute_rects, layout_findings};
 use meldframe_protocol::{LayoutMode, Node, NodeKind, SizeMode, Variables};
-use meldframe_render::{PaintedBox, resolve_with};
+use meldframe_render::{Fields, ModeChoice, PaintedBox, resolve_with};
 use std::collections::{HashMap, HashSet};
 
 /// The elements and rules of the frame, in drawing order, built by one walk.
 struct Walk<'a> {
     cx: &'a Cx<'a>,
+    options: &'a ExportOptions<'a>,
     nodes: HashMap<&'a str, &'a Node>,
     kids: HashMap<&'a str, Vec<&'a PaintedBox>>,
     html: String,
@@ -49,7 +50,17 @@ pub(crate) fn export(
     collect(root_box, &kids, &mut HashSet::new(), &mut order);
 
     let mut report = Report::default();
+    check_modes(vars_in, &options.modes, &mut report);
     let in_frame: HashSet<&str> = order.iter().map(|b| b.id.as_str()).collect();
+    let fields = Fields::new(vars_in, &options.modes);
+    let used: HashSet<String> = order
+        .iter()
+        .filter_map(|b| by_id.get(b.id.as_str()))
+        .flat_map(|n| [n.fill.var_id(), n.radius.var_id(), n.opacity.var_id()])
+        .flatten()
+        .map(str::to_owned)
+        .collect();
+    let var_css = vars::build(vars_in, &used, &options.modes, &fields, &mut report);
     let rects: HashMap<String, Rect> = compute_rects(nodes, options.measurer).into_iter().collect();
     for f in layout_findings(nodes, options.measurer) {
         if in_frame.contains(f.id.as_str()) {
@@ -57,12 +68,14 @@ pub(crate) fn export(
         }
     }
     let cx = Cx {
+        names: &var_css.names,
         rects: &rects,
         measurer: options.measurer,
         asset_base: &options.asset_base,
     };
     let mut w = Walk {
         cx: &cx,
+        options,
         nodes: by_id,
         kids,
         html: String::new(),
@@ -82,11 +95,28 @@ pub(crate) fn export(
     } else {
         &root.name
     };
-    let head_css = base_css(options);
-    let style_tag = format!("<style>\n{head_css}{}</style>", w.css);
-    let css = format!("{head_css}{}", w.css);
+    let attr_text: String = var_css
+        .attrs
+        .iter()
+        .map(|(k, v)| format!(" {k}=\"{v}\""))
+        .collect();
+    let base = base_css(options, options.format == Format::Tailwind);
+    let head_css = format!("{base}{}", var_css.rules);
+    let (style_tag, css) = match options.format {
+        Format::Css => (
+            format!("<style>\n{head_css}{}</style>", w.css),
+            format!("{head_css}{}", w.css),
+        ),
+        Format::Tailwind => (
+            format!(
+                "<link rel=\"stylesheet\" href=\"{}\">",
+                escape(&options.css_href)
+            ),
+            format!("{TAILWIND_HEAD}{head_css}"),
+        ),
+    };
     let html = format!(
-        "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{}</title>\n{style_tag}\n</head>\n<body>\n{}</body>\n</html>\n",
+        "<!doctype html>\n<html lang=\"en\"{attr_text}>\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{}</title>\n{style_tag}\n</head>\n<body>\n{}</body>\n</html>\n",
         escape(title),
         w.html
     );
@@ -119,14 +149,38 @@ fn collect<'a>(
     }
 }
 
-/// The font, the box model and the margins every export needs.
-fn base_css(options: &ExportOptions<'_>) -> String {
+const TAILWIND_HEAD: &str = "@layer theme, base, utilities;\n@import \"tailwindcss/theme.css\" layer(theme);\n@import \"tailwindcss/utilities.css\" layer(utilities);\n";
+
+/// The font, the box model and the margins every export needs. In the Tailwind form the reset is in the `base` layer,
+/// so that a utility on a paragraph still wins over `p{margin:0}`.
+fn base_css(options: &ExportOptions<'_>, layered: bool) -> String {
     let font = format!(
         "@font-face{{font-family:'Inter Variable';src:url('{}') format('woff2');font-weight:100 900;font-display:block}}\n",
         options.font_href
     );
     let reset = "*,::before,::after{box-sizing:border-box}body{margin:0;font-family:'Inter Variable'}p{margin:0}";
-    format!("{font}{reset}\n")
+    if layered {
+        format!("{font}@layer base{{{reset}}}\n")
+    } else {
+        format!("{font}{reset}\n")
+    }
+}
+
+/// A collection or a mode of the options that is not in the file says so; the export shows the default mode there.
+fn check_modes(vars: &Variables, choice: &ModeChoice, report: &mut Report) {
+    for (collection, mode) in choice.iter() {
+        let known = vars
+            .collection(collection)
+            .is_some_and(|c| c.modes.iter().any(|m| m.id == mode));
+        if !known {
+            report.warn(
+                "unknown_mode",
+                None,
+                "a collection or mode in `modes` is not in the file; its default mode is exported"
+                    .into(),
+            );
+        }
+    }
 }
 
 impl<'a> Walk<'a> {
@@ -154,8 +208,19 @@ impl<'a> Walk<'a> {
         let st = style(self.cx, n, b, &place, &mut self.report);
         let t = tag(b);
         let pad = "  ".repeat(depth);
-        let open = format!("{pad}<{t} {}", attrs(n));
-        self.rules(&n.id, &st);
+        let mut open = format!("{pad}<{t} {}", attrs(n));
+        match self.options.format {
+            Format::Css => self.rules(&n.id, &st),
+            Format::Tailwind => {
+                let classes: Vec<String> = st
+                    .main
+                    .iter()
+                    .map(|d| tw::class(d, false))
+                    .chain(st.after.iter().map(|d| tw::class(d, true)))
+                    .collect();
+                open.push_str(&format!(" class=\"{}\"", escape(&classes.join(" "))));
+            }
+        }
         if b.paint == meldframe_render::Paint::Text {
             self.html
                 .push_str(&format!("{open}>{}</{t}>\n", escape(&n.text)));

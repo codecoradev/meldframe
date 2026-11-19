@@ -1,4 +1,33 @@
-//! The names and the numbers an export writes.
+//! The names an export gives: CSS variables, and the attributes that pick a mode.
+
+use std::collections::HashSet;
+
+/// Lowercase ASCII letters and digits, with every other run of characters as one hyphen; `x` when nothing is left.
+pub(crate) fn slug(s: &str) -> String {
+    let mut out = String::new();
+    for c in s.chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c.to_ascii_lowercase());
+        } else if !out.ends_with('-') && !out.is_empty() {
+            out.push('-');
+        }
+    }
+    while out.ends_with('-') {
+        out.pop();
+    }
+    if out.is_empty() { "x".into() } else { out }
+}
+
+/// `base`, or `base-2`, `base-3`... when `taken` already holds it; the answer is added to `taken`.
+pub(crate) fn unique(taken: &mut HashSet<String>, base: String) -> String {
+    let mut name = base.clone();
+    let mut n = 2;
+    while !taken.insert(name.clone()) {
+        name = format!("{base}-{n}");
+        n += 1;
+    }
+    name
+}
 
 /// A number as CSS writes it: the shortest form, `0` for zero and negative zero.
 pub(crate) fn num(v: f64) -> String {

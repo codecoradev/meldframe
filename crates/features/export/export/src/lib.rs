@@ -1,4 +1,4 @@
-//! Export feature module (E4.1): a frame of a file as HTML with plain CSS.
+//! Export feature module (E4.1): a frame of a file as HTML with plain CSS or Tailwind v4 utilities.
 //!
 //! [`export_frame`] is a pure function. It reads the same render step as the canvas (`meldframe_render::resolve_with`:
 //! nodes, variables and the modes picked, to painted boxes) for everything the canvas paints, the node for the fields
@@ -8,12 +8,16 @@
 //! renders, and the tests of this crate check the table against the output.
 //!
 //! The HTML is a whole document. In [`Format::Css`] the stylesheet is inline and every rule selects
-//! `[data-node="<id>"]`.
+//! `[data-node="<id>"]`; in [`Format::Tailwind`] the elements carry utilities and the document links
+//! [`ExportOptions::css_href`], which is [`Export::css`] after Tailwind has built it: that text is the input for the
+//! Tailwind v4 compiler (the variables, the font and the reset) and needs the utilities of the HTML added.
 
 mod decl;
 mod emit;
 mod names;
 mod report;
+mod tw;
+mod vars;
 
 pub use report::{Finding, Report};
 
@@ -29,6 +33,8 @@ pub const MAX_OUTPUT_BYTES: usize = 256 * 1024;
 pub enum Format {
     /// One rule per node, `[data-node="<id>"]{...}`, inline in the document.
     Css,
+    /// Tailwind v4 utilities on each element, arbitrary values where the contract names no utility.
+    Tailwind,
 }
 
 /// What an export is asked for.
@@ -41,6 +47,8 @@ pub struct ExportOptions<'a> {
     pub measurer: &'a dyn TextMeasurer,
     /// Where the font file is, relative to the document.
     pub font_href: String,
+    /// Where the stylesheet is, relative to the document ([`Format::Tailwind`] only).
+    pub css_href: String,
     /// A prefix for the asset id in `url(...)`; the ids the document uses are in [`Report::assets`].
     pub asset_base: String,
     /// The most bytes of HTML and stylesheet together; more is [`ExportError::TooLarge`].
@@ -54,6 +62,7 @@ impl<'a> ExportOptions<'a> {
             modes: ModeChoice::default(),
             measurer,
             font_href: "inter.woff2".into(),
+            css_href: "meldframe.css".into(),
             asset_base: "assets/".into(),
             max_bytes: MAX_OUTPUT_BYTES,
         }

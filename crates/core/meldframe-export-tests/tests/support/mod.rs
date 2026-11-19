@@ -30,6 +30,16 @@ pub fn css(list: Value) -> Export {
     )
 }
 
+/// The Tailwind export of frame `f` of `list`, with no variables.
+pub fn tailwind(list: Value) -> Export {
+    run(
+        &nodes(list),
+        &Variables::default(),
+        Format::Tailwind,
+        ModeChoice::default(),
+    )
+}
+
 /// The declarations of the rule of node `id` in a plain CSS export (`[data-node="id"]{...}`), or `None`.
 pub fn rule<'a>(e: &'a Export, id: &str) -> Option<&'a str> {
     let head = format!("[data-node=\"{id}\"]{{");
@@ -42,6 +52,15 @@ pub fn after<'a>(e: &'a Export, id: &str) -> Option<&'a str> {
     let head = format!("[data-node=\"{id}\"]::after{{");
     let at = e.css.find(&head)? + head.len();
     Some(&e.css[at..at + e.css[at..].find('}')?])
+}
+
+/// The classes of the element of node `id` in a Tailwind export.
+pub fn classes<'a>(e: &'a Export, id: &str) -> Vec<&'a str> {
+    let head = format!("data-node=\"{id}\"");
+    let at = e.html.find(&head).expect("the node is in the html");
+    let tag = &e.html[at..at + e.html[at..].find('>').unwrap()];
+    let c = tag.split("class=\"").nth(1).expect("the node has classes");
+    c.split('"').next().unwrap().split(' ').collect()
 }
 
 /// A frame `f` of 400 x 200 with the given children (JSON objects); it has no layout unless `extra` sets one.
