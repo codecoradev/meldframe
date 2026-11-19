@@ -33,25 +33,26 @@ pub(crate) fn export(
     if root.kind != NodeKind::Frame {
         return Err(ExportError::NotAFrame);
     }
+    // Everything below works on the frame and what is inside it, never on the rest of the file.
+    let mut report = Report::default();
+    let sub = subtree(nodes, root, options.max_bytes, &mut report)?;
+    check_modes(vars_in, &options.modes, &mut report);
     // The one step the canvas reads too: nodes, variables and the modes picked to painted boxes.
-    let boxes = resolve_with(nodes, vars_in, &options.modes);
+    let boxes = resolve_with(&sub, vars_in, &options.modes);
     let mut kids: HashMap<&str, Vec<&PaintedBox>> = HashMap::new();
     for b in &boxes {
         if let Some(p) = &b.parent {
             kids.entry(p.as_str()).or_default().push(b);
         }
     }
-    let by_id: HashMap<&str, &Node> = nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+    let by_id: HashMap<&str, &Node> = sub.iter().map(|n| (n.id.as_str(), n)).collect();
     let root_box = boxes
         .iter()
         .find(|b| b.id == frame)
         .ok_or(ExportError::NotFound)?;
     let mut order = Vec::new();
-    collect(root_box, &kids, &mut HashSet::new(), &mut order);
+    collect(root_box, &kids, &mut HashSet::new(), &mut order, 0);
 
-    let mut report = Report::default();
-    check_modes(vars_in, &options.modes, &mut report);
-    let in_frame: HashSet<&str> = order.iter().map(|b| b.id.as_str()).collect();
     let fields = Fields::new(vars_in, &options.modes);
     let used: HashSet<String> = order
         .iter()
@@ -61,11 +62,9 @@ pub(crate) fn export(
         .map(str::to_owned)
         .collect();
     let var_css = vars::build(vars_in, &used, &options.modes, &fields, &mut report);
-    let rects: HashMap<String, Rect> = compute_rects(nodes, options.measurer).into_iter().collect();
-    for f in layout_findings(nodes, options.measurer) {
-        if in_frame.contains(f.id.as_str()) {
-            report.warn(f.code, Some(&f.id), f.message);
-        }
+    let rects: HashMap<String, Rect> = compute_rects(&sub, options.measurer).into_iter().collect();
+    for f in layout_findings(&sub, options.measurer) {
+        report.warn(f.code, Some(&f.id), f.message);
     }
     let cx = Cx {
         names: &var_css.names,
@@ -86,9 +85,9 @@ pub(crate) fn export(
     let top = root
         .parent_id
         .as_deref()
-        .is_none_or(|p| !w.nodes.contains_key(p));
+        .is_none_or(|p| !nodes.iter().any(|n| n.id == p));
     let origin = if top { (root.x, root.y) } else { (0.0, 0.0) };
-    w.element(root_box, None, Some(origin), 2);
+    w.element(root_box, None, Some(origin), 2, false)?;
 
     let title = if root.name.is_empty() {
         &root.id
@@ -140,11 +139,98 @@ fn collect<'a>(
     kids: &HashMap<&str, Vec<&'a PaintedBox>>,
     seen: &mut HashSet<&'a str>,
     out: &mut Vec<&'a PaintedBox>,
+    depth: usize,
 ) {
-    if seen.insert(&b.id) {
+    if depth <= MAX_DEPTH && seen.insert(&b.id) {
         out.push(b);
         for k in kids.get(b.id.as_str()).into_iter().flatten() {
-            collect(k, kids, seen, out);
+            collect(k, kids, seen, out, depth + 1);
+        }
+    }
+}
+
+/// The deepest nesting an export follows below the frame, whatever the file says: the writes of the server stop at 32,
+/// a file that came from elsewhere may nest deeper, and the walks below recurse.
+pub(crate) const MAX_DEPTH: usize = 64;
+
+/// What an element costs at the least, in bytes of HTML and stylesheet: `<div data-node="" class=""></div>`.
+const MIN_ELEMENT_BYTES: usize = 24;
+
+/// The frame and what is inside it, in the order of the file, with the frame as a root. The walk is iterative and
+/// stops at [`MAX_DEPTH`] (the cut is a `too_deep` warning). It also counts what the output must hold at the least
+/// (the text, the names, a floor per element) and refuses as soon as that is over the limit, so that a frame that
+/// cannot fit is never cloned, laid out or painted.
+fn subtree(
+    nodes: &[Node],
+    root: &Node,
+    max_bytes: usize,
+    report: &mut Report,
+) -> Result<Vec<Node>, ExportError> {
+    let mut kids: HashMap<&str, Vec<&Node>> = HashMap::new();
+    for n in nodes {
+        if let Some(p) = n.parent_id.as_deref() {
+            kids.entry(p).or_default().push(n);
+        }
+    }
+    let mut keep: HashSet<&str> = HashSet::new();
+    let mut floor = 0usize;
+    let mut cut = false;
+    let mut todo: Vec<(&Node, usize)> = vec![(root, 0)];
+    while let Some((n, depth)) = todo.pop() {
+        if depth > MAX_DEPTH {
+            if !cut {
+                report.warn(
+                    "too_deep",
+                    Some(&n.id),
+                    format!("the frame nests deeper than {MAX_DEPTH} levels; everything from here down was left out"),
+                );
+            }
+            cut = true;
+            continue;
+        }
+        if !keep.insert(n.id.as_str()) {
+            continue;
+        }
+        floor += MIN_ELEMENT_BYTES + n.id.len() + n.name.len();
+        if n.kind == NodeKind::Text {
+            floor += n.text.len();
+        }
+        if floor > max_bytes {
+            return Err(ExportError::TooLarge {
+                bytes: floor,
+                max: max_bytes,
+            });
+        }
+        for k in kids.get(n.id.as_str()).into_iter().flatten() {
+            todo.push((k, depth + 1));
+        }
+    }
+    Ok(nodes
+        .iter()
+        .filter(|n| keep.contains(n.id.as_str()))
+        .map(|n| {
+            let mut n = n.clone();
+            if n.id == root.id {
+                n.parent_id = None;
+            }
+            n
+        })
+        .collect())
+}
+
+/// A collection or a mode of the options that is not in the file says so; the export shows the default mode there.
+fn check_modes(vars: &Variables, choice: &ModeChoice, report: &mut Report) {
+    for (collection, mode) in choice.iter() {
+        let known = vars
+            .collection(collection)
+            .is_some_and(|c| c.modes.iter().any(|m| m.id == mode));
+        if !known {
+            report.warn(
+                "unknown_mode",
+                None,
+                "a collection or mode in `modes` is not in the file; its default mode is exported"
+                    .into(),
+            );
         }
     }
 }
@@ -166,31 +252,34 @@ fn base_css(options: &ExportOptions<'_>, layered: bool) -> String {
     }
 }
 
-/// A collection or a mode of the options that is not in the file says so; the export shows the default mode there.
-fn check_modes(vars: &Variables, choice: &ModeChoice, report: &mut Report) {
-    for (collection, mode) in choice.iter() {
-        let known = vars
-            .collection(collection)
-            .is_some_and(|c| c.modes.iter().any(|m| m.id == mode));
-        if !known {
-            report.warn(
-                "unknown_mode",
-                None,
-                "a collection or mode in `modes` is not in the file; its default mode is exported"
-                    .into(),
-            );
-        }
-    }
-}
-
 impl<'a> Walk<'a> {
+    /// The bytes the answer will carry so far: the plain CSS form has the stylesheet in the document and in `css`.
+    fn size(&self) -> usize {
+        let sheets = if self.options.format == Format::Css {
+            2
+        } else {
+            0
+        };
+        self.html.len() + sheets * self.css.len()
+    }
+
     fn element(
         &mut self,
         b: &'a PaintedBox,
         parent: Option<&'a Node>,
         root: Option<(f64, f64)>,
         depth: usize,
-    ) {
+        unequal: bool,
+    ) -> Result<(), ExportError> {
+        if depth > MAX_DEPTH + 2 {
+            return Ok(());
+        }
+        if self.size() > self.options.max_bytes {
+            return Err(ExportError::TooLarge {
+                bytes: self.size(),
+                max: self.options.max_bytes,
+            });
+        }
         let n = self.nodes[b.id.as_str()];
         let kids: Vec<&PaintedBox> = self.kids.get(b.id.as_str()).cloned().unwrap_or_default();
         let holds_absolute = n.kind == NodeKind::Frame
@@ -198,7 +287,7 @@ impl<'a> Walk<'a> {
                 let kn = self.nodes[k.id.as_str()];
                 n.layout == LayoutMode::None || kn.absolute
             });
-        let basis = parent.and_then(|p| fill_basis(p, n, &self.kids, &self.nodes, self.cx.rects));
+        let basis = parent.and_then(|p| fill_basis(p, n, unequal, self.cx.rects));
         let place = Place {
             parent,
             root,
@@ -224,17 +313,20 @@ impl<'a> Walk<'a> {
         if b.paint == meldframe_render::Paint::Text {
             self.html
                 .push_str(&format!("{open}>{}</{t}>\n", escape(&n.text)));
-            return;
+            return Ok(());
         }
         if kids.is_empty() {
             self.html.push_str(&format!("{open}></{t}>\n"));
-            return;
+            return Ok(());
         }
         self.html.push_str(&format!("{open}>\n"));
+        // Whether the fills of this parent have unequal padding is one answer for all of its children.
+        let unequal = unequal_fills(n, &kids, &self.nodes);
         for k in kids {
-            self.element(k, Some(n), None, depth + 1);
+            self.element(k, Some(n), None, depth + 1, unequal)?;
         }
         self.html.push_str(&format!("{pad}</{t}>\n"));
+        Ok(())
     }
 
     fn rules(&mut self, id: &str, st: &Style) {
@@ -254,25 +346,32 @@ impl<'a> Walk<'a> {
 }
 
 /// The size a fill takes on the main axis of `p` when the fills of that axis have unequal padding (the contract's
-/// `flex:1 1 <core px>`): the core's size of the node, else `None`, which is `0%`.
-fn fill_basis(
-    p: &Node,
-    n: &Node,
-    kids: &HashMap<&str, Vec<&PaintedBox>>,
-    nodes: &HashMap<&str, &Node>,
-    rects: &HashMap<String, Rect>,
-) -> Option<f64> {
+/// `flex:1 1 <core px>`): the core's size of the node, else `None`, which is `0%`. `unequal` is the answer of
+/// [`unequal_fills`] for `p`, worked out once per parent.
+fn fill_basis(p: &Node, n: &Node, unequal: bool, rects: &HashMap<String, Rect>) -> Option<f64> {
     let row = p.layout == LayoutMode::Row;
     let mode = |c: &Node| if row { c.sw } else { c.sh };
-    let parent_mode = if row { p.sw } else { p.sh };
-    if p.kind != NodeKind::Frame
-        || p.layout == LayoutMode::None
-        || n.absolute
-        || mode(n) != SizeMode::Fill
-        || parent_mode == SizeMode::Hug
-    {
+    if !is_flow_parent(p) || n.absolute || mode(n) != SizeMode::Fill {
         return None;
     }
+    let r = rects.get(n.id.as_str())?;
+    unequal.then_some(if row { r.w } else { r.h })
+}
+
+/// A frame whose fills on the main axis are sized by `flex` (it lays out, and does not hug on that axis).
+fn is_flow_parent(p: &Node) -> bool {
+    let row = p.layout == LayoutMode::Row;
+    let parent_mode = if row { p.sw } else { p.sh };
+    p.kind == NodeKind::Frame && p.layout != LayoutMode::None && parent_mode != SizeMode::Hug
+}
+
+/// Whether the fills of `p` on its main axis do not all have the same padding on that axis.
+fn unequal_fills(p: &Node, kids: &[&PaintedBox], nodes: &HashMap<&str, &Node>) -> bool {
+    if !is_flow_parent(p) {
+        return false;
+    }
+    let row = p.layout == LayoutMode::Row;
+    let mode = |c: &Node| if row { c.sw } else { c.sh };
     let pad = |c: &Node| {
         let q = c.pad();
         if c.kind == NodeKind::Frame && c.layout != LayoutMode::None {
@@ -281,13 +380,17 @@ fn fill_basis(
             0.0
         }
     };
-    let fills: Vec<&Node> = kids
-        .get(p.id.as_str())?
+    let mut first = None;
+    for c in kids
         .iter()
         .filter_map(|b| nodes.get(b.id.as_str()).copied())
         .filter(|c| !c.absolute && mode(c) == SizeMode::Fill)
-        .collect();
-    let equal = fills.iter().all(|c| pad(c) == pad(n));
-    let r = rects.get(n.id.as_str())?;
-    (!equal).then_some(if row { r.w } else { r.h })
+    {
+        match first {
+            None => first = Some(pad(c)),
+            Some(f) if f != pad(c) => return true,
+            Some(_) => {}
+        }
+    }
+    false
 }
