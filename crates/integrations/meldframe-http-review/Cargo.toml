@@ -13,6 +13,7 @@ kind = "bin"
 design-review = { path = "../../features/design-review/design-review" }
 meldframe-http = { path = "../meldframe-http", features = ["mcp"] }
 meldframe-host = { path = "../../core/meldframe-host" }
+meldframe-mcp-defs = { path = "../../core/meldframe-mcp-defs" }
 meldframe-module = { path = "../../core/meldframe-module" }
 rmcp = { version = "3.10", default-features = false, features = ["server"] }
 serde = { version = "1", features = ["derive"] }

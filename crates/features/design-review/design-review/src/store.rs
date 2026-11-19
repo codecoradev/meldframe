@@ -1,7 +1,9 @@
 //! The in-memory store of the critique lists.
 
 use crate::{
-    Item, MAX_BATCHES, MAX_ITEMS, ReviewError, ReviewStore, Status, check_batch, check_texts,
+    FILE_ITEMS, ITEM_BATCHES, Item, MAX_BATCHES, MAX_ITEMS, MAX_WORKSPACE_FILES,
+    MAX_WORKSPACE_ITEMS, ReviewError, ReviewStore, Status, WORKSPACE_FILES, WORKSPACE_ITEMS,
+    check_batch, check_item, check_texts,
 };
 use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
@@ -40,12 +42,31 @@ impl ReviewStore for MemoryReviews {
     ) -> Result<Vec<Item>, ReviewError> {
         let texts = check_texts(texts)?;
         let mut lists = self.lists.lock().unwrap_or_else(PoisonError::into_inner);
-        let list = lists
-            .entry((workspace.to_owned(), file.to_owned()))
-            .or_default();
-        if list.len() + texts.len() > MAX_ITEMS {
-            return Err(ReviewError::Full { limit: MAX_ITEMS });
+        let key = (workspace.to_owned(), file.to_owned());
+        let in_file = lists.get(&key).map_or(0, Vec::len);
+        let (items, files) = lists
+            .iter()
+            .filter(|((w, _), l)| w == workspace && !l.is_empty())
+            .fold((0, 0), |(i, f), (_, l)| (i + l.len(), f + 1));
+        if in_file + texts.len() > MAX_ITEMS {
+            return Err(ReviewError::Full {
+                limit: MAX_ITEMS,
+                what: FILE_ITEMS,
+            });
         }
+        if items + texts.len() > MAX_WORKSPACE_ITEMS {
+            return Err(ReviewError::Full {
+                limit: MAX_WORKSPACE_ITEMS,
+                what: WORKSPACE_ITEMS,
+            });
+        }
+        if in_file == 0 && files >= MAX_WORKSPACE_FILES {
+            return Err(ReviewError::Full {
+                limit: MAX_WORKSPACE_FILES,
+                what: WORKSPACE_FILES,
+            });
+        }
+        let list = lists.entry(key).or_default();
         // Items are never removed, so the next number is the count plus one.
         let first = list.len() as u32 + 1;
         let added: Vec<Item> = texts
@@ -72,11 +93,15 @@ impl ReviewStore for MemoryReviews {
     }
 
     fn link(&self, workspace: &str, file: &str, n: u32, batch: &str) -> Result<Item, ReviewError> {
+        check_item(n)?;
         check_batch(batch)?;
         self.with_item(workspace, file, n, |item| {
             if !item.batches.iter().any(|b| b == batch) {
                 if item.batches.len() >= MAX_BATCHES {
-                    return Err(ReviewError::Full { limit: MAX_BATCHES });
+                    return Err(ReviewError::Full {
+                        limit: MAX_BATCHES,
+                        what: ITEM_BATCHES,
+                    });
                 }
                 item.batches.push(batch.to_owned());
             }
@@ -91,6 +116,7 @@ impl ReviewStore for MemoryReviews {
         n: u32,
         status: Status,
     ) -> Result<Item, ReviewError> {
+        check_item(n)?;
         self.with_item(workspace, file, n, |item| {
             item.status = status;
             Ok(item.clone())

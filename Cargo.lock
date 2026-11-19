@@ -334,6 +334,7 @@ dependencies = [
 name = "design-review"
 version = "0.0.0"
 dependencies = [
+ "meldframe-mcp-defs",
  "meldframe-module",
 ]
 
@@ -1287,6 +1288,7 @@ dependencies = [
  "design-review",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-mcp-defs",
  "meldframe-module",
  "rmcp",
  "serde",

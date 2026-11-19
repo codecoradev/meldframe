@@ -1,11 +1,14 @@
 //! The critique lists in Postgres (E5.4): table `design_review_items` of migration 0006. Every method is one
-//! transaction. An add and a link take a lock on the file's list first (`pg_advisory_xact_lock` on the key of the
-//! file, as `room_key` makes it), so numbers are given one after the other and the limits hold when calls run at
-//! once; the lock goes with the transaction.
+//! transaction. An add takes a lock on the workspace's lists first (`pg_advisory_xact_lock` on the key of the
+//! workspace), so numbers are given one after the other and the caps of the file and of the workspace hold when
+//! calls run at once; the lock goes with the transaction. A link locks the row of its item (`for update`), which is
+//! all it needs: it changes that item only, and adds never change an existing row.
 
-use super::{PgStore, room_key};
+use super::PgStore;
 use design_review::{
-    Item, MAX_BATCHES, MAX_ITEMS, ReviewError, ReviewStore, Status, check_batch, check_texts,
+    FILE_ITEMS, ITEM_BATCHES, Item, MAX_BATCHES, MAX_ITEMS, MAX_WORKSPACE_FILES,
+    MAX_WORKSPACE_ITEMS, ReviewError, ReviewStore, Status, WORKSPACE_FILES, WORKSPACE_ITEMS,
+    check_batch, check_item, check_texts,
 };
 use sqlx::{PgConnection, Row, postgres::PgRow};
 
@@ -29,9 +32,11 @@ fn item(r: &PgRow) -> Item {
 
 const COLUMNS: &str = "n, body, actor, addressed, batches";
 
-async fn lock(tx: &mut PgConnection, workspace: &str, file: &str) -> Result<(), sqlx::Error> {
+/// The lock of a workspace's review lists, held until the transaction ends. The key has a prefix of its own, so it
+/// is not the key of a file's room.
+async fn lock(tx: &mut PgConnection, workspace: &str) -> Result<(), sqlx::Error> {
     sqlx::query("select pg_advisory_xact_lock(hashtextextended($1, 0))")
-        .bind(room_key(workspace, file))
+        .bind(format!("design_review:{}:{workspace}", workspace.len()))
         .execute(tx)
         .await
         .map(|_| ())
@@ -63,17 +68,26 @@ impl ReviewStore for PgStore {
     ) -> Result<Vec<Item>, ReviewError> {
         let texts = check_texts(texts)?;
         self.review_tx(async |tx| {
-            lock(tx, workspace, file).await.map_err(failed)?;
-            let last: Option<i32> =
-                sqlx::query_scalar("select max(n) from design_review_items where workspace_id = $1 and file = $2")
-                    .bind(workspace)
-                    .bind(file)
-                    .fetch_one(&mut *tx)
-                    .await
-                    .map_err(failed)?;
+            lock(tx, workspace).await.map_err(failed)?;
+            let (last, in_file, items, files): (Option<i32>, i64, i64, i64) = sqlx::query_as(
+                "select max(n) filter (where file = $2), count(*) filter (where file = $2), count(*), \
+                 count(distinct file) from design_review_items where workspace_id = $1",
+            )
+            .bind(workspace)
+            .bind(file)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(failed)?;
             let last = u32::try_from(last.unwrap_or(0)).unwrap_or(0);
-            if last as usize + texts.len() > MAX_ITEMS {
-                return Err(ReviewError::Full { limit: MAX_ITEMS });
+            let (in_file, items, files) = (in_file as usize, items as usize, files as usize);
+            if in_file + texts.len() > MAX_ITEMS {
+                return Err(ReviewError::Full { limit: MAX_ITEMS, what: FILE_ITEMS });
+            }
+            if items + texts.len() > MAX_WORKSPACE_ITEMS {
+                return Err(ReviewError::Full { limit: MAX_WORKSPACE_ITEMS, what: WORKSPACE_ITEMS });
+            }
+            if in_file == 0 && files >= MAX_WORKSPACE_FILES {
+                return Err(ReviewError::Full { limit: MAX_WORKSPACE_FILES, what: WORKSPACE_FILES });
             }
             let mut added = Vec::new();
             for (text, n) in texts.into_iter().zip(last + 1..) {
@@ -117,6 +131,7 @@ impl ReviewStore for PgStore {
     }
 
     fn link(&self, workspace: &str, file: &str, n: u32, batch: &str) -> Result<Item, ReviewError> {
+        check_item(n)?;
         check_batch(batch)?;
         self.review_tx(async |tx| {
             let sql = format!(
@@ -135,7 +150,7 @@ impl ReviewStore for PgStore {
                 return Ok(found);
             }
             if found.batches.len() >= MAX_BATCHES {
-                return Err(ReviewError::Full { limit: MAX_BATCHES });
+                return Err(ReviewError::Full { limit: MAX_BATCHES, what: ITEM_BATCHES });
             }
             sqlx::query(
                 "update design_review_items set batches = array_append(batches, $4) where workspace_id = $1 and file = $2 and n = $3",
@@ -159,6 +174,7 @@ impl ReviewStore for PgStore {
         n: u32,
         status: Status,
     ) -> Result<Item, ReviewError> {
+        check_item(n)?;
         let sql = format!(
             "update design_review_items set addressed = $4 where workspace_id = $1 and file = $2 and n = $3 returning {COLUMNS}"
         );

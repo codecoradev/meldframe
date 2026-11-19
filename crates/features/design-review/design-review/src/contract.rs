@@ -2,7 +2,9 @@
 //! an empty store. A case panics when the store breaks a rule.
 
 use crate::{
-    Item, MAX_BATCHES, MAX_ITEMS, MAX_TEXT, ReviewError, ReviewStore, Status, check_batch,
+    FILE_ITEMS, ITEM_BATCHES, Item, MAX_BATCHES, MAX_ITEMS, MAX_TEXT, MAX_WORKSPACE_FILES,
+    MAX_WORKSPACE_ITEMS, ReviewError, ReviewStore, Status, WORKSPACE_FILES, WORKSPACE_ITEMS,
+    check_batch,
 };
 
 fn texts(n: usize) -> Vec<String> {
@@ -68,6 +70,16 @@ pub fn a_text_is_checked_before_anything_is_written(s: &dyn ReviewStore) {
     invalid(s.add("ws", "f", "a", &["fine".into(), "   ".into()]));
     invalid(s.add("ws", "f", "a", &["x".repeat(MAX_TEXT + 1)]));
     invalid(s.add("ws", "f", "a", &["bell\u{7}".into()]));
+    invalid(s.add("ws", "f", "a", &["a\tb".into()]));
+    invalid(s.add("ws", "f", "a", &["a\r\nb".into()]));
+    // Characters that change how text reads without showing: bidi override, zero width, separators, BOM.
+    for c in [
+        '\u{202E}', '\u{200B}', '\u{200D}', '\u{2028}', '\u{2029}', '\u{FEFF}', '\u{2066}',
+    ] {
+        invalid(s.add("ws", "f", "a", &[format!("pay{c}ment")]));
+    }
+    // The limit counts characters, not bytes.
+    invalid(s.add("ws", "f", "a", &["\u{e9}".repeat(MAX_TEXT + 1)]));
     assert_eq!(
         s.list("ws", "f").unwrap(),
         Vec::new(),
@@ -77,6 +89,42 @@ pub fn a_text_is_checked_before_anything_is_written(s: &dyn ReviewStore) {
     s.add("ws", "f", "a", &["x".repeat(MAX_TEXT), "two\nlines".into()])
         .unwrap();
     s.add("ws", "g", "a", &texts(20)).unwrap();
+    s.add("ws", "h", "a", &["\u{e9}".repeat(MAX_TEXT)]).unwrap();
+}
+
+pub fn a_workspace_holds_a_limited_number_of_items_and_files(s: &dyn ReviewStore) {
+    // Files that do not exist in the design count too: a name is enough to have a list.
+    let per_file = MAX_ITEMS;
+    for i in 0..MAX_WORKSPACE_ITEMS / per_file {
+        for _ in 0..per_file / 20 {
+            s.add("ws", &format!("f{i}"), "a", &texts(20)).unwrap();
+        }
+    }
+    let over = Err(ReviewError::Full {
+        limit: MAX_WORKSPACE_ITEMS,
+        what: WORKSPACE_ITEMS,
+    });
+    assert_eq!(s.add("ws", "fresh", "a", &texts(1)), over);
+    assert_eq!(
+        s.list("ws", "fresh").unwrap(),
+        Vec::new(),
+        "nothing was written"
+    );
+    // Another workspace has its own room.
+    s.add("ws2", "f0", "a", &texts(20)).unwrap();
+    // Files: one item each, up to the cap; an existing file still takes items, a new one does not.
+    for i in 0..MAX_WORKSPACE_FILES {
+        s.add("wf", &format!("f{i}"), "a", &texts(1)).unwrap();
+    }
+    assert_eq!(
+        s.add("wf", "one more", "a", &texts(1)),
+        Err(ReviewError::Full {
+            limit: MAX_WORKSPACE_FILES,
+            what: WORKSPACE_FILES
+        })
+    );
+    assert_eq!(s.list("wf", "one more").unwrap(), Vec::new());
+    assert_eq!(numbers(&s.add("wf", "f0", "a", &texts(1)).unwrap()), [2]);
 }
 
 pub fn a_file_holds_a_limited_number_of_items_and_a_refused_add_writes_nothing(
@@ -90,7 +138,10 @@ pub fn a_file_holds_a_limited_number_of_items_and_a_refused_add_writes_nothing(
     // Two do not fit; none is written, and the one that fits still does.
     assert_eq!(
         s.add("ws", "f", "a", &texts(2)),
-        Err(ReviewError::Full { limit: MAX_ITEMS })
+        Err(ReviewError::Full {
+            limit: MAX_ITEMS,
+            what: FILE_ITEMS
+        })
     );
     assert_eq!(s.list("ws", "f").unwrap().len(), MAX_ITEMS - 1);
     let last = s.add("ws", "f", "a", &texts(1)).unwrap();
@@ -131,7 +182,10 @@ pub fn a_batch_is_linked_once_and_the_list_is_limited(s: &dyn ReviewStore) {
     assert_eq!(s.list("ws", "f").unwrap()[0].batches.len(), MAX_BATCHES);
     assert_eq!(
         s.link("ws", "f", 1, "one too many"),
-        Err(ReviewError::Full { limit: MAX_BATCHES })
+        Err(ReviewError::Full {
+            limit: MAX_BATCHES,
+            what: ITEM_BATCHES
+        })
     );
     // A batch already linked is not "one more", even at the limit.
     assert!(s.link("ws", "f", 1, "run1").is_ok());
@@ -175,10 +229,14 @@ pub fn an_item_of_another_workspace_or_file_is_not_found(s: &dyn ReviewStore) {
         s.link("ws_a", "f", 2, "run1"),
         Err(ReviewError::ItemNotFound(2))
     );
-    assert_eq!(
+    // Item numbers start at 1: 0 is refused as input, before the batch is looked at.
+    for r in [
         s.link("ws_a", "f", 0, "run1"),
-        Err(ReviewError::ItemNotFound(0))
-    );
+        s.link("ws_a", "f", 0, ""),
+        s.mark("ws_a", "f", 0, Status::Open),
+    ] {
+        assert!(matches!(r, Err(ReviewError::Invalid(_))), "{r:?}");
+    }
     // Nothing of the failed calls reached ws_a's item.
     let item = &s.list("ws_a", "f").unwrap()[0];
     assert_eq!((item.status, item.batches.len()), (Status::Open, 0));

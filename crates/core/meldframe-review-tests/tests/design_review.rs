@@ -232,8 +232,17 @@ async fn bad_input_is_refused_with_a_code_and_writes_nothing() {
         ),
         (
             json!({"file": "f", "action": "link", "item": 0, "batch": "k"}),
-            "batch_not_found",
+            "invalid",
         ),
+        (
+            json!({"file": "f", "action": "mark", "item": 0, "status": "open"}),
+            "invalid",
+        ),
+        (
+            json!({"file": "f", "action": "add", "items": ["pay\u{202e}ment"]}),
+            "invalid",
+        ),
+        (json!({"file": "f\u{200b}", "action": "list"}), "invalid"),
     ] {
         let r = review(&c, args.clone()).await;
         assert_eq!(code(&r), want, "{args}");
@@ -344,4 +353,54 @@ async fn the_policy_of_each_tier_decides_and_every_call_is_logged_without_its_te
         !format!("{log:?}").contains("SECRET"),
         "the log holds no text"
     );
+}
+
+#[tokio::test]
+async fn a_workspace_holds_100_files_with_a_list_even_when_the_files_do_not_exist() {
+    let h = start().await;
+    let c = connect(&h, AGENT).await;
+    for i in 0..100 {
+        assert!(!add(&c, &format!("ghost{i}"), &["x"]).await.is_error);
+    }
+    let over = add(&c, "ghost100", &["x"]).await;
+    assert_eq!(code(&over), "review_full");
+    assert_eq!(over.body["error"]["retryable"], false);
+    assert!(
+        !add(&c, "ghost0", &["y"]).await.is_error,
+        "a file with a list still takes items"
+    );
+    assert!(
+        !add(&connect(&h, OTHER).await, "ghost100", &["x"])
+            .await
+            .is_error
+    );
+}
+
+/// The schema a client gets equals the one in `docs/mcp-tools.json` and the tool's own function; the catalogue test of
+/// `meldframe-mcp-tests` leaves this tool out because its server does not wire it.
+#[tokio::test]
+async fn the_input_schema_equals_the_catalogue_and_the_registry_tool() {
+    let h = start().await;
+    let c = connect(&h, AGENT).await;
+    let listed = c.list_all_tools().await.unwrap();
+    let live = listed.iter().find(|t| t.name == "design_review").unwrap();
+    let live_schema = serde_json::to_value(&live.input_schema).unwrap();
+    let catalogue: Value =
+        serde_json::from_str(include_str!("../../../../docs/mcp-tools.json")).unwrap();
+    let entry = catalogue["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["name"] == "design_review")
+        .expect("in the catalogue");
+    assert_eq!(
+        live_schema, entry["inputSchema"],
+        "docs/mcp-tools.json is out of date"
+    );
+    assert_eq!(live_schema, meldframe_http_review::input_schema());
+    let reg = meldframe_server::Server::assemble();
+    let reg = reg.registry().agent_tool("design_review").unwrap();
+    assert_eq!(entry["description"], reg.description);
+    assert_eq!(live.description.as_deref(), Some(reg.description));
+    assert_eq!(entry["tier"], reg.tier.as_str());
 }

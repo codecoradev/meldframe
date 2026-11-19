@@ -17,6 +17,7 @@ case!(
     files_and_workspaces_are_separate_lists,
     a_text_is_checked_before_anything_is_written,
     a_file_holds_a_limited_number_of_items_and_a_refused_add_writes_nothing,
+    a_workspace_holds_a_limited_number_of_items_and_files,
     a_batch_is_linked_once_and_the_list_is_limited,
     an_item_is_marked_addressed_and_open_again,
     an_item_of_another_workspace_or_file_is_not_found,

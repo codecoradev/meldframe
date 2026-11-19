@@ -9,11 +9,12 @@
 
 use design_review::{
     DESCRIPTION, Item, MAX_ADD, MAX_ITEMS, MAX_TEXT, ReviewError, ReviewStore, Status, TOOL,
-    check_batch,
+    check_batch, check_item,
 };
 use meldframe_host::Principal;
 use meldframe_http::mcp::{Extra, ExtraCall, Reader};
 use meldframe_http::{Failure, Shared, valid_file};
+use meldframe_mcp_defs::MAX_KEY;
 use meldframe_module::Policy;
 use rmcp::model::{CallToolResult, Tool, ToolAnnotations};
 use serde::Deserialize;
@@ -24,7 +25,7 @@ use std::sync::Arc;
 pub fn input_schema() -> Value {
     json!({"type": "object", "required": ["file", "action"], "additionalProperties": false, "properties": {
         "file": {"type": "string", "minLength": 1, "maxLength": 128,
-            "description": "The name of the file whose list this is: 1 to 128 characters, no slashes or control characters. The list belongs to the workspace of your token."},
+            "description": "The name of the file whose list this is: 1 to 128 bytes (UTF-8), no slashes or control characters. The list belongs to the workspace of your token."},
         "action": {"enum": ["add", "list", "link", "mark"],
             "description": "add: add items; list: read them; link: tie an item to a batch; mark: set an item's status."},
         "items": {"type": "array", "minItems": 1, "maxItems": MAX_ADD,
@@ -32,7 +33,7 @@ pub fn input_schema() -> Value {
             "description": "For add: 1 to 20 plain texts of at most 500 characters, one critique each."},
         "item": {"type": "integer", "minimum": 1,
             "description": "For link and mark: the number of the item, as list shows it."},
-        "batch": {"type": "string", "minLength": 1, "maxLength": 100,
+        "batch": {"type": "string", "minLength": 1, "maxLength": MAX_KEY,
             "description": "For link: the idempotencyKey of your apply_commands call that addressed the item."},
         "status": {"enum": ["open", "addressed"], "description": "For mark: the new status."}
     }})
@@ -176,7 +177,7 @@ impl DesignReview {
         }
         if !valid_file(&args.file) {
             return Err(invalid(
-                "a file name is 1 to 128 bytes without slashes or control characters",
+                "a file name is 1 to 128 bytes without slashes, control or invisible formatting characters",
             ));
         }
         let (store, reader, file) = (self.store.clone(), self.reader.clone(), args.file.clone());
@@ -203,6 +204,7 @@ impl DesignReview {
                     need(args.item, "item", "link")?,
                     need(args.batch, "batch", "link")?,
                 );
+                check_item(n)?;
                 check_batch(&batch)?;
                 let who = who.clone();
                 Box::new(move || {
@@ -222,6 +224,7 @@ impl DesignReview {
             Action::Mark => {
                 takes_only(&args, false, true, false, true)?;
                 let n = need(args.item, "item", "mark")?;
+                check_item(n)?;
                 let name = need(args.status, "status", "mark")?;
                 let status =
                     Status::parse(&name).ok_or_else(|| invalid("status is open or addressed"))?;
