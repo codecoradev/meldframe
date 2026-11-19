@@ -12,3 +12,8 @@ group = "variables-import"
 
 [lints]
 workspace = true
+
+[dependencies]
+meldframe-check = { path = "../../../core/meldframe-check" }
+meldframe-protocol = { path = "../../../core/meldframe-protocol" }
+meldframe-variables = { path = "../../../core/meldframe-variables" }
