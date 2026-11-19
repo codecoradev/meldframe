@@ -171,3 +171,44 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - name: mutation check
         run: bash tools/mutation-check-sync.sh
+
+  # The fidelity oracle (E4.2) with 500 seeded fuzz documents instead of the 50 of a pull request. A failing seed prints its
+  # document in the log (add it to tools/fidelity-oracle/fixtures.mjs). A known gap that starts to pass fails the job too.
+  fidelity-oracle:
+    name: fidelity-oracle
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: Build the runner
+        run: cargo build -p meldframe-oracle-runner
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tools/fidelity-oracle/package-lock.json
+      - name: Install the harness (Playwright, Pixi, Tailwind and Inter at the versions of the lockfile)
+        run: npm ci --prefix tools/fidelity-oracle
+      # The browser build follows the Playwright version, so the lockfile is the cache key.
+      - id: browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tools/fidelity-oracle/package-lock.json') }}
+      - name: Chromium
+        working-directory: tools/fidelity-oracle
+        run: |
+          if [ "${{ steps.browsers.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
+      - name: Gate self-test
+        run: npm test --prefix tools/fidelity-oracle
+      - name: Oracle (fixtures and 500 seeds)
+        working-directory: tools/fidelity-oracle
+        run: node oracle.mjs --seeds 500
