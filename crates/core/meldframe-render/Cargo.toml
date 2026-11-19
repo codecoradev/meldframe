@@ -1,0 +1,19 @@
+[package]
+name = "meldframe-render"
+description = "The render model: one resolve step from nodes to painted boxes, and the table of which node fields each consumer renders."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dependencies]
+meldframe-protocol = { path = "../meldframe-protocol" }
+
+[dev-dependencies]
+serde_json = "1"
+
+[lints]
+workspace = true

@@ -155,7 +155,7 @@ First platform slice (risk R9).
 Goal: the layout and paint model of W1 and the design system on the canvas (FR-4, FR-5, FR-9 to FR-11; ADR-0003, ADR-0004).
 
 ### E3.1 Render model (M)
-The survey's candidate 1.
+The survey's candidate 1. First slice in: `meldframe-render` (`resolve` for nodes, and the coverage table `NODE_FIELDS` with its tests). Open: variables go into `resolve` with E3.3, the export consumes it with E4.1, and the canvas reads it once the wasm bridge hands it over (today `sceneFromNodes` in `packages/web-document` does the same step in TypeScript).
 - [ ] One `resolve` step turns nodes and variables into painted boxes; the canvas and export both consume it.
 - [ ] A coverage test fails when a node field is rendered by one consumer and not the other, unless it is marked unsupported.
 
