@@ -36,6 +36,7 @@ Meldframe lets a human and an AI agent edit the same design file, and exports it
 | ADR-0009 | Live events are durable (replayable) or ephemeral (best-effort) | accepted |
 | ADR-0010 | One admission gate in front of every change | accepted |
 | ADR-0016 | Revert and restore are worked out from the log in the app layer; a field reverts only while the batch wrote it last | proposed |
+| ADR-0017 | Variables are a second table of the file; bindings are `{var:..}` objects; resolution happens in the core | proposed |
 
 ## 3. System shape
 
@@ -74,15 +75,19 @@ crates/
   core/
     meldframe-protocol    wire and model types (TypeScript generated from Rust)
     meldframe-order       fractional index and sibling order helpers
-    meldframe-check       limits, ApplyError and every check on a value or a command (structure, decoration, image)
+    meldframe-check       limits, ApplyError and every check on a value or a command (structure, decoration, image; variable commands and bindings through `meldframe-variables`)
     meldframe-layout      text measurer seam, Rect and layout
-    meldframe-core        applying a command to the file tree (`apply_command`, `plan_command`, `apply_planned`); re-exports the check API
-    meldframe-render      the render model: `resolve` (nodes to painted boxes) and the coverage table of node fields per consumer; the canvas reads it through the app layer (`App::scene`) and the wasm bridge (`sceneJson`, read once per change of the document by the web engine; fixtures in `tests/fixtures/scene.json` are checked by Rust and web tests), and the export (E4.1) and variables (E3.3) plug in later
+    meldframe-variables   variables of a file (ADR-0017): `resolve` through aliases and modes, the alias graph, apply and exact inverse of the variable commands, their footprint, and the checks that refuse them (`VarError`); portable
+    meldframe-app-model   the plain data of the app layer (Action, Effect, Event, AppState) and its TypeScript types; split from `meldframe-app` for the size ceiling, no logic
+    meldframe-core        applying a command to the file (`apply_doc`, `plan_doc`, `apply_planned_doc`; the node-only `apply_command`, `plan_command`, `apply_planned` for a caller without variables); re-exports the check API
+    meldframe-render      the render model: `resolve` and `resolve_with` (nodes, variables and the modes picked to painted boxes) and the coverage table of node fields per consumer; the canvas reads it through the app layer (`App::scene`) and the wasm bridge (`sceneJson`, read once per change of the document by the web engine; fixtures in `tests/fixtures/scene.json` are checked by Rust and web tests), and the export (E4.1) and variables (E3.3) plug in later
     meldframe-undo        undo and redo bookkeeping with no tree in it: the steps of a history, their runs, and the rules that rewrite them against a remote command; split from history
     meldframe-history     `FileState` (the in-memory tree of one File) with validated apply, undo and redo per actor, groups, remote ops and a `rebalance` of one sibling group that is linear apart from the sort (O(n log n))
     meldframe-history-props (tool) property tests of random undo and redo runs and of undo against a deleted parent; no library code
     meldframe-sync        `Replica`: the optimistic layer over a `FileState` (pending ops, the server's order, rebase, op dependencies)
     meldframe-store-contract (tool) the `Store` seam cases as functions and a `store_contract!` macro; both adapters run them
+    meldframe-variables-tests (tool) the tests of variables at every seam they cross (resolve, apply and inverse, the checks, the document apply, undo, the replica, the room, the render step and the app layer); no library code; separate because `meldframe-check`, `-core`, `-host` and `-sync` are near their ceilings
+    meldframe-variables-limits-tests (tool) the ceilings of the variable model and the linear cost of the alias checks (a layered file with 16^12 paths); no library code
     meldframe-sync-scenarios (tool) scenario tests of refused ops and of the limits of the correction; no library code
     meldframe-live-tests  (tool) tests of the live streams of `apps/server` (accepted ops reach subscribers, reconnect from a number); no library code; separate because the server crate is near its ceiling
     meldframe-live-slot-tests (tool) the live-place tests (`wsslots.rs`) of `apps/server`, with the helpers of `meldframe-live-tests` by path; separate because that crate is at its ceiling
@@ -105,7 +110,7 @@ crates/
   features/<name>/        <name> (domain) and <name>-ui (view): variables, export, review, capture, assets, import-tokens
                           today the placeholder `example/`, `capture/` and `assets/` (the blob seam of E2.5, ADR-0015; its routes and the MCP tool `upload_asset` are `meldframe-http-assets`: `POST /v1/assets`, `GET /v1/assets/{id}`) and `design-review/` (the critique list of a file, E5.4, ADR-0018: `ReviewStore` with an in-memory and a Postgres adapter, table `design_review_items`; its MCP tool `design_review` is `meldframe-http-review`, a Change tool whose list action is a Read) exist
   app/
-    meldframe-app         UI-neutral state, actions, effects, events (compiled to WASM); holds a sync Replica for the document
+    meldframe-app         the app layer state machine over `meldframe-app-model` (compiled to WASM); holds a sync Replica for the document
     meldframe-wasm        thin wasm-bindgen glue over core and app
   ui/                     tokens and plain-data *-model crates beside views
 xtask/                    deps-check, build-matrix, portable-check, size-check, ui-literals, licences
