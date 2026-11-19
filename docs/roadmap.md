@@ -67,7 +67,7 @@ Counted from the acceptance-criteria boxes in `docs/epics.md` (a box is ticked o
 | M1 Connected skeleton | 29 | 29 | 100% | nothing open in M1: the demonstration runs with Claude Code as the MCP client in the real browser editor (step 6 keeps its decision column for the M2 call log) |
 | M2 Platform and agent identity | 3 | 13 | 23% | E2.3 quotas are in (they survive a restart) and E2.5 assets are in (upload by a route, one storage quota with the ops, image fills on the canvas); the rest of E2.3 (variable collections) and E2.1, E2.2, E2.4 are open and wait for Gatehouse |
 | M3 Model round 2 and variables | 4 | 13 | 31% | E3.5 (layer names) and E3.2 (layout and paint round 2) are in; E3.1, E3.3 and E3.4 are open |
-| M4 Export and fidelity | 1 | 6 | 17% | E4.3 (PNG export from the editor and through capture) is in; E4.1 and E4.2 wait for the render model and ADR-0003 |
+| M4 Export and fidelity | 1 | 6 | 17% | E4.3 (PNG export from the editor and through capture) is in; E4.1 has its first slice (the `export` feature and the `export_frame` tool; its boxes wait for the owner and a review) and E4.2 waits for the oracle gate |
 | M5 Agent review and design quality | 2 | 8 | 25% | E5.4 is in (frame duplication as a variant: editor button and MCP `make_variant`; the MCP `design_review` tool, ADR-0018); E5.1, E5.2, E5.3 and E5.5 wait for per-batch notes and ADR-0005 |
 | M6 V2 and the W1 gate | 0 | 4 | 0% | not started |
 | Total | 54 | 88 | 61% | |

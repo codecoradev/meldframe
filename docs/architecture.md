@@ -37,6 +37,7 @@ Meldframe lets a human and an AI agent edit the same design file, and exports it
 | ADR-0010 | One admission gate in front of every change | accepted |
 | ADR-0016 | Revert and restore are worked out from the log in the app layer; a field reverts only while the batch wrote it last | proposed |
 | ADR-0017 | Variables are a second table of the file; bindings are `{var:..}` objects; resolution happens in the core | proposed |
+| ADR-0019 | Export is a pure function of the render model; variables become CSS custom properties named by collection and name | proposed |
 
 ## 3. System shape
 
@@ -87,6 +88,11 @@ crates/
     meldframe-sync        `Replica`: the optimistic layer over a `FileState` (pending ops, the server's order, rebase, op dependencies)
     meldframe-store-contract (tool) the `Store` seam cases as functions and a `store_contract!` macro; both adapters run them
     meldframe-variables-tests (tool) the tests of variables at every seam they cross (resolve, apply and inverse, the checks, the document apply, undo, the replica, the room, the render step and the app layer); no library code; separate because `meldframe-check`, `-core`, `-host` and `-sync` are near their ceilings
+    meldframe-http-review (bin) the MCP tool `design_review` (E5.4, ADR-0018): a numbered critique list per file, kept in the workspace of the token
+    meldframe-review-tests (tool) the tests of the critique lists in Postgres and of `design_review` over MCP; it also holds the catalogue regenerate test (`docs/mcp-tools.json`); no library code
+    meldframe-http-export (bin) the MCP tool `export_frame` over the export feature: a seam to read the nodes and the variables of a file, the arguments, and the answer (HTML, CSS, report); the server composes it with the `export` cargo feature
+    meldframe-export-http-tests (tool) the tests of `export_frame` over MCP against the real server (the answer, the report, the stable codes, the size limit, the call log, the catalogue); helpers of `meldframe-mcp-tests` by path; separate because that crate is at its ceiling
+    meldframe-export-tests (tool) the tests of the export (E4.1): the CSS and Tailwind it generates per supported property, its variables, and the coverage table against its output; no library code; separate because the `export` crate would pass the size ceiling with them
     meldframe-variables-limits-tests (tool) the ceilings of the variable model and the linear cost of the alias checks (a layered file with 16^12 paths); no library code
     meldframe-sync-scenarios (tool) scenario tests of refused ops and of the limits of the correction; no library code
     meldframe-live-tests  (tool) tests of the live streams of `apps/server` (accepted ops reach subscribers, reconnect from a number); no library code; separate because the server crate is near its ceiling
@@ -108,7 +114,7 @@ crates/
   engines/                text measurer, rasteriser (traits and adapters)
   integrations/           MCP (rmcp), Gatehouse OIDC/OAuth, Uteke memory
   features/<name>/        <name> (domain) and <name>-ui (view): variables, export, review, capture, assets, import-tokens
-                          today the placeholder `example/`, `capture/` and `assets/` (the blob seam of E2.5, ADR-0015; its routes and the MCP tool `upload_asset` are `meldframe-http-assets`: `POST /v1/assets`, `GET /v1/assets/{id}`) and `design-review/` (the critique list of a file, E5.4, ADR-0018: `ReviewStore` with an in-memory and a Postgres adapter, table `design_review_items`; its MCP tool `design_review` is `meldframe-http-review`, a Change tool whose list action is a Read) exist
+                          today the placeholder `example/`, `capture/` and `assets/` (the blob seam of E2.5, ADR-0015; its routes and the MCP tool `upload_asset` are `meldframe-http-assets`: `POST /v1/assets`, `GET /v1/assets/{id}`) and `design-review/` (the critique list of a file, E5.4, ADR-0018: `ReviewStore` with an in-memory and a Postgres adapter, table `design_review_items`; its MCP tool `design_review` is `meldframe-http-review`, a Change tool whose list action is a Read) exist, and `export/` (E4.1, ADR-0019): `export_frame` over the render model, HTML with plain CSS or Tailwind v4, CSS variables for the variables of a frame, and a report of what it cannot carry (MCP tool in `meldframe-http-export`)
   app/
     meldframe-app         the app layer state machine over `meldframe-app-model` (compiled to WASM); holds a sync Replica for the document
     meldframe-wasm        thin wasm-bindgen glue over core and app
