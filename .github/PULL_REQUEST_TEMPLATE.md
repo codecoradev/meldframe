@@ -1,5 +1,5 @@
 <!-- CI checks that the four sections below exist and have text (pr checks).
-     Keep the pull request to about 400 changed lines and 10 files, one kind of content. -->
+     Keep the pull request to 15 files or fewer (ceiling 20) and under 1,000 changed lines (ceiling 1,500), one kind of content. -->
 
 ## What
 

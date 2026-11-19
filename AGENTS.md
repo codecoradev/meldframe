@@ -57,7 +57,7 @@ A pull request from `develop` to `main` is a release. Pull request CI is the fas
 
 ## Rules that are easy to break
 
-- Keep pull requests small: about 400 changed lines and 10 files, one kind of content. A large or mixed pull request is slow to review and hard to review well; split it by kind (workflow, scripts, code, docs).
+- Keep pull requests small: 15 files or fewer (ceiling 20) and under 1,000 changed lines (ceiling 1,500; 600 to 1,000 is normal for a feature slice), one kind of content. Lockfiles, generated files, pure moves, snapshots and large fixtures do not count; tests do. A large or mixed pull request is slow to review and hard to review well; split it by layer, crate or feature slice (a short stack is fine) and plan the boundaries before parallel work. Going over a ceiling needs a written reason under `## Why`.
 - Nothing public is created (accounts, domains, packages, registries) without an owner order.
 - Do not carry PPTX, Flutter or Dart.
 - Do not start new spikes; build the first vertical slice in this repository with exit criteria written first.
