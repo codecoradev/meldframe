@@ -2,7 +2,7 @@
 
 Agent-first design canvas. You and AI agents design on one canvas; the output is faithful HTML/Tailwind, and the same design tokens are rendered on the canvas and exported as CSS variables.
 
-Status: pre-alpha, private. This repository starts from a set of validated spikes (Rust core, WASM client, MCP surface). No product code yet.
+Status: pre-alpha. This repository starts from a set of validated spikes (Rust core, WASM client, MCP surface). No product code yet.
 
 ## Scope (current)
 
@@ -39,4 +39,4 @@ See the Development section of [AGENTS.md](AGENTS.md) for ports, URLs and the se
 
 ## License
 
-Proprietary. All rights reserved. See [NOTICE](NOTICE).
+All rights reserved. See [NOTICE](NOTICE).

@@ -1,6 +1,6 @@
 # Contributing to Meldframe
 
-Meldframe is a closed-source design canvas for people and AI agents. The repository is private; changes come from the owner's team and the agents it works with. This page is the short version of how a change gets in. [AGENTS.md](AGENTS.md) is the same rules written for coding agents, and it wins if the two ever differ.
+Meldframe is a design canvas for people and AI agents. Changes come from the owner's team and the agents it works with. This page is the short version of how a change gets in. [AGENTS.md](AGENTS.md) is the same rules written for coding agents, and it wins if the two ever differ.
 
 ## Before you start
 
@@ -49,7 +49,7 @@ These commands arrive with the workspace and the `xtask` crate (T0.1 to T0.3). U
 
 Before you open a pull request, run Cora as an agent reviewer on the whole diff (`git diff origin/develop...HEAD`): `cora mcp` gives `cora.review_prepare`, an independent reviewer judges the prepared prompt and opens the real files, then `cora.review_finalize` with `min_severity=major` gives the verdict. Fix every major or critical finding and review again. Write the verdict in the Testing section when you open the pull request: editing the description afterwards cancels and restarts the CI runs.
 
-The CI Cora review is disabled (`.gitea/workflows/cora-review.yml`, config in `.cora.yaml`) because it exceeded its time budget on the shared runner and delayed the other checks. The local agent review above is required for every pull request. A pull request merges with the fast CI checks green, the local agent review clean and no major or critical finding left.
+The CI Cora review is disabled (`.github/workflows/cora-review.yml`, config in `.cora.yaml`) because it exceeded its time budget on the shared runner and delayed the other checks. The local agent review above is required for every pull request. A pull request merges with the fast CI checks green, the local agent review clean and no major or critical finding left.
 
 ## Several worktrees at once
 
