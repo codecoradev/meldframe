@@ -1,8 +1,9 @@
 // Browser check of the Variables panel against a real server: node packages/web-panels/scripts/variables-e2e.mjs [web-url] [server-url]
-// The M3 exit in a browser: variables are bound to a frame, and switching the mode re-draws the frame on the canvas.
+// The panel and the mode switch in a browser: a frame is bound to a variable, and switching the mode re-draws it on the canvas.
 // Needs the development server (`just dev`, or the server binary with MELDFRAME_DEV_TOKENS and no DATABASE_URL, token in
 // .dev-token at the root) and `just web` (Vite) running, the WASM bridge built, and Playwright from the global module
-// path. It adds one frame and one collection to the file and leaves them: run it against the development server only.
+// path. It adds one frame, one collection and one variable to the file, and removes the variable and the collection at
+// the end (the frame stays: deleting a frame needs the owner's approval): run it against the development server only.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -61,7 +62,8 @@ async function until(what, fn, ms = 20000) {
 
 const LIGHT = '#00aa55';
 const DARK = '#aa0055';
-const EDITED = '#2255dd';
+// A colour of its own for every run, so a frame left by an earlier run cannot satisfy a check of this one.
+const EDITED = `#${[0, 1, 2].map(() => (40 + Math.floor(Math.random() * 180)).toString(16)).join('')}`;
 const col = `col_${run}`;
 const bg = `bg_${run}`;
 const frame = `frame_${run}`;
@@ -145,6 +147,8 @@ async function check(name, fn) {
 
   await check('no uncaught error in the page', async () => assert.deepEqual(pageErrors, []));
   await browser.close();
+  // Leave no variable behind (it is removable once the frame lets go of it); a failed run may leave it, and the colours of the next run differ.
+  for (const command of [{ type: 'removeVariable', id: bg }, { type: 'removeCollection', id: col }]) await post(command).catch(() => {});
   const failed = results.filter((r) => !r).length;
   console.log(failed ? `${failed} of ${results.length} checks failed` : `all ${results.length} checks passed`);
   process.exit(failed ? 1 : 0);
