@@ -1771,6 +1771,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-variables-import-tests"
+version = "0.0.0"
+dependencies = [
+ "variables-import",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-variables-limits-tests"
 version = "0.0.0"
 dependencies = [
@@ -3181,6 +3189,10 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "variables-import"
+version = "0.0.0"
 
 [[package]]
 name = "vcpkg"
