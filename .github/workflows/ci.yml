@@ -5,7 +5,7 @@
 # size limits, licences, UI literals and the protocol drift check, then the web client (npm ci,
 # typecheck, lint, tests, build, UI literals, licences), then the build-heavy lint and Rust tests, run one after
 # another on one toolchain and one cache; a broken rule fails the run in about a minute) and `migrations` (needs a Postgres service). The heaviest gates (build-matrix,
-# portable-check) run nightly (.gitea/workflows/nightly.yml; the GitHub copy is tracked in issue #1), and locally with `just check`
+# portable-check) run nightly (nightly.yml), and locally with `just check`
 # before a pull request is opened.
 #
 # Runs on pull requests only: a branch is checked once, through its pull request, and a newer push
