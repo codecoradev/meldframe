@@ -13,6 +13,13 @@ use std::time::Duration;
 pub enum Failure {
     /// A tool, the gate or the room refused: it has a stable `Refusal::code`.
     Refused(Refusal),
+    /// A delete that asks the owner first (E2.4): `approval_required` until the owner answers, then `approval_denied` or
+    /// `approval_expired`. `id` names the approval.
+    Approval {
+        code: &'static str,
+        id: String,
+        message: String,
+    },
     /// An atomic batch was refused before any op was written: the op at `index` (from 0) would be refused.
     Batch { index: usize, refusal: Refusal },
     /// Not a refusal: the store is down, the registry is full. The text is for the log, not the caller.
@@ -85,6 +92,19 @@ impl Reply {
         match f {
             Failure::Refused(r) => Self::refused(r, None),
             Failure::Batch { index, refusal } => Self::refused(refusal, Some(*index)),
+            Failure::Approval { code, id, message } => {
+                // Never retryable as it is: the call stays refused until the owner answers (or, for the limit,
+                // until an approval frees its place), so a client must not send it again by itself.
+                let status = if *code == "approval_limit" { 429 } else { 403 };
+                let mut reply = Self::error(status, code, message, false);
+                if let Some(e) = reply.body["error"]
+                    .as_object_mut()
+                    .filter(|_| !id.is_empty())
+                {
+                    e.insert("approvalId".into(), json!(id));
+                }
+                reply
+            }
             Failure::Permanent(_) => Self::error(
                 400,
                 "invalid",

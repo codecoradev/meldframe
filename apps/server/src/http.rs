@@ -39,6 +39,20 @@ impl SharedServer {
         self.lock().calls(limit)
     }
 
+    pub fn pending_approvals(&self, workspace: &str) -> Vec<meldframe_approvals::Approval> {
+        self.lock().pending_approvals(workspace)
+    }
+
+    /// The owner's answer to an approval (see `Server::decide_approval`).
+    pub fn decide_approval(
+        &self,
+        who: &Principal,
+        id: &str,
+        approved: bool,
+    ) -> Result<meldframe_approvals::ApprovalState, meldframe_approvals::AnswerError> {
+        self.lock().decide_approval(who, id, approved)
+    }
+
     /// The bytes of ops a workspace has written and its storage limit (for the asset quota).
     pub fn ops_storage(&self, workspace: &str) -> (u64, Option<u64>) {
         self.lock().ops_storage(workspace)
@@ -318,6 +332,11 @@ pub fn failure_of(e: &SubmitError) -> Failure {
         return Failure::Refused(r.clone());
     }
     match e {
+        SubmitError::Approval(a) => Failure::Approval {
+            code: a.code(),
+            id: a.id().unwrap_or_default().to_string(),
+            message: a.to_string(),
+        },
         SubmitError::Rooms(RegistryError::Room(RoomError::Store(StoreError::Unavailable(m))))
             if m.starts_with(PERMANENT_STORE_ERROR) =>
         {

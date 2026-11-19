@@ -299,21 +299,19 @@ async fn files_are_per_workspace_and_a_bad_file_name_is_invalid() {
 }
 
 #[tokio::test]
-async fn a_frame_delete_is_forbidden_by_the_gate() {
+async fn a_frame_delete_asks_the_owner_and_the_retry_after_approval_is_admitted() {
     let h = start().await;
     let c = connect(&h, AGENT).await;
-    call(
-        &c,
-        "apply_commands",
-        json!({"file": "f10", "idempotencyKey": "k", "commands": [frame("a", "A")]}),
-    )
-    .await;
-    let r = call(
-        &c,
-        "apply_commands",
-        json!({"file": "f10", "idempotencyKey": "d", "commands": [{"type": "removeNode", "id": "a"}]}),
-    )
-    .await;
+    let add = json!({"file": "f10", "idempotencyKey": "k", "commands": [frame("a", "A")]});
+    call(&c, "apply_commands", add).await;
+    let delete = json!({"file": "f10", "idempotencyKey": "d", "commands": [{"type": "removeNode", "id": "a"}]});
+    let r = call(&c, "apply_commands", delete.clone()).await;
     assert!(r.is_error);
-    assert_eq!(r.body["error"]["code"], "forbidden");
+    assert_eq!(r.body["error"]["code"], "approval_required");
+    assert_eq!(r.body["error"]["retryable"], false);
+    let id = r.body["error"]["approvalId"].as_str().unwrap().to_string();
+    let owner = meldframe_host::Principal::new("ws_1", "owner:o");
+    h.spy.server.decide_approval(&owner, &id, true).unwrap();
+    let again = call(&c, "apply_commands", delete).await;
+    assert!(!again.is_error, "{}", again.body);
 }

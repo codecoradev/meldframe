@@ -1476,6 +1476,7 @@ dependencies = [
  "axum",
  "capture",
  "example",
+ "meldframe-approvals",
  "meldframe-batch",
  "meldframe-calls",
  "meldframe-host",
@@ -1497,6 +1498,7 @@ dependencies = [
 name = "meldframe-server-tests"
 version = "0.0.0"
 dependencies = [
+ "meldframe-approvals",
  "meldframe-calls",
  "meldframe-host",
  "meldframe-module",

@@ -1,5 +1,6 @@
 //! Why a submit wrote nothing, or stopped part way.
 
+use meldframe_approvals::ApprovalRefusal;
 use meldframe_host::{Refusal, RoomError};
 use meldframe_rooms::RegistryError;
 use std::fmt;
@@ -9,6 +10,9 @@ use std::fmt;
 pub enum SubmitError {
     /// The tool or the gate refused the batch; nothing was written.
     Refused(Refusal),
+    /// The call is a delete that asks the owner first (E2.4): `approval_required`, `approval_denied` or
+    /// `approval_expired`, with the id of the approval. Nothing was written.
+    Approval(ApprovalRefusal),
     /// The file would not open, or the room refused or failed an op. Ops of the same batch that came before
     /// stay written (each op is its own durable write); sending the batch again with the same keys returns
     /// those as `written: false` and writes only the rest.
@@ -19,6 +23,7 @@ impl fmt::Display for SubmitError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SubmitError::Refused(r) => write!(f, "{r}"),
+            SubmitError::Approval(r) => write!(f, "{r}"),
             SubmitError::Rooms(e) => write!(f, "{e}"),
         }
     }
@@ -34,7 +39,26 @@ impl SubmitError {
         match self {
             SubmitError::Refused(r)
             | SubmitError::Rooms(RegistryError::Room(RoomError::Refused(r))) => Some(r),
-            SubmitError::Rooms(_) => None,
+            SubmitError::Approval(_) | SubmitError::Rooms(_) => None,
+        }
+    }
+
+    /// The stable code of the failure: the refusal's, the approval's, or `unavailable` for a failure that is not
+    /// a refusal.
+    pub fn code(&self) -> &'static str {
+        match (self, self.refusal()) {
+            (_, Some(r)) => r.code(),
+            (SubmitError::Approval(a), None) => a.code(),
+            _ => "unavailable",
+        }
+    }
+}
+
+impl From<ApprovalRefusal> for SubmitError {
+    fn from(r: ApprovalRefusal) -> Self {
+        match r {
+            ApprovalRefusal::Refused(r) => SubmitError::Refused(r),
+            r => SubmitError::Approval(r),
         }
     }
 }

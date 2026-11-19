@@ -72,7 +72,9 @@ fn refused(e: &CaptureError) -> CallToolResult {
 /// What a failed read of the file means to the caller: faithfully, not as `busy`.
 fn read_failure(f: &Failure) -> CaptureError {
     match f {
-        Failure::Refused(_) | Failure::Batch { .. } => CaptureError::Forbidden,
+        Failure::Refused(_) | Failure::Batch { .. } | Failure::Approval { .. } => {
+            CaptureError::Forbidden
+        }
         Failure::Permanent(_) => CaptureError::Invalid("the file cannot be read".into()),
         Failure::Unavailable(_) => CaptureError::Busy,
     }

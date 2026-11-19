@@ -8,8 +8,10 @@
 //! The seam is synchronous, so each call blocks on a private runtime. Call it from a plain thread or from
 //! `spawn_blocking`, never from inside an async task (tokio refuses to block there).
 
+mod backing;
 mod calls;
 
+pub use backing::{AnyStore, Backing};
 pub use calls::{CALL_QUEUE, PgCallLog};
 
 use meldframe_host::{Appended, NewOp, Snapshot, Store, StoreError, StoredOp};
