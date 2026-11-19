@@ -8,5 +8,5 @@
 [files]
 
 [crates]
-# The web client's sources (Svelte, scripts, Rust stub) together; went over once Svelte and MJS counted.
-meldframe-web = 3719
+# The web client's sources (Svelte, TypeScript, Rust stub) together; went over once Svelte and MJS counted.
+meldframe-web = 2973

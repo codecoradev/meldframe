@@ -7,13 +7,13 @@ import type { Plugin, PreviewServer, ViteDevServer } from 'vite';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
-import { REFUSED_URL, applyAuth, guardRequest, isProxied, resolveProxy } from './dev/proxy-guard';
+import { REFUSED_URL, applyAuth, guardRequest, isProxied, resolveProxy } from '../../packages/web-tools/src/proxy-guard';
 
 // Development only. The browser never holds a token: this server-side proxy adds the dev token to the
 // REST calls and the live socket (a browser WebSocket cannot set a header). Set these in the
 // environment, never in a committed file: MELDFRAME_WEB_TOKEN (a token of MELDFRAME_DEV_TOKENS; `just web`
 // reads it from .dev-token) and MELDFRAME_SERVER (loopback unless MELDFRAME_WEB_ALLOW_REMOTE=1). The proxy
-// answers only to the dev page on its own loopback address (see dev/proxy-guard.ts), so `vite --host`
+// answers only to the dev page on its own loopback address (see packages/web-tools/src/proxy-guard.ts), so `vite --host`
 // does not hand the token to the network.
 const wasmGlue = existsSync(new URL('./.wasm/meldframe_wasm.js', import.meta.url)) ? './.wasm/meldframe_wasm.js' : './src/wasm-missing.ts';
 const resolved = resolveProxy(process.env);
@@ -97,7 +97,7 @@ export default defineConfig(({ command }) => {
     server: { proxy },
     preview: { proxy },
     test: {
-      include: ['src/**/*.test.ts', 'dev/**/*.test.ts', 'scripts/**/*.test.mjs', '../../packages/web-*/src/**/*.test.ts'],
+      include: ['src/**/*.test.ts', '../../packages/web-*/src/**/*.test.ts', '../../packages/web-*/scripts/**/*.test.mjs'],
       environment: 'node',
     },
   };

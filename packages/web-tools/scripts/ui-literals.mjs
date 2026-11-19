@@ -1,4 +1,4 @@
-// Usage: node scripts/ui-literals.mjs  (from apps/web). Exits non-zero on any literal outside the tokens module.
+// Usage: node ../../packages/web-tools/scripts/ui-literals.mjs  (from apps/web). Exits non-zero on any literal outside the tokens module.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { findLiterals, isExempt } from './ui-literals-lib.mjs';
@@ -24,7 +24,7 @@ function packageRoots() {
 }
 
 const found = [];
-for (const root of ['src', 'dev', 'index.html', 'vite.config.ts', ...packageRoots()]) {
+for (const root of ['src', 'index.html', 'vite.config.ts', ...packageRoots()]) {
   const files = /\.(?:html|ts)$/.test(root) ? [root] : [...walk(root)];
   for (const f of files) if (existsSync(f) && !isExempt(f)) found.push(...findLiterals(f, readFileSync(f, 'utf8')));
 }
