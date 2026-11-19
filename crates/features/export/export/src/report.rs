@@ -20,11 +20,25 @@ pub struct Report {
 }
 
 impl Report {
+    pub(crate) fn unsupported(&mut self, code: &'static str, node: &str, message: &str) {
+        self.unsupported.push(Finding {
+            code,
+            node: Some(node.to_owned()),
+            message: message.to_owned(),
+        });
+    }
+
     pub(crate) fn warn(&mut self, code: &'static str, node: Option<&str>, message: String) {
         self.warnings.push(Finding {
             code,
             node: node.map(str::to_owned),
             message,
         });
+    }
+
+    pub(crate) fn asset(&mut self, id: &str) {
+        if let Err(at) = self.assets.binary_search_by(|a| a.as_str().cmp(id)) {
+            self.assets.insert(at, id.to_owned());
+        }
     }
 }

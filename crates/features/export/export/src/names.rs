@@ -23,3 +23,8 @@ pub(crate) fn escape(s: &str) -> String {
     }
     out
 }
+
+/// The `#rrggbb` of a colour the render model painted.
+pub(crate) fn hex(rgb: u32) -> String {
+    format!("#{rgb:06x}")
+}
