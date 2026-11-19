@@ -1183,6 +1183,7 @@ dependencies = [
  "meldframe-protocol",
  "meldframe-revert",
  "meldframe-rooms",
+ "meldframe-server",
  "serde_json",
 ]
 

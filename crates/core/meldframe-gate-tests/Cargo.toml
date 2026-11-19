@@ -17,6 +17,7 @@ meldframe-module = { path = "../meldframe-module" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-revert = { path = "../meldframe-revert" }
 meldframe-rooms = { path = "../meldframe-rooms" }
+meldframe-server = { path = "../../../apps/server" }
 serde_json = "1"
 
 [lints]
