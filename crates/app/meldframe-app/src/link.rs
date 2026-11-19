@@ -6,7 +6,7 @@ use crate::effect::Effect;
 use crate::event::Event;
 use crate::retry::Retries;
 use crate::state::Connection;
-use meldframe_protocol::Node;
+use meldframe_protocol::Doc;
 
 /// A live connection that has been silent this long is dropped. The server sends a heartbeat when it has
 /// said nothing for 15 seconds, so three are missed by then.
@@ -53,12 +53,12 @@ impl App {
     pub(crate) fn reload(
         &mut self,
         now_ms: u64,
-        nodes: Vec<Node>,
+        doc: Doc,
         seq: u64,
         applied: &[String],
         fx: &mut Vec<Effect>,
     ) {
-        match self.replica.resync(nodes, seq, applied) {
+        match self.replica.resync_doc(doc, seq, applied) {
             Ok(dropped) => self.dropped(dropped),
             Err(e) => {
                 self.level = Level::Nothing;

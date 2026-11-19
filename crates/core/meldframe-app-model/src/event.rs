@@ -44,6 +44,11 @@ pub enum Event {
         actor: String,
         optimistic: bool,
     },
+    /// The mode picked for a collection changed (`None`: its default mode). Only the view changed.
+    ModeChanged {
+        collection: String,
+        mode: Option<String>,
+    },
     /// An action could not be carried out; nothing changed. A stable code such as `not_found`.
     Refused {
         code: String,

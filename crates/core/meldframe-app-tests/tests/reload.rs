@@ -54,6 +54,7 @@ fn reload(w: &mut World, i: usize, applied: Vec<String>) {
         Action::Reload {
             now_ms: now,
             nodes,
+            variables: Default::default(),
             seq,
             applied,
         },

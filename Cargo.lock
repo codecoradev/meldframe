@@ -1033,13 +1033,24 @@ dependencies = [
 name = "meldframe-app"
 version = "0.0.0"
 dependencies = [
+ "meldframe-app-model",
  "meldframe-check",
  "meldframe-history",
  "meldframe-protocol",
  "meldframe-render",
  "meldframe-revert",
  "meldframe-sync",
+ "meldframe-variables",
  "meldframe-variant",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "meldframe-app-model"
+version = "0.0.0"
+dependencies = [
+ "meldframe-protocol",
  "serde",
  "serde_json",
  "ts-rs",

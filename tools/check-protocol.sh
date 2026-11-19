@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 GEN=packages/protocol/src/generated
 
 rm -rf "$GEN" && mkdir -p "$GEN"
-cargo test -p meldframe-protocol -p meldframe-app --quiet >/dev/null
+cargo test -p meldframe-protocol -p meldframe-app-model --quiet >/dev/null
 # Deterministic barrel file.
 (cd "$GEN" && for f in $(ls *.ts | grep -v '^index.ts$' | LC_ALL=C sort); do n=${f%.ts}; echo "export type { $n } from './$n';"; done) > "$GEN/index.ts"
 

@@ -185,6 +185,7 @@ fn a_reload_forgets_the_batches_before_it() {
         nodes,
         seq: l.seq,
         applied: vec![],
+        variables: Default::default(),
     });
     l.events.extend(l.app.take_events());
     l.send(revert("agent:x", "b1"));

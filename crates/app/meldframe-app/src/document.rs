@@ -4,7 +4,7 @@ use crate::action::{Action, CreateKind, Property};
 use crate::app::{App, render_set};
 use crate::effect::Effect;
 use crate::state::Tool;
-use meldframe_check::{ApplyError, Limits, check_command};
+use meldframe_check::{ApplyError, Limits, check_command_with};
 use meldframe_protocol::{Command, Node, NodePatch};
 use meldframe_sync::{Replica, SubmitError};
 use meldframe_variant::VariantError;
@@ -22,6 +22,9 @@ fn code(e: &SubmitError) -> &'static str {
     let SubmitError::Invalid(e) = e else {
         return "outbox_full";
     };
+    if let Some(code) = crate::variables::variable_code(e) {
+        return code;
+    }
     match e {
         ApplyError::NotFound(_) => "not_found",
         ApplyError::DuplicateId(_) => "duplicate_id",
@@ -192,6 +195,7 @@ impl App {
             Action::RevertBatch { actor, key_prefix } => self.revert_batch(&actor, &key_prefix),
             Action::CreateCheckpoint { label } => self.create_checkpoint(label),
             Action::RestoreCheckpoint { id } => self.restore_checkpoint(&id),
+            Action::EditVariables { commands } => self.edit_variables(&commands),
             Action::Undo {} => self.step(true),
             Action::Redo {} => self.step(false),
             // The other actions are not about the document.
@@ -231,7 +235,9 @@ impl App {
         self.check_room(cmds)?;
         let limits = Limits::default();
         cmds.iter()
-            .try_for_each(|c| check_command(self.replica.nodes(), c, &limits))
+            .try_for_each(|c| {
+                check_command_with(self.replica.nodes(), self.replica.vars(), c, &limits)
+            })
             .map_err(SubmitError::Invalid)
     }
 

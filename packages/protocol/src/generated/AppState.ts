@@ -9,7 +9,7 @@ import type { Tool } from "./Tool";
 /**
  * The state of the editor: what is selected, which tool is active, which panels are open, how the
  * connection to the room is doing and whether undo and redo are available. The document itself is read
- * with [`App::nodes`](crate::App::nodes).
+ * with `App::nodes`.
  */
 export type AppState = { 
 /**
@@ -37,4 +37,9 @@ lastActor: { [key in string]: string },
  * The checkpoints of this session, oldest first (E5.3): saved by the person, or taken on their own at the
  * start of an agent run and before a revert or a restore.
  */
-checkpoints: Array<Checkpoint>, };
+checkpoints: Array<Checkpoint>, 
+/**
+ * The mode picked for each collection that is not on its default mode (collection id to mode id). View
+ * state: it decides what the canvas paints and is never written to the file.
+ */
+modes: { [key in string]: string }, };
