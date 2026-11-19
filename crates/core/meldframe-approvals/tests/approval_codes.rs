@@ -16,7 +16,8 @@ fn index(r: &ApprovalRefusal) -> usize {
         ApprovalRefusal::Required { .. } => 0,
         ApprovalRefusal::Denied { .. } => 1,
         ApprovalRefusal::Expired { .. } => 2,
-        ApprovalRefusal::Refused(_) => 3,
+        ApprovalRefusal::TooMany { .. } => 3,
+        ApprovalRefusal::Refused(_) => 4,
     }
 }
 
@@ -26,6 +27,7 @@ fn samples() -> Vec<ApprovalRefusal> {
         ApprovalRefusal::Required { id: id() },
         ApprovalRefusal::Denied { id: id() },
         ApprovalRefusal::Expired { id: id() },
+        ApprovalRefusal::TooMany { limit: 20 },
         ApprovalRefusal::Refused(Refusal::Forbidden {
             tier: RiskTier::Delete,
             policy: Policy::Deny,
@@ -56,7 +58,7 @@ fn table() -> Vec<String> {
 #[test]
 fn the_samples_cover_every_variant() {
     let seen: BTreeSet<usize> = samples().iter().map(index).collect();
-    assert_eq!(seen, (0..4).collect());
+    assert_eq!(seen, (0..5).collect());
 }
 
 #[test]
@@ -68,6 +70,7 @@ fn the_codes_are_stable_and_a_gate_refusal_keeps_its_own() {
             "approval_required",
             "approval_denied",
             "approval_expired",
+            "approval_limit",
             "forbidden"
         ]
     );

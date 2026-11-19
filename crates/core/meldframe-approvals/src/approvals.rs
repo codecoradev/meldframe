@@ -11,18 +11,25 @@
 //! Nothing here authorises the decision: `decide` takes `by` as a label and records it. Who may approve is the
 //! owner's call and arrives with E2.4 and Gatehouse. The clock is the caller's (`at`, the same unit as the
 //! registry's); this crate reads no wall clock. Approvals live in memory: a restart forgets them, and a
-//! pending one is then asked again, which is safe. They are not pruned (a follow-up: drop the finished ones
-//! older than the ttl). An approval is consumed when the gate admits the op, not when the room applies it, so an
+//! pending one is then asked again, which is safe. The caller drops the finished ones
+//! with [`Approvals::prune`] (an approval is dead after its ttl). An approval is consumed when the gate admits the op, not when the room applies it, so an
 //! op the room then refuses has spent it; a consumed approval does not block a new one for the same op.
 //!
 //! Decisions have their own log ([`Approvals::decisions`]), not the activity log: an activity entry carries
 //! the sequence number of an accepted op, the log requires those to rise, and its gaps mean lost writes. A
 //! decision is not an op and has no sequence number.
 
+mod answer;
+mod refusal;
+
+pub use answer::AnswerError;
+pub use refusal::{ApprovalRefusal, DecideError};
+
 use meldframe_host::{Gate, NodeFacts, Op, Principal, Refusal, Report};
 use meldframe_module::{Policy, RiskTier};
 use meldframe_rooms::{ActivityEntry, ActivityKind};
-use std::fmt;
+use std::collections::hash_map::RandomState;
+use std::hash::{BuildHasher, Hasher};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -78,76 +85,6 @@ pub struct Decision {
     pub at: u64,
 }
 
-/// Why a call through [`Approvals::submit`] was refused. Codes are stable (`docs/error-codes.md`).
-#[derive(Debug, Clone, PartialEq)]
-pub enum ApprovalRefusal {
-    /// The policy is Ask and the owner has not approved: wait for the decision, then send the op again.
-    Required { id: String },
-    /// The owner denied this op. Send a new op (a new key) to ask again.
-    Denied { id: String },
-    /// The approval ran out before it was used. Send a new op (a new key) to ask again.
-    Expired { id: String },
-    /// The gate refused for another reason (Deny policy, quota, shape); it keeps its own code.
-    Refused(Refusal),
-}
-
-impl ApprovalRefusal {
-    pub fn code(&self) -> &'static str {
-        match self {
-            ApprovalRefusal::Required { .. } => "approval_required",
-            ApprovalRefusal::Denied { .. } => "approval_denied",
-            ApprovalRefusal::Expired { .. } => "approval_expired",
-            ApprovalRefusal::Refused(r) => r.code(),
-        }
-    }
-}
-
-impl fmt::Display for ApprovalRefusal {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ApprovalRefusal::Required { id } => {
-                write!(f, "approval required: approval {id} waits for the owner")
-            }
-            ApprovalRefusal::Denied { id } => write!(f, "approval denied: approval {id}"),
-            ApprovalRefusal::Expired { id } => write!(f, "approval expired: approval {id}"),
-            ApprovalRefusal::Refused(r) => write!(f, "{r}"),
-        }
-    }
-}
-
-impl std::error::Error for ApprovalRefusal {}
-
-/// Why `decide` did nothing.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DecideError {
-    Unknown {
-        id: String,
-    },
-    /// A decision is final: the approval is not pending.
-    NotPending {
-        id: String,
-        state: ApprovalState,
-    },
-    /// The approval ran out before the decision.
-    Expired {
-        id: String,
-    },
-}
-
-impl fmt::Display for DecideError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DecideError::Unknown { id } => write!(f, "approval {id} is unknown"),
-            DecideError::NotPending { id, state } => {
-                write!(f, "approval {id} is already {state:?}")
-            }
-            DecideError::Expired { id } => write!(f, "approval {id} expired"),
-        }
-    }
-}
-
-impl std::error::Error for DecideError {}
-
 /// A gate that [`Approvals::submit`] can admit an approved op through. It is a `Gate` (it derefs to one, so
 /// `submit`, `submit_with` and `used` work as usual) with a flag of its own that only `submit` sets.
 #[derive(Debug)]
@@ -197,15 +134,33 @@ impl Drop for Lift<'_> {
 #[derive(Debug)]
 pub struct Approvals {
     ttl: u64,
+    /// Approvals opened so far: the input of the next id, so a pruned id is never issued again.
+    issued: u64,
+    /// The keys of this run: an id is a keyed hash of `issued`, so it is not a count and not guessable.
+    keys: RandomState,
     items: Vec<Approval>,
     log: Vec<Decision>,
 }
 
 impl Approvals {
+    /// How many decisions [`Approvals::prune`] keeps in the log.
+    pub const MAX_DECISIONS: usize = 1_000;
+    /// Open (pending or approved) approvals one actor may hold; a call that would open one more is refused.
+    pub const MAX_OPEN_PER_ACTOR: usize = 20;
+    /// Open approvals one workspace may hold.
+    pub const MAX_OPEN_PER_WORKSPACE: usize = 100;
+    /// Approvals kept in all, finished ones included, so every scan of them is short. Finished ones go with
+    /// [`Approvals::prune`].
+    pub const MAX_ITEMS: usize = 2_000;
+    /// The longest idempotency key (in characters) an approval is opened for; MCP caps keys at the same length.
+    pub const MAX_KEY_CHARS: usize = 100;
+
     /// Approvals that live `ttl` clock units from the request.
     pub fn new(ttl: u64) -> Self {
         Approvals {
             ttl,
+            issued: 0,
+            keys: RandomState::new(),
             items: Vec::new(),
             log: Vec::new(),
         }
@@ -260,7 +215,7 @@ impl Approvals {
             }) => {}
             Err(other) => return Err(ApprovalRefusal::Refused(other)),
         }
-        let i = self.slot(who, file, &op, at);
+        let i = self.slot(who, file, &op, at)?;
         let id = self.items[i].id.clone();
         match self.items[i].state {
             // `slot` never returns a consumed approval; were it to, asking again is the safe answer.
@@ -284,10 +239,16 @@ impl Approvals {
 
     /// Open a pending approval for `op`, or return the one that already covers it (same workspace, actor, file
     /// and whole op, not yet consumed): asking again never opens a second one.
-    pub fn request(&mut self, who: &Principal, file: &str, op: &Op, at: u64) -> String {
+    pub fn request(
+        &mut self,
+        who: &Principal,
+        file: &str,
+        op: &Op,
+        at: u64,
+    ) -> Result<String, ApprovalRefusal> {
         self.expire_due(at);
-        let i = self.slot(who, file, op, at);
-        self.items[i].id.clone()
+        let i = self.slot(who, file, op, at)?;
+        Ok(self.items[i].id.clone())
     }
 
     /// The owner's answer. Only a pending approval takes one, once. `by` is recorded, not checked.
@@ -335,6 +296,29 @@ impl Approvals {
         })
     }
 
+    /// The approvals of `workspace` that wait for the owner, oldest first. An approval past its expiry is
+    /// listed until the next `submit`, `decide`, `request` or `prune` marks it Expired.
+    pub fn pending(&self, workspace: &str) -> Vec<&Approval> {
+        self.items
+            .iter()
+            .filter(|a| a.workspace == workspace && a.state == ApprovalState::Pending)
+            .collect()
+    }
+
+    /// Forget what is finished: an approval that is not open, one more ttl after its time (`expires_at`), so a
+    /// retry in that while still meets `approval_denied` or `approval_expired`; and the oldest decisions beyond
+    /// [`Approvals::MAX_DECISIONS`]. After that the same op can ask again. A caller that runs for long calls this
+    /// now and then, so memory is bounded by the rate of asking times twice the ttl.
+    pub fn prune(&mut self, at: u64) {
+        self.expire_due(at);
+        self.items.retain(|a| {
+            matches!(a.state, ApprovalState::Pending | ApprovalState::Approved)
+                || at < a.expires_at.saturating_add(self.ttl)
+        });
+        let extra = self.log.len().saturating_sub(Self::MAX_DECISIONS);
+        self.log.drain(..extra);
+    }
+
     /// Every decision so far, in order.
     pub fn decisions(&self) -> &[Decision] {
         &self.log
@@ -362,14 +346,30 @@ impl Approvals {
     }
 
     /// The approval covering this op, opened when there is none.
-    fn slot(&mut self, who: &Principal, file: &str, op: &Op, at: u64) -> usize {
+    fn slot(
+        &mut self,
+        who: &Principal,
+        file: &str,
+        op: &Op,
+        at: u64,
+    ) -> Result<usize, ApprovalRefusal> {
         if let Some(i) = self.matching(who, file, op, None) {
-            return i;
+            return Ok(i);
         }
+        if op.key.chars().count() > Self::MAX_KEY_CHARS {
+            // An approval keeps the key (twice); a long one is refused rather than held.
+            return Err(ApprovalRefusal::Refused(Refusal::Forbidden {
+                tier: RiskTier::Delete,
+                policy: Policy::Deny,
+            }));
+        }
+        self.check_room(who)?;
         let command = format!("{op:?}");
         let (kind, node_id) = ActivityEntry::describe(&op.command);
+        self.issued += 1;
+        let id = self.next_id();
         self.items.push(Approval {
-            id: format!("apr_{}", self.items.len() + 1),
+            id,
             workspace: who.workspace.clone(),
             actor: who.actor.clone(),
             file: file.into(),
@@ -381,7 +381,42 @@ impl Approvals {
             expires_at: at.saturating_add(self.ttl),
             command,
         });
-        self.items.len() - 1
+        Ok(self.items.len() - 1)
+    }
+
+    /// Refuse a new approval when the actor, the workspace or the whole set is at its cap.
+    fn check_room(&self, who: &Principal) -> Result<(), ApprovalRefusal> {
+        let open =
+            |a: &&Approval| matches!(a.state, ApprovalState::Pending | ApprovalState::Approved);
+        let in_ws = || {
+            self.items
+                .iter()
+                .filter(open)
+                .filter(|a| a.workspace == who.workspace)
+        };
+        let limit = if self.items.len() >= Self::MAX_ITEMS {
+            Self::MAX_ITEMS
+        } else if in_ws().filter(|a| a.actor == who.actor).count() >= Self::MAX_OPEN_PER_ACTOR {
+            Self::MAX_OPEN_PER_ACTOR
+        } else if in_ws().count() >= Self::MAX_OPEN_PER_WORKSPACE {
+            Self::MAX_OPEN_PER_WORKSPACE
+        } else {
+            return Ok(());
+        };
+        Err(ApprovalRefusal::TooMany {
+            limit: limit as u64,
+        })
+    }
+
+    /// `apr_` and 128 bits: two keyed hashes of the number of approvals opened so far.
+    fn next_id(&self) -> String {
+        let part = |salt: u8| {
+            let mut h = self.keys.build_hasher();
+            h.write_u8(salt);
+            h.write_u64(self.issued);
+            h.finish()
+        };
+        format!("apr_{:016x}{:016x}", part(1), part(2))
     }
 
     /// Mark every pending or approved approval that is past its expiry.

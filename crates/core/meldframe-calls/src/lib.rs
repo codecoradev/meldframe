@@ -31,6 +31,9 @@ impl Decision {
     }
 }
 
+/// The tool name of the entry that records the owner's answer to an approval.
+pub const TOOL_DECIDE_APPROVAL: &str = "decide_approval";
+
 /// One call.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallEntry {
@@ -120,7 +123,8 @@ pub fn describe(
 }
 
 /// How a call that has only a stable code reads in the log (a tool that does not go through the gate, such as
-/// `whoami` or `capture`): `None` is `ok` and allowed; `forbidden` is denied; `invalid` and `bad_request` are malformed
+/// `whoami` or `capture`): `None` is `ok` and allowed; `forbidden` is denied; `approval_required` is an ask and
+/// `approval_denied`, `approval_expired` and `approval_limit` are denied; `invalid` and `bad_request` are malformed
 /// calls with no decision; any other code is a call the policy let through that then failed with it.
 /// A code that is not 1 to 64 of `a-z`, `0-9` and `_` (a tool that put text there) is logged as `internal`.
 pub fn describe_code(code: Option<&str>) -> (Option<Decision>, String) {
@@ -133,6 +137,11 @@ pub fn describe_code(code: Option<&str>) -> (Option<Decision>, String) {
     match code {
         None => (Some(Decision::Allow), "ok".into()),
         Some("forbidden") => (Some(Decision::Deny), "forbidden".into()),
+        // The approval path (E2.4): the call waits for the owner, or the owner's answer is no.
+        Some("approval_required") => (Some(Decision::Ask), "approval_required".into()),
+        Some(c @ ("approval_denied" | "approval_expired" | "approval_limit")) => {
+            (Some(Decision::Deny), c.into())
+        }
         Some(c @ ("invalid" | "bad_request")) => (None, c.into()),
         Some(c) => (Some(Decision::Allow), c.into()),
     }
@@ -160,6 +169,24 @@ impl CallEntry {
             decision,
             outcome,
         }
+    }
+
+    /// The entry for the owner's answer to an approval (E2.4): who answered, in which file, and what they decided
+    /// (`approved`: allow, else deny). The tier is Delete, the tier that is asked about, and the call itself
+    /// succeeded (`ok`). It holds no node and no command.
+    pub fn approval_decision(at: u64, who: &Principal, file: &str, approved: bool) -> Self {
+        let mut entry = Self::with_code(
+            at,
+            who,
+            TOOL_DECIDE_APPROVAL,
+            file,
+            Some(RiskTier::Delete),
+            None,
+        );
+        if !approved {
+            entry.decision = Some(Decision::Deny);
+        }
+        entry
     }
 
     /// The entry for a call that has only a stable code (see [`describe_code`]).
