@@ -72,6 +72,7 @@ fn reload(nodes: Vec<meldframe_protocol::Node>, seq: u64, applied: &[&str]) -> A
     Action::Reload {
         now_ms: 9,
         nodes,
+        variables: Default::default(),
         seq,
         applied: applied.iter().map(|s| s.to_string()).collect(),
     }

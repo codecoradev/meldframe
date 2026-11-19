@@ -1025,6 +1025,7 @@ dependencies = [
 name = "meldframe-app"
 version = "0.0.0"
 dependencies = [
+ "meldframe-app-model",
  "meldframe-check",
  "meldframe-history",
  "meldframe-protocol",
@@ -1033,6 +1034,16 @@ dependencies = [
  "meldframe-sync",
  "meldframe-variables",
  "meldframe-variant",
+ "serde",
+ "serde_json",
+ "ts-rs",
+]
+
+[[package]]
+name = "meldframe-app-model"
+version = "0.0.0"
+dependencies = [
+ "meldframe-protocol",
  "serde",
  "serde_json",
  "ts-rs",
@@ -1446,6 +1457,7 @@ name = "meldframe-render"
 version = "0.0.0"
 dependencies = [
  "meldframe-protocol",
+ "meldframe-variables",
  "serde",
  "serde_json",
  "wasm-bindgen-test",
@@ -1642,11 +1654,13 @@ dependencies = [
 name = "meldframe-variables-tests"
 version = "0.0.0"
 dependencies = [
+ "meldframe-app",
  "meldframe-check",
  "meldframe-core",
  "meldframe-history",
  "meldframe-host",
  "meldframe-protocol",
+ "meldframe-render",
  "meldframe-sync",
  "meldframe-variables",
  "serde_json",

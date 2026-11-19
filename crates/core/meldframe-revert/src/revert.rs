@@ -159,6 +159,8 @@ pub fn revert_batch(
                     run.push(cmd.clone(), id, "node");
                 }
             }
+            // A variable command is not taken back by a revert (ADR-0017, known limit).
+            _ => {}
         }
     }
     Ok(run.out)
@@ -248,6 +250,8 @@ fn named(c: &Command) -> Vec<String> {
         Command::Reparent { id, parent_id, .. } => std::iter::once(id.clone())
             .chain(parent_id.clone())
             .collect(),
+        // Revert covers node commands only (variable commands are a known limit, see ADR-0017).
+        _ => Vec::new(),
     }
 }
 
@@ -262,7 +266,7 @@ fn written(c: &Command) -> Vec<(String, String)> {
         Command::Reparent { id, .. } | Command::Reorder { id, .. } => {
             vec![(id.clone(), PLACE.to_string())]
         }
-        Command::AddNode { .. } | Command::RemoveNode { .. } => Vec::new(),
+        _ => Vec::new(),
     }
 }
 

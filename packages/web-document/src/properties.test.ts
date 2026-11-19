@@ -2,7 +2,7 @@ import type { Properties } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
 import { boxAction, propertyAction } from './properties';
 
-const p: Properties = { id: 'n', name: 'Box', kind: 'rect', x: 10, y: 20, w: 100, h: 50, fill: '#112233', radius: 4, text: '', fontSize: 16 };
+const p: Properties = { id: 'n', name: 'Box', kind: 'rect', x: 10, y: 20, w: 100, h: 50, fill: '#112233', radius: 4, text: '', fontSize: 16, bound: [] };
 
 describe('propertyAction', () => {
   it('sets a changed name, trimmed', () => {

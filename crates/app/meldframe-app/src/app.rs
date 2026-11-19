@@ -6,9 +6,9 @@ use crate::event::Event;
 use crate::link::Link;
 use crate::retry::Retries;
 use crate::review::Review;
-use crate::state::{AppState, Connection, History, Panel, Properties};
-use meldframe_protocol::{Command, Node};
-use meldframe_render::{PaintedBox, resolve};
+use crate::state::{AppState, Connection, History, Panel};
+use meldframe_protocol::{Command, Doc, Node, Variables};
+use meldframe_render::{PaintedBox, resolve_with};
 use meldframe_sync::{EventOutcome, LoadError, Outgoing, Replica, ReplicaError};
 use meldframe_variables::is_variable_command;
 use std::collections::HashSet;
@@ -54,15 +54,27 @@ impl App {
         nodes: Vec<Node>,
         seq: u64,
     ) -> Result<Self, LoadError> {
+        Self::with_doc(actor, key_prefix, session, Doc::of_nodes(nodes), seq)
+    }
+
+    /// Like [`App::new`] for a file with variables (`doc` holds its nodes and its collections and variables).
+    pub fn with_doc(
+        actor: &str,
+        key_prefix: &str,
+        session: u64,
+        doc: Doc,
+        seq: u64,
+    ) -> Result<Self, LoadError> {
         let prefix = format!("{key_prefix}-{session:x}");
-        let replica = Replica::new(actor, &prefix, nodes.clone(), seq)?;
+        let review_nodes = doc.nodes.clone();
+        let replica = Replica::from_doc(actor, &prefix, doc, seq)?;
         let mut app = App {
             state: AppState::default(),
             events: Vec::new(),
             replica,
             link: Link::default(),
             retries: Retries::default(),
-            review: Review::new(nodes, seq),
+            review: Review::new(review_nodes, seq),
             level: Level::Full,
             prefix,
             next_id: 0,
@@ -87,10 +99,16 @@ impl App {
         self.replica.nodes()
     }
 
-    /// The boxes the canvas paints, back to front: the one `resolve` step of the render model (E3.1) over
-    /// [`App::nodes`]. The canvas reads this and computes nothing of its own.
+    /// The boxes the canvas paints, back to front: the one `resolve_with` step of the render model (E3.1) over
+    /// [`App::nodes`], with the variables resolved in the modes of `AppState::modes` (E3.3). The canvas reads
+    /// this and computes nothing of its own.
     pub fn scene(&self) -> Vec<PaintedBox> {
-        resolve(self.nodes())
+        resolve_with(self.nodes(), self.vars(), &self.choice())
+    }
+
+    /// The collections and variables of the document as the person sees them.
+    pub fn vars(&self) -> &Variables {
+        self.replica.vars()
     }
 
     /// The confirmed document.
@@ -115,6 +133,7 @@ impl App {
                 | Action::SetPanel { .. }
                 | Action::TogglePanel { .. }
                 | Action::ToggleCollapsed { .. }
+                | Action::SetMode { .. }
         );
         let reload = matches!(action, Action::Reload { .. });
         if self.state.connection == Connection::Halted && !ui && !reload {
@@ -153,6 +172,7 @@ impl App {
                 self.set_panel(panel, open);
             }
             Action::ToggleCollapsed { id } => self.toggle_collapsed(id),
+            Action::SetMode { collection, mode } => self.set_mode(collection, mode, &mut fx),
             Action::Start { now_ms } => self.start(now_ms, &mut fx),
             Action::Connected { now_ms } => self.connected(now_ms, &mut fx),
             Action::Disconnected {} => self.disconnected(&mut fx),
@@ -162,9 +182,19 @@ impl App {
             Action::Reload {
                 now_ms,
                 nodes,
+                variables,
                 seq,
                 applied,
-            } => self.reload(now_ms, nodes, seq, &applied, &mut fx),
+            } => self.reload(
+                now_ms,
+                Doc {
+                    nodes,
+                    vars: variables,
+                },
+                seq,
+                &applied,
+                &mut fx,
+            ),
             doc => self.document(doc, &mut fx),
         }
         match self.level {
@@ -355,7 +385,7 @@ impl App {
                 .nodes()
                 .iter()
                 .find(|n| n.id == *id)
-                .map(properties),
+                .map(|n| self.properties(n)),
             _ => None,
         };
     }
@@ -386,6 +416,7 @@ impl App {
             self.state.selection = rest.clone();
             self.events.push(Event::SelectionChanged { ids: rest });
         }
+        self.prune_modes();
         self.refresh_properties();
         let history = History {
             can_undo: self.replica.can_undo(),
@@ -416,22 +447,6 @@ impl App {
             }
         }
         self.state.confirmed_seq = self.replica.seq();
-    }
-}
-
-fn properties(n: &Node) -> Properties {
-    Properties {
-        id: n.id.clone(),
-        name: n.name.clone(),
-        kind: n.kind,
-        x: n.x,
-        y: n.y,
-        w: n.w,
-        h: n.h,
-        fill: n.fill.lit().cloned().unwrap_or_default(),
-        radius: n.radius.lit().copied().unwrap_or_default(),
-        text: n.text.clone(),
-        font_size: n.font_size,
     }
 }
 

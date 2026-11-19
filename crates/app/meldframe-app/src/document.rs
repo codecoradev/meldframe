@@ -22,6 +22,9 @@ fn code(e: &SubmitError) -> &'static str {
     let SubmitError::Invalid(e) = e else {
         return "outbox_full";
     };
+    if let Some(code) = crate::variables::variable_code(e) {
+        return code;
+    }
     match e {
         ApplyError::NotFound(_) => "not_found",
         ApplyError::DuplicateId(_) => "duplicate_id",
@@ -192,6 +195,7 @@ impl App {
             Action::RevertBatch { actor, key_prefix } => self.revert_batch(&actor, &key_prefix),
             Action::CreateCheckpoint { label } => self.create_checkpoint(label),
             Action::RestoreCheckpoint { id } => self.restore_checkpoint(&id),
+            Action::EditVariables { commands } => self.edit_variables(&commands),
             Action::Undo {} => self.step(true),
             Action::Redo {} => self.step(false),
             // The other actions are not about the document.

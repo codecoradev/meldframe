@@ -10,11 +10,13 @@ publish.workspace = true
 kind = "tool"
 
 [dev-dependencies]
+meldframe-app = { path = "../../app/meldframe-app" }
 meldframe-check = { path = "../meldframe-check" }
 meldframe-core = { path = "../meldframe-core" }
 meldframe-history = { path = "../meldframe-history" }
 meldframe-host = { path = "../meldframe-host" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-render = { path = "../meldframe-render" }
 meldframe-sync = { path = "../meldframe-sync" }
 meldframe-variables = { path = "../meldframe-variables" }
 serde_json = "1"

@@ -62,7 +62,10 @@ fn a_revert_restores_what_the_agent_still_wrote_last_as_one_step_of_the_person()
     // One undo takes the whole revert back, and only the revert.
     l.send(Action::Undo {});
     let r1 = get(&l.app, "r1");
-    assert_eq!((r1.x, r1.fill.as_str()), (50.0, "#00ff00"));
+    assert_eq!(
+        (r1.x, r1.fill.lit().map(String::as_str).unwrap_or("")),
+        (50.0, "#00ff00")
+    );
     assert!(l.events.iter().any(|e| matches!(e, Event::Reverted { .. })));
 }
 
@@ -182,6 +185,7 @@ fn a_reload_forgets_the_batches_before_it() {
         nodes,
         seq: l.seq,
         applied: vec![],
+        variables: Default::default(),
     });
     l.events.extend(l.app.take_events());
     l.send(revert("agent:x", "b1"));

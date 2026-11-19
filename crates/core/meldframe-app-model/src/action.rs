@@ -1,7 +1,7 @@
 //! Inputs to the app layer. They are UI-neutral: no toolkit events (standard rule U6).
 
 use crate::state::{Panel, Tool};
-use meldframe_protocol::{Command, Node};
+use meldframe_protocol::{Command, Node, Variables};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -102,6 +102,20 @@ pub enum Action {
         id: String,
         property: Property,
     },
+    /// Pick the mode a collection is shown in (`None`: its default mode). It is view state: nothing is written to
+    /// the file, no op is sent and the undo history does not change; the canvas paints the resolved values
+    /// again. An unknown collection or mode is refused (`E_COLLECTION_NOT_FOUND`, `E_MODE_NOT_FOUND`).
+    SetMode {
+        collection: String,
+        mode: Option<String>,
+    },
+    /// Apply variable commands (collections, modes, variables, values) as one undo step. They are checked one
+    /// after the other before any is applied, so a list that would fail half way applies nothing; the refusal is
+    /// the `E_` code of the first command that fails. A command that is not about variables is refused
+    /// (`not_a_variable_command`).
+    EditVariables {
+        commands: Vec<Command>,
+    },
     /// Remove the nodes with their descendants, as one undo step.
     Delete {
         ids: Vec<String>,
@@ -175,6 +189,10 @@ pub enum Action {
         #[ts(type = "number")]
         now_ms: u64,
         nodes: Vec<Node>,
+        /// The collections and variables of the snapshot; left out for a file without any.
+        #[serde(default)]
+        #[ts(as = "Option<Variables>", optional)]
+        variables: Variables,
         #[ts(type = "number")]
         seq: u64,
         applied: Vec<String>,

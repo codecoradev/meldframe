@@ -12,22 +12,20 @@
 //! An [`Action`] is an input to this layer. It is not a [`meldframe_protocol::Command`]: the command is the
 //! change to the file, and the app layer works out the commands from what the person meant.
 
-mod action;
 mod app;
 mod document;
-mod effect;
-mod event;
 mod link;
 mod retry;
 mod review;
-mod state;
+mod variables;
 
-pub use action::{Action, CreateKind, Frame, FramePreset, Property};
+pub(crate) use meldframe_app_model::{action, effect, event, state};
+
 pub use app::App;
-pub use effect::{Effect, OutOp};
-pub use event::{Event, RevertSkip, RevertSkipReason};
 pub use link::{ATTEMPT_MS, SILENT_MS};
-pub use meldframe_sync::LoadError;
-pub use state::{
-    AppState, Checkpoint, CheckpointKind, Connection, History, Panel, Panels, Properties, Tool,
+pub use meldframe_app_model::{
+    Action, AppState, Checkpoint, CheckpointKind, Connection, CreateKind, Effect, Event, Frame,
+    FramePreset, History, OutOp, Panel, Panels, Properties, Property, RevertSkip, RevertSkipReason,
+    Tool,
 };
+pub use meldframe_sync::LoadError;
