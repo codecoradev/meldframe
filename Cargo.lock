@@ -442,6 +442,15 @@ name = "example-ui"
 version = "0.0.0"
 
 [[package]]
+name = "export"
+version = "0.0.0"
+dependencies = [
+ "meldframe-layout",
+ "meldframe-protocol",
+ "meldframe-render",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1173,6 +1182,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-export-tests"
+version = "0.0.0"
+dependencies = [
+ "export",
+ "meldframe-layout",
+ "meldframe-protocol",
+ "meldframe-render",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-gate-tests"
 version = "0.0.0"
 dependencies = [
@@ -1183,6 +1204,7 @@ dependencies = [
  "meldframe-protocol",
  "meldframe-revert",
  "meldframe-rooms",
+ "meldframe-server",
  "serde_json",
 ]
 
