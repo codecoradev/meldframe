@@ -1,6 +1,6 @@
 # Code of Conduct
 
-Meldframe is a closed-source project worked on by a small team and by AI agents. We want it to stay a place where good work is easy to do.
+Meldframe is worked on by a small team and by AI agents. We want it to stay a place where good work is easy to do.
 
 ## The rules, briefly
 

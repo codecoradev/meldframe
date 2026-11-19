@@ -1,6 +1,6 @@
 # Standard: modular architecture with a thin UI
 
-Version 1.1, 13 Nov 2026. Mirror: the source of truth is the uteke document `standard-modular-thin-ui-v1` in room `standard:modular-thin-ui` (evidence and source pointers: `standard-modular-thin-ui-evidence`). Edit the source first, then update this copy and its version.
+Version 1.1, 13 Nov 2026. Mirror: the source of truth is the CodeCora standard kept in the team knowledge rooms (with its evidence and source pointers). Edit the source first, then update this copy and its version.
 
 Status: adopted for Meldframe (owner decision 13 Nov 2026, ADR-0007 to ADR-0010). Derived from Crastu (primary source, enforced in CI) and Tole (kernel, gate and event patterns). Keywords MUST, SHOULD and MAY are used in the usual sense.
 
@@ -166,4 +166,4 @@ Write the layering rules as a pure function over package data so they are unit-t
 
 ## 10. Changing this standard
 
-A change needs an owner decision recorded as a memory in room `standard:modular-thin-ui`. Bump the version and note what changed and why. Projects record their own deviations in their ADRs.
+A change needs an owner decision recorded in the team knowledge rooms, next to the standard. Bump the version and note what changed and why. Projects record their own deviations in their ADRs.

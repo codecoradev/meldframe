@@ -463,7 +463,7 @@ T0 to T3 should be inside W1 (concept spike order: model round 2, token import, 
 
 ## 16. Sources
 
-Spike and project (read 13 Nov 2026): `wonder-proto` branch `spike/rust-core`: `crates/protocol/src/lib.rs` (Node fields), `docs/s9-design-code.md` (export fidelity, model gaps), `docs/s12-multiplayer-undo.md`, `docs/v1-agent-design-eval.md`; Uteke room `project:meldframe`: concept v1 section 12, `research-wonder-deep-pricing-mcp-acp-nov-2026`, `research-design-tool-competitors-nov-2026`; owner screenshot `20.png`.
+Spike and project (read 13 Nov 2026): `wonder-proto` branch `spike/rust-core`: `crates/protocol/src/lib.rs` (Node fields), `docs/s9-design-code.md` (export fidelity, model gaps), `docs/s12-multiplayer-undo.md`, `docs/v1-agent-design-eval.md`; project notes (team knowledge rooms): concept v1 section 12, and the research notes on Wonder pricing, MCP and ACP and on design-tool competitors; owner screenshot `20.png`.
 
 Web (accessed 13 Nov 2026). **Direct fetches were blocked in this environment** (`help.figma.com`, `developers.figma.com`, `tailwindcss.com`, `www.designtokens.org`, `www.w3.org`, `penpot.app`, `www.mintlify.com` did not resolve), so everything below is from **search-result summaries, not the pages themselves**, and anything not marked otherwise is **unverified at the source**:
 

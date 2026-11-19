@@ -1,6 +1,6 @@
 # AGENTS.md: meldframe
 
-Closed-source design canvas for humans and AI agents. Pre-alpha; docs first, no product code yet.
+Design canvas for humans and AI agents. Pre-alpha; docs first, no product code yet.
 
 ## Where to look
 
@@ -49,7 +49,7 @@ When several worktrees build at once, give each its own target directory outside
 
 ## CI
 
-Gitea Actions in `.gitea/workflows/`: `ci.yml` (the fast set in two jobs, `checks` and `migrations`: scripts self-test, format, lint with warnings as errors, tests, `deps-check`, the protocol drift check, and the migrations check; every pull request must pass it), `nightly.yml` (the heavier gates `build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences`, `wasm-test`, nightly and on demand; run them yourself before a pull request), `pr-checks.yml` (one job: branch prefix, Message Standard, description sections What, Why, Changes, Testing) and `cora-review.yml` (disabled; config in `.cora.yaml`; the local Cora agent review replaces it). A gate whose command does not exist yet is listed in `.gitea/ci-pending.txt` and passes without running; remove its line in the pull request that adds the command. Check scripts live in `scripts/ci/` (`sh scripts/ci/selftest.sh`).
+GitHub Actions in `.github/workflows/` (the repository is hosted on GitHub; `develop` is protected and the required checks are `checks`, `migrations` and `pr checks`): `ci.yml` (the fast set in two jobs, `checks` and `migrations`: scripts self-test, format, lint with warnings as errors, tests, `deps-check`, the protocol drift check, and the migrations check; every pull request must pass it), `nightly.yml` (the heavier gates `build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences`, `wasm-test`, `property-tests`, `mutation-check`, nightly on `develop` and on demand: `gh workflow run nightly.yml --ref develop`; run them yourself before a pull request), `pr-checks.yml` (one job: branch prefix, Message Standard, description sections What, Why, Changes, Testing) and `cora-review.yml` (disabled; config in `.cora.yaml`; the local Cora agent review replaces it). A gate whose command does not exist yet is listed in `.gitea/ci-pending.txt` and passes without running; remove its line in the pull request that adds the command. Check scripts live in `scripts/ci/` (`sh scripts/ci/selftest.sh`). `.gitea/workflows/` keeps equivalent workflows for a Gitea runner, unused while the repository is hosted on GitHub; keep them in step when a workflow changes. The shared check scripts still read `.gitea/ci-pending.txt`.
 
 ## Release (develop to main)
 
@@ -82,4 +82,4 @@ Needs `just`, `psql` and either Docker or local Postgres 16 binaries. Copy `.env
 
 ## Knowledge
 
-Team notes live in uteke room `project:meldframe`; the spike history and its docs live in the `rust-core-spikes` repository.
+Internal notes and decisions live in the team knowledge rooms; the spike history and its docs live in the `rust-core-spikes` repository.

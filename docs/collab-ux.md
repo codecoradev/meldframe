@@ -347,7 +347,7 @@ Concept section 12: owner iterates with numbered critique lists (points 6, 9, 10
 
 ## 13. Sources
 
-Spike (read-only, branch `spike/rust-core` of `wonder-proto`, read 13 Nov 2026): `docs/s8-multi-agent.md`, `s12-multiplayer-undo.md`, `f1-core-undo-anomalies.md`, `f2-op-dependencies.md`, `s15-session-binding.md`, `h1-hardening.md`, `v1-agent-design-eval.md`, `crates/protocol/src/lib.rs`. Project memory (Uteke room `project:meldframe`): `research-design-tool-competitors-nov-2026`, `research-wonder-deep-pricing-mcp-acp-nov-2026`, concept v1 section 12. Owner screenshot `20.png` (Wonder desktop, layers with semantic names).
+Spike (read-only, branch `spike/rust-core` of `wonder-proto`, read 13 Nov 2026): `docs/s8-multi-agent.md`, `s12-multiplayer-undo.md`, `f1-core-undo-anomalies.md`, `f2-op-dependencies.md`, `s15-session-binding.md`, `h1-hardening.md`, `v1-agent-design-eval.md`, `crates/protocol/src/lib.rs`. Project notes (team knowledge rooms): concept v1 section 12, and the research notes on design-tool competitors and on Wonder pricing, MCP and ACP. Owner screenshot `20.png` (Wonder desktop, layers with semantic names).
 
 Web (accessed 13 Nov 2026). The sandbox blocked direct page fetches (`help.figma.com`, `www.w3.org`, `tailwindcss.com`, `penpot.app` did not resolve), so these are **search-result summaries only, not read at the source**:
 
