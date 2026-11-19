@@ -13,4 +13,4 @@ Variables are organised as collections with modes, variables and aliases. Primit
 
 ## Consequences
 
-Colour validation changes from "hex only" to "hex or binding". Component tokens and workspace-level variables shared across files are deferred. Details: `docs/tokens-and-variables.md`.
+Colour validation changes from "hex only" to "hex or binding". Component tokens and workspace-level variables shared across files are deferred. Details: `docs/tokens-and-variables.md`. How E3.3 builds it, and what it leaves open: ADR-0017.
