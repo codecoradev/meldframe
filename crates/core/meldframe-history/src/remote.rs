@@ -32,6 +32,15 @@ fn remote_ctx(nodes: &[Node], vars: &Variables, r: &Command) -> RemoteCtx {
                 .map(|m| m.id.clone()),
             ..Default::default()
         },
+        Command::RemoveMode { collection, .. } => RemoteCtx {
+            mode_vars: vars
+                .variables
+                .iter()
+                .filter(|v| v.collection == *collection)
+                .map(|v| v.id.clone())
+                .collect(),
+            ..Default::default()
+        },
         _ => RemoteCtx::default(),
     }
 }

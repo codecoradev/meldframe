@@ -1,8 +1,8 @@
 //! The rules of `History::rewrite` for variable commands, per command in my history against the remote
 //! command `r` (which is ordered after it). The unit of last writer wins is `(variable, mode)`, as `(node, field)` is
 //! for nodes:
-//! - `SetVariableValue` of a value the remote command also set, or of a variable it removed or made again,
-//!   goes.
+//! - `SetVariableValue` of a value the remote command also set, of a variable it removed or made again, or of
+//!   a mode it removed from the collection of that variable, goes.
 //! - `AddVariable` (the undo of a remove) and `AddCollection` take the other actor's writes into the snapshot,
 //!   as `AddNode` does: a remote value, a mode added or removed. A variable or collection that the remote
 //!   command made again goes.
@@ -21,7 +21,12 @@ pub(crate) fn xform_var(c: Command, r: &Command, ctx: &RemoteCtx, list: &mut Vec
                 } => *rid == id && *rm == mode,
                 Command::RemoveVariable { id: rid } => *rid == id,
                 Command::AddVariable { variable } => variable.id == id,
-                Command::RemoveMode { mode: rm, .. } => *rm == mode,
+                // Mode ids are per collection: only a variable of the collection that lost the mode loses its
+                // value. `mode_vars` is read from the document before the remote command applies; a variable
+                // that is not in it (another collection, or unknown to the context, e.g. one my own earlier
+                // step in this list adds again, whose `AddVariable` snapshot already drops the mode) keeps
+                // its step.
+                Command::RemoveMode { mode: rm, .. } => *rm == mode && ctx.mode_vars.contains(&id),
                 _ => false,
             };
             if !gone {

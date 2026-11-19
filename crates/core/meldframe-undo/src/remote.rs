@@ -43,6 +43,9 @@ pub struct RemoteCtx {
     /// For a remote `AddMode`: the default mode of its collection, where the new mode copies its values from
     /// when the command names no other.
     pub default_mode: Option<String>,
+    /// For a remote `RemoveMode`: the variables of the collection that lost the mode. Mode ids are per
+    /// collection, so a step that names the same mode id for a variable outside this set is not affected.
+    pub mode_vars: HashSet<String>,
 }
 
 fn names_one(var: Option<&str>, gone: &[String]) -> bool {

@@ -11,6 +11,7 @@ kind = "tool"
 
 [dev-dependencies]
 meldframe-check = { path = "../meldframe-check" }
+meldframe-history = { path = "../meldframe-history" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-variables = { path = "../meldframe-variables" }
 serde_json = "1"
