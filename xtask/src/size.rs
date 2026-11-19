@@ -157,10 +157,17 @@ pub fn check_not_raised(base: &Allow, now: &Allow) -> Vec<Violation> {
 /// The value of `--base` in the arguments of `size-check`: `None` without the flag, an error when
 /// the flag has no value (last argument, or followed by another flag).
 pub fn base_arg(args: &[String]) -> Result<Option<&str>, String> {
-    let Some(i) = args.iter().position(|a| a == "--base") else {
-        return Ok(None);
+    let value = match args
+        .iter()
+        .position(|a| a == "--base" || a.starts_with("--base="))
+    {
+        None => return Ok(None),
+        Some(i) => match args[i].strip_prefix("--base=") {
+            Some(v) => Some(v),
+            None => args.get(i + 1).map(String::as_str),
+        },
     };
-    match args.get(i + 1) {
+    match value {
         Some(v) if !v.starts_with("--") && !v.is_empty() => Ok(Some(v)),
         _ => Err("size-check: --base needs a git ref, e.g. --base origin/develop".into()),
     }
@@ -312,6 +319,8 @@ mod tests {
         assert!(base_arg(&a(&["size-check", "--base"])).is_err());
         assert!(base_arg(&a(&["size-check", "--base", "--other"])).is_err());
         assert!(base_arg(&a(&["size-check", "--base", ""])).is_err());
+        assert_eq!(base_arg(&a(&["x", "--base=o/d"])), Ok(Some("o/d")));
+        assert!(base_arg(&a(&["x", "--base="])).is_err());
     }
 
     #[test]
