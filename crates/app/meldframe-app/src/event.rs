@@ -55,9 +55,11 @@ pub enum Event {
         attempt: u32,
     },
     /// The server refused one of the person's ops for good (or the retries ran out); the view went back. The front end words the message.
+    /// `node` is the node of a refused removal (a revert or restore that touches a frame ends in one), else `None`.
     OpRejected {
         key: String,
         code: String,
+        node: Option<String>,
         retryable: bool,
     },
     /// A reload dropped this many unconfirmed ops: they no longer apply to the new file. The front end

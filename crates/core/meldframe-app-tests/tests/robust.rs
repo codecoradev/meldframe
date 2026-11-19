@@ -176,6 +176,7 @@ fn a_retryable_refusal_gives_up_after_a_few_tries_and_rolls_back() {
     assert!(app.take_events().contains(&Event::OpRejected {
         key: key.clone(),
         code: "quota_exceeded".into(),
+        node: None,
         retryable: true
     }));
     assert_eq!(get(&app, "r1").x, 0.0);
