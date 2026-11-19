@@ -68,6 +68,8 @@ impl App {
                 return;
             }
         }
+        self.review
+            .reset(self.replica.base().to_vec(), self.replica.seq());
         self.retries = Retries::default();
         self.link.live_since = None;
         self.start(now_ms, fx);

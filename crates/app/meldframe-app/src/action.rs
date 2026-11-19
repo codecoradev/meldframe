@@ -112,6 +112,25 @@ pub enum Action {
         before: Option<String>,
         after: Option<String>,
     },
+    /// Revert an agent's batch (E5.2): the ops of `actor` whose keys are `{key_prefix}:{n}`. Only the fields
+    /// whose last writer is still that batch go back; the change is the person's own and one undo takes it
+    /// back. Refused with `unknown_batch` (no such ops since the app loaded the file), `nothing_to_revert` or
+    /// `log_mismatch`. A checkpoint is taken first.
+    RevertBatch {
+        actor: String,
+        key_prefix: String,
+    },
+    /// Make a checkpoint at the confirmed state of the file (E5.3). A label over 128 characters is refused as
+    /// `limit`.
+    CreateCheckpoint {
+        label: String,
+    },
+    /// Bring the file back to a checkpoint as new ops of the person (one undo step); nothing in the log is
+    /// rewritten. A checkpoint is taken first. Refused with `unknown_checkpoint`, `not_in_log` (the app has
+    /// dropped the ops back to it), `nothing_to_restore` or `log_mismatch`.
+    RestoreCheckpoint {
+        id: String,
+    },
     /// Undo the actor's own last change.
     Undo {},
     /// Redo the change that was just undone.

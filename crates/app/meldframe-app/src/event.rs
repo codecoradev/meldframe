@@ -65,7 +65,42 @@ pub enum Event {
     OpsDropped {
         count: usize,
     },
+    /// A batch was reverted: `commands` ops were made as the person's change, and `skipped` lists what was left
+    /// as it is.
+    Reverted {
+        commands: usize,
+        skipped: Vec<RevertSkip>,
+    },
+    /// A checkpoint was restored with `commands` new ops.
+    Restored {
+        id: String,
+        commands: usize,
+    },
+    /// A checkpoint was added (or the oldest dropped): how many there are now.
+    CheckpointsChanged {
+        count: usize,
+    },
     /// The file and the events no longer fit. The app halts (`Connection::Halted`) and ignores frames and
     /// edits; the shell loads the file again and dispatches `Action::Reload` (or makes a new `App`).
     Diverged {},
+}
+
+/// A part of a batch that a revert left alone. `what` is a field name, `place` or `node`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RevertSkip {
+    pub node: String,
+    pub what: String,
+    pub reason: RevertSkipReason,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum RevertSkipReason {
+    /// Someone else wrote it after the batch.
+    ChangedSince,
+    /// It no longer applies to the file.
+    NotApplicable,
 }

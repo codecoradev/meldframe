@@ -19,12 +19,15 @@ mod effect;
 mod event;
 mod link;
 mod retry;
+mod review;
 mod state;
 
 pub use action::{Action, CreateKind, Frame, FramePreset, Property};
 pub use app::App;
 pub use effect::{Effect, OutOp};
-pub use event::Event;
+pub use event::{Event, RevertSkip, RevertSkipReason};
 pub use link::{ATTEMPT_MS, SILENT_MS};
 pub use meldframe_sync::LoadError;
-pub use state::{AppState, Connection, History, Panel, Panels, Properties, Tool};
+pub use state::{
+    AppState, Checkpoint, CheckpointKind, Connection, History, Panel, Panels, Properties, Tool,
+};

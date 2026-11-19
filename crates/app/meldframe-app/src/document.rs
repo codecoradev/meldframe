@@ -36,7 +36,13 @@ fn code(e: &SubmitError) -> &'static str {
     }
 }
 
-fn apply_all(r: &mut Replica, cmds: &[Command]) -> Result<(), SubmitError> {
+/// Refuse an action with a stable code; nothing changed.
+pub(crate) fn refuse(events: &mut Vec<crate::Event>, code: &str) -> Result<(), SubmitError> {
+    events.push(crate::Event::Refused { code: code.into() });
+    Ok(())
+}
+
+pub(crate) fn apply_all(r: &mut Replica, cmds: &[Command]) -> Result<(), SubmitError> {
     r.begin_group();
     let done = cmds.iter().try_for_each(|c| r.apply(c));
     r.end_group();
@@ -183,6 +189,9 @@ impl App {
                 after,
                 pos: None,
             }),
+            Action::RevertBatch { actor, key_prefix } => self.revert_batch(&actor, &key_prefix),
+            Action::CreateCheckpoint { label } => self.create_checkpoint(label),
+            Action::RestoreCheckpoint { id } => self.restore_checkpoint(&id),
             Action::Undo {} => self.step(true),
             Action::Redo {} => self.step(false),
             // The other actions are not about the document.
@@ -208,7 +217,7 @@ impl App {
     }
 
     /// Whether a list action of `cmds` fits the queue of pending ops, before anything is applied.
-    fn check_room(&self, cmds: &[Command]) -> Result<(), SubmitError> {
+    pub(crate) fn check_room(&self, cmds: &[Command]) -> Result<(), SubmitError> {
         let max = self.replica.max_pending();
         if self.replica.pending_len() + cmds.len() > max {
             return Err(SubmitError::OutboxFull { max });

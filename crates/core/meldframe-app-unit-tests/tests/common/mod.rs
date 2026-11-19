@@ -80,4 +80,19 @@ impl Loopback {
         self.events.extend(self.app.take_events());
         effects
     }
+
+    /// An op of another actor that the server ordered next, delivered to the app.
+    pub fn remote(&mut self, actor: &str, key: &str, now_ms: u64, command: Command) {
+        self.seq += 1;
+        self.app.dispatch(Action::Frame {
+            now_ms,
+            frame: Frame::Event {
+                seq: self.seq,
+                actor: actor.into(),
+                key: Some(key.into()),
+                command,
+            },
+        });
+        self.events.extend(self.app.take_events());
+    }
 }

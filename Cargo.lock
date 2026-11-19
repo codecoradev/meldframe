@@ -1026,8 +1026,10 @@ name = "meldframe-app"
 version = "0.0.0"
 dependencies = [
  "meldframe-check",
+ "meldframe-history",
  "meldframe-protocol",
  "meldframe-render",
+ "meldframe-revert",
  "meldframe-sync",
  "meldframe-variant",
  "serde",
