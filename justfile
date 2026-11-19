@@ -49,8 +49,12 @@ wasm-build:
 wasm-smoke:
     bash tools/check-wasm.sh
 
-# Everything to run locally before opening a pull request: the fast checks that pull request CI
-# runs, plus the heavier gates that CI runs only on push to develop and nightly
+# Run locally before opening a pull request: the fast checks that pull request CI runs (including
+# the protocol drift check and the web client's `npm run check`), plus build-matrix, portable-check,
+# size-check, ui-literals, the wasm smoke test and the seed guards.
+# Left to CI and the nightly: `just wasm-test` (nightly), `cargo xtask licences --check` (pull
+# request CI and nightly) and `bash tools/check-migrations.sh` (the CI migrations job, needs
+# Postgres); run them by hand when you touch what they cover
 check:
     sh scripts/ci/selftest.sh
     cargo fmt --all --check
@@ -62,4 +66,4 @@ check:
     cd apps/web && npm ci && npm run check
     bash scripts/dev-seed-test.sh
     @bash -n scripts/pg-start.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh && echo "check (scripts): syntax ok"
-    @echo "migrations: run 'just dev-db' then 'bash tools/check-migrations.sh'; licences: 'cargo xtask licences --check' once it is merged"
+    @echo "left to CI and the nightly: 'just wasm-test', 'cargo xtask licences --check', 'bash tools/check-migrations.sh' (after 'just dev-db')"
