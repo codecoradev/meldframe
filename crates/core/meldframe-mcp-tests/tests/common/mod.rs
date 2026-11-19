@@ -60,6 +60,14 @@ impl Reader for Spy {
         self.reads.fetch_add(1, Ordering::SeqCst);
         self.server.view(who, file)
     }
+    fn variables(
+        &self,
+        who: &Principal,
+        file: &str,
+    ) -> Result<(u64, meldframe_protocol::Variables), Failure> {
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        self.server.variables(who, file)
+    }
     fn tree(
         &self,
         who: &Principal,
