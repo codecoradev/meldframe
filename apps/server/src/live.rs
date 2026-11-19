@@ -141,6 +141,8 @@ impl Server {
         let opened = self
             .open_room(&who.workspace, &key, crate::now())
             .map_err(SubscribeError::Rooms)?;
+        // `close_all` reaches only the keys recorded here, so a room a stream opened must be one of them.
+        self.open_keys.insert(key.clone());
         let Server { rooms, live, .. } = self;
         let read = |a, b| read_range(rooms, &key, a, b);
         let done = match again {
@@ -149,6 +151,7 @@ impl Server {
         };
         if done.is_err() && !opened.already_open {
             self.rooms.close(&key);
+            self.open_keys.remove(&key);
         }
         let joined = done?;
         self.owners.set(joined.id, &key, &who.actor);
