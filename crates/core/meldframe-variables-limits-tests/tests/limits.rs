@@ -36,6 +36,11 @@ fn var(id: &str, col: &str, name: &str, values: BTreeMap<String, Bind<Value>>) -
 /// `LAYERS` layers of `WIDTH` colour variables in one collection of `WIDTH` modes. In mode `j` a variable of
 /// layer `i` aliases variable `j` of layer `i + 1`; the last layer holds literals.
 fn diamond() -> Variables {
+    diamond_of(LAYERS)
+}
+
+/// The same diamond with `layers` layers: a chain of `layers - 1` alias steps from the top to the literals.
+fn diamond_of(layers: usize) -> Variables {
     let mut v = Variables {
         collections: vec![Collection {
             id: "c".into(),
@@ -44,11 +49,11 @@ fn diamond() -> Variables {
         }],
         variables: Vec::new(),
     };
-    for layer in 0..LAYERS {
+    for layer in 0..layers {
         for k in 0..WIDTH {
             let values = (0..WIDTH)
                 .map(|j| {
-                    let b = if layer + 1 == LAYERS {
+                    let b = if layer + 1 == layers {
                         Bind::Lit(Value::Color("#102030".into()))
                     } else {
                         Bind::var(format!("v{}_{j}", layer + 1))
@@ -123,7 +128,34 @@ fn a_chain_that_closes_the_diamond_back_to_its_top_is_a_cycle() {
         .values
         .insert("m0".into(), Bind::var("v0_0"));
     let r = within(10, move || check_file_with(&[], &v, &Limits::default()));
-    assert!(r.is_err(), "a cycle must be refused at load");
+    assert_eq!(r.expect_err("a cycle").code(), "E_ALIAS_CYCLE");
+}
+
+#[test]
+fn a_diamond_of_more_than_sixteen_steps_is_refused_at_load_and_one_alias_more_is_refused_as_a_command()
+ {
+    // 17 layers are 16 steps and load; 18 are 17 steps and do not, with 16^17 paths walked never.
+    let r = within(10, || {
+        check_file_with(&[], &diamond_of(17), &Limits::default())
+    });
+    assert_eq!(r, Ok(()), "16 steps load");
+    let e = within(10, || {
+        check_file_with(&[], &diamond_of(18), &Limits::default())
+    })
+    .expect_err("17 steps");
+    assert_eq!(e.code(), "E_ALIAS_TOO_DEEP");
+    // As a command: a new variable above the top of the 16-step diamond makes 17.
+    let values: serde_json::Map<String, serde_json::Value> = (0..WIDTH)
+        .map(|j| (format!("m{j}"), json!({"var": "v0_0"})))
+        .collect();
+    let add = json!({"type": "addVariable", "variable": {"id": "top", "collection": "c", "name": "top", "type": "color", "values": values}});
+    let code = within(10, move || {
+        let c: Command = serde_json::from_value(add).unwrap();
+        check_command_with(&[], &diamond_of(17), &c, &Limits::default())
+            .expect_err("17 steps")
+            .code()
+    });
+    assert_eq!(code, "E_ALIAS_TOO_DEEP");
 }
 
 #[test]
