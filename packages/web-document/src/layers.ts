@@ -1,6 +1,6 @@
 // The layers panel as rows: the tree of the document, front node first, children under their parent. Pure.
 import type { Node, NodeKind } from '@meldframe/protocol';
-import { sceneFromNodes } from './scene';
+import type { SceneNode } from '@meldframe/web-canvas/scene';
 
 export interface LayerRow {
   id: string;
@@ -14,17 +14,18 @@ export interface LayerRow {
   actor: string | null;
 }
 
-/** The rows to show. A collapsed node keeps its row and hides everything below it. */
+/** The rows to show, from the nodes and the scene that was resolved from them. A collapsed node keeps its row and hides everything below it. */
 export function layerRows(
   nodes: readonly Node[],
+  scene: { nodes: readonly Pick<SceneNode, 'id' | 'parent'>[] },
   collapsed: readonly string[],
   selection: readonly string[],
   lastActor: Readonly<Record<string, string>>,
 ): LayerRow[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  // The scene already has parents before children and siblings in the file's order: reuse it, then show the front first.
+  // The scene (from the render step) has parents before children and siblings in the file's order: reuse it, then show the front first.
   const children = new Map<string | null, string[]>();
-  for (const s of sceneFromNodes(nodes).nodes) {
+  for (const s of scene.nodes) {
     const parent = s.parent !== null && byId.has(s.parent) ? s.parent : null;
     (children.get(parent) ?? children.set(parent, []).get(parent)!).push(s.id);
   }

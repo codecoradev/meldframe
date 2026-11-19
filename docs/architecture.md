@@ -76,7 +76,7 @@ crates/
     meldframe-check       limits, ApplyError and every check on a value or a command (structure, decoration, image)
     meldframe-layout      text measurer seam, Rect and layout
     meldframe-core        applying a command to the file tree (`apply_command`, `plan_command`, `apply_planned`); re-exports the check API
-    meldframe-render      the render model: `resolve` (nodes to painted boxes) and the coverage table of node fields per consumer; the canvas still reads `sceneFromNodes` in `packages/web-document` until the wasm bridge hands it `resolve`, and the export (E4.1) and variables (E3.3) plug in later
+    meldframe-render      the render model: `resolve` (nodes to painted boxes) and the coverage table of node fields per consumer; the canvas reads it through the app layer (`App::scene`) and the wasm bridge (`sceneJson`, read once per change of the document by the web engine; fixtures in `tests/fixtures/scene.json` are checked by Rust and web tests), and the export (E4.1) and variables (E3.3) plug in later
     meldframe-undo        undo and redo bookkeeping with no tree in it: the steps of a history, their runs, and the rules that rewrite them against a remote command; split from history
     meldframe-history     `FileState` (the in-memory tree of one File) with validated apply, undo and redo per actor, groups, remote ops and a `rebalance` of one sibling group that is linear apart from the sort (O(n log n))
     meldframe-history-props (tool) property tests of random undo and redo runs and of undo against a deleted parent; no library code

@@ -155,7 +155,7 @@ First platform slice (risk R9).
 Goal: the layout and paint model of W1 and the design system on the canvas (FR-4, FR-5, FR-9 to FR-11; ADR-0003, ADR-0004).
 
 ### E3.1 Render model (M)
-The survey's candidate 1. First slice in: `meldframe-render` (`resolve` for nodes, and the coverage table `NODE_FIELDS` with its tests). Open: variables go into `resolve` with E3.3, the export consumes it with E4.1, and the canvas reads it once the wasm bridge hands it over (today `sceneFromNodes` in `packages/web-document` does the same step in TypeScript).
+The survey's candidate 1. First slice in: `meldframe-render` (`resolve` for nodes, and the coverage table `NODE_FIELDS` with its tests). The canvas now draws what `resolve` gives: `App::scene` in the app layer, `sceneJson` on the wasm bridge, and a thin `sceneFromBoxes` in `packages/web-link` that only reshapes the JSON (the TypeScript twin `sceneFromNodes` is gone; shared fixtures in `tests/fixtures/scene.json` are checked by a Rust test and a web test, and the two agreed on all of them before the twin was removed). Open: variables go into `resolve` with E3.3, the export consumes it with E4.1; the box stays unticked until both are in.
 - [ ] One `resolve` step turns nodes and variables into painted boxes; the canvas and export both consume it.
 - [ ] A coverage test fails when a node field is rendered by one consumer and not the other, unless it is marked unsupported.
 

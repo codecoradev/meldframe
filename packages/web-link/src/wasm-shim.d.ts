@@ -7,6 +7,7 @@ declare module '@meldframe/wasm' {
     dispatch(actionJson: string): string;
     stateJson(): string;
     nodesJson(): string;
+    sceneJson(): string;
     takeEventsJson(): string;
     free(): void;
   }

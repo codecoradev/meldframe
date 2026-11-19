@@ -88,4 +88,20 @@ describe.skipIf(!built)('Engine re-reads only what changed', () => {
     e.dispatch({ type: 'undo' });
     expect(e.stats.nodeReads).toBe(reads + 1);
   });
+
+  it('reads the scene once per change of the document, with the nodes, and not otherwise', () => {
+    const e = make();
+    expect(e.stats.sceneReads).toBe(1);
+    e.dispatch({ type: 'createNode', kind: 'frame', x: 3, y: 4, parent: null });
+    expect(e.stats.sceneReads).toBe(2);
+    const scene = e.snapshot().scene;
+    expect(scene.nodes.map((n) => n.id)).toEqual(e.snapshot().nodes.map((n) => n.id));
+    e.dispatch({ type: 'setTool', tool: 'text' });
+    e.dispatch({ type: 'tick', nowMs: 5000 });
+    expect(e.stats.sceneReads).toBe(2);
+    expect(e.snapshot().scene).toBe(scene);
+    e.dispatch({ type: 'undo' });
+    expect(e.stats.sceneReads).toBe(3);
+    expect(e.snapshot().scene.nodes).toEqual([]);
+  });
 });
