@@ -446,6 +446,7 @@ name = "export"
 version = "0.0.0"
 dependencies = [
  "meldframe-layout",
+ "meldframe-module",
  "meldframe-protocol",
  "meldframe-render",
 ]
