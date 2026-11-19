@@ -17,9 +17,9 @@ use crate::correction::Touched;
 use crate::footprint::{Pairs, footprint, premise};
 use crate::types::{EventOutcome, OpKind, Outgoing, ReplicaError, SubmitError};
 use meldframe_check::LoadError;
-use meldframe_core::{Limits, apply_command};
+use meldframe_core::{Limits, apply_doc};
 use meldframe_history::FileState;
-use meldframe_protocol::{Command, MAX_OP_DEPS, Node};
+use meldframe_protocol::{Command, Doc, MAX_OP_DEPS, Node, Variables};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 mod confirm;
@@ -74,7 +74,7 @@ fn cmd_json(c: &Command) -> String {
 pub struct Replica {
     actor: String,
     prefix: String,
-    base: Vec<Node>,
+    base: Doc,
     seq: u64,
     view: FileState,
     pending: VecDeque<Pending>,
@@ -83,7 +83,7 @@ pub struct Replica {
     run_left: HashMap<u64, usize>,
     /// The confirmed state as it would be had every stale op been the op the rebuilt step works out, while
     /// that differs from `base` (a stale op that the server applied leaves its value in `base`).
-    ideal: Option<Vec<Node>>,
+    ideal: Option<Doc>,
     /// The nodes that the commands behind `ideal` wrote since it was taken from `base`.
     ideal_touched: Touched,
     counter: u64,
@@ -102,13 +102,19 @@ impl Replica {
         nodes: Vec<Node>,
         seq: u64,
     ) -> Result<Self, LoadError> {
+        Self::from_doc(actor, key_prefix, Doc::of_nodes(nodes), seq)
+    }
+
+    /// Like [`Replica::new`] for a file with variables; the variables are checked with the nodes
+    /// (`check_file_with`).
+    pub fn from_doc(actor: &str, key_prefix: &str, doc: Doc, seq: u64) -> Result<Self, LoadError> {
         let limits = Limits::default();
-        let mut view = FileState::try_from_nodes(nodes, limits.clone())?;
+        let mut view = FileState::try_from_doc(doc, limits.clone())?;
         view.set_optimistic(true);
         Ok(Replica {
             actor: actor.to_string(),
             prefix: key_prefix.to_string(),
-            base: view.nodes().to_vec(),
+            base: view.doc().clone(),
             seq,
             view,
             pending: VecDeque::new(),
@@ -133,7 +139,12 @@ impl Replica {
 
     /// The confirmed state.
     pub fn base(&self) -> &[Node] {
-        &self.base
+        &self.base.nodes
+    }
+
+    /// The variables of the view: the confirmed ones plus my pending commands.
+    pub fn vars(&self) -> &Variables {
+        self.view.vars()
     }
 
     /// The last server sequence number applied.
@@ -302,7 +313,7 @@ impl Replica {
             return Ok(false);
         }
         self.check_room()?;
-        let before = self.view.nodes().to_vec();
+        let before = self.view.doc().clone();
         let cmds = self.view.undo();
         Ok(self.send_step(before, cmds, OpKind::Undo))
     }
@@ -312,7 +323,7 @@ impl Replica {
             return Ok(false);
         }
         self.check_room()?;
-        let before = self.view.nodes().to_vec();
+        let before = self.view.doc().clone();
         let cmds = self.view.redo();
         Ok(self.send_step(before, cmds, OpKind::Redo))
     }
@@ -320,7 +331,7 @@ impl Replica {
     /// Queue every command of one undo or redo step. The footprint of each command is worked out
     /// against the view just before it was applied (`before` is the view before the step, advanced
     /// command by command).
-    fn send_step(&mut self, before: Vec<Node>, cmds: Option<Vec<Command>>, kind: OpKind) -> bool {
+    fn send_step(&mut self, before: Doc, cmds: Option<Vec<Command>>, kind: OpKind) -> bool {
         let Some(cmds) = cmds else { return false };
         let chain_from = self.pending.len();
         let run = self.view.take_last_run();
@@ -329,8 +340,8 @@ impl Replica {
         }
         let mut view = before;
         for c in cmds {
-            let foot = footprint(&view, &c);
-            let _ = apply_command(&mut view, &c, &self.limits);
+            let foot = footprint(&view.nodes, &c);
+            let _ = apply_doc(&mut view, &c, &self.limits);
             let from = Source { rec: None, run };
             self.enqueue(c, kind, from, foot, chain_from, None);
         }
@@ -393,13 +404,13 @@ impl Replica {
             return self.confirm_at(i, seq, cmd);
         }
         let mut next = self.base.clone();
-        apply_command(&mut next, cmd, &self.limits)
+        apply_doc(&mut next, cmd, &self.limits)
             .map_err(|e| ReplicaError::Diverged(e.to_string()))?;
         // Another actor (or an op of mine that was dropped): my history is rewritten against it, the
         // confirmed state moves on and the view is built again from it.
         self.view.transform_remote(cmd, &self.base);
         if let Some(w) = self.ideal.as_mut() {
-            drop(apply_command(w, cmd, &self.limits));
+            drop(apply_doc(w, cmd, &self.limits));
             self.ideal_touched.add(cmd);
         }
         self.base = next;
@@ -465,12 +476,12 @@ impl Replica {
     pub fn check_consistency(&self) -> Result<(), String> {
         let mut n = self.base.clone();
         for p in &self.pending {
-            apply_command(&mut n, &p.out.command, &self.limits)
+            apply_doc(&mut n, &p.out.command, &self.limits)
                 .map_err(|e| format!("pending {} is not valid: {e}", p.out.key))?;
         }
-        let a = serde_json::to_string(&n).unwrap_or_default();
+        let a = serde_json::to_string(&n.nodes).unwrap_or_default();
         let b = serde_json::to_string(self.view.nodes()).unwrap_or_default();
-        if a != b {
+        if a != b || n.vars != *self.view.vars() {
             return Err("view != base + pending".into());
         }
         Ok(())

@@ -10,9 +10,12 @@
 //!   `AddNode` and `RemoveNode` of that node;
 //! - read `ALL`: the whole content of a node (the snapshot in `AddNode`); written by every write to it.
 //!
+//! A variable or a collection is a pseudo node (`meldframe_variables::footprint`).
+//!
 //! An undo or redo also reads what it writes, because it implies that the op it reverses took effect.
 
 use meldframe_protocol::{Command, Node, NodePatch};
+use meldframe_variables::footprint as variables_footprint;
 use std::collections::HashSet;
 
 /// Marks "this node exists".
@@ -94,8 +97,7 @@ pub(crate) fn footprint(nodes: &[Node], c: &Command) -> (Pairs, Pairs) {
                 ids.iter().map(|n| pair(n, WHOLE)).collect(),
             )
         }
-        // A variable command is refused before it gets here.
-        _ => (Vec::new(), Vec::new()),
+        other => variables_footprint(other, (EXISTS, ALL, WHOLE)),
     }
 }
 

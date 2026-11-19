@@ -1,17 +1,17 @@
 //! The state of one file in memory.
 
-use meldframe_check::{LoadError, check_file};
+use meldframe_check::{LoadError, check_file_with};
 use meldframe_core::{
-    ApplyError, Limits, apply_planned, normalize_positions, normalize_positions_with, plan_command,
+    ApplyError, Limits, apply_planned_doc, normalize_positions, normalize_positions_with, plan_doc,
 };
-use meldframe_protocol::{Command, Node};
+use meldframe_protocol::{Command, Doc, Node, Variables};
 use meldframe_undo::History;
 
 /// The in-memory tree of one file. Every change goes through [`FileState::apply`], which validates first
 /// and changes after, so a refused command leaves the tree as it was.
 #[derive(Debug, Clone, Default)]
 pub struct FileState {
-    pub(crate) nodes: Vec<Node>,
+    pub(crate) doc: Doc,
     pub(crate) limits: Limits,
     pub(crate) version: u64,
     /// Undo and redo steps, the open group and the runs that wait for the server.
@@ -36,11 +36,17 @@ impl FileState {
     /// one by list order; a file already in order is not touched), then the whole file is checked with
     /// `check_file`. A bad file is refused with a typed error and nothing is repaired. The history starts
     /// empty.
-    pub fn try_from_nodes(mut nodes: Vec<Node>, limits: Limits) -> Result<Self, LoadError> {
-        normalize_positions_with(&mut nodes, &limits);
-        check_file(&nodes, &limits)?;
+    pub fn try_from_nodes(nodes: Vec<Node>, limits: Limits) -> Result<Self, LoadError> {
+        Self::try_from_doc(Doc::of_nodes(nodes), limits)
+    }
+
+    /// Like [`FileState::try_from_nodes`] for a file with variables: the variables are checked first, then the
+    /// nodes and their bindings (`check_file_with`).
+    pub fn try_from_doc(mut doc: Doc, limits: Limits) -> Result<Self, LoadError> {
+        normalize_positions_with(&mut doc.nodes, &limits);
+        check_file_with(&doc.nodes, &doc.vars, &limits)?;
         Ok(FileState {
-            nodes,
+            doc,
             limits,
             ..Self::default()
         })
@@ -49,22 +55,37 @@ impl FileState {
     /// Like [`FileState::try_from_nodes`] with the default limits, but without the check: for a tree this
     /// process already holds as valid (a replica's snapshot from its own server). Never use it on bytes
     /// read from a store; that is what `try_from_nodes` is for.
-    pub fn from_nodes_unchecked(mut nodes: Vec<Node>) -> Self {
-        normalize_positions(&mut nodes);
+    pub fn from_nodes_unchecked(nodes: Vec<Node>) -> Self {
+        Self::from_doc_unchecked(Doc::of_nodes(nodes))
+    }
+
+    /// Like [`FileState::from_nodes_unchecked`] for a document with variables.
+    pub fn from_doc_unchecked(mut doc: Doc) -> Self {
+        normalize_positions(&mut doc.nodes);
         FileState {
-            nodes,
+            doc,
             ..Self::default()
         }
     }
 
     /// All nodes. The list order carries no meaning: sibling order is `(pos, id)`.
     pub fn nodes(&self) -> &[Node] {
-        &self.nodes
+        &self.doc.nodes
+    }
+
+    /// The collections and variables of the file.
+    pub fn vars(&self) -> &Variables {
+        &self.doc.vars
+    }
+
+    /// The nodes and the variables.
+    pub fn doc(&self) -> &Doc {
+        &self.doc
     }
 
     /// The node with this id.
     pub fn node(&self, id: &str) -> Option<&Node> {
-        self.nodes.iter().find(|n| n.id == id)
+        self.doc.nodes.iter().find(|n| n.id == id)
     }
 
     /// Goes up by one each time the tree changes.
@@ -88,7 +109,12 @@ impl FileState {
 
     /// Replace the tree with the result of a rebase and keep the history as it is.
     pub fn reset_nodes(&mut self, nodes: Vec<Node>) {
-        self.nodes = nodes;
+        self.reset_doc(Doc::of_nodes(nodes));
+    }
+
+    /// Replace the nodes and the variables with the result of a rebase and keep the history as it is.
+    pub fn reset_doc(&mut self, doc: Doc) {
+        self.doc = doc;
         self.version += 1;
     }
 
@@ -105,9 +131,9 @@ impl FileState {
 
     /// Apply without touching the history; returns the inverse, worked out before the change.
     pub(crate) fn run(&mut self, cmd: &Command) -> Result<Vec<Command>, ApplyError> {
-        let pos = plan_command(&self.nodes, cmd, &self.limits)?;
+        let pos = plan_doc(&self.doc, cmd, &self.limits)?;
         let inverse = self.invert(cmd);
-        apply_planned(&mut self.nodes, cmd, pos);
+        apply_planned_doc(&mut self.doc, cmd, pos);
         self.version += 1;
         Ok(inverse)
     }

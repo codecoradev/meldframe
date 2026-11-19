@@ -9,7 +9,8 @@
 
 use meldframe_core::normalize_positions;
 use meldframe_history::FileState;
-use meldframe_protocol::{Command, Node, NodePatch};
+use meldframe_protocol::{Command, Doc, Node, NodePatch};
+use meldframe_variables::is_variable_command;
 use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
 
@@ -21,12 +22,12 @@ fn fields(n: &Node) -> Map<String, Value> {
 }
 
 /// What `cmd` would undo in the tree `want`, as commands; `None` when it does not apply there.
-pub(crate) fn inverse_in(want: &[Node], cmd: &Command) -> Option<Vec<Command>> {
+pub(crate) fn inverse_in(want: &Doc, cmd: &Command) -> Option<Vec<Command>> {
     // `want` comes from the replica's own checked state, so no load check; only the migration, as before.
-    let mut nodes = want.to_vec();
-    normalize_positions(&mut nodes);
+    let mut doc = want.clone();
+    normalize_positions(&mut doc.nodes);
     let mut scratch = FileState::new();
-    scratch.reset_nodes(nodes);
+    scratch.reset_doc(doc);
     scratch.apply(cmd).ok()?;
     scratch.undo()
 }
@@ -48,6 +49,8 @@ impl Touched {
                 ids.insert(id.clone());
             }
             (Command::UpdateNode { .. }, None) => {}
+            // A variable command writes no node (a bound node only shows another value).
+            (c, _) if is_variable_command(c) => {}
             _ => self.0 = None,
         }
     }

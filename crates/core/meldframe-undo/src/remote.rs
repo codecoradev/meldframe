@@ -11,13 +11,23 @@
 //!   in a replica, whose confirmed state still holds the node while my delete is pending.
 //! - `Reparent` to a parent the remote command deleted goes to the nearest surviving ancestor, with no
 //!   `pos`; if the node itself was deleted, the step goes. This holds for undo and redo alike.
+//! - A remote `RemoveVariable` of `X` leaves nothing that would name `X` again: a field of `UpdateNode` or
+//!   `AddNode` bound to `X` is let go (the node comes back with that field as it is, or with its default one
+//!   when the node is added again), and a `SetVariableValue` or `AddVariable` whose value aliases `X` goes.
+//!   Without it a command that names `X` is refused as a whole at undo time (it never blocked the stack: the
+//!   step is passed, as for a node another actor deleted), so an `AddNode` bound to `X` would be lost and a
+//!   patch like `{fill: Var X, x: 5}` would not restore `x`. With it the node comes back and `x` is restored.
+//!   A step whose undo is left empty by this is pruned from the undo stack (and a step whose do side is
+//!   left empty from the redo stack), so it is not counted as a step. The smaller choice of the two:
+//!   rewrite, not skip at undo time.
 //! - `Reparent` writes the parent and the `pos` together, so a remote `Reparent` or `Reorder` of the
 //!   same node beats my `Reorder`, and a remote `Reparent` beats my `Reparent`. A remote `Reorder` writes
 //!   only `pos`: my `Reparent` keeps its parent and loses its `pos`, but only when the remote `pos` was
 //!   written among the siblings of the same parent (`pos` has no meaning across parents).
 
 use crate::history::{History, Rec};
-use crate::patch_ops::{drop_fields, patch_is_empty};
+use crate::patch_ops::{drop_fields, patch_is_empty, unbind_node, unbind_patch};
+use crate::remote_vars::xform_var;
 use meldframe_protocol::Command;
 use std::collections::HashSet;
 
@@ -30,11 +40,53 @@ pub struct RemoteCtx {
     pub survivor: Option<String>,
     /// For a remote `Reorder`: the node and the parent it was reordered in (where its `pos` was written).
     pub reorder_space: Option<(String, Option<String>)>,
+    /// For a remote `AddMode`: the default mode of its collection, where the new mode copies its values from
+    /// when the command names no other.
+    pub default_mode: Option<String>,
+    /// For a remote `RemoveMode`: the variables of the collection that lost the mode. Mode ids are per
+    /// collection, so a step that names the same mode id for a variable outside this set is not affected.
+    pub mode_vars: HashSet<String>,
+}
+
+fn names_one(var: Option<&str>, gone: &[String]) -> bool {
+    var.is_some_and(|v| gone.iter().any(|g| g == v))
 }
 
 /// Rewrite one list of commands against the remote command `r`, which is ordered after all of them.
 fn xform_list(list: &mut Vec<Command>, r: &Command, ctx: &RemoteCtx) {
+    // The variables that no longer exist when this list runs: the one the remote command removed, and each
+    // one whose `AddVariable` went from this list (what follows it in the list must not name it).
+    let mut gone: Vec<String> = match r {
+        Command::RemoveVariable { id } => vec![id.clone()],
+        _ => Vec::new(),
+    };
     for c in std::mem::take(list) {
+        if !gone.is_empty() {
+            match &c {
+                Command::SetVariableValue { value, .. } if names_one(value.var_id(), &gone) => {
+                    continue;
+                }
+                Command::AddVariable { variable }
+                    if variable
+                        .values
+                        .values()
+                        .any(|v| names_one(v.var_id(), &gone)) =>
+                {
+                    gone.push(variable.id.clone());
+                    continue;
+                }
+                _ => {}
+            }
+        }
+        let c = match c {
+            Command::UpdateNode { id, mut patch } if !gone.is_empty() => {
+                if unbind_patch(&mut patch, &gone) && patch_is_empty(&patch) {
+                    continue;
+                }
+                Command::UpdateNode { id, patch }
+            }
+            other => other,
+        };
         match c {
             Command::UpdateNode { id, mut patch } => match r {
                 Command::UpdateNode { id: rid, patch: rp } if *rid == id => {
@@ -48,6 +100,7 @@ fn xform_list(list: &mut Vec<Command>, r: &Command, ctx: &RemoteCtx) {
                 _ => list.push(Command::UpdateNode { id, patch }),
             },
             Command::AddNode { mut node, index } => {
+                unbind_node(&mut node, &gone);
                 match r {
                     Command::AddNode { node: rn, .. } if rn.id == node.id => continue,
                     // The snapshot is the node as I will add it again: it takes the remote write too.
@@ -136,8 +189,7 @@ fn xform_list(list: &mut Vec<Command>, r: &Command, ctx: &RemoteCtx) {
                     pos,
                 }),
             },
-            // A variable command is not rewritten yet: the commands that carry one are refused for now.
-            other => list.push(other),
+            other => xform_var(other, r, ctx, list),
         }
     }
 }

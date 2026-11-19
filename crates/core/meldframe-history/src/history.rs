@@ -44,7 +44,7 @@ impl FileState {
     /// would pass the `pos` limit the tree and the history are left as they were. Returns how many
     /// children were processed.
     pub fn rebalance(&mut self, parent: Option<&str>) -> Result<usize, ApplyError> {
-        let plan = rebalance_positions(&self.nodes, parent, &self.limits)?;
+        let plan = rebalance_positions(&self.doc.nodes, parent, &self.limits)?;
         // Inside a group the caller opened, the commands join it and the caller closes it.
         let opened = !self.hist.group_is_open();
         // An empty plan opens and closes an empty group too: that ends any keyed merge run, as it always did.
@@ -52,7 +52,7 @@ impl FileState {
             self.begin_group();
         }
         for (i, key) in &plan {
-            let id = self.nodes[*i].id.clone();
+            let id = self.doc.nodes[*i].id.clone();
             let cmd = Command::Reorder {
                 id: id.clone(),
                 before: None,
@@ -63,9 +63,9 @@ impl FileState {
                 id,
                 before: None,
                 after: None,
-                pos: some_pos(&self.nodes[*i]),
+                pos: some_pos(&self.doc.nodes[*i]),
             };
-            self.nodes[*i].pos.clone_from(key);
+            self.doc.nodes[*i].pos.clone_from(key);
             self.version += 1;
             self.hist.record(&cmd, vec![undo], None);
         }

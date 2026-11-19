@@ -1,7 +1,9 @@
 //! Helpers over `NodePatch`: merge, drop fields, invert, and compact a command list.
 
 use crate::patch_fields::patch_fields;
-use meldframe_protocol::{Command, Node, NodePatch};
+use meldframe_protocol::{
+    Bind, Command, DEFAULT_FILL, DEFAULT_OPACITY, DEFAULT_RADIUS, Node, NodePatch,
+};
 
 /// Copy into `into` every field that `later` sets; `later` wins.
 pub fn merge_patch(into: &mut NodePatch, later: &NodePatch) {
@@ -112,4 +114,39 @@ pub fn compact(list: Vec<Command>) -> Vec<Command> {
         out.push(c);
     }
     out
+}
+
+fn bound_to<T>(b: &Bind<T>, gone: &[String]) -> bool {
+    b.var_id().is_some_and(|v| gone.iter().any(|g| g == v))
+}
+
+/// Let go of the fields of `p` bound to one of the variables in `gone`; true when any was.
+pub fn unbind_patch(p: &mut NodePatch, gone: &[String]) -> bool {
+    let mut any = false;
+    if p.fill.as_ref().is_some_and(|b| bound_to(b, gone)) {
+        p.fill = None;
+        any = true;
+    }
+    if p.radius.as_ref().is_some_and(|b| bound_to(b, gone)) {
+        p.radius = None;
+        any = true;
+    }
+    if p.opacity.as_ref().is_some_and(|b| bound_to(b, gone)) {
+        p.opacity = None;
+        any = true;
+    }
+    any
+}
+
+/// A node that is added again takes the default of each field bound to one of the variables in `gone`.
+pub fn unbind_node(n: &mut Node, gone: &[String]) {
+    if bound_to(&n.fill, gone) {
+        n.fill = Bind::Lit(DEFAULT_FILL.into());
+    }
+    if bound_to(&n.radius, gone) {
+        n.radius = Bind::Lit(DEFAULT_RADIUS);
+    }
+    if bound_to(&n.opacity, gone) {
+        n.opacity = Bind::Lit(DEFAULT_OPACITY);
+    }
 }

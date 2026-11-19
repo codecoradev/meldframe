@@ -5,12 +5,12 @@
 
 use crate::file_state::FileState;
 use crate::inverse::descendants;
-use meldframe_core::{ApplyError, apply_planned, plan_command};
-use meldframe_protocol::{Command, Node};
+use meldframe_core::{ApplyError, apply_planned_doc, plan_doc};
+use meldframe_protocol::{Command, Doc, Node, Variables};
 use meldframe_undo::RemoteCtx;
 
 /// What the remote command removed, read from the tree before it is applied.
-fn remote_ctx(nodes: &[Node], r: &Command) -> RemoteCtx {
+fn remote_ctx(nodes: &[Node], vars: &Variables, r: &Command) -> RemoteCtx {
     let find = |id: &String| nodes.iter().find(|n| n.id == *id);
     match r {
         Command::RemoveNode { id } => RemoteCtx {
@@ -25,27 +25,44 @@ fn remote_ctx(nodes: &[Node], r: &Command) -> RemoteCtx {
             reorder_space: find(id).map(|n| (n.id.clone(), n.parent_id.clone())),
             ..Default::default()
         },
+        Command::AddMode { collection, .. } => RemoteCtx {
+            default_mode: vars
+                .collection(collection)
+                .and_then(|c| c.modes.first())
+                .map(|m| m.id.clone()),
+            ..Default::default()
+        },
+        Command::RemoveMode { collection, .. } => RemoteCtx {
+            mode_vars: vars
+                .variables
+                .iter()
+                .filter(|v| v.collection == *collection)
+                .map(|v| v.id.clone())
+                .collect(),
+            ..Default::default()
+        },
         _ => RemoteCtx::default(),
     }
 }
 
 impl FileState {
     /// Rewrite my undo and redo steps against a remote command without applying it. `before` is the
-    /// tree the remote command applies to (a replica's confirmed state, not its view).
-    pub fn transform_remote(&mut self, cmd: &Command, before: &[Node]) {
-        let ctx = remote_ctx(before, cmd);
+    /// document the remote command applies to (a replica's confirmed state, not its view): the nodes and the
+    /// variables of the context are both read from it, never from `self.doc`.
+    pub fn transform_remote(&mut self, cmd: &Command, before: &Doc) {
+        let ctx = remote_ctx(&before.nodes, &before.vars, cmd);
         self.hist.rewrite(cmd, &ctx);
     }
 
     /// Apply a command of another actor (already put in order by the server) without recording it, and
     /// rewrite my undo and redo steps against it. A refused command changes nothing, history included.
     pub fn apply_remote(&mut self, cmd: &Command) -> Result<(), ApplyError> {
-        let pos = plan_command(&self.nodes, cmd, &self.limits)?;
-        let ctx = remote_ctx(&self.nodes, cmd);
+        let pos = plan_doc(&self.doc, cmd, &self.limits)?;
+        let ctx = remote_ctx(&self.doc.nodes, &self.doc.vars, cmd);
         self.hist.rewrite(cmd, &ctx);
         // A remote edit closes any keyed merge run: the step it would join may have been pruned or changed.
         self.hist.close_merge();
-        apply_planned(&mut self.nodes, cmd, pos);
+        apply_planned_doc(&mut self.doc, cmd, pos);
         self.version += 1;
         Ok(())
     }
