@@ -18,3 +18,13 @@ pub struct Report {
     pub warnings: Vec<Finding>,
     pub assets: Vec<String>,
 }
+
+impl Report {
+    pub(crate) fn warn(&mut self, code: &'static str, node: Option<&str>, message: String) {
+        self.warnings.push(Finding {
+            code,
+            node: node.map(str::to_owned),
+            message,
+        });
+    }
+}
