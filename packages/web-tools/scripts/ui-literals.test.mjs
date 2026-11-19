@@ -35,8 +35,8 @@ describe('ui literals', () => {
     expect(kinds('a {\n  color: #fff;\n  width: 10px;\n}')).toEqual(['2:colour', '3:size']);
   });
   it('exempts the tokens module and tests only, by exact path', () => {
-    expect(isExempt('src/tokens.ts')).toBe(true);
-    expect(isExempt('src/tokens.css')).toBe(true);
+    expect(isExempt('../../packages/web-tokens/src/tokens.ts')).toBe(true);
+    expect(isExempt('../../packages/web-tokens/src/tokens.css')).toBe(true);
     expect(isExempt('src/engine.test.ts')).toBe(true);
     expect(isExempt('src/panels/Layers.svelte')).toBe(false);
     expect(isExempt('src/panels/tokens.ts')).toBe(false);
@@ -108,8 +108,8 @@ describe('ui literals: wider coverage', () => {
     expect(kinds('<!-- one\n  #fff 12px\n-->\n<p>x</p>')).toEqual([]);
   });
   it('exempts the tokens module by exact path', () => {
-    expect(findLiterals('src/tokens.ts', "const a = '#fff'").length).toBe(1); // the lib flags it; isExempt skips it
-    expect(isExempt('src/tokens.ts')).toBe(true);
+    expect(findLiterals('../../packages/web-tokens/src/tokens.ts', "const a = '#fff'").length).toBe(1); // the lib flags it; isExempt skips it
+    expect(isExempt('../../packages/web-tokens/src/tokens.ts')).toBe(true);
     expect(isExempt('src/tokens.test.mts')).toBe(true);
     expect(isExempt('src/a.js')).toBe(false);
   });

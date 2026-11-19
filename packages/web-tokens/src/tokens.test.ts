@@ -6,7 +6,7 @@ import {
 } from './tokens';
 
 const css = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8');
-const theme = readFileSync(new URL('./app.css', import.meta.url), 'utf8');
+const theme = readFileSync(new URL('./tailwind.css', import.meta.url), 'utf8');
 
 /** Custom properties declared in the rule blocks whose selector contains `selector`. */
 function declared(selector: string, exact = false): Record<string, string> {

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { STORAGE_KEY } from './theme';
+import { STORAGE_KEY } from '@meldframe/web-tokens/theme';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';

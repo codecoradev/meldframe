@@ -10,7 +10,7 @@ import { paintBody, type Drawable } from './bodycanvas';
 import type { Rect } from '@meldframe/web-canvas/geometry';
 import type { Camera } from '@meldframe/web-canvas/camera';
 import type { ResolvedNode, ResolvedScene, ScenePatch } from '@meldframe/web-canvas/scene';
-import { fonts } from '../tokens';
+import { fonts } from '@meldframe/web-tokens/tokens';
 
 type Body = Sprite | Graphics;
 

@@ -28,6 +28,6 @@ for (const root of ['src', 'index.html', 'vite.config.ts', ...packageRoots()]) {
   const files = /\.(?:html|ts)$/.test(root) ? [root] : [...walk(root)];
   for (const f of files) if (existsSync(f) && !isExempt(f)) found.push(...findLiterals(f, readFileSync(f, 'utf8')));
 }
-for (const f of found) console.error(`${f.path}:${f.line}: ${f.kind} literal; read it from src/tokens.ts`);
+for (const f of found) console.error(`${f.path}:${f.line}: ${f.kind} literal; read it from packages/web-tokens/src/tokens.ts`);
 if (found.length) process.exit(1);
 console.log('ui-literals (web): ok');

@@ -6,7 +6,7 @@ import App from './App.svelte';
 import Editor from './Editor.svelte';
 import Fatal from './Fatal.svelte';
 import { loadFile, reloadOnDivergence } from '@meldframe/web-document/file';
-import { applyTheme, loadTheme } from './theme';
+import { applyTheme, loadTheme } from '@meldframe/web-tokens/theme';
 
 applyTheme(loadTheme());
 const root = document.getElementById('app')!;
