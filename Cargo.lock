@@ -1142,6 +1142,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-order",
  "meldframe-protocol",
+ "meldframe-variables",
  "serde_json",
  "wasm-bindgen-test",
 ]
@@ -1153,6 +1154,7 @@ dependencies = [
  "meldframe-check",
  "meldframe-order",
  "meldframe-protocol",
+ "meldframe-variables",
  "serde",
  "serde_json",
  "wasm-bindgen-test",
@@ -1507,6 +1509,7 @@ dependencies = [
  "meldframe-host",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-variables",
  "serde_json",
  "trybuild",
 ]

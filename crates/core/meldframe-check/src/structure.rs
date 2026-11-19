@@ -2,7 +2,11 @@
 
 use crate::validate::{check_node, check_patch, check_pos};
 use crate::{ApplyError, Limits};
-use meldframe_protocol::{Command, Node, NodeKind};
+use meldframe_protocol::{Command, Node, NodeKind, Variables};
+use meldframe_variables::{
+    VarError, check_node_bindings, check_patch_bindings, check_variable_command,
+    is_variable_command,
+};
 use std::collections::HashSet;
 
 /// Index of the node with this id.
@@ -109,8 +113,22 @@ fn check_reorder(
     Ok(())
 }
 
-/// Validate a command against `nodes` without changing them.
+/// Validate a command against `nodes` alone, for a caller that holds no variables: a binding names a variable
+/// that does not exist, and a variable command is refused as `NoVariables`. See [`check_command_with`].
 pub fn check_command(nodes: &[Node], cmd: &Command, l: &Limits) -> Result<(), ApplyError> {
+    if is_variable_command(cmd) {
+        return Err(ApplyError::Variable(VarError::NoVariables));
+    }
+    check_command_with(nodes, &Variables::default(), cmd, l)
+}
+
+/// Validate a command against `nodes` and `vars` without changing them.
+pub fn check_command_with(
+    nodes: &[Node],
+    vars: &Variables,
+    cmd: &Command,
+    l: &Limits,
+) -> Result<(), ApplyError> {
     match cmd {
         Command::UpdateNode { id, patch } => {
             let i = position(nodes, id).ok_or_else(|| ApplyError::NotFound(id.clone()))?;
@@ -120,10 +138,12 @@ pub fn check_command(nodes: &[Node], cmd: &Command, l: &Limits) -> Result<(), Ap
             if matches!(patch.gradient, Some(Some(_))) && nodes[i].kind == NodeKind::Text {
                 return Err(ApplyError::GradientOnText);
             }
-            check_patch(patch, l)
+            check_patch(patch, l)?;
+            check_patch_bindings(vars, patch).map_err(ApplyError::Variable)
         }
         Command::AddNode { node, .. } => {
             check_node(node, l)?;
+            check_node_bindings(vars, node).map_err(ApplyError::Variable)?;
             if position(nodes, &node.id).is_some() {
                 return Err(ApplyError::DuplicateId(node.id.clone()));
             }
@@ -165,7 +185,8 @@ pub fn check_command(nodes: &[Node], cmd: &Command, l: &Limits) -> Result<(), Ap
             }
             Ok(())
         }
-        // A variable command: the file holds no variables yet.
-        _ => Err(ApplyError::NoVariables),
+        _ => {
+            check_variable_command(nodes, vars, cmd, &l.var_limits()).map_err(ApplyError::Variable)
+        }
     }
 }

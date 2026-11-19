@@ -7,6 +7,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 use std::collections::BTreeSet;
 
 use meldframe_check::{ApplyError, LoadError};
+use meldframe_variables::{VAR_ERROR_CODES, VarError};
 
 const DOC: &str = include_str!("../../../../docs/error-codes.md");
 
@@ -35,7 +36,7 @@ fn index(e: &ApplyError) -> usize {
         ApplyError::ImageOnText => 18,
         ApplyError::InvalidGradient(_) => 19,
         ApplyError::GradientOnText => 20,
-        ApplyError::NoVariables => 21,
+        ApplyError::Variable(_) => 21,
     }
 }
 
@@ -94,7 +95,7 @@ fn samples() -> Vec<ApplyError> {
         ApplyError::ImageOnText,
         ApplyError::InvalidGradient("gradient.stops needs at least 2 stops"),
         ApplyError::GradientOnText,
-        ApplyError::NoVariables,
+        ApplyError::Variable(VarError::NoVariables),
     ]
 }
 
@@ -157,9 +158,11 @@ fn the_code_does_not_depend_on_the_details() {
 
 #[test]
 fn the_docs_table_lists_exactly_the_codes_in_the_code() {
+    // The codes of the errors specific to variables are listed by `meldframe-variables`, which tests them.
     let in_code: BTreeSet<String> = samples()
         .iter()
         .map(|e| e.code().to_string())
+        .chain(VAR_ERROR_CODES.iter().map(|c| c.to_string()))
         .chain(
             load_samples()
                 .iter()
