@@ -1436,6 +1436,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-protocol",
  "serde_json",
+ "wasm-bindgen-test",
 ]
 
 [[package]]

@@ -1,6 +1,10 @@
 //! E3.1: the coverage test. Every node field is in the table; a field a consumer renders changes
 //! the painted boxes, and a field marked unsupported does not; an unsupported mark has a reason.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_protocol::{Gradient, GradientStop, ImageFill, Node, NodeKind};
 use meldframe_render::coverage::{NODE_FIELDS, Support};
 use meldframe_render::resolve;

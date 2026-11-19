@@ -1,5 +1,9 @@
 //! E3.1: `resolve` turns nodes into the boxes the canvas paints.
 
+// Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_protocol::{GradientKind, ImageFit, Node};
 use meldframe_render::{Paint, PaintedBox, resolve};
 use serde_json::{Value, json};
