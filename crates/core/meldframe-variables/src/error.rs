@@ -45,7 +45,7 @@ pub enum VarError {
     AliasCycle(String),
     /// An alias chain would be longer than the limit.
     AliasTooDeep(usize),
-    /// A variable that something still uses cannot be removed; `by` names (up to 20) the nodes and variables.
+    /// A variable that something still uses cannot be removed; `by` holds up to 20 of the nodes and variables; the message names five.
     VariableInUse { id: String, by: Vec<String> },
     /// A collection that still holds variables cannot be removed.
     CollectionNotEmpty(String),
