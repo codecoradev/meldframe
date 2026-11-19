@@ -109,7 +109,10 @@ impl fmt::Display for VarError {
                 write!(f, "an alias chain may have at most {max} steps")
             }
             VarError::VariableInUse { id, by } => {
-                write!(f, "variable {id} is still used by {}", by.join(", "))
+                // A few names are enough to find it; the list can hold twenty ids of 128 characters.
+                let shown = by.iter().take(5).cloned().collect::<Vec<_>>().join(", ");
+                let more = if by.len() > 5 { " and others" } else { "" };
+                write!(f, "variable {id} is still used by {shown}{more}")
             }
             VarError::CollectionNotEmpty(id) => {
                 write!(

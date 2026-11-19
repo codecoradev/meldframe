@@ -51,3 +51,19 @@ fn a_state_that_is_neither_is_an_error() {
     assert!(snapshot_from_state(1, json!("nope")).is_err());
     assert!(snapshot_from_state(1, json!({"nodes": 5})).is_err());
 }
+
+#[test]
+fn a_bad_snapshot_says_what_is_wrong_not_that_no_shape_matched() {
+    let bad_node =
+        json!({"nodes": [{"id": "n", "type": "no-such-kind", "pos": "a"}], "variables": {}});
+    let e = snapshot_from_state(1, bad_node).unwrap_err();
+    assert!(
+        !e.contains("did not match any variant") && e.contains("no-such-kind"),
+        "{e}"
+    );
+    let bad_var = json!({"nodes": [], "variables": {"collections": [{"id": 5}]}});
+    let e = snapshot_from_state(1, bad_var).unwrap_err();
+    assert!(!e.contains("did not match any variant"), "{e}");
+    let e = snapshot_from_state(1, json!([{"id": "n", "type": "no-such-kind"}])).unwrap_err();
+    assert!(!e.contains("did not match any variant"), "{e}");
+}

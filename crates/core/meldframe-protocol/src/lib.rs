@@ -23,7 +23,7 @@ pub use enums::{
     Align, BorderPosition, GradientKind, ImageFit, Justify, LayoutMode, NodeKind, ShaderPreset,
     SizeMode, TextAlign,
 };
-pub use node::{Node, Pad};
+pub use node::{DEFAULT_FILL, DEFAULT_OPACITY, DEFAULT_RADIUS, Node, Pad};
 pub use patch::NodePatch;
 pub use snapshot::{FileSnapshot, SnapshotNode};
 pub use variables::{Bind, Collection, Doc, Mode, Value, VarRef, VarType, Variable, Variables};

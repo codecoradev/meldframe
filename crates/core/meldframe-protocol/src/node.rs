@@ -6,8 +6,15 @@ use crate::variables::Bind;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-fn d_zero() -> Bind<f64> {
-    Bind::Lit(0.0)
+/// The fill of a node that has none (`fill` absent in the file), and what a binding that cannot be resolved paints.
+pub const DEFAULT_FILL: &str = "#3f3f46";
+/// The corner radius of a node that has none.
+pub const DEFAULT_RADIUS: f64 = 0.0;
+/// The opacity of a node that has none: opaque.
+pub const DEFAULT_OPACITY: f64 = 1.0;
+
+fn d_radius() -> Bind<f64> {
+    Bind::Lit(DEFAULT_RADIUS)
 }
 fn d_w() -> f64 {
     100.0
@@ -22,7 +29,7 @@ fn d_true() -> bool {
     true
 }
 fn d_fill() -> Bind<String> {
-    Bind::Lit("#3f3f46".into())
+    Bind::Lit(DEFAULT_FILL.into())
 }
 fn d_fill2() -> String {
     "#22d3ee".into()
@@ -31,7 +38,7 @@ fn d_weight() -> u16 {
     400
 }
 fn d_one() -> Bind<f64> {
-    Bind::Lit(1.0)
+    Bind::Lit(DEFAULT_OPACITY)
 }
 
 /// One node of a file's tree (same shape as the node objects in the web client).
@@ -71,7 +78,7 @@ pub struct Node {
     #[serde(default = "d_fill2")]
     pub fill2: String,
     /// Corner radius: a number, or a binding to a number variable.
-    #[serde(default = "d_zero")]
+    #[serde(default = "d_radius")]
     pub radius: Bind<f64>,
     #[serde(default)]
     pub layout: LayoutMode,

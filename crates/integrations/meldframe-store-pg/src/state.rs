@@ -17,24 +17,34 @@ pub fn state_json(s: &Snapshot) -> Value {
     }
 }
 
+/// The object form of the state.
 #[derive(Deserialize)]
-#[serde(untagged)]
-enum Stored {
-    Nodes(Vec<Node>),
-    Doc {
-        nodes: Vec<Node>,
-        #[serde(default)]
-        variables: Variables,
-    },
+struct Stored {
+    nodes: Vec<Node>,
+    #[serde(default)]
+    variables: Variables,
 }
 
 /// The snapshot at `seq` from a `state` value; an error text when it is neither shape.
 pub fn snapshot_from_state(seq: u64, state: Value) -> Result<Snapshot, String> {
-    let (nodes, variables) =
-        match serde_json::from_value::<Stored>(state).map_err(|e| e.to_string())? {
-            Stored::Nodes(nodes) => (nodes, Variables::default()),
-            Stored::Doc { nodes, variables } => (nodes, variables),
-        };
+    // Chosen by the shape of the JSON, not by trying both: an untagged enum would hide the real parse error
+    // behind "did not match any variant".
+    let (nodes, variables) = match state {
+        Value::Array(_) => (
+            serde_json::from_value::<Vec<Node>>(state).map_err(|e| e.to_string())?,
+            Variables::default(),
+        ),
+        Value::Object(_) => {
+            let Stored { nodes, variables } =
+                serde_json::from_value(state).map_err(|e| e.to_string())?;
+            (nodes, variables)
+        }
+        other => {
+            return Err(format!(
+                "bad snapshot state: expected an array or an object, got {other}"
+            ));
+        }
+    };
     Ok(Snapshot {
         seq,
         nodes,

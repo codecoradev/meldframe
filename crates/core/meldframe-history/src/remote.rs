@@ -6,11 +6,11 @@
 use crate::file_state::FileState;
 use crate::inverse::descendants;
 use meldframe_core::{ApplyError, apply_planned_doc, plan_doc};
-use meldframe_protocol::{Command, Node};
+use meldframe_protocol::{Command, Node, Variables};
 use meldframe_undo::RemoteCtx;
 
 /// What the remote command removed, read from the tree before it is applied.
-fn remote_ctx(nodes: &[Node], r: &Command) -> RemoteCtx {
+fn remote_ctx(nodes: &[Node], vars: &Variables, r: &Command) -> RemoteCtx {
     let find = |id: &String| nodes.iter().find(|n| n.id == *id);
     match r {
         Command::RemoveNode { id } => RemoteCtx {
@@ -25,6 +25,13 @@ fn remote_ctx(nodes: &[Node], r: &Command) -> RemoteCtx {
             reorder_space: find(id).map(|n| (n.id.clone(), n.parent_id.clone())),
             ..Default::default()
         },
+        Command::AddMode { collection, .. } => RemoteCtx {
+            default_mode: vars
+                .collection(collection)
+                .and_then(|c| c.modes.first())
+                .map(|m| m.id.clone()),
+            ..Default::default()
+        },
         _ => RemoteCtx::default(),
     }
 }
@@ -33,7 +40,7 @@ impl FileState {
     /// Rewrite my undo and redo steps against a remote command without applying it. `before` is the
     /// tree the remote command applies to (a replica's confirmed state, not its view).
     pub fn transform_remote(&mut self, cmd: &Command, before: &[Node]) {
-        let ctx = remote_ctx(before, cmd);
+        let ctx = remote_ctx(before, &self.doc.vars, cmd);
         self.hist.rewrite(cmd, &ctx);
     }
 
@@ -41,7 +48,7 @@ impl FileState {
     /// rewrite my undo and redo steps against it. A refused command changes nothing, history included.
     pub fn apply_remote(&mut self, cmd: &Command) -> Result<(), ApplyError> {
         let pos = plan_doc(&self.doc, cmd, &self.limits)?;
-        let ctx = remote_ctx(&self.doc.nodes, cmd);
+        let ctx = remote_ctx(&self.doc.nodes, &self.doc.vars, cmd);
         self.hist.rewrite(cmd, &ctx);
         // A remote edit closes any keyed merge run: the step it would join may have been pruned or changed.
         self.hist.close_merge();

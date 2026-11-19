@@ -8,10 +8,11 @@
 //!   command made again goes.
 //! - `RemoveVariable`, `RemoveCollection`, `AddMode` and `RemoveMode` go when the remote command did the same.
 
+use crate::remote::RemoteCtx;
 use meldframe_protocol::{Bind, Command, Mode, Value, Variable};
 
 /// Rewrite the variable command `c` against `r`; what stays is pushed on `list`.
-pub(crate) fn xform_var(c: Command, r: &Command, list: &mut Vec<Command>) {
+pub(crate) fn xform_var(c: Command, r: &Command, ctx: &RemoteCtx, list: &mut Vec<Command>) {
     match c {
         Command::SetVariableValue { id, mode, value } => {
             let gone = match r {
@@ -39,7 +40,7 @@ pub(crate) fn xform_var(c: Command, r: &Command, list: &mut Vec<Command>) {
                     copy_from,
                     ..
                 } if *collection == variable.collection => {
-                    copy_value(&mut variable, mode, copy_from)
+                    copy_value(&mut variable, mode, copy_from, ctx)
                 }
                 Command::RemoveMode { collection, mode } if *collection == variable.collection => {
                     variable.values.remove(mode);
@@ -121,12 +122,13 @@ pub(crate) fn xform_var(c: Command, r: &Command, list: &mut Vec<Command>) {
     }
 }
 
-/// The snapshot of a variable gets the value of a mode a remote command added: the copy it made.
-fn copy_value(v: &mut Variable, mode: &Mode, copy_from: &Option<String>) {
+/// The snapshot of a variable gets the value of a mode a remote command added: the copy it made, from the mode it
+/// named or else from the default mode of the collection (as `apply` does).
+fn copy_value(v: &mut Variable, mode: &Mode, copy_from: &Option<String>, ctx: &RemoteCtx) {
     let from: Option<Bind<Value>> = copy_from
         .as_ref()
+        .or(ctx.default_mode.as_ref())
         .and_then(|f| v.values.get(f))
-        .or_else(|| v.values.values().next())
         .cloned();
     if let Some(value) = from {
         v.values.insert(mode.id.clone(), value);

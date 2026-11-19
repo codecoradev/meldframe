@@ -323,3 +323,18 @@ fn a_command_that_holds_no_variables_refuses_a_variable_command() {
         "E_NO_VARIABLES"
     );
 }
+
+#[test]
+fn the_in_use_error_names_a_few_users_not_all_of_them() {
+    let mut d = doc();
+    for i in 0..12 {
+        d.nodes.push(node(
+            json!({"id": format!("user-{i:02}"), "type": "rect", "pos": format!("b{i:02}"), "fill": {"var": "bg"}}),
+        ));
+    }
+    let e = check(&d, json!({"type": "removeVariable", "id": "bg"})).expect_err("in use");
+    assert_eq!(e.code(), "E_VARIABLE_IN_USE");
+    let text = e.to_string();
+    assert!(text.matches("user-").count() <= 5, "{text}");
+    assert!(text.contains("and others"), "{text}");
+}
