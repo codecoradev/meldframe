@@ -1670,6 +1670,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-variables"
+version = "0.0.0"
+dependencies = [
+ "meldframe-protocol",
+]
+
+[[package]]
+name = "meldframe-variables-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-check",
+ "meldframe-core",
+ "meldframe-history",
+ "meldframe-host",
+ "meldframe-protocol",
+ "meldframe-render",
+ "meldframe-sync",
+ "meldframe-variables",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-variant"
 version = "0.0.0"
 dependencies = [
