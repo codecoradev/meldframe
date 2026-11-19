@@ -1,0 +1,26 @@
+[package]
+name = "meldframe-variables-limits-tests"
+description = "The ceilings of the variable model (collections, modes, variables, names) and the cost of the alias checks, against the real checker. Split from meldframe-variables-tests to keep it under the size ceiling. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-check = { path = "../meldframe-check" }
+meldframe-history = { path = "../meldframe-history" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-variables = { path = "../meldframe-variables" }
+serde_json = "1"
+
+# The tests run under WASM through wasm-bindgen-test (`just wasm-test`); each test file
+# imports it as `test` on wasm32 only. Keep the version in step with the `wasm-bindgen-cli` that
+# provides `wasm-bindgen-test-runner` (0.2.130 pairs with 0.3.80).
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
+
+[lints]
+workspace = true

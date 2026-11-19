@@ -3,10 +3,11 @@
 // Keep it in step with crates/app/meldframe-wasm (the generated meldframe_wasm.d.ts is the source of truth).
 declare module '@meldframe/wasm' {
   export class WasmApp {
-    constructor(actor: string, keyPrefix: string, session: number, nodesJson: string, seq: number);
+    constructor(actor: string, keyPrefix: string, session: number, nodesJson: string, seq: number, variablesJson?: string | null);
     dispatch(actionJson: string): string;
     stateJson(): string;
     nodesJson(): string;
+    variablesJson(): string;
     sceneJson(): string;
     takeEventsJson(): string;
     free(): void;
