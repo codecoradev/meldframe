@@ -57,7 +57,7 @@ to the right of the original, named "<name> variant", and answers with the copy'
 small batches as above. Send the same call with the same key after a timeout and no second copy is made (`replayed` is
 true). A frame that holds over 100 nodes with everything inside it is refused as `invalid` (a call takes 100 commands): copy a smaller frame, or
 build the variant with `addNode` commands, top-down, with a name that says what it is. A frame delete needs the owner's
-approval and is refused as `forbidden`, so leave the original for the person to keep or remove.
+approval: sent alone it is refused as `approval_required`, so leave the original for the person to keep or remove.
 
 ## When a call is refused
 
@@ -67,7 +67,13 @@ Read the error code; it says what to fix (`docs/error-codes.md` lists them all):
 - `quota_ops_per_minute`: you sent too many changes this minute. Wait for the time in the reply, then send the same
   call again; the refused call was not counted.
 - `batch_too_large`: split the call into calls of at most the limit in the message.
-- `forbidden`: the policy refused the call. Most often a delete above what you may do alone (a frame, or a large
-  subtree): ask the person. It is also what a `removeNode` of an id that is not in the file gets: read the tree again
+- `approval_required`: the delete waits for the owner. Do not send it again until the person says it was approved;
+  then the same call (same key and same `ifSeq`; keep the `ifSeq`, the approval does not look at the tree) writes it once. `approval_denied` and `approval_expired` stay
+  refused: ask the person, and use a new `idempotencyKey` (a new op) only if they want it asked again.
+  `approval_limit`: too many asks are open; wait for the person. If the approved call is then refused `conflict` or
+  `invalid`, its approval is spent: read the node again and send a new call with a current `ifSeq`, which asks
+  again. After a server restart the approvals are gone and the same call asks again.
+- `forbidden`: the policy refused the call. Most often a delete in a batch of several commands (send a delete alone, so it can ask
+  the owner). It is also what a `removeNode` of an id that is not in the file gets: read the tree again
   and check the id.
 - An `E_` code: one command is invalid (an unknown node, a value out of range); the error names the command by index.
