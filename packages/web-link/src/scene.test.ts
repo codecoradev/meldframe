@@ -1,21 +1,36 @@
 import { readFileSync } from 'node:fs';
-import type { Node } from '@meldframe/protocol';
 import { resolveScene } from '@meldframe/web-canvas/scene';
-import { sceneFromNodes } from '@meldframe/web-document/scene';
 import { describe, expect, it } from 'vitest';
 import { type PaintedBox, sceneFromBoxes } from './scene';
 
-// The same file the Rust test of meldframe-render checks `resolve` against: node lists and the boxes it gives.
-const fixtures: { name: string; nodes: Node[]; boxes: PaintedBox[] }[] = JSON.parse(
+// The file the Rust test of meldframe-render checks `resolve` against: node lists and the boxes it gives.
+const fixtures: { name: string; boxes: PaintedBox[] }[] = JSON.parse(
   readFileSync(new URL('../../../crates/core/meldframe-render/tests/fixtures/scene.json', import.meta.url), 'utf8'),
 );
+const byName = (name: string) => fixtures.find((c) => c.name === name)!.boxes;
 
-describe('the Rust render step and the TypeScript scene agree (E3.1 parity)', () => {
-  for (const c of fixtures) {
-    it(c.name, () => {
-      const fromRust = resolveScene(sceneFromBoxes(c.boxes)).scene.items;
-      expect(fromRust).toHaveLength(c.nodes.length);
-      expect(fromRust).toEqual(resolveScene(sceneFromNodes(c.nodes)).scene.items);
+describe('sceneFromBoxes', () => {
+  it('keeps every box of every fixture, in order, and the canvas resolves them all', () => {
+    for (const c of fixtures) {
+      const scene = sceneFromBoxes(c.boxes);
+      expect(scene.nodes.map((n) => n.id), c.name).toEqual(c.boxes.map((b) => b.id));
+      expect(resolveScene(scene).scene.items, c.name).toHaveLength(c.boxes.length);
+    }
+  });
+  it('carries the paint, the offset in the parent, colour, opacity, gradient and image', () => {
+    const nested = sceneFromBoxes(byName('nested frames, back to front')).nodes;
+    expect(nested.find((n) => n.id === 'g1')).toMatchObject({ kind: 'frame', parent: 'f1', x: 20, y: 30, radius: 8, clip: false, fill: 0xeeeeee });
+    expect(sceneFromBoxes(byName('opacity')).nodes.map((n) => n.opacity)).toEqual([1, 0.5, 1, 0, 0.25]);
+    const paint = sceneFromBoxes(byName('gradient and image')).nodes;
+    expect(paint.find((n) => n.id === 'r')).toMatchObject({
+      gradient: { kind: 'linear', angle: 45, stops: [{ pos: 0, color: '#f008' }, { pos: 1, color: '#0000ff' }] },
+      image: { assetId: 'ast_2', fit: 'contain' },
     });
-  }
+    expect(paint.find((n) => n.id === 't')).not.toHaveProperty('gradient');
+    expect(paint.find((n) => n.id === 'bad')?.gradient).toBeUndefined();
+  });
+  it('a missing parent and a cycle arrive as the Rust step ordered them', () => {
+    expect(sceneFromBoxes(byName('a missing parent makes a root')).nodes[0]).toMatchObject({ id: 'a', parent: null });
+    expect(sceneFromBoxes(byName('a cycle stays visible after the rest')).nodes.map((n) => n.id)).toEqual(['ok', 'x', 'y', 'kid']);
+  });
 });

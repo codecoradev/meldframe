@@ -2,11 +2,15 @@
 // latest state, nodes and events for the views, and hands effects to whoever carries them out. It holds
 // no editing rules of its own (those live in meldframe-app).
 import type { Action, AppState, Effect, Event, Node } from '@meldframe/protocol';
+import type { Scene } from '@meldframe/web-canvas/scene';
 import init, { initSync, WasmApp } from '@meldframe/wasm';
+import { type PaintedBox, sceneFromBoxes } from './scene';
 
 export interface Snapshot {
   state: AppState;
   nodes: Node[];
+  /** What the canvas draws: the painted boxes of the nodes, from the Rust render step. Read once per change of the document. */
+  scene: Scene;
   /** The events of the last dispatch, oldest first. */
   events: Event[];
 }
@@ -31,11 +35,11 @@ export class Engine {
   private listeners = new Set<(s: Snapshot) => void>();
   private effectHandler: (fx: Effect[]) => void = () => {};
   private snap: Snapshot;
-  /** How often the state and the nodes were parsed (for tests: a quiet tick must cost nothing). */
-  readonly stats = { stateReads: 0, nodeReads: 0 };
+  /** How often the state, the nodes and the scene were read (for tests: a quiet tick must cost nothing). */
+  readonly stats = { stateReads: 0, nodeReads: 0, sceneReads: 0 };
 
   private constructor(private app: WasmApp) {
-    this.snap = { state: this.readState(), nodes: this.readNodes(), events: [] };
+    this.snap = { state: this.readState(), ...this.readDocument(), events: [] };
   }
 
   static create(o: EngineOptions): Engine {
@@ -66,7 +70,7 @@ export class Engine {
       const changed = events.some((e) => e.type === 'documentChanged');
       this.snap = {
         state: this.readState(),
-        nodes: changed ? this.readNodes() : this.snap.nodes,
+        ...(changed ? this.readDocument() : { nodes: this.snap.nodes, scene: this.snap.scene }),
         events,
       };
       for (const fn of this.listeners) fn(this.snap);
@@ -80,8 +84,11 @@ export class Engine {
     return JSON.parse(this.app.stateJson());
   }
 
-  private readNodes(): Node[] {
+  /** The nodes and the scene of the same document, each read once. */
+  private readDocument(): { nodes: Node[]; scene: Scene } {
     this.stats.nodeReads++;
-    return JSON.parse(this.app.nodesJson());
+    this.stats.sceneReads++;
+    const boxes: PaintedBox[] = JSON.parse(this.app.sceneJson());
+    return { nodes: JSON.parse(this.app.nodesJson()), scene: sceneFromBoxes(boxes) };
   }
 }

@@ -11,7 +11,6 @@
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
   import Canvas from './canvas/Canvas.svelte';
   import { createActionFor, keyAction, worldOrigin, moveActionsFor, previewScene, resizeActionFor, resizedBox, toolMode, type Preview } from '@meldframe/web-document/edit';
-  import { sceneFromNodes } from '@meldframe/web-document/scene';
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
   import Toolbar from './Toolbar.svelte';
@@ -48,9 +47,10 @@
   let canvas = $state<ReturnType<typeof Canvas>>();
   const theme = loadTheme();
 
-  // The scene depends on the nodes only: a change of selection or connection reuses the same array, so nothing is rebuilt.
+  // The scene comes from the Rust render step with the nodes: a change of selection or connection reuses both, and the
+  // engine reads them once per change of the document.
   const nodes = $derived(snap.nodes);
-  const scene = $derived(sceneFromNodes(nodes));
+  const scene = $derived(snap.scene);
 
   // What a gesture in progress shows; the file changes only when it ends (one action, one undo step).
   let preview = $state<Preview | null>(null);
@@ -63,7 +63,7 @@
 
   // The layers: what the server stamped when the file loaded, then what the app saw change since.
   const actors = $derived({ ...Object.fromEntries(Object.entries(attribution).map(([id, a]) => [id, a.actor])), ...snap.state.lastActor });
-  const rows = $derived(layerRows(nodes, snap.state.panels.collapsed, snap.state.selection, actors));
+  const rows = $derived(layerRows(nodes, scene, snap.state.panels.collapsed, snap.state.selection, actors));
   const onProperty = (f: PropertyField, raw: string) => {
     const p = snap.state.properties;
     const a = p && propertyAction(p, f, raw);
