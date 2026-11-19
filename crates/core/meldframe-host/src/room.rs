@@ -1,7 +1,10 @@
 //! The room: one total order per file, and the only write entry, [`Room::accept`].
 
 use crate::{Admission, Appended, NewOp, Refusal, Snapshot, Store, StoreError};
-use meldframe_core::{Limits, apply_command, apply_planned, plan_command};
+use meldframe_check::{LoadError, check_file};
+use meldframe_core::{
+    Limits, apply_command, apply_planned, normalize_positions_with, plan_command,
+};
 use meldframe_module::{Policy, RiskTier};
 use meldframe_protocol::{Command, Node, NodeKind};
 use std::collections::HashMap;
@@ -42,6 +45,10 @@ pub enum RoomError {
     /// The log does not replay: op `seq` was refused by the document core. The log is never edited,
     /// so this needs a person.
     Corrupt { seq: u64 },
+    /// The stored snapshot at `seq` fails the whole-file check (a cycle, a duplicate id, a missing parent
+    /// and so on; `error.code()` is the stable code). Nothing is repaired and the bytes are kept, so this
+    /// needs a person.
+    BadSnapshot { seq: u64, error: LoadError },
 }
 
 impl fmt::Display for RoomError {
@@ -50,6 +57,9 @@ impl fmt::Display for RoomError {
             RoomError::Refused(r) => write!(f, "{r}"),
             RoomError::Store(e) => write!(f, "{e}"),
             RoomError::Corrupt { seq } => write!(f, "the log does not replay at op {seq}"),
+            RoomError::BadSnapshot { seq, error } => {
+                write!(f, "the snapshot at op {seq} fails the load check: {error}")
+            }
         }
     }
 }
@@ -98,7 +108,14 @@ impl<S: Store> Room<S> {
         let id = id.into();
         let limits = Limits::default();
         let (mut nodes, floor) = match store.latest_snapshot(&id)? {
-            Some(s) => (s.nodes, s.seq),
+            Some(mut s) => {
+                // As `FileState::try_from_nodes` does: the old-file migration (a snapshot from before
+                // position keys), then the whole-file check. Only the copy in memory is migrated.
+                normalize_positions_with(&mut s.nodes, &limits);
+                check_file(&s.nodes, &limits)
+                    .map_err(|error| RoomError::BadSnapshot { seq: s.seq, error })?;
+                (s.nodes, s.seq)
+            }
             None => (Vec::new(), 0),
         };
         let mut touched = HashMap::new();
