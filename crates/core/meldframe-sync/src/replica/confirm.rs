@@ -2,7 +2,7 @@
 
 use super::Replica;
 use crate::types::{EventOutcome, ReplicaError};
-use meldframe_core::apply_command;
+use meldframe_core::apply_doc;
 use meldframe_protocol::Command;
 use std::collections::HashSet;
 
@@ -21,7 +21,7 @@ impl Replica {
         } else {
             self.drop_ideal();
         }
-        apply_command(&mut self.base, cmd, &self.limits)
+        apply_doc(&mut self.base, cmd, &self.limits)
             .map_err(|e| ReplicaError::Diverged(e.to_string()))?;
         self.seq = seq;
         self.settle(i);

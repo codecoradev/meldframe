@@ -3,7 +3,7 @@
 use super::Replica;
 use crate::types::{OpKind, ResyncError};
 use meldframe_history::FileState;
-use meldframe_protocol::Node;
+use meldframe_protocol::{Doc, Node};
 use std::collections::HashSet;
 
 impl Replica {
@@ -26,15 +26,25 @@ impl Replica {
         seq: u64,
         applied: &[String],
     ) -> Result<usize, ResyncError> {
+        self.resync_doc(Doc::of_nodes(nodes), seq, applied)
+    }
+
+    /// Like [`Replica::resync`] for a file with variables.
+    pub fn resync_doc(
+        &mut self,
+        doc: Doc,
+        seq: u64,
+        applied: &[String],
+    ) -> Result<usize, ResyncError> {
         if seq < self.seq {
             return Err(ResyncError::Behind {
                 have: self.seq,
                 got: seq,
             });
         }
-        let mut view = FileState::try_from_nodes(nodes, self.limits.clone())?;
+        let mut view = FileState::try_from_doc(doc, self.limits.clone())?;
         view.set_optimistic(true);
-        self.base = view.nodes().to_vec();
+        self.base = view.doc().clone();
         self.view = view;
         self.seq = seq;
         self.drop_ideal();
