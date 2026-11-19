@@ -37,10 +37,55 @@ impl fmt::Display for Finding {
     }
 }
 
+/// The tokens files, where literals live: the three AGENTS.md names, nothing wider.
+const TOKENS_FILES: &[&str] = &[
+    "crates/ui/meldframe-ui/src/tokens.rs",
+    "apps/web/src/tokens.ts",
+    "apps/web/src/tokens.css",
+];
+
 /// True for the tokens module itself, which is where literals live.
 pub fn is_tokens_file(path: &str) -> bool {
-    path.split('/')
-        .any(|part| part == "tokens" || part.split('.').next() == Some("tokens"))
+    TOKENS_FILES.contains(&path)
+}
+
+/// The code of one line with `/* ... */` comments blanked out. `depth` carries an open block
+/// comment from line to line (Rust nests them, the other languages do not). A comment marker inside
+/// a double-quoted string is not a comment. A line that starts with `//` is a comment as a whole.
+fn code_of(ext: &str, line: &str, depth: &mut usize) -> String {
+    if *depth == 0 && line.trim_start().starts_with("//") {
+        return String::new();
+    }
+    let mut out = String::new();
+    let mut in_string = false;
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        let next = chars.peek().copied();
+        if *depth > 0 {
+            if c == '*' && next == Some('/') {
+                chars.next();
+                *depth -= 1;
+                out.push(' ');
+            } else if ext == "rs" && c == '/' && next == Some('*') {
+                chars.next();
+                *depth += 1;
+            }
+        } else if in_string {
+            out.push(c);
+            if c == '\\' {
+                out.extend(chars.next());
+            } else if c == '"' {
+                in_string = false;
+            }
+        } else if c == '/' && next == Some('*') {
+            chars.next();
+            *depth = 1;
+        } else {
+            in_string = c == '"';
+            out.push(c);
+        }
+    }
+    out
 }
 
 const COLOUR_FNS: &[&str] = &[
@@ -151,18 +196,17 @@ pub fn check_file(path: &str, content: &str) -> Vec<Finding> {
     }
     let ext = path.rsplit('.').next().unwrap_or_default();
     let mut out = Vec::new();
-    // Lines of a (multi-line) `<!-- -->` comment are skipped like `//` lines.
+    // Lines of a (multi-line) `<!-- -->` comment are skipped; `//` and `/* */` comments are blanked.
     let mut in_html_comment = false;
+    let mut block_depth = 0;
     for (i, line) in content.lines().enumerate() {
         let t = line.trim_start();
         if in_html_comment || t.starts_with("<!--") {
             in_html_comment = !t.contains("-->");
             continue;
         }
-        if t.starts_with("//") || t.starts_with("/*") || t.starts_with('*') {
-            continue;
-        }
-        for literal in scan_line(ext, line) {
+        let code = code_of(ext, line, &mut block_depth);
+        for literal in scan_line(ext, &code) {
             out.push(Finding {
                 path: path.to_string(),
                 line: i + 1,
@@ -266,12 +310,54 @@ mod tests {
     }
 
     #[test]
-    fn tokens_files_are_exempt() {
+    fn only_the_three_named_tokens_files_are_exempt() {
         assert!(is_tokens_file("crates/ui/meldframe-ui/src/tokens.rs"));
+        assert!(is_tokens_file("apps/web/src/tokens.ts"));
         assert!(is_tokens_file("apps/web/src/tokens.css"));
-        assert!(is_tokens_file("crates/ui/x/src/tokens/colour.rs"));
-        assert!(!is_tokens_file("crates/ui/x/src/token_like.rs"));
-        assert!(check_file("a/tokens.rs", "const C: &str = \"#fff\";").is_empty());
+        assert!(!is_tokens_file("crates/ui/x/src/tokens/colour.rs"));
+        assert!(!is_tokens_file("crates/ui/x/src/tokens.rs"));
+        assert!(!is_tokens_file("apps/web/src/canvas/tokens.css"));
+        assert!(!is_tokens_file("apps/web/src/tokens.css.bak"));
+        let src = "const C: &str = \"#fff\";";
+        assert!(check_file("crates/ui/meldframe-ui/src/tokens.rs", src).is_empty());
+        assert_eq!(check_file("crates/ui/x/src/tokens.rs", src).len(), 1);
+    }
+
+    fn lines(path: &str, src: &str) -> Vec<usize> {
+        check_file(path, src).iter().map(|f| f.line).collect()
+    }
+
+    #[test]
+    fn a_line_starting_with_a_star_is_code() {
+        assert_eq!(lines("a.css", "* { color: #fff }\n"), [1]);
+        assert_eq!(lines("a.css", "*::before { transition: all 200ms }\n"), [1]);
+        assert_eq!(lines("a.rs", "*c = Color32::from_rgb(1, 2, 3);\n"), [1]);
+    }
+
+    #[test]
+    fn block_comments_are_tracked_across_lines_and_inside_a_line() {
+        let src = "/*\n * color: #fff;\n */\ncolor: #fff;\n";
+        assert_eq!(lines("a.css", src), [4]);
+        assert_eq!(lines("a.css", "/* note */ color: #fff;\n"), [1]);
+        assert_eq!(lines("a.css", "/* a\n b */ color: #fff;\n"), [2]);
+        assert_eq!(
+            lines("a.css", "a { /* #fff */ margin: 0 }\n"),
+            Vec::<usize>::new()
+        );
+        assert_eq!(
+            lines("a.css", "/* one */ a { /* two */ }\n/* #fff */\n"),
+            Vec::<usize>::new()
+        );
+        assert_eq!(
+            lines("a.rs", "/* a /* b */ #fff */\nlet c = \"#fff\";\n"),
+            [2]
+        );
+    }
+
+    #[test]
+    fn line_comments_are_skipped_and_a_comment_marker_in_a_string_is_not_a_comment() {
+        assert!(lines("a.rs", "// #fff\n/// #fff\n").is_empty());
+        assert_eq!(lines("a.rs", "let g = \"a/*b\";\nlet c = \"#fff\";\n"), [2]);
     }
 
     #[test]
