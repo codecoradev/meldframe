@@ -64,7 +64,7 @@ fn rejects_non_finite_numbers() {
     let inf = check_patch(&patch(|p| p.h = Some(f64::INFINITY)), &l);
     assert_eq!(inf, Err(ApplyError::NotFinite("h")));
     let mut n = rect("a");
-    n.radius = f64::NEG_INFINITY;
+    n.radius = f64::NEG_INFINITY.into();
     assert_eq!(check_node(&n, &l), Err(ApplyError::NotFinite("radius")));
 }
 

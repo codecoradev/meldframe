@@ -32,7 +32,7 @@ fn random_cmd(r: &mut Rng, s: &FileState, next_id: &mut u32) -> Command {
             let mut p = NodePatch::default();
             match r.below(4) {
                 0 => p.x = Some(r.below(500) as f64),
-                1 => p.fill = Some(format!("#{:06x}", r.below(0xffffff))),
+                1 => p.fill = Some(format!("#{:06x}", r.below(0xffffff)).into()),
                 2 => p.text = Some(format!("t{}", r.below(99))),
                 _ => {
                     p.w = Some(r.below(300) as f64);

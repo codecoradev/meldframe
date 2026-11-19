@@ -94,6 +94,8 @@ pub(crate) fn footprint(nodes: &[Node], c: &Command) -> (Pairs, Pairs) {
                 ids.iter().map(|n| pair(n, WHOLE)).collect(),
             )
         }
+        // A variable command is refused before it gets here.
+        _ => (Vec::new(), Vec::new()),
     }
 }
 

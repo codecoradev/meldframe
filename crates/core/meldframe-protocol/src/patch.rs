@@ -3,6 +3,7 @@
 use crate::decoration::{Border, Gradient, ImageFill, Shadow};
 use crate::enums::{Align, Justify, LayoutMode, ShaderPreset, SizeMode, TextAlign};
 use crate::node::Node;
+use crate::variables::Bind;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -43,10 +44,10 @@ pub struct NodePatch {
     pub sh: Option<SizeMode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub fill: Option<String>,
+    pub fill: Option<Bind<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub radius: Option<f64>,
+    pub radius: Option<Bind<f64>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub layout: Option<LayoutMode>,
@@ -136,7 +137,7 @@ pub struct NodePatch {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     /// Opacity of the node and what is inside it: 0 to 1 (`opacity`).
-    pub opacity: Option<f64>,
+    pub opacity: Option<Bind<f64>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     /// Text node horizontal alignment in its box (`textAlign`): left, center or right (justify is not supported).

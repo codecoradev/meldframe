@@ -136,6 +136,8 @@ fn xform_list(list: &mut Vec<Command>, r: &Command, ctx: &RemoteCtx) {
                     pos,
                 }),
             },
+            // A variable command is not rewritten yet: the commands that carry one are refused for now.
+            other => list.push(other),
         }
     }
 }

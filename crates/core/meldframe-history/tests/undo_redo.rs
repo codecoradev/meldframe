@@ -33,7 +33,10 @@ fn undo_restores_only_the_fields_the_update_touched() {
     assert_eq!(snap(&s), before);
     assert!(s.redo().is_some());
     let a = s.node("a").unwrap();
-    assert_eq!((a.x, a.w, a.fill.as_str()), (50.0, 10.0, "#ff0000"));
+    assert_eq!(
+        (a.x, a.w, a.fill.lit().unwrap().as_str()),
+        (50.0, 10.0, "#ff0000")
+    );
 }
 
 #[test]

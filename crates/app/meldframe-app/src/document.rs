@@ -176,8 +176,8 @@ impl App {
                 let mut patch = NodePatch::default();
                 match property {
                     Property::Name(v) => patch.name = Some(v),
-                    Property::Fill(v) => patch.fill = Some(v),
-                    Property::Radius(v) => patch.radius = Some(v),
+                    Property::Fill(v) => patch.fill = Some(v.into()),
+                    Property::Radius(v) => patch.radius = Some(v.into()),
                     Property::FontSize(v) => patch.font_size = Some(v),
                 }
                 self.replica.apply(&update(&id, patch))

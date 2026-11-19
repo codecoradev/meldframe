@@ -7,7 +7,7 @@ use crate::link::Link;
 use crate::retry::Retries;
 use crate::review::Review;
 use crate::state::{AppState, Connection, History, Panel, Properties};
-use meldframe_protocol::{Command, Node};
+use meldframe_protocol::{Command, DEFAULT_FILL, DEFAULT_RADIUS, Node};
 use meldframe_render::{PaintedBox, resolve};
 use meldframe_sync::{EventOutcome, LoadError, Outgoing, Replica, ReplicaError};
 use std::collections::HashSet;
@@ -427,8 +427,13 @@ fn properties(n: &Node) -> Properties {
         y: n.y,
         w: n.w,
         h: n.h,
-        fill: n.fill.clone(),
-        radius: n.radius,
+        // A binding is not resolved yet: the panel shows the default of its field.
+        fill: n
+            .fill
+            .lit()
+            .cloned()
+            .unwrap_or_else(|| DEFAULT_FILL.to_string()),
+        radius: n.radius.lit().copied().unwrap_or(DEFAULT_RADIUS),
         text: n.text.clone(),
         font_size: n.font_size,
     }
@@ -466,6 +471,8 @@ pub(crate) fn touched(command: &Command) -> Vec<String> {
         | Command::Reparent { id, .. }
         | Command::Reorder { id, .. } => id,
         Command::AddNode { node, .. } => &node.id,
+        // A variable command names no node.
+        _ => return Vec::new(),
     };
     vec![id.clone()]
 }

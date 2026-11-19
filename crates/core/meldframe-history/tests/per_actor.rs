@@ -41,7 +41,10 @@ fn undo_keeps_the_other_actors_fields_and_restores_my_own() {
     assert_eq!(a.fill, "#ff0000");
     assert!(s.redo().is_some());
     let a = s.node("a").unwrap();
-    assert_eq!((a.x, a.y, a.fill.as_str()), (50.0, 999.0, "#ff0000"));
+    assert_eq!(
+        (a.x, a.y, a.fill.lit().unwrap().as_str()),
+        (50.0, 999.0, "#ff0000")
+    );
 }
 
 #[test]

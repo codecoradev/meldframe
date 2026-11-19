@@ -319,5 +319,7 @@ fn touches(cmd: &Command) -> Vec<String> {
             v.extend(parent_id.clone());
             v
         }
+        // A variable command is refused before it gets here.
+        _ => Vec::new(),
     }
 }

@@ -59,7 +59,7 @@ fn rand_patch(r: &mut Rng) -> NodePatch {
     let mut p = NodePatch::default();
     match r.below(7) {
         0 => p.x = Some(r.below(500) as f64),
-        1 => p.fill = Some(format!("#{:06x}", r.below(0xffffff))),
+        1 => p.fill = Some(format!("#{:06x}", r.below(0xffffff)).into()),
         2 => p.text = Some(format!("t{}", r.below(99))),
         3 => {
             p.x = Some(r.below(500) as f64);
