@@ -1060,9 +1060,11 @@ dependencies = [
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-activity",
+ "meldframe-http-live",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-server",
+ "reqwest",
  "rmcp",
  "serde_json",
  "tokio",
@@ -1332,9 +1334,13 @@ name = "meldframe-http-activity"
 version = "0.0.0"
 dependencies = [
  "activity-store",
+ "axum",
  "meldframe-activity",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-protocol",
+ "serde_json",
+ "serde_urlencoded",
 ]
 
 [[package]]

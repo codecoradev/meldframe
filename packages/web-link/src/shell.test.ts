@@ -147,6 +147,22 @@ describe('touch frames', () => {
   });
 });
 
+describe('a batch frame', () => {
+  it('is a frame this client does not know yet: ignored, nothing dispatched, the connection stays', () => {
+    const engine = new FakeEngine();
+    const env = new FakeEnv();
+    new Shell(engine, env, { file: 'file_dev' }).start();
+    engine.effect({ type: 'subscribe', afterSeq: 0 });
+    const socket = env.sockets[0]!;
+    const frame = '{"type":"batch","room":"file_dev","n":1,"rev":1,"actor":"agent:x","keyPrefix":"k","tool":"apply_commands","commands":1,"written":1,"atomic":true,"firstSeq":1,"lastSeq":1,"atMs":5,"review":"unreviewed","unreviewedCount":1}';
+    expect(parseFrame(frame)?.type).toBe('batch');
+    const before = engine.dispatched.length;
+    socket.onmessage(frame);
+    expect(engine.dispatched).toHaveLength(before);
+    expect(socket.closed).toBe(false);
+  });
+});
+
 describe('capture requests', () => {
   const req = { type: 'captureRequest', requestId: 'r1', room: 'file_dev', nodeId: 'a', scale: 2, maxPixels: 1000000, minSeq: 3, uploadToken: 'tok', timeoutMs: 5000 };
   const live = (onCapture?: (r: unknown) => void) => {

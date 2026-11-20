@@ -9,7 +9,7 @@ pub use common::*;
 use meldframe_host::{Accepted, Op, Principal};
 use meldframe_http::mcp::{McpConfig, Reader};
 use meldframe_http::{Config, DevTokens, Failure, Guard, Submitter};
-use meldframe_http_activity::Activity;
+use meldframe_http_activity::{Activity, Publish};
 use meldframe_server::{Server, SharedServer};
 use serde_json::{Value, json};
 use std::net::SocketAddr;
@@ -163,11 +163,15 @@ pub async fn start(keep_notes: bool, deny_applied: bool) -> World {
         ..config()
     };
     let state = meldframe_http::shared(tokens, slow.clone(), cfg);
+    let mut app = meldframe_http::routes(state.clone());
     if keep_notes {
-        let sink = Activity::new(store.clone(), reader.clone()).sink();
-        assert!(state.batches.set(sink).is_ok());
+        let live = server.clone();
+        let publish: Publish = Arc::new(move |w, f, m| live.publish_with_headroom(w, f, m));
+        let activity = Activity::with_live(store.clone(), reader.clone(), Some(publish));
+        assert!(state.batches.set(activity.sink()).is_ok());
+        app = app.merge(activity.routes(state.clone()));
     }
-    let app = meldframe_http::routes(state.clone()).merge(meldframe_http::mcp::routes(
+    let app = app.merge(meldframe_http::mcp::routes(
         state,
         reader,
         McpConfig::default(),
