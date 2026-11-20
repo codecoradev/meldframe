@@ -52,11 +52,13 @@ workspace's storage is `quota_storage`.
 ## Before a large rewrite
 
 Do not rewrite a frame the person made in place. Keep the original and work on a variant beside it, so the two can be
-compared: call `make_variant` with the frame's `id` and an `idempotencyKey`. It copies the frame and everything inside it
+compared: when your tool list has `make_variant` (a server can be built without it), call it with the frame's `id` and an
+`idempotencyKey`. It copies the frame and everything inside it
 to the right of the original, named "<name> variant", and answers with the copy's `root` id; then rewrite the copy, with
 small batches as above. Send the same call with the same key after a timeout and no second copy is made (`replayed` is
 true). A frame that holds over 100 nodes with everything inside it is refused as `invalid` (a call takes 100 commands): copy a smaller frame, or
-build the variant with `addNode` commands, top-down, with a name that says what it is. A frame delete needs the owner's
+build the variant with `addNode` commands, top-down, with a name that says what it is (also what to do when the tool is not
+listed). A frame delete needs the owner's
 approval: sent alone it is refused as `approval_required`, so leave the original for the person to keep or remove.
 
 ## Critiques

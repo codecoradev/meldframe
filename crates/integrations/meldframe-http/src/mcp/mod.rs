@@ -7,7 +7,6 @@
 
 mod tools;
 mod variables;
-mod variant;
 
 pub use meldframe_mcp_defs::{MAX_BATCH, MAX_KEY, TOOLS, ToolDef};
 
@@ -104,7 +103,7 @@ pub type ExtraCall<'a> = Pin<Box<dyn Future<Output = CallToolResult> + Send + 'a
 /// Settings of the MCP route.
 #[derive(Debug, Clone, Default)]
 pub struct McpConfig {
-    /// Tools of other crates to serve besides [`TOOLS`] (capture, upload_asset).
+    /// Tools of other crates to serve besides [`TOOLS`] (capture, upload_asset, make_variant).
     pub extra: Vec<Arc<dyn Extra>>,
     /// Host names the route answers to besides the loopback names (`localhost`, `127.0.0.1`, `::1`), which it
     /// always answers to: the guard against DNS rebinding. A public deployment lists its own names.
@@ -112,7 +111,7 @@ pub struct McpConfig {
     pub allowed_hosts: Vec<String>,
 }
 
-/// Registers the MCP tools in the registry with their tiers (`apply_commands` and `make_variant` are Changes, the rest Reads).
+/// Registers the MCP tools in the registry with their tiers (`apply_commands` is a Change, the rest Reads).
 /// Without it `apply_commands` is refused as `forbidden`.
 #[derive(Debug, Clone, Copy)]
 pub struct McpModule;
@@ -164,7 +163,7 @@ fn tool_of(d: &ToolDef) -> Tool {
 impl ServerHandler for Handler {
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_instructions(
-            "Meldframe design files. Call whoami first, read with get_tree, get_nodes and get_variables, change with apply_commands (atomic, idempotent, ifSeq-guarded), copy a frame with make_variant and check a call with batch_status.",
+            "Meldframe design files. Call whoami first, read with get_tree, get_nodes and get_variables, change with apply_commands (atomic, idempotent, ifSeq-guarded) and check a call with batch_status. Other tools the server lists are described there.",
         )
     }
 
@@ -223,7 +222,6 @@ impl ServerHandler for Handler {
             "get_variables" => self.get_variables(&who, a).await,
             "apply_commands" => self.apply_commands(&who, a).await,
             "batch_status" => self.batch_status(&who, a).await,
-            "make_variant" => self.make_variant(&who, a).await,
             other => {
                 return Err(ErrorData::invalid_params(
                     format!("unknown tool {other}; list the tools with tools/list"),

@@ -18,6 +18,14 @@ fn regenerate() {
         })
         .collect();
     let mut tools = tools;
+    let mv = server
+        .registry()
+        .agent_tool(meldframe_http_variant::TOOL)
+        .unwrap();
+    tools.push(
+        json!({"name": mv.name, "tier": mv.tier.as_str(), "description": mv.description,
+        "inputSchema": meldframe_http_variant::input_schema()}),
+    );
     let cap = server.registry().agent_tool("capture").unwrap();
     tools.push(
         json!({"name": cap.name, "tier": cap.tier.as_str(), "description": cap.description,

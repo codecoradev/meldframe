@@ -188,6 +188,8 @@ fn serve(
         state.clone(),
         import_policy,
     ));
+    #[cfg(feature = "variant")]
+    extra_tools.push(meldframe_http_variant::tool(state.clone(), shared.clone()));
     #[cfg(feature = "mcp")]
     let app = {
         // MCP answers to loopback host names unless MELDFRAME_MCP_HOSTS lists others (comma separated).

@@ -19,5 +19,7 @@ pub(crate) fn modules() -> Vec<Box<dyn Module>> {
         Box::new(export::ExportModule),
         #[cfg(feature = "variables-import")]
         Box::new(variables_import::ImportModule),
+        #[cfg(feature = "variant")]
+        Box::new(meldframe_http_variant::VariantModule),
     ]
 }
