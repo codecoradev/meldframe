@@ -1148,6 +1148,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-activity",
  "meldframe-app-model",
+ "meldframe-app-parts",
  "meldframe-check",
  "meldframe-history",
  "meldframe-protocol",
@@ -1170,6 +1171,19 @@ dependencies = [
  "serde",
  "serde_json",
  "ts-rs",
+]
+
+[[package]]
+name = "meldframe-app-parts"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app-model",
+ "meldframe-check",
+ "meldframe-protocol",
+ "meldframe-render",
+ "meldframe-sync",
+ "meldframe-variables",
+ "serde_json",
 ]
 
 [[package]]

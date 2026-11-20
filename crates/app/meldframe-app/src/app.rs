@@ -7,12 +7,12 @@ use crate::link::Link;
 use crate::panel::PanelCache;
 use crate::retry::Retries;
 use crate::review::Review;
-use crate::state::{AppState, Connection, History, Panel};
-use crate::touched::{render_set, touched};
+use crate::state::{AppState, Connection, History};
 use meldframe_activity::Feed;
-use meldframe_protocol::{Command, Doc, Node, Variables};
+use meldframe_app_parts::properties::properties;
+use meldframe_protocol::{Doc, Node, Variables};
 use meldframe_render::{PaintedBox, resolve_with};
-use meldframe_sync::{EventOutcome, LoadError, Outgoing, Replica, ReplicaError};
+use meldframe_sync::{LoadError, Outgoing, Replica};
 use std::collections::HashSet;
 
 /// How much of the derived state one dispatch has to bring up to date.
@@ -218,64 +218,6 @@ impl App {
         fx
     }
 
-    pub(crate) fn set_tool(&mut self, tool: crate::state::Tool) {
-        if self.state.tool != tool {
-            self.state.tool = tool;
-            self.events.push(Event::ToolChanged { tool });
-        }
-    }
-
-    pub(crate) fn select(&mut self, ids: Vec<String>) {
-        let mut keep: Vec<String> = Vec::with_capacity(ids.len());
-        for id in ids {
-            if !keep.contains(&id) && self.replica.nodes().iter().any(|n| n.id == id) {
-                keep.push(id);
-            }
-        }
-        if self.state.selection != keep {
-            self.state.selection = keep.clone();
-            self.events.push(Event::SelectionChanged { ids: keep });
-        }
-    }
-
-    fn is_open(&self, panel: Panel) -> bool {
-        match panel {
-            Panel::Layers => self.state.panels.layers,
-            Panel::Properties => self.state.panels.properties,
-            Panel::Variables => self.state.panels.variables,
-        }
-    }
-
-    fn set_panel(&mut self, panel: Panel, open: bool) {
-        if self.is_open(panel) != open {
-            match panel {
-                Panel::Layers => self.state.panels.layers = open,
-                Panel::Properties => self.state.panels.properties = open,
-                Panel::Variables => self.state.panels.variables = open,
-            }
-            self.events.push(Event::PanelChanged { panel, open });
-        }
-    }
-
-    fn toggle_collapsed(&mut self, id: String) {
-        let known = self.replica.nodes().iter().any(|n| n.id == id);
-        if !known && !self.state.panels.collapsed.contains(&id) {
-            return;
-        }
-        let list = &mut self.state.panels.collapsed;
-        let collapsed = match list.iter().position(|c| *c == id) {
-            Some(at) => {
-                list.remove(at);
-                false
-            }
-            None => {
-                list.push(id.clone());
-                true
-            }
-        };
-        self.events.push(Event::CollapsedChanged { id, collapsed });
-    }
-
     /// A node id nobody uses yet.
     pub(crate) fn fresh_id(&mut self) -> String {
         loop {
@@ -291,93 +233,6 @@ impl App {
         if self.state.connection != connection {
             self.state.connection = connection;
             self.events.push(Event::ConnectionChanged { connection });
-        }
-    }
-
-    fn frame(&mut self, now_ms: u64, frame: Frame, fx: &mut Vec<Effect>) {
-        self.heard(now_ms);
-        match frame {
-            Frame::Heartbeat {} => {}
-            Frame::Resync { after_seq, .. } => {
-                // A marker ahead of the replica (a stale one) must not skip ops it has not got.
-                self.resubscribe(after_seq.min(self.replica.seq()), fx);
-                self.fetched(|f, _| f.connected(now_ms), fx);
-            }
-            Frame::Batch { .. } | Frame::Touch { .. } => self.activity_frame(now_ms, frame, fx),
-            Frame::Rejected {
-                key,
-                code,
-                retryable,
-            } => {
-                if self.refused(now_ms, key, code, retryable, fx) {
-                    self.changed(self.replica.actor().to_string(), true, Vec::new(), fx);
-                }
-            }
-            Frame::Acked { key, seq } => {
-                if let Some(dropped) = self.replica.on_ack(&key, seq) {
-                    self.dropped(dropped);
-                    self.changed(self.replica.actor().to_string(), false, Vec::new(), fx);
-                }
-            }
-            Frame::Event {
-                seq,
-                actor,
-                key,
-                command,
-            } => self.server_event(now_ms, seq, &actor, key.as_deref(), &command, fx),
-        }
-    }
-
-    fn server_event(
-        &mut self,
-        now_ms: u64,
-        seq: u64,
-        actor: &str,
-        key: Option<&str>,
-        command: &Command,
-        fx: &mut Vec<Effect>,
-    ) {
-        match self.replica.on_event_keyed(seq, actor, key, command) {
-            Ok(EventOutcome::Confirmed) => {
-                self.gap_closed();
-                self.record_op(seq, actor, key, command, now_ms);
-                self.stamp(actor, command);
-            }
-            Ok(EventOutcome::Rebased { dropped }) => {
-                self.gap_closed();
-                self.record_op(seq, actor, key, command, now_ms);
-                self.stamp(actor, command);
-                let nodes = if dropped > 0 {
-                    Vec::new()
-                } else {
-                    render_set(std::slice::from_ref(command))
-                };
-                self.changed(actor.to_string(), false, nodes, fx);
-            }
-            Ok(EventOutcome::Duplicate) => self.level = Level::Nothing,
-            Err(ReplicaError::Gap { .. }) => {
-                self.level = Level::Nothing;
-                self.on_gap(fx);
-            }
-            Err(ReplicaError::Diverged(_)) => {
-                self.set_connection(Connection::Halted);
-                self.events.push(Event::Diverged {});
-            }
-        }
-    }
-
-    pub(crate) fn dropped(&mut self, count: usize) {
-        if count > 0 {
-            self.events.push(Event::OpsDropped { count });
-        }
-    }
-
-    /// Remember who changed the nodes a command touches.
-    fn stamp(&mut self, actor: &str, command: &Command) {
-        if !matches!(command, Command::RemoveNode { .. }) {
-            for id in touched(command) {
-                self.state.last_actor.insert(id, actor.to_string());
-            }
         }
     }
 
@@ -402,7 +257,7 @@ impl App {
                 .nodes()
                 .iter()
                 .find(|n| n.id == *id)
-                .map(|n| self.properties(n)),
+                .map(|n| properties(self.vars(), &self.choice(), n)),
             _ => None,
         };
     }
