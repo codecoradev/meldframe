@@ -70,6 +70,7 @@ impl App {
         }
         self.review
             .reset(self.replica.base().to_vec(), self.replica.seq());
+        self.feed.reset(self.replica.seq());
         self.prune_checkpoints();
         self.retries = Retries::default();
         self.link.live_since = None;
@@ -84,6 +85,7 @@ impl App {
         self.link.live_since = Some(now_ms);
         self.link.resub = false;
         self.set_connection(Connection::Live);
+        self.fetched(|f, _| f.connected(now_ms), fx);
         let ops = out_ops(self.replica.unconfirmed());
         // What the replica queued before is part of `unconfirmed`: do not send it twice.
         self.replica.take_outbox();
@@ -125,6 +127,7 @@ impl App {
 
     /// The shell's timer: a silent connection or a stuck attempt counts as dropped; due retries go out.
     pub(crate) fn tick(&mut self, now_ms: u64, fx: &mut Vec<Effect>) {
+        self.fetched(|f, live| f.tick(now_ms, live), fx);
         let silent = now_ms.saturating_sub(self.link.heard_ms);
         let limit = match self.state.connection {
             Connection::Live => {

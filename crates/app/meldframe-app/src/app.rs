@@ -9,6 +9,7 @@ use crate::retry::Retries;
 use crate::review::Review;
 use crate::state::{AppState, Connection, History, Panel};
 use crate::touched::{render_set, touched};
+use meldframe_activity::Feed;
 use meldframe_protocol::{Command, Doc, Node, Variables};
 use meldframe_render::{PaintedBox, resolve_with};
 use meldframe_sync::{EventOutcome, LoadError, Outgoing, Replica, ReplicaError};
@@ -34,6 +35,7 @@ pub struct App {
     pub(crate) link: Link,
     pub(crate) retries: Retries,
     pub(crate) review: Review,
+    pub(crate) feed: Feed,
     pub(crate) panel: PanelCache,
     pub(crate) level: Level,
     pub(crate) prefix: String,
@@ -77,6 +79,7 @@ impl App {
             link: Link::default(),
             retries: Retries::default(),
             review: Review::new(review_nodes, seq),
+            feed: Feed::new(actor, seq),
             panel: PanelCache::default(),
             level: Level::Full,
             prefix,
@@ -145,12 +148,13 @@ impl App {
         }
         self.level = match &action {
             _ if ui => Level::Ui,
+            a if a.only_activity() => Level::Nothing,
             Action::Start { .. }
             | Action::Disconnected {}
             | Action::Reconnect { .. }
             | Action::Tick { .. }
             | Action::Frame {
-                frame: Frame::Heartbeat {},
+                frame: Frame::Heartbeat {} | Frame::Batch { .. } | Frame::Touch { .. },
                 ..
             } => Level::Nothing,
             _ => Level::Full,
@@ -184,6 +188,7 @@ impl App {
             Action::Reconnect { now_ms } => self.reconnect(now_ms, &mut fx),
             Action::Tick { now_ms } => self.tick(now_ms, &mut fx),
             Action::Frame { now_ms, frame } => self.frame(now_ms, frame, &mut fx),
+            a if a.is_activity() => self.activity_action(a, &mut fx),
             Action::Reload {
                 now_ms,
                 nodes,
@@ -203,7 +208,7 @@ impl App {
             doc => self.document(doc, &mut fx),
         }
         match self.level {
-            Level::Nothing => {}
+            Level::Nothing => self.activity_changed(),
             Level::Ui => {
                 self.refresh_properties();
                 self.refresh_variables();
@@ -296,7 +301,9 @@ impl App {
             Frame::Resync { after_seq, .. } => {
                 // A marker ahead of the replica (a stale one) must not skip ops it has not got.
                 self.resubscribe(after_seq.min(self.replica.seq()), fx);
+                self.fetched(|f, _| f.connected(now_ms), fx);
             }
+            Frame::Batch { .. } | Frame::Touch { .. } => self.activity_frame(now_ms, frame, fx),
             Frame::Rejected {
                 key,
                 code,
@@ -429,6 +436,7 @@ impl App {
         self.prune_modes();
         self.refresh_properties();
         self.refresh_variables();
+        self.activity_changed();
         let history = History {
             can_undo: self.replica.can_undo(),
             can_redo: self.replica.can_redo(),

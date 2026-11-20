@@ -23,7 +23,7 @@ const MAX_LABEL: usize = 128;
 /// The confirmed ops since the file was loaded (a bounded record), the run detector and the checkpoint counter.
 #[derive(Debug)]
 pub(crate) struct Review {
-    log: ConfirmedLog,
+    pub(crate) log: ConfirmedLog,
     runs: RunDetector,
     next_checkpoint: u64,
 }
@@ -63,12 +63,14 @@ impl App {
             );
         }
         let before = self.review.log.base_seq();
-        self.review.log.push(LoggedOp {
+        let op = LoggedOp {
             seq,
             actor: actor.to_string(),
             key: key.unwrap_or_default().to_string(),
             command: command.clone(),
-        });
+        };
+        self.review.log.push(op.clone());
+        self.feed.red.observe_op(&op, now_ms);
         if self.review.log.base_seq() != before {
             self.prune_checkpoints();
         }

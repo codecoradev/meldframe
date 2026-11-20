@@ -12,6 +12,7 @@
 //! An [`Action`] is an input to this layer. It is not a [`meldframe_protocol::Command`]: the command is the
 //! change to the file, and the app layer works out the commands from what the person meant.
 
+mod activity;
 mod app;
 mod document;
 mod link;

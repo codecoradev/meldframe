@@ -1,5 +1,6 @@
 //! Everything a front end needs to draw the editor.
 
+use crate::activity::ActivityState;
 use crate::variables::{BindField, VariablesPanel};
 use meldframe_protocol::NodeKind;
 use serde::{Deserialize, Serialize};
@@ -37,6 +38,8 @@ pub struct AppState {
     pub modes: BTreeMap<String, String>,
     /// The Variables panel (E3.4): filled while `panels.variables` is open, empty otherwise.
     pub variables: VariablesPanel,
+    /// The Activity panel (E5.1): lanes, batches with their notes and review states, and touch rings.
+    pub activity: ActivityState,
 }
 
 /// A named point in the file's history that can be restored: the file as the server confirmed it after op `seq`.

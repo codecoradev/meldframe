@@ -53,6 +53,8 @@ pub enum Event {
     VariablesQueryChanged {
         query: String,
     },
+    /// `AppState::activity` changed (a batch, a header, a touch, the clock or the selected row).
+    ActivityChanged {},
     /// An action could not be carried out; nothing changed. A stable code such as `not_found`.
     Refused {
         code: String,

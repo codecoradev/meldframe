@@ -220,6 +220,12 @@ A revert of a batch and a restore of a checkpoint (`meldframe-revert`, E5.2 and 
 | `not_in_log` | The checkpoint is older than the ops the app still keeps. The app drops such checkpoints when the record moves, so this is a guard that no sequence of actions reaches today. | Restore from a newer checkpoint. |
 | `nothing_to_restore` | The file is as the checkpoint has it. | Nothing to do. |
 
+The activity panel (`meldframe-app`, `activity.rs`, E5.1, ADR-0021) uses two of these and one more, all as `Event::Refused` with nothing changed: `unknown_batch` for a `SelectBatch` or a `SetBatchReview` of a batch the app does not hold (the rows are at most the newest 500 of a file, and a batch is held once an op or a header of it has arrived), and `no_batch_number` for a `SetBatchReview` of a row that has no header yet, so no number to put the state on. A refusal of the review route or a failed fetch is the front end's report, `Action::BatchRequestFailed { code }`, raised as `Event::Refused` with the code the front end gives (`forbidden` for an actor that is not a reviewer, `unavailable`, ...); the row is not touched.
+
+| Code | Meaning and typical cause | What to do next |
+| --- | --- | --- |
+| `no_batch_number` | The row is built from ops alone: its header has not arrived (status `building`, or `headerless` after the heal gave up), so the server has no number for it and a review state cannot be set. | Wait for the header (the app asks for it), or open the tab again to fetch the page. |
+
 A checkpoint is of the file as the server confirmed it: the person's own ops that are sent and not yet confirmed are not in it. A restore works out its commands against the person's view, pending ops included.
 
 ## Design review codes
