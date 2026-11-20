@@ -1049,6 +1049,10 @@ dependencies = [
 [[package]]
 name = "meldframe-activity"
 version = "0.0.0"
+dependencies = [
+ "meldframe-protocol",
+ "meldframe-revert",
+]
 
 [[package]]
 name = "meldframe-activity-pg-tests"
@@ -1076,7 +1080,12 @@ version = "0.0.0"
 dependencies = [
  "activity-store",
  "meldframe-activity",
+ "meldframe-history",
  "meldframe-mcp-defs",
+ "meldframe-protocol",
+ "meldframe-revert",
+ "serde_json",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
