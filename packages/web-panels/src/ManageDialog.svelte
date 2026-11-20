@@ -1,0 +1,55 @@
+<!--
+  The manage view in a dialog (Bits UI: the scrim, the focus, Escape, the title and the close button) around
+  `ManageBody`. It is opened from the Variables panel and gives the focus back to the button that opened it. Open
+  or closed is the page's view state (the caller owns it); the content is the app state.
+-->
+<script lang="ts">
+  import { Dialog } from 'bits-ui';
+  import type { Action, Event, VariablesPanel } from '@meldframe/protocol';
+  import IconButton from '@meldframe/web-chrome/IconButton.svelte';
+  import TooltipProvider from '@meldframe/web-chrome/TooltipProvider.svelte';
+  import ManageBody from './ManageBody.svelte';
+
+  interface Props {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    panel: VariablesPanel;
+    events: readonly Event[];
+    dispatch: (a: Action) => void;
+    /** The button that opened the dialog, to give the focus back to. */
+    opener: () => HTMLElement | null | undefined;
+  }
+  let { open, onOpenChange, panel, events, dispatch, opener }: Props = $props();
+
+  // The first thing to focus is the collection on view, not the Close button: a tooltip opens on that button and takes the first Escape.
+  const focusStart = (e: globalThis.Event) => {
+    const el = document.querySelector<HTMLElement>('[data-testid=manage-dialog] [aria-current=true]') ?? document.querySelector<HTMLElement>('[data-testid=manage-new-collection]');
+    if (el) {
+      e.preventDefault();
+      el.focus();
+    }
+  };
+  const giveBack = (e: globalThis.Event) => {
+    const el = opener();
+    if (el?.isConnected) {
+      e.preventDefault();
+      el.focus();
+    }
+  };
+</script>
+
+<TooltipProvider>
+  <Dialog.Root {open} {onOpenChange}>
+    <Dialog.Portal>
+      <Dialog.Overlay class="fixed inset-0 z-40 bg-scrim" />
+      <Dialog.Content data-testid="manage-dialog" onOpenAutoFocus={focusStart} onCloseAutoFocus={giveBack} class="fixed inset-8 z-50 m-auto flex h-fit max-h-full min-h-96 w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-divider bg-surface font-sans text-body text-text shadow-dialog">
+        <header class="flex h-14 shrink-0 items-center justify-between border-b border-hairline pr-3 pl-5">
+          <Dialog.Title class="m-0 truncate text-title font-semibold text-text-strong">Manage variables</Dialog.Title>
+          <Dialog.Close>{#snippet child({ props })}<IconButton label="Close" icon="close" triggerProps={props} data-testid="manage-close" />{/snippet}</Dialog.Close>
+        </header>
+        <Dialog.Description class="sr-only">Add and remove collections, modes and variables. A removal asks first, and one undo takes it back.</Dialog.Description>
+        <ManageBody {panel} {events} {dispatch} />
+      </Dialog.Content>
+    </Dialog.Portal>
+  </Dialog.Root>
+</TooltipProvider>

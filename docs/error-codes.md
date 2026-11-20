@@ -14,7 +14,7 @@ variant.
 | Code | Meaning and typical cause | What an agent should do next |
 | --- | --- | --- |
 | `E_NODE_NOT_FOUND` | A node id in the command does not exist. The id has a typo, or the node was removed by another actor. | Read the file tree again and use an id that exists. |
-| `E_DUPLICATE_ID` | An added node uses an id that is already taken. | Choose a fresh id, or edit the existing node instead of adding it. |
+| `E_DUPLICATE_ID` | An added node, collection or variable uses an id that is already taken. | Choose a fresh id, or edit the existing one instead of adding it. |
 | `E_PARENT_NOT_FOUND` | The new parent does not exist. | Read the file tree again and use an existing frame as parent. |
 | `E_PARENT_NOT_FRAME` | The new parent exists but is not a frame; only frames hold children. | Add a frame first, or choose a frame as parent. |
 | `E_CYCLE` | A reparent would make a node its own ancestor. | Pick a parent that is not the node or one of its descendants. |
@@ -23,12 +23,12 @@ variant.
 | `E_INVALID_ID` | An id is empty, too long, or uses characters other than letters, digits and `_-:.`. | Rewrite the id within those rules. |
 | `E_NOT_FINITE` | A number is NaN or infinite. | Send a finite number. |
 | `E_OUT_OF_RANGE` | A number is outside the range its field allows. | Send a value inside the range named in the message. |
-| `E_TOO_LONG` | A string is longer than its limit. | Shorten the string to the length named in the message. |
+| `E_TOO_LONG` | A string is longer than its limit: a text or a node name, or the name of a variable, a collection or a mode. | Shorten the string to the length named in the message. |
 | `E_INVALID_COLOR` | A colour is not hex (`#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`). | Send the colour as hex. |
 | `E_INVALID_POS` | A `pos` from a client has bad characters or a bad shape. | Do not send `pos`; use `before` or `after` and let the server compute the position. |
 | `E_POS_TOO_LONG` | A `pos` is longer than the limit. A `pos` you sent is simply too long; a computed one means the gap between siblings is too crowded. | If you sent a `pos`, stop sending it and use `before` or `after`. If the server computed it, ask for the siblings to be rebalanced, then send the command again. |
 | `E_BAD_REORDER` | A reorder is incoherent: more than one of `before`, `after` and `pos`, or the anchor does not exist or is not a sibling. | Send exactly one of them, and an anchor that is a sibling of the node. |
-| `E_TOO_MANY_ENTRIES` | A list field holds more entries than allowed: `shadows` over its limit (4), or the stops of a `gradient` over its limit (8). | Send fewer entries; merge or drop shadows or stops you do not need. |
+| `E_TOO_MANY_ENTRIES` | A list field holds more entries than allowed: `shadows` over its limit (4), or the stops of a `gradient` over its limit (8); and in the variables, more than 32 collections in a file, 16 modes in a collection or 5,000 variables in a file. | Send fewer entries; merge or drop shadows or stops you do not need, or remove a collection, mode or variable you do not need. |
 | `E_INVALID_FONT_WEIGHT` | `fontWeight` is not 100 to 900 in steps of 100. | Send one of 100, 200, 300, 400, 500, 600, 700, 800 or 900. |
 | `E_INVALID_ASSET_ID` | `image.assetId` is not a lowercase hex SHA-256 (64 characters). | Upload the image first and use the asset id the upload returned. |
 | `E_IMAGE_ON_TEXT` | An image fill was set on a text node; a text node cannot hold one. | Put the image on a frame or shape behind the text, or remove the fill. |
