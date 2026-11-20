@@ -83,9 +83,8 @@ async function check(name, fn) {
   await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
   await until('the frame is listed', async () => (await page.locator(`[data-testid=layer][data-id="${frame}"]`).count()) === 1);
 
-  await check('the panel is closed until the person opens it, then lists the collection and the variable', async () => {
-    assert.equal(await page.locator('[data-testid=variables]').count(), 0);
-    await page.click('[data-testid=toggle-variables]');
+  await check('the panel is open at first load and lists the collection and the variable; the section folds', async () => {
+    assert.equal(await page.getAttribute('[data-testid=toggle-variables]', 'aria-expanded'), 'true');
     await until('the row', async () => (await page.locator(`[data-testid=var-row][data-id="${bg}"]`).count()) === 1);
     assert.equal(await page.locator(`[data-testid=var-modes][data-id="${col}"] [role=radio]`).count(), 2);
     assert.equal(await page.inputValue(`[data-testid=var-row][data-id="${bg}"] [data-testid=var-value]`), LIGHT);
@@ -93,6 +92,10 @@ async function check(name, fn) {
     const list = await page.locator('[data-testid=var-list]').boundingBox();
     assert.ok(list.height <= 192 + 1, `the list is capped: ${list.height}`);
     assert.ok(await page.locator('[data-testid=properties]').isVisible(), 'properties is on the page');
+    await page.click('[data-testid=toggle-variables]');
+    await until('the list folds away', async () => (await page.locator('[data-testid=variables]').count()) === 0);
+    await page.click('[data-testid=toggle-variables]');
+    await until('the list is back', async () => (await page.locator(`[data-testid=var-row][data-id="${bg}"]`).count()) === 1);
   });
 
   await check('binding the selected frame paints the variable, and the file holds the binding', async () => {

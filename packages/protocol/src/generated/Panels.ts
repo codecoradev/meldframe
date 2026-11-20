@@ -5,7 +5,7 @@
  */
 export type Panels = { layers: boolean, properties: boolean, 
 /**
- * The Variables panel; closed until the person opens it.
+ * The Variables panel; open at first load, as the Inspector board draws it.
  */
 variables: boolean, 
 /**

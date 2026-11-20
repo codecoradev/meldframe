@@ -107,7 +107,7 @@ pub enum Panel {
 pub struct Panels {
     pub layers: bool,
     pub properties: bool,
-    /// The Variables panel; closed until the person opens it.
+    /// The Variables panel; open at first load, as the Inspector board draws it.
     pub variables: bool,
     /// Ids of the nodes whose children the layers panel hides, in the order they were collapsed.
     pub collapsed: Vec<String>,
@@ -118,7 +118,7 @@ impl Default for Panels {
         Self {
             layers: true,
             properties: true,
-            variables: false,
+            variables: true,
             collapsed: Vec::new(),
         }
     }
