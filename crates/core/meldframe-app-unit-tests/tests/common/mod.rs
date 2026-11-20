@@ -96,3 +96,22 @@ impl Loopback {
         self.events.extend(self.app.take_events());
     }
 }
+
+pub fn select(l: &mut Loopback, id: &str) {
+    l.send(Action::Select { ids: ids(&[id]) });
+}
+
+pub fn open(l: &mut Loopback) {
+    l.send(Action::OpenExport {});
+}
+
+/// The codes of the refusals seen so far (drains the events).
+pub fn refused(l: &mut Loopback) -> Vec<String> {
+    l.events
+        .drain(..)
+        .filter_map(|e| match e {
+            Event::Refused { code } => Some(code),
+            _ => None,
+        })
+        .collect()
+}

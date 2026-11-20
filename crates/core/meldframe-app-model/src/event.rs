@@ -55,6 +55,8 @@ pub enum Event {
     },
     /// `AppState::activity` changed (a batch, a header, a touch, the clock or the selected row).
     ActivityChanged {},
+    /// `AppState::export` changed (the frame an export acts on, the dialog opening, closing or following the document).
+    ExportChanged {},
     /// An action could not be carried out; nothing changed. A stable code such as `not_found`.
     Refused {
         code: String,

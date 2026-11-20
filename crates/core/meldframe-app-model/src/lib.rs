@@ -9,6 +9,7 @@ pub mod action;
 pub mod activity;
 pub mod effect;
 pub mod event;
+pub mod export;
 pub mod layout;
 pub mod property;
 pub mod state;
@@ -21,6 +22,7 @@ pub use activity::{
 };
 pub use effect::{Effect, OutOp};
 pub use event::{Event, RevertSkip, RevertSkipReason};
+pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget};
 pub use layout::{Axis, LayoutNote, Side, Sides};
 pub use state::{
     AppState, Checkpoint, CheckpointKind, Connection, FieldBinding, FillKind, History, Panel,
