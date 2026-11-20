@@ -1,6 +1,9 @@
 //! The work an import does on the text of a report, counted in bytes: a name that is long and collides again and again
 //! is shortened once, not once for each collision. This is the only test of its binary, because the count is global.
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use std::sync::atomic::Ordering;
 use variables_import::{ImportOptions, TEXT_WORK, import_css};
 

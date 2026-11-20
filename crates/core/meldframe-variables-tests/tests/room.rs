@@ -1,6 +1,9 @@
 //! E3.3: variable commands go through the room like node commands: one total order, `ifSeq` on a variable, a
 //! restart that replays them, and a snapshot that carries them.
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{add, appearance, bg, cmd};
