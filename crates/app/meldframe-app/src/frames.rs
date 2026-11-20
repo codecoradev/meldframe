@@ -1,11 +1,12 @@
 //! The frames the server sends: heartbeat, resync, batch and touch, acks, refusals and live events.
 
 use crate::action::Frame;
-use crate::app::{App, Level};
+use crate::app::App;
 use crate::effect::Effect;
 use crate::event::Event;
 use crate::state::Connection;
 use meldframe_app_parts::touched::{render_set, touched};
+use meldframe_app_rules::level::Level;
 use meldframe_protocol::Command;
 use meldframe_sync::{EventOutcome, ReplicaError};
 

@@ -1,23 +1,13 @@
 //! A refusal the server calls retryable (a quota, a dependency still pending): keep the op and send it
-//! again with the same key after a backoff, a few times, then give up and roll it back.
+//! again with the same key after a backoff, a few times, then give up and roll it back. The count and the
+//! clock are `meldframe_app_rules::retry::Retries`.
 
 use crate::app::{App, out_ops};
 use crate::effect::Effect;
 use crate::event::Event;
-use crate::link::backoff;
 use crate::state::Connection;
+use meldframe_app_rules::retry::Refusal;
 use meldframe_protocol::Command;
-use std::collections::BTreeMap;
-
-/// How many times an op is sent again after a retryable refusal.
-pub const MAX_RETRIES: u32 = 3;
-
-/// Retries under way: tries made so far per op key, and when each waiting op is due.
-#[derive(Debug, Default)]
-pub(crate) struct Retries {
-    tries: BTreeMap<String, u32>,
-    due: Vec<(u64, String)>,
-}
 
 impl App {
     /// The server refused op `key`. Returns true when the op was rolled back (the view changed).
@@ -32,23 +22,16 @@ impl App {
         if !self.state.pending.contains(&key) {
             return false;
         }
-        let tries = self.retries.tries.get(&key).copied().unwrap_or(0);
-        if retryable && tries < MAX_RETRIES {
-            if self.state.connection == Connection::Live {
-                let attempt = tries + 1;
-                let after_ms = backoff(attempt);
-                self.retries.tries.insert(key.clone(), attempt);
-                self.retries
-                    .due
-                    .push((now_ms.saturating_add(after_ms), key.clone()));
+        let live = self.state.connection == Connection::Live;
+        match self.retries.on_refused(&key, now_ms, retryable, live) {
+            Refusal::Retry { attempt, after_ms } => {
                 self.events.push(Event::OpRetry { key, attempt });
                 fx.push(Effect::WakeAfter { after_ms });
+                return false;
             }
-            // Not live: `Connected` sends every unconfirmed op again anyway.
-            return false;
+            Refusal::Later => return false,
+            Refusal::Reject => {}
         }
-        self.retries.tries.remove(&key);
-        self.retries.due.retain(|(_, k)| *k != key);
         let node = self
             .replica
             .unconfirmed()
@@ -72,13 +55,10 @@ impl App {
 
     /// Send the ops whose retry is due.
     pub(crate) fn send_due_retries(&mut self, now_ms: u64, fx: &mut Vec<Effect>) {
-        if self.retries.due.is_empty() || self.state.connection != Connection::Live {
+        if !self.retries.has_due() || self.state.connection != Connection::Live {
             return;
         }
-        let (due, wait): (Vec<_>, Vec<_>) = std::mem::take(&mut self.retries.due)
-            .into_iter()
-            .partition(|(at, _)| *at <= now_ms);
-        self.retries.due = wait;
+        let due = self.retries.take_due(now_ms);
         if due.is_empty() {
             return;
         }
@@ -86,7 +66,7 @@ impl App {
             .replica
             .unconfirmed()
             .into_iter()
-            .filter(|o| due.iter().any(|(_, k)| *k == o.key))
+            .filter(|o| due.contains(&o.key))
             .collect();
         if !ops.is_empty() {
             fx.push(Effect::SendOps { ops: out_ops(ops) });
@@ -95,8 +75,6 @@ impl App {
 
     /// Forget the retry state of ops that are no longer pending.
     pub(crate) fn prune_retries(&mut self) {
-        let pending = &self.state.pending;
-        self.retries.tries.retain(|k, _| pending.contains(k));
-        self.retries.due.retain(|(_, k)| pending.contains(k));
+        self.retries.prune(&self.state.pending);
     }
 }

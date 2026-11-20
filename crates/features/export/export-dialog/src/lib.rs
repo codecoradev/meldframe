@@ -1,0 +1,157 @@
+//! The Export dialog (D9), the parts that read no `App`: the frame an export acts on, and the HTML built for it. The
+//! export is the `export` feature's, run on the person's own view of the file (pending ops included, the modes on
+//! view). Text is measured by the layout core's stub, as the MCP tool `export_frame` does: the app layer has no browser.
+
+use export::{ExportError, ExportOptions, Finding, Format, MAX_OUTPUT_BYTES};
+use meldframe_app_model::{ExportDialog, ExportFinding, ExportFormat, ExportTarget};
+use meldframe_layout::StubMeasurer;
+use meldframe_protocol::{Node, NodeKind, Variables};
+use meldframe_variables::ModeChoice;
+use std::collections::BTreeMap;
+
+/// The frame an export acts on: the one selected node, when it is a frame.
+pub fn target(selection: &[String], nodes: &[Node]) -> Option<ExportTarget> {
+    match selection {
+        [id] => nodes
+            .iter()
+            .find(|n| n.id == *id && n.kind == NodeKind::Frame)
+            .map(|n| ExportTarget {
+                id: n.id.clone(),
+                name: n.name.clone(),
+            }),
+        _ => None,
+    }
+}
+
+/// The dialog for a frame of the document, or none when there is no such frame (the dialog closes). The export feature
+/// is run once for it, and only when the frame is there.
+pub fn dialog(
+    nodes: &[Node],
+    vars: &Variables,
+    choice: ModeChoice,
+    id: &str,
+    format: ExportFormat,
+) -> Option<ExportDialog> {
+    let name = nodes
+        .iter()
+        .find(|n| n.id == id && n.kind == NodeKind::Frame)?
+        .name
+        .clone();
+    let mut d = ExportDialog {
+        frame: id.to_string(),
+        name,
+        format,
+        html: String::new(),
+        css: String::new(),
+        css_file: String::new(),
+        html_bytes: 0,
+        css_bytes: 0,
+        counted_bytes: 0,
+        limit: MAX_OUTPUT_BYTES,
+        unsupported: Vec::new(),
+        warnings: Vec::new(),
+        assets: Vec::new(),
+        error: None,
+    };
+    let style = match format {
+        ExportFormat::Tailwind => Format::Tailwind,
+        ExportFormat::Css => Format::Css,
+    };
+    let options = ExportOptions::new(style, &StubMeasurer).modes(choice);
+    match export::export_frame(nodes, vars, id, &options) {
+        Ok(e) => {
+            d.css_file = options.css_href;
+            d.counted_bytes = e.html.len() + e.css.len();
+            d.html_bytes = e.html.len();
+            let names = |f: &[Finding]| f.iter().map(|f| finding(f, nodes)).collect();
+            d.unsupported = names(&e.report.unsupported);
+            d.warnings = names(&e.report.warnings);
+            d.assets = e.report.assets;
+            d.html = e.html;
+            // Plain CSS carries its styles inline: the stylesheet is a second file of the Tailwind form alone.
+            if format == ExportFormat::Tailwind {
+                d.css_bytes = e.css.len();
+                d.css = e.css;
+            }
+        }
+        // The dialog is opened on a frame of the document, so only the limit happens; the others keep their code.
+        Err(e) => {
+            if let ExportError::TooLarge { bytes, .. } = e {
+                d.counted_bytes = bytes;
+            }
+            d.error = Some(e.code().to_string());
+        }
+    }
+    Some(d)
+}
+
+fn finding(f: &Finding, nodes: &[Node]) -> ExportFinding {
+    ExportFinding {
+        code: f.code.to_string(),
+        node: f.node.clone(),
+        node_name: f
+            .node
+            .as_deref()
+            .and_then(|id| nodes.iter().find(|n| n.id == id))
+            .map(|n| n.name.clone()),
+        message: f.message.clone(),
+    }
+}
+
+/// What the open dialog was built from. While it is the same, the document, the modes, the frame and the format are the
+/// same, and so is the export: nothing is built again.
+#[derive(Debug, PartialEq)]
+struct Key {
+    version: u64,
+    frame: String,
+    format: ExportFormat,
+    modes: BTreeMap<String, String>,
+}
+
+/// What the dialog was built from, and how often (a test seam: the count must stay as it is while no dialog is open, and
+/// while what the export reads has not changed).
+#[derive(Debug, Default)]
+pub struct Cache {
+    version: u64,
+    builds: u64,
+    key: Option<Key>,
+}
+
+impl Cache {
+    /// The document or the variables changed.
+    pub fn changed(&mut self) {
+        self.version += 1;
+    }
+
+    /// How many times the export feature was run for the dialog.
+    pub fn builds(&self) -> u64 {
+        self.builds
+    }
+
+    /// The dialog for `frame` was built from the document as it is now and these modes.
+    pub fn built(&mut self, frame: &str, format: ExportFormat, modes: &BTreeMap<String, String>) {
+        self.builds += 1;
+        self.key = Some(Key {
+            version: self.version,
+            frame: frame.to_string(),
+            format,
+            modes: modes.clone(),
+        });
+    }
+
+    /// The dialog is closed: nothing is remembered.
+    pub fn forget(&mut self) {
+        self.key = None;
+    }
+
+    /// Whether the open dialog was built from what the export reads now.
+    pub fn is_fresh(
+        &self,
+        frame: &str,
+        format: ExportFormat,
+        modes: &BTreeMap<String, String>,
+    ) -> bool {
+        matches!(&self.key, Some(k)
+            if k.version == self.version && k.frame == frame && k.format == format && k.modes == *modes)
+    }
+}

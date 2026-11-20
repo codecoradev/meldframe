@@ -459,6 +459,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "export-dialog"
+version = "0.0.0"
+dependencies = [
+ "export",
+ "meldframe-app-model",
+ "meldframe-layout",
+ "meldframe-protocol",
+ "meldframe-variables",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1147,13 +1158,13 @@ dependencies = [
 name = "meldframe-app"
 version = "0.0.0"
 dependencies = [
- "export",
+ "export-dialog",
  "meldframe-activity",
  "meldframe-app-model",
  "meldframe-app-parts",
+ "meldframe-app-rules",
  "meldframe-check",
  "meldframe-history",
- "meldframe-layout",
  "meldframe-protocol",
  "meldframe-render",
  "meldframe-revert",
@@ -1229,6 +1240,18 @@ dependencies = [
  "meldframe-app-model",
  "meldframe-protocol",
  "serde_json",
+]
+
+[[package]]
+name = "meldframe-app-rules"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app-model",
+ "meldframe-check",
+ "meldframe-protocol",
+ "meldframe-revert",
+ "meldframe-sync",
+ "meldframe-variables",
 ]
 
 [[package]]
