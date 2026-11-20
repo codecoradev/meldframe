@@ -31,12 +31,9 @@ async function start() {
   engine.subscribe((s) => {
     if (reloadOnDivergence(s.events, () => sessionStorage, Date.now())) location.reload();
   });
-  // The ephemeral touch frames go to the editor, not to the app layer: they are not part of the document.
-  const touchHandlers = new Set<(t: { actor: string; nodeIds: string[] }) => void>();
   const captureHandlers = new Set<(r: CaptureRequest) => void>();
   shell = new Shell(engine, browserEnv(), {
     file,
-    onTouch: (t) => touchHandlers.forEach((h) => h(t)),
     // With a handler the shell says this client can capture; the editor answers each request (capture.ts).
     onCapture: (r) => captureHandlers.forEach((h) => h(r)),
   });
@@ -49,10 +46,6 @@ async function start() {
           return () => captureHandlers.delete(fn);
         },
         fail: (id: string, code: string, message: string) => sh.captureFailed(id, code, message),
-      },
-      onTouches: (fn: (t: { actor: string; nodeIds: string[] }) => void) => {
-        touchHandlers.add(fn);
-        return () => touchHandlers.delete(fn);
       },
     },
   });
