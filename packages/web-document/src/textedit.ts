@@ -3,7 +3,7 @@
 import type { Action, Node } from '@meldframe/protocol';
 import { rectToScreen, type Camera } from '@meldframe/web-canvas/camera';
 import type { Rect } from '@meldframe/web-canvas/geometry';
-import type { KeyLike } from './edit';
+import { isControl, type ControlTarget, type KeyLike } from './edit';
 
 /** The node when it is a text node. */
 export function textTarget(id: string, nodes: readonly Node[]): Node | null {
@@ -11,9 +11,13 @@ export function textTarget(id: string, nodes: readonly Node[]): Node | null {
   return n && n.type === 'text' ? n : null;
 }
 
-/** Enter on exactly one selected text node starts editing it: the id, or null. */
-export function editKeyTarget(k: KeyLike, selection: readonly string[], nodes: readonly Node[]): string | null {
+/**
+ * Enter on exactly one selected text node starts editing it: the id, or null. Not when the Enter was typed on a button,
+ * a link or another control: it activates that control (a tool button, the help button) and must not also start an edit.
+ */
+export function editKeyTarget(k: KeyLike, selection: readonly string[], nodes: readonly Node[], target: ControlTarget | null = null): string | null {
   if (k.key !== 'Enter' || k.metaKey || k.ctrlKey || k.shiftKey || k.altKey) return null;
+  if (isControl(target)) return null;
   if (selection.length !== 1) return null;
   return textTarget(selection[0]!, nodes) ? selection[0]! : null;
 }

@@ -38,8 +38,7 @@
   const restore = (el: HTMLInputElement, f: PropertyField | BoxField) => void tick().then(() => (el.value = current(f)));
 </script>
 
-<aside class="flex w-64 shrink-0 flex-col border-l border-hairline bg-sidebar text-small text-text" aria-label="Properties" data-testid="properties">
-  <header class="border-b border-hairline px-3 py-2 text-text-muted">Properties</header>
+<div class="flex flex-col text-small text-text" data-testid="properties">
   {#if properties}
     {@const p = properties}
     {#key p.id}
@@ -71,4 +70,4 @@
   {:else}
     <p class="px-3 py-3 text-text-muted">Select one node to edit it.</p>
   {/if}
-</aside>
+</div>

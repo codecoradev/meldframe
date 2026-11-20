@@ -1,5 +1,6 @@
 import type { Node } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
+import { isControl } from './edit';
 import { commitText, editKeyTarget, textBoxStyle, textTarget } from './textedit';
 
 const node = (id: string, over: Partial<Node> = {}): Node =>
@@ -52,5 +53,19 @@ describe('textBoxStyle', () => {
     const s = textBoxStyle({ x: 0, y: 0, zoom: 1 }, { x: 0, y: 0, w: 10, h: 2 }, 20);
     expect(s.height).toBeGreaterThanOrEqual(20);
     expect(s.width).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe('Enter on a control is the control\'s, not an edit', () => {
+  const el = (tagName: string, role: string | null = null) => ({ tagName, getAttribute: (n: string) => (n === 'role' ? role : null) });
+  it('knows a button, a link, a menu item, a tab and a radio', () => {
+    for (const e of [el('BUTTON'), el('A'), el('DIV', 'menuitem'), el('DIV', 'tab'), el('DIV', 'radio'), el('SPAN', 'button')]) expect(isControl(e)).toBe(true);
+    for (const e of [el('DIV'), el('CANVAS'), el('SECTION', 'region'), null]) expect(isControl(e)).toBe(false);
+  });
+  it('does not start an edit from a focused button, but still does from the page', () => {
+    const n = [{ id: 't', type: 'text', name: 't', parentId: null } as never];
+    expect(editKeyTarget({ key: 'Enter', ctrlKey: false, metaKey: false, shiftKey: false, altKey: false }, ['t'], n, el('BUTTON'))).toBeNull();
+    expect(editKeyTarget({ key: 'Enter', ctrlKey: false, metaKey: false, shiftKey: false, altKey: false }, ['t'], n, el('BODY'))).toBe('t');
+    expect(editKeyTarget({ key: 'Enter', ctrlKey: false, metaKey: false, shiftKey: false, altKey: false }, ['t'], n)).toBe('t');
   });
 });

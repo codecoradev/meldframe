@@ -159,15 +159,32 @@ export interface KeyTarget {
   closest(selector: string): unknown;
 }
 
+/** The part of an element that `isControl` reads. */
+export interface ControlTarget {
+  tagName: string;
+  getAttribute(name: string): string | null;
+}
+
+/** A control that the Enter key activates (a button, a link, a menu item, a tab, a radio): Enter belongs to it, not to the editor. */
+export function isControl(el: ControlTarget | null): boolean {
+  if (!el) return false;
+  if (/^(button|a|summary|select|input|textarea)$/i.test(el.tagName)) return true;
+  return /^(button|link|menuitem|tab|radio|checkbox|switch|option)$/.test(el.getAttribute('role') ?? '');
+}
+
+/** What marks a place that keeps the plain keys for what is inside it: the cards of the layout, a menu, a dialog. */
+export const OWNS_KEYS_SELECTOR = '[data-owns-keys], [role=menu], [role=dialog]';
+
 /**
  * Whether a key pressed with focus on this element belongs to the element, not to the editor: a field that takes text
- * keeps every key; a button or anything else in a side panel keeps the plain keys (Enter activates it, Delete and the
- * tool letters must not reach the canvas), while Ctrl or Cmd combinations such as undo still go to the editor.
+ * keeps every key; a button or anything else inside a card of the layout, a menu or a dialog keeps the plain keys (Enter
+ * activates it, Delete and the tool letters must not reach the canvas, typing in a menu is a search). Ctrl and Cmd
+ * combinations such as undo, and Alt combinations such as Option+1, still go to the editor.
  */
-export function ownsKeys(el: KeyTarget | null, k: { ctrlKey: boolean; metaKey: boolean } = { ctrlKey: false, metaKey: false }): boolean {
+export function ownsKeys(el: KeyTarget | null, k: { ctrlKey: boolean; metaKey: boolean; altKey?: boolean } = { ctrlKey: false, metaKey: false }): boolean {
   if (!el) return false;
   if (el.isContentEditable || /^(input|textarea|select)$/i.test(el.tagName)) return true;
-  return el.closest('aside') !== null && !k.ctrlKey && !k.metaKey;
+  return el.closest(OWNS_KEYS_SELECTOR) !== null && !k.ctrlKey && !k.metaKey && !k.altKey;
 }
 
 /** The action of a key of the editor: tools, delete, undo and redo. Null for any other key. */

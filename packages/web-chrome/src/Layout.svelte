@@ -13,7 +13,7 @@
   import Tabs from './Tabs.svelte';
   import TooltipProvider from './TooltipProvider.svelte';
   import { platformLabels } from './platform';
-  import { PANEL_INSET, rightWidth } from './layout';
+  import { PANEL_INSET, reserved, rightWidth } from './layout';
 
   type Tool = 'select' | 'frame' | 'rectangle' | 'text';
   interface Props {
@@ -71,6 +71,7 @@
   let tab = $state('design');
   // A disabled tab is shown, not selectable: the Tabs do not offer it, and a stray select is ignored here too.
   const select = (id: string) => { if (rightTabs.some((t) => t.id === id && !t.disabled)) tab = id; };
+  const edge = $derived(reserved({ layers: layersOpen, inspector: inspectorOpen, tab: tab === 'activity' ? 'activity' : 'design' }));
   const width = $derived(rightWidth(tab === 'activity' ? 'activity' : 'design'));
   const card = 'absolute flex flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-float';
   const topCard = 'absolute top-4 flex h-(--mf-size-top-card) items-center gap-2 rounded-lg border border-border bg-surface px-2 shadow-float';
@@ -79,7 +80,8 @@
 
 <TooltipProvider>
 <div class="fixed inset-0 overflow-hidden bg-canvas font-sans text-body text-text">
-  <div class="absolute inset-0">{@render canvasLayer()}</div>
+  <!-- The canvas keeps the area between the open cards, so a fit, a handle or a click is never under a card. -->
+  <div class="absolute inset-y-0" style:left="{edge.left}px" style:right="{edge.right}px">{@render canvasLayer()}</div>
   <output class="sr-only" aria-live="off" data-testid="tool" data-tool={tool}>{tool}</output>
 
   {#if layersOpen}

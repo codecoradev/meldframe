@@ -7,17 +7,15 @@
 
   interface Props {
     rows: LayerRow[];
-    file: string;
     /** The actor of this page: its own changes carry no label. */
     self: string;
     onSelect: (id: string, additive: boolean) => void;
     onToggle: (id: string) => void;
   }
-  let { rows, file, self, onSelect, onToggle }: Props = $props();
+  let { rows, self, onSelect, onToggle }: Props = $props();
 </script>
 
-<aside class="flex w-60 shrink-0 flex-col border-r border-hairline bg-sidebar text-small text-text" aria-label="Layers" data-testid="layers">
-  <header class="truncate border-b border-hairline px-3 py-2 text-text-muted" title={file}>{file}</header>
+<section class="flex flex-col text-small text-text" aria-label="Layers" data-testid="layers">
   <ul class="min-h-0 flex-1 overflow-y-auto py-1">
     {#each rows as r (r.id)}
       {@const who = r.actor && r.actor !== self ? actorLabel(r.actor) : null}
@@ -49,4 +47,4 @@
       <li class="px-3 py-2 text-text-muted">Nothing here yet.</li>
     {/if}
   </ul>
-</aside>
+</section>

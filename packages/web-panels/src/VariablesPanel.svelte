@@ -45,11 +45,8 @@
   }
 </script>
 
-<aside class="flex w-72 shrink-0 flex-col border-l border-hairline bg-sidebar text-small text-text" aria-label="Variables" data-testid="variables">
-  <header class="flex items-baseline justify-between border-b border-hairline px-3 py-2 text-text-muted">
-    <span>Variables</span>
-    <span class="text-caption" data-testid="var-count">{panel.matched} of {panel.total}</span>
-  </header>
+<div class="flex flex-col text-small text-text" data-testid="variables">
+  <p class="m-0 px-3 pb-2 text-right text-caption text-text-muted" data-testid="var-count">{panel.matched} of {panel.total}</p>
   <div class="border-b border-hairline p-2">
     <input
       type="search"
@@ -138,4 +135,4 @@
       <p class="px-3 py-2 text-caption text-text-muted" data-testid="var-truncated">Showing {listedCount(panel)} of {panel.matched}. Narrow the search to see the rest.</p>
     {/if}
   </div>
-</aside>
+</div>

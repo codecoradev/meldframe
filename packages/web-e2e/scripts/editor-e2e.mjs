@@ -265,9 +265,49 @@ const id = `e2e_${run}`;
       await page.click('[data-testid=tool-select]');
       assert.equal(await page.getAttribute('[data-testid=tool]', 'data-tool'), 'select');
     });
+    await check('plain keys stay with what has focus in a card or a menu, and still work from the canvas', async () => {
+      const tool = () => page.getAttribute('[data-testid=tool]', 'data-tool');
+      // a button of a card: a tool letter is not a command
+      await page.locator('[data-testid=toggle-variables]').focus();
+      await page.keyboard.press('r');
+      assert.equal(await tool(), 'select', 'a tool letter typed on a card button changed the tool');
+      // a layer row with its frame selected: Delete does not delete it
+      await page.locator(`[data-testid=layer][data-id="${id}"] button`).last().click();
+      await page.keyboard.press('Delete');
+      await page.waitForTimeout(600);
+      assert.equal(await page.locator('[data-testid=notice]').count(), 0, 'Delete typed on a layer row reached the editor');
+      assert.ok(await nodeOf(id), 'the frame was deleted from a layer row');
+      // an open menu: typing is its search, `?` is not the hint
+      await page.click('[data-testid=frame-presets]');
+      await page.locator('[role=menu]').waitFor();
+      await page.keyboard.press('r');
+      await page.keyboard.press('Shift+Slash');
+      assert.equal(await tool(), 'select', 'typing in a menu changed the tool');
+      assert.equal(await page.locator('[data-testid=shortcut-hint]').count(), 0, 'typing in a menu opened the hint');
+      await page.keyboard.press('Escape');
+      // from the page itself the letter is a command
+      await page.evaluate(() => document.activeElement?.blur());
+      await page.keyboard.press('r');
+      assert.equal(await tool(), 'rectangle');
+      await page.click('[data-testid=tool-select]');
+    });
+    await check('Enter on a focused tool button activates the button and does not start a text edit, with one text node selected', async () => {
+      await page.locator(`[data-testid=layer][data-id="text_${run}"] button`).last().click();
+      await page.locator('[data-testid=tool-rectangle]').focus();
+      await page.keyboard.press('Enter');
+      assert.equal(await page.getAttribute('[data-testid=tool]', 'data-tool'), 'rectangle', 'the button was not activated');
+      assert.equal(await page.locator('[data-testid=text-editor]').count(), 0, 'Enter on the button started a text edit');
+      await page.click('[data-testid=tool-select]');
+      // from the page itself Enter still edits the selected text
+      await page.evaluate(() => document.activeElement?.blur());
+      await page.keyboard.press('Enter');
+      await page.locator('[data-testid=text-editor]').waitFor({ timeout: 4000 });
+      await page.keyboard.press('Escape');
+    });
     await check('a delete the server refuses shows a notice', async () => {
       const row = page.locator(`[data-testid=layer][data-id="${id}"]`);
       await row.locator('button').last().click();
+      await page.evaluate(() => document.activeElement?.blur()); // from the page: Delete on a row button belongs to the row
       await page.keyboard.press('Delete');
       await page.locator('[data-testid=notice]').waitFor({ state: 'visible', timeout: 8000 });
       assert.ok(await nodeOf(id), 'the frame is still on the server');
@@ -382,6 +422,7 @@ const id = `e2e_${run}`;
     await check('a frame preset makes a top-level frame of its size and name, and selects it', async () => {
       const known = new Set((await nodesOnServer()).map((x) => x.id));
       const before = known.size;
+      await page.click('[data-testid=frame-presets]'); // the presets are in a menu
       await page.click('[data-testid=preset-mobile]');
       const all = await until('the preset frame on the server', async () => { const a = await nodesOnServer(); return a.length === before + 1 ? a : null; });
       const made = all.find((x) => !known.has(x.id));
@@ -396,6 +437,7 @@ const id = `e2e_${run}`;
       const source = await page.locator('[data-testid=layer][data-selected=true]').first().getAttribute('data-id');
       assert.ok(source, 'a frame is selected');
       const from = (await nodesOnServer()).find((x) => x.id === source);
+      await page.click('[data-testid=file-menu]'); // the variant is in the file menu
       assert.equal(await page.locator('[data-testid=make-variant]').isDisabled(), false);
       await page.click('[data-testid=make-variant]');
       const all = await until('the variant on the server', async () => { const a = await nodesOnServer(); return a.length === known.size + 1 ? a : null; });
