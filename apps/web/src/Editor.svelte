@@ -20,7 +20,6 @@
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
   import VariablesPanel from '@meldframe/web-panels/VariablesPanel.svelte';
   import { layerRows } from '@meldframe/web-document/layers';
-  import { boxAction, propertyAction, type BoxField, type PropertyField } from '@meldframe/web-document/properties';
   import { noticeFromEvents } from '@meldframe/web-document/notices';
   import { presetAction } from '@meldframe/web-document/presets';
   import { type ExportScale, exportFileName, planExport } from '@meldframe/web-document/export';
@@ -67,16 +66,6 @@
   // The layers: what the server stamped when the file loaded, then what the app saw change since.
   const actors = $derived({ ...Object.fromEntries(Object.entries(attribution).map(([id, a]) => [id, a.actor])), ...snap.state.lastActor });
   const rows = $derived(layerRows(nodes, scene, snap.state.panels.collapsed, snap.state.selection, actors));
-  const onProperty = (f: PropertyField, raw: string) => {
-    const p = snap.state.properties;
-    const a = p && propertyAction(p, f, raw);
-    if (a) dispatch(a);
-  };
-  const onBox = (f: BoxField, raw: string) => {
-    const p = snap.state.properties;
-    const a = p && boxAction(p, f, raw);
-    if (a) dispatch(a);
-  };
 
   // The touch rings of other actors: a ring flashes on the nodes they just changed and fades.
   let touches = $state.raw<Touched[]>([]);
@@ -341,6 +330,6 @@
     <Section title="Variables" open={snap.state.panels.variables} onToggle={() => dispatch({ type: 'togglePanel', panel: 'variables' })} toggleId="toggle-variables">
       <VariablesPanel panel={snap.state.variables} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} />
     </Section>
-    <Section title="Properties"><PropertiesPanel properties={snap.state.properties} {onProperty} {onBox} /></Section>
+    <Section title="Properties"><PropertiesPanel properties={snap.state.properties} selected={snap.state.selection.length} {dispatch} /></Section>
   {/snippet}
 </Layout>

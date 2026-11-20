@@ -1,6 +1,7 @@
 import { render } from 'svelte/server';
 import { createRawSnippet } from 'svelte';
 import { describe, expect, it } from 'vitest';
+import Checkbox from './Checkbox.svelte';
 import Field from './Field.svelte';
 import Section from './Section.svelte';
 import Segmented from './Segmented.svelte';
@@ -77,6 +78,19 @@ describe('Field and Section', () => {
     expect(out).toContain('aria-invalid="true"');
     expect(html(Field, { label: 'Width', value: '1' })).not.toContain('aria-invalid');
     expect(html(Field, { label: 'Width', value: '1', disabled: true })).toMatch(/<input[^>]*disabled/);
+  });
+  it('a Field puts the test id on its input and draws what leads it', () => {
+    const out = html(Field, { label: 'Fill', value: '#fff', testId: 'prop-fill', lead: createRawSnippet(() => ({ render: () => '<i data-swatch></i>' })) });
+    expect(out).toMatch(/<input[^>]*data-testid="prop-fill"/);
+    expect(out.indexOf('data-swatch')).toBeLessThan(out.indexOf('<input'));
+  });
+  it('a Checkbox is a named native checkbox, drawn filled with a check when on', () => {
+    const on = html(Checkbox, { label: 'Clip content', checked: true, onChange: () => {}, 'data-testid': 'prop-clip' });
+    expect(on).toMatch(/<input[^>]*type="checkbox"[^>]*checked/);
+    expect(on).toContain('Clip content');
+    expect(on).toContain('bg-accent-strong');
+    expect(html(Checkbox, { label: 'Clip content', checked: false, onChange: () => {} })).not.toContain('bg-accent-strong');
+    expect(() => html(Checkbox, { label: ' ', checked: false, onChange: () => {} })).toThrow(/needs a label/);
   });
   it('field heights are 28, 32 and 34 from the size tokens', () => {
     expect(fieldHeight).toEqual({ dense: 'h-(--mf-size-control-md)', default: 'h-(--mf-size-control-lg)', wide: 'h-(--mf-size-control-wide)' });
