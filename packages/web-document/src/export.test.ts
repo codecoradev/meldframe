@@ -6,6 +6,17 @@ describe('exportFileName', () => {
     expect(exportFileName('Hero', 'n1', 1)).toBe('Hero.png');
     expect(exportFileName('Hero', 'n1', 2)).toBe('Hero@2x.png');
   });
+  it('takes the extension of the HTML of a frame', () => {
+    expect(exportFileName('Landing Desktop', 'n1', 1, 'html')).toBe('Landing Desktop.html');
+    expect(exportFileName('a/b', 'n1', 1, 'html')).toBe('a-b.html');
+  });
+  it('drops the characters that turn a name around: an agent-chosen name cannot disguise the extension', () => {
+    expect(exportFileName('photo\u202Egnp.exe', 'n1', 1, 'html')).toBe('photognp.exe.html');
+    for (const c of ['\u200e', '\u200f', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e', '\u2066', '\u2067', '\u2068', '\u2069']) {
+      expect(exportFileName(`a${c}b`, 'n1', 1)).toBe('ab.png');
+    }
+    expect(exportFileName('\u202e', 'frame-7', 1)).toBe('frame-7.png');
+  });
   it('replaces what a file system refuses and keeps no leading dot', () => {
     expect(exportFileName('a/b\\c:d*e?f"g<h>i|j', 'n1', 1)).toBe('a-b-c-d-e-f-g-h-i-j.png');
     expect(exportFileName('..hidden', 'n1', 1)).toBe('hidden.png');

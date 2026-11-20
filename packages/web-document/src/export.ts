@@ -18,12 +18,14 @@ export function planExport(box: Rect | null, scale: ExportScale): CapturePlan {
 
 /**
  * The file name of an export: the layer's name, with the characters a file system refuses (and control characters)
- * turned into `-`, cut to 80 characters, then `@2x` for a scale above 1, then `.png`. A name that is empty after that
+ * turned into `-`, cut to 80 characters, then `@2x` for a scale above 1, then `.png` (or the extension asked for: the HTML
+ * of a frame is `.html`, always at scale 1). A name that is empty after that
  * falls back to the node's id.
  */
-export function exportFileName(name: string, id: string, scale: ExportScale): string {
+export function exportFileName(name: string, id: string, scale: ExportScale, ext: 'png' | 'html' = 'png'): string {
+  // Characters that reorder text are dropped first: a name cannot be made to read as another extension.
   const clean = (s: string) =>
-    Array.from(s.replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, '-').trim())
+    Array.from(s.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, '-').trim())
       .slice(0, 80)
       .join('')
       .replace(/^[.\s]+/, '');
@@ -31,5 +33,5 @@ export function exportFileName(name: string, id: string, scale: ExportScale): st
   // Windows refuses these names whatever follows the first dot (NUL, NUL.txt, NUL.tar.gz).
   const stem = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?=\.|$)/i.exec(base);
   if (stem) base = `${stem[0]}-${base.slice(stem[0].length)}`;
-  return `${base}${scale > 1 ? `@${scale}x` : ''}.png`;
+  return `${base}${scale > 1 ? `@${scale}x` : ''}.${ext}`;
 }
