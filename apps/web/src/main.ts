@@ -10,17 +10,17 @@ import { applyTheme, loadTheme } from '@meldframe/web-tokens/theme';
 
 applyTheme(loadTheme());
 const root = document.getElementById('app')!;
-// `__FILE__` and `__ACTOR__` come from the environment of `just web` (vite.config.ts): the file to open, and the actor
-// the server stamps on this client's ops (the dev token's actor). Real sign-in replaces them in M2.
-const file = __FILE__;
-const actor = __ACTOR__;
+// From the environment of `just web` (vite.config.ts): the file to open and the actor of this client's ops (the dev token's). Sign-in replaces them in M2.
+const [file, actor] = [__FILE__, __ACTOR__];
 
 let shell: Shell | undefined;
 let editor: ReturnType<typeof mount> | undefined;
 
 async function start() {
-  // The page of the design tokens stays at /?tokens.
-  if (new URLSearchParams(location.search).has('tokens')) return mount(App, { target: root });
+  const page = new URLSearchParams(location.search);
+  if (page.has('tokens')) return mount(App, { target: root });
+  // The design pages load on demand, so the editor's bundle does not carry them.
+  if (page.has('states')) return mount((await import('@meldframe/web-chrome/StateMatrix.svelte')).default, { target: root });
   await loadWasm();
   const { seq, nodes, variables, attribution } = await loadFile(fetch, file);
   // A fresh nonce per page load: the app never reuses an idempotency key (see `App::new`).

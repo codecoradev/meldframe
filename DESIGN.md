@@ -144,7 +144,7 @@ Text must reach 4.5:1 (3:1 at 24 px and above) and interface parts such as outli
 - Panel widths: sidebar 248, layers 260, inspector 288, activity 360, chat 352, file tree 280. A top card is 52 high.
 - Radii: 4 (chips), 6, 8 (buttons and fields), 12 (panels, menus and dialogs), pill 999.
 - Disabled controls draw at 0.5 opacity.
-- Strokes: selection 1.5 px; focus ring 2 px with a 2 px offset.
+- Strokes: selection 1.5 px; icons 1.5 px; focus ring 2 px with a 2 px offset.
 
 ### 5.1 Where the boards disagree: the rule written here
 
@@ -353,6 +353,7 @@ size.chat = 352
 size.files = 280
 size.top-card = 52
 stroke.selection = 1.5
+stroke.icon = 1.5
 stroke.focus = 2
 stroke.focus-offset = 2
 opacity.disabled = 0.5

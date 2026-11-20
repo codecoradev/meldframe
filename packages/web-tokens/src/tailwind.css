@@ -80,3 +80,33 @@
   --font-sans: var(--mf-font-family-sans);
   --font-mono: var(--mf-font-family-mono);
 }
+
+/* Where Tailwind reads class names: the packages that draw with them. */
+@source '../../web-panels/src';
+@source '../../web-chrome/src';
+
+/* State variants: the real pseudo-class, or an ancestor with `data-preview`, which the state matrix page uses to draw a state without the pointer. */
+@custom-variant hov {
+  &:hover,
+  :where([data-preview='hover']) & {
+    @slot;
+  }
+}
+@custom-variant act {
+  &:active,
+  :where([data-preview='pressed']) & {
+    @slot;
+  }
+}
+@custom-variant foc {
+  &:focus-visible,
+  :where([data-preview='focus']) & {
+    @slot;
+  }
+}
+@custom-variant foc-in {
+  &:focus-within,
+  :where([data-preview='focus']) & {
+    @slot;
+  }
+}

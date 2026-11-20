@@ -1,8 +1,6 @@
 @import 'tailwindcss';
 @import '../../../packages/web-tokens/src/tokens.css';
 @import '../../../packages/web-tokens/src/tailwind.css';
-/* The panels live in packages/web-panels; Tailwind reads their classes from there. */
-@source '../../../packages/web-panels/src';
 
 @layer base {
   html,
