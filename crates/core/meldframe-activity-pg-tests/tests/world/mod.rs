@@ -196,6 +196,25 @@ pub async fn start_with(
     deny_applied: bool,
     batches: Option<Option<Policy>>,
 ) -> World {
+    start_review(keep_notes, deny_applied, batches, None).await
+}
+
+/// Tokens of ws_1 with actors that a prefix rule would misjudge, for the review setter's tests.
+pub const ODD: [(&str, &str); 5] = [
+    ("odd-token-claude-001", "claude"),
+    ("odd-token-bigagent-1", "Agent:x"),
+    ("odd-token-bot-00001", "bot:x"),
+    ("odd-token-person-001", "person:x"),
+    ("odd-token-agentx-001", "agent:x"),
+];
+
+/// As [`start_with`]; `review` is `Some((reviewers, policy))` to serve the review setter with them.
+pub async fn start_review(
+    keep_notes: bool,
+    deny_applied: bool,
+    batches: Option<Option<Policy>>,
+    review: Option<(meldframe_http_activity::Reviewers, Option<Policy>)>,
+) -> World {
     let server = Arc::new(SharedServer::new(Server::assemble()));
     let slow = Arc::new(Slow {
         inner: server.clone(),
@@ -210,12 +229,10 @@ pub async fn start_with(
     } else {
         server.clone()
     };
-    let tokens = Arc::new(
-        DevTokens::parse(&format!(
-            "{AGENT}:ws_1:agent:alpha,{PERSON}:ws_1:user:bea,{OTHER}:ws_2:agent:gamma"
-        ))
-        .unwrap(),
-    );
+    let odd: String = ODD.iter().map(|(t, a)| format!(",{t}:ws_1:{a}")).collect();
+    let spec =
+        format!("{AGENT}:ws_1:agent:alpha,{PERSON}:ws_1:user:bea,{OTHER}:ws_2:agent:gamma{odd}");
+    let tokens = Arc::new(DevTokens::parse(&spec).unwrap());
     let cfg = Config {
         timeout: Duration::from_millis(400),
         ..config()
@@ -225,7 +242,10 @@ pub async fn start_with(
     if keep_notes {
         let live = server.clone();
         let publish: Publish = Arc::new(move |w, f, m| live.publish_with_headroom(w, f, m));
-        let activity = Activity::with_live(store.clone(), reader.clone(), Some(publish));
+        let mut activity = Activity::with_live(store.clone(), reader.clone(), Some(publish));
+        if let Some((who, policy)) = review {
+            activity = activity.with_review(who, policy);
+        }
         assert!(state.batches.set(activity.sink()).is_ok());
         app = app.merge(activity.routes(state.clone()));
     }

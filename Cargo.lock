@@ -1075,6 +1075,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-activity-review-tests"
+version = "0.0.0"
+dependencies = [
+ "activity-store",
+ "axum",
+ "meldframe-activity",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-http-activity",
+ "meldframe-http-live",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-server",
+ "reqwest",
+ "rmcp",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "meldframe-activity-tests"
 version = "0.0.0"
 dependencies = [
@@ -1373,6 +1393,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "tokio",
 ]
 
 [[package]]

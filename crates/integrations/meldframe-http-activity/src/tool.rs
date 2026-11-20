@@ -5,6 +5,7 @@
 //! merged into a sentence of ours: each batch has `note: {writtenBy, text}`, the answer carries the fixed `notice`,
 //! and no error, log line or call-log entry holds a note. The workspace is the token's, never an argument.
 
+use crate::review::{REVIEW_DESCRIPTION, REVIEW_TOOL};
 use crate::wire::row;
 use activity_store::{ActivityError, BatchStore, Query, check_actor};
 use meldframe_activity::{Header, MAX_ACTOR, MAX_KEY_PREFIX, MAX_PAGE, MAX_TOOL, is_hidden_text};
@@ -61,6 +62,8 @@ impl Module for ActivityModule {
 
     fn register(&self, r: &mut Registrar) {
         r.agent_tool(TOOL, DESCRIPTION, RiskTier::Read);
+        // Registered so a deployment can deny it and the call log records its tier; not served over MCP.
+        r.agent_tool(REVIEW_TOOL, REVIEW_DESCRIPTION, RiskTier::Change);
     }
 }
 

@@ -5,6 +5,7 @@
 //! token, the per-principal bucket, the call's slot and time limit, `valid_file`, and the workspace of the principal.
 //! The live `batch` frame is a hint over this list: a client that missed one reads it here.
 
+use crate::review::{self, Setter};
 use crate::wire::row;
 use activity_store::{ActivityError, BatchStore, Query};
 use axum::extract::{Path, Request, State};
@@ -16,22 +17,28 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// Whether the caller may set a review state. Nobody may until the setter exists (slice 7 of ADR-0021).
-const CAN_REVIEW: bool = false;
-
-struct Routed {
-    shared: Arc<Shared>,
-    store: Arc<dyn BatchStore>,
+pub(crate) struct Routed {
+    pub(crate) shared: Arc<Shared>,
+    pub(crate) store: Arc<dyn BatchStore>,
+    pub(crate) setter: Arc<Setter>,
 }
 
-/// Adds `GET /v1/files/{file}/batches` to the routes of a `Shared`.
-pub fn routes(shared: Arc<Shared>, store: Arc<dyn BatchStore>) -> Router {
+/// Adds `GET /v1/files/{file}/batches` and the review setter to the routes of a `Shared`.
+pub fn routes(shared: Arc<Shared>, store: Arc<dyn BatchStore>, setter: Arc<Setter>) -> Router {
     Router::new()
         .route("/v1/files/{file}/batches", get(list))
-        .with_state(Arc::new(Routed { shared, store }))
+        .route(
+            "/v1/files/{file}/batches/{n}/review",
+            axum::routing::put(review::put),
+        )
+        .with_state(Arc::new(Routed {
+            shared,
+            store,
+            setter,
+        }))
 }
 
-fn invalid(reason: String) -> Failure {
+pub(crate) fn invalid(reason: String) -> Failure {
     Failure::Refused(Refusal::Invalid { reason })
 }
 
@@ -110,7 +117,7 @@ async fn list(
                 "batches": batches,
                 "hasMore": page.has_more,
                 "unreviewedCount": page.unreviewed,
-                "canReview": CAN_REVIEW,
+                "canReview": s.setter.can_review(&who),
             });
             (StatusCode::OK, Json(body)).into_response()
         }
