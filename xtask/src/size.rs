@@ -14,6 +14,8 @@ pub const FILE_LIMIT: usize = 500;
 /// Hard ceiling of a crate: above it the check fails, and at it the split comes before the next
 /// addition.
 pub const CRATE_LIMIT: usize = 4000;
+/// Bottom of the ideal band of a crate; only the note's text uses it.
+pub const CRATE_IDEAL_LOW: usize = 1500;
 /// Top of the ideal band (1,500 to 2,500): above it a crate is a candidate for a planned split.
 /// Not a failure.
 pub const CRATE_SOFT: usize = 2500;
@@ -157,6 +159,19 @@ pub fn split_candidates(crates: &[Sized]) -> Vec<(String, usize)> {
     out
 }
 
+/// A line count with a comma between thousands: 4000 is `4,000`.
+fn thousands(n: usize) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
 /// The note printed after the result line: `None` when no crate is above the soft value.
 pub fn split_note(candidates: &[(String, usize)]) -> Option<String> {
     if candidates.is_empty() {
@@ -164,9 +179,12 @@ pub fn split_note(candidates: &[(String, usize)]) -> Option<String> {
     }
     let n = candidates.len();
     let mut note = format!(
-        "size-check: note: {n} crate{} above 2,500 lines (ideal band 1,500 to 2,500; hard ceiling \
-         4,000), candidates for a planned split:",
-        if n == 1 { "" } else { "s" }
+        "size-check: note: {n} crate{} above {soft} lines (ideal band {low} to {soft}; hard \
+         ceiling {hard}), candidates for a planned split:",
+        if n == 1 { "" } else { "s" },
+        low = thousands(CRATE_IDEAL_LOW),
+        soft = thousands(CRATE_SOFT),
+        hard = thousands(CRATE_LIMIT),
     );
     for (name, lines) in candidates {
         note.push_str(&format!("\n  {name}: {lines} lines"));
@@ -289,8 +307,19 @@ mod tests {
     }
 
     #[test]
+    fn thousands_are_grouped_with_a_comma() {
+        assert_eq!(thousands(500), "500");
+        assert_eq!(thousands(1500), "1,500");
+        assert_eq!(thousands(4000), "4,000");
+        assert_eq!(thousands(12_345), "12,345");
+    }
+
+    #[test]
     fn limits_are_the_owner_decision_of_20_nov_2026() {
-        assert_eq!((FILE_LIMIT, CRATE_SOFT, CRATE_LIMIT), (500, 2500, 4000));
+        assert_eq!(
+            (FILE_LIMIT, CRATE_IDEAL_LOW, CRATE_SOFT, CRATE_LIMIT),
+            (500, 1500, 2500, 4000)
+        );
     }
 
     #[test]
@@ -315,6 +344,32 @@ mod tests {
         assert_eq!(split_candidates(&[edge]), vec![]);
     }
 
+    /// A crate of 500-line files plus one line, so its total is `500 * full + 1`.
+    fn one_over(name: &str, full: usize) -> Sized {
+        let mut files: Vec<(String, usize)> =
+            (0..full).map(|i| (format!("{name}/{i}.rs"), 500)).collect();
+        files.push((format!("{name}/last.rs"), 1));
+        (name.into(), files)
+    }
+
+    #[test]
+    fn a_crate_of_2501_lines_is_a_split_candidate_but_not_a_violation() {
+        let c = one_over("a", 5);
+        assert_eq!(
+            split_candidates(std::slice::from_ref(&c)),
+            vec![("a".to_string(), 2501)]
+        );
+        assert_eq!(check(&[c], &Allow::default()), vec![]);
+    }
+
+    #[test]
+    fn a_crate_of_4001_lines_fails_without_an_entry() {
+        assert_eq!(
+            check(&[one_over("a", 8)], &Allow::default()),
+            vec![OverLimit("a".into(), 4001, 4000)]
+        );
+    }
+
     #[test]
     fn split_note_is_silent_without_candidates() {
         assert_eq!(split_note(&[]), None);
@@ -324,6 +379,7 @@ mod tests {
     fn split_note_names_each_candidate_and_is_not_a_violation() {
         let note = split_note(&[("c".into(), 4000), ("b".into(), 2800)]).unwrap();
         assert!(note.starts_with("size-check: note: 2 crates above 2,500 lines"));
+        assert!(note.contains("ideal band 1,500 to 2,500; hard ceiling 4,000"));
         assert!(note.contains("  c: 4000 lines"));
         assert!(note.contains("  b: 2800 lines"));
         assert!(note.contains("planned split"));

@@ -63,11 +63,11 @@ Details in `docs/ui-design.md`.
 | 33 | The repository is hosted on GitHub (19 Nov 2026), moved from the private Gitea. CI runs on GitHub Actions (`ci`, `pr-checks`, `nightly`); `develop` and `main` are protected by rulesets. The Gitea setup and its workflows stay in the repository, disabled, for a return. The Cora review in CI was first kept off (decision 34 turns it on for GitHub); the local agent review is required. The earlier tracker, with its pull requests and issues, is kept as a backup; the issues still open were copied to GitHub. | decided |
 | 34 | The Cora review runs in CI on GitHub (19 Nov 2026), through Anthropic workload identity federation with the stored `CORA_*` secrets as the fallback, from the base branch of each pull request. It is not a required check, and the local Cora agent review before a pull request stays required. The Gitea copy stays disabled. | decided |
 
-## Engineering (owner decision, 20 Nov 2026)
+## Size limits (owner decision, 20 Nov 2026)
 
 | # | Decision | Status |
 |---|---|---|
-| 35 | The size of a crate (or a web package) is an ideal band of 1,500 to 2,500 lines with a hard ceiling of 4,000, in place of the flat 2,000 of D1. The file limit of 500 lines is unchanged. Above 2,500 a crate is a candidate for a planned split, not an emergency; at 4,000 the split comes before the next addition. Allow-list entries still only go down, now measured against the 4,000 ceiling. `cargo xtask size-check` fails only above the ceiling and prints a note for each crate above 2,500. `docs/standards/modular-thin-ui.md` D1 is version 1.2. Earlier ADRs and notes that give 2,000 as the crate ceiling record what was decided then (owner, 20 Nov 2026). | decided |
+| 35 | The size of a crate (or package) is an ideal band of 1,500 to 2,500 lines with a hard ceiling of 4,000, in place of the flat ceiling of 2,000 (D1 of `docs/standards/modular-thin-ui.md`, version 1.2). The file limit of 500 lines is unchanged. Allow-list entries still only go down, now measured against the 4,000 ceiling. Above 2,500 a crate is a candidate for a planned split, not an emergency; at 4,000 the split comes before the next addition. | decided |
 
 ## Workflow
 

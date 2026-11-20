@@ -88,7 +88,7 @@ Use it when the product has a UI and an MCP or API surface, or will get a second
 
 ### D Discipline
 
-- **D1** A file stays under 500 lines. A crate aims for 1,500 to 2,500 lines (the ideal band) and never passes the hard ceiling of 4,000. Above 2,500 a crate is a candidate for a planned split, not an emergency; at 4,000 the split comes before the next addition. An allow-list records what is over a ceiling today (the 500-line file limit or the 4,000-line crate ceiling); entries only go down.
+- **D1** A file stays under 500 lines. A crate (or package) aims for 1,500 to 2,500 lines and MUST stay under 4,000. Above 2,500 the crate is a candidate for a split, which is a planned cleanup and not an emergency; at 4,000 the split is mandatory before the next addition. An allow-list records what is over the hard ceiling today; entries only go down.
 - **D2** Everything shipped or downloaded passes a licence gate (code and model weights). New model entries carry a licence id and a commercial flag.
 - **D3** No telemetry unless the owner decides otherwise. All outbound requests go through one gate with an Offline switch; refusals name what and the host, never the full URL.
 - **D4** `unsafe` is denied workspace-wide. A named crate may opt in with one commented module.
