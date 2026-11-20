@@ -1,7 +1,7 @@
 //! The bounds of the app state: 32 lanes, 500 rows (the oldest goes first), and a revert that changes neither the
 //! review state nor the count (ADR-0021, "What the app layer owns" and "Counters").
 
-// Under WASM these tests will run through wasm-bindgen-test once `just wasm-test` lists this crate (slice 10).
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 

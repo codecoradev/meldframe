@@ -1,5 +1,9 @@
 //! The in-memory batch store against the shared contract, one test per case.
 
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use activity_store::{Caps, MemoryBatches, contract};
 use meldframe_activity::{MAX_PER_ACTOR, MAX_PER_FILE, MAX_PER_WORKSPACE};
 

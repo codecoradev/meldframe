@@ -1,5 +1,9 @@
 //! The review enum, the header types and the bounds (ADR-0021).
 
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_activity::{
     DEFAULT_PAGE, MAX_ACTOR, MAX_COUNT, MAX_KEY_PREFIX, MAX_PAGE, MAX_PER_ACTOR, MAX_PER_FILE,
     MAX_PER_WORKSPACE, MAX_TOOL, Review,

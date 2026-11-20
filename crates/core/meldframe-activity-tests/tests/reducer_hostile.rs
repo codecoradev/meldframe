@@ -1,7 +1,7 @@
 //! What a socket or a restart can do to the reducer: absurd revs, a log that starts again, a header that names a
 //! second `n`, and the summary of a batch that adds, changes and removes the same nodes (ADR-0021).
 
-// Under WASM these tests will run through wasm-bindgen-test once `just wasm-test` lists this crate (slice 10).
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 

@@ -1,6 +1,6 @@
 //! The reducer's rows, lanes and runs on scripted runs: two agents and a person (ADR-0021, slice 8).
 
-// Under WASM these tests will run through wasm-bindgen-test once `just wasm-test` lists this crate (slice 10).
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
