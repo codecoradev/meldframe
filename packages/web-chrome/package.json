@@ -1,0 +1,7 @@
+{
+  "name": "@meldframe/web-chrome",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The chrome primitives of the web client: icons, IconButton, Button and Tooltip, with the focus rules they share. Behaviour props only, no business state. Used as source by apps/web."
+}

@@ -1943,6 +1943,10 @@ name = "meldframe-web-canvas"
 version = "0.0.0"
 
 [[package]]
+name = "meldframe-web-chrome"
+version = "0.0.0"
+
+[[package]]
 name = "meldframe-web-document"
 version = "0.0.0"
 
