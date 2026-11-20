@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { serveCapture, type CaptureDeps, type Req } from './capture';
+import { serveCapture, type CaptureDeps, type Req } from './capture-serve';
 
 const req: Req = { requestId: 'r1', nodeId: 'a', scale: 2, maxPixels: 1_000_000, minSeq: 5, uploadToken: 'tok', timeoutMs: 1000 };
 

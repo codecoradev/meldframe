@@ -24,7 +24,7 @@
   import { presetAction } from '@meldframe/web-document/presets';
   import { type ExportScale, exportFileName, planExport } from '@meldframe/web-document/export';
   import { addTouch, type Touched } from '@meldframe/web-document/touches';
-  import { serveCapture, type Req } from './capture';
+  import { serveCapture, type Req } from '@meldframe/web-document/capture-serve';
   import { duration, pixiColors } from '@meldframe/web-tokens/tokens';
   import { loadTheme } from '@meldframe/web-tokens/theme';
 
