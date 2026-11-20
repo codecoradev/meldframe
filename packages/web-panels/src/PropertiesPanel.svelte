@@ -5,7 +5,7 @@
   state of its own.
 -->
 <script lang="ts">
-  import type { Action, NodeKind, Properties } from '@meldframe/protocol';
+  import type { Action, BindField, FieldBinding, NodeKind, Properties } from '@meldframe/protocol';
   import Checkbox from '@meldframe/web-chrome/Checkbox.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
   import Icon, { type IconName } from '@meldframe/web-chrome/Icon.svelte';
@@ -29,6 +29,18 @@
   const prop = (p: Properties, f: PropertyField) => (raw: string) => send(propertyAction(p, f, raw));
   const box = (p: Properties, f: BoxField) => (raw: string) => send(boxAction(p, f, raw));
 </script>
+
+{#snippet chip(label: string, field: BindField, b: FieldBinding, value: string)}
+  <div class="flex flex-col gap-2" data-testid="prop-{field}-bound">
+    {#if label}<span class="text-text-muted">{label}</span>{/if}
+    <div class="flex h-(--mf-size-control-lg) items-center gap-2 rounded-md px-3 {b.missing ? 'bg-danger-bg text-danger-text' : 'bg-chip-bg text-chip-text'}">
+      {#if field === 'fill'}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={value}></i>{/if}
+      <span class="min-w-0 flex-1 truncate font-medium" title={b.missing ? `${b.name} (variable removed)` : b.name}>{b.name}{b.missing ? ' (removed)' : ''}</span>
+      <span class="font-mono text-caption" data-testid={field === 'fill' ? 'prop-fill' : `prop-${field}`}>{value}</span>
+      <IconButton label="Detach {b.name}" icon="close" size={24} onclick={() => send(unbindAction(properties!, field))} data-testid="prop-{field}-detach" />
+    </div>
+  </div>
+{/snippet}
 
 <div class="flex flex-col text-small text-text" data-testid="properties">
   {#if properties}
@@ -56,15 +68,23 @@
       </Section>
       <Section title="Appearance">
         <div class="grid grid-cols-2 items-end gap-2">
-          <div class="flex flex-col gap-2">
-            <span class="flex min-w-0 gap-1 whitespace-nowrap text-text-muted">Opacity{#if opacity}<span class="truncate text-chip-text" title={opacity.name}>· {opacity.name}</span>{/if}</span>
-            <Field label="Opacity" suffix="%" value={percent(p.opacity)} bound={!!opacity} onCommit={prop(p, 'opacity')} testId="prop-opacity" />
-          </div>
-          {#if has.radius}
+          {#if opacity}
+            <div class="col-span-2">{@render chip('Opacity', 'opacity', opacity, percent(p.opacity) + ' %')}</div>
+          {:else}
             <div class="flex flex-col gap-2">
-              <span class="flex min-w-0 gap-1 whitespace-nowrap text-text-muted">Corner radius{#if radius}<span class="truncate text-chip-text" title={radius.name}>· {radius.name}</span>{/if}</span>
-              <Field label="Corner radius" value={round(p.radius)} bound={!!radius} onCommit={prop(p, 'radius')} testId="prop-radius" />
+              <span class="text-text-muted">Opacity</span>
+              <Field label="Opacity" suffix="%" value={percent(p.opacity)} onCommit={prop(p, 'opacity')} testId="prop-opacity" />
             </div>
+          {/if}
+          {#if has.radius}
+            {#if radius}
+              <div class="col-span-2">{@render chip('Corner radius', 'radius', radius, round(p.radius))}</div>
+            {:else}
+              <div class="flex flex-col gap-2">
+                <span class="text-text-muted">Corner radius</span>
+                <Field label="Corner radius" value={round(p.radius)} onCommit={prop(p, 'radius')} testId="prop-radius" />
+              </div>
+            {/if}
           {/if}
         </div>
         {#if has.clip}
@@ -78,12 +98,7 @@
       {/if}
       <Section title="Fill">
         {#if fill}
-          <div class="flex h-(--mf-size-control-lg) items-center gap-2 rounded-md bg-chip-bg px-3 text-chip-text" data-testid="prop-fill-bound">
-            <i class="block size-4 shrink-0 rounded-sm border border-border" style:background={p.fill}></i>
-            <span class="min-w-0 flex-1 truncate font-medium" title={fill.name}>{fill.name}</span>
-            <span class="font-mono text-caption" data-testid="prop-fill">{p.fill}</span>
-            <IconButton label="Detach {fill.name}" icon="close" size={24} onclick={() => send(unbindAction(p, 'fill'))} data-testid="prop-fill-detach" />
-          </div>
+          {@render chip('', 'fill', fill, p.fill)}
         {:else}
           <Field label="Fill" value={p.fill} onCommit={prop(p, 'fill')} testId="prop-fill">
             {#snippet lead()}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={p.fill === 'none' ? 'transparent' : p.fill}></i>{/snippet}

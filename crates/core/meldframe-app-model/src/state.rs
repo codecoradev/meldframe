@@ -192,6 +192,8 @@ pub struct FieldBinding {
     pub field: BindField,
     /// The id of the variable.
     pub variable: String,
-    /// Its name, as the Variables panel lists it.
+    /// Its name, as the Variables panel lists it; the id when the variable is gone.
     pub name: String,
+    /// The variable no longer exists (another actor removed it): the field keeps the binding and paints its default.
+    pub missing: bool,
 }

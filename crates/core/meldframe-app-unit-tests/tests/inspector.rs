@@ -59,3 +59,23 @@ fn an_opacity_out_of_range_is_refused_and_changes_nothing() {
     assert_eq!(l.app.state().history.undo_steps, 0);
     assert_eq!(l.app.state().properties.as_ref().unwrap().opacity, 1.0);
 }
+
+#[test]
+fn clip_is_a_frame_property_and_is_refused_for_any_other_kind() {
+    let mut l = Loopback::live();
+    l.send(Action::Select { ids: ids(&["r1"]) });
+    l.send(set("r1", Property::Clip(false)));
+    assert_eq!(
+        l.events
+            .drain(..)
+            .filter(|e| matches!(e, Event::Refused { .. }))
+            .collect::<Vec<_>>(),
+        vec![Event::Refused {
+            code: "invalid".into()
+        }]
+    );
+    assert_eq!(l.app.state().history.undo_steps, 0);
+    assert!(l.app.state().properties.as_ref().unwrap().clip);
+    l.send(set("root", Property::Clip(false)));
+    assert!(!get(&l.app, "root").clip);
+}

@@ -139,17 +139,12 @@ impl App {
                     _ => return None,
                 };
                 let variable = b.var.to_string();
-                let name = self
-                    .vars()
-                    .variables
-                    .iter()
-                    .find(|v| v.id == variable)?
-                    .name
-                    .clone();
+                let found = self.vars().variables.iter().find(|v| v.id == variable);
                 Some(FieldBinding {
                     field,
+                    name: found.map_or_else(|| variable.clone(), |v| v.name.clone()),
+                    missing: found.is_none(),
                     variable,
-                    name,
                 })
             })
             .collect();

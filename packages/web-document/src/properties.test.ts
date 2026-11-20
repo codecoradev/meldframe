@@ -77,7 +77,7 @@ describe('clipAction', () => {
 });
 
 describe('bindings', () => {
-  const bound: Properties = { ...p, bound: ['fill'], bindings: [{ field: 'fill', variable: 'v1', name: 'color/brand' }] };
+  const bound: Properties = { ...p, bound: ['fill'], bindings: [{ field: 'fill', variable: 'v1', name: 'color/brand', missing: false }] };
   it('finds the variable a field holds', () => {
     expect(bindingOf(bound, 'fill')?.name).toBe('color/brand');
     expect(bindingOf(bound, 'radius')).toBeUndefined();

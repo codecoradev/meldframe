@@ -10,6 +10,10 @@ export type FieldBinding = { field: BindField,
  */
 variable: string, 
 /**
- * Its name, as the Variables panel lists it.
+ * Its name, as the Variables panel lists it; the id when the variable is gone.
  */
-name: string, };
+name: string, 
+/**
+ * The variable no longer exists (another actor removed it): the field keeps the binding and paints its default.
+ */
+missing: boolean, };
