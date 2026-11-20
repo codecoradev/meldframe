@@ -10,6 +10,7 @@ use meldframe_host::{Accepted, Op, Principal};
 use meldframe_http::mcp::{McpConfig, Reader};
 use meldframe_http::{Config, DevTokens, Failure, Guard, Submitter};
 use meldframe_http_activity::{Activity, Publish};
+pub use meldframe_module::Policy;
 use meldframe_server::{Server, SharedServer};
 use serde_json::{Value, json};
 use std::net::SocketAddr;
@@ -130,6 +131,53 @@ impl Reader for NoApplied {
     }
 }
 
+/// The store as the tool reads it, with the headers of a few key prefixes rewritten the way a row written outside the
+/// server could look: `tamper-actor` gets a hidden character in its actor, `tamper-prefix` in its key prefix and
+/// `tamper-by` in the name of its reviewer. Every other header passes as it is.
+pub struct Tamper(pub Arc<MemoryBatches>);
+
+impl BatchStore for Tamper {
+    fn record(
+        &self,
+        w: &str,
+        f: &str,
+        b: &meldframe_activity::NewBatch,
+    ) -> Result<activity_store::Recorded, activity_store::ActivityError> {
+        self.0.record(w, f, b)
+    }
+    fn list(
+        &self,
+        w: &str,
+        f: &str,
+        q: &Query,
+    ) -> Result<activity_store::Page, activity_store::ActivityError> {
+        let mut page = self.0.list(w, f, q)?;
+        for h in &mut page.headers {
+            match h.key_prefix.split('-').take(2).collect::<Vec<_>>()[..] {
+                ["tamper", "actor"] => h.actor.push('\u{200B}'),
+                ["tamper", "prefix"] => h.key_prefix.push('\u{200B}'),
+                ["tamper", "by"] => {
+                    h.reviewed_by = Some("x\u{200B}".into());
+                    h.reviewed_at_ms = Some(1);
+                }
+                _ => {}
+            }
+        }
+        Ok(page)
+    }
+    fn set_review(
+        &self,
+        w: &str,
+        f: &str,
+        n: u32,
+        s: meldframe_activity::Review,
+        by: &str,
+        at: u64,
+    ) -> Result<activity_store::Reviewed, activity_store::ActivityError> {
+        self.0.set_review(w, f, n, s, by, at)
+    }
+}
+
 pub struct World {
     pub h: Harness,
     pub store: Arc<MemoryBatches>,
@@ -138,6 +186,16 @@ pub struct World {
 }
 
 pub async fn start(keep_notes: bool, deny_applied: bool) -> World {
+    start_with(keep_notes, deny_applied, None).await
+}
+
+/// As [`start`]; `batches` is `Some(policy)` to serve `get_batches` with the registry's policy for it (it needs
+/// `keep_notes`), the way the server wires it.
+pub async fn start_with(
+    keep_notes: bool,
+    deny_applied: bool,
+    batches: Option<Option<Policy>>,
+) -> World {
     let server = Arc::new(SharedServer::new(Server::assemble()));
     let slow = Arc::new(Slow {
         inner: server.clone(),
@@ -171,11 +229,14 @@ pub async fn start(keep_notes: bool, deny_applied: bool) -> World {
         assert!(state.batches.set(activity.sink()).is_ok());
         app = app.merge(activity.routes(state.clone()));
     }
-    let app = app.merge(meldframe_http::mcp::routes(
-        state,
-        reader,
-        McpConfig::default(),
-    ));
+    let extra = batches.and_then(|policy| {
+        meldframe_http_activity::tool(state.clone(), Arc::new(Tamper(store.clone())), policy)
+    });
+    let mcp = McpConfig {
+        extra: extra.into_iter().collect(),
+        ..McpConfig::default()
+    };
+    let app = app.merge(meldframe_http::mcp::routes(state, reader, mcp));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {

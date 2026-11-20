@@ -12,9 +12,15 @@
 //! headroom: it never takes the last slots of a queue and so never causes a resync by itself, but it does use the
 //! slack of a stalled reader); [`Activity::routes`] adds the list route, which is the
 //! truth the frame is a hint of.
+//!
+//! The MCP tool `get_batches` (slice 6) is in `tool.rs`: [`tool`] gives it for `McpConfig::extra` and
+//! [`ActivityModule`] registers it as a Read.
 
 mod route;
+mod tool;
 mod wire;
+
+pub use tool::{ActivityModule, DESCRIPTION, NOTICE, TOOL, input_schema, tool};
 
 use activity_store::BatchStore;
 use meldframe_activity::{BatchCall, BatchSink, Marked, NewBatch};
