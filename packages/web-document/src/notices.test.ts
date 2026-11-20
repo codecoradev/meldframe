@@ -64,3 +64,14 @@ describe('noticeFromEvents', () => {
     expect(noticeFromEvents([])).toBeNull();
   });
 });
+
+describe('noticeFor refusals of the inspector', () => {
+  const refused = (code: string) => ({ type: 'refused', code }) as Event;
+  it('words what the core and the app layer refuse in the fields, naming no code', () => {
+    for (const code of ['invalid', 'limit', 'min_stops', 'no_gradient', 'no_image', 'gradient_on_text', 'not_selected']) {
+      const text = noticeFor(refused(code))!;
+      expect(text, code).not.toContain(code);
+      expect(text, code).not.toMatch(/server|was not made/i);
+    }
+  });
+});

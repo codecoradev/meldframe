@@ -47,7 +47,7 @@
       tabindex={i === current ? 0 : -1}
       onclick={() => onChange(o.value)}
       onkeydown={(e) => onkeydown(e, i)}
-      class="{ring} flex h-(--mf-size-control-md) min-w-0 flex-1 items-center justify-center gap-1 rounded-sm px-3 text-small {on
+      class="{ring} flex h-(--mf-size-control-md) min-w-0 flex-auto items-center justify-center gap-1 rounded-sm {options.length > 4 ? 'px-1' : 'px-2'} text-small {on
         ? 'border border-border-strong bg-control-selected font-semibold text-text-strong'
         : 'border border-transparent text-text-muted hov:text-text'}"
       title={o.label}

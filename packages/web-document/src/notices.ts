@@ -18,6 +18,13 @@ const WORDS: Record<string, string> = {
 const LOCAL: Record<string, string> = {
   invalid_value: 'That is not a number.',
   not_bindable: 'That field cannot take a variable here.',
+  invalid: 'That value is not allowed here.',
+  limit: 'That is the most there can be.',
+  min_stops: 'A gradient keeps at least two stops.',
+  no_gradient: 'This node has no gradient.',
+  no_image: 'This node has no image to show.',
+  gradient_on_text: 'Text is painted with a colour: put the gradient on a frame or a shape behind it.',
+  not_selected: 'Select that node first.',
   E_INVALID_COLOR: 'That is not a colour. Use a hex colour.',
   E_NOT_FINITE: 'That number is not valid.',
   E_OUT_OF_RANGE: 'That number is out of range.',
