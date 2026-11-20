@@ -134,10 +134,12 @@ fn licences_check() -> Result<ExitCode, String> {
 }
 
 /// `size-check [--base <git-ref>]`: ceilings, and with `--base` that the allow-list did not grow.
+/// After the result line it notes the crates above the soft value (2,500); that never fails.
 fn size_check(packages: &[rules::Package]) -> Result<ExitCode, String> {
     let root = scan::workspace_root();
     let allow = size::parse_allow(&scan::read(&root, size::ALLOW_FILE))?;
-    let mut violations = size::check(&size::measure(&root, packages), &allow);
+    let sizes = size::measure(&root, packages);
+    let mut violations = size::check(&sizes, &allow);
     let args: Vec<String> = std::env::args().collect();
     if let Some(base) = size::base_arg(&args)? {
         // The ref must resolve: a bad ref is an error, never an empty base.
@@ -166,9 +168,13 @@ fn size_check(packages: &[rules::Package]) -> Result<ExitCode, String> {
         let base_allow = size::parse_allow(&String::from_utf8_lossy(&text))?;
         violations.extend(size::check_not_raised(&base_allow, &allow));
     }
-    Ok(report(
+    let code = report(
         "size-check",
         &format!("{} crates", packages.len()),
         &violations,
-    ))
+    );
+    if let Some(note) = size::split_note(&size::split_candidates(&sizes)) {
+        println!("{note}");
+    }
+    Ok(code)
 }
