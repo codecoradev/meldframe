@@ -45,3 +45,22 @@ describe('tokens.ts equals DESIGN.md', () => {
     expect(wrong).toEqual([]);
   });
 });
+
+describe('the colour table of section 3 equals the block', () => {
+  // `| \`role\` | use | \`#dark\` | \`#light\` |`: the readable copy of the values must not drift from the list.
+  const rows = [...design.matchAll(/^\| `([a-z0-9-]+)` \|[^|\n]*\| `(#[0-9a-fA-F]{3,8})` \| `(#[0-9a-fA-F]{3,8})` \|$/gm)];
+  const block = new Map(designTokens());
+  it('has a row for most roles', () => {
+    expect(rows.length).toBeGreaterThan(30);
+  });
+  it('gives the same dark and light value as the block for every row', () => {
+    const wrong: string[] = [];
+    for (const [, role, dark, light] of rows) {
+      for (const [theme, hex] of [['dark', dark], ['light', light]] as const) {
+        const want = block.get(`colour.${theme}.${role}`);
+        if (want !== undefined && norm(want) !== norm(hex!)) wrong.push(`${role} ${theme}: table ${hex}, block ${want}`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+});

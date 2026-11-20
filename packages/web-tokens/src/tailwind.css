@@ -13,16 +13,27 @@
   --color-surface: var(--mf-surface);
   --color-surface-raised: var(--mf-surface-raised);
   --color-field: var(--mf-field);
+  --color-control: var(--mf-control);
+  --color-control-selected: var(--mf-control-selected);
+  --color-menu-border: var(--mf-menu-border);
+  --color-divider: var(--mf-divider);
   --color-border: var(--mf-border);
+  --color-border-strong: var(--mf-border-strong);
   --color-hairline: var(--mf-hairline);
   --color-text: var(--mf-text);
   --color-text-strong: var(--mf-text-strong);
   --color-text-muted: var(--mf-text-muted);
+  --color-text-secondary: var(--mf-text-secondary);
   --color-text-faint: var(--mf-text-faint);
+  --color-icon-muted: var(--mf-icon-muted);
   --color-accent: var(--mf-accent);
   --color-accent-strong: var(--mf-accent-strong);
+  --color-accent-hover: var(--mf-accent-hover);
+  --color-accent-pressed: var(--mf-accent-pressed);
   --color-on-accent: var(--mf-on-accent);
   --color-selection: var(--mf-selection);
+  --color-selection-text: var(--mf-selection-text);
+  --color-selection-bg: var(--mf-selection-bg);
   --color-chip-bg: var(--mf-chip-bg);
   --color-chip-border: var(--mf-chip-border);
   --color-chip-text: var(--mf-chip-text);
@@ -36,7 +47,10 @@
   --color-warning-bg: var(--mf-warning-bg);
   --color-danger: var(--mf-danger);
   --color-danger-bg: var(--mf-danger-bg);
+  --color-danger-text: var(--mf-danger-text);
   --color-danger-strong: var(--mf-danger-strong);
+  --color-danger-hover: var(--mf-danger-hover);
+  --color-danger-pressed: var(--mf-danger-pressed);
   --color-info: var(--mf-info);
   --color-review-bg: var(--mf-review-bg);
   --color-review-text: var(--mf-review-text);
@@ -61,6 +75,7 @@
 
   --shadow-float: var(--mf-shadow-float);
   --shadow-popover: var(--mf-shadow-popover);
+  --shadow-dialog: var(--mf-shadow-dialog);
 
   --font-sans: var(--mf-font-family-sans);
   --font-mono: var(--mf-font-family-mono);

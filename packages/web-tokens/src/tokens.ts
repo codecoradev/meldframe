@@ -14,16 +14,26 @@ const dark = {
   surface: '#1E1E21',
   'surface-raised': '#26262B',
   field: '#26262A',
+  control: '#2E2E34',
+  'control-selected': '#3A3A40',
+  'menu-border': '#3A3A42',
+  divider: '#34343A',
   border: '#2E2E33',
+  'border-strong': '#4A4A52',
   hairline: '#2A2A2E',
   text: '#E4E4E7',
   'text-strong': '#F4F4F5',
   'text-muted': '#A1A1AA',
+  'text-secondary': '#D4D4D8',
   'text-faint': '#52525B',
+  'icon-muted': '#71717A',
   accent: '#3B82F6',
   'accent-strong': '#2563EB',
+  'accent-hover': '#1D4ED8',
+  'accent-pressed': '#1E40AF',
   'on-accent': '#FFFFFF',
   selection: '#60A5FA',
+  'selection-text': '#BFDBFE',
   'chip-bg': '#1F2540',
   'chip-border': '#343D6E',
   'chip-text': '#C7D2FE',
@@ -37,7 +47,10 @@ const dark = {
   'warning-bg': '#26221A',
   danger: '#F87171',
   'danger-bg': '#2A1F1F',
+  'danger-text': '#FCA5A5',
   'danger-strong': '#B91C1C',
+  'danger-hover': '#991B1B',
+  'danger-pressed': '#7F1D1D',
   info: '#93C5FD',
   'review-bg': '#2B2118',
   'review-text': '#FDBA74',
@@ -51,18 +64,28 @@ const light: Record<ColorName, string> = {
   surface: '#FFFFFF',
   'surface-raised': '#FFFFFF',
   field: '#F4F4F5',
+  control: '#ECECEF',
+  'control-selected': '#E4E4E7',
+  'menu-border': '#D4D4D8',
+  divider: '#D4D4D8',
   border: '#E4E4E7',
+  'border-strong': '#A1A1AA',
   hairline: '#ECECEF',
   text: '#18181B',
   'text-strong': '#09090B',
   'text-muted': '#52525B',
+  'text-secondary': '#27272A',
   'text-faint': '#A1A1AA',
+  'icon-muted': '#71717A',
   accent: '#2563EB',
   'accent-strong': '#2563EB',
+  'accent-hover': '#1D4ED8',
+  'accent-pressed': '#1E40AF',
   'on-accent': '#FFFFFF',
   selection: '#2563EB',
-  'chip-bg': '#EEF2FF',
-  'chip-border': '#C7D2FE',
+  'selection-text': '#1E40AF',
+  'chip-bg': '#E0E7FF',
+  'chip-border': '#A5B4FC',
   'chip-text': '#3730A3',
   person: '#5B4BD6',
   'agent-1': '#C2410C',
@@ -74,9 +97,12 @@ const light: Record<ColorName, string> = {
   'warning-bg': '#FFFBEB',
   danger: '#B91C1C',
   'danger-bg': '#FEF2F2',
+  'danger-text': '#991B1B',
   'danger-strong': '#B91C1C',
+  'danger-hover': '#991B1B',
+  'danger-pressed': '#7F1D1D',
   info: '#1D4ED8',
-  'review-bg': '#FFF7ED',
+  'review-bg': '#FFEDD5',
   'review-text': '#9A3412',
 };
 
@@ -84,9 +110,11 @@ const light: Record<ColorName, string> = {
 const darkEffects = {
   'diff-add': 'rgba(74,222,128,0.10)',
   'diff-delete': 'rgba(248,113,113,0.10)',
+  'selection-bg': 'rgba(96,165,250,0.18)',
   scrim: 'rgba(0,0,0,0.5)',
   'shadow-float': '0 8px 24px rgba(0,0,0,0.35)',
   'shadow-popover': '0 12px 32px rgba(0,0,0,0.5)',
+  'shadow-dialog': '0 24px 64px rgba(0,0,0,0.6)',
 } as const;
 
 export type EffectName = keyof typeof darkEffects;
@@ -94,9 +122,11 @@ export type EffectName = keyof typeof darkEffects;
 const lightEffects: Record<EffectName, string> = {
   'diff-add': 'rgba(21,128,61,0.10)',
   'diff-delete': 'rgba(185,28,28,0.10)',
+  'selection-bg': '#DBEAFE',
   scrim: 'rgba(0,0,0,0.35)',
-  'shadow-float': '0 8px 24px rgba(0,0,0,0.12)',
-  'shadow-popover': '0 12px 32px rgba(0,0,0,0.18)',
+  'shadow-float': '0 8px 24px rgba(24,24,27,0.12)',
+  'shadow-popover': '0 12px 32px rgba(24,24,27,0.18)',
+  'shadow-dialog': '0 24px 64px rgba(24,24,27,0.22)',
 };
 
 export const colors: Record<Theme, Record<ColorName, string>> = { dark, light };
@@ -133,9 +163,11 @@ export const space = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 24, 6: 32 } as const;
 export const radius = { xs: 4, sm: 6, md: 8, lg: 12, pill: 999 } as const;
 /** Control heights and panel widths in px. */
 export const size = {
-  'control-sm': 24, 'control-md': 28, 'control-lg': 32, 'control-xl': 36,
-  sidebar: 248, layers: 260, inspector: 288, chat: 352, files: 280,
+  'control-sm': 24, 'control-md': 28, 'control-lg': 32, 'control-wide': 34, 'control-xl': 36,
+  sidebar: 248, layers: 260, inspector: 288, activity: 360, chat: 352, files: 280, 'top-card': 52,
 } as const;
+/** Opacity of a disabled control (DESIGN.md 5.1). */
+export const opacity = { disabled: 0.5 } as const;
 export const stroke = { selection: 1.5, focus: 2, 'focus-offset': 2 } as const;
 /** Durations in ms. */
 export const duration = { fast: 120, base: 200, slow: 320, 'touch-ring': 1500, 'reduced-motion-hold': 2000 } as const;
@@ -149,7 +181,7 @@ const UNITS: Record<string, string> = {
 };
 
 const groups: Record<string, Record<string, string | number>> = {
-  'font-size': fontSize, 'font-weight': fontWeight, 'line-height': lineHeight, space, radius, size, stroke, duration, easing,
+  'font-size': fontSize, 'font-weight': fontWeight, 'line-height': lineHeight, space, radius, size, stroke, opacity, duration, easing,
 };
 
 /** Every token that does not depend on the theme as `[DESIGN.md key, plain value]`. */

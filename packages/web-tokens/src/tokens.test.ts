@@ -26,7 +26,7 @@ function themeErrors(source: string): string[] {
   for (const n of effectNames.filter((e) => !e.startsWith('shadow'))) expected[`--color-${n}`] = `var(--mf-${n})`;
   for (const k of Object.keys(fontSize)) expected[`--text-${k}`] = `var(--mf-font-size-${k})`;
   for (const k of Object.keys(radius)) expected[`--radius-${k}`] = `var(--mf-radius-${k})`;
-  for (const k of ['float', 'popover']) expected[`--shadow-${k}`] = `var(--mf-shadow-${k})`;
+  for (const k of ['float', 'popover', 'dialog']) expected[`--shadow-${k}`] = `var(--mf-shadow-${k})`;
   for (const k of Object.keys(fonts)) expected[`--font-${k}`] = `var(--mf-font-family-${k})`;
   const found = new Map<string, string>();
   for (const m of source.matchAll(/^\s*(--(?:spacing|color-[\w-]+|text-[\w-]+|radius-[\w-]+|shadow-[\w-]+|font-[\w-]+)):\s*([^;]+);/gm)) {

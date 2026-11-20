@@ -69,6 +69,6 @@
       </div>
     {/key}
   {:else}
-    <p class="px-3 py-3 text-text-faint">Select one node to edit it.</p>
+    <p class="px-3 py-3 text-text-muted">Select one node to edit it.</p>
   {/if}
 </aside>

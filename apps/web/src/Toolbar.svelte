@@ -31,14 +31,14 @@
     { tool: 'rectangle', label: 'Rectangle', key: 'R' },
     { tool: 'text', label: 'Text', key: 'T' },
   ];
-  const base = 'rounded-md px-3 py-1.5 text-small disabled:text-text-faint';
+  const base = 'rounded-md px-3 py-1.5 text-small disabled:opacity-(--mf-opacity-disabled)';
 </script>
 
 <div role="toolbar" aria-label="Tools" data-testid="toolbar" class="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-lg bg-surface-raised p-1 shadow-float">
   {#each tools as t (t.tool)}
     <button
       type="button"
-      class="{base} {state.tool === t.tool ? 'bg-accent text-on-accent' : 'text-text hover:bg-field'}"
+      class="{base} {state.tool === t.tool ? 'bg-accent-strong text-on-accent' : 'text-text hover:bg-field'}"
       aria-pressed={state.tool === t.tool}
       title="{t.label} ({t.key})"
       data-testid="tool-{t.tool}"
