@@ -1,12 +1,13 @@
 import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
 import type { Properties } from '@meldframe/protocol';
+import TestHost from '@meldframe/web-chrome/TestHost.svelte';
 import PropertiesPanel from './PropertiesPanel.svelte';
 
 const base: Properties = { id: 'n', name: 'Hero', kind: 'frame', x: 10, y: 20, w: 300, h: 120, fill: '#112233', radius: 8, text: '', fontSize: 16, opacity: 0.5, clip: true, bound: [], bindings: [] };
 const b = (field: 'fill' | 'opacity' | 'radius', over = {}) => ({ field, variable: 'v1', name: 'space/md', missing: false, ...over });
 const html = (properties: Properties | null, selected = properties ? 1 : 0) =>
-  render(PropertiesPanel as never, { props: { properties, selected, dispatch: () => {} } as never }).body;
+  render(TestHost as never, { props: { of: PropertiesPanel, props: { properties, selected, dispatch: () => {} } } as never }).body;
 
 describe('the properties panel as the Properties and Inspector boards draw it', () => {
   it('has the sections Position, Size, Appearance and Fill in that order', () => {
