@@ -1230,6 +1230,7 @@ dependencies = [
  "meldframe-app-model",
  "meldframe-protocol",
  "serde_json",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
