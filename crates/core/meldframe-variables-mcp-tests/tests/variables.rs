@@ -1,4 +1,4 @@
-//! The variables over MCP against the real server (E3.4): the seven variable commands go through `apply_commands`
+//! The variables over MCP against the real server (E3.4): the seven first variable commands (the renames are in `rename.rs`) go through `apply_commands`
 //! under the same gate, atomic batch and `ifSeq` as node commands, a node field is bound to `{var: id}`, and
 //! `get_variables` reads collections and variables in bounded output.
 

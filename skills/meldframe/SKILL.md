@@ -98,11 +98,13 @@ variables with their value in every mode; use `collection` or `prefix` to list f
 (a call returns at most 200). Bind a node to a variable instead of copying its value: set `fill` (a colour variable),
 `radius` or `opacity` (a number variable) to `{var: id}` with `addNode` or `updateNode`, and read the variable's id from
 `get_variables`, never its name. Add what is missing with `apply_commands` and the variable commands (`addCollection`,
-`addMode`, `addVariable` with one value for every mode, `setVariableValue`; the tool text lists them all). They are
-atomic and idempotent like the node commands, and `ifSeq` guards a variable as `$var:<id>`. Name a variable in
-lowercase segments joined by slashes (`color/brand-500`). A variable that a node or an alias still uses cannot be
-removed (`E_VARIABLE_IN_USE`): unbind first. Switching a mode does not change the file; setting a value does, and every
-node bound to it shows it.
+`addMode`, `addVariable` with one value for every mode, `setVariableValue`; the tool text lists them all). To rename a
+collection, a mode or a variable, send `renameCollection`, `renameMode` or `renameVariable`, never a remove and an add:
+bindings and aliases hold the id, so a rename keeps them, and a new name is checked as in the add (`E_INVALID_NAME`,
+`E_DUPLICATE_NAME`). The variable commands are atomic and idempotent like the node commands, and `ifSeq` guards a
+variable as `$var:<id>`. Name a variable in lowercase segments joined by slashes (`color/brand-500`). A variable that a
+node or an alias still uses cannot be removed (`E_VARIABLE_IN_USE`): unbind first. Switching a mode does not change the
+file; setting a value does, and every node bound to it shows it.
 
 To start from a project's own design system, read its CSS yourself (the file with `:root`, the dark rule and the Tailwind
 `@theme` blocks, and what its `@import` lines name) and send the text to `import_tokens` with the `file`, the `css` and
