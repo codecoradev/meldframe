@@ -49,6 +49,13 @@ describe('the properties panel as the Properties and Inspector boards draw it', 
     expect(out).toContain('bg-danger-bg');
     expect(out).toContain('ghost (removed)');
   });
+  it('is one group named Properties with a rule above it, and its sections are the landmarks inside', () => {
+    const out = html(base);
+    expect(out).toMatch(/<div[^>]*role="group"[^>]*aria-label="Properties"/);
+    expect(out).toContain('border-t border-hairline');
+    expect(out.match(/<section/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(out.match(/aria-label="Properties"/g)).toHaveLength(1);
+  });
   it('says what is selected when there is nothing to edit, without inventing a page', () => {
     expect(html(null, 0)).toContain('Nothing selected');
     expect(html(null, 3)).toContain('3 nodes selected');

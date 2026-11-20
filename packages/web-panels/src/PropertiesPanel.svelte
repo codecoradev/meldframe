@@ -42,7 +42,7 @@
   </div>
 {/snippet}
 
-<div class="flex flex-col text-small text-text" data-testid="properties">
+<div class="flex flex-col border-t border-hairline text-small text-text" role="group" aria-label="Properties" data-testid="properties">
   {#if properties}
     {@const p = properties}
     {@const has = fieldsOf(p.kind)}
