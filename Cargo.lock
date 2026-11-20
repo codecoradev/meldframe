@@ -1170,7 +1170,6 @@ dependencies = [
  "meldframe-revert",
  "meldframe-sync",
  "meldframe-variables",
- "meldframe-variant",
  "serde",
  "serde_json",
 ]
@@ -1229,6 +1228,7 @@ dependencies = [
  "meldframe-render",
  "meldframe-sync",
  "meldframe-variables",
+ "meldframe-variant",
  "serde_json",
 ]
 

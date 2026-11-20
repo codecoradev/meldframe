@@ -1,27 +1,22 @@
 //! Document actions: what the person meant becomes commands in the replica.
 
-use crate::action::{Action, CreateKind};
+use crate::action::Action;
 use crate::app::App;
 use crate::effect::Effect;
 use crate::state::Tool;
-use meldframe_app_parts::document::{code, new_node, update};
+use meldframe_app_parts::document::{
+    Variant, apply_all, check_all, code, edit_text, make_variant, move_by, move_to, new_node,
+    preset_node, resize,
+};
 use meldframe_app_parts::touched::render_set;
-use meldframe_check::{ApplyError, Limits, check_command_with};
-use meldframe_protocol::{Command, NodePatch};
-use meldframe_sync::{Replica, SubmitError};
-use meldframe_variant::VariantError;
+use meldframe_check::ApplyError;
+use meldframe_protocol::Command;
+use meldframe_sync::SubmitError;
 
 /// Refuse an action with a stable code; nothing changed.
 pub(crate) fn refuse(events: &mut Vec<crate::Event>, code: &str) -> Result<(), SubmitError> {
     events.push(crate::Event::Refused { code: code.into() });
     Ok(())
-}
-
-pub(crate) fn apply_all(r: &mut Replica, cmds: &[Command]) -> Result<(), SubmitError> {
-    r.begin_group();
-    let done = cmds.iter().try_for_each(|c| r.apply(c));
-    r.end_group();
-    done
 }
 
 impl App {
@@ -39,40 +34,28 @@ impl App {
                 parent,
             } => {
                 let id = self.fresh_id();
-                let (w, h) = preset.size();
-                let mut node = new_node(&id, CreateKind::Frame, x, y, parent, Some(w), Some(h));
-                node.name = preset.name().into();
+                let node = preset_node(&id, preset, x, y, parent);
                 let done = self.replica.apply(&Command::AddNode { node, index: None });
                 select = done.is_ok().then_some(id);
                 done
             }
             Action::MakeVariant { id } => {
-                let (prefix, mut n) = (self.prefix.clone(), self.next_id);
-                let made = meldframe_variant::variant_of(
-                    self.replica.nodes(),
-                    &id,
-                    || {
-                        n += 1;
-                        format!("{prefix}-n{n}")
-                    },
-                    &Limits::default(),
-                );
-                self.next_id = n;
-                // The whole copy was applied to a copy of the file already, so it applies here as one step.
-                match made {
-                    Ok(v) => self.check_room(&v.commands).and_then(|()| {
-                        let done = apply_all(&mut self.replica, &v.commands);
-                        select = done.is_ok().then_some(v.root);
-                        done
-                    }),
-                    Err(VariantError::Apply(e)) => Err(e.into()),
-                    Err(VariantError::NotFound) => Err(ApplyError::NotFound(id).into()),
-                    Err(VariantError::NotAFrame) => {
+                match make_variant(self.replica.nodes(), &id, &self.prefix, &mut self.next_id) {
+                    // The whole copy was applied to a copy of the file already, so it applies here as one step.
+                    Ok(Variant::Made { commands, root }) => {
+                        self.check_room(&commands).and_then(|()| {
+                            let done = apply_all(&mut self.replica, &commands);
+                            select = done.is_ok().then_some(root);
+                            done
+                        })
+                    }
+                    Ok(Variant::NotAFrame) => {
                         self.events.push(crate::Event::Refused {
                             code: "not_a_frame".into(),
                         });
                         Ok(())
                     }
+                    Err(e) => Err(e),
                 }
             }
             Action::CreateNode { x, y, w, h, .. }
@@ -100,53 +83,16 @@ impl App {
                 select = done.is_ok().then_some(id);
                 done
             }
-            Action::Move { id, x, y } => self.replica.apply(&update(
-                &id,
-                NodePatch {
-                    x: Some(x),
-                    y: Some(y),
-                    ..Default::default()
-                },
-            )),
+            Action::Move { id, x, y } => self.replica.apply(&move_to(&id, x, y)),
             Action::MoveBy { dx, dy } => {
-                let cmds: Vec<Command> = self
-                    .state
-                    .selection
-                    .iter()
-                    .filter_map(|id| self.replica.nodes().iter().find(|n| n.id == *id))
-                    .map(|n| {
-                        update(
-                            &n.id,
-                            NodePatch {
-                                x: Some(n.x + dx),
-                                y: Some(n.y + dy),
-                                ..Default::default()
-                            },
-                        )
-                    })
-                    .collect();
+                let cmds = move_by(&self.state.selection, self.replica.nodes(), dx, dy);
                 match self.validate(&cmds) {
                     Ok(()) => apply_all(&mut self.replica, &cmds),
                     Err(e) => Err(e),
                 }
             }
-            Action::Resize { id, w, h, x, y } => self.replica.apply(&update(
-                &id,
-                NodePatch {
-                    x,
-                    y,
-                    w: Some(w),
-                    h: Some(h),
-                    ..Default::default()
-                },
-            )),
-            Action::EditText { id, text } => self.replica.apply(&update(
-                &id,
-                NodePatch {
-                    text: Some(text),
-                    ..Default::default()
-                },
-            )),
+            Action::Resize { id, w, h, x, y } => self.replica.apply(&resize(&id, w, h, x, y)),
+            Action::EditText { id, text } => self.replica.apply(&edit_text(&id, text)),
             Action::SetProperty { id, property } => self.set_property(&id, property),
             Action::Delete { ids } => self.delete(&ids),
             Action::Reorder { id, before, after } => self.replica.apply(&Command::Reorder {
@@ -220,12 +166,7 @@ impl App {
     /// before any is applied, so a list that would fail half way applies nothing.
     fn validate(&self, cmds: &[Command]) -> Result<(), SubmitError> {
         self.check_room(cmds)?;
-        let limits = Limits::default();
-        cmds.iter()
-            .try_for_each(|c| {
-                check_command_with(self.replica.nodes(), self.replica.vars(), c, &limits)
-            })
-            .map_err(SubmitError::Invalid)
+        check_all(self.replica.nodes(), self.replica.vars(), cmds)
     }
 
     fn delete(&mut self, ids: &[String]) -> Result<(), SubmitError> {

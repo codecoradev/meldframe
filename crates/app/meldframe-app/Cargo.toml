@@ -11,7 +11,6 @@ kind = "app"
 
 [dependencies]
 meldframe-activity = { path = "../../core/meldframe-activity" }
-meldframe-variant = { path = "../../core/meldframe-variant" }
 export-dialog = { path = "../../features/export/export-dialog" }
 meldframe-check = { path = "../../core/meldframe-check" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }

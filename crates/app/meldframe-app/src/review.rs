@@ -4,9 +4,10 @@
 //! and the plans are in `meldframe_app_rules::review`.
 
 use crate::app::App;
-use crate::document::{apply_all, refuse};
+use crate::document::refuse;
 use crate::event::Event;
 use crate::state::{Checkpoint, CheckpointKind};
+use meldframe_app_parts::document::apply_all;
 use meldframe_app_rules::review::{
     checkpoint_label, full_log, plan_restore, plan_revert, push_checkpoint,
 };

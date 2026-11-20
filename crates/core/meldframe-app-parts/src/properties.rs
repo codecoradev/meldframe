@@ -1,6 +1,7 @@
 //! The editable values of a node as the properties panel shows them.
 
 use crate::layout::{is_layout, layout_notes, sides, uniform};
+use crate::panel::selected_node;
 use crate::property::MIN_STOPS;
 use meldframe_app_model::{BindField, FieldBinding, FillKind, Properties};
 use meldframe_check::Limits;
@@ -92,4 +93,19 @@ pub fn properties(
         bound,
         bindings,
     }
+}
+
+/// The properties panel follows the selection: the values of the one node selected, with its parent's layout in view.
+pub fn selected_properties(
+    vars: &Variables,
+    choice: &ModeChoice,
+    nodes: &[Node],
+    selection: &[String],
+) -> Option<Properties> {
+    let n = selected_node(selection, nodes)?;
+    let parent = n
+        .parent_id
+        .as_deref()
+        .and_then(|p| nodes.iter().find(|x| x.id == p));
+    Some(properties(vars, choice, n, parent))
 }

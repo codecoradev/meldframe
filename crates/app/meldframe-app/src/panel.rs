@@ -6,12 +6,11 @@ use crate::app::App;
 use crate::document::refuse;
 use crate::event::Event;
 use meldframe_app_model::{BindField, VariableValue, VariablesPanel};
-use meldframe_app_parts::variables_panel::{bindable, bound_fields, field_name, variables_view};
-use meldframe_protocol::{Bind, Command, Node, NodeKind, NodePatch, Value, VarType, Variables};
-use meldframe_render::Fields;
+use meldframe_app_parts::binding::{bind_patch, variable_bind};
+use meldframe_app_parts::panel::{PanelKey, selected_node};
+use meldframe_app_parts::variables_panel::variables_view;
+use meldframe_protocol::Command;
 use meldframe_sync::SubmitError;
-use meldframe_variables::node_bindings;
-use std::collections::BTreeMap;
 
 /// The longest search text, in characters.
 const MAX_QUERY: usize = 200;
@@ -20,39 +19,23 @@ const MAX_QUERY: usize = 200;
 /// resize, a timer) leaves the view as it is: the check reads the file but allocates only when something differs.
 #[derive(Debug, Default)]
 pub(crate) struct PanelCache {
-    key: Option<Key>,
+    key: Option<PanelKey>,
     builds: u64,
     /// How many times the bind picker was built (a test seam, as `builds`).
     pub(crate) picker_builds: u64,
 }
 
-#[derive(Debug, PartialEq)]
-struct Key {
-    query: String,
-    modes: BTreeMap<String, String>,
-    selection: Vec<String>,
-    kind: Option<NodeKind>,
-    vars: Variables,
-    /// Every bound field of every node: `(node, field, variable)`; the use counts and the buttons read them.
-    bound: Vec<(String, &'static str, String)>,
-}
-
 impl PanelCache {
     fn is_current(&self, a: &App) -> bool {
-        let Some(k) = &self.key else { return false };
-        k.query == a.state.variables.query
-            && k.modes == a.state.modes
-            && k.selection == a.state.selection
-            && k.kind == selected(a).map(|n| n.kind)
-            && k.vars == *a.vars()
-            && k.bound == bound_fields(a.nodes())
-    }
-}
-
-fn selected(a: &App) -> Option<&Node> {
-    match a.state.selection.as_slice() {
-        [id] => a.nodes().iter().find(|n| n.id == *id),
-        _ => None,
+        self.key.as_ref().is_some_and(|k| {
+            k.is_current(
+                &a.state.variables.query,
+                &a.state.modes,
+                &a.state.selection,
+                a.vars(),
+                a.nodes(),
+            )
+        })
     }
 }
 
@@ -93,18 +76,17 @@ impl App {
             self.vars(),
             self.nodes(),
             &self.choice(),
-            selected(self),
+            selected_node(&self.state.selection, self.nodes()),
             &query,
         );
         self.panel.builds += 1;
-        self.panel.key = Some(Key {
-            query,
-            modes: self.state.modes.clone(),
-            selection: self.state.selection.clone(),
-            kind: selected(self).map(|n| n.kind),
-            vars: self.vars().clone(),
-            bound: bound_fields(self.nodes()),
-        });
+        self.panel.key = Some(PanelKey::new(
+            &query,
+            &self.state.modes,
+            &self.state.selection,
+            self.vars(),
+            self.nodes(),
+        ));
         self.state.variables = view;
     }
 
@@ -118,15 +100,9 @@ impl App {
         let Some(var) = self.vars().variable(&variable) else {
             return refuse(&mut self.events, "E_VARIABLE_NOT_FOUND");
         };
-        let new: Bind<Value> = match value {
-            VariableValue::Alias { variable: to } => Bind::var(to),
-            VariableValue::Literal { text } => match var.kind {
-                VarType::Color => Bind::Lit(Value::Color(text.trim().to_string())),
-                VarType::Number => match text.trim().parse::<f64>() {
-                    Ok(n) => Bind::Lit(Value::Number(n)),
-                    Err(_) => return refuse(&mut self.events, "invalid_value"),
-                },
-            },
+        let new = match variable_bind(var.kind, value) {
+            Ok(new) => new,
+            Err(code) => return refuse(&mut self.events, code),
         };
         if var.values.get(&mode) == Some(&new) {
             return Ok(());
@@ -148,34 +124,12 @@ impl App {
         let Some(node) = self.nodes().iter().find(|n| n.id == id) else {
             return refuse(&mut self.events, "not_found");
         };
-        if !bindable(node.kind, field) {
-            return refuse(&mut self.events, "not_bindable");
-        }
-        let bound = node_bindings(node)
-            .into_iter()
-            .find(|b| b.field == field_name(field))
-            .map(|b| b.var.to_string());
-        if bound == variable {
+        let patch = match bind_patch(node, field, variable, self.vars(), &self.choice()) {
+            Ok(Some(patch)) => patch,
             // Already so: bind the same variable again, or unbind a field that is a literal.
-            return Ok(());
-        }
-        let mut patch = NodePatch::default();
-        match variable {
-            Some(v) => match field {
-                BindField::Fill => patch.fill = Some(Bind::var(v)),
-                BindField::Radius => patch.radius = Some(Bind::var(v)),
-                BindField::Opacity => patch.opacity = Some(Bind::var(v)),
-            },
-            None => {
-                let choice = self.choice();
-                let f = Fields::new(self.vars(), &choice);
-                match field {
-                    BindField::Fill => patch.fill = Some(Bind::Lit(f.fill_text(&node.fill))),
-                    BindField::Radius => patch.radius = Some(Bind::Lit(f.radius(&node.radius))),
-                    BindField::Opacity => patch.opacity = Some(Bind::Lit(f.opacity(&node.opacity))),
-                }
-            }
-        }
+            Ok(None) => return Ok(()),
+            Err(code) => return refuse(&mut self.events, code),
+        };
         self.replica.apply(&Command::UpdateNode {
             id: id.to_string(),
             patch,

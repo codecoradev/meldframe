@@ -2,12 +2,12 @@
 //! again with the same key after a backoff, a few times, then give up and roll it back. The count and the
 //! clock are `meldframe_app_rules::retry::Retries`.
 
-use crate::app::{App, out_ops};
+use crate::app::App;
 use crate::effect::Effect;
 use crate::event::Event;
 use crate::state::Connection;
+use meldframe_app_parts::document::{out_ops, removal_of};
 use meldframe_app_rules::retry::Refusal;
-use meldframe_protocol::Command;
 
 impl App {
     /// The server refused op `key`. Returns true when the op was rolled back (the view changed).
@@ -32,15 +32,7 @@ impl App {
             Refusal::Later => return false,
             Refusal::Reject => {}
         }
-        let node = self
-            .replica
-            .unconfirmed()
-            .into_iter()
-            .find(|o| o.key == key)
-            .and_then(|o| match o.command {
-                Command::RemoveNode { id } => Some(id),
-                _ => None,
-            });
+        let node = removal_of(self.replica.unconfirmed(), &key);
         if !self.replica.on_reject(&key) {
             return false;
         }
