@@ -50,32 +50,30 @@ describe('the layout rules', () => {
 
 describe('the rows of the file menu', () => {
   const calls: string[] = [];
-  const items = (o: { canExport: boolean; canVariant: boolean }) => fileItems({ ...o, onExport: (s) => calls.push(`export ${s}`), onVariant: () => calls.push('variant') });
+  const items = (o: { canExport: boolean; canVariant: boolean }) => fileItems({ ...o, onExport: () => calls.push('export'), onVariant: () => calls.push('variant') });
 
-  it('has the PNG rows and Make a variant, with the test ids the browser checks use', () => {
+  it('has Export and Make a variant, with the test ids the browser checks use', () => {
     expect(items({ canExport: true, canVariant: true }).map((i) => [i.id, i.label, i.testId])).toEqual([
-      ['png1', 'Export PNG 1x', 'export-1x'],
-      ['png2', 'Export PNG 2x', 'export-2x'],
+      ['export', 'Export…', 'export'],
       ['variant', 'Make a variant', 'make-variant'],
     ]);
   });
 
   it('disables each row when there is no frame for it', () => {
-    expect(items({ canExport: false, canVariant: true }).map((i) => !!i.disabled)).toEqual([true, true, false]);
-    expect(items({ canExport: true, canVariant: false }).map((i) => !!i.disabled)).toEqual([false, false, true]);
+    expect(items({ canExport: false, canVariant: true }).map((i) => !!i.disabled)).toEqual([true, false]);
+    expect(items({ canExport: true, canVariant: false }).map((i) => !!i.disabled)).toEqual([false, true]);
   });
 
-  it('opens no dialog yet: every row gives the focus back to the menu button', () => {
-    expect(items({ canExport: true, canVariant: true }).some((i) => i.opensDialog)).toBe(false);
+  it('only Export opens a dialog, which is why the menu does not give the focus back to its button', () => {
+    expect(items({ canExport: true, canVariant: true }).map((i) => !!i.opensDialog)).toEqual([true, false]);
   });
 
-  it('a row calls the handler it was given, with its scale', () => {
+  it('a row calls the handler it was given', () => {
     calls.length = 0;
-    const [one, two, variant] = items({ canExport: true, canVariant: true });
-    one!.onSelect();
-    two!.onSelect();
+    const [exp, variant] = items({ canExport: true, canVariant: true });
+    exp!.onSelect();
     variant!.onSelect();
-    expect(calls).toEqual(['export 1', 'export 2', 'variant']);
+    expect(calls).toEqual(['export', 'variant']);
   });
 });
 

@@ -29,9 +29,9 @@
     onUndo: () => void;
     onRedo: () => void;
     onPreset: (p: 'desktop' | 'tablet' | 'mobile') => void;
-    /** The file menu: PNG export of the selected frame, and a variant of it. */
+    /** The file menu: the Export dialog for the selected frame, and a variant of it. */
     canExport: boolean;
-    onExport: (scale: 1 | 2) => void;
+    onExport: () => void;
     canVariant: boolean;
     onVariant: () => void;
     zoomText: string;
