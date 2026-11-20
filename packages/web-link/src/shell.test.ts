@@ -115,10 +115,10 @@ describe('parseFrame', () => {
 });
 
 describe('touch frames', () => {
-  const live = (onTouch: (t: { actor: string; nodeIds: string[] }) => void) => {
+  const live = () => {
     const engine = new FakeEngine();
     const env = new FakeEnv();
-    const shell = new Shell(engine, env, { file: 'file_dev', onTouch });
+    const shell = new Shell(engine, env, { file: 'file_dev' });
     shell.start();
     engine.effect({ type: 'subscribe', afterSeq: 0 });
     return { engine, socket: env.sockets[0]! };
@@ -129,23 +129,18 @@ describe('touch frames', () => {
       expect(parseFrame(bad), bad).toBeNull();
     }
   });
-  it('hands a touch to the listener and dispatches it to the app as a frame', () => {
-    const seen: { actor: string; nodeIds: string[] }[] = [];
-    const { engine, socket } = live((t) => seen.push(t));
+  it('dispatches a touch to the app as a frame, the one place the rings of the canvas come from', () => {
+    const { engine, socket } = live();
     const before = engine.dispatched.length;
     socket.onmessage('{"type":"touch","actor":"agent:claude","nodeIds":["a","b"],"seq":4}');
-    expect(seen).toEqual([{ actor: 'agent:claude', nodeIds: ['a', 'b'] }]);
     expect(engine.dispatched).toHaveLength(before + 1);
     expect(engine.dispatched.at(-1)).toMatchObject({ type: 'frame', frame: { type: 'touch', actor: 'agent:claude', ids: ['a', 'b'], seq: 4 } });
   });
-  it('a listener that throws does not lose the connection', () => {
-    const { engine, socket } = live(() => {
-      throw new Error('a view broke');
-    });
+  it('dispatches nothing for a touch the app would refuse (no sequence number), and keeps the connection', () => {
+    const { engine, socket } = live();
     const before = engine.dispatched.length;
-    socket.onmessage('{"type":"touch","actor":"u","nodeIds":["a"],"seq":1}');
-    expect(engine.dispatched).toHaveLength(before + 1); // the frame, and no reconnect action
-    expect(engine.dispatched.at(-1)).toMatchObject({ type: 'frame' });
+    socket.onmessage('{"type":"touch","actor":"u","nodeIds":["a"]}');
+    expect(engine.dispatched).toHaveLength(before);
     expect(socket.closed).toBe(false);
   });
 });

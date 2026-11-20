@@ -23,9 +23,9 @@
   import { noticeFromEvents } from '@meldframe/web-document/notices';
   import { presetAction } from '@meldframe/web-document/presets';
   import { type ExportScale, exportFileName, planExport } from '@meldframe/web-document/export';
-  import { addTouch, type Touched } from '@meldframe/web-document/touches';
+  import { ringsOnCanvas, type Touched } from '@meldframe/web-document/rings';
   import { serveCapture, type Req } from '@meldframe/web-document/capture-serve';
-  import { duration, pixiColors } from '@meldframe/web-tokens/tokens';
+  import { pixiColors } from '@meldframe/web-tokens/tokens';
   import { loadTheme } from '@meldframe/web-tokens/theme';
 
   interface Props {
@@ -36,12 +36,10 @@
     actor: string;
     /** Who last changed each node when the file was loaded; live changes are in the app state. */
     attribution?: Record<string, { actor: string; seq: number }>;
-    /** Where the ephemeral touch frames of other actors come from; returns the way to stop listening. */
-    onTouches?: (fn: (t: { actor: string; nodeIds: string[] }) => void) => () => void;
     /** Capture requests of agents: where they come from, and how to tell the server this editor cannot serve one. */
     captures?: { subscribe: (fn: (r: Req) => void) => () => void; fail: (requestId: string, code: string, message: string) => void };
   }
-  let { engine, file, actor, attribution = {}, onTouches, captures }: Props = $props();
+  let { engine, file, actor, attribution = {}, captures }: Props = $props();
 
   // Snapshots are replaced as a whole, never edited: no deep proxy over the nodes.
   let snap = $state.raw(untrack(() => engine.snapshot()));
@@ -67,18 +65,13 @@
   const actors = $derived({ ...Object.fromEntries(Object.entries(attribution).map(([id, a]) => [id, a.actor])), ...snap.state.lastActor });
   const rows = $derived(layerRows(nodes, scene, snap.state.panels.collapsed, snap.state.selection, actors));
 
-  // The touch rings of other actors: a ring flashes on the nodes they just changed and fades.
-  let touches = $state.raw<Touched[]>([]);
-  onMount(() =>
-    onTouches?.((t) => {
-      const c = pixiColors(theme);
-      touches = addTouch(touches, t, performance.now(), {
-        self: actor,
-        palette: { person: c.person, agents: [c['agent-1'], c['agent-2'], c['agent-3']] },
-        maxAgeMs: Math.max(duration['touch-ring'], duration['reduced-motion-hold']),
-      });
-    }),
-  );
+  // The touch rings of other actors are the app layer's (`state.activity.touches`); the canvas draws them on its own clock.
+  const noRings: Touched[] = [];
+  const touches = $derived.by(() => {
+    if (snap.state.activity.touches.length === 0) return noRings;
+    const c = pixiColors(theme);
+    return ringsOnCanvas(snap.state.activity.touches, { epochMs: Date.now(), perfMs: performance.now() }, { person: c.person, agents: [c['agent-1'], c['agent-2'], c['agent-3']] });
+  });
 
   // An agent asks for a PNG of a node: the canvas draws it offscreen and the page uploads it (see capture.ts).
   const waitForSeq = (min: number, timeoutMs: number) =>

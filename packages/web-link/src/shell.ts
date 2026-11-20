@@ -39,8 +39,6 @@ export interface ShellOptions {
   file: string;
   /** The tool that applies commands; the server's MCP module registers it for every transport. */
   tool?: string;
-  /** An ephemeral `touch` frame: an actor changed these nodes. Not part of the document, so the app never sees it. */
-  onTouch?: (t: { actor: string; nodeIds: string[] }) => void;
   /**
    * An agent asks for a PNG. With this set, the shell tells the server after each subscribe that this client can capture,
    * and then every request must be answered: by the upload of the image, or by `captureFailed`.
@@ -304,11 +302,6 @@ export class Shell {
       case 'touch': {
         const frame = toTouchFrame(m);
         if (frame) this.dispatch({ type: 'frame', nowMs, frame });
-        try {
-          this.opts.onTouch?.({ actor: m.actor!, nodeIds: m.nodeIds as string[] });
-        } catch {
-          // a view that fails on a touch must not cost the connection
-        }
         return;
       }
       case 'error':
