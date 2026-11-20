@@ -1,10 +1,12 @@
 # Standard: modular architecture with a thin UI
 
-Version 1.1, 13 Nov 2026. Mirror: the source of truth is the CodeCora standard kept in the team knowledge rooms (with its evidence and source pointers). Edit the source first, then update this copy and its version.
+Version 1.2, 20 Nov 2026. Mirror: the source of truth is the CodeCora standard kept in the team knowledge rooms (with its evidence and source pointers). Edit the source first, then update this copy and its version.
 
 Status: adopted for Meldframe (owner decision 13 Nov 2026, ADR-0007 to ADR-0010). Derived from Crastu (primary source, enforced in CI) and Tole (kernel, gate and event patterns). Keywords MUST, SHOULD and MAY are used in the usual sense.
 
 Changes in 1.1: D7 allows replacing spikes with first vertical slices in the product repository (Meldframe does); adoption row and known gaps updated.
+
+Changes in 1.2: D1 sets the crate line count as an ideal band of 1,500 to 2,500 lines with a hard ceiling of 4,000, in place of a flat ceiling of 2,000 (owner decision 20 Nov 2026, recorded in `docs/decisions.md` as decision 35); the file limit of 500 lines is unchanged.
 
 ## 1. Purpose and scope
 
@@ -86,7 +88,7 @@ Use it when the product has a UI and an MCP or API surface, or will get a second
 
 ### D Discipline
 
-- **D1** A file stays under 500 lines and a crate under 2,000. An allow-list records what is over today; entries only go down.
+- **D1** A file stays under 500 lines. A crate aims for 1,500 to 2,500 lines (the ideal band) and never passes the hard ceiling of 4,000. Above 2,500 a crate is a candidate for a planned split, not an emergency; at 4,000 the split comes before the next addition. An allow-list records what is over a ceiling today (the 500-line file limit or the 4,000-line crate ceiling); entries only go down.
 - **D2** Everything shipped or downloaded passes a licence gate (code and model weights). New model entries carry a licence id and a commercial flag.
 - **D3** No telemetry unless the owner decides otherwise. All outbound requests go through one gate with an Offline switch; refusals name what and the host, never the full URL.
 - **D4** `unsafe` is denied workspace-wide. A named crate may opt in with one commented module.
@@ -127,7 +129,7 @@ Write the layering rules as a pure function over package data so they are unit-t
 | `deps-check` | Kind and group rules (L1 to L4), UI toolkit usage (L3) |
 | `build-matrix` | Product builds with no features and with each feature alone (M3) |
 | `portable-check` | Portable kinds compile for each planned target (L5) |
-| `size-check` | File and crate ceilings against the allow-list (D1) |
+| `size-check` | File and crate ceilings against the allow-list, and a note on crates above the ideal band (D1) |
 | `ui-literals` | No colour, font, size or duration literals in UI crates (U4) |
 | `licences --check` | Dependency and model licences (D2) |
 
