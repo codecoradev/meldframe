@@ -63,7 +63,7 @@ E4.2 (the oracle gate) has no UI.
 
 | Board | Epic | Shows | Not on a board yet |
 |---|---|---|---|
-| M5.1 Activity and review | E5.1 | lanes per agent session, batches, notes | none |
+| M5.1 Activity and review | E5.1 | lanes per actor in a file, batches, notes | none |
 | M5.2 Approvals | E2.4 (Ask tier), E5.1 | an agent asks before a large delete | none |
 | M5.3 Before and after | E5.2 | per-batch before and after | whether it is in v1 (open) |
 | M5.4 Checkpoints | E5.3 | automatic checkpoints, restore | none |

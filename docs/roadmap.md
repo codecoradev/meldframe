@@ -28,6 +28,12 @@ See `docs/decisions.md` (items 1 to 14 and 20 to 26), the working defaults in `d
 | Confirm Gatehouse client type and scopes for MCP | decision during E2.2 | Gatehouse access |
 | Choose the editor UI direction (`DESIGN.md`) | prototype (owner) | draft written in `DESIGN.md` and `docs/ui-design.md`; owner review |
 | Define the document model round 2 (components, variants, schema version) | grilling (owner) | after ADR-0004 |
+| Whether an undone revert makes its batch revertable again (E5.2; by the last-writer rule the person's undo is a later write, so today the batch has nothing to revert) | decision (owner) | the E5.2 status note in `docs/epics.md` |
+| The lane fold rule of the Activity panel: which lane opens by itself (today the first, the most recently active, and the person's choice is kept) | decision (owner) | `docs/collab-ux.md` 4.3 |
+| The canvas fit under the right panel (the web client keeps the canvas between the open cards; the Activity tab is 360 wide) | decision (owner) | `docs/ui-design.md` section 2 |
+| Refused calls in a lane (ADR-0021 slice 17, optional): a read route over the call log for one file, with no content | decision (owner) | ADR-0021 owner question 5 |
+| `docs/prd.md` user story 38 says "one lane per agent session"; it should say per actor in a file (owner text, ADR-0021) | edit (owner) | `docs/prd.md` line 81 |
+| The real Claude Code run of the M5 exit, with two tokens, before E5.1, E5.2 and E5.3 are ticked | run, then review (owner) | `AGENTS.md` (the Activity panel, operator notes) |
 
 ## Not yet specified (fog)
 
@@ -68,7 +74,7 @@ Counted from the acceptance-criteria boxes in `docs/epics.md` (a box is ticked o
 | M2 Platform and agent identity | 3 | 13 | 23% | E2.3 quotas are in (they survive a restart) and E2.5 assets are in (upload by a route, one storage quota with the ops, image fills on the canvas); the rest of E2.3 (variable collections) and E2.1, E2.2, E2.4 are open and wait for Gatehouse |
 | M3 Model round 2 and variables | 4 | 13 | 31% | E3.5 (layer names) and E3.2 (layout and paint round 2) are in; E3.1, E3.3 and E3.4 are open |
 | M4 Export and fidelity | 1 | 6 | 17% | E4.3 (PNG export from the editor and through capture) is in; E4.1 has its first slice (the `export` feature and the `export_frame` tool; its boxes wait for the owner and a review) and E4.2 has its first slice (the oracle runs against the product export in a pull request job and nightly; the job is not required yet, and its boxes wait for the owner and a review) |
-| M5 Agent review and design quality | 2 | 8 | 25% | E5.4 is in (frame duplication as a variant: editor button and MCP `make_variant`; the MCP `design_review` tool, ADR-0018); E5.1, E5.2, E5.3 and E5.5 wait for per-batch notes and ADR-0005 |
+| M5 Agent review and design quality | 2 | 8 | 25% | E5.4 is in (frame duplication as a variant: editor button and MCP `make_variant`; the MCP `design_review` tool, ADR-0018); E5.1, E5.2, E5.3 and E5.5 are built in part (numbered batches with notes, the Activity panel, review states, revert, checkpoints, ADR-0021) and wait for the real Claude Code run and the owner's review |
 | M6 V2 and the W1 gate | 0 | 4 | 0% | not started |
 | Total | 54 | 88 | 61% | |
 
