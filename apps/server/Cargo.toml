@@ -12,7 +12,7 @@ kind = "bin"
 [features]
 # Each feature module is compiled in only when its cargo feature is on; leaving one out removes its
 # tools from the registry (ADR-0007). The example module is the first.
-default = ["example", "mcp", "capture", "assets", "design-review", "export", "variables-import", "variant"]
+default = ["example", "mcp", "capture", "assets", "design-review", "export", "variables-import", "variant", "activity"]
 example = ["dep:example"]
 # The MCP surface: its tools in the registry and the read path behind them (E1.5).
 mcp = ["meldframe-http/mcp"]
@@ -32,6 +32,10 @@ variables-import = ["mcp", "dep:variables-import", "dep:meldframe-http-variables
 
 # The make_variant tool (E5.4): a copy of a frame beside it, one atomic call; it is an MCP tool, so it needs `mcp`.
 variant = ["mcp", "dep:meldframe-http-variant"]
+
+# Batch headers and the note of apply_commands (E5.1, ADR-0021): numbered batches kept beside the log, in memory or in
+# Postgres. Without it a call with a note is refused as invalid; it is an MCP argument, so it needs `mcp`.
+activity = ["mcp", "dep:activity-store", "dep:meldframe-http-activity"]
 
 [dependencies]
 meldframe-http = { path = "../../crates/integrations/meldframe-http" }
@@ -55,6 +59,8 @@ meldframe-http-export = { path = "../../crates/integrations/meldframe-http-expor
 variables-import = { path = "../../crates/features/variables-import/variables-import", optional = true }
 meldframe-http-variables-import = { path = "../../crates/integrations/meldframe-http-variables-import", optional = true }
 meldframe-http-variant = { path = "../../crates/integrations/meldframe-http-variant", optional = true }
+activity-store = { path = "../../crates/features/activity/activity-store", optional = true }
+meldframe-http-activity = { path = "../../crates/integrations/meldframe-http-activity", optional = true }
 meldframe-protocol = { path = "../../crates/core/meldframe-protocol" }
 meldframe-stream = { path = "../../crates/core/meldframe-stream" }
 serde_json = "1"

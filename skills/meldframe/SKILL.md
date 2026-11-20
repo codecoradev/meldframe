@@ -17,7 +17,16 @@ shown to them as it lands. Work so that each step is small, safe to repeat, and 
    names and layout problems (`overflow`, `fill_under_hug`, `zero_fill`, `smaller_than_padding`) are yours to fix.
 3. **Change in small, top-down batches.** Call `apply_commands` with one logical step at a time: a section frame, then
    its children, then their content. A batch that adds a frame and its children in one call is fine; a batch that
-   rebuilds a whole page is not. Small batches show the person what you are doing and are cheap to undo.
+   rebuilds a whole page is not. Small batches show the person what you are doing and are cheap to undo. Send one
+   `note` with each batch: a short plain text (at most 500 characters and 3 line breaks) on what the batch does and
+   why. The person sees it beside the batch, as yours, so write it for them. Plain text only: no control or
+   invisible characters (a combined emoji and a variation selector count), or the call is refused and nothing is
+   written. The first note a batch gets stays: a retry with the same key does not change it, and the answer says
+   that the earlier one was kept. The answer's `batch` has the number of your batch in the file and what became of
+   your note (kept, kept earlier, or none). It is `null` when no header was kept (the write failed, no slot was
+   free, the call timed out, or the key holds a hidden character): send the same call again with the same key and
+   nothing is written twice. A call that stopped part way after writing some commands says `error.batch` with the
+   number and how many were written. A server that keeps no notes refuses a call with a `note` as `invalid`.
 4. **Keep each call atomic.** Leave `atomic` at its default (true) for a call of several commands: it is checked as a
    whole, and if one command would fail, none is written and the error names it by index. Fix that command and send
    the call again. In two rare cases (the store fails part way, or `ifSeq` is older than the snapshot the file was

@@ -1,0 +1,19 @@
+[package]
+name = "meldframe-http-activity"
+description = "The activity panel's server side over HTTP (E5.1, ADR-0021): the sink that keeps a batch header after an apply_commands call."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "bin"
+
+[dependencies]
+activity-store = { path = "../../features/activity/activity-store" }
+meldframe-activity = { path = "../../core/meldframe-activity" }
+meldframe-http = { path = "../meldframe-http", features = ["mcp"] }
+meldframe-host = { path = "../../core/meldframe-host" }
+
+[lints]
+workspace = true
