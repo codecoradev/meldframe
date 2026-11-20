@@ -5,13 +5,10 @@
 use crate::app::App;
 use crate::effect::Effect;
 use crate::event::Event;
-use crate::state::{FieldBinding, Properties};
-use meldframe_app_model::BindField;
-use meldframe_check::{ApplyError, Limits, check_command_with};
-use meldframe_protocol::{Command, Node};
-use meldframe_render::Fields;
+use meldframe_check::{Limits, check_command_with};
+use meldframe_protocol::Command;
 use meldframe_sync::SubmitError;
-use meldframe_variables::{ModeChoice, VarError, apply, is_variable_command, node_bindings};
+use meldframe_variables::{ModeChoice, VarError, apply, is_variable_command};
 
 impl App {
     /// The modes the canvas is painted in, from `AppState::modes`.
@@ -120,58 +117,5 @@ impl App {
         let done = commands.iter().try_for_each(|c| self.replica.apply(c));
         self.replica.end_group();
         done
-    }
-
-    /// The editable values of a node as they are painted: a bound field shows what the render step resolves it to
-    /// (`Fields` is the one place that does it, so the panel and the canvas agree, unresolved defaults included).
-    pub(crate) fn properties(&self, n: &Node) -> Properties {
-        let choice = self.choice();
-        let fields = Fields::new(self.vars(), &choice);
-        let found = node_bindings(n);
-        let bound: Vec<String> = found.iter().map(|b| b.field.to_string()).collect();
-        let bindings = found
-            .iter()
-            .filter_map(|b| {
-                let field = match b.field {
-                    "fill" => BindField::Fill,
-                    "radius" => BindField::Radius,
-                    "opacity" => BindField::Opacity,
-                    _ => return None,
-                };
-                let variable = b.var.to_string();
-                let found = self.vars().variables.iter().find(|v| v.id == variable);
-                Some(FieldBinding {
-                    field,
-                    name: found.map_or_else(|| variable.clone(), |v| v.name.clone()),
-                    missing: found.is_none(),
-                    variable,
-                })
-            })
-            .collect();
-        Properties {
-            id: n.id.clone(),
-            name: n.name.clone(),
-            kind: n.kind,
-            x: n.x,
-            y: n.y,
-            w: n.w,
-            h: n.h,
-            fill: fields.fill_text(&n.fill),
-            radius: fields.radius(&n.radius),
-            text: n.text.clone(),
-            font_size: n.font_size,
-            opacity: fields.opacity(&n.opacity),
-            clip: n.clip,
-            bound,
-            bindings,
-        }
-    }
-}
-
-/// A refusal as the app words it: variable errors keep their `E_` code (`docs/error-codes.md`).
-pub(crate) fn variable_code(e: &ApplyError) -> Option<&'static str> {
-    match e {
-        ApplyError::Variable(v) => Some(v.code()),
-        _ => None,
     }
 }

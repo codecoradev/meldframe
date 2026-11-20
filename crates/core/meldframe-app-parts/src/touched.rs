@@ -6,7 +6,7 @@ use meldframe_variables::is_variable_command;
 /// The nodes to redraw after these commands. Removing a node removes its subtree, which the command does
 /// not list, and a variable command changes every node bound to the variable: both are an empty list, which
 /// means everything.
-pub(crate) fn render_set(commands: &[Command]) -> Vec<String> {
+pub fn render_set(commands: &[Command]) -> Vec<String> {
     if commands
         .iter()
         .any(|c| matches!(c, Command::RemoveNode { .. }) || is_variable_command(c))
@@ -19,7 +19,7 @@ pub(crate) fn render_set(commands: &[Command]) -> Vec<String> {
 }
 
 /// The id of the node a command changes.
-pub(crate) fn touched(command: &Command) -> Vec<String> {
+pub fn touched(command: &Command) -> Vec<String> {
     let id = match command {
         Command::UpdateNode { id, .. }
         | Command::RemoveNode { id }

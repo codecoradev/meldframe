@@ -1,0 +1,22 @@
+[package]
+name = "meldframe-app-parts"
+description = "Pure parts of the app layer: the Variables panel view, the properties of a node, the nodes a command touches, and the wording of a refusal. Split from meldframe-app to keep it under the size ceiling; no state."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dependencies]
+meldframe-app-model = { path = "../meldframe-app-model" }
+meldframe-check = { path = "../meldframe-check" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-render = { path = "../meldframe-render" }
+meldframe-sync = { path = "../meldframe-sync" }
+meldframe-variables = { path = "../meldframe-variables" }
+serde_json = "1"
+
+[lints]
+workspace = true

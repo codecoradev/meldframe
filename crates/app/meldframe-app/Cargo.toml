@@ -18,6 +18,7 @@ meldframe-render = { path = "../../core/meldframe-render" }
 meldframe-revert = { path = "../../core/meldframe-revert" }
 meldframe-history = { path = "../../core/meldframe-history" }
 meldframe-sync = { path = "../../core/meldframe-sync" }
+meldframe-app-parts = { path = "../../core/meldframe-app-parts" }
 meldframe-app-model = { path = "../../core/meldframe-app-model" }
 meldframe-variables = { path = "../../core/meldframe-variables" }
 serde = { version = "1", features = ["derive"] }

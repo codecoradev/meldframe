@@ -4,41 +4,12 @@ use crate::action::{Action, CreateKind, Property};
 use crate::app::App;
 use crate::effect::Effect;
 use crate::state::Tool;
-use crate::touched::render_set;
+use meldframe_app_parts::document::{code, new_node, update};
+use meldframe_app_parts::touched::render_set;
 use meldframe_check::{ApplyError, Limits, check_command_with};
-use meldframe_protocol::{Command, Node, NodeKind, NodePatch};
+use meldframe_protocol::{Command, NodeKind, NodePatch};
 use meldframe_sync::{Replica, SubmitError};
 use meldframe_variant::VariantError;
-use serde_json::json;
-
-fn update(id: &str, patch: NodePatch) -> Command {
-    Command::UpdateNode {
-        id: id.to_string(),
-        patch,
-    }
-}
-
-/// A stable code for a refusal; the front end words the message.
-fn code(e: &SubmitError) -> &'static str {
-    let SubmitError::Invalid(e) = e else {
-        return "outbox_full";
-    };
-    if let Some(code) = crate::variables::variable_code(e) {
-        return code;
-    }
-    match e {
-        ApplyError::NotFound(_) => "not_found",
-        ApplyError::DuplicateId(_) => "duplicate_id",
-        ApplyError::ParentNotFound(_) | ApplyError::ParentNotFrame(_) => "bad_parent",
-        ApplyError::Cycle => "cycle",
-        ApplyError::TooManyNodes(_)
-        | ApplyError::TooDeep(_)
-        | ApplyError::TooLong { .. }
-        | ApplyError::TooMany { .. }
-        | ApplyError::PosTooLong { .. } => "limit",
-        _ => "invalid",
-    }
-}
 
 /// Refuse an action with a stable code; nothing changed.
 pub(crate) fn refuse(events: &mut Vec<crate::Event>, code: &str) -> Result<(), SubmitError> {
@@ -292,29 +263,4 @@ impl App {
             self.replica.redo().map(drop)
         }
     }
-}
-
-fn new_node(
-    id: &str,
-    kind: CreateKind,
-    x: f64,
-    y: f64,
-    parent: Option<String>,
-    w: Option<f64>,
-    h: Option<f64>,
-) -> Node {
-    let kind = match kind {
-        CreateKind::Frame => "frame",
-        CreateKind::Rectangle => "rect",
-        CreateKind::Text => "text",
-    };
-    let mut node = json!({"id": id, "type": kind, "parentId": parent, "x": x, "y": y});
-    // Sizes are finite here (checked by the caller): `json!` would turn a NaN into null.
-    if let Some(w) = w {
-        node["w"] = json!(w);
-    }
-    if let Some(h) = h {
-        node["h"] = json!(h);
-    }
-    serde_json::from_value(node).expect("a node with these fields is valid")
 }

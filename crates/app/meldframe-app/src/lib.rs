@@ -15,12 +15,13 @@
 mod activity;
 mod app;
 mod document;
+mod frames;
 mod link;
 mod panel;
 mod retry;
 mod review;
-mod touched;
 mod variables;
+mod view;
 
 pub(crate) use meldframe_app_model::{action, effect, event, state};
 
