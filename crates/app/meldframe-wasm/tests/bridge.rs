@@ -318,3 +318,32 @@ fn the_border_and_the_shadows_are_state_and_actions_in_json() {
     assert_eq!(p["border"]["width"], 2.0);
     assert_eq!(p["shadows"][0]["blur"], 8.0);
 }
+
+#[test]
+fn the_layout_fields_and_their_notes_are_state_and_actions_in_json() {
+    let nodes = json!([
+        {"id": "root", "type": "frame", "pos": "a0"},
+        {"id": "card", "type": "rect", "pos": "a1", "parentId": "root"}
+    ])
+    .to_string();
+    let mut b = Bridge::new("usr_me", "web", 7, &nodes, 0, None).expect("the file loads");
+    let state = |b: &Bridge| -> Value { serde_json::from_str(&b.state_json()).unwrap() };
+    run(&mut b, json!({"type": "select", "ids": ["card"]}));
+    run(
+        &mut b,
+        json!({"type": "setProperty", "id": "card", "property": {"property": "sizing", "value": {"axis": "width", "mode": "fill"}}}),
+    );
+    let p = state(&b)["properties"].clone();
+    assert_eq!(p["sw"], "fill");
+    assert_eq!(p["inLayout"], false);
+    assert_eq!(
+        p["notes"],
+        json!([{"note": "fillUnderHug", "axis": "width"}])
+    );
+    run(&mut b, json!({"type": "select", "ids": ["root"]}));
+    run(
+        &mut b,
+        json!({"type": "setProperty", "id": "root", "property": {"property": "padding", "value": {"side": "top", "value": 3.0}}}),
+    );
+    assert_eq!(state(&b)["properties"]["padding"]["top"], 3.0);
+}

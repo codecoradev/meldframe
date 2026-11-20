@@ -1,8 +1,11 @@
 //! Everything a front end needs to draw the editor.
 
 use crate::activity::ActivityState;
+use crate::layout::{LayoutNote, Sides};
 use crate::variables::{BindField, Picker, VariablesPanel};
-use meldframe_protocol::{Border, Gradient, ImageFill, NodeKind, Shadow};
+use meldframe_protocol::{
+    Align, Border, Gradient, ImageFill, Justify, LayoutMode, NodeKind, Shadow, SizeMode,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -201,6 +204,29 @@ pub struct Properties {
     pub shadows: Vec<Shadow>,
     /// The most shadows a node holds.
     pub max_shadows: usize,
+    /// How a frame lays out its children (`none` for a free frame), and the gap between them.
+    pub layout: LayoutMode,
+    pub gap: f64,
+    /// The padding on each side, with the side's own value or the uniform one it takes when it is not set.
+    pub padding: Sides,
+    /// The one value the four sides of the padding share, or none when they differ (the uniform field is then mixed).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub padding_uniform: Option<f64>,
+    /// The margin on each side: room around the node inside an auto layout frame.
+    pub margin: Sides,
+    /// How the width and the height are sized: fixed, hug what is inside, or fill the parent.
+    pub sw: SizeMode,
+    pub sh: SizeMode,
+    /// Where the children sit across the layout and along it.
+    pub align: Align,
+    pub justify: Justify,
+    /// The node leaves the flow of an auto layout parent and sits at its own position.
+    pub absolute: bool,
+    /// The parent is a frame with auto layout: the margin and the fill sizing mean something there.
+    pub in_layout: bool,
+    /// Settings that have no effect where the node is, in the order of the fields.
+    pub notes: Vec<LayoutNote>,
     pub text: String,
     pub font_size: f64,
     /// Opacity as painted, 0 to 1 (a bound field: what the variable resolves to, held to that range).

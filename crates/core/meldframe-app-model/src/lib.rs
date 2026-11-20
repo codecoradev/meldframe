@@ -9,6 +9,7 @@ pub mod action;
 pub mod activity;
 pub mod effect;
 pub mod event;
+pub mod layout;
 pub mod property;
 pub mod state;
 pub mod variables;
@@ -20,6 +21,7 @@ pub use activity::{
 };
 pub use effect::{Effect, OutOp};
 pub use event::{Event, RevertSkip, RevertSkipReason};
+pub use layout::{Axis, LayoutNote, Side, Sides};
 pub use state::{
     AppState, Checkpoint, CheckpointKind, Connection, FieldBinding, FillKind, History, Panel,
     Panels, Properties, Tool,
