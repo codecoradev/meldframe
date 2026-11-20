@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
   import { onDestroy, onMount, untrack } from 'svelte';
-  import type { Action, AppState } from '@meldframe/protocol';
+  import type { Action } from '@meldframe/protocol';
   import { HOME, formatZoom, type Camera } from '@meldframe/web-canvas/camera';
   import type { Engine } from '@meldframe/web-link/engine';
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
@@ -15,6 +15,9 @@
   import TextEditor from './TextEditor.svelte';
   import Layout from '@meldframe/web-chrome/Layout.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
+  import BannerStack, { type Banner } from '@meldframe/web-feedback/BannerStack.svelte';
+  import Toast from '@meldframe/web-feedback/Toast.svelte';
+  import { Toaster, type ToastView } from '@meldframe/web-feedback/toaster';
   import { layoutKey } from '@meldframe/web-chrome/keys';
   import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
@@ -26,7 +29,8 @@
   import { type ExportScale, exportFileName, planExport } from '@meldframe/web-document/export';
   import { ringsOnCanvas, type Touched } from '@meldframe/web-document/rings';
   import { serveCapture, waitForSeq, type Req } from '@meldframe/web-document/capture-serve';
-  import { pixiColors } from '@meldframe/web-tokens/tokens';
+  import { bannerFor, connectionLabel } from '@meldframe/web-feedback/connection';
+  import { duration, pixiColors } from '@meldframe/web-tokens/tokens';
   import { loadTheme } from '@meldframe/web-tokens/theme';
 
   interface Props {
@@ -57,8 +61,6 @@
   let preview = $state<Preview | null>(null);
   const shown = $derived(previewScene(scene, preview));
   let helpOpen = $state(false);
-  const label = (c: AppState['connection']): string =>
-    ({ live: 'Connected', connecting: 'Connecting', reconnecting: 'Reconnecting', offline: 'Offline', halted: 'Out of sync' })[c.type];
 
   const dispatch = (a: Action) => void engine.dispatch(a);
 
@@ -117,13 +119,9 @@
   }
 
   // A refusal is shown for a few seconds, then goes away; a later snapshot does not cancel that (the timer is not tied to the effect).
-  let notice = $state<string | null>(null);
-  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
-  function showNotice(text: string) {
-    notice = text;
-    clearTimeout(noticeTimer);
-    noticeTimer = setTimeout(() => (notice = null), 6000);
-  }
+  let toast = $state<ToastView | null>(null);
+  const toaster = new Toaster((t) => (toast = t), duration.notice);
+  const showNotice = (text: string) => toaster.show(text);
   let rightTab = $state<RightTab>('design');
   // Only the events are tracked: a change of tab or a panel toggle must not show an old refusal again.
   $effect(() => {
@@ -131,7 +129,7 @@
     const text = untrack(() => toastFor(events, rightTab === 'activity' && snap.state.panels.properties));
     if (text) untrack(() => showNotice(text));
   });
-  onDestroy(() => clearTimeout(noticeTimer));
+  onDestroy(() => toaster.destroy());
 
   // The text being edited: the node and the text it had when the field opened (an unchanged commit makes no step).
   let editing = $state<{ id: string; before: string } | null>(null);
@@ -172,6 +170,16 @@
   // Show the content in full the first time there is some and the canvas is ready: a file that opens with content,
   // and one that opens empty and gets its first nodes over the socket. After that the camera is the person's.
   let canvasError = $state<string | null>(null);
+  // The banners over the canvas: the canvas could not start, and the connection while it is not live.
+  const connection = $derived(bannerFor(snap.state.connection, snap.state.pending.length));
+  const banners = $derived<Banner[]>([
+    ...(canvasError ? [{ id: 'canvas-error', tone: 'danger' as const, text: `The canvas could not start: ${canvasError}` }] : []),
+    ...(connection ? [connection] : []),
+  ]);
+  const onBanner = (_banner: string, action: string) => {
+    if (action === 'reload') location.reload();
+    else if (action === 'retry') dispatch({ type: 'reconnect', nowMs: Date.now() });
+  };
   let ready = $state(false);
   let fitted = false;
   const onReady = () => (ready = true);
@@ -263,7 +271,7 @@
   canVariant={exportable !== null}
   onVariant={() => exportable && dispatch({ type: 'makeVariant', id: exportable.id })}
   zoomText={formatZoom(camera.zoom)}
-  connection={{ state: snap.state.connection.type, text: label(snap.state.connection) }}
+  connection={{ state: snap.state.connection.type, text: connectionLabel(snap.state.connection) }}
   {helpOpen}
   onHelp={(open) => (helpOpen = open)}
   tab={rightTab} activityBadge={snap.state.activity.unreviewedCount}
@@ -291,20 +299,8 @@
     {#if editing && editBox}
       <TextEditor text={editing.before} box={editBox} onCommit={endEdit} onCancel={() => endEdit(null)} />
     {/if}
-    {#if notice}
-      <div role="status" data-testid="notice" class="absolute bottom-24 left-1/2 max-w-80 -translate-x-1/2 rounded-md bg-warning-bg px-4 py-2 text-small text-text-strong shadow-float">{notice}</div>
-    {/if}
-    {#if canvasError}
-      <div role="alert" data-testid="canvas-error" class="absolute inset-x-0 top-4 mx-auto w-fit rounded-md bg-danger-bg px-4 py-2 text-small text-danger">
-        The canvas could not start: {canvasError}
-      </div>
-    {/if}
-    {#if snap.state.connection.type === 'halted'}
-      <div role="alert" class="absolute inset-x-0 top-4 mx-auto w-fit rounded-md bg-danger-bg px-4 py-2 text-small text-danger">
-        This page and the server no longer agree about the file.
-        <button class="ml-2 underline" onclick={() => location.reload()}>Reload</button>
-      </div>
-    {/if}
+    <Toast {toast} onClose={() => toaster.dismiss()} />
+    <BannerStack {banners} onAction={onBanner} />
   {/snippet}
   {#snippet layersPanel()}
     <LayersPanel
