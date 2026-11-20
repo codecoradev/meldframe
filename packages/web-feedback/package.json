@@ -1,0 +1,7 @@
+{
+  "name": "@meldframe/web-feedback",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "What the web client says about itself: the toast, the banners over the canvas, empty states and error pages, with the words of the connection. It draws what it is given and reports clicks; whether and when to show a message is decided by the page from the app layer's state. Used as source by apps/web."
+}
