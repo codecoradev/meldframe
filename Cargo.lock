@@ -1059,6 +1059,7 @@ name = "meldframe-activity-app-tests"
 version = "0.0.0"
 dependencies = [
  "meldframe-app",
+ "meldframe-app-harness",
  "meldframe-app-model",
  "meldframe-host",
  "meldframe-module",
@@ -1162,6 +1163,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-app-harness"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-host",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-server",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-app-model"
 version = "0.0.0"
 dependencies = [
@@ -1201,6 +1214,7 @@ name = "meldframe-app-tests"
 version = "0.0.0"
 dependencies = [
  "meldframe-app",
+ "meldframe-app-harness",
  "meldframe-host",
  "meldframe-module",
  "meldframe-protocol",

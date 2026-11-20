@@ -11,6 +11,7 @@ kind = "tool"
 
 [dev-dependencies]
 meldframe-app = { path = "../../app/meldframe-app" }
+meldframe-app-harness = { path = "../meldframe-app-harness" }
 meldframe-host = { path = "../meldframe-host" }
 meldframe-module = { path = "../meldframe-module" }
 meldframe-protocol = { path = "../meldframe-protocol" }
