@@ -41,6 +41,9 @@ export function reviewText(unreviewed: number): string | null {
   return `${unreviewed} ${unreviewed === 1 ? 'batch is' : 'batches are'} not reviewed yet. Export anyway or review first.`;
 }
 
+/** Text from the file for the screen: no control characters and no format characters (bidi overrides and isolates, zero-width marks). */
+export const plain = (s: string): string => s.replace(/[\p{Cc}\p{Cf}]/gu, '');
+
 export interface FindingRow {
   key: string;
   node: string;
@@ -50,5 +53,5 @@ export interface FindingRow {
 
 /** The rows of the report: the node (its name, else its id, else "This file"), the stable code and the explanation. */
 export function findingRows(list: readonly ExportFinding[]): FindingRow[] {
-  return list.map((f, i) => ({ key: `${f.code}:${f.node ?? ''}:${i}`, node: f.nodeName || f.node || 'This file', code: f.code, message: f.message }));
+  return list.map((f, i) => ({ key: `${f.code}:${f.node ?? ''}:${i}`, node: plain(f.nodeName ?? '') || plain(f.node ?? '') || 'This file', code: plain(f.code), message: plain(f.message) }));
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ExportDialog, ExportFinding } from '@meldframe/protocol';
-import { PREVIEW_LINES, errorText, fileOf, findingRows, previewOf, reviewText, sizeText } from './view';
+import { PREVIEW_LINES, errorText, fileOf, findingRows, plain, previewOf, reviewText, sizeText } from './view';
 
 const dialog = (over: Partial<ExportDialog> = {}): ExportDialog => ({
   frame: 'f1', name: 'Landing Desktop', format: 'tailwind', html: '<p>hi</p>', css: ':root{}', cssFile: 'site.css', htmlBytes: 9, cssBytes: 7, countedBytes: 16, limit: 262144,
@@ -61,6 +61,12 @@ describe('sizes and words', () => {
       { key: 'on_text:t1:0', node: 'Hero Title', code: 'on_text', message: 'a text node paints no shadows; it was left out' },
       { key: 'unknown_mode::1', node: 'This file', code: 'unknown_mode', message: 'a mode that does not exist' },
     ]);
+  });
+  it('keeps text from the file to what a person can read: no control characters, no characters that reorder text', () => {
+    expect(plain('a\u202eb\u2066c\u200fd\u0007e\u200bf')).toBe('abcdef');
+    expect(plain('<b>Hero</b> Title')).toBe('<b>Hero</b> Title'); // markup is not removed here: the view draws it as text
+    expect(findingRows([{ code: 'x\u202e', node: 'n', nodeName: 'a\u202eb', message: 'm\u2067' }])[0]).toMatchObject({ node: 'ab', code: 'x', message: 'm' });
+    expect(findingRows([{ code: 'x', node: 'n', nodeName: '\u202e', message: 'm' }])[0]!.node).toBe('n');
   });
   it('falls back to the node id when the name is empty', () => {
     expect(findingRows([{ code: 'x', node: 'n9', nodeName: '', message: 'm' }])[0]!.node).toBe('n9');
