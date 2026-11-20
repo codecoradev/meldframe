@@ -9,6 +9,7 @@ pub mod action;
 pub mod activity;
 pub mod effect;
 pub mod event;
+pub mod property;
 pub mod state;
 pub mod variables;
 

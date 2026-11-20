@@ -2,6 +2,7 @@
 //! colours are the core's checks (a refusal is `invalid`); the app layer owns the list rules (the limit of four, the
 //! indexes) and the default of a new shadow.
 
+#[path = "../../meldframe-app-unit-tests/tests/common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_app::{Action, Event, Property};

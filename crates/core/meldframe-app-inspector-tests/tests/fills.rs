@@ -1,6 +1,7 @@
 //! The fill types of the inspector (D5): what the type switch does to `fill`, `gradient` and `image`, and the edits of a
 //! gradient. The rules (defaults, the order of the stops, the limits) are the app layer's; each edit is one undo step.
 
+#[path = "../../meldframe-app-unit-tests/tests/common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_app::{Action, Event, FillKind, Property};
