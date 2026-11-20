@@ -170,7 +170,7 @@ export const size = {
 export const opacity = { disabled: 0.5 } as const;
 export const stroke = { selection: 1.5, icon: 1.5, focus: 2, 'focus-offset': 2 } as const;
 /** Durations in ms. */
-export const duration = { fast: 120, base: 200, slow: 320, 'touch-ring': 1500, 'reduced-motion-hold': 2000 } as const;
+export const duration = { fast: 120, base: 200, slow: 320, 'touch-ring': 1500, 'reduced-motion-hold': 2000, notice: 6000 } as const;
 export const easing = { standard: 'cubic-bezier(0.2, 0, 0, 1)' } as const;
 
 export const cssVar = (name: string): string => `--mf-${name}`;

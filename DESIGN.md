@@ -364,6 +364,7 @@ duration.base = 200
 duration.slow = 320
 duration.touch-ring = 1500
 duration.reduced-motion-hold = 2000
+duration.notice = 6000
 easing.standard = cubic-bezier(0.2, 0, 0, 1)
 ```
 <!-- tokens:end -->
