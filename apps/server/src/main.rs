@@ -129,7 +129,13 @@ fn serve(
     );
     // The batch headers: apply_commands keeps one per batch and takes a note (ADR-0021).
     #[cfg(feature = "activity")]
-    let activity = meldframe_http_activity::Activity::new(batches, shared.clone());
+    let live = shared.clone();
+    #[cfg(feature = "activity")]
+    let activity = meldframe_http_activity::Activity::with_live(
+        batches,
+        shared.clone(),
+        Some(Arc::new(move |w, f, m| live.publish_with_headroom(w, f, m))),
+    );
     #[cfg(feature = "activity")]
     let _ = state.batches.set(activity.sink());
     #[allow(unused_mut, reason = "only the capture feature sets the hook")]
@@ -156,6 +162,10 @@ fn serve(
     #[cfg(feature = "capture")]
     {
         app = app.merge(cap.routes());
+    }
+    #[cfg(feature = "activity")]
+    {
+        app = app.merge(activity.routes(state.clone()));
     }
     // The tools of other crates, served by MCP besides its own.
     #[cfg(feature = "mcp")]

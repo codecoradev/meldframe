@@ -26,6 +26,7 @@ export function handle(m: ServerMsg): string {
     case 'resync': return `${m.room}>${m.afterSeq}`;
     case 'heartbeat': return 'heartbeat';
     case 'touch': return `${m.actor}:${m.nodeIds.join(',')}@${m.seq}`;
+    case 'batch': return `${m.room}#${m.n}@${m.rev}`;
     case 'error': return m.message;
     case 'pong': return 'pong';
     case 'captureRequest': return m.requestId;

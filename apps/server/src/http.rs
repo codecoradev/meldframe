@@ -71,6 +71,11 @@ impl SharedServer {
         self.lock().publish_ephemeral(who, file, to, msg)
     }
 
+    /// [`Server::publish_with_headroom`]: an ephemeral frame to the streams of `file` that keep headroom.
+    pub fn publish_with_headroom(&self, who: &Principal, file: &str, msg: ServerMsg) -> usize {
+        self.lock().publish_with_headroom(who, file, msg)
+    }
+
     /// Read access for the embedder and tests; there is no write path here.
     pub fn with_server<R>(&self, f: impl FnOnce(&Server) -> R) -> R {
         f(&self.lock())

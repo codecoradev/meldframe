@@ -6,13 +6,28 @@
 //! [`Reader::written`], which is not a `batch_status` read and writes no call-log entry); and a replay, the retry
 //! after a timeout, which takes the header's `written` from the keys found and its time from the replay. A failed
 //! header write never fails the call: it is logged and the answer says `batch: null`.
+//!
+//! The wire (slice 5): a header that was made or changed is queued as a `batch` frame on the live streams of the file,
+//! after the call's op events and through the publisher given to [`Activity::with_live`] (the server sends it with
+//! headroom: it never takes the last slots of a queue and so never causes a resync by itself, but it does use the
+//! slack of a stalled reader); [`Activity::routes`] adds the list route, which is the
+//! truth the frame is a hint of.
+
+mod route;
+mod wire;
 
 use activity_store::BatchStore;
 use meldframe_activity::{BatchCall, BatchSink, Marked, NewBatch};
 use meldframe_host::Principal;
+use meldframe_http::Shared;
 use meldframe_http::mcp::Reader;
+use meldframe_protocol::ServerMsg;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Queues a frame on the live streams of a file of the principal's workspace, as ephemeral and with headroom; answers
+/// how many streams took it. The server's `SharedServer::publish_with_headroom` is the one.
+pub type Publish = Arc<dyn Fn(&Principal, &str, ServerMsg) -> usize + Send + Sync>;
 
 /// The activity panel's server side: the store of batch headers and the reader that counts a failed call's keys.
 #[derive(Debug)]
@@ -21,10 +36,29 @@ pub struct Activity {
 }
 
 impl Activity {
+    /// Headers are kept and listed, and no frame is sent.
     pub fn new(store: Arc<dyn BatchStore>, reader: Arc<dyn Reader>) -> Self {
+        Self::with_live(store, reader, None)
+    }
+
+    /// As [`Activity::new`], and a header that changed is also sent through `live`.
+    pub fn with_live(
+        store: Arc<dyn BatchStore>,
+        reader: Arc<dyn Reader>,
+        live: Option<Publish>,
+    ) -> Self {
         Activity {
-            sink: Arc::new(Sink { store, reader }),
+            sink: Arc::new(Sink {
+                store,
+                reader,
+                live,
+            }),
         }
+    }
+
+    /// `GET /v1/files/{file}/batches`, on the limits and the tokens of `shared`.
+    pub fn routes(&self, shared: Arc<Shared>) -> axum::Router {
+        route::routes(shared, self.sink.store.clone())
     }
 
     /// The sink to set on `meldframe_http::Shared::batches`.
@@ -36,6 +70,7 @@ impl Activity {
 struct Sink {
     store: Arc<dyn BatchStore>,
     reader: Arc<dyn Reader>,
+    live: Option<Publish>,
 }
 
 impl std::fmt::Debug for Sink {
@@ -96,6 +131,14 @@ impl BatchSink for Sink {
         let r = (self.store.record(workspace, &call.file, &batch))
             .map_err(kept)
             .ok()?;
+        if let (true, Some(live)) = (r.changed, &self.live) {
+            // After the call's op events (the call has returned from the room). A drop is silent: the list is the truth.
+            live(
+                &principal,
+                &call.file,
+                wire::frame(&call.file, &r.header, r.unreviewed),
+            );
+        }
         Some(Marked {
             n: r.header.n,
             written: found,

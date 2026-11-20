@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-http-activity"
-description = "The activity panel's server side over HTTP (E5.1, ADR-0021): the sink that keeps a batch header after an apply_commands call."
+description = "The activity panel's server side over HTTP (E5.1, ADR-0021): the sink that keeps a batch header after an apply_commands call, the live batch frame and the list route."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,6 +14,10 @@ activity-store = { path = "../../features/activity/activity-store" }
 meldframe-activity = { path = "../../core/meldframe-activity" }
 meldframe-http = { path = "../meldframe-http", features = ["mcp"] }
 meldframe-host = { path = "../../core/meldframe-host" }
+meldframe-protocol = { path = "../../core/meldframe-protocol" }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
+serde_json = "1"
+serde_urlencoded = "0.7"
 
 [lints]
 workspace = true

@@ -166,6 +166,28 @@ fn touch_frames_leave_headroom_for_durable_frames_and_capture_requests() {
     assert!(!frames.iter().any(|f| matches!(f, Frame::Resync { .. })));
 }
 
+/// The frame of a batch header uses the same headroom as a touch hint: it never takes the last slots of the queue and a
+/// drop is silent (no resync). It does not cap the share of the rest.
+#[test]
+fn an_ephemeral_frame_with_headroom_leaves_the_slots_durable_frames_need() {
+    let mut s = hints_streams(16);
+    let id = s.subscribe("f", 0, 0, 0).unwrap().id;
+    let queued: usize = (0..40)
+        .map(|i| s.publish_ephemeral_with_headroom("f", None, format!("batch{i}")))
+        .sum();
+    assert_eq!(queued, 14, "a queue of 16 keeps 2 slots free");
+    assert_eq!(
+        s.publish_ephemeral_with_headroom("nokey", None, "x".into()),
+        0
+    );
+    s.publish("f", 1, 7).unwrap();
+    s.publish("f", 2, 8).unwrap();
+    let frames: Vec<_> = std::iter::from_fn(|| s.poll("f", id, 0)).collect();
+    assert_eq!(frames.len(), 16);
+    assert!(frames.contains(&Frame::Durable { seq: 2, data: 8 }));
+    assert!(!frames.iter().any(|f| matches!(f, Frame::Resync { .. })));
+}
+
 #[test]
 fn with_room_in_the_queue_a_touch_is_delivered() {
     let mut s = hints_streams(16);

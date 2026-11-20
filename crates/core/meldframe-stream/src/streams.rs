@@ -196,6 +196,24 @@ impl<D: Clone, E: Clone> Streams<D, E> {
             .map_or(0, |h| h.publish_ephemeral(to, data))
     }
 
+    /// Like [`publish_ephemeral`](Self::publish_ephemeral), but only to streams whose queue keeps the touch
+    /// headroom (an eighth of the queue, 1 to 16 slots) free after the frame, so a lossy frame that is sent for every
+    /// call (a batch header) cannot take the last slots of the queue, and never causes a resync by itself. It does not
+    /// cap the frames' share: with a stalled reader and one frame per op the queue holds 240 of 256 before the frames
+    /// stop, so a durable op overflows into a resync after about 136 such calls and not after 256. A dropped frame
+    /// gives no signal.
+    pub fn publish_ephemeral_with_headroom(
+        &mut self,
+        key: &str,
+        to: Option<StreamId>,
+        data: E,
+    ) -> usize {
+        let headroom = touch_headroom(self.config.queue);
+        self.hubs
+            .get_mut(key)
+            .map_or(0, |h| h.publish_with_headroom(to, data, headroom))
+    }
+
     /// Turn touch hints on: [`Streams::touch`] sends at most one ephemeral frame per actor and file every
     /// `window_ms`, built from the hint by `make`.
     pub fn set_touch(&mut self, window_ms: u64, make: MakeFrame<E>) {

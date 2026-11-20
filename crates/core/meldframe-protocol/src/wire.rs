@@ -143,6 +143,43 @@ pub enum ServerMsg {
         #[ts(type = "number")]
         seq: u64,
     },
+    /// Ephemeral hint on a live stream (ADR-0021): the header of a numbered batch was written or changed, as the
+    /// server read it back after the change. It comes after the call's op events, has no sequence number of its own,
+    /// is best effort (queued only while the queue keeps its last slots free, so it never causes a resync by itself, though it
+    /// uses the slack of a stalled reader; never replayed; a drop gives no signal) and
+    /// is a hint over the log: `GET /v1/files/{file}/batches` is the truth, and `rev` (one counter per file, one
+    /// step for each change of a header) lets a client keep the newest row of each `n` and see a gap.
+    /// `unreviewed_count` is the number of headers of the file that are not `accepted`, as of this change. `note` is
+    /// plain text. `review` is `unreviewed`, `accepted` or `needs_review`.
+    Batch {
+        room: String,
+        n: u32,
+        #[ts(type = "number")]
+        rev: u64,
+        actor: String,
+        key_prefix: String,
+        tool: String,
+        commands: u32,
+        written: u32,
+        atomic: bool,
+        #[ts(type = "number")]
+        first_seq: u64,
+        #[ts(type = "number")]
+        last_seq: u64,
+        #[ts(type = "number")]
+        at_ms: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        note: Option<String>,
+        review: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        reviewed_by: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional, type = "number")]
+        reviewed_at_ms: Option<u64>,
+        unreviewed_count: u32,
+    },
     Error {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
