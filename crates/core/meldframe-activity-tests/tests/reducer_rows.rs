@@ -7,10 +7,12 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 mod common;
 
 use common::*;
-use meldframe_activity::{Review, Status};
+use meldframe_activity::{LaneKind, Review, Status};
+
+const MIN: u64 = 60_000;
 
 #[test]
-fn two_agents_and_a_person_make_two_rows_newest_first() {
+fn two_agents_and_a_person_make_three_lanes_and_two_rows_newest_first() {
     let mut a = activity();
     // The person's own edits have editor keys, not batch keys.
     a.observe_op(&op(1, ME, "ed-1-n1", add("t", "Title", None)), 1_000);
@@ -42,7 +44,97 @@ fn two_agents_and_a_person_make_two_rows_newest_first() {
     assert!(rows[1].can_show);
     assert_eq!(a.show_ids("agent:a", "ka"), ["f", "r", "t"]);
 
+    let lanes = a.lanes();
+    let who: Vec<_> = lanes.iter().map(|l| (l.actor.as_str(), l.kind)).collect();
+    assert_eq!(
+        who,
+        [
+            ("agent:b", LaneKind::Agent),
+            ("agent:a", LaneKind::Agent),
+            (ME, LaneKind::Person)
+        ]
+    );
+    assert_eq!(lanes[1].ops, 3);
+    assert_eq!(lanes[1].batches, ["ka"]);
+    assert_eq!(lanes[2].ops, 1);
+    assert!(lanes[2].batches.is_empty());
     assert_eq!(a.unreviewed_count(), 2);
+}
+
+#[test]
+fn an_actor_that_is_not_agent_prefixed_is_a_person() {
+    let mut a = activity();
+    a.observe_op(&op(1, "bot:x", "k:0", add("x", "X", None)), 0);
+    assert_eq!(a.lanes()[0].kind, LaneKind::Person);
+}
+
+#[test]
+fn runs_split_where_the_gap_is_over_five_minutes_and_are_judged_from_at_ms() {
+    let mut a = activity();
+    // Person: 0 and 5 minutes exactly apart stay one run; 5 minutes and 1 ms apart split.
+    for (i, t) in [0, 5 * MIN, 10 * MIN + 1].into_iter().enumerate() {
+        a.observe_op(
+            &op(i as u64 + 1, ME, &format!("ed-{i}"), set_x("a", 1.0)),
+            t,
+        );
+    }
+    let runs = &a.lanes()[0].runs;
+    assert_eq!(runs.len(), 2);
+    assert_eq!((runs[0].start_ms, runs[0].ops), (10 * MIN + 1, 1));
+    assert_eq!(
+        (runs[1].start_ms, runs[1].end_ms, runs[1].ops),
+        (0, 5 * MIN, 2)
+    );
+
+    // An agent whose ops all arrived now (a reconnect) keeps the server's times from its headers.
+    let mut b = activity();
+    for (i, at) in [1_000, 2_000, 20 * MIN].into_iter().enumerate() {
+        let n = i as u32 + 1;
+        let p = format!("k{n}");
+        b.observe_op(
+            &op(u64::from(n), "agent:a", &format!("{p}:0"), set_x("a", 1.0)),
+            99 * MIN,
+        );
+        b.observe_header(header(n, u64::from(n), "agent:a", &p, 1, at), 3);
+    }
+    let runs = &b.lanes()[0].runs;
+    assert_eq!(runs.len(), 2);
+    assert_eq!(
+        (runs[1].start_ms, runs[1].end_ms, runs[1].ops),
+        (1_000, 2_000, 2)
+    );
+}
+
+#[test]
+fn a_lane_is_working_for_ten_seconds_and_idle_after_sixty() {
+    use meldframe_activity::LaneState::*;
+    let mut a = activity();
+    a.observe_op(&op(1, "agent:a", "k:0", set_x("a", 1.0)), 100_000);
+    for (now, want) in [
+        (109_999, Working),
+        (110_000, Quiet),
+        (159_999, Quiet),
+        (160_000, Idle),
+    ] {
+        a.tick(now);
+        assert_eq!(a.lanes()[0].state, want, "at {now}");
+    }
+    // A touch counts as activity, and none is a ring for the person's own actor.
+    a.observe_touch("agent:a", &["a".into()], 161_000);
+    a.observe_touch(ME, &["a".into()], 161_000);
+    assert_eq!(
+        a.lanes()
+            .iter()
+            .find(|l| l.actor == "agent:a")
+            .unwrap()
+            .state,
+        Working
+    );
+    assert_eq!(a.rings().len(), 1);
+    a.tick(161_000 + 1_499);
+    assert_eq!(a.rings().len(), 1);
+    a.tick(161_000 + 1_500);
+    assert!(a.rings().is_empty());
 }
 
 #[test]
@@ -91,11 +183,16 @@ fn a_replay_after_a_reconnect_counts_each_op_once() {
     for o in &ops {
         a.observe_op(o, 1_000);
     }
-    let before = a.rows();
+    let lane = |a: &meldframe_activity::Activity| {
+        let l = a.lanes().remove(0);
+        (l.ops, l.runs, l.last_at_ms)
+    };
+    let before = (a.rows(), lane(&a));
     for o in &ops {
         a.observe_op(o, 50_000);
     }
-    assert_eq!(a.rows(), before);
+    // The clock moved on, but a replay is no activity: the lane's last activity stays where it was.
+    assert_eq!((a.rows(), lane(&a)), before);
     assert_eq!(a.rows()[0].written, 3);
 }
 
