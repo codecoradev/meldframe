@@ -49,6 +49,12 @@ pub enum Event {
         collection: String,
         mode: Option<String>,
     },
+    /// An action made a collection, a mode or a variable and minted its id, so the front end can find it (the shell
+    /// sends no id). Raised once the change is applied, before the refresh of the panel.
+    EntityAdded {
+        entity: VariableEntity,
+        id: String,
+    },
     /// The search text of the Variables panel changed (trimmed).
     VariablesQueryChanged {
         query: String,
@@ -119,4 +125,14 @@ pub enum RevertSkipReason {
     ChangedSince,
     /// It no longer applies to the file.
     NotApplicable,
+}
+
+/// What `Event::EntityAdded` names: a thing the app made with an id of its own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum VariableEntity {
+    Collection,
+    Mode,
+    Variable,
 }

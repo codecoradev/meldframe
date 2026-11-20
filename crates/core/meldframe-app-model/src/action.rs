@@ -2,10 +2,11 @@
 
 use crate::activity::{BatchHeader, BatchPage, BatchRef, ReviewState};
 use crate::export::ExportFormat;
+pub use crate::frame::Frame;
 pub use crate::property::Property;
 use crate::state::{Panel, Tool};
 use crate::variables::{BindField, VariableValue};
-use meldframe_protocol::{Command, Node, Variables};
+use meldframe_protocol::{Command, Node, VarType, Variables};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -119,6 +120,51 @@ pub enum Action {
     /// (`not_a_variable_command`).
     EditVariables {
         commands: Vec<Command>,
+    },
+    /// Add a collection with one mode, named `default`, as one undo step. The app mints the ids (the caller sends
+    /// none) and says which it made with `Event::EntityAdded`. A name that is not lowercase segments joined by `/` is
+    /// refused as `E_INVALID_NAME`; the rest as any variable command is.
+    CreateCollection {
+        name: String,
+    },
+    /// Add a mode named `name` to a collection, after its last mode, with the values of mode `copy_from` (none: the
+    /// default mode) in every variable, as one undo step. `E_COLLECTION_NOT_FOUND`, `E_MODE_NOT_FOUND`, and the other
+    /// refusals of the variable commands.
+    AddMode {
+        collection: String,
+        name: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        copy_from: Option<String>,
+    },
+    /// Remove a mode and its values, one undo step. The default (first) mode is refused (`E_DEFAULT_MODE`); a pick of
+    /// the removed mode goes back to the default.
+    RemoveMode {
+        collection: String,
+        mode: String,
+    },
+    /// Add a variable of this type to a collection, with the neutral value of the type (a colour: the default fill; a
+    /// number: 0) in every mode, as one undo step. The id is minted by the app (`Event::EntityAdded`). `E_INVALID_NAME`,
+    /// `E_DUPLICATE_NAME` (within the collection), `E_COLLECTION_NOT_FOUND`.
+    AddVariable {
+        collection: String,
+        name: String,
+        kind: VarType,
+    },
+    /// Remove a variable. With `detach` the fields bound to it keep the colour or number they paint in the default
+    /// modes and the aliases of it keep the value they have in their own mode, and the variable goes: all one undo
+    /// step. Without it a variable that is still used is refused (`E_VARIABLE_IN_USE`). A group that does not fit the
+    /// queue of ops is refused whole (`outbox_full`).
+    RemoveVariable {
+        id: String,
+        detach: bool,
+    },
+    /// Remove a collection. With `detach` every variable of it is let go of and removed as `RemoveVariable` does,
+    /// then the collection, as one undo step; without it a collection that still holds variables is refused
+    /// (`E_COLLECTION_NOT_EMPTY`).
+    RemoveCollection {
+        id: String,
+        detach: bool,
     },
     /// Search the Variables panel (view state: nothing is written to the file). The text is trimmed and cut at 200
     /// characters; every word has to match (see `VariablesPanel::query`).
@@ -385,74 +431,4 @@ pub enum CreateKind {
     Frame,
     Rectangle,
     Text,
-}
-
-/// A message of the live connection, as the transport decodes it.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase",
-    deny_unknown_fields
-)]
-#[allow(
-    clippy::large_enum_variant,
-    reason = "short-lived values; boxing would leak into every consumer pattern"
-)]
-pub enum Frame {
-    /// Nothing to say; the connection is alive.
-    Heartbeat {},
-    /// The server dropped frames after `after_seq` for this client (it was too slow): subscribe again from
-    /// there. `latest_seq` is the newest number the server has.
-    Resync {
-        #[ts(type = "number")]
-        after_seq: u64,
-        #[ts(type = "number")]
-        latest_seq: u64,
-    },
-    /// An accepted op, numbered, with the actor the server stamped on it. The person's own ops come back
-    /// this way, which confirms them. `key` is the idempotency key of the op: the app recognises its own op
-    /// by it. A shell that does not carry it (an old server) leaves it out, and the app compares the actor
-    /// and the command instead.
-    Event {
-        #[ts(type = "number")]
-        seq: u64,
-        actor: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        key: Option<String>,
-        command: Command,
-    },
-    /// The server answered the send of the op with this key: it was applied as event `seq` (for a repeated
-    /// key, the first time, and nothing was written). When the app already follows the file up to `seq`
-    /// (a reload went past it) the op is done; otherwise its event is still to come and this changes
-    /// nothing. Contract of the shell: after a reload it sends the unconfirmed ops again and must report
-    /// every answer this way, including the one for a repeated key; until it does, an op the snapshot already
-    /// holds stays pending and counts against the cap. The shell side is not built yet: only the test harness
-    /// of `meldframe-app-tests` emits this frame.
-    Acked {
-        key: String,
-        #[ts(type = "number")]
-        seq: u64,
-    },
-    /// The server refused the op with this idempotency key. No wording: the front end writes the text.
-    Rejected {
-        key: String,
-        code: String,
-        retryable: bool,
-    },
-    /// The header of a numbered batch was written or changed (`ServerMsg::Batch`, ephemeral: a hint over the log, so a
-    /// lost one is healed by a fetch). `unreviewed_count` is the server's count as of this change.
-    Batch {
-        header: BatchHeader,
-        unreviewed_count: u32,
-    },
-    /// An actor changed these nodes (`ServerMsg::Touch`, ephemeral): the app draws its touch ring unless the actor is
-    /// the person. `seq` is the newest op it is about.
-    Touch {
-        actor: String,
-        ids: Vec<String>,
-        #[ts(type = "number")]
-        seq: u64,
-    },
 }

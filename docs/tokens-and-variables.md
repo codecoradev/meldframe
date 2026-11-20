@@ -138,7 +138,7 @@ Design question [Q6]: implement variables as a **second entity table that reuses
 - `SetVariableValue`: value type matches variable type; alias target exists, has the same type, and **does not create a cycle** (reject `alias_cycle`, naming the chain); alias depth <= 16.
 - `AddVariable`/`RenameVariable`: name syntax (3.2) and uniqueness.
 - Node patch with `{"var": id}`: variable exists and its type matches the field; scope mismatch is a lint warning only.
-- `RemoveVariable{id, detach}`: with `detach: true` the same command rewrites every node field and every alias that referenced it to the **default-mode resolved literal** (atomic, one op, one undo step). With `detach: false` it is rejected `variable_in_use` with a count and the first 20 node ids [P default: `detach` required to be explicit; agents must choose].
+- `RemoveVariable{id, detach}`: with `detach: true` the same command rewrites every node field and every alias that referenced it to a literal. As built (the Variables manage actions of the app layer, `Action::RemoveVariable` and `Action::RemoveCollection`; ADR-0017 keeps `removeVariable` itself a single command that never detaches): a node field takes the **default-mode resolved literal**, as written here; an alias takes the literal it has in **its own mode** (the other collections in their default mode). In the default mode the two readings are the same. In another mode, baking the default-mode literal into a `dark` cell would flip what every node bound through that alias paints in dark, so the app keeps what each cell shows. This is a reading of the note and is **flagged for the owner**, who may prefer the strict default-mode literal for aliases too (one line in `meldframe_app_parts::manage`). Detach is a **group of ops in one undo step**, not one atomic op: the app sends the `updateNode` unbinds, the `setVariableValue` literals and the `removeVariable`s as separate ops, so the server can accept some and refuse others. If another actor binds the variable first, only the removal is dropped (the variable stays and the unbinds stay), which is the "the caller unbinds first" rule of ADR-0017. With `detach: false` it is rejected `variable_in_use` with a count and the first 20 node ids [P default: `detach` required to be explicit; agents must choose].
 - `RemoveMode`: values for that mode are dropped; frame overrides pointing at it are cleared (same command).
 - `AddMode{copyFrom}`: copies every variable value from the source mode so the collection stays **complete** (9.3).
 
@@ -459,7 +459,7 @@ T0 to T3 should be inside W1 (concept spike order: model round 2, token import, 
 - Q9 Brand memory (Uteke) scope and storage.
 - Q10 Require non-default `name` on `addNode` from MCP (strict)?
 - Q11 Per-file variable limits and whether workspace-level shared tokens (one design system across files) are needed. Likely yes for a brand ("workspace is the tenant"), but it changes where variables live (workspace-level collection referenced by files). Not designed here.
-- Q12 Should detach-on-delete bake the default mode value or the current view mode value?
+- Q12 Should detach-on-delete bake the default mode value or the current view mode value? Built (flagged for the owner): a node field bakes the default-mode value, an alias the value of its own mode (see 5.2); the mode on view is never used, so a detach does not depend on what the person happens to be looking at.
 
 ## 16. Sources
 

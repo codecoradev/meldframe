@@ -8,6 +8,7 @@ use meldframe_app_parts::document::{
     Variant, apply_all, check_all, code, edit_text, make_variant, move_by, move_to, new_node,
     preset_node, resize,
 };
+use meldframe_app_parts::manage::Target;
 use meldframe_app_parts::touched::render_set;
 use meldframe_check::ApplyError;
 use meldframe_protocol::Command;
@@ -105,6 +106,24 @@ impl App {
             Action::CreateCheckpoint { label } => self.create_checkpoint(label),
             Action::RestoreCheckpoint { id } => self.restore_checkpoint(&id),
             Action::EditVariables { commands } => self.edit_variables(&commands),
+            Action::CreateCollection { name } => self.create_collection(&name),
+            Action::AddMode {
+                collection,
+                name,
+                copy_from,
+            } => self.add_mode(&collection, &name, copy_from),
+            Action::RemoveMode { collection, mode } => self.remove_mode(collection, mode),
+            Action::AddVariable {
+                collection,
+                name,
+                kind,
+            } => self.add_variable(&collection, &name, kind),
+            Action::RemoveVariable { id, detach } => {
+                self.remove_entity(Target::Variable(&id), detach)
+            }
+            Action::RemoveCollection { id, detach } => {
+                self.remove_entity(Target::Collection(&id), detach)
+            }
             Action::SetVariableValue {
                 variable,
                 mode,

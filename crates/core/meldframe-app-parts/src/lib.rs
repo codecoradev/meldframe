@@ -7,6 +7,7 @@
 pub mod binding;
 pub mod document;
 pub mod layout;
+pub mod manage;
 pub mod panel;
 pub mod picker;
 pub mod properties;
