@@ -23,6 +23,8 @@ const TEXT: [Role, Role][] = [
   ['danger-text', 'danger-bg'], ['danger-text', 'surface'],
   ['selection-text', 'selection-bg'], ['text-strong', 'selection-bg'],
   ['chip-text', 'chip-bg'], ['review-text', 'review-bg'],
+  // The toast and the banners: their text on their fill, and the dismiss icon and the button label on that fill.
+  ['warning', 'warning-bg'], ['danger-text', 'danger-bg'], ['text-muted', 'warning-bg'], ['text-muted', 'danger-bg'],
 ];
 const PARTS: [Role, Role][] = [
   ['icon-muted', 'surface'], ['icon-muted', 'field'], ['icon-muted', 'surface-raised'],
@@ -69,7 +71,7 @@ describe('audited contrast pairs, both themes', () => {
 });
 
 // Where the pairs are used: a class list that puts on-accent text on the brand blue, or text-faint on real text.
-const ROOTS = ['../../../apps/web/src', '../../web-canvas/src', '../../web-input/src', '../../web-panels/src', '../../web-activity/src', '../../web-document/src', '../../web-assets/src', '../../web-link/src', '../../web-chrome/src'];
+const ROOTS = ['../../../apps/web/src', '../../web-canvas/src', '../../web-input/src', '../../web-panels/src', '../../web-activity/src', '../../web-feedback/src', '../../web-document/src', '../../web-assets/src', '../../web-link/src', '../../web-chrome/src'];
 function* sources(dir: string): Generator<string> {
   let entries;
   try {
