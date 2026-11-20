@@ -227,6 +227,14 @@ impl Server {
         self.live
             .publish_ephemeral(&room_key(&who.workspace, file), to, msg)
     }
+
+    /// Send an ephemeral frame to every stream of `file` in the principal's workspace that keeps the touch
+    /// headroom free (`Streams::publish_ephemeral_with_headroom`): the batch frame of ADR-0021 goes this way, so
+    /// it never takes the last slots of a queue (it does not cap its share of the rest).
+    pub fn publish_with_headroom(&mut self, who: &Principal, file: &str, msg: ServerMsg) -> usize {
+        let key = room_key(&who.workspace, file);
+        self.live.publish_ephemeral_with_headroom(&key, None, msg)
+    }
 }
 
 /// The ops `(after, through]` of an open room from the store, a page at a time.
