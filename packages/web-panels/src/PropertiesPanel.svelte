@@ -5,21 +5,24 @@
   state of its own.
 -->
 <script lang="ts">
-  import type { Action, BindField, FieldBinding, NodeKind, Properties } from '@meldframe/protocol';
+  import type { Action, BindField, FieldBinding, NodeKind, Picker, Properties } from '@meldframe/protocol';
   import Checkbox from '@meldframe/web-chrome/Checkbox.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
   import Icon, { type IconName } from '@meldframe/web-chrome/Icon.svelte';
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
+  import BindPicker from './BindPicker.svelte';
   import { bindingOf, boxAction, clipAction, fieldsOf, percent, propertyAction, unbindAction, type BoxField, type PropertyField } from '@meldframe/web-document/properties';
 
   interface Props {
     properties: Properties | null;
+    /** The bind picker of the app state, open on at most one field. */
+    picker?: Picker | null;
     /** How many nodes are selected: the empty state says which case it is. */
     selected: number;
     dispatch: (a: Action) => void;
   }
-  let { properties, selected, dispatch }: Props = $props();
+  let { properties, picker = null, selected, dispatch }: Props = $props();
 
   const kindIcon: Record<NodeKind, IconName> = { frame: 'frame', rect: 'rectangle', ellipse: 'ellipse', text: 'text', shader: 'layers' };
   const round = (v: number) => String(Math.round(v * 100) / 100);
@@ -72,7 +75,7 @@
             <div class="col-span-2">{@render chip('Opacity', 'opacity', opacity, percent(p.opacity) + ' %')}</div>
           {:else}
             <div class="flex flex-col gap-2">
-              <span class="text-text-muted">Opacity</span>
+              <span class="flex items-center justify-between text-text-muted">Opacity<BindPicker properties={p} field="opacity" {picker} {dispatch} /></span>
               <Field label="Opacity" suffix="%" value={percent(p.opacity)} onCommit={prop(p, 'opacity')} testId="prop-opacity" />
             </div>
           {/if}
@@ -81,7 +84,7 @@
               <div class="col-span-2">{@render chip('Corner radius', 'radius', radius, round(p.radius))}</div>
             {:else}
               <div class="flex flex-col gap-2">
-                <span class="text-text-muted">Corner radius</span>
+                <span class="flex items-center justify-between text-text-muted">Corner radius<BindPicker properties={p} field="radius" {picker} {dispatch} /></span>
                 <Field label="Corner radius" value={round(p.radius)} onCommit={prop(p, 'radius')} testId="prop-radius" />
               </div>
             {/if}
@@ -100,9 +103,14 @@
         {#if fill}
           {@render chip('', 'fill', fill, p.fill)}
         {:else}
-          <Field label="Fill" value={p.fill} onCommit={prop(p, 'fill')} testId="prop-fill">
-            {#snippet lead()}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={p.fill === 'none' ? 'transparent' : p.fill}></i>{/snippet}
-          </Field>
+          <div class="flex items-center gap-2">
+            <div class="min-w-0 flex-1">
+              <Field label="Fill" value={p.fill} onCommit={prop(p, 'fill')} testId="prop-fill">
+                {#snippet lead()}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={p.fill === 'none' ? 'transparent' : p.fill}></i>{/snippet}
+              </Field>
+            </div>
+            <BindPicker properties={p} field="fill" {picker} {dispatch} />
+          </div>
         {/if}
       </Section>
     {/key}

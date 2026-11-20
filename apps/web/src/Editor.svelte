@@ -330,6 +330,6 @@
     <Section title="Variables" open={snap.state.panels.variables} onToggle={() => dispatch({ type: 'togglePanel', panel: 'variables' })} toggleId="toggle-variables">
       <VariablesPanel panel={snap.state.variables} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} />
     </Section>
-    <PropertiesPanel properties={snap.state.properties} selected={snap.state.selection.length} {dispatch} />
+    <PropertiesPanel properties={snap.state.properties} picker={snap.state.picker ?? null} selected={snap.state.selection.length} {dispatch} />
   {/snippet}
 </Layout>
