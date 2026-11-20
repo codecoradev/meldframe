@@ -1,6 +1,6 @@
 import type { Node } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { actorLabel, layerRows } from './layers';
+import { actorLabel, actorTone, layerRows } from './layers';
 
 const node = (id: string, over: Partial<Node> = {}): Node =>
   ({ id, name: id.toUpperCase(), type: 'rect', parentId: null, x: 0, y: 0, w: 10, h: 10, pos: id, ...over }) as Node;
@@ -40,5 +40,18 @@ describe('actorLabel', () => {
   });
   it('treats an actor without a known kind as a person with that name', () => {
     expect(actorLabel('ana')).toEqual({ kind: 'person', name: 'ana' });
+  });
+});
+
+describe('actorTone', () => {
+  it('is stable for an actor and always one of the three agent colours', () => {
+    for (const a of ['agent:a', 'agent:c', 'agent:b', 'person:ana', '']) {
+      expect(actorTone(a)).toBe(actorTone(a));
+      expect([1, 2, 3]).toContain(actorTone(a));
+    }
+  });
+  it('spreads different agents over the colours', () => {
+    const tones = new Set(['agent:a', 'agent:b', 'agent:c', 'agent:d', 'agent:e', 'agent:f'].map(actorTone));
+    expect(tones.size).toBeGreaterThan(1);
   });
 });

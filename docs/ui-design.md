@@ -27,6 +27,8 @@ How the boards were checked, and what a person still has to review, is in `docs/
 
 `[D]` for the arrangement (decision 27; the owner reviewed the closed and open states and accepted them), `[P]` for sizes: panels 260 and 288 px wide, tool buttons 36 px.
 
+The canvas does not run under the open panels. Principle 1 says the canvas is the window, and the boards draw the cards over a full-window canvas, but the web client gives the canvas the area between the open cards (each open card reserves its 12 px inset and its width). Why: with the canvas under the 260 px Layers card, the resize handles and the fit of a frame near the left edge were hidden behind the card and could not be used. The consequence: opening or closing a panel moves the canvas edge, so the content shifts, the Pixi renderer resizes, and fit-to-content and capture fit the narrower area. The cards still float, with their border, radius and shadow. Reconsider this when the canvas can pan under a card (the camera would need an inset of its own).
+
 ### 2.1 Tool bar
 
 Move (V), Frame (F), Hand (H), Rectangle (R), Text (T), Comment (C, hidden until comments exist, section 7), then the view controls:

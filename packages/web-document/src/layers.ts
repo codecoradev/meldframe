@@ -54,3 +54,13 @@ export function actorLabel(actor: string): { kind: 'agent' | 'person'; name: str
   if (head === 'agent' || head === 'person') return { kind: head, name: actor.slice(i + 1) };
   return { kind: 'person', name: actor };
 }
+
+/**
+ * Which of the three agent colours an actor wears: the same one every time, from a stable hash of its id, so two
+ * agents are told apart by colour as well as by name (the name is always on offer; colour is never the only signal).
+ */
+export function actorTone(actor: string): 1 | 2 | 3 {
+  let h = 0;
+  for (let i = 0; i < actor.length; i++) h = (h * 31 + actor.charCodeAt(i)) >>> 0;
+  return ((h % 3) + 1) as 1 | 2 | 3;
+}

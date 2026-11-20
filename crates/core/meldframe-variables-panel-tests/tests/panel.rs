@@ -354,3 +354,62 @@ fn a_change_from_another_actor_updates_the_rows() {
     });
     assert_eq!(texts(row(&a, "bg"))[1], ("dark", "#101010"));
 }
+
+#[test]
+fn the_properties_name_the_variable_each_bound_field_holds() {
+    let mut a = open();
+    select(&mut a, "card");
+    let p = a.state().properties.clone().unwrap();
+    assert_eq!(
+        p.bindings
+            .iter()
+            .map(|b| (b.field, b.variable.as_str(), b.name.as_str()))
+            .collect::<Vec<_>>(),
+        [(BindField::Fill, "bg", "color/bg")]
+    );
+    // Opacity is bound too; the field shows the number the variable resolves to, held to 0..1 as the canvas paints it.
+    a.dispatch(Action::BindProperty {
+        id: "card".into(),
+        field: BindField::Opacity,
+        variable: Some("round".into()),
+    });
+    assert!(refused(&mut a).is_empty());
+    let p = a.state().properties.clone().unwrap();
+    assert_eq!(p.bindings.len(), 2);
+    // The check refuses a binding to a variable that is not there (on load and on a remote op, which halts the
+    // replica), so no binding is `missing` here; the flag is the defence for the chip if one ever slips through.
+    assert!(p.bindings.iter().all(|b| !b.missing));
+    assert_eq!(p.opacity, 1.0);
+}
+
+#[test]
+fn typing_an_opacity_over_a_bound_one_replaces_the_binding_and_one_undo_restores_it() {
+    let mut a = open();
+    select(&mut a, "card");
+    a.dispatch(Action::BindProperty {
+        id: "card".into(),
+        field: BindField::Opacity,
+        variable: Some("round".into()),
+    });
+    assert!(refused(&mut a).is_empty());
+    a.dispatch(Action::SetProperty {
+        id: "card".into(),
+        property: Property::Opacity(0.5),
+    });
+    assert!(refused(&mut a).is_empty());
+    let p = a.state().properties.clone().unwrap();
+    assert_eq!(p.opacity, 0.5);
+    assert!(!p.bound.contains(&"opacity".to_string()));
+    assert_eq!(row(&a, "round").used_by, 0);
+    a.dispatch(Action::Undo {});
+    let p = a.state().properties.clone().unwrap();
+    assert!(p.bound.contains(&"opacity".to_string()));
+    assert_eq!(
+        p.bindings
+            .iter()
+            .filter(|b| b.field == BindField::Opacity)
+            .count(),
+        1
+    );
+    assert_eq!(row(&a, "round").used_by, 1);
+}

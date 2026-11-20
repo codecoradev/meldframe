@@ -303,6 +303,10 @@ pub enum Property {
     Fill(String),
     Radius(f64),
     FontSize(f64),
+    /// 0 (invisible) to 1; a value outside that range is refused. A bound opacity becomes the number.
+    Opacity(f64),
+    /// Whether a frame cuts off what is drawn outside it.
+    Clip(bool),
 }
 
 /// A message of the live connection, as the transport decodes it.

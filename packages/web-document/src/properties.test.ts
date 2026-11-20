@@ -1,8 +1,8 @@
 import type { Properties } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { boxAction, propertyAction } from './properties';
+import { boxAction, bindingOf, clipAction, fieldsOf, percent, propertyAction, unbindAction } from './properties';
 
-const p: Properties = { id: 'n', name: 'Box', kind: 'rect', x: 10, y: 20, w: 100, h: 50, fill: '#112233', radius: 4, text: '', fontSize: 16, bound: [] };
+const p: Properties = { id: 'n', name: 'Box', kind: 'rect', x: 10, y: 20, w: 100, h: 50, fill: '#112233', radius: 4, text: '', fontSize: 16, opacity: 1, clip: true, bound: [], bindings: [] };
 
 describe('propertyAction', () => {
   it('sets a changed name, trimmed', () => {
@@ -46,5 +46,53 @@ describe('boxAction', () => {
     expect(boxAction(p, 'w', 'wide')).toBeNull();
     expect(boxAction(p, 'w', '0')).toBeNull();
     expect(boxAction(p, 'h', '-4')).toBeNull();
+  });
+});
+
+describe('opacity', () => {
+  it('is typed as a percentage and sent as 0 to 1', () => {
+    expect(propertyAction(p, 'opacity', '50')).toEqual({ type: 'setProperty', id: 'n', property: { property: 'opacity', value: 0.5 } });
+    expect(propertyAction(p, 'opacity', '0')).toEqual({ type: 'setProperty', id: 'n', property: { property: 'opacity', value: 0 } });
+    expect(propertyAction(p, 'opacity', '33.3')).toEqual({ type: 'setProperty', id: 'n', property: { property: 'opacity', value: 0.333 } });
+  });
+  it('does nothing for an unchanged value, text, or a value outside 0 to 100', () => {
+    expect(propertyAction(p, 'opacity', '100')).toBeNull();
+    expect(propertyAction({ ...p, opacity: 0.5 }, 'opacity', '50')).toBeNull();
+    expect(propertyAction(p, 'opacity', 'half')).toBeNull();
+    expect(propertyAction(p, 'opacity', '101')).toBeNull();
+    expect(propertyAction(p, 'opacity', '-1')).toBeNull();
+  });
+  it('shows a stored 0 to 1 as a rounded percentage', () => {
+    expect(percent(1)).toBe('100');
+    expect(percent(0.456)).toBe('46');
+    expect(percent(0)).toBe('0');
+  });
+});
+
+describe('clipAction', () => {
+  it('sets the other value and does nothing for the same one', () => {
+    expect(clipAction(p, false)).toEqual({ type: 'setProperty', id: 'n', property: { property: 'clip', value: false } });
+    expect(clipAction(p, true)).toBeNull();
+  });
+});
+
+describe('bindings', () => {
+  const bound: Properties = { ...p, bound: ['fill'], bindings: [{ field: 'fill', variable: 'v1', name: 'color/brand', missing: false }] };
+  it('finds the variable a field holds', () => {
+    expect(bindingOf(bound, 'fill')?.name).toBe('color/brand');
+    expect(bindingOf(bound, 'radius')).toBeUndefined();
+  });
+  it('lets go of a bound field and has nothing to do for a free one', () => {
+    expect(unbindAction(bound, 'fill')).toEqual({ type: 'bindProperty', id: 'n', field: 'fill', variable: null });
+    expect(unbindAction(bound, 'radius')).toBeNull();
+  });
+});
+
+describe('fieldsOf', () => {
+  it('offers the fields a kind of node has', () => {
+    expect(fieldsOf('frame')).toEqual({ radius: true, clip: true, fontSize: false });
+    expect(fieldsOf('rect')).toEqual({ radius: true, clip: false, fontSize: false });
+    expect(fieldsOf('ellipse')).toEqual({ radius: false, clip: false, fontSize: false });
+    expect(fieldsOf('text')).toEqual({ radius: false, clip: false, fontSize: true });
   });
 });
