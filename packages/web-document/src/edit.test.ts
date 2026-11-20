@@ -2,7 +2,7 @@ import type { Node } from '@meldframe/protocol';
 import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
 import type { Scene } from '@meldframe/web-canvas/scene';
 import { describe, expect, it } from 'vitest';
-import { OWNS_KEYS_SELECTOR, containerFor, createActionFor, keyAction, moveActionsFor, ownsKeys, previewScene, resizeActionFor, resizedBox, toolMode, worldOrigin } from './edit';
+import { OWNS_KEYS_SELECTOR, containerFor, createActionFor, deleteAction, keyAction, moveActionsFor, ownsKeys, previewScene, resizeActionFor, resizedBox, toolMode, worldOrigin } from './edit';
 
 const node = (id: string, over: Partial<Node> = {}): Node =>
   ({ id, name: id, type: 'rect', parentId: null, x: 0, y: 0, w: 100, h: 50, ...over }) as Node;
@@ -130,6 +130,25 @@ describe('previewScene', () => {
     ] };
     const s = previewScene(tree, { kind: 'move', ids: ['f', 'c'], dx: 3, dy: 4 });
     expect(s.nodes.map((n) => [n.id, n.x, n.y])).toEqual([['f', 13, 14], ['c', 1, 1]]);
+  });
+});
+
+describe('deleteAction', () => {
+  it('deletes the whole selection in one action, and nothing when nothing is selected', () => {
+    expect(deleteAction(['a', 'b'])).toEqual({ type: 'delete', ids: ['a', 'b'] });
+    expect(deleteAction([])).toBeNull();
+  });
+  it('is the rule of the Delete and Backspace keys', () => {
+    for (const key of ['Delete', 'Backspace']) {
+      expect(keyAction({ key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false }, ['a'])).toEqual(deleteAction(['a']));
+      expect(keyAction({ key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false }, [])).toEqual(deleteAction([]));
+    }
+  });
+  it('copies the ids, so a later change of the selection does not change the action', () => {
+    const sel = ['a'];
+    const a = deleteAction(sel);
+    sel.push('b');
+    expect(a).toEqual({ type: 'delete', ids: ['a'] });
   });
 });
 

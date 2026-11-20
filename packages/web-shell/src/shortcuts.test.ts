@@ -136,6 +136,7 @@ const checks: Record<string, (c: Combo) => void> = {
   'layers-panel': (c) => expect(layoutKey(eventOf(c))).toBe('layers'),
   'right-panel': (c) => expect(layoutKey(eventOf(c))).toBe('inspector'),
   shortcuts: (c) => expect(layoutKey(eventOf(c))).toBe('help'),
+  palette: (c) => expect(layoutKey(eventOf(c))).toBe('palette'),
 };
 
 describe('every row of the sheet is something the editor does', () => {
