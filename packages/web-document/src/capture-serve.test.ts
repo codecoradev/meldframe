@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { serveCapture, type CaptureDeps, type Req } from './capture-serve';
+import { serveCapture, waitForSeq, type CaptureDeps, type Req } from './capture-serve';
 
 const req: Req = { requestId: 'r1', nodeId: 'a', scale: 2, maxPixels: 1_000_000, minSeq: 5, uploadToken: 'tok', timeoutMs: 1000 };
 
@@ -74,5 +74,40 @@ describe('serveCapture', () => {
     });
     await serveCapture({ ...req, nodeId: undefined }, d);
     expect(asked).toBeUndefined();
+  });
+});
+
+describe('waitForSeq', () => {
+  // A stand-in for the engine: a sequence number that moves, and listeners told when it does.
+  function engine(start: number) {
+    let seq = start;
+    const listeners = new Set<(s: { state: { confirmedSeq: number } }) => void>();
+    return {
+      snapshot: () => ({ state: { confirmedSeq: seq } }),
+      subscribe: (fn: (s: { state: { confirmedSeq: number } }) => void) => (listeners.add(fn), () => listeners.delete(fn)),
+      move: (to: number) => { seq = to; listeners.forEach((fn) => fn({ state: { confirmedSeq: seq } })); },
+      listeners,
+    };
+  }
+  it('is true at once when the file is already there, and does not listen', async () => {
+    const e = engine(5);
+    expect(await waitForSeq(e, 5, 1000)).toBe(true);
+    expect(e.listeners.size).toBe(0);
+  });
+  it('waits for the file to reach the number, ignores a smaller one, and stops listening', async () => {
+    const e = engine(1);
+    let done = false;
+    const p = waitForSeq(e, 5, 1000).then((ok) => ((done = true), ok));
+    e.move(3);
+    await Promise.resolve();
+    expect(done).toBe(false);
+    e.move(5);
+    expect(await p).toBe(true);
+    expect(e.listeners.size).toBe(0);
+  });
+  it('is false when the time passes first, and stops listening', async () => {
+    const e = engine(1);
+    expect(await waitForSeq(e, 5, 10)).toBe(false);
+    expect(e.listeners.size).toBe(0);
   });
 });

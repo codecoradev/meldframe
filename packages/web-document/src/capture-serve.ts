@@ -45,3 +45,22 @@ export async function serveCapture(r: Req, d: CaptureDeps): Promise<void> {
     d.fail(r.requestId, 'internal', e instanceof Error ? e.message : 'The image could not be drawn.');
   }
 }
+
+/** What `waitForSeq` needs of the engine: the file's last confirmed sequence number, and to be told when it moves. */
+export interface SeqSource {
+  snapshot(): { state: { confirmedSeq: number } };
+  subscribe(fn: (s: { state: { confirmedSeq: number } }) => void): () => void;
+}
+
+/** Resolves true when the file reaches `min`, false when `timeoutMs` pass first; it stops listening either way. */
+export const waitForSeq = (engine: SeqSource, min: number, timeoutMs: number): Promise<boolean> =>
+  new Promise<boolean>((resolve) => {
+    if (engine.snapshot().state.confirmedSeq >= min) return resolve(true);
+    const off = engine.subscribe((s) => {
+      if (s.state.confirmedSeq < min) return;
+      off();
+      clearTimeout(timer);
+      resolve(true);
+    });
+    const timer = setTimeout(() => (off(), resolve(false)), timeoutMs);
+  });

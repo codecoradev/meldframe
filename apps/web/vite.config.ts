@@ -16,6 +16,9 @@ import { REFUSED_URL, applyAuth, guardRequest, isProxied, resolveProxy } from '.
 // answers only to the dev page on its own loopback address (see packages/web-tools/src/proxy-guard.ts), so `vite --host`
 // does not hand the token to the network.
 const wasmGlue = existsSync(new URL('./.wasm/meldframe_wasm.js', import.meta.url)) ? './.wasm/meldframe_wasm.js' : './src/wasm-missing.ts';
+const webPackages = Object.fromEntries(
+  ['canvas', 'input', 'assets', 'link', 'document', 'tokens', 'chrome', 'panels', 'activity'].map((p) => [`@meldframe/web-${p}`, fileURLToPath(new URL(`../../packages/web-${p}/src`, import.meta.url))]),
+);
 const resolved = resolveProxy(process.env);
 const { target, token } = resolved;
 
@@ -81,17 +84,10 @@ export default defineConfig(({ command }) => {
     },
     resolve: {
       conditions: ['browser'],
-      // The canvas model is the package packages/web-canvas (its own unit of the size check), used as source.
+      // The web packages (packages/web-*, each its own unit of the size check) are used as source.
       alias: {
-        '@meldframe/web-canvas': fileURLToPath(new URL('../../packages/web-canvas/src', import.meta.url)),
-        '@meldframe/web-input': fileURLToPath(new URL('../../packages/web-input/src', import.meta.url)),
-        '@meldframe/web-assets': fileURLToPath(new URL('../../packages/web-assets/src', import.meta.url)),
-        '@meldframe/web-link': fileURLToPath(new URL('../../packages/web-link/src', import.meta.url)),
-        '@meldframe/web-document': fileURLToPath(new URL('../../packages/web-document/src', import.meta.url)),
-        '@meldframe/web-tokens': fileURLToPath(new URL('../../packages/web-tokens/src', import.meta.url)),
-        '@meldframe/web-chrome': fileURLToPath(new URL('../../packages/web-chrome/src', import.meta.url)),
+        ...webPackages,
         'bits-ui': fileURLToPath(new URL('./node_modules/bits-ui', import.meta.url)),
-        '@meldframe/web-panels': fileURLToPath(new URL('../../packages/web-panels/src', import.meta.url)),
         // The generated WASM glue (tools/build-wasm.sh). Without it the stub stands in, which fails with a clear
         // message when the page starts, so the build and the type check run without the wasm toolchain.
         '@meldframe/wasm': fileURLToPath(new URL(wasmGlue, import.meta.url)),
