@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-web-chrome"
-description = "Chrome primitives of the web client: icons, icon buttons, buttons and tooltips, with their focus rules (Svelte and TypeScript; this manifest makes the package a unit of the size and layering checks)."
+description = "Chrome primitives of the web client: icons, icon buttons, buttons, tooltips, segmented controls, fields, sections and tabs, and the state matrix page (Svelte and TypeScript; this manifest makes the package a unit of the size and layering checks)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
