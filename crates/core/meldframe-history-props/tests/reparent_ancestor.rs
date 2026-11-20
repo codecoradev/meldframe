@@ -2,6 +2,9 @@
 //! to: the node goes under the nearest ancestor of that parent that survives (the rule an `AddNode`
 //! snapshot already follows). If the node itself was deleted, the step is dropped.
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 
 use common::{add, snap};
