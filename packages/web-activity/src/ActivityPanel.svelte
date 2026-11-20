@@ -12,7 +12,7 @@
   import Section from '@meldframe/web-chrome/Section.svelte';
   import { ring } from '@meldframe/web-chrome/focus';
   import { duration } from '@meldframe/web-tokens/tokens';
-  import { older } from './actions';
+  import { older, setReview } from './actions';
   import BatchItem from './BatchItem.svelte';
   import CheckpointList from './CheckpointList.svelte';
   import { askRestore, askRevert, cancel, confirmRestore, confirmRevert, laneOpen, settle, show, start, toggleLane, type Step, type Ui } from './controller';
@@ -69,6 +69,9 @@
 <div class="flex flex-col" data-testid="activity">
   <MessageLine {message} />
   <Section title="Recent work">
+    {#if activity.unreviewedCount > 0}
+      <p class="m-0 text-small text-text-secondary" data-testid="review-count">{activity.unreviewedCount} {activity.unreviewedCount === 1 ? 'batch' : 'batches'} to review</p>
+    {/if}
     {#if lanes.length === 0}
       <p class="m-0 text-small text-text-muted" data-testid="activity-empty">Nothing yet. When an agent or a person changes the file, the work shows here, one lane for each.</p>
     {/if}
@@ -98,6 +101,8 @@
                     row={r}
                     selected={activity.selected?.actor === r.actor && activity.selected.keyPrefix === r.keyPrefix}
                     confirming={asking(r)}
+                    canReview={activity.canReview}
+                    onReview={(state) => dispatch(setReview(r, state))}
                     onShow={() => run(show(ui, r))}
                     onAskRevert={() => run(askRevert(ui, r))}
                     onRevert={() => run(confirmRevert(ui, r, activity.selected))}

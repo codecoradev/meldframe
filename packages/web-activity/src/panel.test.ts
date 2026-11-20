@@ -169,3 +169,60 @@ describe('messages, checkpoints and older batches', () => {
     expect(html(activity({ hasOlder: false }))).not.toContain('data-testid="older"');
   });
 });
+
+describe('the review of a batch', () => {
+  const one = (over = {}, a: Partial<ActivityState> = {}) => html(activity({ lanes: [lane({ batches: ['k1'] })], rows: [row(over)], ...a }));
+
+  it('shows the state of every batch to everyone, in words, and the controls to nobody who may not review', () => {
+    for (const [review, words] of [['unreviewed', 'Not reviewed'], ['accepted', 'Accepted'], ['needs_review', 'Needs review']] as const) {
+      const out = one({ review }, { canReview: false });
+      expect(out).toContain(`data-testid="batch-review">${words}<`);
+      expect(out).not.toContain('data-testid="review-set"');
+    }
+  });
+
+  it('offers Accept and Needs review to a person who may review, each named for its batch', () => {
+    const out = one({ n: 3 }, { canReview: true });
+    expect(out.match(/data-testid="review-set"/g)).toHaveLength(2);
+    expect(out).toContain('aria-label="Accept: Batch 3"');
+    expect(out).toContain('aria-label="Needs review: Batch 3"');
+  });
+
+  it('offers Clear on a reviewed batch, and no control on a batch with no number', () => {
+    expect(one({ review: 'accepted' }, { canReview: true })).toContain('aria-label="Clear: Batch 1"');
+    const out = one({ n: null, status: 'headerless', revertable: false }, { canReview: true });
+    expect(out).not.toContain('data-testid="review-set"');
+    expect(out).not.toContain('data-testid="batch-review"');
+  });
+
+  it('marks a batch that needs review with the review tint and the word, and an accepted one with neither', () => {
+    expect(one({ review: 'needs_review' })).toMatch(/data-testid="batch-review"[^>]*bg-review-bg[^>]*text-review-text|bg-review-bg[^>]*text-review-text[^>]*data-testid="batch-review"/);
+    expect(one({ review: 'accepted' })).not.toContain('bg-review-bg');
+  });
+
+  it('says who last changed the state', () => {
+    const out = one({ review: 'accepted', reviewedBy: 'person:ana', reviewedAtMs: new Date(2026, 10, 20, 10, 50, 2).getTime() });
+    expect(out).toContain('Last changed by <bdi>person:ana</bdi> at 10:50:02');
+    expect(out).not.toMatch(/Unreviewed by/i);
+  });
+
+  it('keeps person:claude and agent:claude apart in the caption of the person who last changed a state', () => {
+    expect(one({ review: 'accepted', reviewedBy: 'agent:claude' })).toContain('Last changed by <bdi>agent:claude</bdi>');
+    expect(one({ review: 'accepted', reviewedBy: 'person:claude' })).toContain('Last changed by <bdi>person:claude</bdi>');
+  });
+
+  it('keeps the review state of a batch that is no longer in effect, and says both', () => {
+    const out = one({ review: 'needs_review', inEffect: false });
+    expect(out).toContain('Needs review');
+    expect(out).toContain('data-testid="batch-not-in-effect"');
+    expect(one({ inEffect: true })).not.toContain('data-testid="batch-not-in-effect"');
+    expect(one({ inEffect: null })).not.toContain('data-testid="batch-not-in-effect"');
+  });
+
+  it('counts the batches to review at the top, from the server count and not from the rows it holds', () => {
+    const out = one({}, { unreviewedCount: 12 });
+    expect(out).toContain('data-testid="review-count">12 batches to review<');
+    expect(one({}, { unreviewedCount: 1 })).toContain('1 batch to review');
+    expect(one({}, { unreviewedCount: 0 })).not.toContain('data-testid="review-count"');
+  });
+});

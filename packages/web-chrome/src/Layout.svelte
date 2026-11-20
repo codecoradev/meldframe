@@ -41,12 +41,14 @@
     /** The tab of the right card (Design or Activity) and the person's choice of another. */
     tab: RightTab;
     onTab: (t: RightTab) => void;
+    /** The count of batches to review, from the app layer: shown on the Activity tab when above zero. */
+    activityBadge?: number;
     canvasLayer: Snippet;
     layersPanel: Snippet;
     designPanel: Snippet;
     activityPanel: Snippet;
   }
-  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, connection, helpOpen, onHelp, tab, onTab, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
+  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, connection, helpOpen, onHelp, tab, onTab, activityBadge = 0, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
 
   const tools: { tool: Tool; label: string; key: string; icon: 'select' | 'frame' | 'rectangle' | 'text' }[] = [
     { tool: 'select', label: 'Select', key: 'V', icon: 'select' },
@@ -71,7 +73,7 @@
   };
   const flipLayers = $derived(toggleFrom('layers', onToggleLayers));
   const flipInspector = $derived(toggleFrom('inspector', onToggleInspector));
-  const rightTabs: { id: RightTab; label: string }[] = [{ id: 'design', label: 'Design' }, { id: 'activity', label: 'Activity' }];
+  const rightTabs = $derived<{ id: RightTab; label: string; badge?: number; badgeLabel?: string }[]>([{ id: 'design', label: 'Design' }, { id: 'activity', label: 'Activity', badge: activityBadge, badgeLabel: activityBadge === 1 ? 'batch to review' : 'batches to review' }]);
   const select = (id: string) => { const t = rightTabs.find((x) => x.id === id); if (t) onTab(t.id); };
   const edge = $derived(reserved({ layers: layersOpen, inspector: inspectorOpen, tab }));
   const width = $derived(rightWidth(tab));

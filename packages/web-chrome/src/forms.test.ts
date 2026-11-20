@@ -58,6 +58,15 @@ describe('Tabs', () => {
     expect(out.match(/aria-selected="true"/g)).toHaveLength(1);
     expect(out).toContain('>3<');
   });
+  it('says what a badge counts to a reader, who does not see the colour', () => {
+    const named = [{ id: 'design', label: 'Design' }, { id: 'activity', label: 'Activity', badge: 3, badgeLabel: 'batches to review' }];
+    const out = html(Tabs, { label: 'Right panel', tabs: named, selected: 'design', onSelect: () => {}, idPrefix: 'rp' });
+    expect(out.replace(/<!--.*?-->/g, '')).toMatch(/>3<span class="sr-only"> batches to review<\/span>/);
+    expect(html(Tabs, { label: 'Right panel', tabs, selected: 'design', onSelect: () => {}, idPrefix: 'rp' })).not.toContain('sr-only');
+    // a count is not an agent: the badge does not wear an agent colour
+    expect(out).not.toContain('bg-agent-1');
+    expect(out).toContain('bg-accent-strong');
+  });
 });
 describe('Segmented in light mode', () => {
   it('outlines the selected cell: control-selected on the track is about 1.1:1 by fill alone', () => {

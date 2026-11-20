@@ -14,6 +14,8 @@
     pressed?: boolean;
     disabled?: boolean;
     onclick?: (e: MouseEvent) => void;
+    /** A name that starts with the visible text, where the text alone does not say what it acts on. */
+    'aria-label'?: string;
     children: Snippet;
     [data: `data-${string}`]: string | undefined;
   }

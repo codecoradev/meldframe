@@ -1,7 +1,7 @@
 // The Activity panel as words and rows: what to call things and which rows go under which lane. Pure. The app layer
 // has already decided the lanes, their order, the counts and which row may be reverted; nothing here decides, it joins
 // and words what `state.activity` says (ADR-0021).
-import type { ActivityLane, ActivityState, BatchRow, BatchSummary, Checkpoint, Event, LaneKind, LaneState } from '@meldframe/protocol';
+import type { ActivityLane, ActivityState, BatchRow, BatchSummary, Checkpoint, Event, LaneKind, LaneState, ReviewState } from '@meldframe/protocol';
 import { actorLabel, actorTone } from '@meldframe/web-document/layers';
 
 export interface LaneView {
@@ -135,4 +135,37 @@ export function messageFor(events: readonly Event[]): Message | null {
     if (e.type === 'restored') return { tone: 'info', text: `Restored: ${plural(e.requested, 'change')} sent. One undo takes them back.` };
   }
   return null;
+}
+
+const REVIEW: Record<ReviewState, string> = { unreviewed: 'Not reviewed', accepted: 'Accepted', needs_review: 'Needs review' };
+
+/** The review state of a batch in words: everyone sees it, and it is never only a colour. */
+export const reviewWords = (s: ReviewState): string => REVIEW[s];
+
+/**
+ * Who last changed the state and when: the full actor, because a bare name can be another actor's (`person:claude`
+ * and `agent:claude`), and the page draws it in an isolate. After a clear to unreviewed the server still names the
+ * person who cleared it, so the page says "last changed by", and never "unreviewed by" as if that person were a reviewer.
+ */
+export function reviewedBy(r: BatchRow): { by: string; at: string | null } | null {
+  return r.reviewedBy === null ? null : { by: r.reviewedBy, at: r.reviewedAtMs === null ? null : clockText(r.reviewedAtMs) };
+}
+
+export interface ReviewChoice {
+  state: ReviewState;
+  label: string;
+}
+
+/**
+ * The controls of one row: the states other than its own. The web hides a control the app layer would refuse
+ * (`canReview` from the server; no number, `no_batch_number`) and decides nothing else about who may review.
+ */
+export function reviewChoices(r: BatchRow, canReview: boolean): ReviewChoice[] {
+  if (!canReview || r.n === null) return [];
+  const all: ReviewChoice[] = [
+    { state: 'accepted', label: 'Accept' },
+    { state: 'needs_review', label: 'Needs review' },
+    { state: 'unreviewed', label: 'Clear' },
+  ];
+  return all.filter((c) => c.state !== r.review);
 }
