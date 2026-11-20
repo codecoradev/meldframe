@@ -67,13 +67,15 @@ for (const [vw, vh] of [[1440, 900], [1280, 800]]) {
     assert.ok(await page.locator('[role=menu][data-owns-keys]').count() === 1, `${at}: the menu carries the key marker`);
     await page.keyboard.press('Escape');
     await page.locator('[role=menu]').waitFor({ state: 'detached' });
-    // a disabled tab is not reached by the arrow keys: the right card keeps its width and the Design panel
+    // the arrows move between the two tabs; the right card is 360 wide on Activity and 288 on Design
     await page.focus('#right-tab-design');
     await page.keyboard.press('ArrowRight');
-    await page.keyboard.press('End');
-    assert.equal(await page.getAttribute('#right-tab-design', 'aria-selected'), 'true', `${at}: the arrow moved to the disabled tab`);
-    assert.equal(await page.getAttribute('#right-tab-activity', 'aria-selected'), 'false', `${at}: Activity selected`);
-    assert.equal((await box(page, '[data-testid=right-card]')).w, 288, `${at}: the right card changed width`);
+    assert.equal(await page.getAttribute('#right-tab-activity', 'aria-selected'), 'true', `${at}: ArrowRight did not select Activity`);
+    assert.equal((await box(page, '[data-testid=right-card]')).w, 360, `${at}: the right card is not 360 wide on Activity`);
+    assert.equal(await page.locator('#right-panel-activity').count(), 1, `${at}: the Activity panel is missing`);
+    await page.keyboard.press('Home');
+    assert.equal(await page.getAttribute('#right-tab-design', 'aria-selected'), 'true', `${at}: Home did not select Design`);
+    assert.equal((await box(page, '[data-testid=right-card]')).w, 288, `${at}: the right card is not 288 wide on Design`);
     // hit areas of the controls inside the cards: 24 px at least
     const small = await page.locator('[data-owns-keys] button, [data-owns-keys] [role=tab]').evaluateAll((bs) => bs.filter((b) => { const r = b.getBoundingClientRect(); return r.width < 24 || r.height < 24; }).map((b) => b.outerHTML.slice(0, 80)));
     assert.deepEqual(small, [], `${at}: a hit area under 24 px`);

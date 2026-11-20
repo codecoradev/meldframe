@@ -10,6 +10,7 @@
   let layersOpen = $state(true);
   let inspectorOpen = $state(true);
   let helpOpen = $state(false);
+  let tab = $state<'design' | 'activity'>('design');
   const toggle = (k: 'layers' | 'inspector') => (k === 'layers' ? (layersOpen = !layersOpen) : (inspectorOpen = !inspectorOpen));
   const rows = ['Landing Desktop', 'Hero', 'Hero Title', 'Pricing', 'Security'];
 </script>
@@ -37,8 +38,11 @@
   connection={{ state: 'live', text: 'Connected' }}
   {helpOpen}
   onHelp={(o) => (helpOpen = o)}
+  {tab}
+  onTab={(t) => (tab = t)}
 >
   {#snippet canvasLayer()}<div class="absolute inset-0 bg-canvas"></div>{/snippet}
   {#snippet layersPanel()}<ul class="m-0 list-none p-2">{#each rows as r (r)}<li class="rounded-sm px-2 py-1">{r}</li>{/each}</ul>{/snippet}
   {#snippet designPanel()}<p class="m-0 p-4 text-text-muted">Design panel content</p>{/snippet}
+  {#snippet activityPanel()}<p class="m-0 p-4 text-text-muted">Activity panel content</p>{/snippet}
 </Layout>

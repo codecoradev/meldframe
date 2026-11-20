@@ -50,11 +50,12 @@ describe('the layout rules', () => {
 
 describe('the Layout', () => {
   const part = createRawSnippet(() => ({ render: () => '<i>x</i>' }));
+  const named = (name: string) => createRawSnippet(() => ({ render: () => `<i>${name}</i>` }));
   const props = {
     fileName: 'file_dev', tool: 'select', onTool: () => {}, layersOpen: true, inspectorOpen: true, onToggleLayers: () => {}, onToggleInspector: () => {},
     canUndo: false, canRedo: true, onUndo: () => {}, onRedo: () => {}, onPreset: () => {}, canExport: false, onExport: () => {}, canVariant: false,
     onVariant: () => {}, zoomText: '100%', connection: { state: 'live', text: 'Connected' }, helpOpen: false, onHelp: () => {},
-    canvasLayer: part, layersPanel: part, designPanel: part,
+    canvasLayer: part, layersPanel: part, designPanel: named('design-x'), activityPanel: named('activity-x'), tab: 'design', onTab: () => {},
   };
   const html = (over: Record<string, unknown> = {}) => render(Layout as never, { props: { ...props, ...over } as never }).body;
   it('keeps the test ids the browser checks use', () => {
@@ -80,12 +81,27 @@ describe('the Layout', () => {
     expect(out).toMatch(/aria-label="Right panel"[^>]*aria-pressed="false"/);
     expect(out).not.toContain('data-testid="layers-card"');
   });
-  it('the right card has the tabs Design and Activity, and Activity is not available yet', () => {
+  it('the right card has the tabs Design and Activity, both available, each with its panel', () => {
     const out = html();
     expect(out).toContain('aria-label="Panel sections"');
-    expect(out).toMatch(/id="right-tab-activity"[^>]*aria-disabled="true"/);
-    expect(out).not.toMatch(/id="right-tab-activity"[^>]*aria-controls/);
+    expect(out).toMatch(/id="right-tab-activity"[^>]*aria-controls="right-panel-activity"/);
+    expect(out).not.toMatch(/id="right-tab-activity"[^>]*aria-disabled/);
     expect(out).toMatch(/aria-selected="true"[^>]*>Design/);
+  });
+  it('shows the panel of the selected tab only, named by its tab', () => {
+    const design = html();
+    expect(design).toContain('design-x');
+    expect(design).not.toContain('activity-x');
+    expect(design).toMatch(/id="right-panel-design" role="tabpanel" aria-labelledby="right-tab-design"/);
+    const activity = html({ tab: 'activity' });
+    expect(activity).toContain('activity-x');
+    expect(activity).not.toContain('design-x');
+    expect(activity).toMatch(/id="right-panel-activity" role="tabpanel" aria-labelledby="right-tab-activity"/);
+    expect(activity).toMatch(/aria-selected="true"[^>]*>Activity/);
+  });
+  it('the card is 288 wide on Design and 360 on Activity', () => {
+    expect(html()).toMatch(/data-testid="right-card"[^>]*style="width: 288px/);
+    expect(html({ tab: 'activity' })).toMatch(/data-testid="right-card"[^>]*style="width: 360px/);
   });
 });
 
@@ -95,7 +111,7 @@ describe('what the Layout says to the keyboard and to readers', () => {
     fileName: 'f', tool: 'select', onTool: () => {}, layersOpen: true, inspectorOpen: true, onToggleLayers: () => {}, onToggleInspector: () => {},
     canUndo: true, canRedo: true, onUndo: () => {}, onRedo: () => {}, onPreset: () => {}, canExport: true, onExport: () => {}, canVariant: true,
     onVariant: () => {}, zoomText: '100%', connection: { state: 'live', text: 'Connected' }, helpOpen: false, onHelp: () => {},
-    canvasLayer: part, layersPanel: part, designPanel: part,
+    canvasLayer: part, layersPanel: part, designPanel: part, activityPanel: part, tab: 'design', onTab: () => {},
   };
   const out = (over: Record<string, unknown> = {}) => render(Layout as never, { props: { ...props, ...over } as never }).body;
   it('every card, open or folded, carries the marker that keeps the plain keys for what is inside it', () => {

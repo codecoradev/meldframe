@@ -1,8 +1,8 @@
 <!--
   The layout of the editor: the canvas is the window and the chrome floats over it, as the Main, Panels and A11y boards
-  draw it. A Layers card on the left (260), ONE card on the right (288) with the tabs Design and Activity, two 52 px
-  cards that stand in for the panels when they are closed, the tool bar at the bottom centre, a status strip and a help
-  button. It draws what it is given and reports clicks: no state of the document, no rules (the app layer has them).
+  draw it. A Layers card on the left (260), ONE card on the right (288 on Design, 360 on Activity) with the tabs
+  Design and Activity (the page chooses the tab), two 52 px cards that stand in for the panels when they are closed,
+  the tool bar at the bottom centre, a status strip and a help button. It draws what it is given and reports clicks: no state of the document, no rules (the app layer has them).
   Share and the account are not part of it.
 -->
 <script lang="ts">
@@ -13,7 +13,7 @@
   import Tabs from './Tabs.svelte';
   import TooltipProvider from './TooltipProvider.svelte';
   import { platformLabels } from './platform';
-  import { PANEL_INSET, reserved, rightWidth } from './layout';
+  import { PANEL_INSET, reserved, rightWidth, type RightTab } from './layout';
 
   type Tool = 'select' | 'frame' | 'rectangle' | 'text';
   interface Props {
@@ -38,11 +38,15 @@
     connection: { state: string; text: string };
     helpOpen: boolean;
     onHelp: (open: boolean) => void;
+    /** The tab of the right card (Design or Activity) and the person's choice of another. */
+    tab: RightTab;
+    onTab: (t: RightTab) => void;
     canvasLayer: Snippet;
     layersPanel: Snippet;
     designPanel: Snippet;
+    activityPanel: Snippet;
   }
-  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, connection, helpOpen, onHelp, canvasLayer, layersPanel, designPanel }: Props = $props();
+  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, connection, helpOpen, onHelp, tab, onTab, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
 
   const tools: { tool: Tool; label: string; key: string; icon: 'select' | 'frame' | 'rectangle' | 'text' }[] = [
     { tool: 'select', label: 'Select', key: 'V', icon: 'select' },
@@ -67,12 +71,10 @@
   };
   const flipLayers = $derived(toggleFrom('layers', onToggleLayers));
   const flipInspector = $derived(toggleFrom('inspector', onToggleInspector));
-  const rightTabs = [{ id: 'design', label: 'Design' }, { id: 'activity', label: 'Activity', disabled: true }];
-  let tab = $state('design');
-  // A disabled tab is shown, not selectable: the Tabs do not offer it, and a stray select is ignored here too.
-  const select = (id: string) => { if (rightTabs.some((t) => t.id === id && !t.disabled)) tab = id; };
-  const edge = $derived(reserved({ layers: layersOpen, inspector: inspectorOpen, tab: tab === 'activity' ? 'activity' : 'design' }));
-  const width = $derived(rightWidth(tab === 'activity' ? 'activity' : 'design'));
+  const rightTabs: { id: RightTab; label: string }[] = [{ id: 'design', label: 'Design' }, { id: 'activity', label: 'Activity' }];
+  const select = (id: string) => { const t = rightTabs.find((x) => x.id === id); if (t) onTab(t.id); };
+  const edge = $derived(reserved({ layers: layersOpen, inspector: inspectorOpen, tab }));
+  const width = $derived(rightWidth(tab));
   const card = 'absolute flex flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-float';
   const topCard = 'absolute top-4 flex h-(--mf-size-top-card) items-center gap-2 rounded-lg border border-border bg-surface px-2 shadow-float';
   const divider = 'mx-1 h-5 w-px bg-divider';
@@ -107,7 +109,7 @@
         <IconButton label="Right panel" icon="panel-right" pressed={true} onclick={flipInspector} data-focus="inspector" />
         <Tabs label="Panel sections" idPrefix="right" selected={tab} onSelect={select} tabs={rightTabs} />
       </header>
-      <div id="right-panel-design" role="tabpanel" aria-labelledby="right-tab-design" class="min-h-0 flex-1 overflow-y-auto">{@render designPanel()}</div>
+      <div id="right-panel-{tab}" role="tabpanel" aria-labelledby="right-tab-{tab}" class="min-h-0 flex-1 overflow-y-auto">{#if tab === 'activity'}{@render activityPanel()}{:else}{@render designPanel()}{/if}</div>
     </section>
   {:else}
     <div class="{topCard} right-4" data-owns-keys data-testid="top-right-card">

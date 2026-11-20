@@ -19,12 +19,13 @@
   import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
   import VariablesPanel from '@meldframe/web-panels/VariablesPanel.svelte';
+  import ActivityPanel from '@meldframe/web-activity/ActivityPanel.svelte';
+  import { tabChange, toastFor, type RightTab } from '@meldframe/web-activity/tab';
   import { layerRows } from '@meldframe/web-document/layers';
-  import { noticeFromEvents } from '@meldframe/web-document/notices';
   import { presetAction } from '@meldframe/web-document/presets';
   import { type ExportScale, exportFileName, planExport } from '@meldframe/web-document/export';
   import { ringsOnCanvas, type Touched } from '@meldframe/web-document/rings';
-  import { serveCapture, type Req } from '@meldframe/web-document/capture-serve';
+  import { serveCapture, waitForSeq, type Req } from '@meldframe/web-document/capture-serve';
   import { pixiColors } from '@meldframe/web-tokens/tokens';
   import { loadTheme } from '@meldframe/web-tokens/theme';
 
@@ -74,24 +75,13 @@
   });
 
   // An agent asks for a PNG of a node: the canvas draws it offscreen and the page uploads it (see capture.ts).
-  const waitForSeq = (min: number, timeoutMs: number) =>
-    new Promise<boolean>((resolve) => {
-      if (engine.snapshot().state.confirmedSeq >= min) return resolve(true);
-      const off = engine.subscribe((s) => {
-        if (s.state.confirmedSeq < min) return;
-        off();
-        clearTimeout(timer);
-        resolve(true);
-      });
-      const timer = setTimeout(() => (off(), resolve(false)), timeoutMs);
-    });
   onMount(() =>
     captures?.subscribe((r) =>
       void serveCapture(r, {
         box: (id) => canvas?.captureBox(id) ?? null,
         render: (box, scale) => canvas!.capture(box, scale),
         seq: () => engine.snapshot().state.confirmedSeq,
-        whenSeq: waitForSeq,
+        whenSeq: (min, timeoutMs) => waitForSeq(engine, min, timeoutMs),
         upload: async (id, headers, body) => (await fetch(`/captures/${encodeURIComponent(id)}`, { method: 'POST', headers, body })).status,
         fail: captures.fail,
       }),
@@ -134,8 +124,11 @@
     clearTimeout(noticeTimer);
     noticeTimer = setTimeout(() => (notice = null), 6000);
   }
+  let rightTab = $state<RightTab>('design');
+  // Only the events are tracked: a change of tab or a panel toggle must not show an old refusal again.
   $effect(() => {
-    const text = noticeFromEvents(snap.events);
+    const events = snap.events;
+    const text = untrack(() => toastFor(events, rightTab === 'activity' && snap.state.panels.properties));
     if (text) untrack(() => showNotice(text));
   });
   onDestroy(() => clearTimeout(noticeTimer));
@@ -273,6 +266,8 @@
   connection={{ state: snap.state.connection.type, text: label(snap.state.connection) }}
   {helpOpen}
   onHelp={(open) => (helpOpen = open)}
+  tab={rightTab}
+  onTab={(t) => { const c = tabChange(rightTab, t); rightTab = c.tab; c.actions.forEach(dispatch); }}
 >
   {#snippet canvasLayer()}
     <Canvas
@@ -325,4 +320,5 @@
     </Section>
     <PropertiesPanel properties={snap.state.properties} picker={snap.state.picker ?? null} selected={snap.state.selection.length} {dispatch} />
   {/snippet}
+  {#snippet activityPanel()}<ActivityPanel activity={snap.state.activity} checkpoints={snap.state.checkpoints} self={actor} {dispatch} events={snap.events} />{/snippet}
 </Layout>
