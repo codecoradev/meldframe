@@ -450,3 +450,46 @@ fn a_search_counts_the_headings_over_the_rows_it_lists() {
     let h = rows[0].heading.as_ref().unwrap();
     assert_eq!((h.kind, h.count), (VarType::Number, 1));
 }
+
+#[test]
+fn a_search_across_both_types_counts_each_heading_over_the_rows_it_matched() {
+    let mut a = open();
+    // The collection's name is searched too, so "appearance" matches the colour and the number.
+    a.dispatch(Action::SetVariablesQuery {
+        query: "appearance".into(),
+    });
+    let rows = &a.state().variables.collections[0].variables;
+    let heads: Vec<_> = rows
+        .iter()
+        .filter_map(|r| r.heading.as_ref().map(|h| (r.id.as_str(), h.kind, h.count)))
+        .collect();
+    assert_eq!(
+        heads,
+        [("bg", VarType::Color, 1), ("round", VarType::Number, 1)]
+    );
+}
+
+#[test]
+fn past_the_cap_a_heading_counts_the_rows_that_are_listed_not_the_ones_that_matched() {
+    let mut d = file();
+    for i in 0..250 {
+        let c = cmd(
+            json!({"type": "addVariable", "variable": {"id": format!("n{i}"), "collection": "t", "name": format!("number/n{i}"),
+            "type": "number", "values": {"light": i, "dark": i}}}),
+        );
+        meldframe_core::apply_doc(&mut d, &c, &Default::default()).unwrap();
+    }
+    let mut a = App::with_doc("user:a", "t", 1, d, 0).unwrap();
+    a.dispatch(Action::SetPanel {
+        panel: Panel::Variables,
+        open: true,
+    });
+    let col = &a.state().variables.collections[0];
+    assert_eq!((col.matched, col.variables.len()), (252, 200));
+    let counted: usize = col
+        .variables
+        .iter()
+        .filter_map(|r| r.heading.as_ref().map(|h| h.count))
+        .sum();
+    assert_eq!(counted, 200, "the headings add up to the rows listed");
+}

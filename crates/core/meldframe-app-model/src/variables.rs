@@ -64,7 +64,8 @@ pub struct VariableRow {
     /// selection or several.
     pub binds: Vec<BindOption>,
     /// Rows of a collection are listed by type (colours, then numbers); the first row of each type carries the
-    /// heading the front end draws above it, with how many rows of that type are listed.
+    /// heading the front end draws above it, with how many rows of that type are listed (not matched: past the cap of the
+    /// panel the two differ, and `CollectionRow::matched` says how many matched).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub heading: Option<TypeHeading>,

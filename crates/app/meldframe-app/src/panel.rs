@@ -317,8 +317,6 @@ impl App {
     }
 }
 
-/// The text of each value of `v`, in the order of the modes of `col`: a literal as stored, an alias as the name of
-/// its target (its id when the target is missing), with the id of the target.
 /// List the rows by type, colours first (the order inside a type stays the file's), and put the heading on the first row
 /// of each type.
 fn group_by_type(rows: &mut [VariableRow]) {
@@ -332,6 +330,8 @@ fn group_by_type(rows: &mut [VariableRow]) {
     }
 }
 
+/// The text of each value of `v`, in the order of the modes of `col`: a literal as stored, an alias as the name of
+/// its target (its id when the target is missing), with the id of the target.
 fn texts_of(
     col: &Collection,
     v: &Variable,

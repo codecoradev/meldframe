@@ -20,6 +20,7 @@ usedBy: number,
 binds: Array<BindOption>, 
 /**
  * Rows of a collection are listed by type (colours, then numbers); the first row of each type carries the
- * heading the front end draws above it, with how many rows of that type are listed.
+ * heading the front end draws above it, with how many rows of that type are listed (not matched: past the cap of the
+ * panel the two differ, and `CollectionRow::matched` says how many matched).
  */
 heading?: TypeHeading, };
