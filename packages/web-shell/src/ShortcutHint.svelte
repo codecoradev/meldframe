@@ -6,6 +6,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
+  import { takeFocusBack } from '@meldframe/web-chrome/focus';
   import { onMac } from './platform';
   import { sheetGroups } from './shortcuts';
 
@@ -14,7 +15,8 @@
   // Focus goes in when the sheet opens and back to where it was when it closes; Escape acts only while the focus is in
   // the sheet, so an Escape meant for a menu or a text edit is not taken by it.
   onMount(() => {
-    const before = document.activeElement as HTMLElement | null;
+    // Opened from the palette, the focus goes back to where the palette was opened from, which it remembered for this.
+    const before = (takeFocusBack() as HTMLElement | null) ?? (document.activeElement as HTMLElement | null);
     root?.querySelector<HTMLElement>('button')?.focus();
     return () => { if (before && before.isConnected) before.focus(); };
   });

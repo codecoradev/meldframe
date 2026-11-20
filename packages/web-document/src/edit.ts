@@ -187,12 +187,15 @@ export function ownsKeys(el: KeyTarget | null, k: { ctrlKey: boolean; metaKey: b
   return el.closest(OWNS_KEYS_SELECTOR) !== null && !k.ctrlKey && !k.metaKey && !k.altKey;
 }
 
+/** The action that deletes the selection (one action for all of it), or null when nothing is selected: the rule of the Delete key and of the palette. */
+export const deleteAction = (selection: readonly string[]): Action | null => (selection.length ? { type: 'delete', ids: [...selection] } : null);
+
 /** The action of a key of the editor: tools, delete, undo and redo. Null for any other key. */
 export function keyAction(k: KeyLike, selection: readonly string[]): Action | null {
   const mod = k.metaKey || k.ctrlKey;
   const key = k.key.toLowerCase();
   if (!mod && !k.altKey && toolKeys[key]) return { type: 'setTool', tool: toolKeys[key] };
-  if (!mod && (k.key === 'Delete' || k.key === 'Backspace')) return selection.length ? { type: 'delete', ids: [...selection] } : null;
+  if (!mod && (k.key === 'Delete' || k.key === 'Backspace')) return deleteAction(selection);
   if (mod && !k.altKey && key === 'z') return k.shiftKey ? { type: 'redo' } : { type: 'undo' };
   if (mod && !k.altKey && !k.shiftKey && key === 'y') return { type: 'redo' };
   return null;
