@@ -276,3 +276,14 @@ A test in `crates/features/capture/capture/tests/registration.rs` reads this tab
 | Code | Meaning and typical cause | What to do next |
 | --- | --- | --- |
 | `E_IMPORT_TOO_LARGE` | The `css` text is over 256 KiB. Nothing is read or written. | Send the style sheet in parts, or only the files that hold the variables (the theme, the root rule). |
+
+## Activity codes
+
+The store of batch headers (feature module `activity`, E5.1, ADR-0021) fails with these codes. They are the store's: a header that cannot be written never fails the tool call that wrote the ops (the call still writes and answers `batch: null`), so `activity_full` does not reach an agent over MCP; it is logged and counted by the server. The routes of the activity panel word them for a person.
+
+| Code | Meaning and typical cause | What to do next |
+| --- | --- | --- |
+| `invalid` | A name, a count, a time or a page size does not fit its rule (an actor over 128 bytes, a key prefix over 100 characters, a page of 0 or over 100), or a header is written for a file that has no ops yet (Postgres). | Fix the input. |
+| `activity_full` | A cap is reached; the message says which: 2,000 batch headers of one actor in a file, 20,000 in a file, or 200,000 in a workspace. A new header is refused, an update of an existing one never is. Not retryable. | The batch is listed without a number, a note or a review; nothing to retry. |
+| `not_found` | The file has no batch with that number in your workspace. | List the file and use a number it shows. |
+| `unavailable` | The store failed. Retryable. | Try again later. |

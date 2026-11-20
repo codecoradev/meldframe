@@ -1,0 +1,21 @@
+[package]
+name = "activity-store"
+description = "Activity feature module: the store of batch headers (numbered batches, notes and review states) beside the op log, with an in-memory adapter and a shared contract (E5.1, ADR-0021)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "feature"
+group = "activity"
+
+[features]
+# The contract suite every adapter passes. Off by default: a product build, WASM included, does not carry it.
+contract = []
+
+[dependencies]
+meldframe-activity = { path = "../../../core/meldframe-activity" }
+
+[lints]
+workspace = true

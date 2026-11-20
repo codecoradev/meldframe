@@ -9,6 +9,7 @@
 //! `spawn_blocking`, never from inside an async task (tokio refuses to block there).
 
 mod backing;
+mod batches;
 mod calls;
 mod review;
 mod state;
@@ -40,6 +41,8 @@ pub struct PgStore {
     // The pool is dropped before the runtime that drives it.
     pool: PgPool,
     rt: Arc<Runtime>,
+    /// The caps of the batch headers (`activity_store::BatchStore`); the default is the bounds of ADR-0021.
+    batch_caps: activity_store::Caps,
 }
 
 fn unavailable(e: impl Display) -> StoreError {
@@ -130,6 +133,12 @@ impl PgStore {
             return Err(unavailable(format!("bad schema name {schema:?}")));
         }
         Self::open(url, Some(schema.to_string()))
+    }
+
+    /// The same store with other caps on the batch headers: tests use small ones.
+    pub fn with_batch_caps(mut self, caps: activity_store::Caps) -> Self {
+        self.batch_caps = caps;
+        self
     }
 
     /// Drop a schema made by [`PgStore::connect_in_schema`] with everything in it. For tests and tools; it
@@ -236,6 +245,7 @@ impl PgStore {
         Ok(PgStore {
             pool: pool.map_err(db_err)?,
             rt,
+            batch_caps: Default::default(),
         })
     }
 
