@@ -1,5 +1,7 @@
-//! `size-check` (D1): 500 lines per file, 2,000 per crate. An allow-list records what is over
-//! today and an entry must equal the current size, so it can only go down.
+//! `size-check` (D1): 500 lines per file; per crate an ideal band of 1,500 to 2,500 lines and a
+//! hard ceiling of 4,000 (owner decision, 20 Nov 2026). Only the ceiling fails the check; a crate
+//! above 2,500 is reported as a candidate for a planned split. An allow-list records what is over
+//! a ceiling today and an entry must equal the current size, so it can only go down.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -9,7 +11,14 @@ use crate::rules::Package;
 use crate::scan;
 
 pub const FILE_LIMIT: usize = 500;
-pub const CRATE_LIMIT: usize = 2000;
+/// Hard ceiling of a crate: above it the check fails, and at it the split comes before the next
+/// addition.
+pub const CRATE_LIMIT: usize = 4000;
+/// Bottom of the ideal band of a crate; only the note's text uses it.
+pub const CRATE_IDEAL_LOW: usize = 1500;
+/// Top of the ideal band (1,500 to 2,500): above it a crate is a candidate for a planned split.
+/// Not a failure.
+pub const CRATE_SOFT: usize = 2500;
 /// Source extensions that count towards the ceilings.
 pub const EXTENSIONS: &[&str] = &[
     "rs", "ts", "tsx", "js", "mjs", "css", "scss", "svelte", "html",
@@ -139,6 +148,50 @@ pub fn check(crates: &[Sized], allow: &Allow) -> Vec<Violation> {
     out
 }
 
+/// Crates above the soft value, largest first (ties by name): candidates for a planned split.
+pub fn split_candidates(crates: &[Sized]) -> Vec<(String, usize)> {
+    let mut out: Vec<(String, usize)> = crates
+        .iter()
+        .map(|(name, files)| (name.clone(), files.iter().map(|f| f.1).sum()))
+        .filter(|(_, total)| *total > CRATE_SOFT)
+        .collect();
+    out.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    out
+}
+
+/// A line count with a comma between thousands: 4000 is `4,000`.
+fn thousands(n: usize) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// The note printed after the result line: `None` when no crate is above the soft value.
+pub fn split_note(candidates: &[(String, usize)]) -> Option<String> {
+    if candidates.is_empty() {
+        return None;
+    }
+    let n = candidates.len();
+    let mut note = format!(
+        "size-check: note: {n} crate{} above {soft} lines (ideal band {low} to {soft}; hard \
+         ceiling {hard}), candidates for a planned split:",
+        if n == 1 { "" } else { "s" },
+        low = thousands(CRATE_IDEAL_LOW),
+        soft = thousands(CRATE_SOFT),
+        hard = thousands(CRATE_LIMIT),
+    );
+    for (name, lines) in candidates {
+        note.push_str(&format!("\n  {name}: {lines} lines"));
+    }
+    Some(note)
+}
+
 /// Compare with the allow-list on the base branch: nothing may be added or raised.
 pub fn check_not_raised(base: &Allow, now: &Allow) -> Vec<Violation> {
     let mut out = Vec::new();
@@ -211,10 +264,15 @@ mod tests {
         }
     }
 
-    /// A crate of five 410-line files: 2,050 lines, over the crate ceiling only.
+    /// A crate of `n` files of 400 lines each, so only the crate total can be over a limit.
+    fn crate_of(name: &str, n: usize) -> Sized {
+        let files: Vec<(String, usize)> = (0..n).map(|i| (format!("{name}/{i}.rs"), 400)).collect();
+        (name.into(), files)
+    }
+
+    /// 11 files of 400 lines: 4,400 lines, over the 4,000 crate ceiling only.
     fn big() -> Sized {
-        let files: Vec<(String, usize)> = (0..5).map(|i| (format!("a/{i}.rs"), 410)).collect();
-        ("a".into(), files)
+        crate_of("a", 11)
     }
 
     #[test]
@@ -233,11 +291,100 @@ mod tests {
     }
 
     #[test]
-    fn crate_over_2000_without_entry_fails() {
+    fn crate_over_4000_without_entry_fails() {
         assert_eq!(
             check(&[big()], &Allow::default()),
-            vec![OverLimit("a".into(), 2050, 2000)]
+            vec![OverLimit("a".into(), 4400, 4000)]
         );
+    }
+
+    #[test]
+    fn crate_between_the_ideal_band_and_the_ceiling_passes() {
+        // 2,800 lines: above the 2,500 soft value, under the 4,000 hard ceiling.
+        assert_eq!(check(&[crate_of("a", 7)], &Allow::default()), vec![]);
+        // 4,000 lines exactly is within the ceiling.
+        assert_eq!(check(&[crate_of("a", 10)], &Allow::default()), vec![]);
+    }
+
+    #[test]
+    fn thousands_are_grouped_with_a_comma() {
+        assert_eq!(thousands(500), "500");
+        assert_eq!(thousands(1500), "1,500");
+        assert_eq!(thousands(4000), "4,000");
+        assert_eq!(thousands(12_345), "12,345");
+    }
+
+    #[test]
+    fn limits_are_the_owner_decision_of_20_nov_2026() {
+        assert_eq!(
+            (FILE_LIMIT, CRATE_IDEAL_LOW, CRATE_SOFT, CRATE_LIMIT),
+            (500, 1500, 2500, 4000)
+        );
+    }
+
+    #[test]
+    fn split_candidates_list_crates_above_2500_largest_first() {
+        let sizes = [
+            crate_of("exact", 6), // 2,400
+            crate_of("b", 7),     // 2,800
+            crate_of("c", 10),    // 4,000
+            crate_of("d", 7),     // 2,800
+            krate("e", &[("e/x.rs", 500)]),
+        ];
+        assert_eq!(
+            split_candidates(&sizes),
+            vec![
+                ("c".to_string(), 4000),
+                ("b".to_string(), 2800),
+                ("d".to_string(), 2800)
+            ]
+        );
+        // Exactly 2,500 is inside the band, not a candidate.
+        let edge = krate("edge", &[("edge/a.rs", 500); 5]);
+        assert_eq!(split_candidates(&[edge]), vec![]);
+    }
+
+    /// A crate of 500-line files plus one line, so its total is `500 * full + 1`.
+    fn one_over(name: &str, full: usize) -> Sized {
+        let mut files: Vec<(String, usize)> =
+            (0..full).map(|i| (format!("{name}/{i}.rs"), 500)).collect();
+        files.push((format!("{name}/last.rs"), 1));
+        (name.into(), files)
+    }
+
+    #[test]
+    fn a_crate_of_2501_lines_is_a_split_candidate_but_not_a_violation() {
+        let c = one_over("a", 5);
+        assert_eq!(
+            split_candidates(std::slice::from_ref(&c)),
+            vec![("a".to_string(), 2501)]
+        );
+        assert_eq!(check(&[c], &Allow::default()), vec![]);
+    }
+
+    #[test]
+    fn a_crate_of_4001_lines_fails_without_an_entry() {
+        assert_eq!(
+            check(&[one_over("a", 8)], &Allow::default()),
+            vec![OverLimit("a".into(), 4001, 4000)]
+        );
+    }
+
+    #[test]
+    fn split_note_is_silent_without_candidates() {
+        assert_eq!(split_note(&[]), None);
+    }
+
+    #[test]
+    fn split_note_names_each_candidate_and_is_not_a_violation() {
+        let note = split_note(&[("c".into(), 4000), ("b".into(), 2800)]).unwrap();
+        assert!(note.starts_with("size-check: note: 2 crates above 2,500 lines"));
+        assert!(note.contains("ideal band 1,500 to 2,500; hard ceiling 4,000"));
+        assert!(note.contains("  c: 4000 lines"));
+        assert!(note.contains("  b: 2800 lines"));
+        assert!(note.contains("planned split"));
+        let one = split_note(&[("c".into(), 2600)]).unwrap();
+        assert!(one.starts_with("size-check: note: 1 crate above 2,500 lines"));
     }
 
     #[test]
@@ -275,8 +422,19 @@ mod tests {
 
     #[test]
     fn crate_entries_follow_the_same_rules() {
-        assert_eq!(check(&[big()], &allow(&[], &[("a", 2050)])), vec![]);
-        assert_eq!(check(&[big()], &allow(&[], &[("a", 2100)])).len(), 1);
+        // An entry only makes sense above the 4,000 ceiling: it equals the size, or it is wrong.
+        assert_eq!(check(&[big()], &allow(&[], &[("a", 4400)])), vec![]);
+        assert_eq!(check(&[big()], &allow(&[], &[("a", 4500)])).len(), 1);
+    }
+
+    #[test]
+    fn a_crate_entry_for_a_crate_under_the_ceiling_is_stale() {
+        // meldframe-web was 2,089 under the old 2,000 ceiling; it is within 4,000 now.
+        let c = crate_of("a", 6);
+        assert_eq!(
+            check(&[c], &allow(&[], &[("a", 2400)])),
+            vec![Stale("a".into(), 2400)]
+        );
     }
 
     #[test]
@@ -325,8 +483,8 @@ mod tests {
 
     #[test]
     fn allow_list_parses_both_tables_and_rejects_bad_values() {
-        let a = parse_allow("[files]\n\"a/x.rs\" = 600\n[crates]\na = 2100\n").unwrap();
-        assert_eq!(a, allow(&[("a/x.rs", 600)], &[("a", 2100)]));
+        let a = parse_allow("[files]\n\"a/x.rs\" = 600\n[crates]\na = 4100\n").unwrap();
+        assert_eq!(a, allow(&[("a/x.rs", 600)], &[("a", 4100)]));
         assert_eq!(parse_allow("").unwrap(), Allow::default());
         assert!(parse_allow("[files]\n\"a\" = \"big\"\n").is_err());
         assert!(parse_allow("[files\n").is_err());

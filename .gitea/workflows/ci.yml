@@ -72,7 +72,7 @@ jobs:
         run: cargo fmt --all --check
       - name: Layering (kinds, groups, UI toolkit usage)
         run: cargo xtask deps-check
-      - name: Size limits (500 lines per file, 2,000 per crate, tests included)
+      - name: Size limits (500 lines per file, 4,000 per crate, tests included)
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
