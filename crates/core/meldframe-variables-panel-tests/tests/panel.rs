@@ -13,8 +13,14 @@ mod common;
 use common::*;
 
 #[test]
-fn the_panel_lists_nothing_until_it_is_open() {
+fn the_panel_is_open_at_first_load_and_lists_nothing_once_it_is_closed() {
     let mut a = App::with_doc("user:a", "t", 1, file(), 0).unwrap();
+    // The Inspector board draws the Variables section open: the list is there without a click.
+    assert!(a.state().panels.variables);
+    assert_eq!(a.state().variables.total, 2);
+    a.dispatch(Action::TogglePanel {
+        panel: Panel::Variables,
+    });
     assert!(!a.state().panels.variables);
     assert!(a.state().variables.collections.is_empty());
     a.dispatch(Action::TogglePanel {
@@ -22,10 +28,6 @@ fn the_panel_lists_nothing_until_it_is_open() {
     });
     assert!(a.state().panels.variables);
     assert_eq!(a.state().variables.total, 2);
-    a.dispatch(Action::TogglePanel {
-        panel: Panel::Variables,
-    });
-    assert!(a.state().variables.collections.is_empty());
 }
 
 #[test]

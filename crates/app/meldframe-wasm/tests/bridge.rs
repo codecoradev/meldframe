@@ -195,8 +195,13 @@ fn the_variables_panel_is_state_and_its_actions_are_json() {
         let scene: Vec<Value> = serde_json::from_str(&b.scene_json()).unwrap();
         scene[0]["fill"].clone()
     };
-    // Closed: nothing is listed.
-    assert_eq!(state(&b)["panels"]["variables"], false);
+    // Open at first load: the list is there. Closed: nothing is listed.
+    assert_eq!(state(&b)["panels"]["variables"], true);
+    assert_eq!(state(&b)["variables"]["collections"][0]["id"], "t");
+    run(
+        &mut b,
+        json!({"type": "setPanel", "panel": "variables", "open": false}),
+    );
     assert_eq!(state(&b)["variables"]["collections"], json!([]));
     run(
         &mut b,

@@ -146,8 +146,10 @@ describe.skipIf(!built)('The Variables panel and the mode over the real app laye
     expect(fill(e)).toEqual(first);
   });
 
-  it('lists the variables once the panel is open and follows the search', () => {
+  it('lists the variables while the panel is open (it is at first load) and follows the search', () => {
     const e = make2();
+    expect(e.snapshot().state.variables.collections[0]?.variables[0]?.id).toBe('bg');
+    e.dispatch({ type: 'setPanel', panel: 'variables', open: false });
     expect(e.snapshot().state.variables.collections).toEqual([]);
     e.dispatch({ type: 'setPanel', panel: 'variables', open: true });
     expect(e.snapshot().state.variables.collections[0]?.variables[0]?.id).toBe('bg');
