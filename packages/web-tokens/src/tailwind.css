@@ -85,6 +85,7 @@
 @source '../../web-panels/src';
 @source '../../web-activity/src';
 @source '../../web-feedback/src';
+@source '../../web-export/src';
 @source '../../web-chrome/src';
 
 /* State variants: the real pseudo-class, or an ancestor with `data-preview`, which the state matrix page uses to draw a state without the pointer. */

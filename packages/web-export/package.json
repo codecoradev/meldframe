@@ -1,0 +1,7 @@
+{
+  "name": "@meldframe/web-export",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The Export section of the inspector and the Export dialog of the web client: HTML (Tailwind or plain CSS) with the report of what the export could not carry, and PNG at 1x and 2x. It draws `state.export` of the app layer and dispatches actions; which frame can be exported, the document and the report are the app layer's. Used as source by apps/web."
+}

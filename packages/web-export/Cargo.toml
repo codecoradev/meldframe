@@ -1,0 +1,16 @@
+[package]
+name = "meldframe-web-export"
+description = "The Export section and dialog of the web client: the HTML of a frame in Tailwind or plain CSS with the report of what it could not carry, and the PNG at 1x and 2x (Svelte and TypeScript; this manifest makes the package a unit of the size and layering checks)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "ui"
+
+[lib]
+path = "rust/lib.rs"
+
+[lints]
+workspace = true

@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
-    "lint": "eslint . && for p in web-panels web-activity web-canvas web-input web-e2e web-tools web-tokens web-chrome web-feedback; do (cd ../../packages/$p && eslint -c ../../apps/web/eslint.config.js .) || exit 1; done",
+    "lint": "eslint . && for p in web-panels web-activity web-canvas web-input web-e2e web-tools web-tokens web-chrome web-feedback web-export; do (cd ../../packages/$p && eslint -c ../../apps/web/eslint.config.js .) || exit 1; done",
     "test": "vitest run",
     "ui-literals": "node ../../packages/web-tools/scripts/ui-literals.mjs",
     "licences": "node ../../packages/web-tools/scripts/licences.mjs",
