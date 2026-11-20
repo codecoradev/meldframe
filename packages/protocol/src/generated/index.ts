@@ -47,6 +47,7 @@ export type { SizeMode } from './SizeMode';
 export type { SnapshotNode } from './SnapshotNode';
 export type { TextAlign } from './TextAlign';
 export type { Tool } from './Tool';
+export type { TypeHeading } from './TypeHeading';
 export type { Value } from './Value';
 export type { VarRef } from './VarRef';
 export type { VarType } from './VarType';

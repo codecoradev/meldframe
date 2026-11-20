@@ -6,6 +6,7 @@
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
 use meldframe_app::{Action, App, BindField, Event, Panel, Property, VariableValue};
+use meldframe_protocol::VarType;
 use serde_json::json;
 
 mod common;
@@ -412,4 +413,40 @@ fn typing_an_opacity_over_a_bound_one_replaces_the_binding_and_one_undo_restores
         1
     );
     assert_eq!(row(&a, "round").used_by, 1);
+}
+
+#[test]
+fn rows_are_listed_by_type_and_the_first_of_each_type_carries_the_heading() {
+    let mut a = open();
+    // `bg` (colour) and `round` (number) are in the file; a colour added last still lists with the colours.
+    a.dispatch(Action::EditVariables {
+        commands: vec![cmd(
+            json!({"type": "addVariable", "variable": {"id": "fg", "collection": "t", "name": "color/fg", "type": "color",
+            "values": {"light": "#111111", "dark": "#eeeeee"}}}),
+        )],
+    });
+    assert!(refused(&mut a).is_empty());
+    let rows = &a.state().variables.collections[0].variables;
+    let order: Vec<&str> = rows.iter().map(|r| r.id.as_str()).collect();
+    assert_eq!(order, ["bg", "fg", "round"]);
+    let heads: Vec<_> = rows
+        .iter()
+        .map(|r| r.heading.as_ref().map(|h| (h.kind, h.count)))
+        .collect();
+    assert_eq!(
+        heads,
+        [Some((VarType::Color, 2)), None, Some((VarType::Number, 1))]
+    );
+}
+
+#[test]
+fn a_search_counts_the_headings_over_the_rows_it_lists() {
+    let mut a = open();
+    a.dispatch(Action::SetVariablesQuery {
+        query: "radius".into(),
+    });
+    let rows = &a.state().variables.collections[0].variables;
+    assert_eq!(rows.len(), 1);
+    let h = rows[0].heading.as_ref().unwrap();
+    assert_eq!((h.kind, h.count), (VarType::Number, 1));
 }

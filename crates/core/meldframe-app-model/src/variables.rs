@@ -63,6 +63,22 @@ pub struct VariableRow {
     /// The fields of the one selected node that this variable fits, and whether each is bound to it. Empty for no
     /// selection or several.
     pub binds: Vec<BindOption>,
+    /// Rows of a collection are listed by type (colours, then numbers); the first row of each type carries the
+    /// heading the front end draws above it, with how many rows of that type are listed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub heading: Option<TypeHeading>,
+}
+
+/// The heading of a run of rows of one type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TypeHeading {
+    #[serde(rename = "type")]
+    #[ts(rename = "type")]
+    pub kind: VarType,
+    pub count: usize,
 }
 
 /// The value of a variable in one mode.

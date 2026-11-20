@@ -6,7 +6,8 @@ use crate::app::App;
 use crate::document::refuse;
 use crate::event::Event;
 use meldframe_app_model::{
-    BindField, BindOption, CollectionRow, ModeValue, VariableRow, VariableValue, VariablesPanel,
+    BindField, BindOption, CollectionRow, ModeValue, TypeHeading, VariableRow, VariableValue,
+    VariablesPanel,
 };
 use meldframe_protocol::{
     Bind, Collection, Command, Node, NodeKind, NodePatch, Value, VarType, Variable, Variables,
@@ -213,8 +214,10 @@ impl App {
                     values,
                     used_by: uses.get(v.id.as_str()).copied().unwrap_or(0),
                     binds: selected.map(|n| binds_of(n, v)).unwrap_or_default(),
+                    heading: None,
                 });
             }
+            group_by_type(&mut rows);
             if in_col > 0 || words.is_empty() {
                 let active = choice
                     .get(&col.id)
@@ -316,6 +319,19 @@ impl App {
 
 /// The text of each value of `v`, in the order of the modes of `col`: a literal as stored, an alias as the name of
 /// its target (its id when the target is missing), with the id of the target.
+/// List the rows by type, colours first (the order inside a type stays the file's), and put the heading on the first row
+/// of each type.
+fn group_by_type(rows: &mut [VariableRow]) {
+    rows.sort_by_key(|r| matches!(r.kind, VarType::Number));
+    let mut at = 0;
+    while at < rows.len() {
+        let kind = rows[at].kind;
+        let count = rows[at..].iter().take_while(|r| r.kind == kind).count();
+        rows[at].heading = Some(TypeHeading { kind, count });
+        at += count;
+    }
+}
+
 fn texts_of(
     col: &Collection,
     v: &Variable,
