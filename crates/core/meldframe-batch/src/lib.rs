@@ -234,10 +234,13 @@ pub fn command_name(c: &Command) -> &'static str {
         Command::Reorder { .. } => "reorder",
         Command::AddCollection { .. } => "addCollection",
         Command::RemoveCollection { .. } => "removeCollection",
+        Command::RenameCollection { .. } => "renameCollection",
         Command::AddMode { .. } => "addMode",
         Command::RemoveMode { .. } => "removeMode",
+        Command::RenameMode { .. } => "renameMode",
         Command::AddVariable { .. } => "addVariable",
         Command::RemoveVariable { .. } => "removeVariable",
+        Command::RenameVariable { .. } => "renameVariable",
         Command::SetVariableValue { .. } => "setVariableValue",
     }
 }

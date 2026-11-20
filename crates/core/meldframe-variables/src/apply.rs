@@ -6,10 +6,13 @@ pub fn is_variable_command(cmd: &Command) -> bool {
         cmd,
         Command::AddCollection { .. }
             | Command::RemoveCollection { .. }
+            | Command::RenameCollection { .. }
             | Command::AddMode { .. }
             | Command::RemoveMode { .. }
+            | Command::RenameMode { .. }
             | Command::AddVariable { .. }
             | Command::RemoveVariable { .. }
+            | Command::RenameVariable { .. }
             | Command::SetVariableValue { .. }
     )
 }
@@ -19,6 +22,26 @@ pub fn apply(vars: &mut Variables, cmd: &Command) {
     match cmd {
         Command::AddCollection { collection } => vars.collections.push(collection.clone()),
         Command::RemoveCollection { id } => vars.collections.retain(|c| c.id != *id),
+        Command::RenameCollection { id, name } => {
+            if let Some(c) = vars.collections.iter_mut().find(|c| c.id == *id) {
+                c.name = name.clone();
+            }
+        }
+        Command::RenameMode {
+            collection,
+            mode,
+            name,
+        } => {
+            let col = vars.collections.iter_mut().find(|c| c.id == *collection);
+            if let Some(m) = col.and_then(|c| c.modes.iter_mut().find(|m| m.id == *mode)) {
+                m.name = name.clone();
+            }
+        }
+        Command::RenameVariable { id, name } => {
+            if let Some(v) = vars.variables.iter_mut().find(|v| v.id == *id) {
+                v.name = name.clone();
+            }
+        }
         Command::AddMode {
             collection,
             mode,
@@ -78,6 +101,38 @@ pub fn invert(vars: &Variables, cmd: &Command) -> Vec<Command> {
             .map(|c| {
                 vec![Command::AddCollection {
                     collection: c.clone(),
+                }]
+            })
+            .unwrap_or_default(),
+        // A rename is undone by the rename back to the name it replaces.
+        Command::RenameCollection { id, .. } => vars
+            .collection(id)
+            .map(|c| {
+                vec![Command::RenameCollection {
+                    id: id.clone(),
+                    name: c.name.clone(),
+                }]
+            })
+            .unwrap_or_default(),
+        Command::RenameMode {
+            collection, mode, ..
+        } => vars
+            .collection(collection)
+            .and_then(|c| c.modes.iter().find(|m| m.id == *mode))
+            .map(|m| {
+                vec![Command::RenameMode {
+                    collection: collection.clone(),
+                    mode: mode.clone(),
+                    name: m.name.clone(),
+                }]
+            })
+            .unwrap_or_default(),
+        Command::RenameVariable { id, .. } => vars
+            .variable(id)
+            .map(|v| {
+                vec![Command::RenameVariable {
+                    id: id.clone(),
+                    name: v.name.clone(),
                 }]
             })
             .unwrap_or_default(),
@@ -149,11 +204,14 @@ pub fn touched(cmd: &Command) -> Vec<String> {
     match cmd {
         Command::AddCollection { collection } => vec![col(&collection.id)],
         Command::RemoveCollection { id } => vec![col(id)],
-        Command::AddMode { collection, .. } | Command::RemoveMode { collection, .. } => {
-            vec![col(collection)]
-        }
+        Command::AddMode { collection, .. }
+        | Command::RemoveMode { collection, .. }
+        | Command::RenameMode { collection, .. } => vec![col(collection)],
+        Command::RenameCollection { id, .. } => vec![col(id)],
         Command::AddVariable { variable } => vec![var(&variable.id)],
-        Command::RemoveVariable { id } | Command::SetVariableValue { id, .. } => vec![var(id)],
+        Command::RemoveVariable { id }
+        | Command::RenameVariable { id, .. }
+        | Command::SetVariableValue { id, .. } => vec![var(id)],
         _ => Vec::new(),
     }
 }

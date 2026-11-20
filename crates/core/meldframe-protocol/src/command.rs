@@ -66,6 +66,11 @@ pub enum Command {
     RemoveCollection {
         id: String,
     },
+    /// Give a collection another name. The id is the identity: nothing that points at the collection changes.
+    RenameCollection {
+        id: String,
+        name: String,
+    },
     /// Add a mode to a collection at `index` (1 to the number of modes; absent = last; the default mode stays
     /// first). Every variable of the collection gets the value of mode `copy_from` (absent = the default mode)
     /// for the new mode, so a collection is always complete.
@@ -84,6 +89,12 @@ pub enum Command {
         collection: String,
         mode: String,
     },
+    /// Give a mode another name. Its id, its place and every value of it stay.
+    RenameMode {
+        collection: String,
+        mode: String,
+        name: String,
+    },
     /// Add a variable. `variable.values` holds one value for every mode of its collection.
     AddVariable {
         variable: Variable,
@@ -91,6 +102,11 @@ pub enum Command {
     /// Remove a variable that no node field is bound to and no alias points at.
     RemoveVariable {
         id: String,
+    },
+    /// Give a variable another name. The id is the identity: every binding and alias to it stays.
+    RenameVariable {
+        id: String,
+        name: String,
     },
     /// Set the value of a variable in one mode: a literal of its type or an alias (`{"var": id}`).
     SetVariableValue {
