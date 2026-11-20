@@ -73,7 +73,7 @@ Colour variables show as OKLCH by default, for example `OKLCH(0.99 0.004 150)`, 
 
 - **Actor colour.** Each actor has a stable colour: the person blue, agents orange, teal, purple. It appears on the layer dot, the touch ring, the review tint and the Activity lane. Actors also differ by name, never by colour alone. `[P]`
 - **Layers panel.** A dot and a relative time for the last writer, a "new" badge for nodes an agent added in the current run, and a filter that shows only agent changes (`collab-ux.md` 5.2).
-- **Canvas.** A touch ring (2 px, actor colour, fades over 1.5 s; static for 2 s with reduced motion) and a name label. Selection is a 1.5 px outline with square handles and a size badge. Rings are ephemeral events (ADR-0009).
+- **Canvas.** A touch ring (2 px, actor colour, fades over 1.5 s; with reduced motion it stays fully drawn until the app layer drops it, 1.5 s after the touch) and a name label. Selection is a 1.5 px outline with square handles and a size badge. Rings are ephemeral events (ADR-0009).
 - **Activity** is the second tab of the right panel, next to Design, with a count of batches that need review. This settles `collab-ux.md` Q6. `[P]`
 - **Follow agent** is a Preferences setting, off by default (Q7 in that page stays open for v1).
 - **Messages.** Every message says what happened, whether the file changed and what happens next; the texts in `collab-ux.md` section 7 apply. A connection bar shows connected, reconnecting (edits are kept), catching up and offline.

@@ -100,8 +100,16 @@ A pending op of the same actor that another op was built on, such as the edit an
 _Avoid_: Prerequisite, parent op
 
 **Batch**:
-A group of ops submitted together, optionally all-or-nothing. A batch is the unit of review and revert.
+A group of ops submitted together, optionally all-or-nothing. A batch is the unit of review and revert. Over MCP it is the written ops of one `apply_commands` call: they share one key prefix (`{prefix}:{n}`) and belong to the actor that sent them. A call that wrote nothing is not a batch; one that wrote gets a number in its file (see **Batch header**).
 _Avoid_: Transaction, changeset
+
+**Batch header**:
+The row the server keeps beside a file's log for a batch it numbered: the number (per file, from 1, never reused), the **Note**, how many commands the batch had and how many were written, when, and its **Review state**. It is not an op: it costs no quota, is not undone or reverted with the design and is never part of the file. A batch with no header (written over REST or the live socket, past a cap, or when the header write failed) is still a batch; it has no number, note or review.
+_Avoid_: Metadata
+
+**Note**:
+The agent's plain text on a batch, sent as the `note` argument of `apply_commands`: what the batch does and why, at most 500 characters and 3 line breaks, with no hidden characters (a bad one refuses the whole call). The person sees it quoted and attributed to the actor that wrote it; another agent can read it through `get_batches` as untrusted data. It is text: nothing in the product acts on its content.
+_Avoid_: Comment (a person's remark pinned on the canvas, which is parked), annotation, remark
 
 **Actor**:
 Whoever submits ops: a human editor or an agent session. Every change is attributed to one actor.
@@ -111,6 +119,14 @@ _Avoid_: User (a user is a person; an agent session is also an actor), author
 An external AI client, such as Claude Code, Cursor or Codex, that drives the canvas through MCP.
 _Avoid_: Bot, assistant
 
+**Lane**:
+One actor's work in one file, as the Activity panel shows it: its kind (agent or person, read from the actor string for display only), its state (working, quiet or idle), its runs and its batches, newest first. The server knows no session finer than an actor, so two chats of one agent that share a grant are one actor and one lane.
+_Avoid_: Session, swimlane
+
+**Run**:
+The stretch of one actor's work with no gap of more than 5 minutes between its ops (a longer gap starts a new run). A lane lists its runs (a person's own edits, which are single ops and not batches, show there as runs), and a **Checkpoint** is taken when another actor's run starts.
+_Avoid_: Session, episode
+
 **Room**:
 The live channel of one file: every open client and agent sees the same ordered changes.
 _Avoid_: Session, channel
@@ -118,6 +134,10 @@ _Avoid_: Session, channel
 **Review**:
 Looking at an agent's batches after they were applied, then keeping or reverting them.
 _Avoid_: Approval, staging
+
+**Review state**:
+A person's mark on a batch: unreviewed (the default), accepted (kept) or needs review (flagged for a closer look), with the actor that last changed it and when. Only an actor listed in `MELDFRAME_REVIEWERS` may set it, over a route and not over MCP, so an agent cannot accept its own work. It is not an **Approval** (the owner's answer to a call whose policy is Ask), not an accepted op of a **Room**, and not how far a batch got (applied or partial). A **Revert** does not change it.
+_Avoid_: Approval state, review status
 
 **Revert**:
 A new batch, authored by the human, that restores what an agent's batch changed; it never rewrites history.
@@ -169,6 +189,10 @@ _Avoid_: Persistent message
 A live message that is only a hint (agent touch, capture request, progress); it is best-effort and never replayed.
 _Avoid_: Transient message, notification
 
+**Touch hint**:
+An ephemeral event the server sends for the ops it writes (at most one per actor and file every 100 ms), naming the actor and the nodes touched and never their content. The app layer turns it into a ring on those nodes for 1.5 seconds, and into a lasting ring on the top-level nodes of the newest batch while that actor's lane is working; a person's own edits draw none. It shows where work is happening. It is not a lock, a claim or a position.
+_Avoid_: Cursor, presence
+
 ### Output and verification
 
 **Export**:
@@ -196,5 +220,6 @@ _Avoid_: Audit, feedback
 - A **Workspace** has many **Files**; a **File** has **Pages**; a **Page** has **Frames**; a **Frame** is a tree of **Nodes**.
 - A **Collection** has **Modes** and **Variables**; a **Binding** ties a **Node** property to a **Variable**.
 - An **Actor** submits **Ops**; **Ops** travel in **Batches**; a **Batch** can be reviewed and **Reverted**.
+- An **Actor** has one **Lane** in each **File** it works in; a **Lane** has **Runs** and **Batches**. A numbered **Batch** has a **Batch header** that holds its **Note** and its **Review state**.
 - An **Actor** edits through a **Replica**; its **Pending ops** wait for the **Room**, and an **Op** names its **Dependencies**.
 - A **File** has one **Room**; the **Room** gives every **Op** one place in a single order.
