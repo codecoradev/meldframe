@@ -10,6 +10,7 @@ const WORDS: Record<string, string> = {
   conflict: 'Someone changed this node first. Look at the new version and try again.',
   not_found: 'That node no longer exists.',
   stale_client: 'This page is out of date. Reload it.',
+  quota_storage: 'The workspace storage is full. Your files are unchanged; edits that add data are paused until space is freed.',
   rate_limited: 'Too fast: wait a moment and try again.',
   outbox_full: 'Too many changes are waiting for the server. Wait until it catches up.',
 };

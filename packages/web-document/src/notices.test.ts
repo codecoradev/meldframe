@@ -8,6 +8,12 @@ describe('noticeFor', () => {
     expect(noticeFor({ type: 'opRejected', key: 'k', code: 'conflict', retryable: false } as Event)).toMatch(/changed/i);
     expect(noticeFor({ type: 'refused', code: 'outbox_full' } as Event)).toMatch(/too many/i);
   });
+  it('says the storage of the workspace is full, that the files are unchanged, and that edits that add data wait', () => {
+    const text = noticeFor({ type: 'opRejected', key: 'k', code: 'quota_storage', retryable: false } as Event)!;
+    expect(text).toMatch(/storage is full/i);
+    expect(text).toMatch(/files are unchanged/i);
+    expect(text).not.toContain('quota_storage');
+  });
   it('names an unknown code instead of hiding it', () => {
     expect(noticeFor({ type: 'refused', code: 'weird_thing' } as Event)).toContain('weird_thing');
   });
