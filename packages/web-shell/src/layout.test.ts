@@ -3,7 +3,7 @@ import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
 import { barClear, fileItems, PANEL_INSET, reserved, rightWidth } from './layout';
 import { layoutKey } from './keys';
-import { composeProps } from './compose';
+import { composeProps } from '@meldframe/web-chrome/compose';
 import { isMac, labels } from './platform';
 import Layout from './Layout.svelte';
 

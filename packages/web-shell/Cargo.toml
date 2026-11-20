@@ -1,0 +1,16 @@
+[package]
+name = "meldframe-web-shell"
+description = "The editor shell of the web client: the Layout (top bar, panels, status strip), the shortcut sheet, the zoom menu, the panel keys and the platform key labels, with the /?layout page (Svelte and TypeScript; built on the primitives of web-chrome; this manifest makes the package a unit of the size and layering checks)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "ui"
+
+[lib]
+path = "rust/lib.rs"
+
+[lints]
+workspace = true
