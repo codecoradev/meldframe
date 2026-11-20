@@ -15,7 +15,7 @@
   let { label, shortcut, side = 'bottom', trigger }: Props = $props();
 </script>
 
-<!-- One TooltipProvider above the controls (the Shell, the matrix page) gives the neighbours their shared delay. -->
+<!-- One TooltipProvider above the controls (the Layout, the matrix page) gives the neighbours their shared delay. -->
 <Tooltip.Root>
   <Tooltip.Trigger>{#snippet child({ props })}{@render trigger(props)}{/snippet}</Tooltip.Trigger>
   <Tooltip.Portal>

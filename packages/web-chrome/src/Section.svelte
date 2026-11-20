@@ -12,17 +12,19 @@
     /** Folding: `open` and the handler that flips it; omit both for a section that stays open. */
     open?: boolean;
     onToggle?: () => void;
+    /** `data-testid` of the folding button. */
+    toggleId?: string;
     actions?: Snippet;
     children: Snippet;
     [data: `data-${string}`]: string | undefined;
   }
-  let { title, open = true, onToggle, actions, children, ...rest }: Props = $props();
+  let { title, open = true, onToggle, toggleId, actions, children, ...rest }: Props = $props();
 </script>
 
 <section {...rest} aria-label={title} class="flex flex-col gap-3 border-t border-hairline px-4 py-4 first:border-t-0">
   <header class="flex items-center justify-between text-body font-semibold text-text-strong">
     {#if onToggle}
-      <button type="button" aria-expanded={open} onclick={onToggle} class="{ring} -ml-1 flex h-(--mf-size-control-sm) items-center gap-1 rounded-sm px-1">
+      <button type="button" aria-expanded={open} data-testid={toggleId} onclick={onToggle} class="{ring} -ml-1 flex h-(--mf-size-control-sm) items-center gap-1 rounded-sm px-1">
         <span class="text-icon-muted"><Icon name={open ? 'chevron-down' : 'chevron-right'} /></span>{title}
       </button>
     {:else}

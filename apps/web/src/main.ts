@@ -19,8 +19,8 @@ let editor: ReturnType<typeof mount> | undefined;
 async function start() {
   const page = new URLSearchParams(location.search);
   if (page.has('tokens')) return mount(App, { target: root });
-  // The design pages load on demand, so the editor's bundle does not carry them.
   if (page.has('states')) return mount((await import('@meldframe/web-chrome/StateMatrix.svelte')).default, { target: root });
+  if (page.has('layout')) return mount((await import('@meldframe/web-chrome/LayoutDemo.svelte')).default, { target: root }); // /?states and /?layout load on demand: the editor's bundle does not carry them
   await loadWasm();
   const { seq, nodes, variables, attribution } = await loadFile(fetch, file);
   // A fresh nonce per page load: the app never reuses an idempotency key (see `App::new`).

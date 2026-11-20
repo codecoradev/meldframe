@@ -35,7 +35,7 @@
   }
 </script>
 
-<div bind:this={host} {...rest} role="tablist" aria-label={name} class="flex gap-1 border-b border-hairline px-3 py-2">
+<div bind:this={host} {...rest} role="tablist" aria-label={name} class="flex min-w-0 flex-1 gap-1">
   {#each tabs as t, i (t.id)}
     {@const on = t.id === selected}
     <button

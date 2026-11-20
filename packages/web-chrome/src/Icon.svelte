@@ -37,6 +37,9 @@
     'align-end': 'M13 3v10M4 5h6M6 9h4',
     padding: `${rect(3, 3, 10, 10)}M6 6h4v4H6z`,
     agent: `${circle(8, 8, 2.5)}M8 2v2M8 12v2M2 8h2M12 8h2`,
+    undo: 'M6 3L3 6l3 3M3 6h6a4 4 0 010 8H6',
+    redo: 'M10 3l3 3-3 3M13 6H7a4 4 0 000 8h3',
+    help: `${circle(8, 8, 6)}M6.3 6.2a1.8 1.8 0 113 1.2C8.5 8 8 8.3 8 9.2M8 11.4v.1`,
     layers: 'M8 2.5l5.5 3L8 8.5l-5.5-3zM2.5 8.5L8 11.5l5.5-3M2.5 11L8 14l5.5-3',
   } as const;
   export type IconName = keyof typeof icons;

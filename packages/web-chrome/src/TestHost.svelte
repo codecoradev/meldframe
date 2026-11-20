@@ -1,4 +1,4 @@
-<!-- Test only: renders a component under the TooltipProvider that the Shell gives the real controls. -->
+<!-- Test only: renders a component under the TooltipProvider that the Layout gives the real controls. -->
 <script lang="ts">
   import type { Component } from 'svelte';
   import TooltipProvider from './TooltipProvider.svelte';
