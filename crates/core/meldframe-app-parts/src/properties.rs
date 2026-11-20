@@ -1,5 +1,6 @@
 //! The editable values of a node as the properties panel shows them.
 
+use crate::layout::{is_layout, layout_notes, sides, uniform};
 use crate::property::MIN_STOPS;
 use meldframe_app_model::{BindField, FieldBinding, FillKind, Properties};
 use meldframe_check::Limits;
@@ -25,7 +26,12 @@ pub fn fill_kind(n: &Node) -> FillKind {
 
 /// The editable values of a node as they are painted: a bound field shows what the render step resolves it to
 /// (`Fields` is the one place that does it, so the panel and the canvas agree, unresolved defaults included).
-pub fn properties(vars: &Variables, choice: &ModeChoice, n: &Node) -> Properties {
+pub fn properties(
+    vars: &Variables,
+    choice: &ModeChoice,
+    n: &Node,
+    parent: Option<&Node>,
+) -> Properties {
     let fields = Fields::new(vars, choice);
     let found = node_bindings(n);
     let bound: Vec<String> = found.iter().map(|b| b.field.to_string()).collect();
@@ -67,6 +73,18 @@ pub fn properties(vars: &Variables, choice: &ModeChoice, n: &Node) -> Properties
         border: n.border.clone(),
         shadows: n.shadows.clone(),
         max_shadows: Limits::default().max_shadows,
+        layout: n.layout,
+        gap: n.gap,
+        padding: sides(n.pad()),
+        padding_uniform: uniform(n.pad()),
+        margin: sides(n.margin()),
+        sw: n.sw,
+        sh: n.sh,
+        align: n.align,
+        justify: n.justify,
+        absolute: n.absolute,
+        in_layout: parent.is_some_and(is_layout),
+        notes: layout_notes(n, parent),
         text: n.text.clone(),
         font_size: n.font_size,
         opacity: fields.opacity(&n.opacity),

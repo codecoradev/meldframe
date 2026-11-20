@@ -259,12 +259,16 @@ impl App {
     /// The properties panel follows the selection.
     fn refresh_properties(&mut self) {
         self.state.properties = match self.state.selection.as_slice() {
-            [id] => self
-                .replica
-                .nodes()
-                .iter()
-                .find(|n| n.id == *id)
-                .map(|n| properties(self.vars(), &self.choice(), n)),
+            [id] => {
+                let nodes = self.replica.nodes();
+                nodes.iter().find(|n| n.id == *id).map(|n| {
+                    let parent = n
+                        .parent_id
+                        .as_deref()
+                        .and_then(|p| nodes.iter().find(|x| x.id == p));
+                    properties(self.vars(), &self.choice(), n, parent)
+                })
+            }
             _ => None,
         };
     }

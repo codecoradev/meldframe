@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { addShadowAction, borderColorAction, borderPositionAction, borderWidthAction, removeShadowAction, shadowAction } from './decoration';
 
 const shadow = { x: 0, y: 4, blur: 8, spread: 0, color: '#00000040' };
-const p: Properties = { id: 'n', name: 'Box', kind: 'rect', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, minStops: 2, maxStops: 8, border: { width: 1, color: '#000000', position: 'inside' }, shadows: [shadow], maxShadows: 4, radius: 0, text: '', fontSize: 16, opacity: 1, clip: false, bound: [], bindings: [] };
+const p: Properties = { id: 'n', name: 'Box', kind: 'rect', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, minStops: 2, maxStops: 8, border: { width: 1, color: '#000000', position: 'inside' }, shadows: [shadow], maxShadows: 4, radius: 0, layout: 'none', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, margin: { top: 0, right: 0, bottom: 0, left: 0 }, sw: 'fixed', sh: 'fixed', align: 'start', justify: 'start', absolute: false, inLayout: false, notes: [], text: '', fontSize: 16, opacity: 1, clip: false, bound: [], bindings: [] };
 const prop = (property: object) => ({ type: 'setProperty', id: 'n', property });
 
 describe('the border', () => {

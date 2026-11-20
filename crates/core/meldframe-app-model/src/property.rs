@@ -1,7 +1,8 @@
 //! One value of the properties panel as an action carries it: the fields of the inspector that become one `UpdateNode`.
 
+use crate::layout::{Axis, Side};
 use crate::state::FillKind;
-use meldframe_protocol::{BorderPosition, Shadow};
+use meldframe_protocol::{Align, BorderPosition, Justify, LayoutMode, Shadow, SizeMode};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -53,4 +54,31 @@ pub enum Property {
     AddShadow {},
     /// Remove one shadow. Refused as `not_found` past the end.
     RemoveShadow(usize),
+    /// Switch a frame between no layout, a row and a column (a frame only: refused as `invalid` on any other node).
+    Layout(LayoutMode),
+    /// The gap between the children of an auto layout frame (a frame only: refused as `invalid` on any other node).
+    Gap(f64),
+    /// One side of the padding; the sides that are not set keep the uniform value (a frame only: refused as `invalid` on any other node).
+    Padding {
+        side: Side,
+        value: f64,
+    },
+    /// All four sides at once: the uniform value, and the sides forget their own (a frame only: refused as `invalid` on any other node).
+    PaddingAll(f64),
+    /// One side of the margin.
+    Margin {
+        side: Side,
+        value: f64,
+    },
+    /// How the width or the height is sized.
+    Sizing {
+        axis: Axis,
+        mode: SizeMode,
+    },
+    /// Where the children sit across the layout (a frame only: refused as `invalid` on any other node).
+    Align(Align),
+    /// Where the children sit along the layout (a frame only: refused as `invalid` on any other node).
+    Justify(Justify),
+    /// Take the node out of the flow of its auto layout parent, or put it back.
+    Absolute(bool),
 }

@@ -4,7 +4,7 @@
 //! core's, run when the command is applied.
 
 use crate::properties::fill_kind;
-use meldframe_app_model::{FillKind, Property};
+use meldframe_app_model::{Axis, FillKind, Property, Side};
 use meldframe_check::Limits;
 use meldframe_protocol::{
     Bind, Border, DEFAULT_FILL, Gradient, GradientKind, GradientStop, Node, NodeKind, NodePatch,
@@ -22,7 +22,18 @@ pub fn property_patch(
     painted: &str,
 ) -> Result<Option<NodePatch>, &'static str> {
     // Only a frame clips: the canvas draws nothing else that way, so other kinds refuse the field.
-    if matches!(property, Property::Clip(_)) && node.kind != NodeKind::Frame {
+    // Likewise only a frame lays out its children: the layout, the gap, the padding and the alignment are its fields.
+    let frame_only = matches!(
+        property,
+        Property::Clip(_)
+            | Property::Layout(_)
+            | Property::Gap(_)
+            | Property::Padding { .. }
+            | Property::PaddingAll(_)
+            | Property::Align(_)
+            | Property::Justify(_)
+    );
+    if frame_only && node.kind != NodeKind::Frame {
         return Err("invalid");
     }
     let mut patch = NodePatch::default();
@@ -156,6 +167,36 @@ pub fn property_patch(
             });
             patch.shadows = Some(list);
         }
+        Property::Layout(mode) => patch.layout = Some(mode),
+        Property::Gap(v) => patch.gap = Some(v),
+        Property::Padding { side, value } => {
+            let v = Some(Some(value));
+            match side {
+                Side::Top => patch.pad_t = v,
+                Side::Right => patch.pad_r = v,
+                Side::Bottom => patch.pad_b = v,
+                Side::Left => patch.pad_l = v,
+            }
+        }
+        Property::PaddingAll(v) => {
+            patch.padding = Some(v);
+            // The sides forget their own value, so the uniform one is what each side takes.
+            (patch.pad_t, patch.pad_r, patch.pad_b, patch.pad_l) =
+                (Some(None), Some(None), Some(None), Some(None));
+        }
+        Property::Margin { side, value } => match side {
+            Side::Top => patch.mar_t = Some(value),
+            Side::Right => patch.mar_r = Some(value),
+            Side::Bottom => patch.mar_b = Some(value),
+            Side::Left => patch.mar_l = Some(value),
+        },
+        Property::Sizing { axis, mode } => match axis {
+            Axis::Width => patch.sw = Some(mode),
+            Axis::Height => patch.sh = Some(mode),
+        },
+        Property::Align(a) => patch.align = Some(a),
+        Property::Justify(j) => patch.justify = Some(j),
+        Property::Absolute(v) => patch.absolute = Some(v),
         Property::RemoveShadow(index) => {
             let mut list = node.shadows.clone();
             if index >= list.len() {
