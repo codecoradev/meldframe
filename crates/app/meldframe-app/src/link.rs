@@ -1,10 +1,11 @@
 //! The live connection: connecting, live, dropped, backoff, reconnect and resync. Time arrives as an
 //! action payload (`now_ms`, the shell's clock); nothing here reads a clock.
 
-use crate::app::{App, out_ops};
+use crate::app::App;
 use crate::effect::Effect;
 use crate::event::Event;
 use crate::state::Connection;
+use meldframe_app_parts::document::out_ops;
 use meldframe_app_rules::level::Level;
 use meldframe_app_rules::retry::Retries;
 use meldframe_protocol::Doc;

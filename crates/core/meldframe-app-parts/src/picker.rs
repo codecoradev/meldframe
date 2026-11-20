@@ -1,6 +1,6 @@
 //! The rows of the bind picker of a field: the variables that fit one field of a node, with the search applied.
 
-use crate::variables_panel::{field_name, value_text};
+use crate::variables_panel::{bindable, field_name, value_text};
 use meldframe_app_model::{BindField, Picker, PickerRow};
 use meldframe_protocol::{Node, VarType, Variables};
 use meldframe_variables::{ModeChoice, Resolver, node_bindings};
@@ -74,4 +74,28 @@ pub fn picker_view(
         total,
         rows,
     }
+}
+
+/// The code a request to open the picker on a field of node `id` is refused with, when it is: no such node, the node is
+/// not the one selected, or the field cannot be bound on this kind of node.
+pub fn open_refusal(
+    nodes: &[Node],
+    selection: &[String],
+    id: &str,
+    field: BindField,
+) -> Option<&'static str> {
+    let node = nodes.iter().find(|n| n.id == id);
+    match node {
+        None => Some("not_found"),
+        Some(_) if !matches!(selection, [only] if only == id) => Some("not_selected"),
+        Some(n) if !bindable(n.kind, field) => Some("not_bindable"),
+        Some(_) => None,
+    }
+}
+
+/// Whether the picker open on a field of node `id` still has what it needs: the node is the one selected, and the
+/// field can be bound on it.
+pub fn is_open_valid(nodes: &[Node], selection: &[String], id: &str, field: BindField) -> bool {
+    matches!(selection, [only] if only == id)
+        && nodes.iter().any(|n| n.id == id && bindable(n.kind, field))
 }

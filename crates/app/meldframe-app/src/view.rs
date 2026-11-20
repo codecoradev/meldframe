@@ -3,6 +3,8 @@
 use crate::app::App;
 use crate::event::Event;
 use crate::state::Panel;
+use meldframe_app_parts::panel::{is_open, set_open, toggle_listed};
+use meldframe_app_parts::selection::known;
 
 impl App {
     pub(crate) fn set_tool(&mut self, tool: crate::state::Tool) {
@@ -13,12 +15,7 @@ impl App {
     }
 
     pub(crate) fn select(&mut self, ids: Vec<String>) {
-        let mut keep: Vec<String> = Vec::with_capacity(ids.len());
-        for id in ids {
-            if !keep.contains(&id) && self.replica.nodes().iter().any(|n| n.id == id) {
-                keep.push(id);
-            }
-        }
+        let keep = known(ids, self.replica.nodes());
         if self.state.selection != keep {
             self.state.selection = keep.clone();
             self.events.push(Event::SelectionChanged { ids: keep });
@@ -26,20 +23,12 @@ impl App {
     }
 
     pub(crate) fn is_open(&self, panel: Panel) -> bool {
-        match panel {
-            Panel::Layers => self.state.panels.layers,
-            Panel::Properties => self.state.panels.properties,
-            Panel::Variables => self.state.panels.variables,
-        }
+        is_open(&self.state.panels, panel)
     }
 
     pub(crate) fn set_panel(&mut self, panel: Panel, open: bool) {
         if self.is_open(panel) != open {
-            match panel {
-                Panel::Layers => self.state.panels.layers = open,
-                Panel::Properties => self.state.panels.properties = open,
-                Panel::Variables => self.state.panels.variables = open,
-            }
+            set_open(&mut self.state.panels, panel, open);
             self.events.push(Event::PanelChanged { panel, open });
         }
     }
@@ -49,17 +38,7 @@ impl App {
         if !known && !self.state.panels.collapsed.contains(&id) {
             return;
         }
-        let list = &mut self.state.panels.collapsed;
-        let collapsed = match list.iter().position(|c| *c == id) {
-            Some(at) => {
-                list.remove(at);
-                false
-            }
-            None => {
-                list.push(id.clone());
-                true
-            }
-        };
+        let collapsed = toggle_listed(&mut self.state.panels.collapsed, &id);
         self.events.push(Event::CollapsedChanged { id, collapsed });
     }
 }

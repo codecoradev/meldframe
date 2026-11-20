@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-app-parts"
-description = "Pure parts of the app layer: the Variables panel view, the properties of a node, the nodes a command touches, and the wording of a refusal. Split from meldframe-app to keep it under the size ceiling; no state."
+description = "Pure parts of the app layer: the Variables panel view, the properties of a node, the nodes a command touches, the commands and the wording of a document action, the bind picker, and the binding of a field. Split from meldframe-app to keep it under the size ceiling; no state."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -16,6 +16,7 @@ meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-render = { path = "../meldframe-render" }
 meldframe-sync = { path = "../meldframe-sync" }
 meldframe-variables = { path = "../meldframe-variables" }
+meldframe-variant = { path = "../meldframe-variant" }
 serde_json = "1"
 
 [lints]

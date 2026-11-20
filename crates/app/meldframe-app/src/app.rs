@@ -1,19 +1,21 @@
 //! The state machine: one action in, state changes, events and effects out. No I/O, clock or randomness.
 
 use crate::action::Action;
-use crate::effect::{Effect, OutOp};
+use crate::effect::Effect;
 use crate::event::Event;
 use crate::panel::PanelCache;
-use crate::state::{AppState, Connection, History};
+use crate::state::{AppState, Connection};
 use meldframe_activity::Feed;
-use meldframe_app_parts::properties::properties;
+use meldframe_app_parts::document::{history_of, out_ops};
+use meldframe_app_parts::properties::selected_properties;
+use meldframe_app_parts::selection::toggled;
 use meldframe_app_rules::level::{self, Level};
 use meldframe_app_rules::link::Link;
 use meldframe_app_rules::retry::Retries;
 use meldframe_app_rules::review::Review;
 use meldframe_protocol::{Doc, Node, Variables};
 use meldframe_render::{PaintedBox, resolve_with};
-use meldframe_sync::{LoadError, Outgoing, Replica};
+use meldframe_sync::{LoadError, Replica};
 use std::collections::HashSet;
 
 /// Owns the [`AppState`] and the document replica, and applies actions to them.
@@ -132,16 +134,7 @@ impl App {
         let mut fx = Vec::new();
         match action {
             Action::Select { ids } => self.select(ids),
-            Action::ToggleSelect { id } => {
-                let mut ids = self.state.selection.clone();
-                match ids.iter().position(|current| *current == id) {
-                    Some(at) => {
-                        ids.remove(at);
-                    }
-                    None => ids.push(id),
-                }
-                self.select(ids);
-            }
+            Action::ToggleSelect { id } => self.select(toggled(&self.state.selection, id)),
             Action::ClearSelection {} => self.select(Vec::new()),
             Action::SetTool { tool } => self.set_tool(tool),
             Action::SetPanel { panel, open } => self.set_panel(panel, open),
@@ -171,16 +164,13 @@ impl App {
                 variables,
                 seq,
                 applied,
-            } => self.reload(
-                now_ms,
-                Doc {
+            } => {
+                let doc = Doc {
                     nodes,
                     vars: variables,
-                },
-                seq,
-                &applied,
-                &mut fx,
-            ),
+                };
+                self.reload(now_ms, doc, seq, &applied, &mut fx);
+            }
             doc => self.document(doc, &mut fx),
         }
         match self.level {
@@ -230,19 +220,12 @@ impl App {
 
     /// The properties panel follows the selection.
     fn refresh_properties(&mut self) {
-        self.state.properties = match self.state.selection.as_slice() {
-            [id] => {
-                let nodes = self.replica.nodes();
-                nodes.iter().find(|n| n.id == *id).map(|n| {
-                    let parent = n
-                        .parent_id
-                        .as_deref()
-                        .and_then(|p| nodes.iter().find(|x| x.id == p));
-                    properties(self.vars(), &self.choice(), n, parent)
-                })
-            }
-            _ => None,
-        };
+        self.state.properties = selected_properties(
+            self.vars(),
+            &self.choice(),
+            self.replica.nodes(),
+            &self.state.selection,
+        );
     }
 
     /// Bring the derived parts of the state in line with the replica, once per dispatch, and send what the
@@ -277,12 +260,7 @@ impl App {
         self.activity_changed();
         self.refresh_picker();
         self.refresh_export();
-        let history = History {
-            can_undo: self.replica.can_undo(),
-            can_redo: self.replica.can_redo(),
-            undo_steps: self.replica.undo_depth(),
-            redo_steps: self.replica.redo_depth(),
-        };
+        let history = history_of(&self.replica);
         if self.state.history != history {
             self.state.history = history;
             self.events.push(Event::HistoryChanged {
@@ -307,14 +285,4 @@ impl App {
         }
         self.state.confirmed_seq = self.replica.seq();
     }
-}
-
-pub(crate) fn out_ops(ops: Vec<Outgoing>) -> Vec<OutOp> {
-    ops.into_iter()
-        .map(|o| OutOp {
-            key: o.key,
-            command: o.command,
-            deps: o.deps,
-        })
-        .collect()
 }

@@ -4,8 +4,7 @@
 use crate::app::App;
 use crate::document::refuse;
 use meldframe_app_model::{BindField, Picker};
-use meldframe_app_parts::picker::picker_view;
-use meldframe_app_parts::variables_panel::bindable;
+use meldframe_app_parts::picker::{is_open_valid, open_refusal, picker_view};
 
 /// The longest search text, in characters.
 const MAX_QUERY: usize = 200;
@@ -18,19 +17,7 @@ impl App {
     }
 
     pub(crate) fn open_picker(&mut self, id: String, field: BindField) {
-        let Some(node) = self.nodes().iter().find(|n| n.id == id) else {
-            self.state.picker = None;
-            let _ = refuse(&mut self.events, "not_found");
-            return;
-        };
-        let code = if self.state.selection != [id.clone()] {
-            Some("not_selected")
-        } else if !bindable(node.kind, field) {
-            Some("not_bindable")
-        } else {
-            None
-        };
-        if let Some(code) = code {
+        if let Some(code) = open_refusal(self.nodes(), &self.state.selection, &id, field) {
             self.state.picker = None;
             let _ = refuse(&mut self.events, code);
             return;
@@ -54,12 +41,7 @@ impl App {
     /// longer the one selected. Nothing is built while it is closed.
     pub(crate) fn refresh_picker(&mut self) {
         let Some(p) = &self.state.picker else { return };
-        let still = self.state.selection == [p.id.clone()]
-            && self
-                .nodes()
-                .iter()
-                .any(|n| n.id == p.id && bindable(n.kind, p.field));
-        if !still {
+        if !is_open_valid(self.nodes(), &self.state.selection, &p.id, p.field) {
             self.state.picker = None;
             return;
         }
