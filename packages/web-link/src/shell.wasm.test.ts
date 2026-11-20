@@ -54,6 +54,7 @@ class FakeEnv implements Env {
     this.sockets.push(s);
     return s;
   };
+  request = async () => ({ status: 200, body: null as unknown });
   postTimeouts: number[] = [];
   post = async (path: string, body: { ops: { key: string; command: Command }[] }, timeoutMs = 0) => {
     this.postTimeouts.push(timeoutMs);
