@@ -1,4 +1,4 @@
-//! Property test: the rows and the count are the same whatever the order in which a header and its ops
+//! Property test: the rows, the lanes and the count are the same whatever the order in which a header and its ops
 //! arrive. Ops arrive in the order of the log (a durable stream), headers (several revs of one `n` among them) at any
 //! point and in any order; a batch with no header at all is part of the mix.
 //!
@@ -113,14 +113,14 @@ fn run(events: Vec<Event>, now: u64) -> (String, u32, u64) {
     }
     a.tick(now);
     (
-        format!("{:?}", a.rows()),
+        format!("{:?}\n{:?}", a.rows(), a.lanes()),
         a.unreviewed_count(),
         a.highest_rev(),
     )
 }
 
 #[test]
-fn rows_and_count_do_not_depend_on_the_order_of_a_header_and_its_ops() {
+fn rows_lanes_and_count_do_not_depend_on_the_order_of_a_header_and_its_ops() {
     for seed in seeds() {
         let (ops, headers) = scenario(seed);
         let now = ops.last().map_or(0, |(_, t)| *t) + 1;

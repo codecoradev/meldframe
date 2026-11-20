@@ -258,3 +258,19 @@ fn reset_log_keeps_header_numbering_and_reset_all_starts_from_nothing() {
     a.observe_op(&op(1, "agent:b", "other:0", set_x("a", 1.0)), 5);
     assert_eq!(a.rows()[0].written, 1);
 }
+
+#[test]
+fn reset_log_forgets_a_persons_runs_too_so_a_replay_does_not_count_twice() {
+    let mut a = activity();
+    let ops: Vec<_> = (1..=3)
+        .map(|i| op(i, ME, &format!("ed-{i}"), set_x("a", 1.0)))
+        .collect();
+    for o in &ops {
+        a.observe_op(o, 1_000);
+    }
+    a.reset_log(0);
+    for o in &ops {
+        a.observe_op(o, 1_000);
+    }
+    assert_eq!(a.lanes()[0].ops, 3);
+}
