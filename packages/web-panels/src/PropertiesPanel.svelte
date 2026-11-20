@@ -13,7 +13,9 @@
   import Section from '@meldframe/web-chrome/Section.svelte';
   import { bindingOf, boxAction, clipAction, fieldsOf, percent, propertyAction, unbindAction, type BoxField, type PropertyField } from '@meldframe/web-document/properties';
   import BindPicker from './BindPicker.svelte';
+  import BorderSection from './BorderSection.svelte';
   import FillSection from './FillSection.svelte';
+  import ShadowSection from './ShadowSection.svelte';
 
   interface Props {
     properties: Properties | null;
@@ -100,6 +102,8 @@
         </Section>
       {/if}
       <FillSection properties={p} {picker} {dispatch} {chip} />
+      <BorderSection properties={p} {dispatch} />
+      <ShadowSection properties={p} {dispatch} />
     {/key}
   {:else}
     <div class="flex flex-col gap-1 px-4 py-4" data-testid="properties-empty">
