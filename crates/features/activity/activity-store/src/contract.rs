@@ -29,6 +29,7 @@ pub fn batch(actor: &str, prefix: &str, commands: u32, written: u32) -> NewBatch
         tool: "apply_commands".to_owned(),
         commands,
         written,
+        known: None,
         atomic: true,
         first_seq: 10,
         last_seq: 10 + u64::from(written),
@@ -151,6 +152,42 @@ pub fn an_update_never_lowers_and_may_raise_what_it_keeps(s: &dyn BatchStore) {
     rec(s, "ws", "f", &big);
     let h = rec(s, "ws", "f", &batch("agent:a", "big", MAX_COUNT, 5)).header;
     assert_eq!(h.written, MAX_COUNT);
+}
+
+pub fn calls_that_know_what_the_log_holds_count_each_op_once(s: &dyn BatchStore) {
+    let known = |prefix: &str, commands, written, k| {
+        let mut b = batch("agent:a", prefix, commands, written);
+        (b.known, b.last_seq) = (Some(k), 12);
+        b
+    };
+    // A replay got there first and made the header at what the log holds; the delayed original, which wrote the same
+    // three ops, adds nothing, and the other order ends the same.
+    let h = rec(s, "ws", "f", &known("race", 3, 0, 3)).header;
+    assert_eq!((h.commands, h.written), (3, 3));
+    let r = rec(s, "ws", "f", &known("race", 3, 3, 3));
+    assert!(!r.changed);
+    assert_eq!((r.header.commands, r.header.written), (3, 3));
+    rec(s, "ws", "f", &known("other", 3, 3, 3));
+    let r = rec(s, "ws", "f", &known("other", 3, 0, 3));
+    assert!(!r.changed);
+    assert_eq!((r.header.commands, r.header.written), (3, 3));
+    // A retry that stops again raises `written` to what the log holds, and a call that saw less never lowers it.
+    assert_eq!(
+        rec(s, "ws", "f", &known("again", 5, 0, 2)).header.written,
+        2
+    );
+    let r = rec(s, "ws", "f", &known("again", 5, 0, 3));
+    assert!(r.changed);
+    assert_eq!(r.header.written, 3);
+    let r = rec(s, "ws", "f", &known("again", 5, 0, 1));
+    assert!(!r.changed);
+    assert_eq!(r.header.written, 3);
+    // What the log holds cannot pass the commands the batch has.
+    let err = s.record("ws", "f", &known("bad", 2, 0, 3)).unwrap_err();
+    assert!(matches!(err, ActivityError::Invalid(_)), "{err:?}");
+    // With `known` given, `written` adds nothing, so a call that says it wrote more than the log holds is wrong.
+    let err = s.record("ws", "f", &known("bad2", 5, 3, 2)).unwrap_err();
+    assert!(matches!(err, ActivityError::Invalid(_)), "{err:?}");
 }
 
 pub fn commands_never_fall_below_written_across_the_parts_of_an_import(s: &dyn BatchStore) {

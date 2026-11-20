@@ -41,6 +41,8 @@ fn main() {
     // The critique lists live where the files do.
     #[cfg(feature = "design-review")]
     let reviews = backing.reviews();
+    #[cfg(feature = "activity")]
+    let batches = backing.batches();
     let server = Server::assemble_in(Vec::new(), backing).with_touch_hints(TOUCH_WINDOW_MS);
     for module in server.registry().module_names() {
         println!("module {module}");
@@ -54,6 +56,8 @@ fn main() {
             server,
             #[cfg(feature = "design-review")]
             reviews,
+            #[cfg(feature = "activity")]
+            batches,
         )
     {
         fail(&e);
@@ -69,6 +73,7 @@ fn serve(
     listen: &str,
     server: Server,
     #[cfg(feature = "design-review")] reviews: Arc<dyn design_review::ReviewStore>,
+    #[cfg(feature = "activity")] batches: Arc<dyn activity_store::BatchStore>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = listen.parse()?;
     // Gatehouse (M2) replaces this adapter; until then only development tokens exist.
@@ -122,6 +127,11 @@ fn serve(
             ..Default::default()
         },
     );
+    // The batch headers: apply_commands keeps one per batch and takes a note (ADR-0021).
+    #[cfg(feature = "activity")]
+    let activity = meldframe_http_activity::Activity::new(batches, shared.clone());
+    #[cfg(feature = "activity")]
+    let _ = state.batches.set(activity.sink());
     #[allow(unused_mut, reason = "only the capture feature sets the hook")]
     let mut live_config = LiveConfig::default();
     #[cfg(feature = "capture")]

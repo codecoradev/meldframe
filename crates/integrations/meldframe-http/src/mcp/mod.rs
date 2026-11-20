@@ -87,6 +87,16 @@ pub trait Reader: Send + Sync {
     fn head(&self, who: &Principal, file: &str) -> Result<u64, Failure> {
         self.view(who, file).map(|v| v.seq)
     }
+    /// The sequence numbers of the leading keys that are in the log, in key order, up to the first that is not: how
+    /// much of a call was written. Like [`Reader::head`] it is not a call of its own (no log entry, and a deployment
+    /// that denies `batch_status` still records headers). The default asks [`Reader::applied`].
+    fn written(&self, who: &Principal, file: &str, keys: &[String]) -> Result<Vec<u64>, Failure> {
+        Ok(self
+            .applied(who, file, keys)?
+            .into_iter()
+            .map_while(|s| s)
+            .collect())
+    }
     /// Log a call that reads no file through this seam (`whoami`, a tool of another crate): `code` is `None` when
     /// it succeeded, else its stable error code. The default keeps no log.
     fn record(&self, _who: &Principal, _tool: &str, _file: &str, _code: Option<&str>) {}

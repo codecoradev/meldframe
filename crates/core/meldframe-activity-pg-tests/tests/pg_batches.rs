@@ -82,6 +82,7 @@ case!(
     a_batch_is_one_header_per_actor_and_key_prefix,
     rev_rises_on_every_change_and_not_on_a_no_op,
     an_update_never_lowers_and_may_raise_what_it_keeps,
+    calls_that_know_what_the_log_holds_count_each_op_once,
     commands_never_fall_below_written_across_the_parts_of_an_import,
     the_first_note_wins_and_the_answer_says_which,
     a_review_is_set_by_a_person_and_survives_a_later_record,

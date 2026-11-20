@@ -14,6 +14,7 @@ kind = "bin"
 mcp = ["dep:rmcp", "dep:meldframe-check", "dep:meldframe-layout", "dep:meldframe-module"]
 
 [dependencies]
+meldframe-activity = { path = "../../core/meldframe-activity" }
 meldframe-host = { path = "../../core/meldframe-host" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
 meldframe-check = { path = "../../core/meldframe-check", optional = true }

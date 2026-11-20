@@ -12,9 +12,11 @@
 
 mod header;
 mod note;
+mod sink;
 
 pub use header::{Header, NewBatch, Review};
 pub use note::{Note, NoteError, is_combining_mark, is_hidden_text};
+pub use sink::{BatchCall, BatchSink, Marked};
 
 /// The longest note, in characters (Unicode scalar values): the owner's limit, as a critique item of `design_review`.
 pub const MAX_NOTE_CHARS: usize = 500;
