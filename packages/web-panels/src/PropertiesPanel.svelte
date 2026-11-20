@@ -15,7 +15,11 @@
   import BindPicker from './BindPicker.svelte';
   import BorderSection from './BorderSection.svelte';
   import FillSection from './FillSection.svelte';
+  import LayoutSection from './LayoutSection.svelte';
+  import { showPlacement } from '@meldframe/web-document/layout';
+  import PlacementSection from './PlacementSection.svelte';
   import ShadowSection from './ShadowSection.svelte';
+  import SizeModes from './SizeModes.svelte';
 
   interface Props {
     properties: Properties | null;
@@ -70,7 +74,14 @@
           <Field label="Width" prefix="W" suffix="px" mono value={round(p.w)} onCommit={box(p, 'w')} testId="prop-w" />
           <Field label="Height" prefix="H" suffix="px" mono value={round(p.h)} onCommit={box(p, 'h')} testId="prop-h" />
         </div>
+        <SizeModes properties={p} {dispatch} />
       </Section>
+      {#if has.layout}
+        <LayoutSection properties={p} {dispatch} />
+      {/if}
+      {#if showPlacement(p)}
+        <PlacementSection properties={p} {dispatch} />
+      {/if}
       <Section title="Appearance">
         <div class="grid grid-cols-2 items-end gap-2">
           {#if opacity}

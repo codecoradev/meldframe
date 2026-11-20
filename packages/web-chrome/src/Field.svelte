@@ -25,11 +25,13 @@
     lead?: Snippet;
     /** The value in the mono face (numbers, ids, variable values). */
     mono?: boolean;
+    /** Shown while the field is empty, such as `Mixed` for a value the parts of a whole do not share. */
+    placeholder?: string;
     /** `data-testid` of the input. */
     testId?: string;
     [data: `data-${string}`]: string | undefined;
   }
-  let { label, value, onInput, onCommit, prefix, suffix, size = 'default', disabled = false, invalid = false, bound = false, lead, mono = false, testId, ...rest }: Props = $props();
+  let { label, value, onInput, onCommit, prefix, suffix, size = 'default', disabled = false, invalid = false, bound = false, lead, mono = false, placeholder, testId, ...rest }: Props = $props();
   const name = $derived(requireLabel(label, 'Field'));
   const look = $derived(
     invalid
@@ -49,6 +51,7 @@
     aria-label={name}
     aria-invalid={invalid || undefined}
     {value}
+    {placeholder}
     {disabled}
     oninput={(e) => onInput?.(e.currentTarget.value)}
     onkeydown={(e) => {

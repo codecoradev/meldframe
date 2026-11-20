@@ -90,9 +90,9 @@ describe('bindings', () => {
 
 describe('fieldsOf', () => {
   it('offers the fields a kind of node has', () => {
-    expect(fieldsOf('frame')).toEqual({ radius: true, clip: true, fontSize: false });
-    expect(fieldsOf('rect')).toEqual({ radius: true, clip: false, fontSize: false });
-    expect(fieldsOf('ellipse')).toEqual({ radius: false, clip: false, fontSize: false });
-    expect(fieldsOf('text')).toEqual({ radius: false, clip: false, fontSize: true });
+    expect(fieldsOf('frame')).toEqual({ radius: true, clip: true, fontSize: false, layout: true });
+    expect(fieldsOf('rect')).toEqual({ radius: true, clip: false, fontSize: false, layout: false });
+    expect(fieldsOf('ellipse')).toEqual({ radius: false, clip: false, fontSize: false, layout: false });
+    expect(fieldsOf('text')).toEqual({ radius: false, clip: false, fontSize: true, layout: false });
   });
 });

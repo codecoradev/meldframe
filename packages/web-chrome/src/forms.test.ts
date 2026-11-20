@@ -20,6 +20,13 @@ describe('names are required', () => {
   });
 });
 
+describe('Field placeholder', () => {
+  it('shows a placeholder on the input, and none unless one is given', () => {
+    expect(html(Field, { label: 'Pad', value: '', placeholder: 'Mixed' })).toContain('placeholder="Mixed"');
+    expect(html(Field, { label: 'Pad', value: '' })).not.toContain('placeholder');
+  });
+});
+
 describe('Segmented', () => {
   const options = [{ value: 'row', label: 'Row' }, { value: 'column', label: 'Column' }, { value: 'grid', label: 'Grid' }];
   it('is a radio group: one checked option, the checked one alone in the Tab order', () => {

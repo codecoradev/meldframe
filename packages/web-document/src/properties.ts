@@ -70,7 +70,7 @@ export function unbindAction(p: Properties, field: BindField): Action | null {
   return bindingOf(p, field) ? { type: 'bindProperty', id: p.id, field, variable: null } : null;
 }
 
-/** Which of the optional fields a kind of node has: the canvas draws no corners on text and an ellipse, a frame alone clips. */
-export function fieldsOf(kind: NodeKind): { radius: boolean; clip: boolean; fontSize: boolean } {
-  return { radius: kind === 'frame' || kind === 'rect' || kind === 'shader', clip: kind === 'frame', fontSize: kind === 'text' };
+/** Which of the optional fields a kind of node has: the canvas draws no corners on text and an ellipse, a frame alone clips and lays out its children. */
+export function fieldsOf(kind: NodeKind): { radius: boolean; clip: boolean; fontSize: boolean; layout: boolean } {
+  return { radius: kind === 'frame' || kind === 'rect' || kind === 'shader', clip: kind === 'frame', fontSize: kind === 'text', layout: kind === 'frame' };
 }
