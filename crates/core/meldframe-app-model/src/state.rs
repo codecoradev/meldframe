@@ -1,6 +1,6 @@
 //! Everything a front end needs to draw the editor.
 
-use crate::variables::VariablesPanel;
+use crate::variables::{BindField, VariablesPanel};
 use meldframe_protocol::NodeKind;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -174,6 +174,26 @@ pub struct Properties {
     pub radius: f64,
     pub text: String,
     pub font_size: f64,
+    /// Opacity as painted, 0 to 1 (a bound field: what the variable resolves to, held to that range).
+    pub opacity: f64,
+    /// Whether a frame cuts off what is drawn outside it.
+    pub clip: bool,
     /// The fields bound to a variable (`fill`, `radius`, `opacity`); their value above is the resolved one.
     pub bound: Vec<String>,
+    /// The same fields with the variable each one holds, for the chip a bound field shows.
+    pub bindings: Vec<FieldBinding>,
+}
+
+/// A field of the selected node and the variable it is bound to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FieldBinding {
+    pub field: BindField,
+    /// The id of the variable.
+    pub variable: String,
+    /// Its name, as the Variables panel lists it; the id when the variable is gone.
+    pub name: String,
+    /// The variable no longer exists (another actor removed it): the field keeps the binding and paints its default.
+    pub missing: bool,
 }

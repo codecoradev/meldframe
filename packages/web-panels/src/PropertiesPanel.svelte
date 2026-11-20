@@ -1,73 +1,115 @@
 <!--
-  The properties panel: the values of the one selected node. Each field reports its text when the person leaves it or
-  presses Enter; the editor page turns that into one action (see properties.ts), and a value that makes no action
-  is put back.
+  The properties panel (the Design side of the right card): the values of the one selected node in the sections of the
+  Properties and Inspector boards. A field reports its text when the person leaves it or presses Enter; what that
+  becomes (an action, or nothing, and then the field shows the document's value again) is in properties.ts. It holds no
+  state of its own.
 -->
 <script lang="ts">
-  import { tick } from 'svelte';
-  import type { Properties } from '@meldframe/protocol';
-  import type { BoxField, PropertyField } from '@meldframe/web-document/properties';
+  import type { Action, BindField, FieldBinding, NodeKind, Properties } from '@meldframe/protocol';
+  import Checkbox from '@meldframe/web-chrome/Checkbox.svelte';
+  import Field from '@meldframe/web-chrome/Field.svelte';
+  import Icon, { type IconName } from '@meldframe/web-chrome/Icon.svelte';
+  import IconButton from '@meldframe/web-chrome/IconButton.svelte';
+  import Section from '@meldframe/web-chrome/Section.svelte';
+  import { bindingOf, boxAction, clipAction, fieldsOf, percent, propertyAction, unbindAction, type BoxField, type PropertyField } from '@meldframe/web-document/properties';
 
   interface Props {
     properties: Properties | null;
-    onProperty: (field: PropertyField, raw: string) => void;
-    onBox: (field: BoxField, raw: string) => void;
+    /** How many nodes are selected: the empty state says which case it is. */
+    selected: number;
+    dispatch: (a: Action) => void;
   }
-  let { properties, onProperty, onBox }: Props = $props();
+  let { properties, selected, dispatch }: Props = $props();
 
-  const input = 'w-full min-w-0 rounded-sm border border-border bg-field px-2 py-1 text-text outline-none focus:border-accent';
-
-  /** Commits on Enter and leaves on Escape without a commit; a blur commits through `onchange`. */
-  function keys(e: KeyboardEvent) {
-    const el = e.currentTarget as HTMLInputElement;
-    if (e.key === 'Enter') el.blur();
-    else if (e.key === 'Escape') {
-      el.value = el.defaultValue;
-      el.blur();
-    }
-    e.stopPropagation(); // typing here is text, not a command of the editor
-  }
+  const kindIcon: Record<NodeKind, IconName> = { frame: 'frame', rect: 'rectangle', ellipse: 'ellipse', text: 'text', shader: 'layers' };
   const round = (v: number) => String(Math.round(v * 100) / 100);
-  /** What the document holds for a field now. */
-  const current = (f: PropertyField | BoxField): string => {
-    const p = properties;
-    if (!p) return '';
-    return typeof p[f] === 'number' ? round(p[f] as number) : String(p[f]);
+  const send = (a: Action | null) => {
+    if (a) dispatch(a);
   };
-  /** After the document took the change (or did not), the field shows what the document holds. */
-  const restore = (el: HTMLInputElement, f: PropertyField | BoxField) => void tick().then(() => (el.value = current(f)));
+  const prop = (p: Properties, f: PropertyField) => (raw: string) => send(propertyAction(p, f, raw));
+  const box = (p: Properties, f: BoxField) => (raw: string) => send(boxAction(p, f, raw));
 </script>
 
-<div class="flex flex-col text-small text-text" data-testid="properties">
+{#snippet chip(label: string, field: BindField, b: FieldBinding, value: string)}
+  <div class="flex flex-col gap-2" data-testid="prop-{field}-bound">
+    {#if label}<span class="text-text-muted">{label}</span>{/if}
+    <div class="flex h-(--mf-size-control-lg) items-center gap-2 rounded-md px-3 {b.missing ? 'bg-danger-bg text-danger-text' : 'bg-chip-bg text-chip-text'}">
+      {#if field === 'fill'}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={value}></i>{/if}
+      <span class="min-w-0 flex-1 truncate font-medium" title={b.missing ? `${b.name} (variable removed)` : b.name}>{b.name}{b.missing ? ' (removed)' : ''}</span>
+      <span class="font-mono text-caption" data-testid={field === 'fill' ? 'prop-fill' : `prop-${field}`}>{value}</span>
+      <IconButton label="Detach {b.name}" icon="close" size={24} onclick={() => send(unbindAction(properties!, field))} data-testid="prop-{field}-detach" />
+    </div>
+  </div>
+{/snippet}
+
+<div class="flex flex-col border-t border-hairline text-small text-text" role="group" aria-label="Properties" data-testid="properties">
   {#if properties}
     {@const p = properties}
+    {@const has = fieldsOf(p.kind)}
+    {@const fill = bindingOf(p, 'fill')}
+    {@const opacity = bindingOf(p, 'opacity')}
+    {@const radius = bindingOf(p, 'radius')}
     {#key p.id}
-      <div class="flex flex-col gap-3 overflow-y-auto p-3">
-        <label class="flex flex-col gap-1">Name
-          <input class={input} value={p.name} data-testid="prop-name" onkeydown={keys} onchange={(e) => { onProperty('name', e.currentTarget.value); restore(e.currentTarget, 'name'); }} />
-        </label>
+      <header class="flex items-center gap-2 px-4 pt-4 text-text-muted">
+        <Icon name={kindIcon[p.kind]} />
+        <div class="min-w-0 flex-1"><Field label="Name" value={p.name} onCommit={prop(p, 'name')} testId="prop-name" /></div>
+      </header>
+      <Section title="Position">
         <div class="grid grid-cols-2 gap-2">
-          {#each [['x', p.x], ['y', p.y], ['w', p.w], ['h', p.h]] as [f, v] (f)}
-            <label class="flex flex-col gap-1">{String(f).toUpperCase()}
-              <input class="{input} font-mono" value={round(Number(v))} data-testid="prop-{f}" onkeydown={keys} onchange={(e) => { onBox(f as BoxField, e.currentTarget.value); restore(e.currentTarget, f as BoxField); }} />
-            </label>
-          {/each}
+          <Field label="X" prefix="X" value={round(p.x)} onCommit={box(p, 'x')} testId="prop-x" />
+          <Field label="Y" prefix="Y" value={round(p.y)} onCommit={box(p, 'y')} testId="prop-y" />
         </div>
-        <label class="flex flex-col gap-1">Fill
-          <input class="{input} font-mono" value={p.fill} data-testid="prop-fill" onkeydown={keys} onchange={(e) => { onProperty('fill', e.currentTarget.value); restore(e.currentTarget, 'fill'); }} />
-        </label>
-        {#if p.kind !== 'text'}
-          <label class="flex flex-col gap-1">Radius
-            <input class="{input} font-mono" value={String(p.radius)} data-testid="prop-radius" onkeydown={keys} onchange={(e) => { onProperty('radius', e.currentTarget.value); restore(e.currentTarget, 'radius'); }} />
-          </label>
-        {:else}
-          <label class="flex flex-col gap-1">Font size
-            <input class="{input} font-mono" value={String(p.fontSize)} data-testid="prop-fontSize" onkeydown={keys} onchange={(e) => { onProperty('fontSize', e.currentTarget.value); restore(e.currentTarget, 'fontSize'); }} />
-          </label>
+      </Section>
+      <Section title="Size">
+        <div class="grid grid-cols-2 gap-2">
+          <Field label="Width" prefix="W" suffix="px" value={round(p.w)} onCommit={box(p, 'w')} testId="prop-w" />
+          <Field label="Height" prefix="H" suffix="px" value={round(p.h)} onCommit={box(p, 'h')} testId="prop-h" />
+        </div>
+      </Section>
+      <Section title="Appearance">
+        <div class="grid grid-cols-2 items-end gap-2">
+          {#if opacity}
+            <div class="col-span-2">{@render chip('Opacity', 'opacity', opacity, percent(p.opacity) + ' %')}</div>
+          {:else}
+            <div class="flex flex-col gap-2">
+              <span class="text-text-muted">Opacity</span>
+              <Field label="Opacity" suffix="%" value={percent(p.opacity)} onCommit={prop(p, 'opacity')} testId="prop-opacity" />
+            </div>
+          {/if}
+          {#if has.radius}
+            {#if radius}
+              <div class="col-span-2">{@render chip('Corner radius', 'radius', radius, round(p.radius))}</div>
+            {:else}
+              <div class="flex flex-col gap-2">
+                <span class="text-text-muted">Corner radius</span>
+                <Field label="Corner radius" value={round(p.radius)} onCommit={prop(p, 'radius')} testId="prop-radius" />
+              </div>
+            {/if}
+          {/if}
+        </div>
+        {#if has.clip}
+          <Checkbox label="Clip content" checked={p.clip} onChange={(c) => send(clipAction(p, c))} data-testid="prop-clip" />
         {/if}
-      </div>
+      </Section>
+      {#if has.fontSize}
+        <Section title="Text">
+          <Field label="Font size" suffix="px" value={round(p.fontSize)} onCommit={prop(p, 'fontSize')} testId="prop-fontSize" />
+        </Section>
+      {/if}
+      <Section title="Fill">
+        {#if fill}
+          {@render chip('', 'fill', fill, p.fill)}
+        {:else}
+          <Field label="Fill" value={p.fill} onCommit={prop(p, 'fill')} testId="prop-fill">
+            {#snippet lead()}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={p.fill === 'none' ? 'transparent' : p.fill}></i>{/snippet}
+          </Field>
+        {/if}
+      </Section>
     {/key}
   {:else}
-    <p class="px-3 py-3 text-text-muted">Select one node to edit it.</p>
+    <div class="flex flex-col gap-1 px-4 py-4" data-testid="properties-empty">
+      <h3 class="m-0 text-body font-semibold text-text-strong">{selected > 1 ? `${selected} nodes selected` : 'Nothing selected'}</h3>
+      <p class="m-0 text-text-muted">{selected > 1 ? 'Select one node to edit its properties.' : 'Select a frame, a shape or text on the canvas to edit it.'}</p>
+    </div>
   {/if}
 </div>

@@ -16,6 +16,7 @@ export type { Connection } from './Connection';
 export type { CreateKind } from './CreateKind';
 export type { Effect } from './Effect';
 export type { Event } from './Event';
+export type { FieldBinding } from './FieldBinding';
 export type { FileSnapshot } from './FileSnapshot';
 export type { Frame } from './Frame';
 export type { FramePreset } from './FramePreset';

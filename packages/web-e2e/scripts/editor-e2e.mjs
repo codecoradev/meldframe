@@ -259,6 +259,17 @@ const id = `e2e_${run}`;
       await until('the field shows the document value again', async () => (await field.inputValue()) === before);
       assert.equal((await nodeOf(id)).fill, before);
     });
+    await check('opacity is typed as a percentage, reaches the server as 0 to 1, and a value out of range is put back', async () => {
+      const field = page.locator('[data-testid=prop-opacity]');
+      await field.fill('40');
+      await field.press('Enter');
+      await until('the opacity on the server', async () => (await nodeOf(id)).opacity === 0.4);
+      await field.fill('140');
+      await field.press('Enter');
+      await until('the field shows 40 again', async () => (await field.inputValue()) === '40');
+      await page.keyboard.press('Control+z');
+      await until('the opacity back', async () => [undefined, 1].includes((await nodeOf(id)).opacity));
+    });
     await check('a tool button sets the tool', async () => {
       await page.click('[data-testid=tool-rectangle]');
       assert.equal(await page.getAttribute('[data-testid=tool]', 'data-tool'), 'rectangle');

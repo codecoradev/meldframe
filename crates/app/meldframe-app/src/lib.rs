@@ -27,8 +27,8 @@ pub use app::App;
 pub use link::{ATTEMPT_MS, SILENT_MS};
 pub use meldframe_app_model::{
     Action, AppState, BindField, BindOption, Checkpoint, CheckpointKind, CollectionRow, Connection,
-    CreateKind, Effect, Event, Frame, FramePreset, History, ModeValue, OutOp, Panel, Panels,
-    Properties, Property, RevertSkip, RevertSkipReason, Tool, VariableRow, VariableValue,
+    CreateKind, Effect, Event, FieldBinding, Frame, FramePreset, History, ModeValue, OutOp, Panel,
+    Panels, Properties, Property, RevertSkip, RevertSkipReason, Tool, VariableRow, VariableValue,
     VariablesPanel,
 };
 pub use meldframe_sync::LoadError;
