@@ -26,7 +26,8 @@ use activity_store::BatchStore;
 use meldframe_activity::{BatchCall, BatchSink, Marked, NewBatch};
 use meldframe_host::Principal;
 use meldframe_http::Shared;
-use meldframe_http::mcp::Reader;
+use meldframe_http::mcp::{Extra, Reader};
+use meldframe_module::Policy;
 use meldframe_protocol::ServerMsg;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -75,13 +76,18 @@ impl Activity {
 
 /// Everything the server wires for the activity panel in one call: the sink is set on `shared` (so `apply_commands`
 /// keeps headers, takes a `note` and sends the frame through `publish`) and the routes come back to merge into the
-/// router. Later slices (`get_batches`, the review setter) join here, so the binary's `main` does not grow with them.
+/// router. `tools` is the list the MCP route serves besides its own and the registry's policy for [`TOOL`]:
+/// `get_batches` is added to the list when the policy is `Auto`. Later slices (the review setter) join here, so the
+/// binary's `main` does not grow with them.
 pub fn install(
     shared: &Arc<Shared>,
     store: Arc<dyn BatchStore>,
     reader: Arc<dyn Reader>,
     publish: Publish,
+    tools: (&mut Vec<Arc<dyn Extra>>, Option<Policy>),
 ) -> axum::Router {
+    let (list, policy) = tools;
+    list.extend(tool(shared.clone(), store.clone(), policy));
     let activity = Activity::with_live(store, reader, Some(publish));
     // Set once: a second install on the same `Shared` keeps the first sink.
     let _ = shared.batches.set(activity.sink());

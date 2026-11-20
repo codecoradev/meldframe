@@ -50,6 +50,10 @@ mod feature_on {
                 .into_iter()
                 .filter(|_| cfg!(feature = "variant")),
         );
+        let activity = ["activity"]
+            .into_iter()
+            .filter(|_| cfg!(feature = "activity"));
+        expected.extend(activity);
         assert_eq!(server.registry().module_names(), expected);
         let tool = server.registry().agent_tool("example_ping").unwrap();
         assert_eq!(tool.tier, RiskTier::Read);

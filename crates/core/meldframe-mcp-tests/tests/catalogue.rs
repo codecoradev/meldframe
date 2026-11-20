@@ -28,7 +28,7 @@ async fn the_catalogue_equals_what_a_client_lists() {
         .unwrap()
         .iter()
         .filter(|t| {
-            !["capture", "upload_asset", "design_review", "export_frame", "import_tokens", "make_variant"]
+            !["capture", "upload_asset", "design_review", "export_frame", "import_tokens", "make_variant", "get_batches"]
                 .contains(&t["name"].as_str().unwrap())
         })
         .map(|t| json!({"name": t["name"], "description": t["description"], "inputSchema": t["inputSchema"]}))
@@ -59,6 +59,7 @@ fn the_catalogue_equals_the_registry_with_tiers() {
             "export_frame" => "export",
             "import_tokens" => "variables-import",
             "make_variant" => "variant",
+            "get_batches" => "activity",
             _ => "mcp",
         };
         assert_eq!(reg.module, module);
@@ -84,7 +85,7 @@ async fn the_read_only_annotation_follows_the_registry_tier() {
 fn descriptions_are_english_ascii_and_apply_commands_names_the_batch_limit() {
     let file: Value = serde_json::from_str(CATALOGUE).unwrap();
     let tools = file["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 12);
+    assert_eq!(tools.len(), 13);
     for t in tools {
         let d = t["description"].as_str().unwrap();
         assert!(d.is_ascii() && d.len() > 40, "{}", t["name"]);
