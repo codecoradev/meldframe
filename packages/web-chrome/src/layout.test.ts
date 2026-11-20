@@ -83,7 +83,7 @@ describe('the Layout', () => {
   const props = {
     fileName: 'file_dev', tool: 'select', onTool: () => {}, layersOpen: true, inspectorOpen: true, onToggleLayers: () => {}, onToggleInspector: () => {},
     canUndo: false, canRedo: true, onUndo: () => {}, onRedo: () => {}, onPreset: () => {}, canExport: false, onExport: () => {}, canVariant: false,
-    onVariant: () => {}, zoomText: '100%', connection: { state: 'live', text: 'Connected' }, helpOpen: false, onHelp: () => {},
+    onVariant: () => {}, zoomText: '100%', onZoom: () => {}, connection: { state: 'live', text: 'Connected' }, helpOpen: false, onHelp: () => {},
     canvasLayer: part, layersPanel: part, designPanel: named('design-x'), activityPanel: named('activity-x'), tab: 'design', onTab: () => {},
   };
   const html = (over: Record<string, unknown> = {}) => render(Layout as never, { props: { ...props, ...over } as never }).body;
@@ -146,7 +146,7 @@ describe('what the Layout says to the keyboard and to readers', () => {
   const props = {
     fileName: 'f', tool: 'select', onTool: () => {}, layersOpen: true, inspectorOpen: true, onToggleLayers: () => {}, onToggleInspector: () => {},
     canUndo: true, canRedo: true, onUndo: () => {}, onRedo: () => {}, onPreset: () => {}, canExport: true, onExport: () => {}, canVariant: true,
-    onVariant: () => {}, zoomText: '100%', connection: { state: 'live', text: 'Connected' }, helpOpen: false, onHelp: () => {},
+    onVariant: () => {}, zoomText: '100%', onZoom: () => {}, connection: { state: 'live', text: 'Connected' }, helpOpen: false, onHelp: () => {},
     canvasLayer: part, layersPanel: part, designPanel: part, activityPanel: part, tab: 'design', onTab: () => {},
   };
   const out = (over: Record<string, unknown> = {}) => render(Layout as never, { props: { ...props, ...over } as never }).body;
@@ -160,11 +160,23 @@ describe('what the Layout says to the keyboard and to readers', () => {
     expect(out()).not.toMatch(/aria-label="(Show|Hide) /);
     expect(out().match(/aria-label="Layers panel"/g)).toHaveLength(2);
   });
-  it('the zoom and the tool echo are not announced at every change, and the tool bar is a group, not a toolbar', () => {
-    expect(out()).toMatch(/<output[^>]*aria-live="off"[^>]*data-testid="zoom"/);
+  it('the tool echo is not announced at every change, and the tool bar is a group, not a toolbar', () => {
     expect(out()).toMatch(/<output[^>]*aria-live="off"[^>]*data-testid="tool"/);
     expect(out()).not.toContain('role="toolbar"');
     expect(out()).toMatch(/role="group" aria-label="Tools"/);
+  });
+  it('the zoom readout is the button of the zoom menu: the percentage is its text and its name says what it is', () => {
+    const button = out().match(/<button[^>]*data-testid="zoom"[^>]*>[^<]*<\/button>/)?.[0] ?? '';
+    expect(button).toMatch(/>100%<\/button>/);
+    expect(button).toContain('aria-label="Zoom 100%"');
+    expect(button).toContain('aria-haspopup="menu"');
+    expect(out({ zoomText: '125%' })).toContain('aria-label="Zoom 125%"');
+  });
+  it('the sheet lists every group of shortcuts, written for the platform, and opens with the help button', () => {
+    const open = out({ helpOpen: true });
+    for (const title of ['Tools', 'Edit', 'View', 'Selection', 'Panels and help']) expect(open, title).toContain(title);
+    for (const text of ['Zoom in', 'Pan with the pointer', 'Ctrl+Shift+Z', 'Shift+1', 'Esc']) expect(open, text).toContain(text);
+    expect(out()).not.toContain('data-testid="shortcut-hint"');
   });
   it('writes the shortcuts the way the platform does', () => {
     expect(isMac('MacIntel')).toBe(true);

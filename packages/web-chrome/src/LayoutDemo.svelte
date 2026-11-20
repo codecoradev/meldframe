@@ -4,13 +4,17 @@
 -->
 <script lang="ts">
   import Layout from './Layout.svelte';
+  import { HOME, formatZoom, type Camera } from '@meldframe/web-canvas/camera';
   import { layoutKey } from './keys';
+  import { zoomCamera } from './zoom';
 
   let tool = $state<'select' | 'frame' | 'rectangle' | 'text'>('select');
   let layersOpen = $state(true);
   let inspectorOpen = $state(true);
   let helpOpen = $state(false);
   let tab = $state<'design' | 'activity'>('design');
+  // The zoom menu changes a camera of its own here; fitting has no content to fit, so it goes home.
+  let camera = $state<Camera>({ ...HOME });
   const toggle = (k: 'layers' | 'inspector') => (k === 'layers' ? (layersOpen = !layersOpen) : (inspectorOpen = !inspectorOpen));
   const rows = ['Landing Desktop', 'Hero', 'Hero Title', 'Pricing', 'Security'];
 </script>
@@ -34,7 +38,8 @@
   onExport={() => {}}
   canVariant={true}
   onVariant={() => {}}
-  zoomText="100%"
+  zoomText={formatZoom(camera.zoom)}
+  onZoom={(c) => (camera = c === 'fit' || c === 'fit-selection' ? { ...HOME } : zoomCamera(c, camera, { x: 0, y: 0 }))}
   connection={{ state: 'live', text: 'Connected' }}
   {helpOpen}
   onHelp={(o) => (helpOpen = o)}
