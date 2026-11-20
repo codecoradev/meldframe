@@ -1,5 +1,9 @@
 //! Document actions: each becomes commands in the replica, applied at once and sent when live.
 
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 use common::*;
 use meldframe_app::{Action, CreateKind, Effect, Event, Frame, Property, Tool};

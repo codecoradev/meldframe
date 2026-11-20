@@ -1,6 +1,10 @@
 //! The inspector's fields (D4): opacity and clip are read from the node and written with one undo step each; a
 //! value out of range is refused and changes nothing.
 
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 use common::*;
 use meldframe_app::{Action, Event, Property};

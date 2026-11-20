@@ -1,6 +1,10 @@
 //! E5.1 at the app seam (ADR-0021): batches, notes, review states, lanes, touch rings and the fetches that heal a lost
 //! frame, all through `App::dispatch`. The reducer's own rules are tested in `meldframe-activity-tests`.
 
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 use common::*;
 use meldframe_app::{Action, Effect, Event, Frame};

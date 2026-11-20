@@ -1,6 +1,10 @@
 //! Frame presets: Desktop, Tablet and Mobile make a frame of the preset's size and name, select it, return to the
 //! select tool and undo as one step.
 
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 mod common;
 use common::*;
 use meldframe_app::{Action, Event, FramePreset, Tool};
