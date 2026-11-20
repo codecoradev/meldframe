@@ -41,6 +41,8 @@ pub struct Row {
     pub reviewed_at_ms: Option<u64>,
     pub summary: Option<Summary>,
     pub can_show: bool,
+    /// The app saw at least one op of the batch (the log holds it unless it was folded away).
+    pub has_ops: bool,
 }
 
 /// A stretch of one actor's work between two gaps of [`RUN_GAP_MS`]: when it began and ended and how many ops.
@@ -168,6 +170,7 @@ impl Group {
             reviewed_at_ms: h.and_then(|h| h.reviewed_at_ms),
             summary: (self.ops > 0).then(|| self.tally.summary()),
             can_show: !self.tally.shown.is_empty(),
+            has_ops: self.ops > 0,
         }
     }
 }
