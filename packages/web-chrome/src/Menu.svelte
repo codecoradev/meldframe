@@ -6,7 +6,7 @@
   import { DropdownMenu } from 'bits-ui';
   import IconButton from './IconButton.svelte';
   import type { IconName } from './Icon.svelte';
-  import type { ControlSize } from './focus';
+  import { rememberFocus, type ControlSize } from './focus';
 
   interface Item {
     id: string;
@@ -16,6 +16,8 @@
     shortcut?: string;
     /** `data-testid` of the row. */
     testId?: string;
+    /** The row opens a dialog, which takes the focus: the menu does not give it back to its button. */
+    opensDialog?: boolean;
   }
   interface Props {
     label: string;
@@ -26,16 +28,18 @@
     side?: 'top' | 'bottom' | 'left' | 'right';
   }
   let { label, icon, items, size = 32, testId, side = 'bottom' }: Props = $props();
+  let keepFocus = false;
+  let trigger = $state<HTMLElement | null>(null);
 </script>
 
 <DropdownMenu.Root>
-  <DropdownMenu.Trigger>
+  <DropdownMenu.Trigger bind:ref={trigger}>
     {#snippet child({ props })}<IconButton {label} {icon} {size} triggerProps={props} data-testid={testId} />{/snippet}
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
-    <DropdownMenu.Content data-owns-keys {side} sideOffset={8} align="start" class="z-50 min-w-48 rounded-lg border border-menu-border bg-surface-raised p-1 text-small text-text shadow-popover">
+    <DropdownMenu.Content data-owns-keys onCloseAutoFocus={(e) => { if (keepFocus) e.preventDefault(); keepFocus = false; }} {side} sideOffset={8} align="start" class="z-50 min-w-48 rounded-lg border border-menu-border bg-surface-raised p-1 text-small text-text shadow-popover">
       {#each items as it (it.id)}
-        <DropdownMenu.Item disabled={it.disabled} onSelect={it.onSelect} data-testid={it.testId} class="flex h-(--mf-size-control-lg) cursor-default items-center justify-between gap-4 rounded-sm px-3 outline-none data-disabled:opacity-(--mf-opacity-disabled) data-highlighted:bg-control">
+        <DropdownMenu.Item disabled={it.disabled} onSelect={() => { keepFocus = !!it.opensDialog; if (keepFocus) rememberFocus(trigger); it.onSelect(); }} data-testid={it.testId} class="flex h-(--mf-size-control-lg) cursor-default items-center justify-between gap-4 rounded-sm px-3 outline-none data-disabled:opacity-(--mf-opacity-disabled) data-highlighted:bg-control">
           {it.label}{#if it.shortcut}<span class="font-mono text-caption text-text-muted">{it.shortcut}</span>{/if}
         </DropdownMenu.Item>
       {/each}

@@ -1,7 +1,7 @@
 import { createRawSnippet } from 'svelte';
 import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
-import { barClear, PANEL_INSET, reserved, rightWidth } from './layout';
+import { barClear, fileItems, PANEL_INSET, reserved, rightWidth } from './layout';
 import { layoutKey } from './keys';
 import { composeProps } from './compose';
 import { isMac, labels } from './platform';
@@ -45,6 +45,37 @@ describe('the layout rules', () => {
   it('says no when a bar would touch a panel', () => {
     expect(barClear(1024, 480, { layers: true, inspector: true })).toBe(false);
     expect(barClear(1280, 800, { layers: true, inspector: true })).toBe(false);
+  });
+});
+
+describe('the rows of the file menu', () => {
+  const calls: string[] = [];
+  const items = (o: { canExport: boolean; canVariant: boolean }) => fileItems({ ...o, onExport: (s) => calls.push(`export ${s}`), onVariant: () => calls.push('variant') });
+
+  it('has the PNG rows and Make a variant, with the test ids the browser checks use', () => {
+    expect(items({ canExport: true, canVariant: true }).map((i) => [i.id, i.label, i.testId])).toEqual([
+      ['png1', 'Export PNG 1x', 'export-1x'],
+      ['png2', 'Export PNG 2x', 'export-2x'],
+      ['variant', 'Make a variant', 'make-variant'],
+    ]);
+  });
+
+  it('disables each row when there is no frame for it', () => {
+    expect(items({ canExport: false, canVariant: true }).map((i) => !!i.disabled)).toEqual([true, true, false]);
+    expect(items({ canExport: true, canVariant: false }).map((i) => !!i.disabled)).toEqual([false, false, true]);
+  });
+
+  it('opens no dialog yet: every row gives the focus back to the menu button', () => {
+    expect(items({ canExport: true, canVariant: true }).some((i) => i.opensDialog)).toBe(false);
+  });
+
+  it('a row calls the handler it was given, with its scale', () => {
+    calls.length = 0;
+    const [one, two, variant] = items({ canExport: true, canVariant: true });
+    one!.onSelect();
+    two!.onSelect();
+    variant!.onSelect();
+    expect(calls).toEqual(['export 1', 'export 2', 'variant']);
   });
 });
 
