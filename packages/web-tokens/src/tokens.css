@@ -58,6 +58,7 @@
   --mf-size-files: 280px;
   --mf-size-top-card: 52px;
   --mf-stroke-selection: 1.5px;
+  --mf-stroke-icon: 1.5px;
   --mf-stroke-focus: 2px;
   --mf-stroke-focus-offset: 2px;
   --mf-opacity-disabled: 0.5;
@@ -70,7 +71,8 @@
 }
 
 :root,
-:root[data-theme='dark'] {
+:root[data-theme='dark'],
+[data-theme='dark'] {
   color-scheme: dark;
   --mf-canvas: #161618;
   --mf-sidebar: #1B1B1E;
@@ -126,7 +128,7 @@
   --mf-shadow-dialog: 0 24px 64px rgba(0,0,0,0.6);
 }
 
-:root[data-theme='light'] {
+[data-theme='light'] {
   color-scheme: light;
   --mf-canvas: #E9E9EC;
   --mf-sidebar: #F4F4F5;
