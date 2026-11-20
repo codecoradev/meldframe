@@ -298,3 +298,23 @@ fn fill_types_and_gradient_stops_are_state_and_actions_in_json() {
         3
     );
 }
+
+#[test]
+fn the_border_and_the_shadows_are_state_and_actions_in_json() {
+    let nodes = json!([{"id": "card", "type": "rect", "pos": "a0"}]).to_string();
+    let mut b = Bridge::new("usr_me", "web", 7, &nodes, 0, None).expect("the file loads");
+    let state = |b: &Bridge| -> Value { serde_json::from_str(&b.state_json()).unwrap() };
+    run(&mut b, json!({"type": "select", "ids": ["card"]}));
+    assert_eq!(state(&b)["properties"]["border"]["width"], 0.0);
+    run(
+        &mut b,
+        json!({"type": "setProperty", "id": "card", "property": {"property": "borderWidth", "value": 2.0}}),
+    );
+    run(
+        &mut b,
+        json!({"type": "setProperty", "id": "card", "property": {"property": "addShadow", "value": {}}}),
+    );
+    let p = state(&b)["properties"].clone();
+    assert_eq!(p["border"]["width"], 2.0);
+    assert_eq!(p["shadows"][0]["blur"], 8.0);
+}

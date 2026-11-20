@@ -3,7 +3,7 @@
 use crate::activity::{BatchHeader, BatchPage, BatchRef, ReviewState};
 use crate::state::{FillKind, Panel, Tool};
 use crate::variables::{BindField, VariableValue};
-use meldframe_protocol::{Command, Node, Variables};
+use meldframe_protocol::{BorderPosition, Command, Node, Shadow, Variables};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -390,6 +390,21 @@ pub enum Property {
     AddGradientStop {},
     /// Remove a stop. Refused as `min_stops` at two.
     RemoveGradientStop(usize),
+    /// The width of the border in px (0 is no border). The checks of the range are the core's.
+    BorderWidth(f64),
+    /// The `#hex` colour of the border.
+    BorderColor(String),
+    /// Where the border sits against the edge of the box.
+    BorderPosition(BorderPosition),
+    /// Replace one shadow of the list, as one undo step. Refused as `not_found` past the end.
+    SetShadow {
+        index: usize,
+        shadow: Shadow,
+    },
+    /// Add a soft drop shadow at the end of the list (drawn on top). Refused as `limit` at `Properties::max_shadows`.
+    AddShadow {},
+    /// Remove one shadow. Refused as `not_found` past the end.
+    RemoveShadow(usize),
 }
 
 /// A message of the live connection, as the transport decodes it.
