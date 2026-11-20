@@ -12,6 +12,7 @@
 //! it takes in, because a header arrives from a socket and a route and the app layer trusts neither).
 
 mod header;
+mod in_effect;
 mod incoming;
 mod note;
 mod reducer;
@@ -20,15 +21,16 @@ mod summary;
 mod view;
 
 pub use header::{Header, NewBatch, Review};
+pub use in_effect::{InEffect, InEffectMemo, in_effect, revertable};
 pub use incoming::{Fetch, RawHeader};
 pub use note::{Note, NoteError, is_combining_mark, is_hidden_text};
 pub use reducer::{
-    Activity, FETCH_EVERY_MS, FETCH_LIMIT, IDLE_MS, MAX_REV, MAX_REV_JUMP, MAX_ROWS, MAX_TRIES,
-    WAIT_FOR_HEADER_MS,
+    Activity, FETCH_EVERY_MS, FETCH_LIMIT, IDLE_MS, MAX_LANES, MAX_REV, MAX_REV_JUMP, MAX_RING_IDS,
+    MAX_RINGS, MAX_ROWS, MAX_TRIES, RING_MS, RUN_GAP_MS, Ring, WAIT_FOR_HEADER_MS, WORKING_MS,
 };
 pub use sink::{BatchCall, BatchSink, Marked};
 pub use summary::{MAX_NAME_CHARS, MAX_NAMES, MAX_SHOWN, Summary};
-pub use view::{Row, Status};
+pub use view::{Lane, LaneKind, LaneState, MAX_RUNS, Row, Run, Status};
 
 /// The longest note, in characters (Unicode scalar values): the owner's limit, as a critique item of `design_review`.
 pub const MAX_NOTE_CHARS: usize = 500;

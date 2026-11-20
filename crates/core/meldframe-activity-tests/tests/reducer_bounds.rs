@@ -1,4 +1,4 @@
-//! The bound of the app state: 500 rows (the oldest goes first), and a revert that changes neither the
+//! The bounds of the app state: 32 lanes, 500 rows (the oldest goes first), and a revert that changes neither the
 //! review state nor the count (ADR-0021, "What the app layer owns" and "Counters").
 
 // Under WASM these tests will run through wasm-bindgen-test once `just wasm-test` lists this crate (slice 10).
@@ -8,12 +8,12 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 mod common;
 
 use common::*;
-use meldframe_activity::{MAX_ROWS, Review};
+use meldframe_activity::{MAX_LANES, MAX_ROWS, Review};
 use meldframe_revert::{Batch, revert_batch};
 
 #[test]
 fn the_501st_row_drops_the_oldest() {
-    assert_eq!(MAX_ROWS, 500);
+    assert_eq!((MAX_LANES, MAX_ROWS), (32, 500));
     let mut a = activity();
     for i in 1..=500u64 {
         let actor = format!("agent:{}", i % 10);
@@ -37,6 +37,22 @@ fn the_501st_row_drops_the_oldest() {
     a.observe_page([header(1, 1, "agent:1", "k1", 1, 1)], 501);
     assert_eq!(a.rows().last().unwrap().n, Some(2));
     assert_eq!(a.lowest_n(), Some(2));
+}
+
+#[test]
+fn the_33rd_lane_drops_the_lane_with_the_oldest_activity_and_its_rows() {
+    let mut a = activity();
+    for i in 0..33u64 {
+        let actor = format!("agent:{i}");
+        a.observe_op(&op(i + 1, &actor, "k:0", set_x("a", 1.0)), 1_000 + i);
+        a.observe_header(header(i as u32 + 1, i + 1, &actor, "k", 1, 1_000 + i), 33);
+    }
+    let lanes = a.lanes();
+    assert_eq!(lanes.len(), 32);
+    assert_eq!(lanes[0].actor, "agent:32");
+    assert!(lanes.iter().all(|l| l.actor != "agent:0"));
+    assert_eq!(a.rows().len(), 32);
+    assert!(a.rows().iter().all(|r| r.actor != "agent:0"));
 }
 
 #[test]
