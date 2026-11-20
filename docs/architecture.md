@@ -118,6 +118,7 @@ crates/
     meldframe-app-unit-tests   (tool) the unit-level tests of `meldframe-app` (actions, events, state, wire shapes) against a loopback server; run under WASM too (the activity panel at the app seam among them); its `tests/common` is the harness
     meldframe-app-review-tests   (tool) the review and checkpoint tests of `meldframe-app` (E5.2, E5.3: revert a batch, restore a checkpoint); split from `meldframe-app-unit-tests` for the size ceiling and includes its `tests/common` by path
     meldframe-app-inspector-tests   (tool) the tests of the inspector fields of `meldframe-app` (D5, D6: fill types and gradients, border and shadows, layout, padding, margin and sizing); split from `meldframe-app-unit-tests` for the size ceiling and includes its `tests/common` by path
+    meldframe-app-export-tests   (tool) the tests of the Export dialog of `meldframe-app` (D9: the target of an export, the HTML built for the open dialog, and how the dialog follows the document); split from `meldframe-app-unit-tests` for the size ceiling and includes its `tests/common` by path; run under WASM too
     meldframe-sync-props  (tool) property tests of replicas against an in-memory server and the host room; no library code
     meldframe-module      Module trait, registry, risk tiers
     meldframe-host        room, store, admission gate; jobs later

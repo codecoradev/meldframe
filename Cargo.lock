@@ -1165,6 +1165,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-app-export-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-protocol",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-app-harness"
 version = "0.0.0"
 dependencies = [

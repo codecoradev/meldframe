@@ -1,0 +1,22 @@
+[package]
+name = "meldframe-app-export-tests"
+description = "The Export dialog tests of meldframe-app (D9): the target of an export, the HTML built for the open dialog, and how it follows the document, against a loopback server. Split from meldframe-app-unit-tests for the size ceiling; it includes that crate's test harness by path. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-app = { path = "../../app/meldframe-app" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+serde_json = "1"
+
+# See meldframe-order/Cargo.toml: the tests run under WASM through wasm-bindgen-test.
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
+
+[lints]
+workspace = true
