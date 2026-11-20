@@ -1051,6 +1051,18 @@ name = "meldframe-activity"
 version = "0.0.0"
 
 [[package]]
+name = "meldframe-activity-pg-tests"
+version = "0.0.0"
+dependencies = [
+ "activity-store",
+ "meldframe-activity",
+ "meldframe-host",
+ "meldframe-protocol",
+ "meldframe-server",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-activity-tests"
 version = "0.0.0"
 dependencies = [
@@ -1749,7 +1761,9 @@ dependencies = [
 name = "meldframe-store-pg"
 version = "0.0.0"
 dependencies = [
+ "activity-store",
  "design-review",
+ "meldframe-activity",
  "meldframe-calls",
  "meldframe-host",
  "meldframe-module",
