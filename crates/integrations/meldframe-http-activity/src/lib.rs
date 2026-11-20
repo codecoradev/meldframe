@@ -67,6 +67,21 @@ impl Activity {
     }
 }
 
+/// Everything the server wires for the activity panel in one call: the sink is set on `shared` (so `apply_commands`
+/// keeps headers, takes a `note` and sends the frame through `publish`) and the routes come back to merge into the
+/// router. Later slices (`get_batches`, the review setter) join here, so the binary's `main` does not grow with them.
+pub fn install(
+    shared: &Arc<Shared>,
+    store: Arc<dyn BatchStore>,
+    reader: Arc<dyn Reader>,
+    publish: Publish,
+) -> axum::Router {
+    let activity = Activity::with_live(store, reader, Some(publish));
+    // Set once: a second install on the same `Shared` keeps the first sink.
+    let _ = shared.batches.set(activity.sink());
+    activity.routes(shared.clone())
+}
+
 struct Sink {
     store: Arc<dyn BatchStore>,
     reader: Arc<dyn Reader>,
