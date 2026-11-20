@@ -135,6 +135,21 @@ for (const [vw, vh] of [[1440, 900], [1280, 800]]) {
       await page.keyboard.press('Escape');
 
       assert.equal(await page.locator('[data-testid=shortcut-hint]').count(), 0);
+      // the zoom menu: the readout opens it, a row changes the zoom, Escape gives the focus back; the sheet fits the window and clears the tool bar
+      for (const [row, text] of [['zoom-in', '125%'], ['zoom-reset', '100%']]) {
+        await page.click('[data-testid=zoom]');
+        await page.click(`[data-testid=${row}]`);
+        assert.equal(await page.textContent('[data-testid=zoom]'), text, `${at}: ${row}`);
+      }
+      await page.focus('[data-testid=zoom]');
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Escape');
+      assert.ok(await focusIn('[data-testid=zoom]'), `${at}: the focus did not go back to the zoom button`);
+      await page.keyboard.press('Shift+Slash');
+      const sheet = await box(page, '[data-testid=shortcut-hint]');
+      assert.ok(sheet.y >= 0 && sheet.b <= vh && !overlap(sheet, bar), `${at}: the sheet is inside the window and clear of the tool bar`);
+      assert.match(await page.locator('[data-testid=shortcut-hint]').innerText(), /Pan with the pointer/, `${at}: the sheet lists the view keys`);
+      await page.keyboard.press('Escape');
       if (shots) { await page.keyboard.press('Alt+Digit2'); await page.screenshot({ path: `${shots}/layout-closed-${vw}x${vh}-${theme}.png` }); }
     }
     console.log(`${at}: ok`);

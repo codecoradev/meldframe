@@ -21,7 +21,7 @@ How the boards were checked, and what a person still has to review, is in `docs/
 | Top left | Menu, page switcher, button that shows the layers panel | A small floating card. |
 | Top right | Button that shows the right panel, the person's account menu (their profile, not a Workspace), Share | A small floating card. Share is a placeholder until sharing is designed (section 6). |
 | Bottom centre | Tool bar | Floating, groups separated by a thin rule. |
-| Bottom right | Zoom, connection state | Plain text. |
+| Bottom right | Zoom, connection state | The connection state is plain text. The zoom readout opens a menu: zoom in, zoom out, 100%, fit all, zoom to selection. |
 | Left panel | Pages and layers | Floating, inset 12 px, hidden by default. |
 | Right panel | Two tabs: Design (Variables, Properties) and Activity | Floating, inset 12 px, hidden by default. |
 

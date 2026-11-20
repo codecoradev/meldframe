@@ -20,6 +20,7 @@
   import NoFrames from '@meldframe/web-feedback/NoFrames.svelte';
   import { Toaster, type ToastView } from '@meldframe/web-feedback/toaster';
   import { layoutKey } from '@meldframe/web-chrome/keys';
+  import { zoomCamera } from '@meldframe/web-chrome/zoom';
   import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
   import VariablesPanel from '@meldframe/web-panels/VariablesPanel.svelte';
@@ -230,9 +231,7 @@
       return;
     }
     const a = keyAction(e, snap.state.selection);
-    if (!a) return;
-    e.preventDefault();
-    dispatch(a);
+    if (a) { e.preventDefault(); dispatch(a); }
   }
 
   /** Shift adds to the selection or takes out of it; a plain click replaces it. */
@@ -262,6 +261,7 @@
   canVariant={target !== null}
   onVariant={() => target && dispatch({ type: 'makeVariant', id: target.id })}
   zoomText={formatZoom(camera.zoom)}
+  onZoom={(c) => (c === 'fit' ? canvas?.fitAll() : c === 'fit-selection' ? canvas?.fitSelection() : canvas && (camera = zoomCamera(c, camera, canvas.centre())))}
   connection={{ state: snap.state.connection.type, text: connectionLabel(snap.state.connection) }}
   {helpOpen}
   onHelp={(open) => (helpOpen = open)}

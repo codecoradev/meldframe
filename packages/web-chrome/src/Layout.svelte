@@ -12,8 +12,9 @@
   import ShortcutHint from './ShortcutHint.svelte';
   import Tabs from './Tabs.svelte';
   import TooltipProvider from './TooltipProvider.svelte';
-  import { platformLabels } from './platform';
+  import { onMac, platformLabels } from './platform';
   import { PANEL_INSET, fileItems, reserved, rightWidth, type RightTab } from './layout';
+  import { zoomItems, type ZoomCommand } from './zoom';
 
   type Tool = 'select' | 'frame' | 'rectangle' | 'text';
   interface Props {
@@ -34,7 +35,9 @@
     onExport: () => void;
     canVariant: boolean;
     onVariant: () => void;
+    /** The zoom as the status strip writes it (`100%`) and the command of a row of its menu; the page carries it out. */
     zoomText: string;
+    onZoom: (c: ZoomCommand) => void;
     connection: { state: string; text: string };
     helpOpen: boolean;
     onHelp: (open: boolean) => void;
@@ -48,7 +51,7 @@
     designPanel: Snippet;
     activityPanel: Snippet;
   }
-  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, connection, helpOpen, onHelp, tab, onTab, activityBadge = 0, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
+  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, onZoom, connection, helpOpen, onHelp, tab, onTab, activityBadge = 0, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
 
   const tools: { tool: Tool; label: string; key: string; icon: 'select' | 'frame' | 'rectangle' | 'text' }[] = [
     { tool: 'select', label: 'Select', key: 'V', icon: 'select' },
@@ -61,6 +64,7 @@
     id: p, label: `New ${p} frame`, onSelect: () => onPreset(p), testId: `preset-${p}`,
   }));
   const keys = platformLabels();
+  const zoomRows = $derived(zoomItems({ mac: onMac(), onZoom }));
   // A card and its folded form swap one header button for another, so the focus would be lost: after a toggle made
   // from that button, the focus goes to the button of the same panel in its new state (marked data-focus).
   const toggleFrom = (panel: 'layers' | 'inspector', toggle: () => void) => () => {
@@ -133,12 +137,12 @@
     <IconButton label="Shortcuts" icon="help" size={32} shortcut="?" pressed={helpOpen} onclick={() => onHelp(!helpOpen)} />
   </div>
   {#if helpOpen}
-    <div class="absolute bottom-16" style:left={layersOpen ? `calc(${PANEL_INSET}px + var(--mf-size-layers) + var(--mf-space-4))` : 'var(--mf-space-4)'}><ShortcutHint onClose={() => onHelp(false)} /></div>
+    <div class="pointer-events-none absolute top-4 bottom-20 flex items-end" style:left={layersOpen ? `calc(${PANEL_INSET}px + var(--mf-size-layers) + var(--mf-space-4))` : 'var(--mf-space-4)'}><ShortcutHint onClose={() => onHelp(false)} /></div>
   {/if}
 
   <div class="absolute bottom-5 flex flex-col items-end gap-1 text-caption text-text-muted" style:right={inspectorOpen ? `calc(${PANEL_INSET}px + ${width}px + var(--mf-space-4))` : 'var(--mf-space-5)'}>
     <output class="flex items-center gap-2" data-testid="connection" data-state={connection.state}><span class="size-2 rounded-pill {connection.state === 'live' ? 'bg-success' : 'bg-warning'}"></span>{connection.text}</output>
-    <output class="font-mono text-small" aria-live="off" data-testid="zoom">{zoomText}</output>
+    <Menu label="Zoom {zoomText}" text={zoomText} items={zoomRows} side="top" align="end" testId="zoom" />
   </div>
 </div>
 </TooltipProvider>
