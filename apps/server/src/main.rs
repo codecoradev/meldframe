@@ -104,6 +104,8 @@ fn serve(
     let upload_policy = server.registry().policy_for(assets::UPLOAD_TOOL);
     #[cfg(feature = "design-review")]
     let review_policy = server.registry().policy_for(design_review::TOOL);
+    #[cfg(feature = "activity")]
+    let batches_policy = server.registry().policy_for(meldframe_http_activity::TOOL);
     #[cfg(feature = "export")]
     let export_policy = server.registry().policy_for(export::TOOL);
     #[cfg(feature = "variables-import")]
@@ -152,6 +154,10 @@ fn serve(
     {
         app = app.merge(cap.routes());
     }
+    // The tools of other crates, served by MCP besides its own.
+    #[cfg(feature = "mcp")]
+    #[allow(unused_mut, reason = "only the features that add a tool push to it")]
+    let mut extra_tools: Vec<Arc<dyn meldframe_http::mcp::Extra>> = Vec::new();
     // The batch headers, the `note` of apply_commands, the live frame and the list route (ADR-0021).
     #[cfg(feature = "activity")]
     {
@@ -162,12 +168,9 @@ fn serve(
             batches,
             shared.clone(),
             publish,
+            (&mut extra_tools, batches_policy),
         ));
     }
-    // The tools of other crates, served by MCP besides its own.
-    #[cfg(feature = "mcp")]
-    #[allow(unused_mut, reason = "only the features that add a tool push to it")]
-    let mut extra_tools: Vec<Arc<dyn meldframe_http::mcp::Extra>> = Vec::new();
     #[cfg(feature = "capture")]
     extra_tools.push(cap.tool());
     #[cfg(feature = "assets")]

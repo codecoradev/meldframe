@@ -21,5 +21,7 @@ pub(crate) fn modules() -> Vec<Box<dyn Module>> {
         Box::new(variables_import::ImportModule),
         #[cfg(feature = "variant")]
         Box::new(meldframe_http_variant::VariantModule),
+        #[cfg(feature = "activity")]
+        Box::new(meldframe_http_activity::ActivityModule),
     ]
 }

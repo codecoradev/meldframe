@@ -22,6 +22,7 @@ meldframe-http-export = { path = "../../integrations/meldframe-http-export" }
 variables-import = { path = "../../features/variables-import/variables-import" }
 meldframe-http-variables-import = { path = "../../integrations/meldframe-http-variables-import" }
 meldframe-http-variant = { path = "../../integrations/meldframe-http-variant" }
+meldframe-http-activity = { path = "../../integrations/meldframe-http-activity" }
 meldframe-http-capture = { path = "../../integrations/meldframe-http-capture" }
 meldframe-http-assets = { path = "../../integrations/meldframe-http-assets" }
 meldframe-server = { path = "../../../apps/server" }

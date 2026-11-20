@@ -54,6 +54,14 @@ fn regenerate() {
         json!({"name": vi.name, "tier": vi.tier.as_str(), "description": vi.description,
         "inputSchema": meldframe_http_variables_import::input_schema()}),
     );
+    let gb = server
+        .registry()
+        .agent_tool(meldframe_http_activity::TOOL)
+        .unwrap();
+    tools.push(
+        json!({"name": gb.name, "tier": gb.tier.as_str(), "description": gb.description,
+        "inputSchema": meldframe_http_activity::input_schema()}),
+    );
     let doc = json!({"batchLimit": meldframe_http::mcp::MAX_BATCH, "tools": tools});
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../docs/mcp-tools.json");
     std::fs::write(path, serde_json::to_string_pretty(&doc).unwrap() + "\n").unwrap();
