@@ -1,30 +1,20 @@
 //! The state machine: one action in, state changes, events and effects out. No I/O, clock or randomness.
 
-use crate::action::{Action, Frame};
+use crate::action::Action;
 use crate::effect::{Effect, OutOp};
 use crate::event::Event;
-use crate::link::Link;
 use crate::panel::PanelCache;
-use crate::retry::Retries;
-use crate::review::Review;
 use crate::state::{AppState, Connection, History};
 use meldframe_activity::Feed;
 use meldframe_app_parts::properties::properties;
+use meldframe_app_rules::level::{self, Level};
+use meldframe_app_rules::link::Link;
+use meldframe_app_rules::retry::Retries;
+use meldframe_app_rules::review::Review;
 use meldframe_protocol::{Doc, Node, Variables};
 use meldframe_render::{PaintedBox, resolve_with};
 use meldframe_sync::{LoadError, Outgoing, Replica};
 use std::collections::HashSet;
-
-/// How much of the derived state one dispatch has to bring up to date.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Level {
-    /// Nothing derived can have changed (a heartbeat, a timer, a repeated frame).
-    Nothing,
-    /// Only the selection or a panel changed.
-    Ui,
-    /// The document or the ops may have changed.
-    Full,
-}
 
 /// Owns the [`AppState`] and the document replica, and applies actions to them.
 #[derive(Debug)]
@@ -41,7 +31,7 @@ pub struct App {
     pub(crate) prefix: String,
     pub(crate) next_id: u64,
     /// What the Export dialog was built from, and how often (`App::export_builds`).
-    pub(crate) export_cache: crate::export::ExportCache,
+    pub(crate) export_cache: export_dialog::Cache,
 }
 
 impl App {
@@ -133,41 +123,12 @@ impl App {
     /// Applies one action and returns the work the shell has to do. The same actions in the same order
     /// always give the same state, events and effects.
     pub fn dispatch(&mut self, action: Action) -> Vec<Effect> {
-        let ui = matches!(
-            action,
-            Action::Select { .. }
-                | Action::ToggleSelect { .. }
-                | Action::ClearSelection {}
-                | Action::SetTool { .. }
-                | Action::SetPanel { .. }
-                | Action::TogglePanel { .. }
-                | Action::ToggleCollapsed { .. }
-                | Action::SetMode { .. }
-                | Action::SetVariablesQuery { .. }
-                | Action::OpenPicker { .. }
-                | Action::ClosePicker {}
-                | Action::SetPickerQuery { .. }
-                | Action::OpenExport {}
-                | Action::SetExportFormat { .. }
-                | Action::CloseExport {}
-        );
+        let ui = level::is_view(&action);
         let reload = matches!(action, Action::Reload { .. });
         if self.state.connection == Connection::Halted && !ui && !reload {
             return Vec::new();
         }
-        self.level = match &action {
-            _ if ui => Level::Ui,
-            a if a.only_activity() => Level::Nothing,
-            Action::Start { .. }
-            | Action::Disconnected {}
-            | Action::Reconnect { .. }
-            | Action::Tick { .. }
-            | Action::Frame {
-                frame: Frame::Heartbeat {} | Frame::Batch { .. } | Frame::Touch { .. },
-                ..
-            } => Level::Nothing,
-            _ => Level::Full,
-        };
+        self.level = level::of(&action, ui);
         let mut fx = Vec::new();
         match action {
             Action::Select { ids } => self.select(ids),
@@ -261,7 +222,7 @@ impl App {
         nodes: Vec<String>,
         fx: &mut Vec<Effect>,
     ) {
-        self.export_cache.version += 1;
+        self.export_cache.changed();
         self.events
             .push(Event::DocumentChanged { actor, optimistic });
         fx.push(Effect::Render { nodes });

@@ -117,6 +117,8 @@ describe('messageFor', () => {
   const appCodes = (): string[] => {
     const found = new Set<string>();
     for (const src of [rust('app/meldframe-app/src/review.rs'), rust('app/meldframe-app/src/activity.rs')]) for (const m of src.matchAll(/refuse\(\s*&mut self\.events,\s*"([a-z_]+)"\s*\)/g)) found.add(m[1]!);
+    // The plans of a revert and of a restore live in meldframe-app-rules and answer with the code as `Err("code")`.
+    for (const m of rust('core/meldframe-app-rules/src/review.rs').matchAll(/Err\("([a-z_]+)"\)/g)) found.add(m[1]!);
     for (const m of rust('core/meldframe-activity/src/feed.rs').matchAll(/ok_or\("([a-z_]+)"\)/g)) found.add(m[1]!);
     return [...found].sort();
   };

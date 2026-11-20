@@ -11,9 +11,8 @@ kind = "app"
 
 [dependencies]
 meldframe-activity = { path = "../../core/meldframe-activity" }
-export = { path = "../../features/export/export" }
-meldframe-layout = { path = "../../core/meldframe-layout" }
 meldframe-variant = { path = "../../core/meldframe-variant" }
+export-dialog = { path = "../../features/export/export-dialog" }
 meldframe-check = { path = "../../core/meldframe-check" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
 meldframe-render = { path = "../../core/meldframe-render" }
@@ -21,6 +20,7 @@ meldframe-revert = { path = "../../core/meldframe-revert" }
 meldframe-history = { path = "../../core/meldframe-history" }
 meldframe-sync = { path = "../../core/meldframe-sync" }
 meldframe-app-parts = { path = "../../core/meldframe-app-parts" }
+meldframe-app-rules = { path = "../../core/meldframe-app-rules" }
 meldframe-app-model = { path = "../../core/meldframe-app-model" }
 meldframe-variables = { path = "../../core/meldframe-variables" }
 serde = { version = "1", features = ["derive"] }
