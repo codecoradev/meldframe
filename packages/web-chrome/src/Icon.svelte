@@ -36,6 +36,7 @@
     'align-start': 'M3 3v10M6 5h6M6 9h4',
     'align-center': 'M8 3v10M4 5h8M5 9h6',
     'align-end': 'M13 3v10M4 5h6M6 9h4',
+    variable: 'M8 2l5 3v6l-5 3-5-3V5z',
     padding: `${rect(3, 3, 10, 10)}M6 6h4v4H6z`,
     agent: `${circle(8, 8, 2.5)}M8 2v2M8 12v2M2 8h2M12 8h2`,
     undo: 'M6 3L3 6l3 3M3 6h6a4 4 0 010 8H6',

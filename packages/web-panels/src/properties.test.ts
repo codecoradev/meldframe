@@ -49,6 +49,13 @@ describe('the properties panel as the Properties and Inspector boards draw it', 
     expect(out).toContain('bg-danger-bg');
     expect(out).toContain('ghost (removed)');
   });
+  it('has a bind button on each field that takes a variable, and none on a field that is bound already', () => {
+    const out = html(base);
+    for (const f of ['fill', 'opacity', 'radius']) expect(out).toContain(`data-testid="prop-${f}-bind"`);
+    const bound = html({ ...base, bound: ['opacity'], bindings: [b('opacity')] });
+    expect(bound).not.toContain('data-testid="prop-opacity-bind"');
+    expect(html({ ...base, kind: 'text' })).not.toContain('data-testid="prop-radius-bind"');
+  });
   it('is one group named Properties with a rule above it, and its sections are the landmarks inside', () => {
     const out = html(base);
     expect(out).toMatch(/<div[^>]*role="group"[^>]*aria-label="Properties"/);
