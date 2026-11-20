@@ -47,8 +47,15 @@ pub struct NewBatch {
     pub tool: String,
     /// How many commands the batch is said to have (a retry may say more; only a higher count is kept).
     pub commands: u32,
-    /// How many ops this call newly wrote (a replay writes none).
+    /// How many ops this call newly wrote (a replay writes none). It is added to the header's `written` unless
+    /// `known` is given.
     pub written: u32,
+    /// How many ops of this batch's prefix the log holds, as this call saw it (a call of one prefix reads it from its
+    /// own answer or from the log). When given, the header's `written` becomes the larger of what it has and this, and
+    /// `written` above adds nothing: two calls of one batch that overlap (a replay and a delayed original) count each
+    /// op once, and a retry that fails again still raises the count. `None` for the parts of an import, whose keys no
+    /// one call sees whole, so each part adds what it wrote.
+    pub known: Option<u32>,
     /// Whether the call was atomic.
     pub atomic: bool,
     /// The lowest and the highest sequence number among the ops this call wrote.

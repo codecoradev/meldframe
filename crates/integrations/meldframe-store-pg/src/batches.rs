@@ -10,7 +10,7 @@
 use super::{PgStore, from_db_seq, room_key};
 use activity_store::{
     ActivityError, BatchStore, NoteOutcome, Page, Query, Recorded, Reviewed, cap_reached,
-    check_actor, check_batch, check_query, merge,
+    check_actor, check_batch, check_query, merge, new_header,
 };
 use meldframe_activity::{Header, NewBatch, Note, Review};
 use sqlx::{PgConnection, Row, postgres::PgRow};
@@ -218,7 +218,7 @@ impl BatchStore for PgStore {
             .bind(&batch.key_prefix)
             .bind(&batch.tool)
             .bind(db_i32(batch.commands))
-            .bind(db_i32(batch.written))
+            .bind(db_i32(new_header(0, 0, batch).written))
             .bind(batch.atomic)
             .bind(batch.note.as_ref().map(Note::as_str))
             .bind(rev)

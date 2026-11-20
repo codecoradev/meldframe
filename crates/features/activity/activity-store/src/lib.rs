@@ -214,9 +214,15 @@ pub fn check_batch(b: &NewBatch) -> Result<(), ActivityError> {
             "a tool name is 1 to {MAX_TOOL} bytes without control or hidden characters"
         )));
     }
-    if b.commands == 0 || b.commands > MAX_COUNT || b.written > b.commands {
+    // With `known` given the count of the call is `known` and `written` adds nothing, so it may not pass it.
+    let count = b.known.unwrap_or(b.written);
+    if b.commands == 0
+        || b.commands > MAX_COUNT
+        || count > b.commands
+        || b.known.is_some_and(|k| b.written > k)
+    {
         return Err(invalid(format!(
-            "a batch has 1 to {MAX_COUNT} commands and has written at most that many"
+            "a batch has 1 to {MAX_COUNT} commands and has written at most that many (and no more than known)"
         )));
     }
     if b.first_seq > b.last_seq {
@@ -266,13 +272,20 @@ pub fn cap_reached(
 }
 
 /// What an update of a header by a later call of its batch does, for every adapter: `commands` rises to the larger
-/// count, `written` rises by what the call newly wrote (at most [`MAX_COUNT`]), `last_seq` rises, a note is kept only
+/// count, `written` becomes the larger of what it has and `known` when the call gives it (the keys of its prefix the
+/// log holds; `written` of the call then adds nothing), else it rises by what the call newly wrote (at most
+/// [`MAX_COUNT`]), `last_seq` rises, a note is kept only
 /// when the header has none (the first non-empty note wins), and nothing else changes. Returns whether the header
 /// changed (then it needs a new `rev`) and what became of the call's note. `rev` is the caller's to set.
 pub fn merge(h: &mut Header, b: &NewBatch) -> (bool, NoteOutcome) {
     let before = (h.commands, h.written, h.last_seq, h.note.is_some());
     h.commands = h.commands.max(b.commands);
-    h.written = h.written.saturating_add(b.written).min(MAX_COUNT);
+    h.written = match b.known {
+        // An absolute count: what two overlapping calls of one batch both saw is counted once.
+        Some(k) => h.written.max(k),
+        None => h.written.saturating_add(b.written),
+    }
+    .min(MAX_COUNT);
     // The parts of one import share a prefix and each says how many commands it has: written never passes commands.
     h.commands = h.commands.max(h.written);
     h.last_seq = h.last_seq.max(b.last_seq);
@@ -299,7 +312,7 @@ pub fn new_header(n: u32, rev: u64, b: &NewBatch) -> Header {
         key_prefix: b.key_prefix.clone(),
         tool: b.tool.clone(),
         commands: b.commands,
-        written: b.written,
+        written: b.known.unwrap_or(b.written),
         atomic: b.atomic,
         first_seq: b.first_seq,
         last_seq: b.last_seq,
