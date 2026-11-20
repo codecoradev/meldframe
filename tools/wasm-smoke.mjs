@@ -31,6 +31,40 @@ assert.equal(state.history.canUndo, true);
 assert.ok(JSON.parse(app.takeEventsJson()).some((e) => e.type === 'documentChanged'));
 assert.equal(app.takeEventsJson(), '[]', 'taking the events drains them');
 
+// The Activity panel (E5.1): actions and frames in as JSON, effects and state out, through the real wasm.
+const T = 1_700_000_000_000;
+const header = (n, rev, prefix, extra = {}) => ({
+  n, rev, actor: 'agent:x', keyPrefix: prefix, tool: 'apply_commands', commands: 1, written: 1, atomic: false,
+  firstSeq: 1, lastSeq: 1, atMs: T, review: 'unreviewed', ...extra,
+});
+assert.deepEqual(state.activity.rows, [], 'a fresh panel is empty');
+assert.deepEqual(run({ type: 'openActivity' }), [{ type: 'fetchBatches', beforeN: null, afterN: null, limit: 100 }]);
+run({ type: 'frame', nowMs: T, frame: { type: 'batch', header: header(1, 1, 'b1', { note: 'Hero\u202e' }), unreviewedCount: 1 } });
+let activity = JSON.parse(app.stateJson()).activity;
+assert.equal(activity.rows[0].n, 1);
+assert.equal(activity.rows[0].note, 'Hero', 'the note is checked again: the bidi override is stripped');
+assert.equal(activity.unreviewedCount, 1);
+assert.equal(activity.lanes[0].actor, 'agent:x');
+assert.ok(JSON.parse(app.takeEventsJson()).some((e) => e.type === 'activityChanged'));
+run({ type: 'batchesLoaded', page: { batches: [header(1, 1, 'b1')], hasMore: false, unreviewedCount: 1, canReview: true } });
+assert.deepEqual(
+  run({ type: 'setBatchReview', batch: { actor: 'agent:x', keyPrefix: 'b1' }, state: 'accepted' }),
+  [{ type: 'putBatchReview', n: 1, state: 'accepted' }],
+);
+run({ type: 'batchReviewed', batch: header(1, 2, 'b1', { review: 'accepted', reviewedBy: 'usr_me', reviewedAtMs: T + 1 }) });
+activity = JSON.parse(app.stateJson()).activity;
+assert.equal(activity.rows[0].review, 'accepted');
+assert.equal(activity.rows[0].reviewedBy, 'usr_me');
+run({ type: 'frame', nowMs: T, frame: { type: 'touch', actor: 'agent:x', ids: ['a'], seq: 2 } });
+const ring = JSON.parse(app.stateJson()).activity.touches[0];
+assert.deepEqual([ring.actor, ring.ids, ring.persistent], ['agent:x', ['a'], false]);
+app.takeEventsJson();
+run({ type: 'batchRequestFailed', code: 'forbidden' });
+assert.deepEqual(JSON.parse(app.takeEventsJson()), [{ type: 'refused', code: 'forbidden' }], 'a failed request is a refusal');
+// A header with a field the app does not know, and a review state that is not one, are thrown as strings.
+assert.throws(() => run({ type: 'frame', nowMs: T, frame: { type: 'batch', header: header(2, 1, 'b2', { extra: 1 }), unreviewedCount: 1 } }), (e) => typeof e === 'string' && e.startsWith('action:'));
+assert.throws(() => run({ type: 'setBatchReview', batch: { actor: 'a', keyPrefix: 'k' }, state: 'approved' }), (e) => typeof e === 'string' && e.startsWith('action:'));
+
 // Errors are thrown as strings, not as a trap.
 assert.throws(() => app.dispatch('not json'), (e) => typeof e === 'string' && e.startsWith('action:'));
 assert.throws(() => new WasmApp('usr_me', 'web', 1, '{', 0), (e) => typeof e === 'string' && e.startsWith('nodes:'));
