@@ -1,7 +1,7 @@
 //! A scripted editing session: two editors and an agent on one file, through the real gate and room.
 
-mod support;
 use meldframe_app::{Action, CreateKind, Effect, Event, Property, Tool};
+use meldframe_app_harness as support;
 use meldframe_protocol::{Command, NodePatch};
 use support::*;
 

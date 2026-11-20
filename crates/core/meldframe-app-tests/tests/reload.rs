@@ -1,7 +1,7 @@
 //! A halted editor recovers against the real in-memory server: the shell loads the file again, the app
 //! reloads, and the person's pending ops either come back confirmed or are sent again.
 
-mod support;
+use meldframe_app_harness as support;
 
 use meldframe_app::{Action, Connection, Frame};
 use meldframe_protocol::{Command, NodePatch};

@@ -4,9 +4,8 @@
 //! `meldframe-app-tests`; where a test says so the ops go through the real `meldframe_server::Server` (gate, room, log),
 //! otherwise (and always for headers, batch frames and route answers) they are scripted frames.
 
-#[path = "../../meldframe-app-tests/tests/support/mod.rs"]
-mod support;
 use meldframe_app::{Action, Effect, Frame};
+use meldframe_app_harness as support;
 use meldframe_app_model::{BatchHeader, BatchPage, BatchRef, BatchStatus, ReviewState};
 use meldframe_host::{Op, Principal};
 use meldframe_protocol::Command;

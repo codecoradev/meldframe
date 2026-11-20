@@ -1,7 +1,7 @@
 //! The shell of the tests: it plays the platform for several app instances against one real in-memory
 //! server. It carries out the effects (send ops, subscribe, schedule a reconnect), turns the server's
 //! frames into actions, and records what it saw. It holds no editor rule.
-#![allow(dead_code)]
+#![allow(dead_code, missing_debug_implementations)]
 
 use meldframe_app::{Action, App, Effect, Event, Frame as AppFrame};
 use meldframe_host::{Op, Principal};

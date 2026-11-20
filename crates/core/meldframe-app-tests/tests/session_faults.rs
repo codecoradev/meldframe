@@ -1,8 +1,8 @@
 //! Sessions that stress the connection and the server: heartbeats, ops in flight, refusals, concurrent
 //! edits, a restart. Real server, two editors and an agent.
 
-mod support;
 use meldframe_app::{Action, CreateKind, Event};
+use meldframe_app_harness as support;
 use meldframe_protocol::Command;
 use support::*;
 
