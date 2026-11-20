@@ -15,7 +15,13 @@ meldframe-activity = { path = "../meldframe-activity" }
 meldframe-host = { path = "../meldframe-host" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-server = { path = "../../../apps/server" }
+meldframe-module = { path = "../meldframe-module" }
+meldframe-http = { path = "../../integrations/meldframe-http", features = ["mcp"] }
+meldframe-http-activity = { path = "../../integrations/meldframe-http-activity" }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
+rmcp = { version = "3.10", default-features = false, features = ["client", "server", "transport-streamable-http-client-reqwest"] }
 serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
 
 [lints]
 workspace = true

@@ -335,6 +335,22 @@ mod read {
             .map_err(unavailable)
         }
 
+        fn written(
+            &self,
+            who: &Principal,
+            file: &str,
+            keys: &[String],
+        ) -> Result<Vec<u64>, Failure> {
+            // Under the policy of `get_nodes` and not logged: the calling tool has its own entry.
+            self.read_unlogged("get_nodes", who, file, |r| {
+                let find = |k| r.store().find(r.id(), &who.actor, k).transpose();
+                keys.iter()
+                    .map_while(|k| find(k))
+                    .collect::<Result<Vec<_>, _>>()
+            })?
+            .map_err(unavailable)
+        }
+
         fn applied(
             &self,
             who: &Principal,

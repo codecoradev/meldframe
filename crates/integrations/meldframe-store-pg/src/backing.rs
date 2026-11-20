@@ -42,6 +42,14 @@ impl Backing {
         }
     }
 
+    /// The batch headers of the files (E5.1): in Postgres with the files, else in memory (a restart loses them).
+    pub fn batches(&self) -> Arc<dyn activity_store::BatchStore> {
+        match self {
+            Backing::Memory(_) => Arc::new(activity_store::MemoryBatches::default()),
+            Backing::Postgres(p) => Arc::new(p.clone()),
+        }
+    }
+
     /// The store of one room: a clone of the backing, so rooms of one backing share its durable state.
     pub fn store(&self) -> AnyStore {
         match self {

@@ -30,6 +30,7 @@ use axum::{
     Router,
     routing::{get, post},
 };
+use meldframe_activity::BatchSink;
 use meldframe_host::{Accepted, Op, Principal, Refusal};
 use meldframe_protocol::Command;
 use serde::Deserialize;
@@ -199,6 +200,8 @@ pub struct Shared {
     slots: Slots,
     /// Set once by a transport that wants to know about writes.
     pub on_write: OnceLock<WriteHook>,
+    /// Set once by the server that keeps batch headers; without it `apply_commands` refuses a `note`.
+    pub batches: OnceLock<Arc<dyn BatchSink>>,
     pub(crate) clients: RateLimiter,
     principals: RateLimiter,
     /// The per-principal budget as configured, for `whoami`.
@@ -343,6 +346,7 @@ pub fn shared(
         timeout: config.timeout,
         slots: Slots::new(config.max_in_flight, config.max_per_principal),
         on_write: OnceLock::new(),
+        batches: OnceLock::new(),
         clients: RateLimiter::new(config.per_client, config.clock.clone()),
         principals: RateLimiter::new(config.per_principal, config.clock),
         principal_rate: config.per_principal,

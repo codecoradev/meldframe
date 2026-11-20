@@ -1055,11 +1055,17 @@ name = "meldframe-activity-pg-tests"
 version = "0.0.0"
 dependencies = [
  "activity-store",
+ "axum",
  "meldframe-activity",
  "meldframe-host",
+ "meldframe-http",
+ "meldframe-http-activity",
+ "meldframe-module",
  "meldframe-protocol",
  "meldframe-server",
+ "rmcp",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -1305,6 +1311,7 @@ dependencies = [
  "axum",
  "hyper",
  "hyper-util",
+ "meldframe-activity",
  "meldframe-batch",
  "meldframe-check",
  "meldframe-host",
@@ -1318,6 +1325,16 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower",
+]
+
+[[package]]
+name = "meldframe-http-activity"
+version = "0.0.0"
+dependencies = [
+ "activity-store",
+ "meldframe-activity",
+ "meldframe-host",
+ "meldframe-http",
 ]
 
 [[package]]
@@ -1686,6 +1703,7 @@ dependencies = [
 name = "meldframe-server"
 version = "0.0.0"
 dependencies = [
+ "activity-store",
  "assets",
  "axum",
  "capture",
@@ -1697,6 +1715,7 @@ dependencies = [
  "meldframe-calls",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-http-activity",
  "meldframe-http-assets",
  "meldframe-http-capture",
  "meldframe-http-export",

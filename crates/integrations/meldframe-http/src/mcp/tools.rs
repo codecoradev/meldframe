@@ -5,6 +5,7 @@ use super::{FileView, Handler, Reader};
 use crate::Guard;
 use crate::reply::{Failure, Reply};
 use axum::http::StatusCode;
+use meldframe_activity::{BatchCall, Marked, Note};
 use meldframe_batch::touches;
 use meldframe_check::Limits;
 use meldframe_host::{Op, Principal};
@@ -183,6 +184,7 @@ impl Handler {
             if_seq_camel: Option<u64>,
             if_seq: Option<u64>,
             atomic: Option<bool>,
+            note: Option<String>,
         }
         let a: A = args(a)?;
         check_file(&a.file)?;
@@ -199,7 +201,18 @@ impl Handler {
                 "a call takes 1 to {MAX_BATCH} commands (the batch limit); this call has {n}"
             )));
         }
+        let note = Note::parse_arg(a.note.as_deref()).map_err(|e| invalid(e.to_string()))?;
+        if note.is_some() && self.shared.batches.get().is_none() {
+            return Err(invalid("this server keeps no notes: leave note out"));
+        }
         let atomic = a.atomic.unwrap_or(true);
+        let call = BatchCall {
+            file: a.file.clone(),
+            key: key.clone(),
+            commands: n,
+            atomic,
+            note,
+        };
         let (ops, guards) = build_ops(&key, if_seq, a.commands.clone())?;
         if !atomic && let Some(g) = guards.first() {
             let mut v = invalid(format!(
@@ -222,7 +235,17 @@ impl Handler {
             )
             .await;
         if reply.status != StatusCode::OK {
-            return Err(self.explain(who, &a.file, if_seq, &reply).await);
+            let mut body = self.explain(who, &a.file, if_seq, &reply).await;
+            // A prefix may be written: a non-atomic call (a refusal of any command can follow earlier writes, and a busy
+            // 503 reads like a store 503, so every non-timeout error of it is tried: the sink finds nothing written and
+            // keeps no header, at the cost of at most 100 finds), or an atomic call whose store failed part way (503).
+            // A timeout is healed by its retry.
+            let maybe = reply.status != StatusCode::GATEWAY_TIMEOUT
+                && (!atomic || reply.status == StatusCode::SERVICE_UNAVAILABLE);
+            if maybe && let Some(m) = self.mark(who, call, None).await {
+                body["error"]["batch"] = json!({"n": m.n, "written": m.written});
+            }
+            return Err(body);
         }
         let done = reply.body["accepted"]
             .as_array()
@@ -241,10 +264,33 @@ impl Handler {
             .max()
             .unwrap_or(0);
         let replayed = done.iter().all(|d| d["written"] == json!(false));
+        // An answer with no seq for a command gets no header, never one built on a made-up number.
+        let seen: Option<Vec<(u64, bool)>> = (done.iter())
+            .map(|d| Some((d["seq"].as_u64()?, d["written"] == json!(true))))
+            .collect();
+        let marked = match seen {
+            Some(seen) => self.mark(who, call, Some(seen)).await,
+            None => None,
+        };
+        let batch = marked.map(|m| json!({"n": m.n, "note": m.note}));
         Ok(
-            json!({"ok": true, "file": a.file, "atomic": atomic, "idempotencyKey": key,
+            json!({"ok": true, "file": a.file, "atomic": atomic, "idempotencyKey": key, "batch": batch,
             "seq": seq, "replayed": replayed, "results": results, "warnings": meldframe_check::name_warnings_of_commands(&a.commands)}),
         )
+    }
+
+    /// The header of the batch the call made, kept by the sink after the call, in a slot of the principal under the call
+    /// time limit. `None`: no sink, nothing written, or the sink failed: the answer says `batch: null`.
+    async fn mark(
+        &self,
+        who: &Principal,
+        call: BatchCall,
+        done: Option<Vec<(u64, bool)>>,
+    ) -> Option<Marked> {
+        let sink = self.shared.batches.get()?.clone();
+        let w = who.clone();
+        let job = move || sink.record(&w.workspace, &w.actor, &call, done.as_deref());
+        self.shared.blocking(who, job).await.ok().flatten()
     }
 
     /// The error of a refused call. A conflict also says what changed: the changes since `ifSeq` that
