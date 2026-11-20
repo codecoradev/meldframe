@@ -1,4 +1,4 @@
-// Browser check of the layout: node packages/web-chrome/scripts/layout-e2e.mjs [web-url] [shots-dir]
+// Browser check of the layout: node packages/web-shell/scripts/layout-e2e.mjs [web-url] [shots-dir]
 // Needs the Vite dev server (`npx vite` in apps/web with MELDFRAME_WEB_TOKEN set to any 16 or more characters: /?layout
 // needs no server) and Playwright from the global module path. Hand-run, not in CI. At 1440x900 and 1280x800, in both
 // themes, it asserts on the computed boxes: the Layers card (inset 12, 260 wide, radius 12, 1 px border, header 52), the

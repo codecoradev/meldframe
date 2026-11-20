@@ -7,11 +7,11 @@
 -->
 <script lang="ts">
   import { tick, type Snippet } from 'svelte';
-  import IconButton from './IconButton.svelte';
-  import Menu from './Menu.svelte';
+  import IconButton from '@meldframe/web-chrome/IconButton.svelte';
+  import Menu from '@meldframe/web-chrome/Menu.svelte';
   import ShortcutHint from './ShortcutHint.svelte';
-  import Tabs from './Tabs.svelte';
-  import TooltipProvider from './TooltipProvider.svelte';
+  import Tabs from '@meldframe/web-chrome/Tabs.svelte';
+  import TooltipProvider from '@meldframe/web-chrome/TooltipProvider.svelte';
   import { onMac, platformLabels } from './platform';
   import { PANEL_INSET, fileItems, reserved, rightWidth, type RightTab } from './layout';
   import { zoomItems, type ZoomCommand } from './zoom';

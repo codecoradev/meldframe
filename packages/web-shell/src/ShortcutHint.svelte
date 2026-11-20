@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import IconButton from './IconButton.svelte';
+  import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import { onMac } from './platform';
   import { sheetGroups } from './shortcuts';
 

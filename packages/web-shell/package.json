@@ -1,0 +1,7 @@
+{
+  "name": "@meldframe/web-shell",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The editor shell of the web client: the Layout, the shortcut sheet, the zoom menu, the panel keys and the platform key labels, and the layout page at /?layout. Built on the primitives of @meldframe/web-chrome; behaviour props only, no business state. Used as source by apps/web."
+}

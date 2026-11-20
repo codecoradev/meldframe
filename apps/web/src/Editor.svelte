@@ -1,7 +1,7 @@
 <!--
   The editor page: the canvas over the document the app layer holds, with the connection state. It only renders
   the app state and dispatches actions (thin UI, ADR-0008). A gesture shows a preview while it goes on and becomes
-  one action when it ends. The chrome around it is the Layout (packages/web-chrome).
+  one action when it ends. The chrome around it is the Layout (packages/web-shell).
 -->
 <script lang="ts">
   import { onDestroy, onMount, untrack } from 'svelte';
@@ -13,14 +13,14 @@
   import { createActionFor, keyAction, ownsKeys, worldOrigin, moveActionsFor, previewScene, resizeActionFor, resizedBox, toolMode, type Preview } from '@meldframe/web-document/edit';
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
-  import Layout from '@meldframe/web-chrome/Layout.svelte';
+  import Layout from '@meldframe/web-shell/Layout.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
   import BannerStack, { type Banner } from '@meldframe/web-feedback/BannerStack.svelte';
   import Toast from '@meldframe/web-feedback/Toast.svelte';
   import NoFrames from '@meldframe/web-feedback/NoFrames.svelte';
   import { Toaster, type ToastView } from '@meldframe/web-feedback/toaster';
-  import { layoutKey } from '@meldframe/web-chrome/keys';
-  import { zoomCamera } from '@meldframe/web-chrome/zoom';
+  import { layoutKey } from '@meldframe/web-shell/keys';
+  import { zoomCamera } from '@meldframe/web-shell/zoom';
   import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
   import VariablesPanel from '@meldframe/web-panels/VariablesPanel.svelte';
