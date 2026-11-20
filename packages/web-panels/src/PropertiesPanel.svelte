@@ -56,14 +56,14 @@
       </header>
       <Section title="Position">
         <div class="grid grid-cols-2 gap-2">
-          <Field label="X" prefix="X" value={round(p.x)} onCommit={box(p, 'x')} testId="prop-x" />
-          <Field label="Y" prefix="Y" value={round(p.y)} onCommit={box(p, 'y')} testId="prop-y" />
+          <Field label="X" prefix="X" mono value={round(p.x)} onCommit={box(p, 'x')} testId="prop-x" />
+          <Field label="Y" prefix="Y" mono value={round(p.y)} onCommit={box(p, 'y')} testId="prop-y" />
         </div>
       </Section>
       <Section title="Size">
         <div class="grid grid-cols-2 gap-2">
-          <Field label="Width" prefix="W" suffix="px" value={round(p.w)} onCommit={box(p, 'w')} testId="prop-w" />
-          <Field label="Height" prefix="H" suffix="px" value={round(p.h)} onCommit={box(p, 'h')} testId="prop-h" />
+          <Field label="Width" prefix="W" suffix="px" mono value={round(p.w)} onCommit={box(p, 'w')} testId="prop-w" />
+          <Field label="Height" prefix="H" suffix="px" mono value={round(p.h)} onCommit={box(p, 'h')} testId="prop-h" />
         </div>
       </Section>
       <Section title="Appearance">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CollectionRow, VariableRow, VariablesPanel } from '@meldframe/protocol';
-import { bindAction, listedCount, modeAction, swatch, truncated, valueAction } from './variables';
+import { bindAction, display, listedCount, shownValue, modeAction, swatch, truncated, valueAction } from './variables';
 
 const row = (over: Partial<VariableRow> = {}): VariableRow => ({
   id: 'bg',
@@ -69,5 +69,18 @@ describe('the list', () => {
     expect(listedCount(panel(5, 5))).toBe(5);
     expect(truncated(panel(5, 5))).toBe(false);
     expect(truncated(panel(250, 200))).toBe(true);
+  });
+});
+
+describe('the value a row shows', () => {
+  const c = { id: 'c', name: 'appearance', modes: [{ id: 'light', name: 'light' }, { id: 'dark', name: 'dark' }], active: 'dark', matched: 1, variables: [row()] } as CollectionRow;
+  it('is the one of the mode on view, an alias as the name it points at', () => {
+    const v = shownValue(c, row())!;
+    expect(v.mode).toBe('dark');
+    expect(display(v)).toBe('→ color/ink');
+    expect(display(row().values[0]!)).toBe('#ffffff');
+  });
+  it('is nothing for a mode the row has no value in', () => {
+    expect(shownValue({ ...c, active: 'sepia' }, row())).toBeUndefined();
   });
 });
