@@ -1,5 +1,6 @@
 //! The modes a collection is shown in and the commands that edit variables, the parts that read no `App`: the mode a
-//! pick comes to, the picks a remote change removed, and the check of a list of variable commands.
+//! pick comes to, the picks a remote change removed, the check of a list of variable commands, and the check of a removal
+//! that lets go of what uses a variable first (node updates among the variable commands).
 
 use meldframe_check::{ApplyError, Limits, check_command_with};
 use meldframe_protocol::{Command, Node, Variables};
@@ -68,6 +69,36 @@ pub fn check_edit(
         }
         check_command_with(nodes, &vars, c, &limits).map_err(EditRefusal::Invalid)?;
         apply(&mut vars, c);
+    }
+    Ok(())
+}
+
+/// Check every command on the file as the ones before it leave it. Only a node update and a variable command change the
+/// file in this check; the planner of the removals makes no other. The first that fails is the answer, and nothing is
+/// applied.
+///
+/// It has to be `pub`: `meldframe-app` calls it from another crate. For a plan made from a file that loaded it holds by
+/// construction, so it is a guard that keeps a plan which would fail late from applying its first half; it is tested
+/// directly (`meldframe-variables-manage-tests`, `edges.rs`).
+pub fn check_group(
+    nodes: &[Node],
+    vars: &Variables,
+    commands: &[Command],
+) -> Result<(), ApplyError> {
+    let limits = Limits::default();
+    let mut nodes = nodes.to_vec();
+    let mut vars = vars.clone();
+    for c in commands {
+        check_command_with(&nodes, &vars, c, &limits)?;
+        match c {
+            Command::UpdateNode { id, patch } => {
+                if let Some(n) = nodes.iter_mut().find(|n| n.id == *id) {
+                    n.apply_patch(patch);
+                }
+            }
+            c if is_variable_command(c) => apply(&mut vars, c),
+            _ => {}
+        }
     }
     Ok(())
 }

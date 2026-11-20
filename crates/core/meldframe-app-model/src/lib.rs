@@ -10,6 +10,7 @@ pub mod activity;
 pub mod effect;
 pub mod event;
 pub mod export;
+pub mod frame;
 pub mod layout;
 pub mod property;
 pub mod state;
@@ -21,7 +22,7 @@ pub use activity::{
     BatchStatus, BatchSummary, LaneKind, LaneState, ReviewState, TouchRing,
 };
 pub use effect::{Effect, OutOp};
-pub use event::{Event, RevertSkip, RevertSkipReason};
+pub use event::{Event, RevertSkip, RevertSkipReason, VariableEntity};
 pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget};
 pub use layout::{Axis, LayoutNote, Side, Sides};
 pub use state::{

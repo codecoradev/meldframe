@@ -77,6 +77,7 @@ export type { Value } from './Value';
 export type { VarRef } from './VarRef';
 export type { VarType } from './VarType';
 export type { Variable } from './Variable';
+export type { VariableEntity } from './VariableEntity';
 export type { VariableRow } from './VariableRow';
 export type { VariableValue } from './VariableValue';
 export type { Variables } from './Variables';

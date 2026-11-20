@@ -18,6 +18,7 @@ mod document;
 mod export;
 mod frames;
 mod link;
+mod manage;
 mod panel;
 mod picker;
 mod props;
@@ -35,6 +36,6 @@ pub use meldframe_app_model::{
     Connection, CreateKind, Effect, Event, ExportDialog, ExportFinding, ExportFormat, ExportState,
     ExportTarget, FieldBinding, FillKind, Frame, FramePreset, History, LayoutNote, ModeValue,
     OutOp, Panel, Panels, Picker, PickerRow, Properties, Property, RevertSkip, RevertSkipReason,
-    Side, Sides, Tool, TypeHeading, VariableRow, VariableValue, VariablesPanel,
+    Side, Sides, Tool, TypeHeading, VariableEntity, VariableRow, VariableValue, VariablesPanel,
 };
 pub use meldframe_sync::LoadError;
