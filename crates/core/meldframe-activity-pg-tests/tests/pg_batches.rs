@@ -29,7 +29,9 @@ fn seeded(store: PgStore) -> Seeded {
 impl BatchStore for Seeded {
     fn record(&self, ws: &str, file: &str, b: &NewBatch) -> Result<Recorded, ActivityError> {
         let room = room_key(ws, file);
-        if self.seen.lock().unwrap().insert(room.clone()) {
+        // The lock is held until the seed op is written: a thread that finds the room seen must find its op too.
+        let mut seen = self.seen.lock().unwrap();
+        if seen.insert(room.clone()) {
             let node = serde_json::from_value(
                 serde_json::json!({"id": "n", "type": "frame", "parentId": null, "name": "n"}),
             )
@@ -41,6 +43,7 @@ impl BatchStore for Seeded {
             };
             self.store.clone().append(&room, op).unwrap();
         }
+        drop(seen);
         self.store.record(ws, file, b)
     }
 
