@@ -12,7 +12,7 @@
   import type { Touch } from '../canvas/overlayview';
   import { contentBounds, resolveScene, type Scene, type SceneNode } from '@meldframe/web-canvas/scene';
   import { DESIGN_ZOOM, SELECTED_ID, designScene, manyScene } from './sample';
-  import { pixiColors } from '../tokens';
+  import { pixiColors } from '@meldframe/web-tokens/tokens';
 
   const q = new URLSearchParams(location.search);
   const kind = q.get('scene') ?? 'design';

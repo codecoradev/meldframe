@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button, Switch } from 'bits-ui';
-  import { applyTheme, loadTheme, saveTheme } from './theme';
-  import { colorNames, colors, fontSize, space, type Theme } from './tokens';
+  import { applyTheme, loadTheme, saveTheme } from '@meldframe/web-tokens/theme';
+  import { colorNames, colors, fontSize, space, type Theme } from '@meldframe/web-tokens/tokens';
 
   let theme = $state<Theme>(loadTheme());
   const light = $derived(theme === 'light');

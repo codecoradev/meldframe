@@ -1963,6 +1963,10 @@ name = "meldframe-web-panels"
 version = "0.0.0"
 
 [[package]]
+name = "meldframe-web-tokens"
+version = "0.0.0"
+
+[[package]]
 name = "meldframe-web-tools"
 version = "0.0.0"
 

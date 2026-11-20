@@ -18,7 +18,7 @@
   import { EMPTY_SCENE, contentBounds, hitTest, rectsOf, resolveScene, type Scene } from '@meldframe/web-canvas/scene';
   import { WorldView } from './stage';
   import { AssetCache } from '@meldframe/web-assets/assets';
-  import { duration, pixiColors, type Theme } from '../tokens';
+  import { duration, pixiColors, type Theme } from '@meldframe/web-tokens/tokens';
 
   interface Props {
     scene: Scene;

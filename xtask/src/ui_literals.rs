@@ -40,8 +40,8 @@ impl fmt::Display for Finding {
 /// The tokens files, where literals live: the three AGENTS.md names, nothing wider.
 const TOKENS_FILES: &[&str] = &[
     "crates/ui/meldframe-ui/src/tokens.rs",
-    "apps/web/src/tokens.ts",
-    "apps/web/src/tokens.css",
+    "packages/web-tokens/src/tokens.ts",
+    "packages/web-tokens/src/tokens.css",
 ];
 
 /// True for the tokens module itself, which is where literals live.
@@ -312,12 +312,12 @@ mod tests {
     #[test]
     fn only_the_three_named_tokens_files_are_exempt() {
         assert!(is_tokens_file("crates/ui/meldframe-ui/src/tokens.rs"));
-        assert!(is_tokens_file("apps/web/src/tokens.ts"));
-        assert!(is_tokens_file("apps/web/src/tokens.css"));
+        assert!(is_tokens_file("packages/web-tokens/src/tokens.ts"));
+        assert!(is_tokens_file("packages/web-tokens/src/tokens.css"));
         assert!(!is_tokens_file("crates/ui/x/src/tokens/colour.rs"));
         assert!(!is_tokens_file("crates/ui/x/src/tokens.rs"));
         assert!(!is_tokens_file("apps/web/src/canvas/tokens.css"));
-        assert!(!is_tokens_file("apps/web/src/tokens.css.bak"));
+        assert!(!is_tokens_file("packages/web-tokens/src/tokens.css.bak"));
         let src = "const C: &str = \"#fff\";";
         assert!(check_file("crates/ui/meldframe-ui/src/tokens.rs", src).is_empty());
         assert_eq!(check_file("crates/ui/x/src/tokens.rs", src).len(), 1);

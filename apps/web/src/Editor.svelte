@@ -24,8 +24,8 @@
   import { type ExportScale, exportFileName, planExport } from '@meldframe/web-document/export';
   import { addTouch, type Touched } from '@meldframe/web-document/touches';
   import { serveCapture, type Req } from './capture';
-  import { duration, pixiColors } from './tokens';
-  import { loadTheme } from './theme';
+  import { duration, pixiColors } from '@meldframe/web-tokens/tokens';
+  import { loadTheme } from '@meldframe/web-tokens/theme';
 
   interface Props {
     engine: Engine;

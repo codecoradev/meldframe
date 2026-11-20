@@ -10,7 +10,7 @@ import {
 } from '@meldframe/web-canvas/overlay';
 import type { ResolvedScene } from '@meldframe/web-canvas/scene';
 import { rectsOf } from '@meldframe/web-canvas/scene';
-import { duration, fontSize, fontWeight, fonts, radius, stroke, type ColorName } from '../tokens';
+import { duration, fontSize, fontWeight, fonts, radius, stroke, type ColorName } from '@meldframe/web-tokens/tokens';
 
 /** Touch ring timing from the tokens (the model package imports no app code). */
 const RING_TIMING = { fadeMs: duration['touch-ring'], holdMs: duration['reduced-motion-hold'] };

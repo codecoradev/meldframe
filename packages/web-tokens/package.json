@@ -1,0 +1,8 @@
+{
+  "name": "@meldframe/web-tokens",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The design tokens of the web client: colours, type, spacing, radii, shadows and sizes in TypeScript and as CSS custom properties, the Tailwind theme mapping, the theme choice and the contrast check. Used as source by apps/web and the other web packages.",
+  "types": "src/tokens.ts"
+}

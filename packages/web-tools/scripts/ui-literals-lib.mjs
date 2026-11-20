@@ -1,6 +1,6 @@
 // The literal lint for the web client (U4), the TypeScript and Svelte side of `cargo xtask ui-literals`
 // (this one is the strict check; the xtask is the fast baseline): colours, font sizes and families,
-// durations and pixel sizes live in src/tokens.ts and src/tokens.css and nowhere else.
+// durations and pixel sizes live in packages/web-tokens/src/tokens.ts and tokens.css and nowhere else.
 
 const HEX = /(?<![\w&])#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})(?!\w)/i;
 const HEX_NUMBER = /\b0x[0-9a-f]{3,8}\b/i;
@@ -32,11 +32,13 @@ const PIXELS = /(?<![\w.-])-?(?:0*[1-9]\d*|\d*\.\d*[1-9]\d*)(?:px|rem|em|vh|vw|p
  */
 export const DOCUMENT_DATA = ['src/harness/sample.ts'];
 
+/** The tokens module and its CSS mirror, in the web-tokens package (as paths from apps/web). */
+export const TOKEN_FILES = ['tokens.ts', 'tokens.css'].map((f) => `../../packages/web-tokens/src/${f}`);
+
 /** True for the tokens module itself, the named document-data files and tests, which may hold literals. */
 export function isExempt(path) {
   return (
-    path === 'src/tokens.ts' ||
-    path === 'src/tokens.css' ||
+    TOKEN_FILES.includes(path) ||
     DOCUMENT_DATA.includes(path) ||
     /\.test\.(?:ts|tsx|js|mts|mjs)$/.test(path)
   );
