@@ -1,6 +1,7 @@
 // The shell carries out the effects of the app layer: it opens the live socket, sends ops over REST, and waits
 // for the timers the app asks for. Everything it learns goes back as an action. No editing rules here.
 import type { Action, AppState, Effect, OutOp, ServerMsg } from '@meldframe/protocol';
+import { answerOfList, answerOfReview, listQuery, toBatchFrame, toTouchFrame } from './batches';
 
 /** An agent asks this editor for a PNG of a node (or of the whole page when `nodeId` is absent). */
 export type CaptureRequest = Extract<ServerMsg, { type: 'captureRequest' }>;
@@ -28,6 +29,8 @@ export interface Env {
   openSocket(path: string): SocketLike;
   /** A POST that rejects after `timeoutMs` (a hung request must not hold up the ops behind it). */
   post(path: string, body: unknown, timeoutMs?: number): Promise<{ status: number; body: unknown }>;
+  /** A GET or PUT of the batch routes (the Activity panel); rejects after `timeoutMs`. */
+  request(method: 'GET' | 'PUT', path: string, body?: unknown, timeoutMs?: number): Promise<{ status: number; body: unknown }>;
   setTimer(fn: () => void, ms: number, repeat?: boolean): number;
   clearTimer(id: number): void;
 }
@@ -91,9 +94,12 @@ export class Shell {
   private timers = new Set<number>();
   private sending: Promise<void> = Promise.resolve();
   private epoch = 0;
+  /** Counts stops: an answer of a request made before a stop is dropped. */
+  private stopped = 0;
   private subscribeId = 0;
   private lastSub: { id: string; afterSeq: number; tries: number } | null = null;
   private warned = false;
+  private warnedAnswer = false;
   private ping: number | null = null;
 
   constructor(
@@ -124,6 +130,7 @@ export class Shell {
     for (const t of this.timers) this.env.clearTimer(t);
     this.timers.clear();
     this.epoch++;
+    this.stopped++;
     this.drop();
   }
 
@@ -141,8 +148,42 @@ export class Shell {
         return this.later(e.afterMs, { type: 'reconnect', nowMs: 0 });
       case 'wakeAfter':
         return this.later(e.afterMs, { type: 'tick', nowMs: 0 });
+      case 'fetchBatches':
+        return this.batches('GET', this.batchPath(listQuery(e)), undefined, answerOfList);
+      case 'putBatchReview':
+        return this.batches('PUT', this.batchPath(`/${Math.trunc(e.n)}/review`), { state: e.state }, answerOfReview);
       case 'render':
         return; // the views redraw from every snapshot
+      default: {
+        const unhandled: never = e; // a new effect must be carried out here, or this stops compiling
+        return unhandled;
+      }
+    }
+  }
+
+  private batchPath(tail: string): string {
+    return `/v1/files/${encodeURIComponent(this.opts.file)}/batches${tail}`;
+  }
+
+  /** One request of the batch routes; whatever happens, the app is told once (a failure is `batchRequestFailed`). */
+  private batches(method: 'GET' | 'PUT', path: string, body: unknown, answer: (status: number, body: unknown) => Action): void {
+    const gen = this.stopped;
+    void this.env.request(method, path, body, POST_TIMEOUT_MS).then(
+      (r) => this.answered(gen, answer(r.status, r.body)),
+      () => this.answered(gen, { type: 'batchRequestFailed', code: 'unavailable' }),
+    );
+  }
+
+  private answered(gen: number, a: Action): void {
+    if (gen !== this.stopped) return; // the shell was stopped meanwhile
+    try {
+      this.dispatch(a);
+    } catch (err) {
+      // The app took no part of it; the panel heals by the next frame or fetch. Say so once: a wasm panic must not stay silent.
+      if (!this.warnedAnswer) {
+        this.warnedAnswer = true;
+        console.warn('batches: the app could not take an answer', err);
+      }
     }
   }
 
@@ -254,13 +295,22 @@ export class Shell {
         });
       case 'resync':
         return this.dispatch({ type: 'frame', nowMs, frame: { type: 'resync', afterSeq: m.afterSeq!, latestSeq: m.latestSeq! } });
-      case 'touch':
+      case 'batch': {
+        // An ephemeral hint over the log: one that does not pass the check is ignored, and a fetch heals the gap. One the app cannot take goes to `lost()` (a reconnect) through `frame()`, like any frame.
+        const frame = toBatchFrame(m);
+        if (frame) this.dispatch({ type: 'frame', nowMs, frame });
+        return;
+      }
+      case 'touch': {
+        const frame = toTouchFrame(m);
+        if (frame) this.dispatch({ type: 'frame', nowMs, frame });
         try {
           this.opts.onTouch?.({ actor: m.actor!, nodeIds: m.nodeIds as string[] });
         } catch {
           // a view that fails on a touch must not cost the connection
         }
         return;
+      }
       case 'error':
         return this.refused(m);
       default:
@@ -358,6 +408,15 @@ export function browserEnv(): Env {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
+        signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
+      });
+      return { status: res.status, body: await res.json().catch(() => null) };
+    },
+    async request(method, path, body, timeoutMs) {
+      const res = await fetch(path, {
+        method,
+        headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
         signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
       });
       return { status: res.status, body: await res.json().catch(() => null) };

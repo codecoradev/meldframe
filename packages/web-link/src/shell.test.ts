@@ -66,6 +66,7 @@ class FakeEnv implements Env {
     this.sockets.push(s);
     return s;
   };
+  request = async () => ({ status: 200, body: null as unknown });
   post = async (path: string, body: unknown) => {
     this.posts.push({ path, body });
     return this.reply();
@@ -128,13 +129,14 @@ describe('touch frames', () => {
       expect(parseFrame(bad), bad).toBeNull();
     }
   });
-  it('hands a touch to the listener and does not dispatch it to the app', () => {
+  it('hands a touch to the listener and dispatches it to the app as a frame', () => {
     const seen: { actor: string; nodeIds: string[] }[] = [];
     const { engine, socket } = live((t) => seen.push(t));
     const before = engine.dispatched.length;
     socket.onmessage('{"type":"touch","actor":"agent:claude","nodeIds":["a","b"],"seq":4}');
     expect(seen).toEqual([{ actor: 'agent:claude', nodeIds: ['a', 'b'] }]);
-    expect(engine.dispatched).toHaveLength(before);
+    expect(engine.dispatched).toHaveLength(before + 1);
+    expect(engine.dispatched.at(-1)).toMatchObject({ type: 'frame', frame: { type: 'touch', actor: 'agent:claude', ids: ['a', 'b'], seq: 4 } });
   });
   it('a listener that throws does not lose the connection', () => {
     const { engine, socket } = live(() => {
@@ -142,24 +144,16 @@ describe('touch frames', () => {
     });
     const before = engine.dispatched.length;
     socket.onmessage('{"type":"touch","actor":"u","nodeIds":["a"],"seq":1}');
-    expect(engine.dispatched).toHaveLength(before); // no reconnect action
+    expect(engine.dispatched).toHaveLength(before + 1); // the frame, and no reconnect action
+    expect(engine.dispatched.at(-1)).toMatchObject({ type: 'frame' });
     expect(socket.closed).toBe(false);
   });
 });
 
 describe('a batch frame', () => {
-  it('is a frame this client does not know yet: ignored, nothing dispatched, the connection stays', () => {
-    const engine = new FakeEngine();
-    const env = new FakeEnv();
-    new Shell(engine, env, { file: 'file_dev' }).start();
-    engine.effect({ type: 'subscribe', afterSeq: 0 });
-    const socket = env.sockets[0]!;
+  it('passes the shape check of parseFrame; the mapping to the app frame is in batches.test.ts', () => {
     const frame = '{"type":"batch","room":"file_dev","n":1,"rev":1,"actor":"agent:x","keyPrefix":"k","tool":"apply_commands","commands":1,"written":1,"atomic":true,"firstSeq":1,"lastSeq":1,"atMs":5,"review":"unreviewed","unreviewedCount":1}';
     expect(parseFrame(frame)?.type).toBe('batch');
-    const before = engine.dispatched.length;
-    socket.onmessage(frame);
-    expect(engine.dispatched).toHaveLength(before);
-    expect(socket.closed).toBe(false);
   });
 });
 
