@@ -270,6 +270,51 @@ fn the_bind_picker_is_state_and_its_actions_are_json() {
 }
 
 #[test]
+fn the_export_dialog_is_state_and_its_actions_are_json() {
+    let nodes = json!([
+        {"id": "f", "type": "frame", "pos": "a0", "name": "Landing", "w": 300, "h": 200},
+        {"id": "r", "type": "rect", "pos": "a1", "parentId": "f"}
+    ])
+    .to_string();
+    let mut b = Bridge::new("usr_me", "web", 7, &nodes, 0, None).expect("the file loads");
+    let state = |b: &Bridge| -> Value { serde_json::from_str(&b.state_json()).unwrap() };
+    // Nothing selected: no target and no dialog. A frame selected: a target, still no dialog.
+    assert_eq!(state(&b)["export"], json!({"target": null, "dialog": null}));
+    run(&mut b, json!({"type": "select", "ids": ["f"]}));
+    assert_eq!(
+        state(&b)["export"]["target"],
+        json!({"id": "f", "name": "Landing"})
+    );
+    assert_eq!(state(&b)["export"]["dialog"], Value::Null);
+    // Open: the document, the format and the report cross as JSON; a format switch and a close are actions.
+    b.take_events_json();
+    run(&mut b, json!({"type": "openExport"}));
+    let events: Vec<Value> = serde_json::from_str(&b.take_events_json()).unwrap();
+    assert!(
+        events.contains(&json!({"type": "exportChanged"})),
+        "the web reads the state again after an event"
+    );
+    let d = state(&b)["export"]["dialog"].clone();
+    assert_eq!(
+        (d["frame"].clone(), d["format"].clone()),
+        (json!("f"), json!("tailwind"))
+    );
+    assert!(d["html"].as_str().unwrap().contains("data-node=\"f\""));
+    assert!(d["unsupported"].as_array().unwrap().is_empty());
+    run(&mut b, json!({"type": "setExportFormat", "format": "css"}));
+    assert_eq!(state(&b)["export"]["dialog"]["format"], "css");
+    run(&mut b, json!({"type": "closeExport"}));
+    assert_eq!(state(&b)["export"]["dialog"], Value::Null);
+    // A shape is not exportable: refused with a code, no dialog.
+    run(&mut b, json!({"type": "select", "ids": ["r"]}));
+    b.take_events_json();
+    run(&mut b, json!({"type": "openExport"}));
+    let events: Vec<Value> = serde_json::from_str(&b.take_events_json()).unwrap();
+    assert!(events.contains(&json!({"type": "refused", "code": "not_exportable"})));
+    assert_eq!(state(&b)["export"]["dialog"], Value::Null);
+}
+
+#[test]
 fn fill_types_and_gradient_stops_are_state_and_actions_in_json() {
     let nodes = json!([{"id": "card", "type": "rect", "pos": "a0", "fill": "#336699"}]).to_string();
     let mut b = Bridge::new("usr_me", "web", 7, &nodes, 0, None).expect("the file loads");

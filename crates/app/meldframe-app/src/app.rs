@@ -40,6 +40,8 @@ pub struct App {
     pub(crate) level: Level,
     pub(crate) prefix: String,
     pub(crate) next_id: u64,
+    /// What the Export dialog was built from, and how often (`App::export_builds`).
+    pub(crate) export_cache: crate::export::ExportCache,
 }
 
 impl App {
@@ -84,6 +86,7 @@ impl App {
             level: Level::Full,
             prefix,
             next_id: 0,
+            export_cache: Default::default(),
         };
         app.refresh(&mut Vec::new());
         app.events.clear();
@@ -144,6 +147,9 @@ impl App {
                 | Action::OpenPicker { .. }
                 | Action::ClosePicker {}
                 | Action::SetPickerQuery { .. }
+                | Action::OpenExport {}
+                | Action::SetExportFormat { .. }
+                | Action::CloseExport {}
         );
         let reload = matches!(action, Action::Reload { .. });
         if self.state.connection == Connection::Halted && !ui && !reload {
@@ -188,6 +194,9 @@ impl App {
             Action::OpenPicker { id, field } => self.open_picker(id, field),
             Action::ClosePicker {} => self.state.picker = None,
             Action::SetPickerQuery { query } => self.set_picker_query(query),
+            Action::OpenExport {} => self.open_export(),
+            Action::SetExportFormat { format } => self.set_export_format(format),
+            Action::CloseExport {} => self.close_export(),
             Action::Start { now_ms } => self.start(now_ms, &mut fx),
             Action::Connected { now_ms } => self.connected(now_ms, &mut fx),
             Action::Disconnected {} => self.disconnected(&mut fx),
@@ -219,6 +228,7 @@ impl App {
                 self.refresh_properties();
                 self.refresh_variables();
                 self.refresh_picker();
+                self.refresh_export();
             }
             Level::Full => self.refresh(&mut fx),
         }
@@ -251,6 +261,7 @@ impl App {
         nodes: Vec<String>,
         fx: &mut Vec<Effect>,
     ) {
+        self.export_cache.version += 1;
         self.events
             .push(Event::DocumentChanged { actor, optimistic });
         fx.push(Effect::Render { nodes });
@@ -304,6 +315,7 @@ impl App {
         self.refresh_variables();
         self.activity_changed();
         self.refresh_picker();
+        self.refresh_export();
         let history = History {
             can_undo: self.replica.can_undo(),
             can_redo: self.replica.can_redo(),

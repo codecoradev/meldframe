@@ -1,6 +1,7 @@
 //! Inputs to the app layer. They are UI-neutral: no toolkit events (standard rule U6).
 
 use crate::activity::{BatchHeader, BatchPage, BatchRef, ReviewState};
+use crate::export::ExportFormat;
 pub use crate::property::Property;
 use crate::state::{Panel, Tool};
 use crate::variables::{BindField, VariableValue};
@@ -154,6 +155,16 @@ pub enum Action {
     SetPickerQuery {
         query: String,
     },
+    /// Open the Export dialog on the selected frame: the HTML of the frame is built in `AppState::export` until the
+    /// dialog is closed. View state (no op, no undo step). Refused as `not_exportable` unless the one selected node
+    /// is a frame (`ExportState::target`).
+    OpenExport {},
+    /// Change how the styles of the open dialog are written (Tailwind or plain CSS). Nothing while it is closed.
+    SetExportFormat {
+        format: ExportFormat,
+    },
+    /// Close the Export dialog.
+    CloseExport {},
     /// Remove the nodes with their descendants, as one undo step.
     Delete {
         ids: Vec<String>,

@@ -1147,11 +1147,13 @@ dependencies = [
 name = "meldframe-app"
 version = "0.0.0"
 dependencies = [
+ "export",
  "meldframe-activity",
  "meldframe-app-model",
  "meldframe-app-parts",
  "meldframe-check",
  "meldframe-history",
+ "meldframe-layout",
  "meldframe-protocol",
  "meldframe-render",
  "meldframe-revert",

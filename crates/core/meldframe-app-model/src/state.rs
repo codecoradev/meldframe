@@ -1,6 +1,7 @@
 //! Everything a front end needs to draw the editor.
 
 use crate::activity::ActivityState;
+use crate::export::ExportState;
 use crate::layout::{LayoutNote, Sides};
 use crate::variables::{BindField, Picker, VariablesPanel};
 use meldframe_protocol::{
@@ -43,6 +44,9 @@ pub struct AppState {
     pub variables: VariablesPanel,
     /// The Activity panel (E5.1): lanes, batches with their notes and review states, and touch rings.
     pub activity: ActivityState,
+    /// Export (D9): the frame an export acts on, and the dialog while it is open.
+    #[serde(default)]
+    pub export: ExportState,
     /// The bind picker of a field of the selected node: `Some` only while it is open.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

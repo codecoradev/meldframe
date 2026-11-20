@@ -15,6 +15,7 @@
 mod activity;
 mod app;
 mod document;
+mod export;
 mod frames;
 mod link;
 mod panel;
@@ -31,9 +32,9 @@ pub use app::App;
 pub use link::{ATTEMPT_MS, SILENT_MS};
 pub use meldframe_app_model::{
     Action, AppState, Axis, BindField, BindOption, Checkpoint, CheckpointKind, CollectionRow,
-    Connection, CreateKind, Effect, Event, FieldBinding, FillKind, Frame, FramePreset, History,
-    LayoutNote, ModeValue, OutOp, Panel, Panels, Picker, PickerRow, Properties, Property,
-    RevertSkip, RevertSkipReason, Side, Sides, Tool, TypeHeading, VariableRow, VariableValue,
-    VariablesPanel,
+    Connection, CreateKind, Effect, Event, ExportDialog, ExportFinding, ExportFormat, ExportState,
+    ExportTarget, FieldBinding, FillKind, Frame, FramePreset, History, LayoutNote, ModeValue,
+    OutOp, Panel, Panels, Picker, PickerRow, Properties, Property, RevertSkip, RevertSkipReason,
+    Side, Sides, Tool, TypeHeading, VariableRow, VariableValue, VariablesPanel,
 };
 pub use meldframe_sync::LoadError;

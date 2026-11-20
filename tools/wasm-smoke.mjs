@@ -65,6 +65,18 @@ assert.deepEqual(JSON.parse(app.takeEventsJson()), [{ type: 'refused', code: 'fo
 assert.throws(() => run({ type: 'frame', nowMs: T, frame: { type: 'batch', header: header(2, 1, 'b2', { extra: 1 }), unreviewedCount: 1 } }), (e) => typeof e === 'string' && e.startsWith('action:'));
 assert.throws(() => run({ type: 'setBatchReview', batch: { actor: 'a', keyPrefix: 'k' }, state: 'approved' }), (e) => typeof e === 'string' && e.startsWith('action:'));
 
+// The Export dialog (D9): the HTML of the selected frame is built in the state while the dialog is open.
+const exp = new WasmApp('usr_me', 'web', 8, JSON.stringify([{ id: 'f', type: 'frame', pos: 'a0', name: 'Landing', w: 300, h: 200 }]), 0);
+const runExp = (action) => JSON.parse(exp.dispatch(JSON.stringify(action)));
+runExp({ type: 'select', ids: ['f'] });
+assert.deepEqual(JSON.parse(exp.stateJson()).export.target, { id: 'f', name: 'Landing' });
+runExp({ type: 'openExport' });
+const dialog = JSON.parse(exp.stateJson()).export.dialog;
+assert.equal(dialog.format, 'tailwind');
+assert.ok(dialog.html.includes('data-node="f"'), 'the document of the frame crosses the boundary');
+runExp({ type: 'closeExport' });
+assert.equal(JSON.parse(exp.stateJson()).export.dialog, null);
+
 // Errors are thrown as strings, not as a trap.
 assert.throws(() => app.dispatch('not json'), (e) => typeof e === 'string' && e.startsWith('action:'));
 assert.throws(() => new WasmApp('usr_me', 'web', 1, '{', 0), (e) => typeof e === 'string' && e.startsWith('nodes:'));

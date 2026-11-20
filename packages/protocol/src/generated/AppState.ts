@@ -2,6 +2,7 @@
 import type { ActivityState } from "./ActivityState";
 import type { Checkpoint } from "./Checkpoint";
 import type { Connection } from "./Connection";
+import type { ExportState } from "./ExportState";
 import type { History } from "./History";
 import type { Panels } from "./Panels";
 import type { Picker } from "./Picker";
@@ -54,6 +55,10 @@ variables: VariablesPanel,
  * The Activity panel (E5.1): lanes, batches with their notes and review states, and touch rings.
  */
 activity: ActivityState, 
+/**
+ * Export (D9): the frame an export acts on, and the dialog while it is open.
+ */
+export: ExportState, 
 /**
  * The bind picker of a field of the selected node: `Some` only while it is open.
  */
