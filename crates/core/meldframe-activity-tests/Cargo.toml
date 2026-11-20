@@ -1,0 +1,17 @@
+[package]
+name = "meldframe-activity-tests"
+description = "The tests of the activity panel's rules, store and server parts (E5.1, ADR-0021). No library code: no crate of the activity stack carries its own tests, so none of them nears its ceiling."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-activity = { path = "../meldframe-activity" }
+meldframe-mcp-defs = { path = "../meldframe-mcp-defs" }
+
+[lints]
+workspace = true

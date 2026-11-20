@@ -87,6 +87,7 @@ Taken after the first draft and applied above: reverts are live only for the MVP
 5. **Refused calls in the lane** (a row "Skipped: the agent's view was too old"): needs a read route over the call log, which has no reader for a person. It is an optional slice; the owner decides if it belongs to E5.1.
 6. **Where the Activity tab lives** is proposed in `docs/ui-design.md` (second tab of the right panel); a ratification, not a change.
 7. **The per-actor cap of 2,000 headers a file:** is it the right number, and should a lane that reaches it be told in the panel? An operator can raise it only by a build constant in this draft.
+8. **Which other characters belong in `is_hidden_text`?** Noncharacters (U+FDD0 to FDEF, U+xFFFE and xFFFF) and private-use characters are not in the set, so a note may hold them; they draw as boxes or nothing. U+200D (zero width joiner) and U+FE0F (emoji variation selector) are in the set, as the decision lists them, so a note refuses a ZWJ emoji sequence and an emoji with a variation selector: the tool text and the skill say so in the slice that adds the `note` argument.
 
 ## Plan
 
