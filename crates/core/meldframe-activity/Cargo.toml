@@ -9,5 +9,9 @@ publish.workspace = true
 [package.metadata.meldframe]
 kind = "core"
 
+[dependencies]
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-revert = { path = "../meldframe-revert" }
+
 [lints]
 workspace = true

@@ -4,19 +4,31 @@
 //! A batch is still the written ops of one actor whose keys are `{prefix}:{n}` (ADR-0016). Its header is a row kept
 //! beside the log, never an op: it holds only what the log cannot tell (its number, its note, how many commands it
 //! had, who reviewed it). The store that keeps headers is `activity-store`; this crate is what the server, the store
-//! and the app layer all agree on, so it depends on nothing.
+//! and the app layer all agree on, so it depends on `meldframe-protocol` and `meldframe-revert` only (the reducer
+//! of lanes, [`Activity`], reads commands and the revert rules) and does no I/O.
 //!
 //! The note is the agent's plain text on a batch. [`Note::parse`] is the server's check (a bad note refuses the whole
 //! call) and [`Note::clean`] is the app layer's second check (it cuts what the first would refuse, from every header
 //! it takes in, because a header arrives from a socket and a route and the app layer trusts neither).
 
 mod header;
+mod incoming;
 mod note;
+mod reducer;
 mod sink;
+mod summary;
+mod view;
 
 pub use header::{Header, NewBatch, Review};
+pub use incoming::{Fetch, RawHeader};
 pub use note::{Note, NoteError, is_combining_mark, is_hidden_text};
+pub use reducer::{
+    Activity, FETCH_EVERY_MS, FETCH_LIMIT, IDLE_MS, MAX_REV, MAX_REV_JUMP, MAX_ROWS, MAX_TRIES,
+    WAIT_FOR_HEADER_MS,
+};
 pub use sink::{BatchCall, BatchSink, Marked};
+pub use summary::{MAX_NAME_CHARS, MAX_NAMES, MAX_SHOWN, Summary};
+pub use view::{Row, Status};
 
 /// The longest note, in characters (Unicode scalar values): the owner's limit, as a critique item of `design_review`.
 pub const MAX_NOTE_CHARS: usize = 500;

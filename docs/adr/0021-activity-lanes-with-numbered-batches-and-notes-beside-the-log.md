@@ -74,6 +74,8 @@ E5.1 asks for one lane per agent session with batches, notes and a status, rules
 - `meldframe-web` is over the 500 line and 2,000 line ceilings and its `xtask/size-allow.toml` entry may only go down. Both new browser scripts therefore live in `packages/web-panels/scripts` (as `variables-e2e.mjs` does since #83), not in `apps/web/scripts`.
 - A header that the server could not write (a database error after the ops) leaves a batch with no number. The next replay of the key heals it, and the person never sees a missing batch, only a missing label.
 
+- **Amendment (slice 8, the reducer).** Status `building` is shown while a row has no header and is not final, whether its lane is `working` or in between; the Status bullet's "only while its lane is `working`" left that gap open, and `headerless` stays final (set by `tick` when the 3 tries are spent or the lane is `idle`, and it does not go back to `building`).
+
 ## Owner decisions
 
 Taken after the first draft and applied above: reverts are live only for the MVP and reopen-and-revert follows it; a note is up to 500 characters; agents may read notes through a Read tool and the owner accepts the prompt-injection risk; the review state is part of E5.1, stored in the batch table and set by a person. Taken by the lead after the review: the review setter denies by default and names its reviewers in an explicit list.
