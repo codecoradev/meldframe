@@ -265,6 +265,10 @@ const id = `e2e_${run}`;
       await page.click('[data-testid=tool-select]');
       assert.equal(await page.getAttribute('[data-testid=tool]', 'data-tool'), 'select');
     });
+    await check('the buttons of the layer rows and the section toggles are at least 24 px', async () => {
+      const small = await page.locator('[data-testid=layers] button, [data-testid=toggle-variables], [data-owns-keys] section > header button').evaluateAll((bs) => bs.filter((b) => { const r = b.getBoundingClientRect(); return r.width < 24 || r.height < 24; }).map((b) => b.outerHTML.slice(0, 90)));
+      assert.deepEqual(small, []);
+    });
     await check('plain keys stay with what has focus in a card or a menu, and still work from the canvas', async () => {
       const tool = () => page.getAttribute('[data-testid=tool]', 'data-tool');
       // a button of a card: a tool letter is not a command
