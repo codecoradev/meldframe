@@ -1,5 +1,6 @@
 //! E5.2 and E5.3: revert an agent's batch and restore a checkpoint, as changes of the person that one undo takes back.
 
+#[path = "../../meldframe-app-unit-tests/tests/common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_app::{Action, CheckpointKind, Event, Frame, Property};

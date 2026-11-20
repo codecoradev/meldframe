@@ -1187,6 +1187,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-app-review-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-app-model",
+ "meldframe-protocol",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-app-tests"
 version = "0.0.0"
 dependencies = [

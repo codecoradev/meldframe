@@ -1,6 +1,7 @@
 //! E5.2 and E5.3 with a server that refuses a frame removal (the Delete tier): the frame stays, empty, and the
 //! person is told which removal was refused.
 
+#[path = "../../meldframe-app-unit-tests/tests/common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_app::{Action, Event, Frame};
