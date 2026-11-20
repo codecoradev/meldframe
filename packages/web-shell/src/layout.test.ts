@@ -2,12 +2,12 @@ import { createRawSnippet } from 'svelte';
 import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
 import { barClear, fileItems, PANEL_INSET, reserved, rightWidth } from './layout';
-import { layoutKey } from './keys';
+import { layoutKey, paletteBlocked, readOverlays } from './keys';
 import { composeProps } from '@meldframe/web-chrome/compose';
 import { isMac, labels } from './platform';
 import Layout from './Layout.svelte';
 
-const key = (over: Partial<Parameters<typeof layoutKey>[0]>) => layoutKey({ key: '', code: '', altKey: false, ctrlKey: false, metaKey: false, ...over });
+const key = (over: Partial<Parameters<typeof layoutKey>[0]>) => layoutKey({ key: '', code: '', altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, ...over });
 
 describe('the keys of the layout', () => {
   it('Option+1 and Option+2 toggle the panels, by the physical key', () => {
@@ -20,10 +20,37 @@ describe('the keys of the layout', () => {
     expect(key({ key: '?', ctrlKey: true })).toBeNull();
     expect(key({ key: '?', metaKey: true })).toBeNull();
   });
+  it('Ctrl+K and Command+K open the palette, whatever the case of the letter, and no other mix of modifiers does', () => {
+    expect(key({ key: 'k', code: 'KeyK', ctrlKey: true })).toBe('palette');
+    expect(key({ key: 'K', code: 'KeyK', metaKey: true })).toBe('palette');
+    expect(key({ key: 'k', code: 'KeyK' })).toBeNull();
+    expect(key({ key: 'k', code: 'KeyK', ctrlKey: true, shiftKey: true })).toBeNull();
+    expect(key({ key: 'k', code: 'KeyK', ctrlKey: true, altKey: true })).toBeNull();
+  });
   it('leaves tool keys and plain digits to the editor', () => {
     expect(key({ key: 'v', code: 'KeyV' })).toBeNull();
     expect(key({ key: '1', code: 'Digit1' })).toBeNull();
     expect(key({ altKey: true, ctrlKey: true, code: 'Digit1' })).toBeNull();
+  });
+});
+
+describe('Ctrl+K over another overlay', () => {
+  const el = (role: string, testId?: string) => ({ getAttribute: (n: string) => (n === 'role' ? role : n === 'data-testid' ? (testId ?? null) : null) });
+  const root = (...els: ReturnType<typeof el>[]) => ({ querySelectorAll: () => els });
+
+  it('reads the menus and dialogs that are open, by role and test id', () => {
+    expect(readOverlays(root(el('menu'), el('dialog', 'export-dialog')))).toEqual([{ role: 'menu', id: null }, { role: 'dialog', id: 'export-dialog' }]);
+    expect(readOverlays(root())).toEqual([]);
+  });
+  it('does not open over an open menu or a dialog of its own, and not while the Export dialog is open', () => {
+    expect(paletteBlocked([{ role: 'menu', id: null }], false)).toBe(true);
+    expect(paletteBlocked([{ role: 'dialog', id: 'export-dialog' }], false)).toBe(true);
+    expect(paletteBlocked([], true)).toBe(true);
+  });
+  it('opens over nothing, over the shortcut sheet, and closes from itself', () => {
+    expect(paletteBlocked([], false)).toBe(false);
+    expect(paletteBlocked([{ role: 'dialog', id: 'shortcut-hint' }], false)).toBe(false);
+    expect(paletteBlocked([{ role: 'dialog', id: 'palette' }], false)).toBe(false);
   });
 });
 
@@ -83,7 +110,7 @@ describe('the Layout', () => {
   const props = {
     fileName: 'file_dev', tool: 'select', onTool: () => {}, layersOpen: true, inspectorOpen: true, onToggleLayers: () => {}, onToggleInspector: () => {},
     canUndo: false, canRedo: true, onUndo: () => {}, onRedo: () => {}, onPreset: () => {}, canExport: false, onExport: () => {}, canVariant: false,
-    onVariant: () => {}, zoomText: '100%', onZoom: () => {}, connection: { state: 'live', text: 'Connected' }, helpOpen: false, onHelp: () => {},
+    onVariant: () => {}, zoomText: '100%', onZoom: () => {}, connection: { state: 'live', text: 'Connected' }, helpOpen: false, onHelp: () => {}, paletteOpen: false, onPalette: () => {}, canDelete: true, onDelete: () => {},
     canvasLayer: part, layersPanel: part, designPanel: named('design-x'), activityPanel: named('activity-x'), tab: 'design', onTab: () => {},
   };
   const html = (over: Record<string, unknown> = {}) => render(Layout as never, { props: { ...props, ...over } as never }).body;
@@ -146,7 +173,7 @@ describe('what the Layout says to the keyboard and to readers', () => {
   const props = {
     fileName: 'f', tool: 'select', onTool: () => {}, layersOpen: true, inspectorOpen: true, onToggleLayers: () => {}, onToggleInspector: () => {},
     canUndo: true, canRedo: true, onUndo: () => {}, onRedo: () => {}, onPreset: () => {}, canExport: true, onExport: () => {}, canVariant: true,
-    onVariant: () => {}, zoomText: '100%', onZoom: () => {}, connection: { state: 'live', text: 'Connected' }, helpOpen: false, onHelp: () => {},
+    onVariant: () => {}, zoomText: '100%', onZoom: () => {}, connection: { state: 'live', text: 'Connected' }, helpOpen: false, onHelp: () => {}, paletteOpen: false, onPalette: () => {}, canDelete: true, onDelete: () => {},
     canvasLayer: part, layersPanel: part, designPanel: part, activityPanel: part, tab: 'design', onTab: () => {},
   };
   const out = (over: Record<string, unknown> = {}) => render(Layout as never, { props: { ...props, ...over } as never }).body;

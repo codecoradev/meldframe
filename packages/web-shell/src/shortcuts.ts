@@ -66,6 +66,7 @@ export const shortcutGroups: ShortcutGroup[] = [
       { id: 'layers-panel', name: 'Layers panel', keys: [{ alt: true, key: '1' }] },
       { id: 'right-panel', name: 'Right panel', keys: [{ alt: true, key: '2' }] },
       { id: 'shortcuts', name: 'Shortcuts', keys: [k('?')] },
+      { id: 'palette', name: 'Command palette', keys: [{ mod: true, key: 'K' }] },
     ],
   },
 ];

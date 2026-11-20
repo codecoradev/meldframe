@@ -10,11 +10,13 @@
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import Menu from '@meldframe/web-chrome/Menu.svelte';
   import ShortcutHint from './ShortcutHint.svelte';
+  import Palette from './Palette.svelte';
   import Tabs from '@meldframe/web-chrome/Tabs.svelte';
   import TooltipProvider from '@meldframe/web-chrome/TooltipProvider.svelte';
   import type { FramePreset } from '@meldframe/protocol';
   import { onMac, platformLabels } from './platform';
   import { PANEL_INSET, fileItems, reserved, rightWidth, type RightTab } from './layout';
+  import { paletteEntries } from './palette';
   import { presetItems } from './presets';
   import { zoomItems, type ZoomCommand } from './zoom';
 
@@ -43,6 +45,11 @@
     connection: { state: string; text: string };
     helpOpen: boolean;
     onHelp: (open: boolean) => void;
+    /** The command palette (Ctrl+K), open or not; its entries run the handlers above, and delete is the one more it needs. */
+    paletteOpen: boolean;
+    onPalette: (open: boolean) => void;
+    canDelete: boolean;
+    onDelete: () => void;
     /** The tab of the right card (Design or Activity) and the person's choice of another. */
     tab: RightTab;
     onTab: (t: RightTab) => void;
@@ -53,7 +60,7 @@
     designPanel: Snippet;
     activityPanel: Snippet;
   }
-  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, onZoom, connection, helpOpen, onHelp, tab, onTab, activityBadge = 0, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
+  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, onZoom, connection, helpOpen, onHelp, paletteOpen, onPalette, canDelete, onDelete, tab, onTab, activityBadge = 0, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
 
   const tools: { tool: Tool; label: string; key: string; icon: 'select' | 'frame' | 'rectangle' | 'text' }[] = [
     { tool: 'select', label: 'Select', key: 'V', icon: 'select' },
@@ -65,6 +72,10 @@
   const presetRows = $derived(presetItems(onPreset));
   const keys = platformLabels();
   const zoomRows = $derived(zoomItems({ mac: onMac(), onZoom }));
+  const entries = $derived(paletteEntries({
+    mac: onMac(), layersOpen, inspectorOpen, canUndo, canRedo, canDelete, canExport, canVariant,
+    on: { tool: onTool, undo: onUndo, redo: onRedo, remove: onDelete, zoom: onZoom, preset: onPreset, layers: onToggleLayers, inspector: onToggleInspector, exportFrame: onExport, variant: onVariant, help: () => onHelp(true) },
+  }));
   // A card and its folded form swap one header button for another, so the focus would be lost: after a toggle made
   // from that button, the focus goes to the button of the same panel in its new state (marked data-focus).
   const toggleFrom = (panel: 'layers' | 'inspector', toggle: () => void) => () => {
@@ -139,6 +150,8 @@
   {#if helpOpen}
     <div class="pointer-events-none absolute top-4 bottom-20 flex items-end" style:left={layersOpen ? `calc(${PANEL_INSET}px + var(--mf-size-layers) + var(--mf-space-4))` : 'var(--mf-space-4)'}><ShortcutHint onClose={() => onHelp(false)} /></div>
   {/if}
+
+  <Palette open={paletteOpen} onOpenChange={onPalette} {entries} />
 
   <div class="absolute bottom-5 flex flex-col items-end gap-1 text-caption text-text-muted" style:right={inspectorOpen ? `calc(${PANEL_INSET}px + ${width}px + var(--mf-space-4))` : 'var(--mf-space-5)'}>
     <output class="flex items-center gap-2" data-testid="connection" data-state={connection.state}><span class="size-2 rounded-pill {connection.state === 'live' ? 'bg-success' : 'bg-warning'}"></span>{connection.text}</output>

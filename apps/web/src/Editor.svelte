@@ -10,7 +10,7 @@
   import type { Engine } from '@meldframe/web-link/engine';
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
   import Canvas from './canvas/Canvas.svelte';
-  import { createActionFor, keyAction, ownsKeys, worldOrigin, moveActionsFor, previewScene, resizeActionFor, resizedBox, toolMode, type Preview } from '@meldframe/web-document/edit';
+  import { createActionFor, deleteAction, keyAction, ownsKeys, worldOrigin, moveActionsFor, previewScene, resizeActionFor, resizedBox, toolMode, type Preview } from '@meldframe/web-document/edit';
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
   import Layout from '@meldframe/web-shell/Layout.svelte';
@@ -19,7 +19,7 @@
   import Toast from '@meldframe/web-feedback/Toast.svelte';
   import NoFrames from '@meldframe/web-feedback/NoFrames.svelte';
   import { Toaster, type ToastView } from '@meldframe/web-feedback/toaster';
-  import { layoutKey } from '@meldframe/web-shell/keys';
+  import { layoutKey, paletteBlocked, readOverlays } from '@meldframe/web-shell/keys';
   import { zoomCamera } from '@meldframe/web-shell/zoom';
   import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
@@ -67,7 +67,8 @@
   // What a gesture in progress shows; the file changes only when it ends (one action, one undo step).
   let preview = $state<Preview | null>(null);
   const shown = $derived(previewScene(scene, preview));
-  let helpOpen = $state(false);
+  // The one overlay of the layout that can be open: the shortcut sheet or the command palette.
+  let overlay = $state<'help' | 'palette' | null>(null);
 
   const dispatch = (a: Action) => void engine.dispatch(a);
 
@@ -220,7 +221,8 @@
     const key = layoutKey(e);
     if (key) {
       e.preventDefault();
-      if (key === 'help') helpOpen = !helpOpen;
+      if (key === 'palette' && paletteBlocked(readOverlays(document), snap.state.export.dialog !== null)) return;
+      if (key === 'help' || key === 'palette') overlay = overlay === key ? null : key;
       else dispatch({ type: 'togglePanel', panel: key === 'layers' ? 'layers' : 'properties' });
       return;
     }
@@ -256,15 +258,14 @@
   onUndo={() => dispatch({ type: 'undo' })}
   onRedo={() => dispatch({ type: 'redo' })}
   onPreset={(p) => canvas && dispatch(presetAction(p, canvas.centre()))}
-  canExport={target !== null}
-  onExport={() => dispatch({ type: 'openExport' })}
-  canVariant={target !== null}
-  onVariant={() => target && dispatch({ type: 'makeVariant', id: target.id })}
+  canExport={target !== null} onExport={() => dispatch({ type: 'openExport' })}
+  canVariant={target !== null} onVariant={() => target && dispatch({ type: 'makeVariant', id: target.id })}
+  canDelete={deleteAction(snap.state.selection) !== null} onDelete={() => { const a = deleteAction(snap.state.selection); if (a) dispatch(a); }}
   zoomText={formatZoom(camera.zoom)}
   onZoom={(c) => (c === 'fit' ? canvas?.fitAll() : c === 'fit-selection' ? canvas?.fitSelection() : canvas && (camera = zoomCamera(c, camera, canvas.centre())))}
   connection={{ state: snap.state.connection.type, text: connectionLabel(snap.state.connection) }}
-  {helpOpen}
-  onHelp={(open) => (helpOpen = open)}
+  helpOpen={overlay === 'help'} onHelp={(open) => (overlay = open ? 'help' : null)}
+  paletteOpen={overlay === 'palette'} onPalette={(open) => (overlay = open ? 'palette' : null)}
   tab={rightTab} activityBadge={snap.state.activity.unreviewedCount}
   onTab={goTab}
 >
