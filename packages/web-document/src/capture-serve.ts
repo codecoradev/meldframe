@@ -2,7 +2,7 @@
 // draw it, upload it. Every request ends in an upload or in `captureFailed`, never silence (the agent waits for the
 // answer until the server's timeout). The pieces that need the canvas and the network come in as `CaptureDeps`.
 import type { Rect } from '@meldframe/web-canvas/geometry';
-import { captureHeaders, planCapture } from '@meldframe/web-document/capture';
+import { captureHeaders, planCapture } from './capture';
 
 export interface Req {
   requestId: string;
