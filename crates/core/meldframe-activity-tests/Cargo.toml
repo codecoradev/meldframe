@@ -10,6 +10,7 @@ publish.workspace = true
 kind = "tool"
 
 [dev-dependencies]
+activity-store = { path = "../../features/activity/activity-store", features = ["contract"] }
 meldframe-activity = { path = "../meldframe-activity" }
 meldframe-mcp-defs = { path = "../meldframe-mcp-defs" }
 

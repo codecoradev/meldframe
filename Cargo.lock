@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "activity-store"
+version = "0.0.0"
+dependencies = [
+ "meldframe-activity",
+]
+
+[[package]]
 name = "allocator-api2"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1047,6 +1054,7 @@ version = "0.0.0"
 name = "meldframe-activity-tests"
 version = "0.0.0"
 dependencies = [
+ "activity-store",
  "meldframe-activity",
  "meldframe-mcp-defs",
 ]
