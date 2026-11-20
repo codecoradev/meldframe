@@ -131,3 +131,44 @@ pub enum VariableValue {
     /// An alias to the variable with this id.
     Alias { variable: String },
 }
+
+/// The bind picker of one field of the selected node: the variables that fit the field, with a search of its own. It is
+/// view state: it exists only while it is open and nothing is written to the file.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Picker {
+    /// The selected node the field belongs to.
+    pub id: String,
+    pub field: BindField,
+    /// The type of variable that fits the field (colours for a fill, numbers for a radius or an opacity): the one
+    /// every row has.
+    #[serde(rename = "type")]
+    #[ts(rename = "type")]
+    pub kind: VarType,
+    /// The search text, trimmed and cut at 200 characters. Every word must occur in a variable's name, its
+    /// collection's name or its value in the modes on view, ignoring case.
+    pub query: String,
+    /// How many variables fit the field, whatever the search.
+    pub total: usize,
+    /// The matches, at most 50, in the order of the file.
+    pub rows: Vec<PickerRow>,
+}
+
+/// One variable of the picker.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PickerRow {
+    pub id: String,
+    pub name: String,
+    /// The name of its collection.
+    pub collection: String,
+    #[serde(rename = "type")]
+    #[ts(rename = "type")]
+    pub kind: VarType,
+    /// What it comes to in the modes on view.
+    pub resolved: String,
+    /// The field is bound to this variable now.
+    pub bound: bool,
+}

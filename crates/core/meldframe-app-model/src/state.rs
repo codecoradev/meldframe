@@ -1,7 +1,7 @@
 //! Everything a front end needs to draw the editor.
 
 use crate::activity::ActivityState;
-use crate::variables::{BindField, VariablesPanel};
+use crate::variables::{BindField, Picker, VariablesPanel};
 use meldframe_protocol::NodeKind;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -40,6 +40,10 @@ pub struct AppState {
     pub variables: VariablesPanel,
     /// The Activity panel (E5.1): lanes, batches with their notes and review states, and touch rings.
     pub activity: ActivityState,
+    /// The bind picker of a field of the selected node: `Some` only while it is open.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub picker: Option<Picker>,
 }
 
 /// A named point in the file's history that can be restored: the file as the server confirmed it after op `seq`.

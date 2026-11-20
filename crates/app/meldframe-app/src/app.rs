@@ -141,6 +141,9 @@ impl App {
                 | Action::ToggleCollapsed { .. }
                 | Action::SetMode { .. }
                 | Action::SetVariablesQuery { .. }
+                | Action::OpenPicker { .. }
+                | Action::ClosePicker {}
+                | Action::SetPickerQuery { .. }
         );
         let reload = matches!(action, Action::Reload { .. });
         if self.state.connection == Connection::Halted && !ui && !reload {
@@ -182,6 +185,9 @@ impl App {
             Action::ToggleCollapsed { id } => self.toggle_collapsed(id),
             Action::SetMode { collection, mode } => self.set_mode(collection, mode, &mut fx),
             Action::SetVariablesQuery { query } => self.set_variables_query(query),
+            Action::OpenPicker { id, field } => self.open_picker(id, field),
+            Action::ClosePicker {} => self.state.picker = None,
+            Action::SetPickerQuery { query } => self.set_picker_query(query),
             Action::Start { now_ms } => self.start(now_ms, &mut fx),
             Action::Connected { now_ms } => self.connected(now_ms, &mut fx),
             Action::Disconnected {} => self.disconnected(&mut fx),
@@ -212,6 +218,7 @@ impl App {
             Level::Ui => {
                 self.refresh_properties();
                 self.refresh_variables();
+                self.refresh_picker();
             }
             Level::Full => self.refresh(&mut fx),
         }
@@ -292,6 +299,7 @@ impl App {
         self.refresh_properties();
         self.refresh_variables();
         self.activity_changed();
+        self.refresh_picker();
         let history = History {
             can_undo: self.replica.can_undo(),
             can_redo: self.replica.can_redo(),
