@@ -266,7 +266,7 @@
   connection={{ state: snap.state.connection.type, text: label(snap.state.connection) }}
   {helpOpen}
   onHelp={(open) => (helpOpen = open)}
-  tab={rightTab}
+  tab={rightTab} activityBadge={snap.state.activity.unreviewedCount}
   onTab={(t) => { const c = tabChange(rightTab, t); rightTab = c.tab; c.actions.forEach(dispatch); }}
 >
   {#snippet canvasLayer()}

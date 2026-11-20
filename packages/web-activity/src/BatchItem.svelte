@@ -8,23 +8,28 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import Button from '@meldframe/web-chrome/Button.svelte';
-  import type { BatchRow } from '@meldframe/protocol';
-  import { batchHeading, clockText, statusWords, summaryWords } from './view';
+  import type { BatchRow, ReviewState } from '@meldframe/protocol';
+  import { batchHeading, clockText, reviewChoices, reviewedBy, reviewWords, statusWords, summaryWords } from './view';
 
   interface Props {
     row: BatchRow;
     selected: boolean;
     /** The confirmation of a revert is open on this row. */
     confirming: boolean;
+    /** Whether the server lets this person set a review state (`canReview`): the controls show only then. */
+    canReview: boolean;
+    onReview: (s: ReviewState) => void;
     onShow: () => void;
     onAskRevert: () => void;
     onRevert: () => void;
     onCancel: () => void;
   }
-  let { row, selected, confirming, onShow, onAskRevert, onRevert, onCancel }: Props = $props();
+  let { row, selected, confirming, canReview, onReview, onShow, onAskRevert, onRevert, onCancel }: Props = $props();
 
   const heading = $derived(batchHeading(row));
   const summary = $derived(summaryWords(row.summary));
+  const choices = $derived(reviewChoices(row, canReview));
+  const by = $derived(reviewedBy(row));
   let revertButton = $state<HTMLElement | null>(null);
   let cancelButton = $state<HTMLElement | null>(null);
 
@@ -50,6 +55,15 @@
     <span class="text-caption text-text-muted">{clockText(row.atMs)}</span>
   </div>
   <p class="m-0 text-small text-text-secondary" data-testid="batch-status">{statusWords(row)}</p>
+  {#if row.inEffect === false}
+    <p class="m-0 text-small text-text-secondary" data-testid="batch-not-in-effect">Not in effect any more: what it wrote was written again since, or it was reverted.</p>
+  {/if}
+  {#if row.n !== null}
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="rounded-pill px-2 text-caption font-medium {row.review === 'needs_review' ? 'bg-review-bg text-review-text' : 'bg-control text-text-secondary'}" data-testid="batch-review">{reviewWords(row.review)}</span>
+      {#if by}<span class="min-w-0 break-words text-caption text-text-muted" data-testid="batch-review-by">Last changed by <bdi>{by.by}</bdi>{by.at ? ` at ${by.at}` : ''}</span>{/if}
+    </div>
+  {/if}
   {#if summary}<p class="m-0 text-small text-text break-words" data-testid="batch-summary">{summary}</p>{/if}
   {#if row.note}
     <figure class="m-0 flex flex-col gap-1" data-testid="batch-note">
@@ -65,6 +79,13 @@
       <span class="text-caption text-text-muted" data-testid="batch-not-revertable">Cannot be reverted from this page.</span>
     {/if}
   </div>
+  {#if choices.length}
+    <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Review {heading}">
+      {#each choices as c (c.state)}
+        <Button size="sm" aria-label="{c.label}: {heading}" data-testid="review-set" data-state={c.state} onclick={() => onReview(c.state)}>{c.label}</Button>
+      {/each}
+    </div>
+  {/if}
   {#if confirming}
     <!-- Escape closes the confirmation from any control inside it; the group is not a control itself. -->
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

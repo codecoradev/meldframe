@@ -99,6 +99,13 @@ describe('the Layout', () => {
     expect(activity).toMatch(/id="right-panel-activity" role="tabpanel" aria-labelledby="right-tab-activity"/);
     expect(activity).toMatch(/aria-selected="true"[^>]*>Activity/);
   });
+  it('puts the count of batches to review on the Activity tab, and nothing when there are none', () => {
+    expect(html({ activityBadge: 3 }).replace(/<!--.*?-->/g, '')).toMatch(/id="right-tab-activity"[^>]*>Activity<span[^>]*>3<span class="sr-only"> batches to review<\/span>/);
+    expect(html({ activityBadge: 1 }).replace(/<!--.*?-->/g, '')).toMatch(/>1<span class="sr-only"> batch to review<\/span>/);
+    expect(html({ activityBadge: 1 })).not.toContain('1 batches');
+    expect(html({ activityBadge: 0 })).not.toContain('batches to review');
+    expect(html()).not.toContain('batches to review');
+  });
   it('the card is 288 wide on Design and 360 on Activity', () => {
     expect(html()).toMatch(/data-testid="right-card"[^>]*style="width: 288px/);
     expect(html({ tab: 'activity' })).toMatch(/data-testid="right-card"[^>]*style="width: 360px/);

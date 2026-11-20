@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Checkpoint, Event } from '@meldframe/protocol';
 import { activity, lane, row } from './fixtures';
-import { batchHeading, checkpointWords, clockText, laneSummary, laneViews, messageFor, statusWords, summaryWords } from './view';
+import { batchHeading, checkpointWords, clockText, laneSummary, laneViews, messageFor, reviewChoices, reviewWords, reviewedBy, statusWords, summaryWords } from './view';
 
 describe('laneViews', () => {
   it('lists the rows of a lane in the order the lane gives, and leaves out a key prefix that has no row', () => {
@@ -148,5 +148,34 @@ describe('messageFor', () => {
   it('takes the last message of the events, and nothing from the others', () => {
     expect(messageFor([refused('forbidden'), { type: 'reverted', requested: 1, skipped: [] }])?.text).toMatch(/^Reverted/);
     expect(messageFor([{ type: 'selectionChanged', ids: [] }, { type: 'activityChanged' }])).toBeNull();
+  });
+});
+
+describe('the review state of a row', () => {
+  it('words the three states', () => {
+    expect(reviewWords('unreviewed')).toBe('Not reviewed');
+    expect(reviewWords('accepted')).toBe('Accepted');
+    expect(reviewWords('needs_review')).toBe('Needs review');
+  });
+
+  it('says who last changed it, as the full actor, and when', () => {
+    const at = new Date(2026, 10, 20, 10, 50, 2).getTime();
+    expect(reviewedBy(row({ review: 'accepted', reviewedBy: 'person:ana', reviewedAtMs: at }))).toEqual({ by: 'person:ana', at: '10:50:02' });
+    // a state cleared back to unreviewed still names the person who cleared it
+    expect(reviewedBy(row({ review: 'unreviewed', reviewedBy: 'person:ana', reviewedAtMs: at }))).toEqual({ by: 'person:ana', at: '10:50:02' });
+    expect(reviewedBy(row({ review: 'accepted', reviewedBy: 'person:ana', reviewedAtMs: null }))).toEqual({ by: 'person:ana', at: null });
+    expect(reviewedBy(row({ reviewedBy: null }))).toBeNull();
+  });
+
+  it('offers the other states, and only where the app layer says this person may review', () => {
+    const labels = (r: ReturnType<typeof row>, can: boolean) => reviewChoices(r, can).map((c) => `${c.state}:${c.label}`);
+    expect(labels(row({ review: 'unreviewed' }), true)).toEqual(['accepted:Accept', 'needs_review:Needs review']);
+    expect(labels(row({ review: 'accepted' }), true)).toEqual(['needs_review:Needs review', 'unreviewed:Clear']);
+    expect(labels(row({ review: 'needs_review' }), true)).toEqual(['accepted:Accept', 'unreviewed:Clear']);
+    expect(labels(row({ review: 'unreviewed' }), false)).toEqual([]);
+  });
+
+  it('offers nothing for a row with no number, which the server cannot review', () => {
+    expect(reviewChoices(row({ n: null, status: 'headerless' }), true)).toEqual([]);
   });
 });
