@@ -11,19 +11,23 @@
 //! call) and [`Note::clean`] is the app layer's second check (it cuts what the first would refuse, from every header
 //! it takes in, because a header arrives from a socket and a route and the app layer trusts neither).
 
+mod feed;
 mod header;
 mod in_effect;
 mod incoming;
 mod note;
+mod panel;
 mod reducer;
 mod sink;
 mod summary;
 mod view;
 
+pub use feed::{Feed, Page};
 pub use header::{Header, NewBatch, Review};
 pub use in_effect::{InEffect, InEffectMemo, in_effect, revertable};
 pub use incoming::{Fetch, RawHeader};
 pub use note::{Note, NoteError, is_combining_mark, is_hidden_text};
+pub use panel::{RING_IDS, View, ViewRing, ViewRow};
 pub use reducer::{
     Activity, FETCH_EVERY_MS, FETCH_LIMIT, IDLE_MS, MAX_LANES, MAX_REV, MAX_REV_JUMP, MAX_RING_IDS,
     MAX_RINGS, MAX_ROWS, MAX_TRIES, RING_MS, RUN_GAP_MS, Ring, WAIT_FOR_HEADER_MS, WORKING_MS,

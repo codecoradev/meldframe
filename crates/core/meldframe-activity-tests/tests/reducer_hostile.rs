@@ -60,7 +60,8 @@ fn a_frame_that_jumps_past_the_bound_is_not_taken_and_asks_for_a_fetch() {
         (a.rows().len(), a.highest_rev(), a.unreviewed_count()),
         (1, 1, 1)
     );
-    // Up to the bound it is a gap, taken in.
+    // Up to the bound it is a gap, taken in (and asked for, once the 5 seconds between fetches have passed).
+    a.clock(10_000);
     let near = header(3, 1 + MAX_REV_JUMP, "agent:a", "k3", 1, 3);
     assert!(a.observe_header(near, 2).is_some());
     assert_eq!((a.rows().len(), a.unreviewed_count()), (2, 2));

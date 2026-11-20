@@ -88,6 +88,8 @@ pub struct Activity {
     /// The server's `unreviewedCount` and the `rev` it was read at.
     count: (u64, u32),
     last_fetch: Option<u64>,
+    /// A gap in `rev` was seen and not asked for (inside the window of [`FETCH_EVERY_MS`]); `tick` asks once it is due.
+    gap_pending: bool,
     rings: Vec<Ring>,
 }
 
@@ -104,6 +106,7 @@ impl Activity {
             highest_rev: 0,
             count: (0, 0),
             last_fetch: None,
+            gap_pending: false,
             rings: Vec::new(),
         }
     }
@@ -122,10 +125,13 @@ impl Activity {
         self.last_seq = Some(base_seq);
     }
 
-    /// The log starts again at `base_seq` with the same header numbering: call it on `Subscribed` and on `Resync` (the
-    /// app layer, slice 9). It does not cover a server restart that renumbers `n` and `rev`: use
-    /// [`reset_all`](Self::reset_all) for that. Ops at or below `base_seq` are the snapshot's and count
-    /// nothing; every op seen so far is forgotten (a replay from `base_seq` would count it twice), so a batch with no
+    /// The log starts again at `base_seq` with the same header numbering. The app layer does not call it: its replica
+    /// turns the replay after a `Subscribed` or a `Resync` into duplicates before an op reaches the reducer, and the
+    /// reducer ignores an op at or below the highest `seq` seen, so nothing is counted twice, and this call would drop
+    /// the summary and Show of every row at each reconnect. A reload calls [`reset_all`](Self::reset_all) (through
+    /// `Feed::reset`); a server restart that renumbers `n` and `rev` reaches the app layer only as that reload.
+    ///
+    /// Ops at or below `base_seq` are the snapshot's and count nothing; every op seen so far is forgotten (a replay from `base_seq` would count it twice), so a batch with no
     /// header goes and a batch with a header stays as a header-only row, with no summary and no Show, as after a
     /// reload. Headers, the count and when each lane was last active are kept.
     pub fn reset_log(&mut self, base_seq: u64) {
@@ -207,6 +213,7 @@ impl Activity {
             .is_none_or(|t| self.now.saturating_sub(t) >= FETCH_EVERY_MS);
         if due {
             self.last_fetch = Some(self.now);
+            self.gap_pending = false;
         }
         due
     }
@@ -237,11 +244,14 @@ impl Activity {
         }
         self.take(h);
         self.prune();
-        gap.then_some(fetch)
+        let asked = gap && self.fetch_due();
+        self.gap_pending |= gap && !asked;
+        asked.then_some(fetch)
     }
 
-    /// The answer of a fetch: a page of headers and the `unreviewedCount` read with it. The count counts as of the
-    /// highest `rev` of the page, so a frame newer than the page keeps its own.
+    /// The answer of a fetch: a page of headers and the `unreviewedCount` read with it. The count of the page wins only
+    /// when the highest `rev` of the page is above the `rev` of the count held, so a frame as new as the page, or newer,
+    /// keeps its own.
     pub fn observe_page(&mut self, headers: impl IntoIterator<Item = RawHeader>, unreviewed: u32) {
         let mut top = None;
         for h in headers.into_iter().filter_map(RawHeader::check) {
@@ -249,10 +259,20 @@ impl Activity {
             self.highest_rev = self.highest_rev.max(h.rev);
             self.take(h);
         }
-        if let Some(rev) = top.filter(|r| *r >= self.count.0) {
+        if let Some(rev) = top.filter(|r| *r > self.count.0) {
             self.count = (rev, unreviewed);
         }
         self.prune();
+    }
+
+    /// One row of the review route's answer: the row after a person's change. It takes the row in like a page does,
+    /// and touches neither the count (the answer carries none) nor the highest `rev` (a frame lost before it is still
+    /// a gap).
+    pub fn observe_row(&mut self, header: impl Into<RawHeader>) {
+        if let Some(h) = Into::<RawHeader>::into(header).check() {
+            self.take(h);
+            self.prune();
+        }
     }
 
     /// Put a checked header on its batch if it is newer than the one held for its `n`. A header that names another
@@ -299,6 +319,21 @@ impl Activity {
         }
     }
 
+    /// The clock moved to `now_ms` and nothing can be asked (the connection is down): batches of a lane that went idle
+    /// are headerless for good, and no try is spent.
+    pub fn clock(&mut self, now_ms: u64) {
+        self.advance(now_ms);
+        let (now, seen) = (self.now, &self.seen);
+        for ((actor, _), g) in self.groups.iter_mut().filter(|(_, g)| g.header.is_none()) {
+            if seen
+                .get(actor)
+                .is_some_and(|t| now.saturating_sub(*t) >= IDLE_MS)
+            {
+                g.dead = true;
+            }
+        }
+    }
+
     /// The clock moved to `now_ms`. Marks the batches that are headerless for good (the lane went idle) and applies
     /// heal rule (b): a batch seen in ops for 3 seconds with no header (and fewer than 3 tries) is asked for, in one
     /// fetch of what is newer than the highest `n` held, at most one in 5 seconds; every batch waiting then spends a
@@ -330,14 +365,24 @@ impl Activity {
                 asked = true;
             }
         }
-        asked.then(|| {
+        // A gap seen inside the window is asked for now, as the newest page: the hole may be a change of an older row.
+        let gap = due && std::mem::take(&mut self.gap_pending);
+        (asked || gap).then(|| {
             self.last_fetch = Some(now);
             Fetch {
                 before_n: None,
-                after_n: self.highest_n(),
+                after_n: if gap { None } else { self.highest_n() },
                 limit: FETCH_LIMIT,
             }
         })
+    }
+
+    /// A fetch goes out now, asked for by the caller (rule (d) after a subscribe): the window of [`FETCH_EVERY_MS`]
+    /// opens, so rules (a) and (b) do not ask for the same headers again at once, and a gap waiting for it is healed.
+    pub fn spend_window(&mut self, now_ms: u64) {
+        self.advance(now_ms);
+        self.last_fetch = Some(self.now);
+        self.gap_pending = false;
     }
 
     fn drop_group(&mut self, key: &Key) {
