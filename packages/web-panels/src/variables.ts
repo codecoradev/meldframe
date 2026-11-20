@@ -46,3 +46,6 @@ export const display = (val: ModeValue): string => (val.alias ? `→ ${val.text}
 /** The words of the heading above a run of rows of one type, and of the field a bind button stands for. */
 export const TYPE_LABEL: Record<VarType, string> = { color: 'Color', number: 'Number' };
 export const FIELD_LABEL: Record<BindField, string> = { fill: 'Fill', radius: 'Radius', opacity: 'Opacity' };
+
+/** The name of a mode for a label (the id, for a mode the collection does not have). */
+export const modeName = (c: CollectionRow, id: string): string => c.modes.find((m) => m.id === id)?.name ?? id;

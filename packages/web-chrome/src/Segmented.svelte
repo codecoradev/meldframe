@@ -50,6 +50,7 @@
       class="{ring} flex h-(--mf-size-control-md) min-w-0 flex-1 items-center justify-center gap-1 rounded-sm px-3 text-small {on
         ? 'border border-border-strong bg-control-selected font-semibold text-text-strong'
         : 'border border-transparent text-text-muted hov:text-text'}"
-    >{#if o.icon}<Icon name={o.icon} />{/if}{#if !iconOnly}{o.label}{/if}</button>
+      title={o.label}
+    >{#if o.icon}<Icon name={o.icon} />{/if}{#if !iconOnly}<span class="min-w-0 truncate">{o.label}</span>{/if}</button>
   {/each}
 </div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CollectionRow, VariableRow, VariablesPanel } from '@meldframe/protocol';
-import { bindAction, display, listedCount, shownValue, modeAction, swatch, truncated, valueAction } from './variables';
+import { bindAction, display, modeName, listedCount, shownValue, modeAction, swatch, truncated, valueAction } from './variables';
 
 const row = (over: Partial<VariableRow> = {}): VariableRow => ({
   id: 'bg',
@@ -82,5 +82,13 @@ describe('the value a row shows', () => {
   });
   it('is nothing for a mode the row has no value in', () => {
     expect(shownValue({ ...c, active: 'sepia' }, row())).toBeUndefined();
+  });
+});
+
+describe('modeName', () => {
+  const c = { id: 'c', name: 'appearance', modes: [{ id: 'm1', name: 'Light' }, { id: 'm2', name: 'Dark' }], active: 'm1', matched: 0, variables: [] } as CollectionRow;
+  it('is the name of a mode, not its id, and the id for a mode that is not in the collection', () => {
+    expect(modeName(c, 'm2')).toBe('Dark');
+    expect(modeName(c, 'gone')).toBe('gone');
   });
 });

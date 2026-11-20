@@ -87,8 +87,12 @@ async function check(name, fn) {
     assert.equal(await page.locator('[data-testid=variables]').count(), 0);
     await page.click('[data-testid=toggle-variables]');
     await until('the row', async () => (await page.locator(`[data-testid=var-row][data-id="${bg}"]`).count()) === 1);
-    assert.equal(await page.locator(`[data-testid=var-collection][data-id="${col}"] [role=radio]`).count(), 2);
+    assert.equal(await page.locator(`[data-testid=var-modes][data-id="${col}"] [role=radio]`).count(), 2);
     assert.equal(await page.inputValue(`[data-testid=var-row][data-id="${bg}"] [data-testid=var-value]`), LIGHT);
+    // The list scrolls inside a capped box, so Properties stays on screen below it.
+    const list = await page.locator('[data-testid=var-list]').boundingBox();
+    assert.ok(list.height <= 192 + 1, `the list is capped: ${list.height}`);
+    assert.ok(await page.locator('[data-testid=properties]').isVisible(), 'properties is on the page');
   });
 
   await check('binding the selected frame paints the variable, and the file holds the binding', async () => {
@@ -103,17 +107,17 @@ async function check(name, fn) {
 
   await check('switching to dark re-draws the frame and writes nothing to the file', async () => {
     const before = (await snapshot()).seq;
-    await page.click(`[data-testid=var-collection][data-id="${col}"] [role=radio]:has-text("dark")`);
+    await page.click(`[data-testid=var-modes][data-id="${col}"] [role=radio]:has-text("dark")`);
     await until('the dark colour on the canvas', () => filled(page, DARK));
     assert.equal(await filled(page, LIGHT), false, 'the light colour is gone');
     await sleep(500);
     assert.equal((await snapshot()).seq, before, 'no op was sent');
-    await page.click(`[data-testid=var-collection][data-id="${col}"] [role=radio]:has-text("light")`);
+    await page.click(`[data-testid=var-modes][data-id="${col}"] [role=radio]:has-text("light")`);
     await until('the light colour again', () => filled(page, LIGHT));
   });
 
   await check('editing the value of a mode re-draws the frame and reaches the server', async () => {
-    await page.click(`[data-testid=var-collection][data-id="${col}"] [role=radio]:has-text("dark")`);
+    await page.click(`[data-testid=var-modes][data-id="${col}"] [role=radio]:has-text("dark")`);
     const field = page.locator(`[data-testid=var-row][data-id="${bg}"] [data-testid=var-value]`);
     await field.fill(EDITED);
     await field.press('Enter');
@@ -140,7 +144,7 @@ async function check(name, fn) {
     await page.click(`[data-testid=var-row][data-id="${bg}"] [data-testid=var-bind][data-field=fill]`);
     const node = await until('the literal on the server', async () => (await snapshot()).nodes.find((x) => x.id === frame && typeof x.fill === 'string' && x.fill !== '#ffffff'));
     assert.equal(node.fill, EDITED);
-    await page.click(`[data-testid=var-collection][data-id="${col}"] [role=radio]:has-text("light")`);
+    await page.click(`[data-testid=var-modes][data-id="${col}"] [role=radio]:has-text("light")`);
     await sleep(300);
     assert.ok(await filled(page, EDITED), 'the literal does not follow the mode');
   });
