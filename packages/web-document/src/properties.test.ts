@@ -2,7 +2,7 @@ import type { Properties } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
 import { boxAction, bindingOf, clipAction, fieldsOf, percent, propertyAction, unbindAction } from './properties';
 
-const p: Properties = { id: 'n', name: 'Box', kind: 'rect', x: 10, y: 20, w: 100, h: 50, fill: '#112233', radius: 4, text: '', fontSize: 16, opacity: 1, clip: true, bound: [], bindings: [] };
+const p: Properties = { id: 'n', name: 'Box', kind: 'rect', x: 10, y: 20, w: 100, h: 50, fill: '#112233', fillKind: 'solid', gradientAllowed: true, minStops: 2, maxStops: 8, radius: 4, text: '', fontSize: 16, opacity: 1, clip: true, bound: [], bindings: [] };
 
 describe('propertyAction', () => {
   it('sets a changed name, trimmed', () => {

@@ -1,7 +1,7 @@
 //! Inputs to the app layer. They are UI-neutral: no toolkit events (standard rule U6).
 
 use crate::activity::{BatchHeader, BatchPage, BatchRef, ReviewState};
-use crate::state::{Panel, Tool};
+use crate::state::{FillKind, Panel, Tool};
 use crate::variables::{BindField, VariableValue};
 use meldframe_protocol::{Command, Node, Variables};
 use serde::{Deserialize, Serialize};
@@ -371,6 +371,25 @@ pub enum Property {
     Opacity(f64),
     /// Whether a frame cuts off what is drawn outside it.
     Clip(bool),
+    /// Switch the type of the fill, as one undo step. Solid and None take a gradient and an image away; Linear and
+    /// Radial make a two-stop gradient from the painted colour when there is none, or change the kind of the one that
+    /// is there. A type the node has already is not a change: no step and no refusal. Image is refused as `no_image`
+    /// unless the node has one already. A gradient on text is refused as `gradient_on_text`. None replaces the fill with
+    /// `none`, so a fill bound to a variable lets the variable go in the same step (undo brings the binding back).
+    FillType(FillKind),
+    /// The direction of a linear gradient in degrees, kept within one turn. Refused as `no_gradient` without one.
+    GradientAngle(f64),
+    /// Set the position (0 to 1, held between the neighbouring stops) and the `#hex` colour of one stop.
+    GradientStop {
+        index: usize,
+        pos: f64,
+        color: String,
+    },
+    /// Add a stop in the middle of the widest gap, with the colour of the stop before it. Refused as `limit` at
+    /// eight.
+    AddGradientStop {},
+    /// Remove a stop. Refused as `min_stops` at two.
+    RemoveGradientStop(usize),
 }
 
 /// A message of the live connection, as the transport decodes it.

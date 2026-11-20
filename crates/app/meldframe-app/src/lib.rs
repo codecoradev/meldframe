@@ -19,6 +19,7 @@ mod frames;
 mod link;
 mod panel;
 mod picker;
+mod props;
 mod retry;
 mod review;
 mod variables;
@@ -30,8 +31,8 @@ pub use app::App;
 pub use link::{ATTEMPT_MS, SILENT_MS};
 pub use meldframe_app_model::{
     Action, AppState, BindField, BindOption, Checkpoint, CheckpointKind, CollectionRow, Connection,
-    CreateKind, Effect, Event, FieldBinding, Frame, FramePreset, History, ModeValue, OutOp, Panel,
-    Panels, Picker, PickerRow, Properties, Property, RevertSkip, RevertSkipReason, Tool,
-    TypeHeading, VariableRow, VariableValue, VariablesPanel,
+    CreateKind, Effect, Event, FieldBinding, FillKind, Frame, FramePreset, History, ModeValue,
+    OutOp, Panel, Panels, Picker, PickerRow, Properties, Property, RevertSkip, RevertSkipReason,
+    Tool, TypeHeading, VariableRow, VariableValue, VariablesPanel,
 };
 pub use meldframe_sync::LoadError;

@@ -1,9 +1,27 @@
 //! The editable values of a node as the properties panel shows them.
 
-use meldframe_app_model::{BindField, FieldBinding, Properties};
-use meldframe_protocol::{Node, Variables};
+use crate::property::MIN_STOPS;
+use meldframe_app_model::{BindField, FieldBinding, FillKind, Properties};
+use meldframe_check::Limits;
+use meldframe_protocol::{Bind, GradientKind, Node, NodeKind, Variables};
 use meldframe_render::Fields;
 use meldframe_variables::{ModeChoice, node_bindings};
+
+/// The type of the fill a node shows: an image is on top, then a gradient, then the colour.
+pub fn fill_kind(n: &Node) -> FillKind {
+    if n.image.is_some() {
+        FillKind::Image
+    } else if let Some(g) = &n.gradient {
+        match g.kind {
+            GradientKind::Linear => FillKind::Linear,
+            GradientKind::Radial => FillKind::Radial,
+        }
+    } else if matches!(&n.fill, Bind::Lit(s) if s == "none") {
+        FillKind::None
+    } else {
+        FillKind::Solid
+    }
+}
 
 /// The editable values of a node as they are painted: a bound field shows what the render step resolves it to
 /// (`Fields` is the one place that does it, so the panel and the canvas agree, unresolved defaults included).
@@ -39,6 +57,12 @@ pub fn properties(vars: &Variables, choice: &ModeChoice, n: &Node) -> Properties
         w: n.w,
         h: n.h,
         fill: fields.fill_text(&n.fill),
+        fill_kind: fill_kind(n),
+        gradient_allowed: n.kind != NodeKind::Text,
+        min_stops: MIN_STOPS,
+        max_stops: Limits::default().max_gradient_stops,
+        gradient: n.gradient.clone(),
+        image: n.image.clone(),
         radius: fields.radius(&n.radius),
         text: n.text.clone(),
         font_size: n.font_size,

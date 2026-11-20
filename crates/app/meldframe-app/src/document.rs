@@ -1,13 +1,13 @@
 //! Document actions: what the person meant becomes commands in the replica.
 
-use crate::action::{Action, CreateKind, Property};
+use crate::action::{Action, CreateKind};
 use crate::app::App;
 use crate::effect::Effect;
 use crate::state::Tool;
 use meldframe_app_parts::document::{code, new_node, update};
 use meldframe_app_parts::touched::render_set;
 use meldframe_check::{ApplyError, Limits, check_command_with};
-use meldframe_protocol::{Command, NodeKind, NodePatch};
+use meldframe_protocol::{Command, NodePatch};
 use meldframe_sync::{Replica, SubmitError};
 use meldframe_variant::VariantError;
 
@@ -147,27 +147,7 @@ impl App {
                     ..Default::default()
                 },
             )),
-            Action::SetProperty { id, property } => {
-                // Only a frame clips: the canvas draws nothing else that way, so other kinds refuse the field.
-                let other_kind = self
-                    .nodes()
-                    .iter()
-                    .any(|n| n.id == id && n.kind != NodeKind::Frame);
-                if matches!(property, Property::Clip(_)) && other_kind {
-                    refuse(&mut self.events, "invalid")
-                } else {
-                    let mut patch = NodePatch::default();
-                    match property {
-                        Property::Name(v) => patch.name = Some(v),
-                        Property::Fill(v) => patch.fill = Some(v.into()),
-                        Property::Radius(v) => patch.radius = Some(v.into()),
-                        Property::FontSize(v) => patch.font_size = Some(v),
-                        Property::Opacity(v) => patch.opacity = Some(v.into()),
-                        Property::Clip(v) => patch.clip = Some(v),
-                    }
-                    self.replica.apply(&update(&id, patch))
-                }
-            }
+            Action::SetProperty { id, property } => self.set_property(&id, property),
             Action::Delete { ids } => self.delete(&ids),
             Action::Reorder { id, before, after } => self.replica.apply(&Command::Reorder {
                 id,

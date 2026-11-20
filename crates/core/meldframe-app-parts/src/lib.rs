@@ -6,5 +6,6 @@
 pub mod document;
 pub mod picker;
 pub mod properties;
+pub mod property;
 pub mod touched;
 pub mod variables_panel;
