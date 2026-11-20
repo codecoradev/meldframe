@@ -1055,6 +1055,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-activity-app-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-app-model",
+ "meldframe-host",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-server",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-activity-pg-tests"
 version = "0.0.0"
 dependencies = [

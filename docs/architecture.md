@@ -110,6 +110,7 @@ crates/
     meldframe-live-slot-tests (tool) the live-place tests (`wsslots.rs`) of `apps/server`, with the helpers of `meldframe-live-tests` by path; separate because that crate is at its ceiling
     meldframe-snapshot-tests (tool) tests of `GET /v1/files/{file}` and of the last actor of each node against the real server; no library code; separate because `meldframe-http-tests` is at its ceiling
     meldframe-serve-tests (tool) tests of the accept loop `meldframe_http::serve` (header-read timeout, client address, trusted proxies); no library code; separate because `meldframe-http-tests` is at its ceiling
+    meldframe-activity-app-tests (tool) the activity panel of the app layer (E5.1, slice 9) on the harness of `meldframe-app-tests`: ops through the real `Server` (gate, room, log), headers, batch frames and route answers scripted; two editors and an agent, one batch with its header, a review state and a revert, and the wire shape of the new actions, frames, effects and state; the harness of `meldframe-app-tests` by path; no library code; separate because that crate is near its ceiling
     meldframe-app-tests   (tool) scripted editor sessions that drive `meldframe-app` against the real in-memory server (two editors, an agent, a dropped connection, a resync); no library code
     meldframe-sync-props  (tool) property tests of replicas against an in-memory server and the host room; no library code
     meldframe-module      Module trait, registry, risk tiers

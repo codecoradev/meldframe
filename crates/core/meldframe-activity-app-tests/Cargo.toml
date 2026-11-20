@@ -1,0 +1,23 @@
+[package]
+name = "meldframe-activity-app-tests"
+description = "The activity panel of the app layer (E5.1, ADR-0021, slice 9) on the harness of meldframe-app-tests: the ops of an agent and of the editors go through the real meldframe-server gate, room and log (a test tool `paint`); the batch headers, the batch and touch frames and the answers of the list and review routes are scripted, because the batch sink and routes are not part of that server. Also the JSON shape of the new actions, frames, effects and state. No library code; separate from meldframe-app-tests, which is near its size ceiling."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-app = { path = "../../app/meldframe-app" }
+meldframe-app-model = { path = "../meldframe-app-model" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-module = { path = "../meldframe-module" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-server = { path = "../../../apps/server" }
+serde = "1"
+serde_json = "1"
+
+[lints]
+workspace = true
