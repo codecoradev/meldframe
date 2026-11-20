@@ -42,6 +42,17 @@ export function describeSnapshotFailure(status: number, text: string): string {
   return `Could not load the file: the server answered ${status}${text ? ` (${text.slice(0, 200)})` : ''}.${hint}`;
 }
 
+/** The snapshot was refused or failed: the status (0 when there was no answer at all) and the server's text, for the page of a file that did not open. */
+export class LoadFailure extends Error {
+  constructor(
+    readonly status: number,
+    readonly body: string,
+  ) {
+    super(describeSnapshotFailure(status, body));
+    this.name = 'LoadFailure';
+  }
+}
+
 const NO_VARIABLES: Variables = { collections: [], variables: [] };
 
 /** Who last changed a node, and at which sequence number: what the server adds to each node of a snapshot. */
@@ -62,9 +73,12 @@ export interface LoadedFile {
  * empty file at sequence 0.
  */
 export async function loadFile(get: typeof fetch, file: string): Promise<LoadedFile> {
-  const res = await get(`/v1/files/${encodeURIComponent(file)}`);
+  // A request that gets no answer is a failure of its own (status 0): a fault of the page itself is not.
+  const res = await get(`/v1/files/${encodeURIComponent(file)}`).catch((e: unknown) => {
+    throw new LoadFailure(0, e instanceof Error ? e.message : String(e));
+  });
   if (res.status === 404) return { seq: 0, nodes: [], variables: NO_VARIABLES, attribution: {} };
-  if (!res.ok) throw new Error(describeSnapshotFailure(res.status, await res.text().catch(() => '')));
+  if (!res.ok) throw new LoadFailure(res.status, await res.text().catch(() => ''));
   const body: unknown = await res.json().catch(() => null);
   const b = body as { seq?: unknown; nodes?: unknown; variables?: Variables } | null;
   if (!b || typeof b.seq !== 'number' || !Number.isInteger(b.seq) || b.seq < 0 || !Array.isArray(b.nodes)) {

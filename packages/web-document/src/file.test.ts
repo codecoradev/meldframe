@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RELOAD_LIMIT, RELOAD_WINDOW_MS, describeSnapshotFailure, loadFile, reloadOnDivergence, shouldReload } from './file';
+import { LoadFailure, RELOAD_LIMIT, RELOAD_WINDOW_MS, describeSnapshotFailure, loadFile, reloadOnDivergence, shouldReload } from './file';
 
 const answer = (status: number, body: unknown) => async () => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
 
@@ -23,6 +23,17 @@ describe('loadFile', () => {
     const variables = { collections: [{ id: 't', name: 'appearance', modes: [{ id: 'light', name: 'light' }] }], variables: [] };
     const f = await loadFile(answer(200, { seq: 2, nodes: [], variables }) as typeof fetch, 'file_dev');
     expect(f.variables).toEqual(variables);
+  });
+  it('a refusal keeps its status and the server\'s text, for the page that says what happened', async () => {
+    const e = await loadFile(answer(403, 'read policy says no') as typeof fetch, 'f').catch((x: unknown) => x);
+    expect(e).toBeInstanceOf(LoadFailure);
+    expect(e).toMatchObject({ status: 403, body: 'read policy says no' });
+    expect((e as Error).message).toBe(describeSnapshotFailure(403, 'read policy says no'));
+  });
+  it('a request that never got an answer is a failure with status 0, so it is told from a bug in the page', async () => {
+    const e = await loadFile((async () => { throw new TypeError('Failed to fetch'); }) as unknown as typeof fetch, 'f').catch((x: unknown) => x);
+    expect(e).toBeInstanceOf(LoadFailure);
+    expect(e).toMatchObject({ status: 0 });
   });
   it('asks for the file by its encoded name', async () => {
     let url = '';

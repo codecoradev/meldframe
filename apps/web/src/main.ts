@@ -4,7 +4,8 @@ import { Engine, loadWasm } from '@meldframe/web-link/engine';
 import { Shell, browserEnv, type CaptureRequest } from '@meldframe/web-link/shell';
 import App from './App.svelte';
 import Editor from './Editor.svelte';
-import Fatal from './Fatal.svelte';
+import ErrorPage from '@meldframe/web-feedback/ErrorPage.svelte';
+import { pageFor } from '@meldframe/web-feedback/failure';
 import { loadFile, reloadOnDivergence } from '@meldframe/web-document/file';
 import { applyTheme, loadTheme } from '@meldframe/web-tokens/theme';
 
@@ -56,5 +57,5 @@ start().catch((e: unknown) => {
   shell?.stop(); // a page that failed half way keeps no socket, timer or canvas
   if (editor) void unmount(editor);
   root.replaceChildren();
-  mount(Fatal, { target: root, props: { message: e instanceof Error ? e.message : String(e) } });
+  mount(ErrorPage, { target: root, props: { page: pageFor(e, { dev: import.meta.env.DEV }), onAction: () => location.reload() } });
 });

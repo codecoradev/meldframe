@@ -17,6 +17,7 @@
   import Section from '@meldframe/web-chrome/Section.svelte';
   import BannerStack, { type Banner } from '@meldframe/web-feedback/BannerStack.svelte';
   import Toast from '@meldframe/web-feedback/Toast.svelte';
+  import NoFrames from '@meldframe/web-feedback/NoFrames.svelte';
   import { Toaster, type ToastView } from '@meldframe/web-feedback/toaster';
   import { layoutKey } from '@meldframe/web-chrome/keys';
   import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
@@ -299,6 +300,7 @@
     {#if editing && editBox}
       <TextEditor text={editing.before} box={editBox} onCommit={endEdit} onCancel={() => endEdit(null)} />
     {/if}
+    <NoFrames {nodes} {ready} canAdd={snap.state.connection.type !== 'halted'} onAdd={() => canvas && dispatch(presetAction('desktop', canvas.centre()))} />
     <Toast {toast} onClose={() => toaster.dismiss()} />
     <BannerStack {banners} onAction={onBanner} />
   {/snippet}
