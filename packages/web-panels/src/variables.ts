@@ -1,6 +1,6 @@
 // The Variables panel: what its input becomes. The rules (the list, the search, the checks of a value, an alias or a
 // binding) are in the app layer; these functions only turn a field or a click into the action to send. Pure.
-import type { Action, BindField, CollectionRow, VariableRow, VariablesPanel } from '@meldframe/protocol';
+import type { Action, BindField, CollectionRow, ModeValue, VarType, VariableRow, VariablesPanel } from '@meldframe/protocol';
 
 /** The text typed in a value field of one mode. Nothing to send for empty text or the text the value already shows. */
 export function valueAction(row: VariableRow, mode: string, raw: string): Action | null {
@@ -36,3 +36,16 @@ export const listedCount = (p: VariablesPanel): number => p.collections.reduce((
 
 /** The search matched more variables than the panel lists. */
 export const truncated = (p: VariablesPanel): boolean => p.matched > listedCount(p);
+
+/** The value of a row in the mode the collection shows: the one the row's field edits. */
+export const shownValue = (c: CollectionRow, row: VariableRow): ModeValue | undefined => row.values.find((v) => v.mode === c.active);
+
+/** A value as its field shows it: an alias as the name of its target. */
+export const display = (val: ModeValue): string => (val.alias ? `→ ${val.text}` : val.text);
+
+/** The words of the heading above a run of rows of one type, and of the field a bind button stands for. */
+export const TYPE_LABEL: Record<VarType, string> = { color: 'Color', number: 'Number' };
+export const FIELD_LABEL: Record<BindField, string> = { fill: 'Fill', radius: 'Radius', opacity: 'Opacity' };
+
+/** The name of a mode for a label (the id, for a mode the collection does not have). */
+export const modeName = (c: CollectionRow, id: string): string => c.modes.find((m) => m.id === id)?.name ?? id;

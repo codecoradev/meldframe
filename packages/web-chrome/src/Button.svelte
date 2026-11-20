@@ -8,12 +8,16 @@
 
   interface Props {
     variant?: 'primary' | 'secondary' | 'destructive';
+    /** `sm` is 28 high, for a row of a panel. */
+    size?: 'default' | 'sm';
+    /** A toggle: aria-pressed, drawn in the variable chip colours when on. */
+    pressed?: boolean;
     disabled?: boolean;
     onclick?: (e: MouseEvent) => void;
     children: Snippet;
     [data: `data-${string}`]: string | undefined;
   }
-  let { variant = 'secondary', disabled = false, onclick, children, ...rest }: Props = $props();
+  let { variant = 'secondary', size = 'default', pressed, disabled = false, onclick, children, ...rest }: Props = $props();
   const fills = {
     primary: 'bg-accent-strong text-on-accent font-semibold hov:bg-accent-hover act:bg-accent-pressed',
     secondary: 'bg-control text-text font-medium hov:bg-control-selected act:bg-field',
@@ -21,4 +25,4 @@
   };
 </script>
 
-<button {...rest} type="button" {disabled} {onclick} class="{ring} {off} h-(--mf-size-control-lg) rounded-md px-4 text-small {fills[variant]}">{@render children()}</button>
+<button {...rest} type="button" aria-pressed={pressed} {disabled} {onclick} class="{ring} {off} {size === 'sm' ? 'h-(--mf-size-control-md) px-3' : 'h-(--mf-size-control-lg) px-4'} rounded-md text-small {pressed ? 'bg-chip-bg font-semibold text-chip-text' : fills[variant]}">{@render children()}</button>

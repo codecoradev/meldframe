@@ -141,7 +141,7 @@ Text must reach 4.5:1 (3:1 at 24 px and above) and interface parts such as outli
 
 - Space step is 4 px: 4, 8, 12, 16, 24, 32.
 - Controls are 24, 28, 32 (default), 34 (wide action buttons) and 36 px high (section 5.1). The minimum target is 24 px.
-- Panel widths: sidebar 248, layers 260, inspector 288, activity 360, chat 352, file tree 280. A top card is 52 high.
+- Panel widths: sidebar 248, layers 260, inspector 288, activity 360, chat 352, file tree 280. A top card is 52 high. The variables list in the inspector is 192 high and scrolls inside, so Properties stays on screen (the ModeSwitch board draws 150; 192 shows the rows of two types).
 - Radii: 4 (chips), 6, 8 (buttons and fields), 12 (panels, menus and dialogs), pill 999.
 - Disabled controls draw at 0.5 opacity.
 - Strokes: selection 1.5 px; icons 1.5 px; focus ring 2 px with a 2 px offset.
@@ -353,6 +353,7 @@ size.activity = 360
 size.chat = 352
 size.files = 280
 size.top-card = 52
+size.variables-list = 192
 stroke.selection = 1.5
 stroke.icon = 1.5
 stroke.focus = 2
