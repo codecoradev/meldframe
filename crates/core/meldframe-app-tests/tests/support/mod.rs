@@ -188,7 +188,12 @@ impl World {
                 }
                 back
             }
-            Effect::Reconnect { .. } | Effect::WakeAfter { .. } | Effect::Render { .. } => vec![],
+            // The batch list and the review route are the front end's: a test that needs them plays them.
+            Effect::Reconnect { .. }
+            | Effect::WakeAfter { .. }
+            | Effect::Render { .. }
+            | Effect::FetchBatches { .. }
+            | Effect::PutBatchReview { .. } => vec![],
         }
     }
 

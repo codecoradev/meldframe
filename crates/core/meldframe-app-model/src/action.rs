@@ -1,5 +1,6 @@
 //! Inputs to the app layer. They are UI-neutral: no toolkit events (standard rule U6).
 
+use crate::activity::{BatchHeader, BatchPage, BatchRef, ReviewState};
 use crate::state::{Panel, Tool};
 use crate::variables::{BindField, VariableValue};
 use meldframe_protocol::{Command, Node, Variables};
@@ -167,6 +168,35 @@ pub enum Action {
     RestoreCheckpoint {
         id: String,
     },
+    /// The Activity tab was opened: ask for the newest page of batches (heal rule (c)).
+    OpenActivity {},
+    /// Fetch the page of batches older than the oldest held (when `AppState::activity.has_older`).
+    LoadOlderBatches {},
+    /// Show a batch: select its nodes on the canvas and mark the row (the row's `inEffect` is then worked out).
+    /// Refused with `unknown_batch` for a batch the app does not hold.
+    SelectBatch {
+        batch: BatchRef,
+    },
+    /// Ask the server to set the review state of a batch (`Effect::PutBatchReview`). The row changes only when the
+    /// server answers (`Action::BatchReviewed`), never at once. Refused with `unknown_batch`, or `no_batch_number` for a row with no header.
+    SetBatchReview {
+        batch: BatchRef,
+        state: ReviewState,
+    },
+    /// A page of headers arrived (the answer of `Effect::FetchBatches`).
+    BatchesLoaded {
+        page: BatchPage,
+    },
+    /// The answer of the review route: the row after the change, as a header. It sets the row; it carries no count and
+    /// no `can_review`, so it cannot change them (the `batch` frame carries the count), and it is not a page: it never
+    /// moves heal rule (d).
+    BatchReviewed {
+        batch: BatchHeader,
+    },
+    /// A fetch or a review put failed or was refused (`forbidden`, `unavailable`, ...): raised as `Event::Refused`.
+    BatchRequestFailed {
+        code: String,
+    },
     /// Undo the actor's own last change.
     Undo {},
     /// Redo the change that was just undone.
@@ -222,6 +252,26 @@ pub enum Action {
 }
 
 impl Action {
+    /// Whether the activity rules handle it (`meldframe-app`, `activity.rs`) and not the document.
+    pub fn is_activity(&self) -> bool {
+        matches!(
+            self,
+            Action::OpenActivity {}
+                | Action::LoadOlderBatches {}
+                | Action::SelectBatch { .. }
+                | Action::SetBatchReview { .. }
+                | Action::BatchesLoaded { .. }
+                | Action::BatchReviewed { .. }
+                | Action::BatchRequestFailed { .. }
+        )
+    }
+
+    /// An activity action that does not touch the document, the selection or the properties panel (all but
+    /// `SelectBatch`): the app has only the panel to bring up to date.
+    pub fn only_activity(&self) -> bool {
+        self.is_activity() && !matches!(self, Action::SelectBatch { .. })
+    }
+
     /// `CreateNode` with the default size.
     pub fn create_node(kind: CreateKind, x: f64, y: f64, parent: Option<String>) -> Self {
         Self::CreateNode {
@@ -362,5 +412,19 @@ pub enum Frame {
         key: String,
         code: String,
         retryable: bool,
+    },
+    /// The header of a numbered batch was written or changed (`ServerMsg::Batch`, ephemeral: a hint over the log, so a
+    /// lost one is healed by a fetch). `unreviewed_count` is the server's count as of this change.
+    Batch {
+        header: BatchHeader,
+        unreviewed_count: u32,
+    },
+    /// An actor changed these nodes (`ServerMsg::Touch`, ephemeral): the app draws its touch ring unless the actor is
+    /// the person. `seq` is the newest op it is about.
+    Touch {
+        actor: String,
+        ids: Vec<String>,
+        #[ts(type = "number")]
+        seq: u64,
     },
 }
