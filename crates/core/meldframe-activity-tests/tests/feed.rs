@@ -2,7 +2,7 @@
 //! page that must not overwrite a newer count, rule (a) at most once in 5 seconds, a clock that runs while nothing can be
 //! asked, rule (d)'s chain and the memo of `inEffect`.
 
-// Under WASM these tests will run through wasm-bindgen-test once `just wasm-test` lists this crate (slice 10).
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 

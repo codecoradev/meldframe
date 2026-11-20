@@ -1,5 +1,9 @@
 //! `Note::parse` (the server's check) and `Note::clean` (the app layer's second check), ADR-0021.
 
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_activity::{
     MAX_COMBINING_RUN, MAX_NOTE_BREAKS, MAX_NOTE_CHARS, Note, NoteError, is_hidden_text,
 };

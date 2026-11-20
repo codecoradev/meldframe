@@ -5,7 +5,7 @@
 //! Seeds per run: 600 by default, more with `MELDFRAME_SEEDS`; `MELDFRAME_SEED=n` replays one seed. Under WASM
 //! the environment does not reach the test and the default is 20.
 
-// Under WASM these tests will run through wasm-bindgen-test once `just wasm-test` lists this crate (slice 10).
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 

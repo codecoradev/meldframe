@@ -1,6 +1,6 @@
 //! `in_effect` and `revertable`: would `revert_batch` still change anything (ADR-0021, "Status").
 
-// Under WASM these tests will run through wasm-bindgen-test once `just wasm-test` lists this crate (slice 10).
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 

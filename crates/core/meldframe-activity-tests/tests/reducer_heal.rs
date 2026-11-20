@@ -1,7 +1,7 @@
 //! A header the live stream lost is healed by a rev gap (a) or by the wait for a prefix with no header (b), and a
 //! prefix that stays headerless ends as `headerless` (ADR-0021, "Live").
 
-// Under WASM these tests will run through wasm-bindgen-test once `just wasm-test` lists this crate (slice 10).
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 

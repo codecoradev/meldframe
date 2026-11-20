@@ -1,6 +1,10 @@
 //! The hidden-text rule (ADR-0021): `is_hidden_text` is a stricter set than `meldframe_mcp_defs::is_invisible`, named
 //! in full. The set is written out here, apart from the code, and every scalar value is compared with it.
 
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 use meldframe_activity::{is_combining_mark, is_hidden_text};
 
 /// The ranges of the ADR, besides the controls.
