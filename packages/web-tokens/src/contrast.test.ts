@@ -25,6 +25,8 @@ const TEXT: [Role, Role][] = [
   ['chip-text', 'chip-bg'], ['review-text', 'review-bg'],
   // The toast and the banners: their text on their fill, and the dismiss icon and the button label on that fill.
   ['warning', 'warning-bg'], ['danger-text', 'danger-bg'], ['text-muted', 'warning-bg'], ['text-muted', 'danger-bg'],
+  // The Export dialog: the code and its line numbers on the sidebar fill, the code of a finding in the warning colour on the panel.
+  ['text', 'sidebar'], ['text-muted', 'sidebar'], ['warning', 'surface'],
 ];
 const PARTS: [Role, Role][] = [
   ['icon-muted', 'surface'], ['icon-muted', 'field'], ['icon-muted', 'surface-raised'],

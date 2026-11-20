@@ -27,7 +27,12 @@
   import { tabChange, toastFor, type RightTab } from '@meldframe/web-activity/tab';
   import { layerRows } from '@meldframe/web-document/layers';
   import { presetAction } from '@meldframe/web-document/presets';
-  import { type ExportScale, exportFileName, planExport } from '@meldframe/web-document/export';
+  import type { ExportScale } from '@meldframe/web-document/export';
+  import ExportDialog from '@meldframe/web-export/ExportDialog.svelte';
+  import ExportSection from '@meldframe/web-export/ExportSection.svelte';
+  import { type Frame, pngPlan, savePng } from '@meldframe/web-export/png';
+  import { saveBlob } from '@meldframe/web-export/save';
+  import { dialogFrame, reviewSteps } from '@meldframe/web-export/ui';
   import { ringsOnCanvas, type Touched } from '@meldframe/web-document/rings';
   import { serveCapture, waitForSeq, type Req } from '@meldframe/web-document/capture-serve';
   import { bannerFor, connectionLabel } from '@meldframe/web-feedback/connection';
@@ -91,39 +96,24 @@
     ),
   );
 
-  // The one selected frame: PNG export of it (E4.3, drawn offscreen like a capture, then saved by the browser) and a
-  // variant of it (E5.4, the `makeVariant` action).
-  const exportable = $derived.by(() => {
-    const id = snap.state.selection.length === 1 ? snap.state.selection[0] : undefined;
-    const n = id ? nodes.find((x) => x.id === id) : undefined;
-    return n && n.type === 'frame' ? n : null;
-  });
-  async function exportPng(scale: ExportScale) {
-    const n = exportable;
-    if (!canvas || !n) return;
-    const box = canvas.captureBox(n.id);
-    const plan = planExport(box, scale);
-    if (!plan.ok || !box) return showNotice(plan.ok || plan.code !== 'too_large' ? 'There is nothing to export.' : 'The image would be larger than 4096 x 4096 pixels in area.');
-    try {
-      const url = URL.createObjectURL(await canvas.capture(box, scale));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = exportFileName(n.name, n.id, scale);
-      document.body.append(a);
-      a.click();
-      a.remove();
-      // Some browsers read the URL after the click returns: keep it a while.
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch {
-      showNotice('The image could not be drawn.');
-    }
-  }
+  // The frame an export acts on is the app layer's (`state.export.target`); the dialog keeps its own when the selection moves on. PNG (E4.3):
+  // the canvas draws the frame offscreen as a capture is drawn, the plan follows the document (it reads the scene).
+  const target = $derived(snap.state.export.target);
+  let pngScale = $state<ExportScale>(1);
+  const planOf = (f: Frame | null) => (scene && f ? pngPlan(canvas?.captureBox(f.id) ?? null, f, pngScale) : null);
+  const dialogOf = $derived(dialogFrame(snap.state.export.dialog));
+  const exportPng = (f: Frame | null) => f && void savePng({ box: (id) => canvas?.captureBox(id) ?? null, draw: (b, s) => canvas!.capture(b, s), save: saveBlob, notify: showNotice }, f, pngScale);
 
   // A refusal is shown for a few seconds, then goes away; a later snapshot does not cancel that (the timer is not tied to the effect).
   let toast = $state<ToastView | null>(null);
   const toaster = new Toaster((t) => (toast = t), duration.notice);
   const showNotice = (text: string) => toaster.show(text);
   let rightTab = $state<RightTab>('design');
+  const goTab = (t: RightTab) => {
+    const c = tabChange(rightTab, t);
+    rightTab = c.tab;
+    c.actions.forEach(dispatch);
+  };
   // Only the events are tracked: a change of tab or a panel toggle must not show an old refusal again.
   $effect(() => {
     const events = snap.events;
@@ -267,16 +257,16 @@
   onUndo={() => dispatch({ type: 'undo' })}
   onRedo={() => dispatch({ type: 'redo' })}
   onPreset={(p) => canvas && dispatch(presetAction(p, canvas.centre()))}
-  canExport={exportable !== null}
-  onExport={(s) => void exportPng(s)}
-  canVariant={exportable !== null}
-  onVariant={() => exportable && dispatch({ type: 'makeVariant', id: exportable.id })}
+  canExport={target !== null}
+  onExport={() => dispatch({ type: 'openExport' })}
+  canVariant={target !== null}
+  onVariant={() => target && dispatch({ type: 'makeVariant', id: target.id })}
   zoomText={formatZoom(camera.zoom)}
   connection={{ state: snap.state.connection.type, text: connectionLabel(snap.state.connection) }}
   {helpOpen}
   onHelp={(open) => (helpOpen = open)}
   tab={rightTab} activityBadge={snap.state.activity.unreviewedCount}
-  onTab={(t) => { const c = tabChange(rightTab, t); rightTab = c.tab; c.actions.forEach(dispatch); }}
+  onTab={goTab}
 >
   {#snippet canvasLayer()}
     <Canvas
@@ -317,6 +307,8 @@
       <VariablesPanel panel={snap.state.variables} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} />
     </Section>
     <PropertiesPanel properties={snap.state.properties} picker={snap.state.picker ?? null} selected={snap.state.selection.length} {dispatch} />
+    <ExportSection {target} scale={pngScale} onScale={(s) => (pngScale = s)} plan={planOf(target)} onPng={() => exportPng(target)} onHtml={() => dispatch({ type: 'openExport' })} />
   {/snippet}
   {#snippet activityPanel()}<ActivityPanel activity={snap.state.activity} checkpoints={snap.state.checkpoints} self={actor} {dispatch} events={snap.events} />{/snippet}
 </Layout>
+<ExportDialog dialog={snap.state.export.dialog} unreviewed={snap.state.activity.unreviewedCount} scale={pngScale} onScale={(s) => (pngScale = s)} plan={planOf(dialogOf)} onPng={() => exportPng(dialogOf)} {dispatch} onReview={() => { reviewSteps().forEach(dispatch); goTab('activity'); }} />

@@ -34,11 +34,10 @@ export interface FileItem {
   opensDialog?: boolean;
 }
 
-/** The rows of the file menu: PNG export at 1x and 2x and a variant, each for the one selected frame. */
-export function fileItems(o: { canExport: boolean; canVariant: boolean; onExport: (scale: 1 | 2) => void; onVariant: () => void }): FileItem[] {
+/** The rows of the file menu: the Export dialog and a variant, each for the one selected frame. */
+export function fileItems(o: { canExport: boolean; canVariant: boolean; onExport: () => void; onVariant: () => void }): FileItem[] {
   return [
-    { id: 'png1', label: 'Export PNG 1x', onSelect: () => o.onExport(1), disabled: !o.canExport, testId: 'export-1x' },
-    { id: 'png2', label: 'Export PNG 2x', onSelect: () => o.onExport(2), disabled: !o.canExport, testId: 'export-2x' },
+    { id: 'export', label: 'Export…', onSelect: o.onExport, disabled: !o.canExport, testId: 'export', opensDialog: true },
     { id: 'variant', label: 'Make a variant', onSelect: o.onVariant, disabled: !o.canVariant, testId: 'make-variant' },
   ];
 }
