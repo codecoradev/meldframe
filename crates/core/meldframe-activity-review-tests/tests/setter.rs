@@ -2,73 +2,12 @@
 //! the actors named in `MELDFRAME_REVIEWERS` and nobody else, takes a `rev`, goes out as a `batch` frame to every open
 //! stream of the file, and is logged with its actor and outcome code and nothing more.
 
-#[path = "../../meldframe-activity-pg-tests/tests/world/mod.rs"]
-mod world;
-use meldframe_host::Principal;
-use meldframe_http_activity::Reviewers;
+mod support;
 use meldframe_http_live::LiveSource;
 use meldframe_protocol::ServerMsg;
-use meldframe_server::{Frame, StreamId};
+use meldframe_server::StreamId;
 use serde_json::{Value, json};
-use world::*;
-
-const PATH: &str = "/v1/files/f/batches/1/review";
-const BEA: &str = PERSON; // user:bea
-const CLAUDE: &str = ODD[0].0;
-const BIG_AGENT: &str = ODD[1].0; // Agent:x
-const BOT: &str = ODD[2].0;
-const PERSON_X: &str = ODD[3].0;
-const AGENT_X: &str = ODD[4].0; // agent:x
-const EVERYONE: [&str; 8] = [AGENT, BEA, OTHER, CLAUDE, BIG_AGENT, BOT, PERSON_X, AGENT_X];
-
-/// A server whose reviewers are `spec` and whose registry policy for the setter is `policy`, with batch 1 of
-/// `agent:alpha` in file `f` of ws_1.
-async fn served(spec: &str, policy: Option<Policy>) -> World {
-    let who = Reviewers::parse(spec).unwrap();
-    let w = start_review(true, false, Some(Some(Policy::Auto)), Some((who, policy))).await;
-    let c = connect(&w.h, AGENT).await;
-    let args = apply("f", "k1", vec![frame("a", "A")], json!({"note": "n"}));
-    assert!(!call(&c, "apply_commands", args).await.is_error);
-    w
-}
-
-async fn put_to(w: &World, token: Option<&str>, path: &str, body: &str) -> (u16, Value) {
-    let url = format!("http://{}{path}", w.h.addr);
-    let mut req = reqwest::Client::new()
-        .put(url)
-        .header("content-type", "application/json")
-        .body(body.to_owned());
-    if let Some(t) = token {
-        req = req.bearer_auth(t);
-    }
-    let r = req.send().await.unwrap();
-    (r.status().as_u16(), r.json().await.unwrap_or(Value::Null))
-}
-
-async fn set(w: &World, token: &str, state: &str) -> (u16, Value) {
-    put_to(w, Some(token), PATH, &json!({"state": state}).to_string()).await
-}
-
-fn code(body: &Value) -> &str {
-    body["error"]["code"].as_str().unwrap_or("")
-}
-
-fn header(w: &World) -> meldframe_activity::Header {
-    headers(w, "ws_1", "f").remove(0)
-}
-
-fn who(ws: &str, actor: &str) -> Principal {
-    Principal::new(ws, actor)
-}
-
-fn batch_frames(w: &World, p: &Principal, id: StreamId) -> Vec<ServerMsg> {
-    let all = w.server.poll(p, "f", id, 0, 100_000);
-    let msgs = all.into_iter().filter_map(|f| match f {
-        Frame::Ephemeral(m @ ServerMsg::Batch { .. }) => Some(m),
-        _ => None,
-    });
-    msgs.collect()
-}
+use support::*;
 
 #[tokio::test]
 async fn unset_refuses_every_caller_as_forbidden() {

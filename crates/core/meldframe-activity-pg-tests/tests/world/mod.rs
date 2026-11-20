@@ -235,6 +235,7 @@ pub async fn start_review(
     let tokens = Arc::new(DevTokens::parse(&spec).unwrap());
     let cfg = Config {
         timeout: Duration::from_millis(400),
+        body_timeout: Duration::from_millis(300),
         ..config()
     };
     let state = meldframe_http::shared(tokens, slow.clone(), cfg);
