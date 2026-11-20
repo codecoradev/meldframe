@@ -23,6 +23,7 @@ export interface LaneView {
   rows: BatchRow[];
 }
 
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const STATE: Record<LaneState, string> = { working: 'Working', quiet: 'Quiet', idle: 'Idle' };
 // A batch is its actor and its key prefix: two actors may use the same prefix.
 const id = (actor: string, keyPrefix: string) => `${actor}\u0000${keyPrefix}`;
@@ -45,6 +46,13 @@ export function laneViews(a: ActivityState, self: string): LaneView[] {
   }));
 }
 
+/** The line under a lane's name: its kind, its state and its counts, as the app layer gives them. */
+export function laneSummary(l: Pick<LaneView, 'kindWords' | 'stateWords' | 'ops' | 'batches'>): string {
+  const parts = [l.kindWords, l.stateWords.toLowerCase(), plural(l.ops, 'change')];
+  if (l.batches > 0) parts.push(plural(l.batches, 'batch', 'batches'));
+  return parts.join(', ');
+}
+
 export const batchHeading = (r: BatchRow): string => (r.n === null ? 'Batch without a number' : `Batch ${r.n}`);
 
 export function statusWords(r: BatchRow): string {
@@ -56,7 +64,6 @@ export function statusWords(r: BatchRow): string {
   }
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** "2 added, 1 changed: Hero, Title"; null for a row made from a header alone (its ops are not held). */
 export function summaryWords(s: BatchSummary | null): string | null {

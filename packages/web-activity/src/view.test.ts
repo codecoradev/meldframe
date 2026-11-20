@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Checkpoint, Event } from '@meldframe/protocol';
 import { activity, lane, row } from './fixtures';
-import { batchHeading, checkpointWords, clockText, laneViews, messageFor, statusWords, summaryWords } from './view';
+import { batchHeading, checkpointWords, clockText, laneSummary, laneViews, messageFor, statusWords, summaryWords } from './view';
 
 describe('laneViews', () => {
   it('lists the rows of a lane in the order the lane gives, and leaves out a key prefix that has no row', () => {
@@ -50,6 +50,13 @@ describe('laneViews', () => {
     const v = laneViews(a, 'person:ana');
     expect(v.map((l) => `${l.name}/${l.kindWords}`)).toEqual(['You/Agent', 'You/Person', 'claude/Person', 'claude/Agent']);
     expect(v.map((l) => l.actor)).toEqual(['agent:You', 'person:ana', 'person:claude', 'agent:claude']);
+  });
+
+  it('words a lane under its name: kind, state and counts, with the singular for one', () => {
+    const l = (over: Partial<Parameters<typeof laneSummary>[0]>) => laneSummary({ kindWords: 'Agent', stateWords: 'Working', ops: 12, batches: 3, ...over });
+    expect(l({})).toBe('Agent, working, 12 changes, 3 batches');
+    expect(l({ ops: 1, batches: 1 })).toBe('Agent, working, 1 change, 1 batch');
+    expect(l({ batches: 0, kindWords: 'Person' })).toBe('Person, working, 12 changes');
   });
 
   it('words the state of a lane', () => {
