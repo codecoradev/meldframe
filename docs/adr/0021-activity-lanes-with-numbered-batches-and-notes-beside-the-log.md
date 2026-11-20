@@ -76,6 +76,8 @@ E5.1 asks for one lane per agent session with batches, notes and a status, rules
 
 - **Amendment (slice 8, the reducer).** Status `building` is shown while a row has no header and is not final, whether its lane is `working` or in between; the Status bullet's "only while its lane is `working`" left that gap open, and `headerless` stays final (set by `tick` when the 3 tries are spent or the lane is `idle`, and it does not go back to `building`). The lane's state has a third value, `quiet`, from 10 up to 60 seconds after its last op or touch, between `working` and `idle`.
 
+- **Amendment (slice 7, the review setter).** The setter's answer is `{"batch": row, "unreviewedCount": n}`, and a call that sets the state the row has sends no frame (nothing was written). `canReview` is true when the caller's actor is listed and the registry's policy for `batch_review` allows the call, the rule the setter itself applies, so the list never offers controls the route would refuse. A caller that is not allowed gets `forbidden` before the number or the body is read. `MELDFRAME_REVIEWERS` trusts the actor string: an actor shared by a person and an agent is a shared reviewer, so an agent gets a token of its own with an actor that is not listed; ADR-0022 replaces the list with the principal's kind.
+
 ## Owner decisions
 
 Taken after the first draft and applied above: reverts are live only for the MVP and reopen-and-revert follows it; a note is up to 500 characters; agents may read notes through a Read tool and the owner accepts the prompt-injection risk; the review state is part of E5.1, stored in the batch table and set by a person. Taken by the lead after the review: the review setter denies by default and names its reviewers in an explicit list.

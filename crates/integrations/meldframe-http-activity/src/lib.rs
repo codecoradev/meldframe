@@ -16,10 +16,14 @@
 //! The MCP tool `get_batches` (slice 6) is in `tool.rs`: [`tool`] gives it for `McpConfig::extra` and
 //! [`ActivityModule`] registers it as a Read.
 
+mod review;
+mod reviewers;
 mod route;
 mod tool;
 mod wire;
 
+pub use review::{REVIEW_DESCRIPTION, REVIEW_TOOL};
+pub use reviewers::{MAX_REVIEWERS, Reviewers, VAR as REVIEWERS_VAR};
 pub use tool::{ActivityModule, DESCRIPTION, NOTICE, TOOL, input_schema, tool};
 
 use activity_store::BatchStore;
@@ -27,7 +31,7 @@ use meldframe_activity::{BatchCall, BatchSink, Marked, NewBatch};
 use meldframe_host::Principal;
 use meldframe_http::Shared;
 use meldframe_http::mcp::{Extra, Reader};
-use meldframe_module::Policy;
+use meldframe_module::{Policy, Registry};
 use meldframe_protocol::ServerMsg;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -40,6 +44,7 @@ pub type Publish = Arc<dyn Fn(&Principal, &str, ServerMsg) -> usize + Send + Syn
 #[derive(Debug)]
 pub struct Activity {
     sink: Arc<Sink>,
+    setter: Arc<review::Setter>,
 }
 
 impl Activity {
@@ -54,18 +59,29 @@ impl Activity {
         reader: Arc<dyn Reader>,
         live: Option<Publish>,
     ) -> Self {
+        let setter = review::Setter::new(reader.clone(), live.clone());
         Activity {
             sink: Arc::new(Sink {
                 store,
                 reader,
                 live,
             }),
+            setter: Arc::new(setter),
         }
     }
 
-    /// `GET /v1/files/{file}/batches`, on the limits and the tokens of `shared`.
+    /// Names who may set a review state and what the registry's policy for [`REVIEW_TOOL`] is. Without it nobody
+    /// may: the setter answers `forbidden` to every caller and `canReview` is false.
+    #[must_use]
+    pub fn with_review(mut self, reviewers: Reviewers, policy: Option<Policy>) -> Self {
+        self.setter = Arc::new(self.setter.with(reviewers, policy));
+        self
+    }
+
+    /// `GET /v1/files/{file}/batches` and `PUT /v1/files/{file}/batches/{n}/review`, on the limits and the tokens of
+    /// `shared`.
     pub fn routes(&self, shared: Arc<Shared>) -> axum::Router {
-        route::routes(shared, self.sink.store.clone())
+        route::routes(shared, self.sink.store.clone(), self.setter.clone())
     }
 
     /// The sink to set on `meldframe_http::Shared::batches`.
@@ -74,21 +90,45 @@ impl Activity {
     }
 }
 
+/// What the server reads before it hands the registry over: the policies for the two calls of this crate and the
+/// list of reviewers.
+#[derive(Debug, Clone)]
+pub struct Policies {
+    /// `get_batches`, a Read.
+    pub get_batches: Option<Policy>,
+    /// `batch_review`, a Change.
+    pub review: Option<Policy>,
+    /// Who may set a review state: [`REVIEWERS_VAR`].
+    pub reviewers: Reviewers,
+}
+
+/// The policies of `registry` for [`TOOL`] and [`REVIEW_TOOL`], and the reviewers of the environment. A bad list is
+/// an error; the binary reads it once before it opens the store, so a bad list fails before any side effect, and
+/// again here to use it.
+pub fn policies(registry: &Registry) -> Result<Policies, String> {
+    Ok(Policies {
+        get_batches: registry.policy_for(TOOL),
+        review: registry.policy_for(REVIEW_TOOL),
+        reviewers: Reviewers::from_env()?,
+    })
+}
+
 /// Everything the server wires for the activity panel in one call: the sink is set on `shared` (so `apply_commands`
 /// keeps headers, takes a `note` and sends the frame through `publish`) and the routes come back to merge into the
-/// router. `tools` is the list the MCP route serves besides its own and the registry's policy for [`TOOL`]:
-/// `get_batches` is added to the list when the policy is `Auto`. Later slices (the review setter) join here, so the
-/// binary's `main` does not grow with them.
+/// router. `tools` is the list the MCP route serves besides its own and the registry's policies: `get_batches` is
+/// added to the list when its policy is `Auto`. The review setter is a route only, never a tool of that list, and
+/// only the listed reviewers may use it. Later slices join here, so the binary's `main` does not grow with them.
 pub fn install(
     shared: &Arc<Shared>,
     store: Arc<dyn BatchStore>,
     reader: Arc<dyn Reader>,
     publish: Publish,
-    tools: (&mut Vec<Arc<dyn Extra>>, Option<Policy>),
+    tools: (&mut Vec<Arc<dyn Extra>>, Policies),
 ) -> axum::Router {
     let (list, policy) = tools;
-    list.extend(tool(shared.clone(), store.clone(), policy));
+    list.extend(tool(shared.clone(), store.clone(), policy.get_batches));
     let activity = Activity::with_live(store, reader, Some(publish));
+    let activity = activity.with_review(policy.reviewers, policy.review);
     // Set once: a second install on the same `Shared` keeps the first sink.
     let _ = shared.batches.set(activity.sink());
     activity.routes(shared.clone())
@@ -107,7 +147,7 @@ impl std::fmt::Debug for Sink {
 }
 
 /// The server clock in milliseconds.
-fn now_ms() -> u64 {
+pub(crate) fn now_ms() -> u64 {
     let since = SystemTime::now().duration_since(UNIX_EPOCH);
     since.map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
 }

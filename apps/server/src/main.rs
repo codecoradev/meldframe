@@ -33,6 +33,8 @@ fn main() {
     // Serve only when asked, and read secrets from the environment, never from argv. Postgres (and its
     // migrations) is touched only when serving: DATABASE_URL set, else memory.
     let listen = std::env::var("MELDFRAME_LISTEN").ok();
+    #[cfg(feature = "activity")]
+    meldframe_http_activity::Reviewers::from_env().unwrap_or_else(|e| fail(&e));
     let backing = if listen.is_some() {
         Backing::from_env().unwrap_or_else(|e| fail(&e))
     } else {
@@ -105,7 +107,7 @@ fn serve(
     #[cfg(feature = "design-review")]
     let review_policy = server.registry().policy_for(design_review::TOOL);
     #[cfg(feature = "activity")]
-    let batches_policy = server.registry().policy_for(meldframe_http_activity::TOOL);
+    let batches_policy = meldframe_http_activity::policies(server.registry())?;
     #[cfg(feature = "export")]
     let export_policy = server.registry().policy_for(export::TOOL);
     #[cfg(feature = "variables-import")]

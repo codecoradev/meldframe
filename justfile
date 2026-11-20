@@ -15,7 +15,8 @@ dev-db:
 dev:
     bash scripts/dev.sh
 
-# Start the server against an already running dev database (reads .env; no seed, no token handling)
+# Start the server against an already running dev database (reads .env; no seed, no token handling). Needs
+# MELDFRAME_DEV_TOKENS; set MELDFRAME_REVIEWERS (actors, comma separated) for anyone to be allowed to review a batch.
 dev-server:
     @set -a; [ -f .env ] && . ./.env; set +a; cargo run -p meldframe-server
 

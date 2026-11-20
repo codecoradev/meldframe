@@ -1,7 +1,8 @@
 // The M1 demonstration with a real MCP client: Claude Code (the `claude` CLI, `-p` mode) is the agent, connected to the
 // server's MCP endpoint, and the person is the browser editor:
 //   node packages/web-e2e/scripts/m1-claude-demo.mjs [web-url] [server-url]
-// Start first (see m1-demo.mjs): the server with two tokens, `just web` on the same file, then run with
+// Start first (see m1-demo.mjs): the server with two tokens and MELDFRAME_REVIEWERS naming the editor's actor only (the agent
+// must not be listed: the activity panel's review controls are for the person), `just web` on the same file, then run with
 //   MELDFRAME_WEB_FILE=<file> MELDFRAME_DEMO_TOKEN2=<token 2> node packages/web-e2e/scripts/m1-claude-demo.mjs
 // Use a fresh server and a fresh file for each run: a successful capture binds the agent's session to its first file, and a
 // second run on another file would be refused with room_mismatch. `claude` must be installed and logged in. Claude Code gets only the Meldframe MCP servers (`--strict-mcp-config`) and its

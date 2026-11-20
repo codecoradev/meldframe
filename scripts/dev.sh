@@ -4,7 +4,9 @@
 #   - The server applies the migrations itself when it connects (the sqlx migrator owns the schema).
 #   - A development token is generated on first run, saved in the git-ignored .dev-token (mode 600) and
 #     printed once. The server gets it through the environment, never through argv.
-# Variables (or .env, see .env.example): DATABASE_URL, MELDFRAME_LISTEN (default 127.0.0.1:8080).
+#   - The dev actor (agent:dev, the actor of the dev token and of `just web`) is added to MELDFRAME_REVIEWERS, so the
+#     editor can accept or flag a batch (ADR-0021). Without it nobody may. A list in .env is kept after it.
+# Variables (or .env, see .env.example): DATABASE_URL, MELDFRAME_LISTEN (default 127.0.0.1:8080), MELDFRAME_REVIEWERS.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -26,6 +28,7 @@ else
 fi
 # token:workspace:actor, the workspace and actor of the seed.
 export MELDFRAME_DEV_TOKENS="$(cat .dev-token):ws_dev:agent:dev"
+export MELDFRAME_REVIEWERS="agent:dev${MELDFRAME_REVIEWERS:+,$MELDFRAME_REVIEWERS}"
 
 SAFE_DB=${DATABASE_URL#*@}; [ "$SAFE_DB" = "$DATABASE_URL" ] && SAFE_DB=${DATABASE_URL#*://} # host:port/database, no password
 echo "server on http://$MELDFRAME_LISTEN (database $SAFE_DB)"
