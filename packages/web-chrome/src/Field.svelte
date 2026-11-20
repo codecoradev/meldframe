@@ -23,11 +23,13 @@
     bound?: boolean;
     /** Something drawn before the input, such as a colour swatch. */
     lead?: Snippet;
+    /** The value in the mono face (numbers, ids, variable values). */
+    mono?: boolean;
     /** `data-testid` of the input. */
     testId?: string;
     [data: `data-${string}`]: string | undefined;
   }
-  let { label, value, onInput, onCommit, prefix, suffix, size = 'default', disabled = false, invalid = false, bound = false, lead, testId, ...rest }: Props = $props();
+  let { label, value, onInput, onCommit, prefix, suffix, size = 'default', disabled = false, invalid = false, bound = false, lead, mono = false, testId, ...rest }: Props = $props();
   const name = $derived(requireLabel(label, 'Field'));
   const look = $derived(
     invalid
@@ -43,7 +45,7 @@
   {#if lead}{@render lead()}{/if}
   <input
     data-testid={testId}
-    class="min-w-0 flex-1 border-0 bg-transparent p-0 font-[inherit] text-[inherit] outline-none"
+    class="{mono ? 'font-mono' : 'font-[inherit]'} min-w-0 flex-1 border-0 bg-transparent p-0 text-[inherit] outline-none"
     aria-label={name}
     aria-invalid={invalid || undefined}
     {value}

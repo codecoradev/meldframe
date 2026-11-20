@@ -164,7 +164,7 @@ export const radius = { xs: 4, sm: 6, md: 8, lg: 12, pill: 999 } as const;
 /** Control heights and panel widths in px. */
 export const size = {
   'control-sm': 24, 'control-md': 28, 'control-lg': 32, 'control-wide': 34, 'control-xl': 36,
-  sidebar: 248, layers: 260, inspector: 288, activity: 360, chat: 352, files: 280, 'top-card': 52,
+  sidebar: 248, layers: 260, inspector: 288, activity: 360, chat: 352, files: 280, 'top-card': 52, 'variables-list': 192,
 } as const;
 /** Opacity of a disabled control (DESIGN.md 5.1). */
 export const opacity = { disabled: 0.5 } as const;
