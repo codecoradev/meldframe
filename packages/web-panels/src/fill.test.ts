@@ -4,7 +4,7 @@ import type { Picker, Properties } from '@meldframe/protocol';
 import TestHost from '@meldframe/web-chrome/TestHost.svelte';
 import PropertiesPanel from './PropertiesPanel.svelte';
 
-const base: Properties = { id: 'n', name: 'Hero', kind: 'rect', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, minStops: 2, maxStops: 8, radius: 0, text: '', fontSize: 16, opacity: 1, clip: false, bound: [], bindings: [] };
+const base: Properties = { id: 'n', name: 'Hero', kind: 'rect', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, minStops: 2, maxStops: 8, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], maxShadows: 4, radius: 0, text: '', fontSize: 16, opacity: 1, clip: false, bound: [], bindings: [] };
 const gradient = { kind: 'linear' as const, angle: 90, stops: [{ pos: 0, color: '#112233' }, { pos: 0.5, color: '#445566' }, { pos: 1, color: '#ffffff' }] };
 // The section is drawn inside the properties panel, which hands it the chip of a bound field.
 const html = (properties: Properties, picker: Picker | null = null) =>

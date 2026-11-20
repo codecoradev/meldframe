@@ -2,7 +2,7 @@
 
 use crate::activity::ActivityState;
 use crate::variables::{BindField, Picker, VariablesPanel};
-use meldframe_protocol::{Gradient, ImageFill, NodeKind};
+use meldframe_protocol::{Border, Gradient, ImageFill, NodeKind, Shadow};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -195,6 +195,12 @@ pub struct Properties {
     #[ts(optional)]
     pub image: Option<ImageFill>,
     pub radius: f64,
+    /// The uniform border; a width of 0 is none.
+    pub border: Border,
+    /// The drop shadows in the order they are drawn (the first is at the bottom), at most `max_shadows`.
+    pub shadows: Vec<Shadow>,
+    /// The most shadows a node holds.
+    pub max_shadows: usize,
     pub text: String,
     pub font_size: f64,
     /// Opacity as painted, 0 to 1 (a bound field: what the variable resolves to, held to that range).
