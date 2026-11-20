@@ -30,7 +30,7 @@ fn number_text(v: f64) -> String {
     format!("{v}")
 }
 
-fn value_text(v: &Value) -> String {
+pub fn value_text(v: &Value) -> String {
     match v {
         Value::Color(css) => css.clone(),
         Value::Number(n) => number_text(*n),

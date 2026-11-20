@@ -4,6 +4,7 @@ import type { Checkpoint } from "./Checkpoint";
 import type { Connection } from "./Connection";
 import type { History } from "./History";
 import type { Panels } from "./Panels";
+import type { Picker } from "./Picker";
 import type { Properties } from "./Properties";
 import type { Tool } from "./Tool";
 import type { VariablesPanel } from "./VariablesPanel";
@@ -52,4 +53,8 @@ variables: VariablesPanel,
 /**
  * The Activity panel (E5.1): lanes, batches with their notes and review states, and touch rings.
  */
-activity: ActivityState, };
+activity: ActivityState, 
+/**
+ * The bind picker of a field of the selected node: `Some` only while it is open.
+ */
+picker?: Picker, };

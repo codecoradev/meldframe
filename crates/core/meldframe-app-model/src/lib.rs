@@ -24,6 +24,6 @@ pub use state::{
     Properties, Tool,
 };
 pub use variables::{
-    BindField, BindOption, CollectionRow, ModeValue, TypeHeading, VariableRow, VariableValue,
-    VariablesPanel,
+    BindField, BindOption, CollectionRow, ModeValue, Picker, PickerRow, TypeHeading, VariableRow,
+    VariableValue, VariablesPanel,
 };

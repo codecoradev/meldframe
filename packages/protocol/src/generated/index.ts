@@ -47,6 +47,8 @@ export type { NodePatch } from './NodePatch';
 export type { OutOp } from './OutOp';
 export type { Panel } from './Panel';
 export type { Panels } from './Panels';
+export type { Picker } from './Picker';
+export type { PickerRow } from './PickerRow';
 export type { Properties } from './Properties';
 export type { Property } from './Property';
 export type { RevertSkip } from './RevertSkip';

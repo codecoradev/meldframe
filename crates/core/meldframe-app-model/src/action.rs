@@ -139,6 +139,20 @@ pub enum Action {
         field: BindField,
         variable: Option<String>,
     },
+    /// Open the bind picker of a field of the selected node: the variables that fit the field are listed in
+    /// `AppState::picker` until it is closed. View state (no op, no undo step). Refused as `not_found` for a node that
+    /// is not there, `not_selected` for a node that is not the one selected, and `not_bindable` for a field the node
+    /// has no use for.
+    OpenPicker {
+        id: String,
+        field: BindField,
+    },
+    /// Close the bind picker.
+    ClosePicker {},
+    /// Search the bind picker (the text is trimmed and cut at 200 characters).
+    SetPickerQuery {
+        query: String,
+    },
     /// Remove the nodes with their descendants, as one undo step.
     Delete {
         ids: Vec<String>,

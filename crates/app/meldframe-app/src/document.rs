@@ -188,7 +188,21 @@ impl App {
                 id,
                 field,
                 variable,
-            } => self.bind_property(&id, field, variable),
+            } => {
+                let done = self.bind_property(&id, field, variable);
+                // The field is settled: the picker that was open on it has done its work. A bind that was refused
+                // leaves it open, so the person can pick another.
+                if done.is_ok()
+                    && self
+                        .state
+                        .picker
+                        .as_ref()
+                        .is_some_and(|p| p.id == id && p.field == field)
+                {
+                    self.state.picker = None;
+                }
+                done
+            }
             Action::Undo {} => self.step(true),
             Action::Redo {} => self.step(false),
             // The other actions are not about the document.

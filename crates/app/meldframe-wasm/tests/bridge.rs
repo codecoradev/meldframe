@@ -242,3 +242,29 @@ fn the_variables_panel_is_state_and_its_actions_are_json() {
     let events: Vec<Value> = serde_json::from_str(&b.take_events_json()).unwrap();
     assert!(events.contains(&json!({"type": "variablesQueryChanged", "query": "nothing"})));
 }
+
+#[test]
+fn the_bind_picker_is_state_and_its_actions_are_json() {
+    let nodes = json!([{"id": "card", "type": "rect", "pos": "a0", "fill": "#336699"}]).to_string();
+    let vars = json!({
+        "collections": [{"id": "t", "name": "appearance", "modes": [{"id": "light", "name": "light"}]}],
+        "variables": [{"id": "bg", "collection": "t", "name": "color/bg", "type": "color",
+            "values": {"light": "#ffffff"}}]
+    })
+    .to_string();
+    let mut b = Bridge::new("usr_me", "web", 7, &nodes, 0, Some(&vars)).expect("the file loads");
+    let state = |b: &Bridge| -> Value { serde_json::from_str(&b.state_json()).unwrap() };
+    run(&mut b, json!({"type": "select", "ids": ["card"]}));
+    // The picker is absent until opened, lists the colour variables, and a bind closes it.
+    assert!(state(&b).get("picker").is_none());
+    run(
+        &mut b,
+        json!({"type": "openPicker", "id": "card", "field": "fill"}),
+    );
+    assert_eq!(state(&b)["picker"]["rows"][0]["id"], "bg");
+    run(
+        &mut b,
+        json!({"type": "bindProperty", "id": "card", "field": "fill", "variable": "bg"}),
+    );
+    assert!(state(&b).get("picker").is_none());
+}

@@ -4,6 +4,7 @@
 //! that owns the state, the replica and the events stays in `meldframe-app`, and calls these.
 
 pub mod document;
+pub mod picker;
 pub mod properties;
 pub mod touched;
 pub mod variables_panel;

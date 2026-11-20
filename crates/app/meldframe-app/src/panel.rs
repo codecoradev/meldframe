@@ -22,6 +22,8 @@ const MAX_QUERY: usize = 200;
 pub(crate) struct PanelCache {
     key: Option<Key>,
     builds: u64,
+    /// How many times the bind picker was built (a test seam, as `builds`).
+    pub(crate) picker_builds: u64,
 }
 
 #[derive(Debug, PartialEq)]
