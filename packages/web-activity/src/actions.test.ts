@@ -1,0 +1,18 @@
+import { describe, expect, it } from 'vitest';
+import { older, refOf, restore, revert, show } from './actions';
+import { row } from './fixtures';
+
+describe('what the controls send', () => {
+  const r = row({ actor: 'agent:claude', keyPrefix: 'k7', n: 7 });
+  it('Show selects the batch by its actor and key prefix, and not by its number', () => {
+    expect(show(r)).toEqual({ type: 'selectBatch', batch: { actor: 'agent:claude', keyPrefix: 'k7' } });
+    expect(refOf(r)).toEqual({ actor: 'agent:claude', keyPrefix: 'k7' });
+  });
+  it('Revert names the actor and key prefix of the batch', () => {
+    expect(revert(r)).toEqual({ type: 'revertBatch', actor: 'agent:claude', keyPrefix: 'k7' });
+  });
+  it('restores a checkpoint by id and asks for older batches without arguments', () => {
+    expect(restore('c1')).toEqual({ type: 'restoreCheckpoint', id: 'c1' });
+    expect(older()).toEqual({ type: 'loadOlderBatches' });
+  });
+});

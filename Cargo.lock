@@ -2081,6 +2081,10 @@ name = "meldframe-web"
 version = "0.0.0"
 
 [[package]]
+name = "meldframe-web-activity"
+version = "0.0.0"
+
+[[package]]
 name = "meldframe-web-assets"
 version = "0.0.0"
 

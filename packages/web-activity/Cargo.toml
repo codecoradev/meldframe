@@ -1,0 +1,16 @@
+[package]
+name = "meldframe-web-activity"
+description = "The Activity panel of the web client (Svelte and TypeScript): it draws the app layer's activity state and sends actions (this manifest makes the package a unit of the size and layering checks)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "ui"
+
+[lib]
+path = "rust/lib.rs"
+
+[lints]
+workspace = true
