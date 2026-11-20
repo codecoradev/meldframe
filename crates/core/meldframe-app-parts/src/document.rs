@@ -27,6 +27,7 @@ pub fn code(e: &SubmitError) -> &'static str {
         ApplyError::DuplicateId(_) => "duplicate_id",
         ApplyError::ParentNotFound(_) | ApplyError::ParentNotFrame(_) => "bad_parent",
         ApplyError::Cycle => "cycle",
+        ApplyError::GradientOnText => "gradient_on_text",
         ApplyError::TooManyNodes(_)
         | ApplyError::TooDeep(_)
         | ApplyError::TooLong { .. }

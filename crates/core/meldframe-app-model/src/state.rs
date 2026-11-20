@@ -2,7 +2,7 @@
 
 use crate::activity::ActivityState;
 use crate::variables::{BindField, Picker, VariablesPanel};
-use meldframe_protocol::NodeKind;
+use meldframe_protocol::{Gradient, ImageFill, NodeKind};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -178,6 +178,22 @@ pub struct Properties {
     pub h: f64,
     /// The colour that is painted: the literal, or what the bound variable has in the picked modes.
     pub fill: String,
+    /// The type of the fill the person sees: an image over everything, else a gradient, else the colour (`none` for
+    /// the word none).
+    pub fill_kind: FillKind,
+    /// Whether the node's fill can be a gradient (the canvas paints none on text), and the fewest and most stops of one.
+    pub gradient_allowed: bool,
+    pub min_stops: usize,
+    pub max_stops: usize,
+    /// The gradient over `fill`, as the file holds it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub gradient: Option<Gradient>,
+    /// The image over `fill` and the gradient. It can be shown and taken away here; the app layer has no way to pick
+    /// an asset yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub image: Option<ImageFill>,
     pub radius: f64,
     pub text: String,
     pub font_size: f64,
@@ -203,4 +219,21 @@ pub struct FieldBinding {
     pub name: String,
     /// The variable no longer exists (another actor removed it): the field keeps the binding and paints its default.
     pub missing: bool,
+}
+
+/// The type of a fill, as the type switch of the Fill section lists it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum FillKind {
+    /// A colour (or a variable that holds one).
+    Solid,
+    /// No fill.
+    None,
+    /// A gradient along a line.
+    Linear,
+    /// A gradient from the centre.
+    Radial,
+    /// An image. It reads from the file; it is not offered as a choice until the app layer can pick an asset.
+    Image,
 }

@@ -4,7 +4,7 @@ import type { Properties } from '@meldframe/protocol';
 import TestHost from '@meldframe/web-chrome/TestHost.svelte';
 import PropertiesPanel from './PropertiesPanel.svelte';
 
-const base: Properties = { id: 'n', name: 'Hero', kind: 'frame', x: 10, y: 20, w: 300, h: 120, fill: '#112233', radius: 8, text: '', fontSize: 16, opacity: 0.5, clip: true, bound: [], bindings: [] };
+const base: Properties = { id: 'n', name: 'Hero', kind: 'frame', x: 10, y: 20, w: 300, h: 120, fill: '#112233', fillKind: 'solid', gradientAllowed: true, minStops: 2, maxStops: 8, radius: 8, text: '', fontSize: 16, opacity: 0.5, clip: true, bound: [], bindings: [] };
 const b = (field: 'fill' | 'opacity' | 'radius', over = {}) => ({ field, variable: 'v1', name: 'space/md', missing: false, ...over });
 const html = (properties: Properties | null, selected = properties ? 1 : 0) =>
   render(TestHost as never, { props: { of: PropertiesPanel, props: { properties, selected, dispatch: () => {} } } as never }).body;
@@ -52,9 +52,13 @@ describe('the properties panel as the Properties and Inspector boards draw it', 
   it('has a bind button on each field that takes a variable, and none on a field that is bound already', () => {
     const out = html(base);
     for (const f of ['fill', 'opacity', 'radius']) expect(out).toContain(`data-testid="prop-${f}-bind"`);
-    const bound = html({ ...base, bound: ['opacity'], bindings: [b('opacity')] });
-    expect(bound).not.toContain('data-testid="prop-opacity-bind"');
+    for (const f of ['fill', 'opacity', 'radius'] as const) {
+      const bound = html({ ...base, bound: [f], bindings: [b(f)] });
+      expect(bound, f).not.toContain(`data-testid="prop-${f}-bind"`);
+      for (const other of ['fill', 'opacity', 'radius'].filter((x) => x !== f)) expect(bound, `${f} bound, ${other}`).toContain(`data-testid="prop-${other}-bind"`);
+    }
     expect(html({ ...base, kind: 'text' })).not.toContain('data-testid="prop-radius-bind"');
+    expect(html({ ...base, kind: 'text' })).toContain('data-testid="prop-opacity-bind"');
   });
   it('is one group named Properties with a rule above it, and its sections are the landmarks inside', () => {
     const out = html(base);

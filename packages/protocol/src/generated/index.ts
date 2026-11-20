@@ -27,6 +27,7 @@ export type { Effect } from './Effect';
 export type { Event } from './Event';
 export type { FieldBinding } from './FieldBinding';
 export type { FileSnapshot } from './FileSnapshot';
+export type { FillKind } from './FillKind';
 export type { Frame } from './Frame';
 export type { FramePreset } from './FramePreset';
 export type { Gradient } from './Gradient';

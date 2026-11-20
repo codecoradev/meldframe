@@ -20,8 +20,8 @@ pub use activity::{
 pub use effect::{Effect, OutOp};
 pub use event::{Event, RevertSkip, RevertSkipReason};
 pub use state::{
-    AppState, Checkpoint, CheckpointKind, Connection, FieldBinding, History, Panel, Panels,
-    Properties, Tool,
+    AppState, Checkpoint, CheckpointKind, Connection, FieldBinding, FillKind, History, Panel,
+    Panels, Properties, Tool,
 };
 pub use variables::{
     BindField, BindOption, CollectionRow, ModeValue, Picker, PickerRow, TypeHeading, VariableRow,

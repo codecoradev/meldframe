@@ -268,3 +268,33 @@ fn the_bind_picker_is_state_and_its_actions_are_json() {
     );
     assert!(state(&b).get("picker").is_none());
 }
+
+#[test]
+fn fill_types_and_gradient_stops_are_state_and_actions_in_json() {
+    let nodes = json!([{"id": "card", "type": "rect", "pos": "a0", "fill": "#336699"}]).to_string();
+    let mut b = Bridge::new("usr_me", "web", 7, &nodes, 0, None).expect("the file loads");
+    let state = |b: &Bridge| -> Value { serde_json::from_str(&b.state_json()).unwrap() };
+    run(&mut b, json!({"type": "select", "ids": ["card"]}));
+    assert_eq!(state(&b)["properties"]["fillKind"], "solid");
+    run(
+        &mut b,
+        json!({"type": "setProperty", "id": "card", "property": {"property": "fillType", "value": "linear"}}),
+    );
+    let p = state(&b)["properties"].clone();
+    assert_eq!(p["fillKind"], "linear");
+    assert_eq!(
+        p["gradient"]["stops"][0],
+        json!({"pos": 0.0, "color": "#336699"})
+    );
+    run(
+        &mut b,
+        json!({"type": "setProperty", "id": "card", "property": {"property": "addGradientStop", "value": {}}}),
+    );
+    assert_eq!(
+        state(&b)["properties"]["gradient"]["stops"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
+}
