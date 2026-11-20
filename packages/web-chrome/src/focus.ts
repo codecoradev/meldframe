@@ -52,3 +52,23 @@ export function nextIndex(key: string, index: number, count: number, off: readon
   }
   return undefined;
 }
+
+/** What can be given the focus back: an element that may have left the page. */
+export interface Focusable {
+  isConnected: boolean;
+  focus(): void;
+}
+let back: Focusable | null = null;
+
+/** A menu row that opens a dialog remembers the menu's button here, so the dialog can give the focus back to it when it closes. */
+export function rememberFocus(el: Focusable | null): void {
+  back = el;
+}
+
+/** The remembered element, once; null when none was remembered or it left the page. */
+export function takeFocusBack(): Focusable | null {
+  const el = back;
+  back = null;
+  return el?.isConnected ? el : null;
+}
+

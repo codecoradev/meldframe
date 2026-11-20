@@ -13,7 +13,7 @@
   import Tabs from './Tabs.svelte';
   import TooltipProvider from './TooltipProvider.svelte';
   import { platformLabels } from './platform';
-  import { PANEL_INSET, reserved, rightWidth, type RightTab } from './layout';
+  import { PANEL_INSET, fileItems, reserved, rightWidth, type RightTab } from './layout';
 
   type Tool = 'select' | 'frame' | 'rectangle' | 'text';
   interface Props {
@@ -56,11 +56,7 @@
     { tool: 'rectangle', label: 'Rectangle', key: 'R', icon: 'rectangle' },
     { tool: 'text', label: 'Text', key: 'T', icon: 'text' },
   ];
-  const fileItems = $derived([
-    { id: 'png1', label: 'Export PNG 1x', onSelect: () => onExport(1), disabled: !canExport, testId: 'export-1x' },
-    { id: 'png2', label: 'Export PNG 2x', onSelect: () => onExport(2), disabled: !canExport, testId: 'export-2x' },
-    { id: 'variant', label: 'Make a variant', onSelect: onVariant, disabled: !canVariant, testId: 'make-variant' },
-  ]);
+  const fileMenu = $derived(fileItems({ canExport, canVariant, onExport, onVariant }));
   const presetItems = (['desktop', 'tablet', 'mobile'] as const).map((p) => ({
     id: p, label: `New ${p} frame`, onSelect: () => onPreset(p), testId: `preset-${p}`,
   }));
@@ -91,7 +87,7 @@
   {#if layersOpen}
     <section aria-label="Left panel" data-owns-keys data-testid="layers-card" class="{card} top-3 bottom-3 left-3 w-(--mf-size-layers)">
       <header class="flex h-(--mf-size-top-card) shrink-0 items-center gap-2 border-b border-hairline px-2">
-        <Menu label="File menu" icon="menu" items={fileItems} testId="file-menu" />
+        <Menu label="File menu" icon="menu" items={fileMenu} testId="file-menu" />
         <span class="min-w-0 flex-1 truncate font-semibold text-text-strong" title={fileName}>{fileName}</span>
         <IconButton label="Layers panel" icon="panel-left" pressed={true} onclick={flipLayers} data-focus="layers" />
       </header>
@@ -99,7 +95,7 @@
     </section>
   {:else}
     <div class="{topCard} left-4" data-owns-keys data-testid="top-left-card">
-      <Menu label="File menu" icon="menu" items={fileItems} testId="file-menu" />
+      <Menu label="File menu" icon="menu" items={fileMenu} testId="file-menu" />
       <span class="max-w-48 truncate px-2 font-medium" title={fileName}>{fileName}</span>
       <IconButton label="Layers panel" icon="panel-left" pressed={false} onclick={flipLayers} data-focus="layers" />
     </div>

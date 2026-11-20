@@ -5,7 +5,7 @@ import Button from './Button.svelte';
 import IconButton from './IconButton.svelte';
 import { icons } from './Icon.svelte';
 import TestHost from './TestHost.svelte';
-import { nextIndex, requireLabel, square } from './focus';
+import { nextIndex, rememberFocus, requireLabel, square, takeFocusBack } from './focus';
 
 const html = (c: unknown, props: Record<string, unknown>) => render(TestHost as never, { props: { of: c, props } as never }).body;
 const text = (s: string) => createRawSnippet(() => ({ render: () => `<span>${s}</span>` }));
@@ -31,6 +31,34 @@ describe('the keyboard rule of a roving group', () => {
     expect(nextIndex('a', 1, 3)).toBeUndefined();
     expect(nextIndex('Enter', 1, 3)).toBeUndefined();
     expect(nextIndex('ArrowRight', 0, 0)).toBeUndefined();
+  });
+});
+
+describe('where the focus goes back to when a dialog from a menu closes', () => {
+  const el = (connected = true) => ({ isConnected: connected, focused: 0, focus() { this.focused++; } });
+
+  it('gives back the element that was remembered, once', () => {
+    const button = el();
+    rememberFocus(button);
+    expect(takeFocusBack()).toBe(button);
+    expect(takeFocusBack()).toBeNull();
+  });
+
+  it('gives nothing back for an element that left the page, and forgets it', () => {
+    rememberFocus(el(false));
+    expect(takeFocusBack()).toBeNull();
+    expect(takeFocusBack()).toBeNull();
+  });
+
+  it('the latest remembered element wins, and remembering nothing clears it', () => {
+    const a = el();
+    const b = el();
+    rememberFocus(a);
+    rememberFocus(b);
+    expect(takeFocusBack()).toBe(b);
+    rememberFocus(a);
+    rememberFocus(null);
+    expect(takeFocusBack()).toBeNull();
   });
 });
 

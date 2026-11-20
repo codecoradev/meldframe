@@ -23,3 +23,22 @@ export function barClear(viewportWidth: number, barWidth: number, open: { layers
   const start = (viewportWidth - barWidth) / 2;
   return start >= left + BAR_GAP && viewportWidth - start - barWidth >= right + BAR_GAP;
 }
+
+/** A row of the file menu. `opensDialog`: the row opens a dialog, which takes the focus, so the menu does not give it back to its button. */
+export interface FileItem {
+  id: string;
+  label: string;
+  onSelect: () => void;
+  disabled?: boolean;
+  testId: string;
+  opensDialog?: boolean;
+}
+
+/** The rows of the file menu: PNG export at 1x and 2x and a variant, each for the one selected frame. */
+export function fileItems(o: { canExport: boolean; canVariant: boolean; onExport: (scale: 1 | 2) => void; onVariant: () => void }): FileItem[] {
+  return [
+    { id: 'png1', label: 'Export PNG 1x', onSelect: () => o.onExport(1), disabled: !o.canExport, testId: 'export-1x' },
+    { id: 'png2', label: 'Export PNG 2x', onSelect: () => o.onExport(2), disabled: !o.canExport, testId: 'export-2x' },
+    { id: 'variant', label: 'Make a variant', onSelect: o.onVariant, disabled: !o.canVariant, testId: 'make-variant' },
+  ];
+}
