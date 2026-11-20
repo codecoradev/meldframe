@@ -5,7 +5,8 @@
 use crate::app::App;
 use crate::effect::Effect;
 use crate::event::Event;
-use crate::state::Properties;
+use crate::state::{FieldBinding, Properties};
+use meldframe_app_model::BindField;
 use meldframe_check::{ApplyError, Limits, check_command_with};
 use meldframe_protocol::{Command, Node};
 use meldframe_render::Fields;
@@ -126,9 +127,31 @@ impl App {
     pub(crate) fn properties(&self, n: &Node) -> Properties {
         let choice = self.choice();
         let fields = Fields::new(self.vars(), &choice);
-        let bound: Vec<String> = node_bindings(n)
+        let found = node_bindings(n);
+        let bound: Vec<String> = found.iter().map(|b| b.field.to_string()).collect();
+        let bindings = found
             .iter()
-            .map(|b| b.field.to_string())
+            .filter_map(|b| {
+                let field = match b.field {
+                    "fill" => BindField::Fill,
+                    "radius" => BindField::Radius,
+                    "opacity" => BindField::Opacity,
+                    _ => return None,
+                };
+                let variable = b.var.to_string();
+                let name = self
+                    .vars()
+                    .variables
+                    .iter()
+                    .find(|v| v.id == variable)?
+                    .name
+                    .clone();
+                Some(FieldBinding {
+                    field,
+                    variable,
+                    name,
+                })
+            })
             .collect();
         Properties {
             id: n.id.clone(),
@@ -142,7 +165,10 @@ impl App {
             radius: fields.radius(&n.radius),
             text: n.text.clone(),
             font_size: n.font_size,
+            opacity: fields.opacity(&n.opacity),
+            clip: n.clip,
             bound,
+            bindings,
         }
     }
 }

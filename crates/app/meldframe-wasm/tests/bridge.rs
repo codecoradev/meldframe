@@ -51,6 +51,32 @@ fn create_node_changes_nodes_state_and_events() {
 }
 
 #[test]
+fn opacity_and_clip_cross_the_boundary_in_the_action_and_in_the_properties() {
+    let mut b = bridge();
+    run(&mut b, json!({"type": "start", "nowMs": 1}));
+    run(&mut b, json!({"type": "connected", "nowMs": 2}));
+    run(
+        &mut b,
+        json!({"type": "createNode", "kind": "frame", "x": 0.0, "y": 0.0, "parent": null}),
+    );
+    let state: Value = serde_json::from_str(&b.state_json()).unwrap();
+    let id = state["selection"][0].clone();
+    for property in [
+        json!({"property": "opacity", "value": 0.5}),
+        json!({"property": "clip", "value": false}),
+    ] {
+        run(
+            &mut b,
+            json!({"type": "setProperty", "id": id, "property": property}),
+        );
+    }
+    let state: Value = serde_json::from_str(&b.state_json()).unwrap();
+    assert_eq!(state["properties"]["opacity"], 0.5);
+    assert_eq!(state["properties"]["clip"], false);
+    assert_eq!(state["properties"]["bindings"], json!([]));
+}
+
+#[test]
 fn bad_json_and_unknown_actions_are_errors_not_panics() {
     let mut b = bridge();
     assert!(b.dispatch("not json").is_err());

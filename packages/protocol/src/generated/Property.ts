@@ -3,4 +3,4 @@
 /**
  * One value of the properties panel.
  */
-export type Property = { "property": "name", "value": string } | { "property": "fill", "value": string } | { "property": "radius", "value": number } | { "property": "fontSize", "value": number };
+export type Property = { "property": "name", "value": string } | { "property": "fill", "value": string } | { "property": "radius", "value": number } | { "property": "fontSize", "value": number } | { "property": "opacity", "value": number } | { "property": "clip", "value": boolean };

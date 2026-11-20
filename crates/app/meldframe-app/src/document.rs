@@ -183,6 +183,8 @@ impl App {
                     Property::Fill(v) => patch.fill = Some(v.into()),
                     Property::Radius(v) => patch.radius = Some(v.into()),
                     Property::FontSize(v) => patch.font_size = Some(v),
+                    Property::Opacity(v) => patch.opacity = Some(v.into()),
+                    Property::Clip(v) => patch.clip = Some(v),
                 }
                 self.replica.apply(&update(&id, patch))
             }
