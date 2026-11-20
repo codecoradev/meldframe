@@ -27,7 +27,7 @@
   import ActivityPanel from '@meldframe/web-activity/ActivityPanel.svelte';
   import { tabChange, toastFor, type RightTab } from '@meldframe/web-activity/tab';
   import { layerRows } from '@meldframe/web-document/layers';
-  import { presetAction } from '@meldframe/web-document/presets';
+  import { presetAction } from '@meldframe/web-shell/presets';
   import type { ExportScale } from '@meldframe/web-document/export';
   import ExportDialog from '@meldframe/web-export/ExportDialog.svelte';
   import ExportSection from '@meldframe/web-export/ExportSection.svelte';

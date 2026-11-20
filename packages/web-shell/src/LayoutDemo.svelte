@@ -5,7 +5,9 @@
 <script lang="ts">
   import Layout from './Layout.svelte';
   import { HOME, formatZoom, type Camera } from '@meldframe/web-canvas/camera';
+  import type { FramePreset } from '@meldframe/protocol';
   import { layoutKey } from './keys';
+  import { presetSize } from './presets';
   import { zoomCamera } from './zoom';
 
   let tool = $state<'select' | 'frame' | 'rectangle' | 'text'>('select');
@@ -16,6 +18,8 @@
   // The zoom menu changes a camera of its own here; fitting has no content to fit, so it goes home.
   let camera = $state<Camera>({ ...HOME });
   const toggle = (k: 'layers' | 'inspector') => (k === 'layers' ? (layersOpen = !layersOpen) : (inspectorOpen = !inspectorOpen));
+  // The frames the New frame menu makes here: boxes of the preset's size, for the browser check.
+  let frames = $state<{ preset: FramePreset; w: number; h: number }[]>([]);
   const rows = ['Landing Desktop', 'Hero', 'Hero Title', 'Pricing', 'Security'];
 </script>
 
@@ -33,7 +37,7 @@
   canRedo={false}
   onUndo={() => {}}
   onRedo={() => {}}
-  onPreset={() => {}}
+  onPreset={(p) => (frames = [...frames, { preset: p, ...presetSize(p) }])}
   canExport={true}
   onExport={() => {}}
   canVariant={true}
@@ -46,7 +50,7 @@
   {tab}
   onTab={(t) => (tab = t)}
 >
-  {#snippet canvasLayer()}<div class="absolute inset-0 bg-canvas"></div>{/snippet}
+  {#snippet canvasLayer()}<div class="absolute inset-0 overflow-hidden bg-canvas">{#each frames as f, i (i)}<div data-testid="demo-frame" data-preset={f.preset} style:width="{f.w}px" style:height="{f.h}px" class="absolute top-0 left-0 rounded-sm border border-border bg-surface"></div>{/each}</div>{/snippet}
   {#snippet layersPanel()}<ul class="m-0 list-none p-2">{#each rows as r (r)}<li class="rounded-sm px-2 py-1">{r}</li>{/each}</ul>{/snippet}
   {#snippet designPanel()}<p class="m-0 p-4 text-text-muted">Design panel content</p>{/snippet}
   {#snippet activityPanel()}<p class="m-0 p-4 text-text-muted">Activity panel content</p>{/snippet}

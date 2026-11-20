@@ -12,8 +12,10 @@
   import ShortcutHint from './ShortcutHint.svelte';
   import Tabs from '@meldframe/web-chrome/Tabs.svelte';
   import TooltipProvider from '@meldframe/web-chrome/TooltipProvider.svelte';
+  import type { FramePreset } from '@meldframe/protocol';
   import { onMac, platformLabels } from './platform';
   import { PANEL_INSET, fileItems, reserved, rightWidth, type RightTab } from './layout';
+  import { presetItems } from './presets';
   import { zoomItems, type ZoomCommand } from './zoom';
 
   type Tool = 'select' | 'frame' | 'rectangle' | 'text';
@@ -29,7 +31,7 @@
     canRedo: boolean;
     onUndo: () => void;
     onRedo: () => void;
-    onPreset: (p: 'desktop' | 'tablet' | 'mobile') => void;
+    onPreset: (p: FramePreset) => void;
     /** The file menu: the Export dialog for the selected frame, and a variant of it. */
     canExport: boolean;
     onExport: () => void;
@@ -60,9 +62,7 @@
     { tool: 'text', label: 'Text', key: 'T', icon: 'text' },
   ];
   const fileMenu = $derived(fileItems({ canExport, canVariant, onExport, onVariant }));
-  const presetItems = (['desktop', 'tablet', 'mobile'] as const).map((p) => ({
-    id: p, label: `New ${p} frame`, onSelect: () => onPreset(p), testId: `preset-${p}`,
-  }));
+  const presetRows = $derived(presetItems(onPreset));
   const keys = platformLabels();
   const zoomRows = $derived(zoomItems({ mac: onMac(), onZoom }));
   // A card and its folded form swap one header button for another, so the focus would be lost: after a toggle made
@@ -124,7 +124,7 @@
       <IconButton label={t.label} icon={t.icon} size={36} shortcut={t.key} pressed={tool === t.tool} onclick={() => onTool(t.tool)} data-testid="tool-{t.tool}" />
     {/each}
     <span class={divider} aria-hidden="true"></span>
-    <Menu label="New frame" icon="plus" size={36} items={presetItems} side="top" testId="frame-presets" />
+    <Menu label="New frame" icon="plus" size={36} items={presetRows} side="top" testId="frame-presets" />
     <span class={divider} aria-hidden="true"></span>
     <IconButton label="Undo" icon="undo" size={36} shortcut={keys.undo} disabled={!canUndo} onclick={onUndo} data-testid="undo" />
     <IconButton label="Redo" icon="redo" size={36} shortcut={keys.redo} disabled={!canRedo} onclick={onRedo} data-testid="redo" />

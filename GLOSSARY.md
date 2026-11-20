@@ -27,7 +27,7 @@ A named canvas inside a file that holds frames.
 _Avoid_: Sheet, screen
 
 **Frame**:
-A top-level container on a page with a size, usually a screen or a slide. Frames come from presets (Desktop, Tablet, Mobile; later Carousel, Story, Slide).
+A top-level container on a page with a size, usually a screen or a slide. Frames come from presets (Desktop, Desktop HD, Tablet, Mobile, Phone small, A4, Letter; later Carousel, Story, Slide).
 _Avoid_: Artboard, screen
 
 **Node**:
