@@ -12,6 +12,7 @@ use meldframe_app_parts::properties::Drawn;
 use meldframe_app_rules::drop::{Drag, Slot, drop_commands, drop_slot};
 use meldframe_app_rules::resize::resize;
 use meldframe_check::ApplyError;
+use meldframe_layout::Rect;
 use meldframe_sync::SubmitError;
 
 impl App {
@@ -25,12 +26,7 @@ impl App {
     ) -> Result<(), SubmitError> {
         let nodes = self.replica.nodes();
         // Without the laid-out boxes the rule has none to read, and a drop is a move by the drag.
-        let rects = if self.canvas.enabled {
-            self.canvas.rects(nodes)
-        } else {
-            Vec::new()
-        };
-        let cmds = drop_commands(nodes, &rects, &Drag { id, at, by })?;
+        let cmds = self.with_rects(|rects| drop_commands(nodes, rects, &Drag { id, at, by }))?;
         self.validate(&cmds)?;
         apply_all(&mut self.replica, &cmds)
     }
@@ -39,16 +35,27 @@ impl App {
     /// down), from the same decision as the drop. None with the flag off and for a drop that goes into no flow. It reads
     /// and changes nothing.
     ///
-    /// Cost: it lays the whole file out again on every call (native release: about 0.4 ms for 1,000 nodes, 1.6 ms for 4,000
-    /// and 3.6 ms for 10,000: linear in the file, the cost of the layout). Before the flag is on by default, a host should skip the call while
-    /// the slot cannot have changed (the pointer has not crossed the middle of a sibling), or the app keep the boxes of
-    /// the last layout.
+    /// Cost: the file is laid out once for a revision of the document and a measurer, and the app keeps the boxes, so the
+    /// calls that follow while the pointer moves and nothing else changes read them (`layout_runs` counts the layouts).
+    /// What is left on each call is the rule itself, a few passes over the nodes. Under WASM (Node, release, a column of
+    /// 5,000 children): about 2.6 ms a call with a layout on every call, about 1.0 ms with the cache (0.46 and 0.17 ms for
+    /// 1,000 nodes).
     pub fn drop_preview(&self, id: &str, at: (f64, f64), by: (f64, f64)) -> Option<Slot> {
         if !self.canvas.enabled {
             return None;
         }
         let nodes = self.replica.nodes();
-        drop_slot(nodes, &self.canvas.rects(nodes), &Drag { id, at, by })
+        self.with_rects(|rects| drop_slot(nodes, rects, &Drag { id, at, by }))
+    }
+
+    /// The laid-out boxes for a rule to read, kept for the revision of the document and the measurer (empty with the flag
+    /// off: the rules then have none to read and fall back to the stored boxes).
+    fn with_rects<R>(&self, read: impl FnOnce(&[(String, Rect)]) -> R) -> R {
+        if !self.canvas.enabled {
+            return read(&[]);
+        }
+        self.canvas
+            .with_rects(self.replica.revision(), self.replica.nodes(), read)
     }
 
     /// `Action::Resize`: the size, the origin, and with laid-out boxes the side that becomes fixed.
@@ -62,17 +69,13 @@ impl App {
         let Some(n) = nodes.iter().find(|n| n.id == id) else {
             return Err(ApplyError::NotFound(id.to_string()).into());
         };
-        let rects = if self.canvas.enabled {
-            self.canvas.rects(nodes)
-        } else {
-            Vec::new()
-        };
-        let drawn = rects.iter().find(|(i, _)| i == id).map(|(_, r)| *r);
+        let drawn = self.with_rects(|rects| rects.iter().find(|(i, _)| i == id).map(|(_, r)| *r));
         let parent = n
             .parent_id
             .as_deref()
             .and_then(|p| nodes.iter().find(|x| x.id == p));
-        self.replica.apply(&resize(n, drawn, parent, size, origin))
+        let cmd = resize(n, drawn, parent, size, origin);
+        self.replica.apply(&cmd)
     }
 
     /// The box the canvas draws the one selected node at, when the canvas reads laid-out boxes (the panel shows it).

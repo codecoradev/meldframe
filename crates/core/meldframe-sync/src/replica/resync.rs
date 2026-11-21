@@ -46,6 +46,7 @@ impl Replica {
         view.set_optimistic(true);
         self.base = view.doc().clone();
         self.view = view;
+        self.epoch += 1;
         self.seq = seq;
         self.drop_ideal();
         self.run_left.clear();

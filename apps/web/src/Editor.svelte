@@ -11,6 +11,7 @@
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
   import Canvas from './canvas/Canvas.svelte';
   import { createActionFor, deleteAction, drawnBox, keyAction, ownsKeys, worldOrigin, moveActionsFor, movePreviewFor, previewScene, resizeActionFor, resizePreviewFor, toolMode, type Preview } from '@meldframe/web-document/edit';
+  import { perFrame } from '@meldframe/web-document/coalesce';
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
   import Layout from '@meldframe/web-shell/Layout.svelte';
@@ -196,9 +197,19 @@
     }
   });
 
+  // The pointer reports faster than the screen draws: the slot is asked of the app layer once per animation frame, on the
+  // latest move; the end of the gesture is never held back.
+  const slotQuery = perFrame<MoveIntent>(
+    { request: (cb) => requestAnimationFrame(cb), cancel: (id) => cancelAnimationFrame(id) },
+    (i) => (preview = movePreviewFor(i, nodes, (id, at, by) => engine.dropPreview(id, at, by))),
+  );
+  onDestroy(() => slotQuery.cancel());
+
   /** The app layer says where a dragged child of a flow would land (a line), else the box follows the pointer. */
   function onMove(i: MoveIntent) {
-    preview = movePreviewFor(i, nodes, (id, at, by) => engine.dropPreview(id, at, by));
+    if (!i.final && !i.cancelled) return slotQuery.push(i);
+    slotQuery.cancel();
+    preview = null;
     for (const a of moveActionsFor(i, snap.state.selection, nodes)) dispatch(a);
   }
 
