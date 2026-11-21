@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { decodePng, diffPixels, fontsReady, openMeasurePage, OUT, solve, writePage } from './lib.mjs';
+import { screenshot } from './screenshot.mjs';
 import fixtures from './fixtures.mjs';
 
 const C = { red: [255, 0, 0], green: [0, 255, 0], blue: [0, 0, 255], white: [255, 255, 255], pink: [255, 128, 128], mint: [128, 255, 128], lilac: [128, 128, 255] };
@@ -45,7 +46,7 @@ export async function paint({ browser, base, log = () => {}, mutate = (_form, e)
       const page = await (await browser.newContext({ viewport, deviceScaleFactor: 1 })).newPage();
       await page.goto(await writePage(base, `${name}/paint.${form}`, form, mutate(form, fr[form])));
       await fontsReady(page);
-      shots[form] = await decodePng(browser, await page.screenshot());
+      shots[form] = await decodePng(browser, await screenshot(page));
       await page.context().close();
       for (const [what, x, y, want] of list) {
         const got = shots[form](x, y);
@@ -82,10 +83,10 @@ export async function blur({ browser, base, log = () => {} }) {
       app.stage.addChild(g); app.render(); window.__done = true;
     }, radius);
     await pg.waitForFunction(() => window.__done);
-    const pixi = await decodePng(browser, await pg.screenshot());
+    const pixi = await decodePng(browser, await screenshot(pg));
     const dg = await (await browser.newContext({ viewport: { width: 400, height: 300 }, deviceScaleFactor: 1 })).newPage();
     await dg.setContent(`<body style="margin:0;background:#fff"><div style="position:absolute;left:150px;top:100px;width:120px;height:80px;background:#000;box-shadow:0 0 ${radius}px 0 #000000ff"></div>`);
-    const dom = await decodePng(browser, await dg.screenshot());
+    const dom = await decodePng(browser, await screenshot(dg));
     const rows = [1, 3, 5, 8, 12, 16, 20, 30].map((d) => ({ d, pixi: pixi(150 - d, 140)[0], css: dom(150 - d, 140)[0] }));
     const maxAbs = Math.max(...rows.map((r) => Math.abs(r.css - r.pixi)));
     results.push({ blur: radius, maxAbs, rows });
