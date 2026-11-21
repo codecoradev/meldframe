@@ -29,6 +29,20 @@ ignore:
         - "**/*.test.ts"
         - "**/*.spec.ts"
       reason: "A removed test helper breaks no production caller, and a test that still used it fails its own build; the rule matches by name across languages."
+    # The same rule on the source files themselves. It reads a changed signature of a crate-private helper
+    # (a refactor that gives a function another parameter, as in #184) as a removed symbol with many callers,
+    # and counts callers by name across languages: `contains`, `find`, `update`, `box_of` of the Rust helper
+    # were listed against callers in JavaScript and in other crates. In this repository every crate, package
+    # and the web client are built and tested whole in CI (`cargo clippy --workspace --all-targets`, `cargo
+    # test --workspace`, the WASM build, `svelte-check` and the vitest suites), so a caller that a change
+    # leaves behind fails its own build, which is the authority on callers; the rule adds no check. Scripts
+    # (`.mjs`), workflows and documents are not covered by this exception and stay scanned.
+    - rule: index-breaking-change
+      files:
+        - "**/*.rs"
+        - "**/*.ts"
+        - "**/*.svelte"
+      reason: "Rust, TypeScript and Svelte callers of a changed signature are checked by the whole-workspace build and the type checker of CI; the rule matches by name across languages and lists callers that are not callers."
 
 hook:
   mode: block
