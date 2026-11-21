@@ -55,13 +55,18 @@ node oracle.mjs --seeds 50                      # what a pull request runs (npm 
 node oracle.mjs --seeds 500                     # what the nightly runs
 node oracle.mjs --seeds 50 --geometry-only      # skip the paint and ink oracles (the slow part is the browser start)
 node oracle.mjs f13-overflow fz-007 --seeds 10  # only these files (geometry only)
-npm test                                        # the gate on made-up results (no browser)
+npm test                                        # the gate on made-up results and the screenshot retry on a fake page (no browser)
 npm run sensitivity                             # the gate fails on a wrong export (mutations in geometry and paint are caught)
 ```
 
 The gate also fails when the run checks too little: fewer than 17 fixtures, fewer fuzz files than seeds, fewer than 30% of the
 seeds inside the contract, a missing or empty paint, ink or blur section, or `--seeds 0`. A fuzz file that carries `fill_under_hug` fails (rule G1 is applied to the fuzz
 files). Inside rule G3 only box deltas are excused.
+
+Chromium now and then fails a screenshot with `Protocol error (Page.captureScreenshot): Unable to capture screenshot` after every
+numeric gate has passed. Every screenshot of the harness goes through `screenshot.mjs`, which retries exactly that error up to
+twice, after 500 ms, and prints `retry n: screenshot protocol error` each time so a recurring flake stays visible. A gate
+failure and any other error are never retried; a third failure of the same call fails the run.
 
 `out/` (pages, `results.json`) is git-ignored. A failing fuzz seed prints its file: add it to `fixtures.mjs`.
 `CARGO_TARGET_DIR` is honoured when it is set.
