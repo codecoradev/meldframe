@@ -1,0 +1,12 @@
+:root {
+  --appearance-color-brand: #112233;
+  --appearance-color-accent: var(--appearance-color-brand);
+  --appearance-color-unused: #ffffff80;
+  --sizes-radius-card: 12;
+  --sizes-opacity-muted: 0.4;
+}
+:root[data-mode-appearance="dark"] {
+  --appearance-color-brand: #aabbcc;
+  --appearance-color-accent: #000000;
+  --appearance-color-unused: #fff;
+}

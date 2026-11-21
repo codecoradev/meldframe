@@ -2039,9 +2039,11 @@ dependencies = [
 name = "meldframe-variables-import-tests"
 version = "0.0.0"
 dependencies = [
+ "export",
  "meldframe-core",
  "meldframe-protocol",
  "meldframe-variables",
+ "serde_json",
  "variables-import",
  "wasm-bindgen-test",
 ]

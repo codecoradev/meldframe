@@ -130,6 +130,40 @@ pub fn export_frame(
     emit::export(nodes, vars, frame, options)
 }
 
+/// Every variable of a file as CSS custom properties, for the Export variables dialog (D8).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VariablesExport {
+    /// One declaration per line, in the blocks of [`export_frame`]: `:root` for the default mode of each collection
+    /// and `:root[data-mode-<collection>="<mode>"]` for each other mode. Empty when the file has no variable.
+    pub css: String,
+    /// Collections that hold a variable, variables, and rules written (`:root` and one per other mode).
+    pub collections: usize,
+    pub variables: usize,
+    pub blocks: usize,
+    /// What could not be written as it is stored: `missing_value`, `invalid_colour`, `unresolved_alias`.
+    pub warnings: Vec<Finding>,
+}
+
+/// Every variable of the file, not only the ones a frame uses, as CSS custom properties (ADR-0019 names: `--<collection>-<name>`),
+/// one declaration per line. A colour is written as its stored hex, lowercased, alpha included; an alias is `var(--other)`. Pure
+/// and deterministic. More than [`MAX_OUTPUT_BYTES`] is [`ExportError::TooLarge`].
+pub fn export_variables(vars: &Variables) -> Result<VariablesExport, ExportError> {
+    let (css, collections, blocks, report) = vars::file(vars);
+    if css.len() > MAX_OUTPUT_BYTES {
+        return Err(ExportError::TooLarge {
+            bytes: css.len(),
+            max: MAX_OUTPUT_BYTES,
+        });
+    }
+    Ok(VariablesExport {
+        css,
+        collections,
+        variables: vars.variables.len(),
+        blocks,
+        warnings: report.warnings,
+    })
+}
+
 /// The tool text an agent reads (English, part of the contract; `docs/mcp-tools.json` lists it).
 pub const DESCRIPTION: &str = "Export a frame of a file, and everything inside it, as a whole HTML document with the styles of a design that matches the canvas. Pass file and frame (the id of a frame; a top-level frame sits at its own x and y, a frame inside another at the origin). format is css (the default: one rule per node in an inline stylesheet) or tailwind (Tailwind v4 utilities on each element; the css in the result is the input of the Tailwind compiler, and the html links it as meldframe.css). Variables the frame uses become CSS variables (--collection-name) on :root, one rule per extra mode, and a bound fill, radius or opacity is var(--...); pass modes, an object of collection id to mode id, to export a mode other than the default (the result says it in the html attributes). The result lists under report what the export could not carry: unsupported (a shader is approximated by a gradient, a border or image on text is dropped, a border on a frame that clips is clipped) and warnings (layout findings, bindings that do not resolve, text a browser breaks differently), and the ids of the images the html refers to under assets (the files are not included; the font is inter.woff2 next to the document). Text sizes come from the server's stub measurer, not the browser's, so text boxes are only as exact as that. A frame whose export is over the size limit is refused as E_EXPORT_TOO_LARGE: export a smaller frame; a node that is not in the file is E_NODE_NOT_FOUND and one that is not a frame E_NOT_A_FRAME. Changes nothing.";
 
