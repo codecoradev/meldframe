@@ -10,9 +10,9 @@
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { ring } from '@meldframe/web-chrome/focus';
+  import { TYPE_LABEL } from '@meldframe/web-document/labels';
   import NameForm from './NameForm.svelte';
   import { count, label, type Ask, type Summary } from './manage';
-  import { TYPE_LABEL } from './variables';
 
   interface Props {
     col: CollectionRow;

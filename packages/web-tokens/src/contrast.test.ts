@@ -73,7 +73,7 @@ describe('audited contrast pairs, both themes', () => {
 });
 
 // Where the pairs are used: a class list that puts on-accent text on the brand blue, or text-faint on real text.
-const ROOTS = ['../../../apps/web/src', '../../web-canvas/src', '../../web-input/src', '../../web-panels/src', '../../web-activity/src', '../../web-feedback/src', '../../web-export/src', '../../web-document/src', '../../web-assets/src', '../../web-link/src', '../../web-chrome/src', '../../web-shell/src'];
+const ROOTS = ['../../../apps/web/src', '../../web-canvas/src', '../../web-input/src', '../../web-panels/src', '../../web-variables/src', '../../web-activity/src', '../../web-feedback/src', '../../web-export/src', '../../web-document/src', '../../web-assets/src', '../../web-link/src', '../../web-chrome/src', '../../web-shell/src'];
 function* sources(dir: string): Generator<string> {
   let entries;
   try {
