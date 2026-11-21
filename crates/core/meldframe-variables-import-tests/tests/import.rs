@@ -177,3 +177,23 @@ fn an_alias_keeps_its_type_from_its_target_and_a_fallback_is_reported_not_kept()
     );
     assert_eq!(entries(&i, "fallback_ignored").len(), 1);
 }
+
+#[test]
+fn a_byte_order_mark_in_front_of_the_text_is_not_part_of_the_first_selector() {
+    // An editor or a download puts U+FEFF in front of a style sheet: the first rule is still `:root`.
+    let plain = run(":root { --a: #fff; --b: #000; }");
+    let marked = run("\u{feff}:root { --a: #fff; --b: #000; }");
+    assert_eq!(marked.report.variables, 2, "{:?}", marked.report.entries);
+    assert_eq!(
+        format!("{:?}", marked.commands),
+        format!("{:?}", plain.commands)
+    );
+    // A mark alone is no text with variables, and a mark in the middle is not removed.
+    assert!(run("\u{feff}").commands.is_empty());
+    assert_eq!(
+        run(":root { --a: #fff; } \u{feff}.x { --c: #fff; }")
+            .report
+            .variables,
+        1
+    );
+}

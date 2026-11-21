@@ -1,0 +1,20 @@
+[package]
+name = "variables-import-dialog"
+description = "The Import variables dialog of the app layer (D8): CSS text to the commands of one undo step and the result a front end shows, with the refusals that apply nothing. A function of the text and the file; no state. Split from meldframe-app for the size ceiling."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "feature"
+group = "variables-import"
+
+[lints]
+workspace = true
+
+[dependencies]
+meldframe-app-model = { path = "../../../core/meldframe-app-model" }
+meldframe-app-rules = { path = "../../../core/meldframe-app-rules" }
+meldframe-protocol = { path = "../../../core/meldframe-protocol" }
+variables-import = { path = "../variables-import" }
