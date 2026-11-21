@@ -38,7 +38,8 @@ fn a_box_is_plain_json_with_camel_case_names() {
         boxes[1],
         json!({
             "id": "n", "parent": "p", "paint": "rect", "x": 1.0, "y": 2.0, "w": 3.0, "h": 4.0, "fill": 0x102030,
-            "radius": 0.0, "text": "", "fontSize": 0.0, "name": "", "clip": true, "opacity": 1.0,
+            "radius": 0.0, "text": "", "fontSize": 0.0, "fontWeight": 0, "textAlign": "left", "name": "",
+            "clip": true, "opacity": 1.0,
             "gradient": {"kind": "linear", "angle": 90.0, "stops": [[0.0, "#fff"], [1.0, "#000"]]},
             "image": {"assetId": "a", "fit": "fill"}
         })
@@ -46,4 +47,15 @@ fn a_box_is_plain_json_with_camel_case_names() {
     assert_eq!(boxes[0]["parent"], Value::Null);
     assert_eq!(boxes[0]["paint"], "frame");
     assert!(boxes[0].get("gradient").is_none() && boxes[0].get("image").is_none());
+}
+
+#[test]
+fn a_text_box_carries_the_weight_and_the_alignment_the_canvas_draws_with() {
+    let t: Node = serde_json::from_value(json!({
+        "id": "t", "type": "text", "text": "Hi", "fontSize": 20, "fontWeight": 700, "textAlign": "center"
+    }))
+    .unwrap();
+    let boxes = serde_json::to_value(resolve(&[t])).unwrap();
+    assert_eq!(boxes[0]["fontWeight"], 700);
+    assert_eq!(boxes[0]["textAlign"], "center");
 }

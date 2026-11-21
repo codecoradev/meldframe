@@ -8,6 +8,22 @@ const parentScene = (...nodes: SceneNode[]): Scene => ({ space: 'parent', nodes 
 const worldScene = (...nodes: SceneNode[]): Scene => ({ space: 'world', nodes });
 
 describe('resolveScene', () => {
+  it('resolves the weight and the alignment of a text, regular and left when the scene says nothing', () => {
+    const rs = resolveScene(parentScene(
+      node({ id: 'a', kind: 'text', fontWeight: 700, textAlign: 'right' }),
+      node({ id: 'b', kind: 'text' }),
+    )).scene;
+    expect(rs.byId.get('a')).toMatchObject({ fontWeight: 700, textAlign: 'right' });
+    expect(rs.byId.get('b')).toMatchObject({ fontWeight: 400, textAlign: 'left' });
+  });
+
+  it('a change of weight or alignment is a change of the node, so the text is drawn again', () => {
+    const first = resolveScene(parentScene(node({ id: 'a', kind: 'text', fontWeight: 400 }))).scene;
+    expect(resolveScene(parentScene(node({ id: 'a', kind: 'text', fontWeight: 700 })), first).patch.changed).toEqual(['a']);
+    expect(resolveScene(parentScene(node({ id: 'a', kind: 'text', fontWeight: 400, textAlign: 'center' })), first).patch.changed).toEqual(['a']);
+    expect(resolveScene(parentScene(node({ id: 'a', kind: 'text', fontWeight: 400 })), first).patch.changed).toEqual([]);
+  });
+
   it('adds the parent offset in parent space and keeps world space as given', () => {
     const p = resolveScene(parentScene(
       node({ id: 'f', kind: 'frame', x: 100, y: 50, w: 200, h: 100 }),

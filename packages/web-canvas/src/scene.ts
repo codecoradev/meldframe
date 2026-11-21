@@ -17,6 +17,7 @@ export type { SceneGradient } from './gradient';
 export type { SceneImage, SceneImageFit } from './image';
 export type NodeKind = 'frame' | 'rect' | 'text';
 export type SceneSpace = 'parent' | 'world';
+export type SceneTextAlign = 'left' | 'center' | 'right';
 
 export interface SceneNode {
   id: string;
@@ -35,6 +36,10 @@ export interface SceneNode {
   text?: string;
   /** Font size in world units (kind 'text'). */
   fontSize?: number;
+  /** 100 to 900 (kind 'text'); absent means 400. */
+  fontWeight?: number;
+  /** Where the lines sit in the box (kind 'text'); absent means left. */
+  textAlign?: SceneTextAlign;
   /** Name drawn above a frame that sits on the canvas. */
   name?: string;
   /** A frame that clips its children to its own rectangle. */
@@ -73,6 +78,8 @@ export interface ResolvedNode {
   radius: number;
   text: string;
   fontSize: number;
+  fontWeight: number;
+  textAlign: SceneTextAlign;
   name: string;
   clip: boolean;
   /** Visible itself and through every ancestor. */
@@ -105,7 +112,7 @@ function sameNode(a: ResolvedNode, b: ResolvedNode): boolean {
   return (
     a.parent === b.parent && a.kind === b.kind && a.depth === b.depth &&
     rectsEqual(a, b) && a.lx === b.lx && a.ly === b.ly &&
-    a.fill === b.fill && a.radius === b.radius && a.text === b.text && a.fontSize === b.fontSize &&
+    a.fill === b.fill && a.radius === b.radius && a.text === b.text && a.fontSize === b.fontSize && a.fontWeight === b.fontWeight && a.textAlign === b.textAlign &&
     a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) && sameImage(a.image, b.image) &&
     (a.clipRect === b.clipRect || (!!a.clipRect && !!b.clipRect && rectsEqual(a.clipRect, b.clipRect)))
   );
@@ -142,6 +149,8 @@ function resolveAll(scene: Scene): ResolvedNode[] {
         radius: n.radius ?? 0,
         text: n.text ?? '',
         fontSize: n.fontSize ?? 0,
+        fontWeight: n.fontWeight ?? 400,
+        textAlign: n.textAlign ?? 'left',
         name: n.name ?? '',
         clip: n.clip ?? false,
         visible: (n.visible ?? true) && (parent ? parent.visible : true),

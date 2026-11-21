@@ -1,6 +1,6 @@
 use meldframe_protocol::{
     Bind, DEFAULT_FILL, DEFAULT_OPACITY, DEFAULT_RADIUS, GradientKind, ImageFit, Node, NodeKind,
-    Value, Variables,
+    TextAlign, Value, Variables,
 };
 use meldframe_variables::{ModeChoice, Resolver};
 use serde::Serialize;
@@ -51,6 +51,10 @@ pub struct PaintedBox {
     pub radius: f64,
     pub text: String,
     pub font_size: f64,
+    /// 100..=900; 0 on a box that is not a text, like `font_size`.
+    pub font_weight: u16,
+    /// Where the lines sit in the box; left on a box that is not a text.
+    pub text_align: TextAlign,
     pub name: String,
     pub clip: bool,
     pub opacity: f64,
@@ -251,6 +255,12 @@ fn paint(n: &Node, parent: Option<&str>, cx: &Fields) -> PaintedBox {
             String::new()
         },
         font_size: if is_text { n.font_size } else { 0.0 },
+        font_weight: if is_text { n.font_weight } else { 0 },
+        text_align: if is_text {
+            n.text_align
+        } else {
+            TextAlign::default()
+        },
         name: n.name.clone(),
         clip: n.clip,
         // Like the canvas, an opacity counts only when it is a number below 1.

@@ -10,7 +10,8 @@ import { paintBody, type Drawable } from './bodycanvas';
 import type { Rect } from '@meldframe/web-canvas/geometry';
 import type { Camera } from '@meldframe/web-canvas/camera';
 import type { ResolvedNode, ResolvedScene, ScenePatch } from '@meldframe/web-canvas/scene';
-import { fonts } from '@meldframe/web-tokens/tokens';
+import { alignOffset } from '@meldframe/web-canvas/textstyle';
+import { drawStyle } from './pixitext';
 
 type Body = Sprite | Graphics;
 
@@ -131,7 +132,7 @@ export class WorldView {
     v.c.alpha = n.opacity;
     const geometry = first || prev.w !== n.w || prev.h !== n.h || prev.radius !== n.radius || prev.kind !== n.kind;
     const fill = first || prev.fill !== n.fill || !sameGradient(prev.gradient, n.gradient) || !sameImage(prev.image, n.image);
-    if (n.kind === 'text') this.updateText(v, n, first || geometry || fill || prev.text !== n.text || prev.fontSize !== n.fontSize);
+    if (n.kind === 'text') this.updateText(v, n, first || geometry || fill || prev.text !== n.text || prev.fontSize !== n.fontSize || prev.fontWeight !== n.fontWeight || prev.textAlign !== n.textAlign);
     else if (geometry || fill) this.updateBody(v, n);
     if (first || prev.clip !== n.clip || (n.clip && geometry)) this.updateMask(v, n);
     this.placeParts(v);
@@ -209,13 +210,7 @@ export class WorldView {
   private updateText(v: NodeView, n: ResolvedNode, redo: boolean): void {
     if (!redo && v.text) return;
     this.dropBody(v);
-    const style = {
-      fontFamily: fonts.sans,
-      fontSize: Math.max(1, n.fontSize),
-      fill: n.fill ?? 0,
-      wordWrap: n.w > 0,
-      wordWrapWidth: Math.max(1, n.w),
-    };
+    const style = drawStyle(n);
     if (!v.text) {
       v.text = new Text({ text: n.text, style });
       v.text.eventMode = 'none';
@@ -223,6 +218,8 @@ export class WorldView {
       v.text.text = n.text;
       v.text.style = style;
     }
+    // The block of lines is as wide as its widest line: put it where the alignment says in the box.
+    v.text.x = alignOffset(n.textAlign, n.w, v.text.width);
   }
 
   private updateMask(v: NodeView, n: ResolvedNode): void {
