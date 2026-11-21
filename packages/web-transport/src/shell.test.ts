@@ -8,7 +8,7 @@ class FakeSocket implements SocketLike {
   sent: string[] = [];
   closed = false;
   onopen = () => {};
-  onmessage = (_data: string) => {};
+  onmessage: (data: string) => void = () => {};
   onclose = () => {};
   constructor(public url: string) {}
   send(s: string) {

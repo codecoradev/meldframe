@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { decodePng, fontsReady, openMeasurePage, OUT, solve, writePage } from './lib.mjs';
+import { screenshot } from './screenshot.mjs';
 import { frame, text } from './fixtures.mjs';
 
 const P = 'The quick brown fox jumps over the lazy dog while the export keeps every line break where the canvas put it.';
@@ -56,7 +57,7 @@ async function pixiShot(browser, base, rects) {
   }, [nodes, rects, H]);
   await page.waitForFunction(() => window.__done);
   await page.waitForTimeout(200);
-  const png = await page.screenshot();
+  const png = await screenshot(page);
   await page.context().close();
   return decodePng(browser, png);
 }
@@ -82,7 +83,7 @@ export async function textInk({ browser, base, log = () => {} }) {
     const page = await (await browser.newContext({ viewport: { width: 800, height: H }, deviceScaleFactor: 1 })).newPage();
     await page.goto(await writePage(base, `ink/free.${form}`, form, ans.frames[0][form]));
     await fontsReady(page);
-    const dom = await decodePng(browser, await page.screenshot());
+    const dom = await decodePng(browser, await screenshot(page));
     await page.context().close();
     for (const [id] of CASES) {
       const r = rects[id];

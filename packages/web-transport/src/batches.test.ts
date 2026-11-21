@@ -1,4 +1,4 @@
-// The web-link seam of the Activity panel (E5.1, ADR-0021 slice 11): the flat `batch` frame of the socket becomes the
+// The web-transport seam of the Activity panel (E5.1, ADR-0021 slice 11): the flat `batch` frame of the socket becomes the
 // app layer's `Frame::Batch`, the answers of the list and review routes become actions, and the two effects are
 // carried out with a fake fetch. Nothing from the network is trusted: shape and bounds are checked here.
 import type { Action, AppState, Effect } from '@meldframe/protocol';
@@ -97,7 +97,7 @@ class FakeSocket implements SocketLike {
   sent: string[] = [];
   closed = false;
   onopen = () => {};
-  onmessage = (_d: string) => {};
+  onmessage: (data: string) => void = () => {};
   onclose = () => {};
   send(s: string) { this.sent.push(s); }
   close() { this.closed = true; }
