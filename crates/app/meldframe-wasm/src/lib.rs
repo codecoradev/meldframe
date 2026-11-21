@@ -79,6 +79,12 @@ impl Bridge {
         to_json(&self.app.scene())
     }
 
+    /// Where in a flow a drop would put the node: `null`, or `{frame, index, line: {x, y, w, h}}` (JSON; `meldframe_app::DropSlot`;
+    /// `at` is the pointer and `(dx, dy)` the drag, world space). It changes nothing.
+    pub fn drop_preview_json(&self, id: &str, at: (f64, f64), by: (f64, f64)) -> String {
+        to_json(&self.app.drop_preview(id, at, by))
+    }
+
     /// The events since the last call (JSON array); empties the queue.
     pub fn take_events_json(&mut self) -> String {
         to_json(&self.app.take_events())
@@ -201,6 +207,11 @@ impl WasmApp {
     #[wasm_bindgen(js_name = sceneJson)]
     pub fn scene_json(&self) -> String {
         self.bridge.scene_json()
+    }
+
+    #[wasm_bindgen(js_name = dropPreviewJson)]
+    pub fn drop_preview_json(&self, id: &str, x: f64, y: f64, dx: f64, dy: f64) -> String {
+        self.bridge.drop_preview_json(id, (x, y), (dx, dy))
     }
 
     #[wasm_bindgen(js_name = takeEventsJson)]

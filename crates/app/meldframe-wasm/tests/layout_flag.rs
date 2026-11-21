@@ -59,3 +59,23 @@ fn the_flag_is_not_state_not_an_event_and_not_the_file() {
     assert_eq!(b.nodes_json(), nodes);
     assert_eq!(b.take_events_json(), "[]");
 }
+
+#[test]
+fn the_drop_preview_is_null_until_the_layout_is_on_and_then_a_slot_as_json() {
+    let mut b = bridge();
+    // `b` is drawn from y 35 to 65 once laid out; `a` is dragged to a pointer past its middle.
+    assert_eq!(b.drop_preview_json("a", (30.0, 60.0), (0.0, 0.0)), "null");
+    b.set_layout_on_canvas(true);
+    let slot: Value =
+        serde_json::from_str(&b.drop_preview_json("a", (30.0, 60.0), (0.0, 0.0))).unwrap();
+    assert_eq!(
+        slot,
+        json!({"frame": "f", "index": 1, "line": {"x": 10.0, "y": 65.0, "w": 180.0, "h": 0.0}})
+    );
+    assert_eq!(
+        b.drop_preview_json("a", (1500.0, 900.0), (0.0, 0.0)),
+        "null",
+        "out of the flow"
+    );
+    assert_eq!(b.take_events_json(), "[]", "a preview raises no event");
+}

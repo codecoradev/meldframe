@@ -88,8 +88,11 @@ assert.deepEqual(JSON.parse(lay.setLayoutOnCanvas(true)), [{ type: 'render', nod
 assert.deepEqual([boxB().x, boxB().y, boxB().w, boxB().h], [10, 10, 180, 30]);
 assert.deepEqual(JSON.parse(lay.setLayoutOnCanvas(true)), [], 'the same value asks for nothing');
 assert.equal(lay.takeEventsJson(), '[]', 'the flag raises no event');
+assert.deepEqual(JSON.parse(lay.dropPreviewJson('b', 30, 5, 0, 0)), { frame: 'f', index: 0, line: { x: 10, y: 10, w: 180, h: 0 } }, 'the preview of a drop: the slot, as data');
+assert.equal(lay.dropPreviewJson('b', 900, 900, 0, 0), 'null', 'a drop out of the flow has no slot');
 lay.setLayoutOnCanvas(false);
 assert.deepEqual([boxB().x, boxB().w], [0, 1]);
+assert.equal(lay.dropPreviewJson('b', 30, 5, 0, 0), 'null', 'no slot with the flag off');
 
 // The text measurer (host configuration): a JavaScript function `(text, fontSize, fontWeight, wrapWidth | null) => [w, h]`
 // sizes the hug texts of the laid-out scene; whatever else it does, the stub answers, so the scene never holds a NaN.

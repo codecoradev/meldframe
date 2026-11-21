@@ -1208,6 +1208,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-app-layout-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-protocol",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-app-model"
 version = "0.0.0"
 dependencies = [
@@ -1255,6 +1265,7 @@ dependencies = [
  "meldframe-revert",
  "meldframe-sync",
  "meldframe-variables",
+ "serde",
 ]
 
 [[package]]
