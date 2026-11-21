@@ -4,6 +4,7 @@ use crate::activity::ActivityState;
 use crate::export::ExportState;
 use crate::layout::{LayoutNote, Sides};
 use crate::variables::{BindField, Picker, VariablesPanel};
+use crate::variables_io::VariablesIo;
 use meldframe_protocol::{
     Align, Border, Gradient, ImageFill, Justify, LayoutMode, NodeKind, Shadow, SizeMode,
 };
@@ -47,6 +48,9 @@ pub struct AppState {
     /// Export (D9): the frame an export acts on, and the dialog while it is open.
     #[serde(default)]
     pub export: ExportState,
+    /// The Export variables and Import variables dialogs (D8).
+    #[serde(default)]
+    pub variables_io: VariablesIo,
     /// The bind picker of a field of the selected node: `Some` only while it is open.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

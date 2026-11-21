@@ -156,6 +156,8 @@ impl App {
             Action::OpenExport {} => self.open_export(),
             Action::SetExportFormat { format } => self.set_export_format(format),
             Action::CloseExport {} => self.close_export(),
+            Action::OpenVariablesExport {} => self.open_variables_export(),
+            Action::CloseVariablesExport {} => self.close_variables_export(),
             Action::Start { now_ms } => self.start(now_ms, &mut fx),
             Action::Connected { now_ms } => self.connected(now_ms, &mut fx),
             Action::Disconnected {} => self.disconnected(&mut fx),
@@ -185,6 +187,7 @@ impl App {
                 self.refresh_variables();
                 self.refresh_picker();
                 self.refresh_export();
+                self.refresh_variables_export();
             }
             Level::Full => self.refresh(&mut fx),
         }
@@ -267,6 +270,7 @@ impl App {
         self.activity_changed();
         self.refresh_picker();
         self.refresh_export();
+        self.refresh_variables_export();
         let history = history_of(&self.replica);
         if self.state.history != history {
             self.state.history = history;
