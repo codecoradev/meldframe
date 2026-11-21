@@ -59,6 +59,15 @@ pub enum Effect {
     /// `Action::BatchReviewed`, a refusal as
     /// `Action::BatchRequestFailed`.
     PutBatchReview { n: u32, state: ReviewState },
+    /// `GET /v1/assets?limit={limit}&after={after}` (`after` is left out for the first page): the assets of the workspace.
+    /// The answer comes back as `Action::AssetsLoaded` (with the same `after` and `request`), a failure as
+    /// `Action::AssetsRequestFailed` (with the same `request`). `request` is the number of this request: only the answer
+    /// that carries the latest one is taken.
+    FetchAssets {
+        after: Option<String>,
+        limit: u32,
+        request: u32,
+    },
     /// Redraw. The nodes named changed; an empty list means everything.
     Render { nodes: Vec<String> },
 }

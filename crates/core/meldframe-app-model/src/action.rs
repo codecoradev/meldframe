@@ -1,9 +1,11 @@
 //! Inputs to the app layer. They are UI-neutral: no toolkit events (standard rule U6).
 
 use crate::activity::{BatchHeader, BatchPage, BatchRef, ReviewState};
+use crate::assets::AssetPage;
 use crate::export::ExportFormat;
 pub use crate::frame::Frame;
 use crate::layout::Direction;
+pub use crate::preset::{CreateKind, FramePreset};
 pub use crate::property::Property;
 use crate::state::{Panel, Tool};
 use crate::variables::{BindField, VariableValue};
@@ -324,6 +326,31 @@ pub enum Action {
     BatchRequestFailed {
         code: String,
     },
+    /// Open the image picker for a node's fill and read the workspace's assets (`Effect::FetchAssets`) into
+    /// `AppState::assets` until it closes. View state. Refused as `not_found`, `not_selected` or `image_on_text`.
+    OpenAssets {
+        id: String,
+    },
+    /// Close the image picker and forget the list it read.
+    CloseAssets {},
+    /// Ask for the page after `AppState::assets.next`. Nothing while closed, loading or at the end.
+    LoadMoreAssets {},
+    /// Try the last request again after it failed (`AppState::assets.error` is set): the page after what is held, or the
+    /// first page when nothing was read. The app decides which, so a front end has one button. Nothing otherwise.
+    RetryAssets {},
+    /// A page arrived: the answer of `Effect::FetchAssets` with its `request` and `after` (none: the first page, which replaces
+    /// the list). Taken only while the picker is open and `request` is the latest. A page that is not valid
+    /// (`AssetPage::is_valid`) or does not follow what is held fails the request with the code `invalid`.
+    AssetsLoaded {
+        request: u32,
+        after: Option<String>,
+        page: AssetPage,
+    },
+    /// A fetch failed (`unavailable`, ...), with its `request`: the code is kept in `AppState::assets.error`. Ignored as a page is.
+    AssetsRequestFailed {
+        request: u32,
+        code: String,
+    },
     /// Undo the actor's own last change.
     Undo {},
     /// Redo the change that was just undone.
@@ -421,69 +448,4 @@ impl Action {
             y: None,
         }
     }
-}
-
-/// A frame size to start a design from. The sizes are design choices (px; the paper sizes are in points at 72 per inch,
-/// as design tools draw them), listed here and nowhere else: the web client repeats them only to centre the new frame.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub enum FramePreset {
-    Desktop,
-    DesktopHd,
-    Tablet,
-    Mobile,
-    PhoneSmall,
-    A4,
-    Letter,
-}
-
-impl FramePreset {
-    /// Every preset, in the order a menu lists them.
-    pub const ALL: [FramePreset; 7] = [
-        FramePreset::Desktop,
-        FramePreset::DesktopHd,
-        FramePreset::Tablet,
-        FramePreset::Mobile,
-        FramePreset::PhoneSmall,
-        FramePreset::A4,
-        FramePreset::Letter,
-    ];
-
-    /// Width and height: a 1440 x 900 laptop, a 1920 x 1080 monitor, an iPad portrait, a current phone, a small phone,
-    /// and the two paper sizes.
-    pub fn size(self) -> (f64, f64) {
-        match self {
-            FramePreset::Desktop => (1440.0, 900.0),
-            FramePreset::DesktopHd => (1920.0, 1080.0),
-            FramePreset::Tablet => (768.0, 1024.0),
-            FramePreset::Mobile => (390.0, 844.0),
-            FramePreset::PhoneSmall => (375.0, 667.0),
-            FramePreset::A4 => (595.0, 842.0),
-            FramePreset::Letter => (612.0, 792.0),
-        }
-    }
-
-    /// The name the new frame gets.
-    pub fn name(self) -> &'static str {
-        match self {
-            FramePreset::Desktop => "Desktop",
-            FramePreset::DesktopHd => "Desktop HD",
-            FramePreset::Tablet => "Tablet",
-            FramePreset::Mobile => "Mobile",
-            FramePreset::PhoneSmall => "Phone small",
-            FramePreset::A4 => "A4",
-            FramePreset::Letter => "Letter",
-        }
-    }
-}
-
-/// What the node tools can make.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub enum CreateKind {
-    Frame,
-    Rectangle,
-    Text,
 }

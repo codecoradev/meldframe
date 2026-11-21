@@ -1,6 +1,7 @@
 //! Everything a front end needs to draw the editor.
 
 use crate::activity::ActivityState;
+use crate::assets::AssetsState;
 use crate::export::ExportState;
 use crate::layout::{LayoutNote, Sides};
 use crate::variables::{BindField, Picker, VariablesPanel};
@@ -55,6 +56,10 @@ pub struct AppState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub picker: Option<Picker>,
+    /// The image picker of the Fill section: the node it chooses for while it is open, and the assets of the workspace
+    /// read so far.
+    #[serde(default)]
+    pub assets: AssetsState,
 }
 
 /// A named point in the file's history that can be restored: the file as the server confirmed it after op `seq`.

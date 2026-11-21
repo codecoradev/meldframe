@@ -13,7 +13,7 @@ pub enum Level {
     Full,
 }
 
-/// An action that changes the view only (selection, tool, panels, modes, search, picker, export dialog).
+/// An action that changes the view only (selection, tool, panels, modes, search, picker, export dialog, the image picker and its list).
 pub fn is_view(action: &Action) -> bool {
     matches!(
         action,
@@ -35,7 +35,7 @@ pub fn is_view(action: &Action) -> bool {
             | Action::OpenVariablesExport {}
             | Action::CloseVariablesExport {}
             | Action::CloseVariablesImport {}
-    )
+    ) || action.is_assets()
 }
 
 /// The level of an action; `ui` is `is_view(action)`.
