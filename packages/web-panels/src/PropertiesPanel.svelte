@@ -5,7 +5,7 @@
   state of its own.
 -->
 <script lang="ts">
-  import type { Action, BindField, FieldBinding, NodeKind, Picker, Properties } from '@meldframe/protocol';
+  import type { Action, AssetsState, BindField, FieldBinding, NodeKind, Picker, Properties } from '@meldframe/protocol';
   import Checkbox from '@meldframe/web-chrome/Checkbox.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
   import Icon, { type IconName } from '@meldframe/web-chrome/Icon.svelte';
@@ -25,11 +25,13 @@
     properties: Properties | null;
     /** The bind picker of the app state, open on at most one field. */
     picker?: Picker | null;
+    /** The image picker of the app state (open for at most one node) and the images it has read. */
+    assets?: AssetsState;
     /** How many nodes are selected: the empty state says which case it is. */
     selected: number;
     dispatch: (a: Action) => void;
   }
-  let { properties, picker = null, selected, dispatch }: Props = $props();
+  let { properties, picker = null, assets, selected, dispatch }: Props = $props();
 
   const kindIcon: Record<NodeKind, IconName> = { frame: 'frame', rect: 'rectangle', ellipse: 'ellipse', text: 'text', shader: 'layers' };
   const round = (v: number) => String(Math.round(v * 100) / 100);
@@ -116,7 +118,7 @@
           <Field label="Font size" suffix="px" value={round(p.fontSize)} onCommit={prop(p, 'fontSize')} testId="prop-fontSize" />
         </Section>
       {/if}
-      <FillSection properties={p} {picker} {dispatch} {chip} />
+      <FillSection properties={p} {picker} {assets} {dispatch} {chip} />
       <BorderSection properties={p} {dispatch} />
       <ShadowSection properties={p} {dispatch} />
     {/key}
