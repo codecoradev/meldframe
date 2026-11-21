@@ -57,14 +57,16 @@ describe('the Variables panel and the manage view', () => {
   });
 });
 
-describe('the Export variables button', () => {
+describe('the Import variables and Export variables buttons', () => {
   const out = html(panel([col()]));
-  it('is in the header of the section, before the list, named with the glossary words', () => {
+  it('are in the header of the section, before the list, named with the glossary words', () => {
+    expect(out).toMatch(/data-testid="var-import"[^>]*>(?:<!---->)?Import variables</);
     expect(out).toMatch(/data-testid="var-export"[^>]*>(?:<!---->)?Export variables</);
     expect(out.indexOf('data-testid="var-export"')).toBeLessThan(out.indexOf('max-h-(--mf-size-variables-list)'));
-    expect(out).not.toMatch(/>Export tokens?</i);
+    expect(out).not.toMatch(/>(Import|Export) tokens?</i);
   });
-  it('is there with no io given (a section drawn alone), and the dialog stays closed', () => {
+  it('are there with no io given (a section drawn alone), and both dialogs stay closed', () => {
     expect(out).not.toContain('data-testid="export-vars-dialog"');
+    expect(out).not.toContain('data-testid="import-vars-dialog"');
   });
 });

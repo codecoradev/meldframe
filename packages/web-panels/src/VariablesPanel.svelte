@@ -3,7 +3,8 @@
   collections with their mode switch, and the variables listed by type with a swatch, the name and the value of the mode
   on view in the mono face (an alias as a chip with the name it points at). It draws the rows the app layer gives it
   (order, headings, checks) and reports input as actions (see variables.ts). It holds one bit of view state: whether the
-  manage view (ManageDialog) is open. The Export variables dialog is open while the app layer holds its text.
+  manage view (ManageDialog) and the Import variables dialog are open. The Export variables dialog is open while the app layer
+  holds its text.
 -->
 <script lang="ts">
   import type { Action, Event, VariableRow, VariablesIo, VariablesPanel } from '@meldframe/protocol';
@@ -12,6 +13,7 @@
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { TYPE_LABEL } from '@meldframe/web-document/labels';
   import ExportVariablesDialog from '@meldframe/web-variables-io/ExportVariablesDialog.svelte';
+  import ImportVariablesDialog from '@meldframe/web-variables-io/ImportVariablesDialog.svelte';
   import ManageDialog from '@meldframe/web-variables/ManageDialog.svelte';
   import { FIELD_LABEL, bindAction, display, listedCount, modeAction, modeName, shownValue, swatch, truncated, valueAction } from './variables';
 
@@ -35,7 +37,9 @@
     if (open && panel.query.trim() !== '') dispatch({ type: 'setVariablesQuery', query: '' });
   };
 
-  // Export variables is open while the app layer holds its text.
+  // Import variables is open or closed on this page; Export variables is open while the app layer holds its text.
+  let importOpen = $state(false);
+  let importButton = $state<HTMLElement | null>(null);
   let exportButton = $state<HTMLElement | null>(null);
 
   const commit = (row: VariableRow, mode: string) => (raw: string) => {
@@ -51,8 +55,10 @@
     <p class="m-0 text-right text-caption text-text-muted" data-testid="var-count">{panel.matched} of {panel.total}</p>
   </div>
   <div class="flex flex-wrap items-center gap-2">
+    <span bind:this={importButton} class="contents"><Button size="sm" onclick={() => (importOpen = true)} data-testid="var-import">Import variables</Button></span>
     <span bind:this={exportButton} class="contents"><Button size="sm" onclick={() => dispatch({ type: 'openVariablesExport' })} data-testid="var-export">Export variables</Button></span>
   </div>
+  <ImportVariablesDialog open={importOpen} onOpenChange={(o) => (importOpen = o)} result={io.import ?? null} {dispatch} opener={() => importButton?.querySelector('button')} />
   <ExportVariablesDialog dialog={io.export ?? null} {dispatch} opener={() => exportButton?.querySelector('button')} />
   <ManageDialog open={manageOpen} onOpenChange={setManage} {panel} {events} {dispatch} opener={() => manageButton?.querySelector('button')} />
   {#each panel.collections.filter((c) => c.modes.length > 1) as c (c.id)}
