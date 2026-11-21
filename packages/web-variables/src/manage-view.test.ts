@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import type { CollectionRow, VariableRow, VariablesPanel } from '@meldframe/protocol';
 import ManageBody from './ManageBody.svelte';
 import RemoveConfirm from './RemoveConfirm.svelte';
-import VariablesPanelView from './VariablesPanel.svelte';
 import { removalPlan } from './manage';
 
 const row = (over: Partial<VariableRow> = {}): VariableRow => ({ id: 'v1', name: 'color/bg', type: 'color', values: [], usedBy: 2, binds: [], ...over });
@@ -99,14 +98,5 @@ describe('the confirmation of a removal', () => {
   });
   it('draws the Detach button as destructive', () => {
     expect(confirm()).toContain('bg-danger-strong');
-  });
-});
-
-describe('the Variables panel and the manage view', () => {
-  const html = (p: VariablesPanel) => render(VariablesPanelView as never, { props: { panel: p, target: null, dispatch: () => {}, events: [] } as never }).body;
-  it('has a Manage button next to the count that opens the view', () => {
-    const out = html(panel());
-    expect(out).toContain('data-testid="var-manage"');
-    expect(out).toMatch(/>Manage</);
   });
 });

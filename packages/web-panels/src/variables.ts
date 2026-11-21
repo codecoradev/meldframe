@@ -1,6 +1,6 @@
 // The Variables panel: what its input becomes. The rules (the list, the search, the checks of a value, an alias or a
 // binding) are in the app layer; these functions only turn a field or a click into the action to send. Pure.
-import type { Action, BindField, CollectionRow, ModeValue, VarType, VariableRow, VariablesPanel } from '@meldframe/protocol';
+import type { Action, BindField, CollectionRow, ModeValue, VariableRow, VariablesPanel } from '@meldframe/protocol';
 
 /** The text typed in a value field of one mode. Nothing to send for empty text or the text the value already shows. */
 export function valueAction(row: VariableRow, mode: string, raw: string): Action | null {
@@ -43,8 +43,7 @@ export const shownValue = (c: CollectionRow, row: VariableRow): ModeValue | unde
 /** A value as its field shows it: an alias as the name of its target. */
 export const display = (val: ModeValue): string => (val.alias ? `→ ${val.text}` : val.text);
 
-/** The words of the heading above a run of rows of one type, and of the field a bind button stands for. */
-export const TYPE_LABEL: Record<VarType, string> = { color: 'Color', number: 'Number' };
+/** The words of the field a bind button stands for (the words of a type, `TYPE_LABEL`, are in web-document). */
 export const FIELD_LABEL: Record<BindField, string> = { fill: 'Fill', radius: 'Radius', opacity: 'Opacity' };
 
 /** The name of a mode for a label (the id, for a mode the collection does not have). */

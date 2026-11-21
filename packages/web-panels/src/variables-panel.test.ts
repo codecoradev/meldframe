@@ -48,3 +48,11 @@ describe('the Variables section as the boards draw it', () => {
     expect(html(panel([col()]), null)).not.toContain('data-testid="var-bind"');
   });
 });
+
+describe('the Variables panel and the manage view', () => {
+  it('has a Manage button next to the count that opens the view', () => {
+    const out = html(panel([col()]), null);
+    expect(out).toContain('data-testid="var-manage"');
+    expect(out).toMatch(/>Manage</);
+  });
+});

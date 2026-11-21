@@ -83,6 +83,7 @@
 
 /* Where Tailwind reads class names: the packages that draw with them. */
 @source '../../web-panels/src';
+@source '../../web-variables/src';
 @source '../../web-activity/src';
 @source '../../web-feedback/src';
 @source '../../web-export/src';

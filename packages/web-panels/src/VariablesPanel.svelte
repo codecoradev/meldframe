@@ -10,8 +10,9 @@
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
-  import ManageDialog from './ManageDialog.svelte';
-  import { FIELD_LABEL, TYPE_LABEL, bindAction, display, listedCount, modeAction, modeName, shownValue, swatch, truncated, valueAction } from './variables';
+  import { TYPE_LABEL } from '@meldframe/web-document/labels';
+  import ManageDialog from '@meldframe/web-variables/ManageDialog.svelte';
+  import { FIELD_LABEL, bindAction, display, listedCount, modeAction, modeName, shownValue, swatch, truncated, valueAction } from './variables';
 
   interface Props {
     panel: VariablesPanel;

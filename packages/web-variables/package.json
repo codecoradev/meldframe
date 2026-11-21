@@ -1,0 +1,8 @@
+{
+  "name": "@meldframe/web-variables",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The manage view of the Variables of the web client: the dialog that adds, removes and names collections, modes and variables. It draws app state and reports input; the rules are in the app layer. Used as source by apps/web.",
+  "types": "src/manage.ts"
+}

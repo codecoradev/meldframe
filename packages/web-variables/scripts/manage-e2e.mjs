@@ -1,11 +1,11 @@
-// Browser check of the Variables manage view against a real server: node packages/web-panels/scripts/manage-e2e.mjs [web-url] [server-url]
+// Browser check of the Variables manage view against a real server: node packages/web-variables/scripts/manage-e2e.mjs [web-url] [server-url]
 // The manage view in a browser (D8): add a collection, a mode (copying a mode) and variables, the checks of a name before
 // anything is sent, the confirmation of a removal with Detach and Cancel, one undo of a detach, and the focus going where
 // the person is. Start the server and the page with a file name that is new for every run (the check refuses a file
 // that has content), the server on any free port (here 18080) and the token of the page in .dev-token at the root:
 //   MELDFRAME_DEV_TOKENS="$(cat .dev-token):ws_dev:agent:dev" MELDFRAME_LISTEN=127.0.0.1:18080 <server binary or just dev-server>
 //   MELDFRAME_WEB_FILE=<file> MELDFRAME_WEB_TOKEN="$(cat .dev-token)" MELDFRAME_SERVER=http://127.0.0.1:18080 npx vite --port 15173   (in apps/web)
-//   MELDFRAME_WEB_FILE=<file> node packages/web-panels/scripts/manage-e2e.mjs http://localhost:15173 http://127.0.0.1:18080
+//   MELDFRAME_WEB_FILE=<file> node packages/web-variables/scripts/manage-e2e.mjs http://localhost:15173 http://127.0.0.1:18080
 // The WASM bridge must be built from this revision (`just wasm-build`: the six manage actions are in it) and Playwright
 // comes from the global module path. The web and server URLs must be loopback (the token is sent there). It adds a
 // frame, collections and variables to the file and leaves them: run it against a development server only.

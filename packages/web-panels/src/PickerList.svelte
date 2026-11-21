@@ -6,8 +6,9 @@
 <script lang="ts">
   import type { Action, Picker } from '@meldframe/protocol';
   import Field from '@meldframe/web-chrome/Field.svelte';
+  import { TYPE_LABEL } from '@meldframe/web-document/labels';
   import { pickAction, pickerQueryAction } from '@meldframe/web-document/picker';
-  import { FIELD_LABEL, TYPE_LABEL } from './variables';
+  import { FIELD_LABEL } from './variables';
 
   interface Props {
     picker: Picker;

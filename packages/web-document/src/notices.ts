@@ -21,7 +21,7 @@ const WORDS: Record<string, string> = {
   E_INVALID_NAME: NAME_RULE_WORDS,
   E_DUPLICATE_NAME: 'A variable in this collection already has that name.',
   // The core uses these three for nodes, texts, shadows and gradient stops as well as for variables, so the words here name
-  // none of them; the manage view words them for what it sent (web-panels manage.ts).
+  // none of them; the manage view words them for what it sent (web-variables manage.ts).
   E_TOO_LONG: 'That text is longer than this field allows. Shorten it.',
   E_TOO_MANY_ENTRIES: 'That would go over a limit: there are already as many as the file allows. Remove one first.',
   E_DEFAULT_MODE: 'The first mode is the default one and stays. Remove another mode.',
