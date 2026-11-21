@@ -50,6 +50,9 @@
     onPalette: (open: boolean) => void;
     canDelete: boolean;
     onDelete: () => void;
+    /** "Auto layout on canvas": whether it is on, and the switch (the palette entry shows only when the page gives one). */
+    autoLayout?: boolean;
+    onAutoLayout?: () => void;
     /** The tab of the right card (Design or Activity) and the person's choice of another. */
     tab: RightTab;
     onTab: (t: RightTab) => void;
@@ -60,7 +63,7 @@
     designPanel: Snippet;
     activityPanel: Snippet;
   }
-  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, onZoom, connection, helpOpen, onHelp, paletteOpen, onPalette, canDelete, onDelete, tab, onTab, activityBadge = 0, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
+  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, onZoom, connection, helpOpen, onHelp, paletteOpen, onPalette, canDelete, onDelete, autoLayout = false, onAutoLayout, tab, onTab, activityBadge = 0, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
 
   const tools: { tool: Tool; label: string; key: string; icon: 'select' | 'frame' | 'rectangle' | 'text' }[] = [
     { tool: 'select', label: 'Select', key: 'V', icon: 'select' },
@@ -73,8 +76,8 @@
   const keys = platformLabels();
   const zoomRows = $derived(zoomItems({ mac: onMac(), onZoom }));
   const entries = $derived(paletteEntries({
-    mac: onMac(), layersOpen, inspectorOpen, canUndo, canRedo, canDelete, canExport, canVariant,
-    on: { tool: onTool, undo: onUndo, redo: onRedo, remove: onDelete, zoom: onZoom, preset: onPreset, layers: onToggleLayers, inspector: onToggleInspector, exportFrame: onExport, variant: onVariant, help: () => onHelp(true) },
+    mac: onMac(), layersOpen, inspectorOpen, canUndo, canRedo, canDelete, canExport, canVariant, autoLayout,
+    on: { tool: onTool, undo: onUndo, redo: onRedo, remove: onDelete, zoom: onZoom, preset: onPreset, layers: onToggleLayers, inspector: onToggleInspector, exportFrame: onExport, variant: onVariant, help: () => onHelp(true), autoLayout: onAutoLayout },
   }));
   // A card and its folded form swap one header button for another, so the focus would be lost: after a toggle made
   // from that button, the focus goes to the button of the same panel in its new state (marked data-focus).
@@ -148,7 +151,7 @@
     <IconButton label="Shortcuts" icon="help" size={32} shortcut="?" pressed={helpOpen} onclick={() => onHelp(!helpOpen)} />
   </div>
   {#if helpOpen}
-    <div class="pointer-events-none absolute top-4 bottom-20 flex items-end" style:left={layersOpen ? `calc(${PANEL_INSET}px + var(--mf-size-layers) + var(--mf-space-4))` : 'var(--mf-space-4)'}><ShortcutHint onClose={() => onHelp(false)} /></div>
+    <div class="pointer-events-none absolute top-4 bottom-20 flex items-end" style:left={layersOpen ? `calc(${PANEL_INSET}px + var(--mf-size-layers) + var(--mf-space-4))` : 'var(--mf-space-4)'}><ShortcutHint onClose={() => onHelp(false)} {autoLayout} /></div>
   {/if}
 
   <Palette open={paletteOpen} onOpenChange={onPalette} {entries} />

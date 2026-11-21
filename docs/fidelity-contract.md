@@ -200,19 +200,23 @@ Measured on the development machine (software rendering): the fixtures and 50 se
 
 What the oracle cannot prove (the list for the product oracle; the experiment's own is section 12):
 
-- **The "canvas" side is the layout core, not the editor.** Only the export and the layout findings call the layout core
-  (`compute_rects`) today; the editor paints the stored `x`, `y`, `w` and `h` of each node (`resolve_with` does not lay
-  anything out). Since the app layer holds a `layout_on_canvas` flag the canvas can read the core's boxes instead
-  (`resolve_laid_out` with the measurer the host gives, the stub until a host injects one), but the flag is off by default and
-  not offered to people: it stays off until the interaction rules for laid-out frames land. The browser host can now inject
-  the measurer of this contract (Pixi `CanvasTextMetrics` on Inter, keyed and rounded as section 6 says, `Engine.setMeasurer`,
-  the development switch `/?canvaslayout=1`), so with the flag on the canvas lays text out as the oracle's table does, from
-  a live measurement instead of a recorded one; `packages/web-e2e/scripts/measurer-e2e.mjs` checks in Chromium that a hug text
-  box is Pixi's width within 1 px and is not wrapped by Pixi when drawn. The oracle does not run that path. The Export dialog
+- **The "canvas" side is the layout core, not the editor.** The export and the layout findings call the layout core
+  (`compute_rects`), and since 21 Nov 2026 so does the editor by default: the app layer holds the flag `layout_on_canvas` and the
+  page turns it on ("Auto layout on canvas", on by default, remembered per browser, `/?canvaslayout=0` forces it off), so
+  the canvas draws the core's boxes (`resolve_laid_out` with the measurer the host gives; the stub where a host gives none)
+  instead of the stored `x`, `y`, `w` and `h`. The owner accepted the one-time visual change for files that have layout set. With the
+  flag off the canvas paints the stored boxes as before, and the oracle's claim does not reach it. The browser host injects the
+  measurer of this contract (Pixi `CanvasTextMetrics` on Inter, keyed and rounded as section 6 says, `Engine.setMeasurer`), so the
+  canvas lays text out as the oracle's table does, from a live measurement instead of a recorded one;
+  `packages/web-e2e/scripts/measurer-e2e.mjs` checks in Chromium that a hug text box is Pixi's width within 1 px and is not
+  wrapped by Pixi when drawn, and `layout-interaction-e2e.mjs` that the interaction rules hold in a real browser. The oracle
+  does not run that path: it draws its own text and boxes (a Pixi page that follows this contract, not `stage.ts`), so what it
+  shows is that the export reproduces the core's layout in a browser; that the canvas draws the core's boxes with
+  Pixi's measurer is the product's own claim, checked by those two scripts and not by the oracle. The Export dialog
   of the browser measures with the measurer the host gave the app (the same Pixi measurer, so a hug text exports the width the
   canvas draws; the stub when the host gave none), and an open dialog is built again when the host gives another. The MCP
-  export tool runs on the server, which has no fonts, and stays on the stub. The oracle shows that the export reproduces the core's layout in a browser. Whether the boxes stored in a
-  file, and so drawn on the canvas, equal the core's layout is not checked by it.
+  export tool runs on the server, which has no fonts, and stays on the stub. Whether the boxes stored in a file equal the
+  core's layout is not checked by the oracle.
 - **The text table is Chromium's measurer by assumption.** The core and the export agree on text because both use the one
   measurer they are given: the export pins `min-width` and `line-height` from it and the core sizes the boxes with it.
   Here that is a table recorded with Pixi in Chromium, so the boxes are right when the browser breaks lines as Pixi

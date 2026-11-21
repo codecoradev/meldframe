@@ -37,6 +37,8 @@ export interface PaletteInput {
   canDelete: boolean;
   canExport: boolean;
   canVariant: boolean;
+  /** "Auto layout on canvas" is on. */
+  autoLayout?: boolean;
   /** The handlers of the page: the ones the tool bar, the menus and the keys already call. */
   on: {
     tool: (t: Tool) => void;
@@ -50,6 +52,8 @@ export interface PaletteInput {
     exportFrame: () => void;
     variant: () => void;
     help: () => void;
+    /** Turns "Auto layout on canvas" on or off; with none the entry is left out (a page without the switch). */
+    autoLayout?: () => void;
   };
 }
 
@@ -71,6 +75,7 @@ export function paletteEntries(i: PaletteInput): PaletteEntry[] {
     entry('Edit', 'delete', 'Delete the selection', i.canDelete, on.remove, { shortcut: key('delete'), keywords: ['remove'] }),
     ...PRESET_ORDER.map((p) => entry('Frames', `preset-${p}`, `New frame: ${PRESETS[p].name}`, true, () => on.preset(p), { detail: sizeText(p), keywords: ['preset', 'create', 'add'] })),
     ...zoomItems({ mac: i.mac, onZoom: on.zoom }).map((z) => entry('View', `zoom-${z.id}`, z.label, true, z.onSelect, { shortcut: z.shortcut, keywords: zoomWords[z.id] })),
+    ...(on.autoLayout ? [entry('View', 'auto-layout', 'Auto layout on canvas', true, on.autoLayout, { detail: i.autoLayout ? 'On: choose to turn off' : 'Off: choose to turn on', keywords: ['layout', 'flow', 'hug', 'fill', 'toggle', 'switch'] })] : []),
     entry('Panels', 'toggle-layers', `${i.layersOpen ? 'Hide' : 'Show'} layers panel`, true, on.layers, { shortcut: key('layers-panel'), keywords: ['pages', 'toggle'] }),
     entry('Panels', 'toggle-inspector', `${i.inspectorOpen ? 'Hide' : 'Show'} right panel`, true, on.inspector, { shortcut: key('right-panel'), keywords: ['design', 'inspector', 'properties', 'toggle'] }),
     entry('File', 'export', 'Export…', i.canExport, on.exportFrame, { keywords: ['png', 'html', 'tailwind', 'image'], opensDialog: true }),

@@ -6,7 +6,8 @@ import App from './App.svelte';
 import Editor from './Editor.svelte';
 import ErrorPage from '@meldframe/web-feedback/ErrorPage.svelte';
 import { pageFor } from '@meldframe/web-feedback/failure';
-import { canvasLayoutRequested, installPixiMeasurer } from './canvas/pixitext';
+import { installPixiMeasurer } from './canvas/pixitext';
+import { createLayoutSwitch, layoutChoice } from '@meldframe/web-link/layoutswitch';
 import { loadFile, reloadOnDivergence } from '@meldframe/web-document/file';
 import { applyTheme, loadTheme } from '@meldframe/web-tokens/theme';
 
@@ -28,11 +29,10 @@ async function start() {
   // A fresh nonce per page load: the app never reuses an idempotency key (see `App::new`).
   const session = crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
   const engine = Engine.create({ actor, session, nodes, seq, variables });
-  // Development switch, off by default (AGENTS.md): /?canvaslayout=1 draws the laid-out boxes with Pixi's text metrics on the page's fonts.
-  if (canvasLayoutRequested(location.search)) {
-    installPixiMeasurer(engine);
-    engine.setLayoutOnCanvas(true);
-  }
+  // "Auto layout on canvas" (the palette entry; on by default): the canvas draws the laid-out boxes, with Pixi's text metrics on the
+  // page's fonts. /?canvaslayout=0 and =1 force it for this page; the person's choice is remembered in this browser (AGENTS.md).
+  const storage = () => { try { return localStorage; } catch { return null; } };
+  const layout = createLayoutSwitch(engine, () => installPixiMeasurer(engine), layoutChoice(location.search, storage), storage);
   // When the file and the events no longer fit, start again from a fresh snapshot (a few times at most; after that
   // the page shows the reload button).
   engine.subscribe((s) => {
@@ -46,7 +46,7 @@ async function start() {
   });
   const sh = shell;
   editor = mount(Editor, { target: root, props: {
-      engine, file, actor, attribution,
+      engine, file, actor, attribution, layout,
       captures: {
         subscribe: (fn: (r: CaptureRequest) => void) => {
           captureHandlers.add(fn);

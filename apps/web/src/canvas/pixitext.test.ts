@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fontSize, fontWeight, fonts } from '@meldframe/web-tokens/tokens';
-import { browserFontGate, canvasLayoutRequested, drawStyle, installPixiMeasurer, pixiTextStyle } from './pixitext';
+import { browserFontGate, drawStyle, installPixiMeasurer, pixiTextStyle } from './pixitext';
 
 describe('pixiTextStyle', () => {
   it('draws with the font stack of the page, the size, the weight as the string Pixi takes, and the wrap of the shape', () => {
@@ -110,13 +110,5 @@ describe('installPixiMeasurer', () => {
     f.finish();
     await tick();
     expect(engine.setMeasurer).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe('canvasLayoutRequested', () => {
-  it('is the development switch ?canvaslayout=1 and nothing else: off by default', () => {
-    expect(canvasLayoutRequested('?canvaslayout=1')).toBe(true);
-    expect(canvasLayoutRequested('?tokens&canvaslayout=1')).toBe(true);
-    for (const q of ['', '?', '?canvaslayout', '?canvaslayout=0', '?canvaslayout=true', '?layout=1', '?x=canvaslayout=1']) expect(canvasLayoutRequested(q), q).toBe(false);
   });
 });

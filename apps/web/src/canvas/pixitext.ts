@@ -63,6 +63,3 @@ export function installPixiMeasurer(engine: Parameters<typeof attachMeasurer>[0]
   const gate = browserFontGate(doc);
   return attachMeasurer(engine, createMeasurer(pixiMetrics, gate), gate);
 }
-
-/** The development switch `/?canvaslayout=1` (off by default, not offered in the UI): draw laid-out boxes, measured as above. */
-export const canvasLayoutRequested = (search: string): boolean => new URLSearchParams(search).get('canvaslayout') === '1';

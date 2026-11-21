@@ -8,10 +8,13 @@
   import type { Action } from '@meldframe/protocol';
   import { HOME, formatZoom, type Camera } from '@meldframe/web-canvas/camera';
   import type { Engine } from '@meldframe/web-link/engine';
+  import type { LayoutSwitch } from '@meldframe/web-link/layoutswitch';
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
   import Canvas from './canvas/Canvas.svelte';
   import { createActionFor, deleteAction, documentChanged, drawnBox, gestureGoing, keyAction, ownsKeys, worldOrigin, moveActionsFor, movePreviewFor, originLocked, previewScene, resizeActionFor, resizePreviewFor, toolMode, type Preview } from '@meldframe/web-document/edit';
   import { perFrame } from '@meldframe/web-document/coalesce';
+  import { shouldRefit } from '@meldframe/web-document/fit';
+  import { toggleWithNotice } from '@meldframe/web-link/layoutswitch';
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
   import Layout from '@meldframe/web-shell/Layout.svelte';
@@ -49,10 +52,13 @@
     actor: string;
     /** Who last changed each node when the file was loaded; live changes are in the app state. */
     attribution?: Record<string, { actor: string; seq: number }>;
+    /** "Auto layout on canvas": whether the canvas draws laid-out boxes, and the switch (the palette entry). */
+    layout?: LayoutSwitch;
     /** Capture requests of agents: where they come from, and how to tell the server this editor cannot serve one. */
     captures?: { subscribe: (fn: (r: Req) => void) => () => void; fail: (requestId: string, code: string, message: string) => void };
   }
-  let { engine, file, actor, attribution = {}, captures }: Props = $props();
+  let { engine, file, actor, attribution = {}, layout, captures }: Props = $props();
+  let autoLayout = $state(untrack(() => layout?.on ?? false));
 
   // Snapshots are replaced as a whole, never edited: no deep proxy over the nodes.
   let snap = $state.raw(untrack(() => engine.snapshot()));
@@ -191,11 +197,32 @@
     shownAssets.add(id);
     showNotice(`An image could not be loaded (${code}).`);
   }
+  // The fit is redone once when the page's fonts settle (the measurer is given again, the texts change size), if the person has not
+  // zoomed or panned since: what it first fitted to may have been measured with the stub.
+  let fitCamera: Camera | null = null;
+  let fitting = false;
+  let setsAtFit = 0;
+  let refitted = false;
+  const fitAll = () => {
+    fitting = true;
+    canvas?.fitAll();
+    fitting = false;
+  };
   $effect(() => {
     if (ready && !fitted && nodes.length) {
       fitted = true;
-      canvas?.fitAll();
+      setsAtFit = engine.stats.measurerSets;
+      fitAll();
     }
+  });
+  $effect(() => {
+    void scene;
+    untrack(() => {
+      if (shouldRefit({ fitted, refitted, setsAtFit, sets: engine.stats.measurerSets, fitCamera, camera })) {
+        refitted = true;
+        fitAll();
+      }
+    });
   });
 
   // A drag, a resize or a drawn box is going on: an arrow key then is not a command (the gesture is the person's hands' business).
@@ -295,6 +322,7 @@
   connection={{ state: snap.state.connection.type, text: connectionLabel(snap.state.connection) }}
   helpOpen={overlay === 'help'} onHelp={(open) => (overlay = open ? 'help' : null)}
   paletteOpen={overlay === 'palette'} onPalette={(open) => (overlay = open ? 'palette' : null)}
+  {autoLayout} onAutoLayout={layout ? () => (autoLayout = toggleWithNotice(layout, showNotice)) : undefined}
   tab={rightTab} activityBadge={snap.state.activity.unreviewedCount}
   onTab={goTab}
 >
@@ -305,6 +333,7 @@
       selection={snap.state.selection}
       tool={toolMode(snap.state.tool)}
       bind:camera
+      onCameraChange={(c) => { if (fitting) fitCamera = { ...c }; }}
       {theme}
       {touches}
       {indicator}
