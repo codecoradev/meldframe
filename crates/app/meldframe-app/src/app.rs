@@ -162,6 +162,7 @@ impl App {
             Action::Reconnect { now_ms } => self.reconnect(now_ms, &mut fx),
             Action::Tick { now_ms } => self.tick(now_ms, &mut fx),
             Action::Frame { now_ms, frame } => self.frame(now_ms, frame, &mut fx),
+            a if a.is_assets() => self.assets_action(a, &mut fx),
             a if a.is_activity() => self.activity_action(a, &mut fx),
             Action::Reload {
                 now_ms,
@@ -184,6 +185,7 @@ impl App {
                 self.refresh_properties();
                 self.refresh_variables();
                 self.refresh_picker();
+                self.refresh_assets();
                 self.refresh_export();
             }
             Level::Full => self.refresh(&mut fx),
@@ -266,6 +268,7 @@ impl App {
         self.refresh_variables();
         self.activity_changed();
         self.refresh_picker();
+        self.refresh_assets();
         self.refresh_export();
         let history = history_of(&self.replica);
         if self.state.history != history {

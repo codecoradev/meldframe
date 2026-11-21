@@ -1,6 +1,7 @@
 //! Inputs to the app layer. They are UI-neutral: no toolkit events (standard rule U6).
 
 use crate::activity::{BatchHeader, BatchPage, BatchRef, ReviewState};
+use crate::assets::AssetPage;
 use crate::export::ExportFormat;
 pub use crate::frame::Frame;
 use crate::layout::Direction;
@@ -305,6 +306,31 @@ pub enum Action {
     },
     /// A fetch or a review put failed or was refused (`forbidden`, `unavailable`, ...): raised as `Event::Refused`.
     BatchRequestFailed {
+        code: String,
+    },
+    /// Open the image picker for a node's fill and read the workspace's assets (`Effect::FetchAssets`) into
+    /// `AppState::assets` until it closes. View state. Refused as `not_found`, `not_selected` or `image_on_text`.
+    OpenAssets {
+        id: String,
+    },
+    /// Close the image picker and forget the list it read.
+    CloseAssets {},
+    /// Ask for the page after `AppState::assets.next`. Nothing while closed, loading or at the end.
+    LoadMoreAssets {},
+    /// Try the last request again after it failed (`AppState::assets.error` is set): the page after what is held, or the
+    /// first page when nothing was read. The app decides which, so a front end has one button. Nothing otherwise.
+    RetryAssets {},
+    /// A page arrived: the answer of `Effect::FetchAssets` with its `request` and `after` (none: the first page, which replaces
+    /// the list). Taken only while the picker is open and `request` is the latest. A page that is not valid
+    /// (`AssetPage::is_valid`) or does not follow what is held fails the request with the code `invalid`.
+    AssetsLoaded {
+        request: u32,
+        after: Option<String>,
+        page: AssetPage,
+    },
+    /// A fetch failed (`unavailable`, ...), with its `request`: the code is kept in `AppState::assets.error`. Ignored as a page is.
+    AssetsRequestFailed {
+        request: u32,
         code: String,
     },
     /// Undo the actor's own last change.

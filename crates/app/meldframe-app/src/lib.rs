@@ -14,6 +14,7 @@
 
 mod activity;
 mod app;
+mod assets;
 mod canvas;
 mod document;
 mod export;
@@ -35,7 +36,8 @@ pub use app::App;
 pub use canvas::MeasurerBox;
 pub use link::{ATTEMPT_MS, SILENT_MS};
 pub use meldframe_app_model::{
-    Action, AppState, Axis, BindField, BindOption, Checkpoint, CheckpointKind, CollectionRow,
+    ASSET_LIST_MAX, ASSET_PAGE, ASSET_PAGE_MAX, Action, AppState, AssetInfo, AssetPage,
+    AssetsState, Axis, BindField, BindOption, Checkpoint, CheckpointKind, CollectionRow,
     Connection, CreateKind, Direction, Effect, Event, ExportDialog, ExportFinding, ExportFormat,
     ExportState, ExportTarget, FieldBinding, FillKind, Frame, FramePreset, History, LayoutNote,
     ModeValue, OutOp, Panel, Panels, Picker, PickerRow, Properties, Property, RevertSkip,
