@@ -211,7 +211,7 @@ impl AssetsState {
 }
 
 impl Action {
-    /// Whether the image picker handles it (`meldframe-app`, `assets.rs`).
+    /// Whether the image picker handles it (`meldframe-app`, `assets.rs`). `SetImageFill` changes the document and is not one.
     pub fn is_assets(&self) -> bool {
         matches!(
             self,

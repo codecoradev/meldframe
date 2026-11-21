@@ -205,8 +205,8 @@ pub struct Properties {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub gradient: Option<Gradient>,
-    /// The image over `fill` and the gradient. It can be shown and taken away here; the app layer has no way to pick
-    /// an asset yet.
+    /// The image over `fill` and the gradient. It is picked from the workspace's assets (`Action::OpenAssets`,
+    /// `Action::SetImageFill`) and taken away by the Solid, None or gradient type.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub image: Option<ImageFill>,
@@ -283,6 +283,7 @@ pub enum FillKind {
     Linear,
     /// A gradient from the centre.
     Radial,
-    /// An image. It reads from the file; it is not offered as a choice until the app layer can pick an asset.
+    /// An image. Choosing it opens the image picker (`Action::OpenAssets`); the type switch itself cannot make one
+    /// (`Property::FillType(Image)` is refused as `no_image` while the node has none).
     Image,
 }

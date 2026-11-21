@@ -48,6 +48,8 @@ pub fn code(e: &SubmitError) -> &'static str {
         ApplyError::ParentNotFound(_) | ApplyError::ParentNotFrame(_) => "bad_parent",
         ApplyError::Cycle => "cycle",
         ApplyError::GradientOnText => "gradient_on_text",
+        ApplyError::ImageOnText => "image_on_text",
+        ApplyError::InvalidAssetId => "invalid_asset_id",
         ApplyError::TooManyNodes(_)
         | ApplyError::TooDeep(_)
         | ApplyError::TooLong { .. }

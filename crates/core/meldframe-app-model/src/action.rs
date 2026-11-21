@@ -9,7 +9,7 @@ pub use crate::preset::{CreateKind, FramePreset};
 pub use crate::property::Property;
 use crate::state::{Panel, Tool};
 use crate::variables::{BindField, VariableValue};
-use meldframe_protocol::{Command, Node, VarType, Variables};
+use meldframe_protocol::{Command, ImageFit, Node, VarType, Variables};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -350,6 +350,17 @@ pub enum Action {
     AssetsRequestFailed {
         request: u32,
         code: String,
+    },
+    /// Set the fill of a node to the image `asset_id` with `fit` as one undo step (the gradient and colour under it stay).
+    /// Without `fit` the node keeps the fit it has, and cover is the fit of a node with no image. The server decides
+    /// whether the asset exists, so a well-formed id is taken; another is `invalid_asset_id`, text `image_on_text`, an
+    /// unknown node `not_found`. The same image and fit make no step. Closes the picker.
+    SetImageFill {
+        id: String,
+        asset_id: String,
+        #[serde(default)]
+        #[ts(optional)]
+        fit: Option<ImageFit>,
     },
     /// Undo the actor's own last change.
     Undo {},
