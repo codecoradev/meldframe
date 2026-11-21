@@ -105,8 +105,8 @@ pub const NODE_FIELDS: &[FieldSupport] = &[
             Support::Unsupported("the canvas draws a shader as its plain box"),
         )
     },
-    row("fontWeight", NOT_DRAWN),
-    row("textAlign", NOT_DRAWN),
+    row("fontWeight", R),
+    row("textAlign", R),
     row("border", NOT_DRAWN),
     row("shadows", NOT_DRAWN),
     row("marT", FROM_LAYOUT),
