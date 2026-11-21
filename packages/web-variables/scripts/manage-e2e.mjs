@@ -1,14 +1,17 @@
 // Browser check of the Variables manage view against a real server: node packages/web-variables/scripts/manage-e2e.mjs [web-url] [server-url]
 // The manage view in a browser (D8): add a collection, a mode (copying a mode) and variables, the checks of a name before
-// anything is sent, the confirmation of a removal with Detach and Cancel, one undo of a detach, and the focus going where
-// the person is. Start the server and the page with a file name that is new for every run (the check refuses a file
+// anything is sent, rename a variable, a mode and a collection (one op, one undo, the ids and bindings stay, the focus
+// back on the Rename button, Escape cancels only the edit), the confirmation of a removal with Detach and Cancel, one
+// undo of a detach, and the focus going where the person is. Start the server and the page with a file name that is new for every run (the check refuses a file
 // that has content), the server on any free port (here 18080) and the token of the page in .dev-token at the root:
 //   MELDFRAME_DEV_TOKENS="$(cat .dev-token):ws_dev:agent:dev" MELDFRAME_LISTEN=127.0.0.1:18080 <server binary or just dev-server>
 //   MELDFRAME_WEB_FILE=<file> MELDFRAME_WEB_TOKEN="$(cat .dev-token)" MELDFRAME_SERVER=http://127.0.0.1:18080 npx vite --port 15173   (in apps/web)
 //   MELDFRAME_WEB_FILE=<file> node packages/web-variables/scripts/manage-e2e.mjs http://localhost:15173 http://127.0.0.1:18080
-// The WASM bridge must be built from this revision (`just wasm-build`: the six manage actions are in it) and Playwright
+// The WASM bridge must be built from this revision (`just wasm-build`: the six manage actions and the rename commands of EditVariables are in it) and Playwright
 // comes from the global module path. The web and server URLs must be loopback (the token is sent there). It adds a
 // frame, collections and variables to the file and leaves them: run it against a development server only.
+// The checks run in order and share the file: some start from what an earlier one left (the renamed variable and its undo, the
+// collection of the run). A check that fails can fail the ones after it.
 // MELDFRAME_E2E_SHOTS=<dir> saves screenshots (and one of the page when a check fails).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -218,6 +221,203 @@ const addEntity = async (fieldId, value) => {
     assert.deepEqual(after.nodes.find((x) => x.id === frame).fill, { var: ink.id });
   });
 
+  // Renaming (D8): one rename command in one EditVariables action, one undo step, the ids stay.
+  const renameKey = (key) => $(`[data-rename="${key}"]`);
+  const activeRename = () => page.evaluate(() => document.activeElement?.getAttribute('data-rename') ?? '');
+  const dialogOpen = async () => (await $('[data-testid=manage-dialog]').count()) === 1;
+  const inkId = async () => (await variables()).find((v) => v.name === inkName || v.name === `${inkName}-b`).id;
+
+  await check('renaming a variable: the button names its target, the field is prefilled, Enter sends one rename, the row and the status say it and the focus goes back', async () => {
+    const ink = (await variables()).find((v) => v.name === inkName);
+    const seq = (await snapshot()).seq;
+    const btn = renameKey(`variable:${ink.id}`);
+    assert.equal(await btn.getAttribute('aria-label'), `Rename ${inkName}`);
+    assert.equal((await btn.textContent()).trim(), 'Rename');
+    await btn.click();
+    const f = $('[data-testid=manage-renaming-variable]');
+    await f.waitFor();
+    assert.equal(await f.inputValue(), inkName, 'prefilled with the current name');
+    assert.equal(await f.getAttribute('aria-label'), `New name of ${inkName}`);
+    await until('the field has the focus', async () => (await activeTestId()) === 'manage-renaming-variable');
+    assert.equal(await renameKey(`variable:${ink.id}`).count(), 0, 'no Rename button for the row while its field is open');
+    assert.match(await text('[data-testid=manage-renaming-variable-note]'), /next export uses the new name/i);
+    assert.match(await text('[data-testid=manage-renaming-variable-note]'), /bindings and aliases keep working/i);
+    await shot('rename-open');
+    await f.fill(`${inkName}-b`);
+    await f.press('Enter');
+    const renamed = await until('the new name on the server', async () => (await variables()).find((v) => v.id === ink.id && v.name === `${inkName}-b`));
+    assert.equal(renamed.id, ink.id);
+    await until('the field is gone', async () => (await $('[data-testid=manage-renaming-variable]').count()) === 0);
+    assert.equal((await snapshot()).seq, seq + 1, 'one op');
+    assert.equal(await text(`[data-testid=manage-var][data-id="${ink.id}"] th`), `${inkName}-b`);
+    assert.match(await text('[data-testid=manage-status]'), new RegExp(`Renamed “${inkName}” to “${inkName}-b”\\.`));
+    await until('the focus is back on its Rename button', async () => (await activeRename()) === `variable:${ink.id}`);
+    assert.equal(await renameKey(`variable:${ink.id}`).getAttribute('aria-label'), `Rename ${inkName}-b`);
+    assert.equal(await $(`[data-testid=manage-var][data-id="${ink.id}"] [data-testid=manage-var-uses]`).textContent(), '1', 'its use stays');
+    assert.deepEqual((await snapshot()).nodes.find((x) => x.id === frame).fill, { var: ink.id }, 'the binding keeps the id');
+    await shot('rename-done');
+  });
+
+  await check('a bound node keeps showing the variable under its new name in the Variables panel; one undo takes the rename back', async () => {
+    const id = await inkId();
+    const seq = (await snapshot()).seq;
+    await page.keyboard.press('Escape');
+    await until('the dialog is gone', async () => !(await dialogOpen()));
+    await page.click(`[data-testid=layer][data-id="${frame}"] button >> nth=-1`);
+    const prow = $(`[data-testid=var-row][data-id="${id}"]`);
+    await until('the panel row has the new name', async () => (await prow.count()) === 1 && (await prow.textContent()).includes(`${inkName}-b`));
+    assert.equal(await prow.locator('[data-testid=var-bind][data-field=fill]').getAttribute('aria-pressed'), 'true', 'the frame is still bound to it');
+    await $('[data-testid=var-manage]').click();
+    await $('[data-testid=manage-dialog]').waitFor();
+    await page.keyboard.press('Control+z');
+    await until('the old name is back', async () => (await variables()).some((v) => v.id === id && v.name === inkName));
+    assert.equal((await snapshot()).seq, seq + 1, 'the undo is one op');
+    await until('the row shows the old name', async () => (await text(`[data-testid=manage-var][data-id="${id}"] th`)) === inkName);
+    assert.deepEqual((await snapshot()).nodes.find((x) => x.id === frame).fill, { var: id });
+  });
+
+  await check('a duplicate variable name is refused in the field with its words and nothing is sent; Escape cancels only the edit; an unchanged name is a quiet cancel', async () => {
+    const ink = (await variables()).find((v) => v.name === inkName);
+    const seq = (await snapshot()).seq;
+    await renameKey(`variable:${ink.id}`).click();
+    const f = $('[data-testid=manage-renaming-variable]');
+    await f.fill(gapName);
+    const note = $('[data-testid=manage-renaming-variable-note]');
+    assert.equal(await note.getAttribute('data-tone'), 'error');
+    assert.match(await note.textContent(), /already has this name/i);
+    assert.equal(await $('[data-testid=manage-renaming-variable-save]').isDisabled(), true);
+    await f.press('Enter');
+    await sleep(300);
+    assert.equal(await f.count(), 1, 'the field stays open for a correction');
+    assert.equal((await snapshot()).seq, seq, 'nothing was sent');
+    await f.fill('Color/Ink');
+    assert.match(await note.textContent(), /lowercase letters/i);
+    await f.fill(inkName);
+    assert.equal(await $('[data-testid=manage-renaming-variable-save]').isDisabled(), false, 'its own name is not taken');
+    // Escape cancels the edit only: the dialog stays, the name stays, the focus returns to the button.
+    await f.fill(`${inkName}-zz`);
+    await page.keyboard.press('Escape');
+    await until('the field is gone', async () => (await $('[data-testid=manage-renaming-variable]').count()) === 0);
+    assert.equal(await dialogOpen(), true, 'the dialog is still open');
+    assert.equal(await activeRename(), `variable:${ink.id}`);
+    assert.equal(await text(`[data-testid=manage-var][data-id="${ink.id}"] th`), inkName);
+    // The name it has now, submitted: closes the field and sends nothing.
+    await renameKey(`variable:${ink.id}`).click();
+    await $('[data-testid=manage-renaming-variable]').press('Enter');
+    await until('the field is gone', async () => (await $('[data-testid=manage-renaming-variable]').count()) === 0);
+    assert.equal(await activeRename(), `variable:${ink.id}`);
+    await renameKey(`variable:${ink.id}`).click();
+    await $('[data-testid=manage-renaming-variable-save]').click();
+    await until('the field is gone', async () => (await $('[data-testid=manage-renaming-variable]').count()) === 0);
+    await sleep(300);
+    assert.equal((await snapshot()).seq, seq, 'no op was sent by any of it');
+  });
+
+  await check('renaming a mode: the chip takes a field, a duplicate is a warning, hidden characters and 65 characters are refused, Enter renames, one undo', async () => {
+    const c = (await collections()).find((x) => x.name === brand);
+    const [first, second] = c.modes;
+    assert.equal(await $('[data-testid=manage-rename-mode]').count(), 2, 'the default mode can be renamed too');
+    const seq = (await snapshot()).seq;
+    const btn = renameKey(`mode:${second.id}`);
+    assert.equal(await btn.getAttribute('aria-label'), 'Rename mode dark');
+    await btn.click();
+    const f = $('[data-testid=manage-renaming-mode]');
+    assert.equal(await f.inputValue(), 'dark');
+    const note = $('[data-testid=manage-renaming-mode-note]');
+    await f.fill('Default');
+    assert.equal(await note.getAttribute('data-tone'), 'warning');
+    assert.equal(await $('[data-testid=manage-renaming-mode-save]').isDisabled(), false);
+    await f.fill('niㅤght');
+    assert.match(await note.textContent(), /invisible/i);
+    assert.equal(await $('[data-testid=manage-renaming-mode-save]').isDisabled(), true);
+    await f.fill('x'.repeat(65));
+    assert.match(await note.textContent(), /64 characters/);
+    await f.press('Enter');
+    await sleep(300);
+    assert.equal((await snapshot()).seq, seq, 'nothing was sent');
+    await f.fill('Night shift');
+    await f.press('Enter');
+    await until('the mode is renamed on the server', async () => (await collections()).find((x) => x.id === c.id)?.modes[1]?.name === 'Night shift');
+    assert.equal((await collections()).find((x) => x.id === c.id).modes[1].id, second.id, 'same id');
+    assert.equal((await snapshot()).seq, seq + 1);
+    await until('the chip shows it', async () => (await text(`[data-testid=manage-mode][data-id="${second.id}"]`)).includes('Night shift'));
+    assert.match(await text('[data-testid=manage-status]'), /Renamed the mode “dark” to “Night shift”\./);
+    await until('the focus is back on the Rename button of the chip', async () => (await activeRename()) === `mode:${second.id}`);
+    await page.keyboard.press('Control+z');
+    await until('the old name is back', async () => (await collections()).find((x) => x.id === c.id)?.modes[1]?.name === 'dark');
+    assert.equal((await snapshot()).seq, seq + 2, 'one undo step');
+    assert.equal(first.name, 'default');
+  });
+
+  await check('renaming a collection from its title: the field takes the title, Enter renames, the list and the title follow, one undo; Escape keeps the name', async () => {
+    const c = (await collections()).find((x) => x.name === brand);
+    const seq = (await snapshot()).seq;
+    const btn = renameKey(`collection:${c.id}`);
+    assert.equal(await btn.getAttribute('aria-label'), `Rename collection ${brand}`);
+    await btn.click();
+    assert.equal(await $('[data-testid=manage-title]').count(), 0, 'the field is in place of the title');
+    const f = $('[data-testid=manage-renaming-collection]');
+    assert.equal(await f.inputValue(), brand);
+    await f.fill('Brand Name');
+    assert.match(await text('[data-testid=manage-renaming-collection-note]'), /lowercase letters/i);
+    await page.keyboard.press('Escape');
+    await until('the field is gone', async () => (await $('[data-testid=manage-renaming-collection]').count()) === 0);
+    assert.equal(await dialogOpen(), true);
+    assert.equal(await activeRename(), `collection:${c.id}`);
+    assert.equal(await text('[data-testid=manage-title]'), brand);
+    await btn.click();
+    await f.fill(`${brand}-2`);
+    await f.press('Enter');
+    await until('the collection is renamed on the server', async () => (await collections()).some((x) => x.id === c.id && x.name === `${brand}-2`));
+    assert.equal((await snapshot()).seq, seq + 1);
+    await until('the title shows it', async () => (await text('[data-testid=manage-title]')) === `${brand}-2`);
+    assert.equal((await text(`[data-testid=manage-collection][data-id="${c.id}"]`)).startsWith(`${brand}-2`), true, 'the list row too');
+    assert.match(await text('[data-testid=manage-status]'), new RegExp(`Renamed the collection “${brand}” to “${brand}-2”\\.`));
+    await until('the focus is back on the Rename button', async () => (await activeRename()) === `collection:${c.id}`);
+    await page.keyboard.press('Control+z');
+    await until('the old name is back', async () => (await collections()).some((x) => x.id === c.id && x.name === brand));
+    assert.equal((await snapshot()).seq, seq + 2, 'one undo step');
+    await until('the title shows the old name', async () => (await text('[data-testid=manage-title]')) === brand);
+  });
+
+  await check('a variable removed by another actor while its field is open closes the field and says it no longer exists', async () => {
+    const c = (await collections()).find((x) => x.name === brand);
+    const id = `tmp_${run}`;
+    await post({ type: 'addVariable', variable: { id, collection: c.id, name: `color/tmp-${run}`, type: 'color', values: Object.fromEntries(c.modes.map((m) => [m.id, '#112233'])) } });
+    await $(`[data-testid=manage-var][data-id="${id}"]`).waitFor();
+    await renameKey(`variable:${id}`).click();
+    await $('[data-testid=manage-renaming-variable]').waitFor();
+    await post({ type: 'removeVariable', id });
+    await until('the field is gone', async () => (await $('[data-testid=manage-renaming-variable]').count()) === 0);
+    assert.match(await text('[data-testid=manage-error]'), /That variable no longer exists\./);
+    assert.equal(await dialogOpen(), true);
+  });
+
+  await check('an untouched field does not undo a rename by another actor: it says the name changed, and Enter sends nothing and leaves no old status', async () => {
+    const c = (await collections()).find((x) => x.name === brand);
+    const id = `mv_${run}`;
+    await post({ type: 'addVariable', variable: { id, collection: c.id, name: `color/mv-${run}`, type: 'color', values: Object.fromEntries(c.modes.map((m) => [m.id, '#112233'])) } });
+    await $(`[data-testid=manage-var][data-id="${id}"]`).waitFor();
+    await renameKey(`variable:${id}`).click();
+    const f = $('[data-testid=manage-renaming-variable]');
+    await f.waitFor();
+    assert.equal(await text('[data-testid=manage-renaming-variable-moved]'), '', 'nothing to say yet');
+    await post({ type: 'renameVariable', id, name: `color/mv2-${run}` });
+    await until('the field says the name changed', async () => (await text('[data-testid=manage-renaming-variable-moved]')) === `This name changed to “color/mv2-${run}” while you were editing.`);
+    assert.equal(await f.inputValue(), `color/mv-${run}`, 'the text is left as it was');
+    assert.equal(await $('[data-testid=manage-renaming-variable-save]').isDisabled(), false);
+    const seq = (await snapshot()).seq;
+    await f.press('Enter');
+    await until('the field is gone', async () => (await $('[data-testid=manage-renaming-variable]').count()) === 0);
+    await sleep(300);
+    assert.equal((await snapshot()).seq, seq, 'nothing was sent');
+    assert.equal((await variables()).find((v) => v.id === id).name, `color/mv2-${run}`, "the other actor's name stands");
+    assert.equal(await text('[data-testid=manage-status]'), '', 'the earlier words are gone');
+    assert.equal(await text('[data-testid=manage-error]'), '');
+    assert.equal(await activeRename(), `variable:${id}`);
+    await post({ type: 'removeVariable', id });
+  });
+
   await check('Detach lets go of the use as a literal and removes the variable; one undo brings both back', async () => {
     const ink = (await variables()).find((v) => v.name === inkName);
     await $(`[data-testid=manage-var][data-id="${ink.id}"] [data-testid=manage-remove-variable]`).click();
@@ -261,6 +461,22 @@ const addEntity = async (fieldId, value) => {
     assert.equal(typeof (await snapshot()).nodes.find((x) => x.id === frame).fill, 'string');
     await until('the list is empty again', async () => (await $('[data-testid=manage-collection]').count()) === 0);
     await shot('after');
+  });
+
+  await check('adding a collection while a rename field is open closes the field for good: choosing the first collection again shows no field', async () => {
+    await addEntity('manage-new-collection', `fa-${run}`);
+    const a = await until('the first collection', async () => (await collections()).find((x) => x.name === `fa-${run}`));
+    await until('it is chosen', async () => (await $(`[data-testid=manage-collection][data-id="${a.id}"]`).getAttribute('aria-current')) === 'true');
+    await renameKey(`collection:${a.id}`).click();
+    await $('[data-testid=manage-renaming-collection]').waitFor();
+    await addEntity('manage-new-collection', `fb-${run}`);
+    const b = await until('the second collection', async () => (await collections()).find((x) => x.name === `fb-${run}`));
+    await until('the second is chosen', async () => (await $(`[data-testid=manage-collection][data-id="${b.id}"]`).getAttribute('aria-current')) === 'true');
+    assert.equal(await $('[data-testid=manage-renaming-collection]').count(), 0);
+    await $(`[data-testid=manage-collection][data-id="${a.id}"]`).click();
+    await until('the first is shown again', async () => (await text('[data-testid=manage-title]')) === `fa-${run}`);
+    assert.equal(await $('[data-testid=manage-renaming-collection]').count(), 0, 'the field did not come back');
+    assert.equal(await renameKey(`collection:${a.id}`).count(), 1, 'its Rename button is there');
   });
 
   await check('Escape closes the view and the focus goes back to the Manage button', async () => {

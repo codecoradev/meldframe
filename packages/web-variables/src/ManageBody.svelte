@@ -2,8 +2,9 @@
   The manage view of the Variables (D8, the VariableManagement board): the collections on the left, the chosen one on
   the right with its modes and variables, and the question before a removal. It reads the panel the app layer gives it
   (`AppState.variables`) and sends the six manage actions; the ids are the app layer's, so the thing that was added is
-  found by `Event::EntityAdded` and given the focus. What it holds is view state only: which collection is shown, the
-  removal being asked about, the text of the last refusal or change (the live regions) and a counter for each form,
+  found by `Event::EntityAdded` and given the focus. A rename is one `EditVariables` action with one rename command
+  (`rename.ts`). What it holds is view state only: which collection is shown, the removal being asked about, the
+  thing whose name is being edited (an id; its field holds the text), the text of the last refusal or change (the live regions) and a counter for each form,
   bumped to start the form again. The name rules are `manage.ts`; the words of a refusal are `notices.ts`.
 -->
 <script lang="ts">
@@ -14,6 +15,7 @@
   import CollectionList from './CollectionList.svelte';
   import RemoveConfirm from './RemoveConfirm.svelte';
   import { addModeAction, addVariableAction, collectionSummary, createCollectionAction, label, partial, reactTo, removalPlan, targetOf, whereAdded, type Ask } from './manage';
+  import { NO_RENAME, answerRename, closeRename, goneWords, openRename, renameAction, renameContext, renamedWords, sendRename, type RenameFlow } from './rename';
 
   interface Props {
     panel: VariablesPanel;
@@ -37,6 +39,19 @@
     if (ask && !target) ask = null;
   });
 
+  // The rename field belongs to a thing that is still there: when another actor removed it, the field closes and says so.
+  // The flow holds the target and the rename that was sent from the field, whose answer is awaited; closing the field clears both.
+  let flow = $state<RenameFlow>(NO_RENAME);
+  const renaming = $derived(flow.field);
+  const renameCtx = $derived(renaming ? renameContext(panel, renaming) : null);
+  $effect(() => {
+    if (renaming && !renameCtx) {
+      error = goneWords(panel, renaming);
+      status = '';
+      flow = closeRename();
+    }
+  });
+
   // The live regions are always on the page and the text is put into them (a region that appears with its text is not announced).
   let error = $state('');
   let status = $state('');
@@ -47,16 +62,16 @@
   let sent: Action | null = null;
   let refocus: Ask | null = null;
 
-  const q = (match: (el: HTMLElement) => boolean) => [...(root?.querySelectorAll<HTMLElement>('[data-entity-id], [data-remove], [data-testid=manage-title], [data-testid=manage-collection], [data-testid=manage-collections-title]') ?? [])].find(match);
+  const q = (match: (el: HTMLElement) => boolean) => [...(root?.querySelectorAll<HTMLElement>('[data-entity-id], [data-remove], [data-rename], [data-testid=manage-title], [data-testid=manage-collection], [data-testid=manage-collections-title]') ?? [])].find(match);
   const focusEntity = (id: string) => {
     const el = q((e) => e.dataset.entityId === id);
     el?.scrollIntoView({ block: 'nearest' });
     el?.focus();
   };
   /** Back to the button that asked; when that thing is gone, to the title of the collection, then to a collection, then to the heading of the list. */
-  const focusAsker = (a: Ask) => {
+  const focusAsker = (a: Ask, attr: 'remove' | 'rename' = 'remove') => {
     const key = `${a.kind}:${a.id}`;
-    (q((e) => e.dataset.remove === key) ?? q((e) => e.dataset.testid === 'manage-title') ?? q((e) => e.dataset.testid === 'manage-collection') ?? q((e) => e.dataset.testid === 'manage-collections-title'))?.focus();
+    (q((e) => e.dataset[attr] === key) ?? q((e) => e.dataset.testid === 'manage-title') ?? q((e) => e.dataset.testid === 'manage-collection') ?? q((e) => e.dataset.testid === 'manage-collections-title'))?.focus();
   };
 
   const send = (a: Action, done: string) => {
@@ -87,6 +102,11 @@
       keys = { ...keys, [added.entity]: keys[added.entity] + 1 };
       void tick().then(() => focusEntity(added.id));
     }
+    // The field closes when its rename was made and stays, with its text, when it was refused.
+    const answered = answerRename(untrack(() => flow), r);
+    flow = answered.flow;
+    const back = answered.refocus;
+    if (back) void tick().then(() => focusAsker(back, 'rename'));
     if (refocus && (r.error || r.status)) {
       const a = refocus;
       refocus = null;
@@ -98,6 +118,25 @@
     const a = ask;
     ask = null;
     if (a) void tick().then(() => focusAsker(a));
+  };
+  const startRename = (a: Ask) => {
+    ask = null;
+    flow = openRename(a);
+  };
+  // A cancel is quiet: the words of an earlier change do not stay in the status line as if this had done something.
+  const cancelRename = () => {
+    const a = renaming;
+    flow = closeRename();
+    status = '';
+    error = '';
+    if (a) void tick().then(() => focusAsker(a, 'rename'));
+  };
+  const submitRename = (name: string) => {
+    const a = renaming;
+    const ctx = renameCtx;
+    if (!a || !ctx) return;
+    flow = sendRename(flow);
+    send(renameAction(a, name), renamedWords(a.kind, ctx.current, name));
   };
   const confirm = () => {
     const p = plan;
@@ -120,7 +159,7 @@
   {/if}
   <div class="flex min-h-0 flex-1">
     <div class="w-64 shrink-0 overflow-y-auto border-r border-hairline">
-      <CollectionList collections={panel.collections} chosen={current?.id ?? null} onChoose={(id) => { chosenId = id; ask = null; }} onAdd={(n) => send(createCollectionAction(n), `Added the collection “${label(n)}”.`)} resetKey={keys.collection} />
+      <CollectionList collections={panel.collections} chosen={current?.id ?? null} onChoose={(id) => { chosenId = id; ask = null; flow = closeRename(); }} onAdd={(n) => { flow = closeRename(); send(createCollectionAction(n), `Added the collection “${label(n)}”.`); }} resetKey={keys.collection} />
     </div>
     <div class="min-w-0 flex-1 overflow-y-auto" data-testid="manage-detail">
       {#if plan && ask}
@@ -133,7 +172,15 @@
         <CollectionDetail
           col={current}
           {summary}
-          onAsk={(a) => (ask = a)}
+          onAsk={(a) => {
+            flow = closeRename();
+            ask = a;
+          }}
+          {renaming}
+          ctx={renameCtx}
+          onRename={startRename}
+          onRenameSubmit={submitRename}
+          onRenameCancel={cancelRename}
           onAddMode={(n, from) => send(addModeAction(current.id, n, from), `Added the mode “${label(n)}”.`)}
           onAddVariable={(n, kind: VarType) => send(addVariableAction(current.id, n, kind), `Added the variable “${label(n)}”.`)}
           modeKey={keys.mode}
