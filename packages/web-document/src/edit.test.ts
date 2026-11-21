@@ -2,7 +2,7 @@ import type { Node } from '@meldframe/protocol';
 import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
 import type { Scene } from '@meldframe/web-canvas/scene';
 import { describe, expect, it } from 'vitest';
-import { OWNS_KEYS_SELECTOR, containerFor, createActionFor, deleteAction, drawnBox, keyAction, movePreviewFor, moveActionsFor, ownsKeys, previewScene, resizeActionFor, resizePreviewFor, resizedBox, toolMode, worldOrigin } from './edit';
+import { OWNS_KEYS_SELECTOR, containerFor, createActionFor, deleteAction, drawnBox, keyAction, movePreviewFor, moveActionsFor, ownsKeys, previewScene, resizeActionFor, resizePreviewFor, resizedBox, documentChanged, gestureGoing, toolMode, worldOrigin } from './edit';
 
 const node = (id: string, over: Partial<Node> = {}): Node =>
   ({ id, name: id, type: 'rect', parentId: null, x: 0, y: 0, w: 100, h: 50, ...over }) as Node;
@@ -294,6 +294,16 @@ describe('keyAction and toolMode', () => {
     expect(keyAction(k('y', { ctrlKey: true }), [])).toEqual({ type: 'redo' });
     expect(keyAction(k('z'), [])).toBeNull();
   });
+  it('sends a plain arrow key with a selection and leaves the direction to the app layer', () => {
+    expect(keyAction(k('ArrowUp'), ['a'])).toEqual({ type: 'arrowKey', direction: 'up' });
+    expect(keyAction(k('ArrowDown'), ['a', 'b'])).toEqual({ type: 'arrowKey', direction: 'down' });
+    expect(keyAction(k('ArrowLeft'), ['a'])).toEqual({ type: 'arrowKey', direction: 'left' });
+    expect(keyAction(k('ArrowRight'), ['a'])).toEqual({ type: 'arrowKey', direction: 'right' });
+  });
+  it('sends no arrow key without a selection or with a modifier (those are for the browser and for later)', () => {
+    expect(keyAction(k('ArrowUp'), [])).toBeNull();
+    for (const over of [{ shiftKey: true }, { altKey: true }, { ctrlKey: true }, { metaKey: true }]) expect(keyAction(k('ArrowUp', over), ['a'])).toBeNull();
+  });
   it('maps the tool of the app to the mode of the canvas', () => {
     expect([toolMode('select'), toolMode('frame'), toolMode('rectangle'), toolMode('text')]).toEqual(['move', 'frame', 'rect', 'text']);
   });
@@ -330,5 +340,24 @@ describe('ownsKeys', () => {
     expect(ownsKeys(el('BUTTON'))).toBe(false);
     expect(ownsKeys(el('BUTTON', ['aside']))).toBe(false);
     expect(ownsKeys(null)).toBe(false);
+  });
+});
+
+describe('when an arrow key is the editor\'s', () => {
+  const snap = (...types: string[]) => ({ events: types.map((type) => ({ type })) });
+  it('is when the dispatch made a new snapshot with a documentChanged event, and no other time', () => {
+    const before = snap('selectionChanged');
+    expect(documentChanged(before, snap('documentChanged', 'historyChanged'))).toBe(true);
+    expect(documentChanged(before, snap('selectionChanged'))).toBe(false);
+    expect(documentChanged(before, snap())).toBe(false);
+  });
+  it('is not when nothing was dispatched into a new snapshot: the old events of the same snapshot are not this key\'s', () => {
+    const same = snap('documentChanged');
+    expect(documentChanged(same, same)).toBe(false);
+  });
+  it('is not during a gesture: its last intent has not come', () => {
+    expect(gestureGoing({ final: false, cancelled: false })).toBe(true);
+    expect(gestureGoing({ final: true, cancelled: false })).toBe(false);
+    expect(gestureGoing({ final: true, cancelled: true })).toBe(false);
   });
 });

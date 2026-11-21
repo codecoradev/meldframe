@@ -42,7 +42,7 @@
   <Dialog.Root {open} {onOpenChange}>
     <Dialog.Portal>
       <Dialog.Overlay class="fixed inset-0 z-40 bg-scrim" />
-      <Dialog.Content data-testid="manage-dialog" onOpenAutoFocus={focusStart} onCloseAutoFocus={giveBack} class="fixed inset-8 z-50 m-auto flex h-fit max-h-full min-h-96 w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-divider bg-surface font-sans text-body text-text shadow-dialog">
+      <Dialog.Content data-owns-keys data-testid="manage-dialog" onOpenAutoFocus={focusStart} onCloseAutoFocus={giveBack} class="fixed inset-8 z-50 m-auto flex h-fit max-h-full min-h-96 w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-divider bg-surface font-sans text-body text-text shadow-dialog">
         <header class="flex h-14 shrink-0 items-center justify-between border-b border-hairline pr-3 pl-5">
           <Dialog.Title class="m-0 truncate text-title font-semibold text-text-strong">Manage variables</Dialog.Title>
           <Dialog.Close>{#snippet child({ props })}<IconButton label="Close" icon="close" triggerProps={props} data-testid="manage-close" />{/snippet}</Dialog.Close>

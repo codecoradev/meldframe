@@ -57,7 +57,7 @@
 <Dialog.Root open={dialog !== null} onOpenChange={(o) => { if (!o) close(); }}>
   <Dialog.Portal>
     <Dialog.Overlay class="fixed inset-0 z-40 bg-scrim" />
-    <Dialog.Content data-testid="export-dialog" onOpenAutoFocus={focusTab} onCloseAutoFocus={giveBack} class="fixed inset-8 z-50 m-auto flex h-fit max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-divider bg-surface font-sans text-body text-text shadow-dialog">
+    <Dialog.Content data-owns-keys data-testid="export-dialog" onOpenAutoFocus={focusTab} onCloseAutoFocus={giveBack} class="fixed inset-8 z-50 m-auto flex h-fit max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-divider bg-surface font-sans text-body text-text shadow-dialog">
       {#if dialog}
         <header class="flex h-14 shrink-0 items-center justify-between border-b border-hairline pr-3 pl-5">
           <Dialog.Title class="m-0 truncate text-title font-semibold text-text-strong">Export {plain(dialog.name)}</Dialog.Title>

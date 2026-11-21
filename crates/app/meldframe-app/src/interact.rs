@@ -6,9 +6,11 @@
 //! writes the size and the origin, and the panel shows the stored box.
 
 use crate::app::App;
+use meldframe_app_model::Direction;
 use meldframe_app_parts::document::apply_all;
 use meldframe_app_parts::panel::selected_node;
 use meldframe_app_parts::properties::Drawn;
+use meldframe_app_rules::arrow::arrow_commands;
 use meldframe_app_rules::drop::{Drag, Slot, drop_commands, drop_slot};
 use meldframe_app_rules::resize::resize;
 use meldframe_check::ApplyError;
@@ -27,6 +29,17 @@ impl App {
         let nodes = self.replica.nodes();
         // Without the laid-out boxes the rule has none to read, and a drop is a move by the drag.
         let cmds = self.with_rects(|rects| drop_commands(nodes, rects, &Drag { id, at, by }))?;
+        self.validate(&cmds)?;
+        apply_all(&mut self.replica, &cmds)
+    }
+
+    /// An arrow key with the selection (`Action::ArrowKey`): the selected children of an auto layout frame move one place
+    /// along its flow, as one step (`meldframe-app-rules`, `arrow`). With the flag off it does nothing.
+    pub(crate) fn arrow_key(&mut self, key: Direction) -> Result<(), SubmitError> {
+        if !self.canvas.enabled {
+            return Ok(());
+        }
+        let cmds = arrow_commands(self.replica.nodes(), &self.state.selection, key);
         self.validate(&cmds)?;
         apply_all(&mut self.replica, &cmds)
     }

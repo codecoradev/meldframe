@@ -1,6 +1,6 @@
 // What the canvas reports (a move, a resize, a drawn box) as actions of the app layer, and what to show while a
 // gesture is going on. Pure: the canvas applies nothing and this module holds no state. The app layer decides.
-import type { Action, CreateKind, Node, Tool } from '@meldframe/protocol';
+import type { Action, CreateKind, Direction, Node, Tool } from '@meldframe/protocol';
 import type { CreateIntent, CreateTool, MoveIntent, ResizeIntent, ToolMode } from '@meldframe/web-canvas/interaction';
 import type { DropSlot, HandleId } from '@meldframe/web-canvas/overlay';
 import type { Scene } from '@meldframe/web-canvas/scene';
@@ -243,7 +243,21 @@ export function ownsKeys(el: KeyTarget | null, k: { ctrlKey: boolean; metaKey: b
 /** The action that deletes the selection (one action for all of it), or null when nothing is selected: the rule of the Delete key and of the palette. */
 export const deleteAction = (selection: readonly string[]): Action | null => (selection.length ? { type: 'delete', ids: [...selection] } : null);
 
-/** The action of a key of the editor: tools, delete, undo and redo. Null for any other key. */
+/** Whether a dispatch changed the document: the snapshot is a new one and the app layer raised `documentChanged` for it. */
+export function documentChanged(before: { events: readonly { type: string }[] }, after: { events: readonly { type: string }[] }): boolean {
+  return after !== before && after.events.some((e) => e.type === 'documentChanged');
+}
+
+/** Whether a gesture of the canvas (a drag, a resize, a drawn box) is still going on: its last intent has not come. */
+export const gestureGoing = (i: { final: boolean; cancelled: boolean }): boolean => !i.final && !i.cancelled;
+
+const arrowKeys: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+
+/**
+ * The action of a key of the editor: tools, delete, undo and redo, and a plain arrow key with a selection (the app layer
+ * decides what it does: with the layout on the canvas it moves the selected children of an auto layout frame one place, and
+ * it does nothing otherwise). Null for any other key.
+ */
 export function keyAction(k: KeyLike, selection: readonly string[]): Action | null {
   const mod = k.metaKey || k.ctrlKey;
   const key = k.key.toLowerCase();
@@ -251,6 +265,8 @@ export function keyAction(k: KeyLike, selection: readonly string[]): Action | nu
   if (!mod && (k.key === 'Delete' || k.key === 'Backspace')) return deleteAction(selection);
   if (mod && !k.altKey && key === 'z') return k.shiftKey ? { type: 'redo' } : { type: 'undo' };
   if (mod && !k.altKey && !k.shiftKey && key === 'y') return { type: 'redo' };
+  const arrow = Object.hasOwn(arrowKeys, k.key) ? arrowKeys[k.key] : undefined;
+  if (arrow && !mod && !k.altKey && !k.shiftKey && selection.length) return { type: 'arrowKey', direction: arrow };
   return null;
 }
 

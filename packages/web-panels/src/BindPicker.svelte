@@ -31,7 +31,7 @@
     {/snippet}
   </Popover.Trigger>
   <Popover.Portal>
-    <Popover.Content side="bottom" align="end" sideOffset={8} data-testid="picker" class="z-50 flex w-72 flex-col overflow-hidden rounded-lg border border-menu-border bg-surface-raised text-small text-text shadow-popover">
+    <Popover.Content data-owns-keys side="bottom" align="end" sideOffset={8} data-testid="picker" class="z-50 flex w-72 flex-col overflow-hidden rounded-lg border border-menu-border bg-surface-raised text-small text-text shadow-popover">
       {#if mine}<PickerList picker={mine} {dispatch} />{/if}
     </Popover.Content>
   </Popover.Portal>

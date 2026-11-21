@@ -9,6 +9,7 @@
 //! as a number. The state machine that owns the state, the replica and the events stays in `meldframe-app`, and calls
 //! these.
 
+pub mod arrow;
 pub mod drop;
 pub mod level;
 pub mod link;
