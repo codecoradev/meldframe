@@ -18,14 +18,20 @@ pub use table::{Entry, Query, TableMeasurer};
 use export::{ExportOptions, Format};
 use meldframe_layout::{Rect, compute_rects};
 use meldframe_protocol::{Node, NodeKind, Variables};
+use meldframe_variables::ModeChoice;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// One fixture file: a whole file as a flat node list.
+/// One fixture file: a whole file as a flat node list, with the variables its nodes bind to and the mode picked for each
+/// collection (collection id to mode id; the others show their default mode).
 #[derive(Debug, Deserialize)]
 pub struct Fixture {
     pub name: String,
     pub nodes: Vec<Node>,
+    #[serde(default)]
+    pub variables: Variables,
+    #[serde(default)]
+    pub modes: BTreeMap<String, String>,
 }
 
 /// What the harness sends.
@@ -84,13 +90,14 @@ fn codes(list: &[export::Finding]) -> Vec<String> {
 }
 
 fn one(
-    nodes: &[Node],
+    f: &Fixture,
     frame: &str,
     format: Format,
     measurer: &TableMeasurer,
 ) -> Result<Exported, export::ExportError> {
-    let options = ExportOptions::new(format, measurer);
-    let e = export::export_frame(nodes, &Variables::default(), frame, &options)?;
+    let choice = ModeChoice::of(f.modes.iter().map(|(c, m)| (c.as_str(), m.as_str())));
+    let options = ExportOptions::new(format, measurer).modes(choice);
+    let e = export::export_frame(&f.nodes, &f.variables, frame, &options)?;
     Ok(Exported {
         html: e.html,
         css: e.css,
@@ -118,7 +125,7 @@ fn answer(f: &Fixture, table: &[Entry]) -> Answer {
             (Format::Css, &mut fe.css),
             (Format::Tailwind, &mut fe.tailwind),
         ] {
-            match one(&f.nodes, &root.id, format, &measurer) {
+            match one(f, &root.id, format, &measurer) {
                 Ok(e) => *slot = Some(e),
                 Err(e) => errors.push(format!("{}:{}", e.code(), root.id)),
             }
