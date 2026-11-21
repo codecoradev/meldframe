@@ -63,7 +63,7 @@ activity-store = { path = "../../crates/features/activity/activity-store", optio
 meldframe-http-activity = { path = "../../crates/integrations/meldframe-http-activity", optional = true }
 meldframe-protocol = { path = "../../crates/core/meldframe-protocol" }
 meldframe-stream = { path = "../../crates/core/meldframe-stream" }
-serde_json = "1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
 meldframe-store-pg = { path = "../../crates/integrations/meldframe-store-pg" }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "signal"] }
