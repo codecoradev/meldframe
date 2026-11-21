@@ -1,9 +1,11 @@
-//! The asset routes (E2.5, ADR-0015). Both answer to the workspace of the Bearer token and to no other:
+//! The asset routes (E2.5, ADR-0015). Each answers to the workspace of the Bearer token and to no other:
 //!
 //! - `POST /v1/assets`: the body is the bytes of one png, jpeg, webp or gif image (no multipart). The route
 //!   checks the token and the declared length first, takes an upload place, reads the body as a stream and never
 //!   past the limit, and stores it. The answer names the asset: `{"ok": true, "id": <SHA-256>, "type": "image/png",
 //!   "bytes": n}`. The same bytes are the same asset.
+//! - `GET /v1/assets`: the workspace's assets a page at a time, `{"assets": [{"id", "bytes", "mime"}], "next"}`, sorted
+//!   by id (see `list.rs`); no content.
 //! - `GET /v1/assets/{id}`: the bytes, served with the type told by the first bytes, `X-Content-Type-Options:
 //!   nosniff` and a content security policy that allows no script, since only the first bytes of an upload are
 //!   checked. An id that is not in the workspace's store is `asset_not_found`, whoever else has it.
@@ -27,6 +29,7 @@ use meldframe_host::{Principal, Refusal};
 use meldframe_http::{Failure, Reply, Shared, Slots, bearer, peer};
 use serde_json::json;
 mod dir;
+mod list;
 mod tool;
 
 pub use dir::assets_dir;
@@ -129,10 +132,10 @@ impl Assets {
         }
     }
 
-    /// `POST /v1/assets` and `GET /v1/assets/{id}`, to merge into the router.
+    /// `POST /v1/assets`, `GET /v1/assets` and `GET /v1/assets/{id}`, to merge into the router.
     pub fn routes(&self) -> Router {
         Router::new()
-            .route("/v1/assets", post(upload))
+            .route("/v1/assets", post(upload).get(list::list))
             .route("/v1/assets/{id}", get(download))
             .with_state(self.state.clone())
     }
