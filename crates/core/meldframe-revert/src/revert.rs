@@ -266,11 +266,13 @@ fn variable_target(c: &Command) -> Option<String> {
     match c {
         Command::AddCollection { collection } => Some(collection.id.clone()),
         Command::RemoveCollection { id }
+        | Command::RenameCollection { id, .. }
         | Command::RemoveVariable { id }
+        | Command::RenameVariable { id, .. }
         | Command::SetVariableValue { id, .. } => Some(id.clone()),
-        Command::AddMode { collection, .. } | Command::RemoveMode { collection, .. } => {
-            Some(collection.clone())
-        }
+        Command::AddMode { collection, .. }
+        | Command::RemoveMode { collection, .. }
+        | Command::RenameMode { collection, .. } => Some(collection.clone()),
         Command::AddVariable { variable } => Some(variable.id.clone()),
         _ => None,
     }

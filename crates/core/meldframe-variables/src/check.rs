@@ -99,6 +99,11 @@ fn valid_name(name: &str, l: &VarLimits) -> Result<(), VarError> {
     }
 }
 
+/// The name of a mode: any text up to the length limit, as `addMode` takes it.
+fn mode_name(name: &str, l: &VarLimits) -> Result<(), VarError> {
+    strlen("mode name", name, l.max_name)
+}
+
 fn collection_of<'a>(vars: &'a Variables, id: &str) -> Result<&'a Collection, VarError> {
     vars.collection(id)
         .ok_or_else(|| VarError::CollectionNotFound(id.to_string()))
@@ -225,7 +230,7 @@ fn check_modes(c: &Collection, l: &VarLimits) -> Result<(), VarError> {
     let mut seen = HashSet::new();
     for m in &c.modes {
         valid_id(&m.id, l)?;
-        strlen("mode name", &m.name, l.max_name)?;
+        mode_name(&m.name, l)?;
         if !seen.insert(m.id.as_str()) {
             return Err(VarError::InvalidModes("two modes have the same id"));
         }
@@ -266,6 +271,36 @@ pub fn check_variable_command(
             collection_of(vars, id)?;
             if vars.variables.iter().any(|v| v.collection == *id) {
                 return Err(VarError::CollectionNotEmpty(id.clone()));
+            }
+            Ok(())
+        }
+        // A rename is refused for a name `addCollection`, `addMode` or `addVariable` would refuse for the same
+        // entity, and for a name another variable of the collection has. The name it already has is accepted
+        // (and changes nothing), so a repeated rename is harmless.
+        Command::RenameCollection { id, name } => {
+            collection_of(vars, id)?;
+            valid_name(name, l)
+        }
+        Command::RenameMode {
+            collection,
+            mode,
+            name,
+        } => {
+            let col = collection_of(vars, collection)?;
+            if !col.modes.iter().any(|m| m.id == *mode) {
+                return Err(VarError::ModeNotFound(mode.clone()));
+            }
+            mode_name(name, l)
+        }
+        Command::RenameVariable { id, name } => {
+            let v = variable_of(vars, id)?;
+            valid_name(name, l)?;
+            if vars
+                .variables
+                .iter()
+                .any(|o| o.id != *id && o.collection == v.collection && o.name == *name)
+            {
+                return Err(VarError::DuplicateName(name.clone()));
             }
             Ok(())
         }
