@@ -22,8 +22,9 @@ pub const MAX_REV: u64 = 1 << 48;
 /// frame): it asks for the newest page instead. A page is the truth and has only [`MAX_REV`] to keep.
 pub const MAX_REV_JUMP: u64 = 1_000_000;
 
-/// A run ends when its actor is quiet for more than this (the `RunDetector` of the checkpoints uses it too).
-pub const RUN_GAP_MS: u64 = 300_000;
+/// A run ends when its actor is quiet for more than this: the one number of `meldframe-revert`, which the checkpoints
+/// read too.
+pub use meldframe_revert::RUN_GAP_MS;
 /// A lane is `working` while its ops or touches arrived less than this ago.
 pub const WORKING_MS: u64 = 10_000;
 /// A lane is `idle` once this long has passed since its last op or touch.

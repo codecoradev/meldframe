@@ -1381,6 +1381,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-activity",
  "meldframe-checkpoints",
+ "meldframe-revert",
  "wasm-bindgen-test",
 ]
 
@@ -1389,6 +1390,7 @@ name = "meldframe-checkpoints"
 version = "0.0.0"
 dependencies = [
  "meldframe-activity",
+ "meldframe-revert",
 ]
 
 [[package]]

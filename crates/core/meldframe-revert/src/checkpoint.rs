@@ -5,6 +5,19 @@
 
 use std::collections::HashMap;
 
+/// A run ends when its actor is quiet for more than this (5 minutes). The lane's run (`meldframe-activity`), the
+/// checkpoint the app layer took and the one the server takes read this one number, so they cannot drift.
+pub const RUN_GAP_MS: u64 = 300_000;
+
+/// Whether an op at `now_ms` starts a run, given when its actor was last seen (`None`: never). It does when the actor
+/// is new or was last seen more than `gap_ms` ago; a clock that goes back is the same run.
+pub fn starts_run(last: Option<u64>, now_ms: u64, gap_ms: u64) -> bool {
+    match last {
+        Some(at) => now_ms.saturating_sub(at) > gap_ms,
+        None => true,
+    }
+}
+
 /// Tells the first op of a run from the rest.
 #[derive(Debug, Clone)]
 pub struct RunDetector {
@@ -24,10 +37,7 @@ impl RunDetector {
     /// An op of `actor` at `now_ms`. True when it starts a run: the actor is new, or its last op was more than
     /// the gap ago. The clock is the caller's; a value that goes back counts as the same run.
     pub fn observe(&mut self, actor: &str, now_ms: u64) -> bool {
-        let starts = match self.last.get(actor) {
-            Some(&at) => now_ms.saturating_sub(at) > self.gap_ms,
-            None => true,
-        };
+        let starts = starts_run(self.last.get(actor).copied(), now_ms, self.gap_ms);
         self.last.insert(actor.to_string(), now_ms);
         starts
     }

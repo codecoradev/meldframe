@@ -1,19 +1,24 @@
 //! The rules of checkpoints kept by the server (E5.3, ADR-0023), with no I/O: what a row holds, which kinds there
-//! are, what a label may say and how many rows a file keeps.
+//! are, what a label may say, how many rows a file keeps and which ones go when a new one is made, when the server
+//! takes a checkpoint on its own, and the seam a write reports to.
 //!
 //! A checkpoint is a row beside a file's log, never a copy of the file and never an op: `seq` is a number in the log
 //! (ADR-0016). The store that keeps the rows is `checkpoint-store`; this crate is what the server, the store and the
 //! app layer all agree on, so the rules live once (ADR-0008). It depends on `meldframe-activity` (the hidden-text
-//! rule, the actor limit) only for now.
+//! rule, the actor limit) and `meldframe-revert` (the run rule) only.
 //!
 //! The label is the person's text: [`Label::parse`] refuses what it cannot show and never cuts. The bounds are shares
 //! of a file ([`Share`]): a `manual` row is refused at its share and never rolled out; the automatic kinds roll
-//! inside themselves, so a checkpoint the server takes on its own is never refused and one caller cannot
+//! inside themselves ([`roll`]), so a checkpoint the server takes on its own is never refused and one caller cannot
 //! push another's rows out.
 
 mod label;
+mod roll;
+mod run;
 
 pub use label::{ActorError, Label, LabelError, check_actor};
+pub use roll::{Refusal, Rolled, roll};
+pub use run::{MAX_DETECTOR_ENTRIES, RunCall, RunSink, RunWatch, is_agent, seq_before_first};
 
 /// The most rows one file keeps.
 pub const MAX_PER_FILE: usize = 100;
@@ -203,7 +208,7 @@ impl NewCheckpoint {
         })
     }
 
-    /// The server's run start for `about`, at `seq` the `seq` just before the first op of the run.
+    /// The server's run start for `about`, at `seq` (see [`seq_before_first`]).
     pub fn run_start(about: &str, seq: u64) -> Result<Self, Invalid> {
         check_actor(about).map_err(|e| Invalid::Actor("about", e))?;
         Ok(NewCheckpoint {
