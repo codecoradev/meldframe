@@ -46,11 +46,15 @@ interface GestureBase {
   mods: Mods;
 }
 
-/** `dx`, `dy` are the total pointer travel since the press, in world units. */
+/**
+ * `dx`, `dy` are the total pointer travel since the press, in world units. `at` is where the pointer is, in world units
+ * (where it was pressed on a cancel): a drop is decided by the place, not only by the distance.
+ */
 export interface MoveIntent extends GestureBase {
   ids: string[];
   dx: number;
   dy: number;
+  at: Point;
 }
 
 export interface ResizeIntent extends GestureBase {
@@ -221,7 +225,7 @@ export class Interaction {
       }
       case 'move': {
         const d = this.delta(m.start, here);
-        this.out.move({ ids: m.ids, dx: d.x, dy: d.y, final: false, cancelled: false, mods: e.mods });
+        this.out.move({ ids: m.ids, dx: d.x, dy: d.y, at: this.world(here), final: false, cancelled: false, mods: e.mods });
         return;
       }
       case 'resize': {
@@ -279,7 +283,7 @@ export class Interaction {
         break;
       case 'move': {
         const d = this.delta(m.start, here);
-        this.out.move({ ids: m.ids, dx: d.x, dy: d.y, final: true, cancelled: false, mods: e.mods });
+        this.out.move({ ids: m.ids, dx: d.x, dy: d.y, at: this.world(here), final: true, cancelled: false, mods: e.mods });
         break;
       }
       case 'resize': {
@@ -312,7 +316,7 @@ export class Interaction {
   private abandon(): void {
     const m = this.mode;
     const mods = this.mods;
-    if (m.k === 'move') this.out.move({ ids: m.ids, dx: 0, dy: 0, final: true, cancelled: true, mods });
+    if (m.k === 'move') this.out.move({ ids: m.ids, dx: 0, dy: 0, at: this.world(m.start), final: true, cancelled: true, mods });
     else if (m.k === 'resize') this.out.resize({ ids: m.ids, handle: m.handle, dx: 0, dy: 0, final: true, cancelled: true, mods });
     else if (m.k === 'create') this.out.create({ ...this.rubber(m, m.start, true, true) });
     else if (m.k === 'pan' || m.k === 'pinch') this.out.camera(this.env.camera(), true);
