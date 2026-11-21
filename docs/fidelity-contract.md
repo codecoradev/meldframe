@@ -112,7 +112,7 @@ idiomatic; token-based classes arrive with decision 17.
 | per-side padding | in the model and the layout (E3.2: `padT`, `padR`, `padB`, `padL`); exported and checked on boxes (f16) | `padding: t r b l`; the S9 spike docs report that 12 of 25 frames of a hand-made shop page fell back to free layout when captured, mostly 9 buttons with `padding: 12px 20px` |
 | absolute child inside an auto layout frame | in the model (`absolute`); exported and checked on boxes (f16) | `position:absolute` child of a `position:relative` flex container; removes the child from flow, as `ignoreAutoLayout` in the model would |
 | margin | in the model and the layout (E3.2: `marT`, `marR`, `marB`, `marL`); exported and checked on boxes (f16) | the spike capture turns margins into gap/padding; per-child margin only if round trip is required |
-| design tokens as CSS variables | planned (model, W1; decision 17) | `var(--token)`; the oracle resolves variables in the browser, so geometry tests are unchanged |
+| design tokens as CSS variables | exported (variables, E3.3 and E4.1: `var(--collection-name)`; no probe yet, so not marked supported) | `var(--token)`; the oracle resolves variables in the browser, so geometry tests are unchanged |
 | per-corner radius, rotation, scale, skew | unsupported until proposed | rotation changes `getBoundingClientRect`; the oracle would compare untransformed layout boxes |
 | flex-wrap, CSS grid, min/max size, aspect ratio, space-around, baseline alignment, sticky/fixed | unsupported until proposed | each needs a core implementation and its own oracle fixtures first |
 | letter-spacing, text decoration, italic, `lineHeight` field, `fontFamily`, text runs | unsupported until proposed | font metrics rules in section 6 would have to be extended |
@@ -164,7 +164,7 @@ idiomatic; token-based classes arrive with decision 17.
 
 The oracle is `tools/fidelity-oracle/` (README there), run by the `oracle` job of `ci.yml` on every pull request and by
 `fidelity-oracle` in `nightly.yml`. The `oracle` job is not a required context yet; the owner decides when it becomes one
-(E4.2 stays unticked until the job is required and green on `develop`).
+(E4.2 is ticked on the owner's order of 21 Nov 2026; the exit line 'required on `develop`' of M4 stays open).
 
 How it works:
 
