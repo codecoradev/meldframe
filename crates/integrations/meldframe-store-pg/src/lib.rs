@@ -11,6 +11,7 @@
 mod backing;
 mod batches;
 mod calls;
+mod checkpoints;
 mod review;
 mod state;
 

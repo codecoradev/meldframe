@@ -1,0 +1,21 @@
+[package]
+name = "meldframe-checkpoint-pg-tests"
+description = "The tests of the checkpoint stack that need a database or the server (E5.3, ADR-0023): the store in Postgres, and the server parts that follow. No library code; split from meldframe-checkpoint-tests so the rules and the memory store do not depend on the server."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+checkpoint-store = { path = "../../features/activity/checkpoint-store", features = ["contract"] }
+meldframe-checkpoints = { path = "../meldframe-checkpoints" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-server = { path = "../../../apps/server" }
+serde_json = "1"
+
+[lints]
+workspace = true

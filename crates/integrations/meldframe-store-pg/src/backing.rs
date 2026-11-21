@@ -50,6 +50,14 @@ impl Backing {
         }
     }
 
+    /// The checkpoints of the files (E5.3, ADR-0023): in Postgres with the files, else in memory (a restart loses them).
+    pub fn checkpoints(&self) -> Arc<dyn checkpoint_store::CheckpointStore> {
+        match self {
+            Backing::Memory(_) => Arc::new(checkpoint_store::MemoryCheckpoints::default()),
+            Backing::Postgres(p) => Arc::new(p.clone()),
+        }
+    }
+
     /// The store of one room: a clone of the backing, so rooms of one backing share its durable state.
     pub fn store(&self) -> AnyStore {
         match self {
