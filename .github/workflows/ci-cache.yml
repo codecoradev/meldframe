@@ -1,0 +1,120 @@
+# Warms the compile caches that the pull request checks read (ci.yml).
+#
+# Why: ci.yml runs on pull requests only, and a cache saved by a pull request run is visible to that pull
+# request alone, so no pull request ever found a cache: every run compiled about 300 crates from nothing
+# (the `checks` job took about 14 minutes, 9 of them compiling the tests that then run for 25 seconds). A
+# cache saved on `develop` is read by every pull request into it, so this workflow builds the same things
+# as ci.yml on each push to `develop` and saves them under the same keys. ci.yml only restores them.
+#
+# Jobs and steps mirror ci.yml (same job ids, so the rust-cache keys match, and the same kache key); they build
+# and run nothing that could fail a push to `develop` that its pull request already passed, and a run that
+# fails saves no cache, which only costs the next pull request its speed. Not a required check.
+name: ci-cache
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A run is never cancelled: a cancelled job saves no cache, and the first run (cold, about 15 minutes) would be
+# cancelled by the next merge for as long as merges come faster than that. A newer push waits, and only the
+# newest waiting run starts (GitHub replaces an older pending one).
+concurrency:
+  group: ci-cache
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+
+jobs:
+  checks:
+    name: checks (cache)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          cache-targets: false
+      - name: Install kache
+        run: sh scripts/ci/install-kache.sh
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/kache-store
+          key: kache-checks-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: kache-checks-
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      # The xtask binary and the generated-types build, as in ci.yml.
+      - name: Layering (builds xtask)
+        run: cargo xtask deps-check
+      - name: Protocol drift (builds the type export)
+        run: bash tools/check-protocol.sh
+      - name: Web install
+        run: npm ci --prefix apps/web
+      - name: Lint (builds every crate and test for clippy)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests (builds every test binary, runs none)
+        run: cargo test --workspace --no-run
+      - name: Stop kache (so the store can be saved)
+        if: always()
+        run: command -v kache >/dev/null && kache daemon stop || true
+
+  migrations:
+    name: migrations (cache)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: Build the Postgres tests
+        run: cargo test --no-run -p meldframe-server-tests -p meldframe-activity-pg-tests
+      - name: Build the server binary
+        run: cargo build -p meldframe-server
+
+  oracle:
+    name: oracle (cache)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: Build the runner
+        run: cargo build -p meldframe-oracle-runner
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tools/fidelity-oracle/package-lock.json
+      - name: Install the harness
+        run: npm ci --prefix tools/fidelity-oracle
+      - id: browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tools/fidelity-oracle/package-lock.json') }}
+      - name: Chromium
+        working-directory: tools/fidelity-oracle
+        run: |
+          if [ "${{ steps.browsers.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
