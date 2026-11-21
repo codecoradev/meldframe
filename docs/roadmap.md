@@ -31,7 +31,7 @@ See `docs/decisions.md` (items 1 to 14 and 20 to 26), the working defaults in `d
 | Whether an undone revert makes its batch revertable again (E5.2; by the last-writer rule the person's undo is a later write, so today the batch has nothing to revert) | decision (owner) | the E5.2 status note in `docs/epics.md` |
 | The lane fold rule of the Activity panel: which lane opens by itself (today the first, the most recently active, and the person's choice is kept) | decision (owner) | `docs/collab-ux.md` 4.3 |
 | The canvas fit under the right panel (the web client keeps the canvas between the open cards; the Activity tab is 360 wide) | decision (owner) | `docs/ui-design.md` section 2 |
-| Checkpoints kept by the server per file (E5.3 open part): the questions of ADR-0023 (restore after a reload, which run starts, the caps, agents over MCP, delete, the replay bound) | decision (owner) | ADR-0023, section Open questions |
+| Checkpoints kept by the server per file (E5.3 open part): the questions of ADR-0023 (restore after a reload, which run starts, the caps, agents over MCP, delete, the replay bound) | decided (decision 39, 21 Nov 2026) | ADR-0023, section Answers |
 | Refused calls in a lane (ADR-0021 slice 17, optional): a read route over the call log for one file, with no content | decision (owner) | ADR-0021 owner question 5 |
 | `docs/prd.md` user story 38 says "one lane per agent session"; it should say per actor in a file (owner text, ADR-0021) | edit (owner) | `docs/prd.md` line 81 |
 | The real Claude Code run of the M5 exit, with two tokens, before E5.1, E5.2 and E5.3 are ticked | run, then review (owner) | `AGENTS.md` (the Activity panel, operator notes) |

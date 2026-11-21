@@ -38,7 +38,7 @@ Meldframe lets a human and an AI agent edit the same design file, and exports it
 | ADR-0016 | Revert and restore are worked out from the log in the app layer; a field reverts only while the batch wrote it last | proposed |
 | ADR-0017 | Variables are a second table of the file; bindings are `{var:..}` objects; resolution happens in the core | proposed |
 | ADR-0019 | Export is a pure function of the render model; variables become CSS custom properties named by collection and name | proposed |
-| ADR-0023 | Checkpoints are rows kept by the server beside a file's log, taken at an agent's run start by the server, and restored by the person's app from the file at the checkpoint | proposed |
+| ADR-0023 | Checkpoints are rows kept by the server beside a file's log, taken at an agent's run start by the server, and restored by the person's app from the file at the checkpoint | accepted |
 
 ## 3. System shape
 
