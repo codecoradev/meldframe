@@ -40,7 +40,7 @@ export class Engine {
   private effectHandler: (fx: Effect[]) => void = () => {};
   private snap: Snapshot;
   /** How often the state, the nodes and the scene were read (for tests: a quiet tick must cost nothing). */
-  readonly stats = { stateReads: 0, nodeReads: 0, sceneReads: 0 };
+  readonly stats = { stateReads: 0, nodeReads: 0, sceneReads: 0, measurerSets: 0 };
 
   private constructor(private app: WasmApp) {
     this.snap = { state: this.readState(), ...this.readDocument(), events: [] };
@@ -117,6 +117,7 @@ export class Engine {
    * A value that is not a function throws.
    */
   setMeasurer(measure: MeasureFn): Effect[] {
+    this.stats.measurerSets++;
     return this.hostChanged(JSON.parse(this.app.setMeasurer(measure)));
   }
 

@@ -10,7 +10,7 @@
   import { onMac } from './platform';
   import { sheetGroups } from './shortcuts';
 
-  let { onClose }: { onClose: () => void } = $props();
+  let { onClose, autoLayout = true }: { onClose: () => void; autoLayout?: boolean } = $props();
   let root: HTMLElement | undefined = $state();
   // Focus goes in when the sheet opens and back to where it was when it closes; Escape acts only while the focus is in
   // the sheet, so an Escape meant for a menu or a text edit is not taken by it.
@@ -20,7 +20,7 @@
     root?.querySelector<HTMLElement>('button')?.focus();
     return () => { if (before && before.isConnected) before.focus(); };
   });
-  const groups = sheetGroups(onMac());
+  const groups = $derived(sheetGroups(onMac(), autoLayout));
 </script>
 
 <div bind:this={root} role="dialog" tabindex="-1" aria-label="Keyboard shortcuts" onkeydown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } }} data-testid="shortcut-hint" class="pointer-events-auto flex max-h-full w-(--mf-size-inspector) flex-col gap-1 overflow-y-auto rounded-lg border border-menu-border bg-surface-raised p-3 text-small text-text shadow-popover">

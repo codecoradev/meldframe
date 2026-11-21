@@ -1,21 +1,26 @@
-// Browser check of the interaction on a laid-out canvas against a real server (E3 layout slice 3b):
+// Browser check of the interaction on a laid-out canvas against a real server (E3 layout, the whole slice):
 //   node packages/web-e2e/scripts/layout-interaction-e2e.mjs <web-url> <server-url>
 // Three children in a column frame (their stored x and y are seeds that the layout ignores) and a hug frame with a text.
-// With the host flag off a drag moves x and y as it always did. The script then turns the flag on from the page
-// (`engine.setLayoutOnCanvas(true)`: the product has no switch yet) and checks the interaction rules in a real browser: a drag of
-// the middle child above the first reorders (the insertion line shows while the pointer is down, the drawn order follows, one
-// undo restores it, the stored x and y stay), a drag of a child out of the frame reparents, a handle on the hug frame makes
-// that axis fixed, and the x and y fields of the Inspector are disabled for a child of the flow (and enabled again with the
-// flag off). Start a server and the page with a file name that is new for every run, on free ports (the script refuses a file that
+// The page is opened with /?canvaslayout=0, so the layout is off: a drag moves x and y as it always did. The script then turns
+// "Auto layout on canvas" on the way a person does (the command palette, Ctrl+K) and checks the interaction rules in a real
+// browser: a drag of the middle child above the first reorders (the insertion line shows while the pointer is down, the drawn
+// order follows, one undo restores it, the stored x and y stay), a drag of a child out of the frame reparents, a handle on the
+// hug frame makes that axis fixed, a north-west handle on a child of the flow keeps the drawn origin while the pointer is down
+// and after the release, an arrow key along the flow moves the selected child one place (the key across it does nothing), a
+// drag of two selected children moves them as one block in order, a drag of a child with a node that is not in a flow moves
+// the one by the flow and the other by the drag, and the x and y fields of the Inspector are disabled for a child of the flow
+// (and enabled again with the layout off). The choice is remembered in the browser (a reload keeps it), /?canvaslayout=0 forces
+// it off and a browser with no choice starts with it on. The page needs no patch: nothing in the repository changes.
+// Start a server and the page with a file name that is new for every run, on free ports (the script refuses a file that
 // already has content, and takes no default URL). The server and Vite are started as in the header of
-// packages/web-variables/scripts/manage-e2e.mjs, with the ports 18081 (server) and 15174 (Vite); the token of the page is the
-// file .dev-token at the root, and it is never written in a command that is kept. The server binary is
-// `cargo build -p meldframe-server` (no DATABASE_URL: the files stay in memory). Then, from the root:
-//   MELDFRAME_WEB_FILE=<file> node packages/web-e2e/scripts/layout-interaction-e2e.mjs http://localhost:15174 http://127.0.0.1:18081
+// packages/web-variables/scripts/manage-e2e.mjs, with the ports 18081 (server) and 15174 (Vite); the page's token is read from
+// the file .dev-token at the root, and it is never written in a command that is kept. The server binary is built with
+// `cargo build -p meldframe-server` (no DATABASE_URL: the files stay in memory). Then, from the root, with MELDFRAME_WEB_FILE set
+// to the new file name:
+//   node packages/web-e2e/scripts/layout-interaction-e2e.mjs http://localhost:15174 http://127.0.0.1:18081
 // MELDFRAME_E2E_SHOTS=<dir> saves a screenshot while the pointer is down in each drag.
-// The WASM bridge must be built from this revision (`just wasm-build`: the drop preview call is in it) and Playwright comes from
-// the global module path. The web and server URLs must be loopback (the token is sent there). The engine is not on the page:
-// the script serves `src/main.ts` with one added line that keeps it on `window.__mfEngine` (nothing in the repository changes).
+// The WASM bridge must be built from this revision (`just wasm-build`) and Playwright comes from the global module path. The web
+// and server URLs must be loopback (the token is sent there).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -104,7 +109,28 @@ async function dragTo(from, to, hold) {
   }
 }
 const select = (id) => page.click(`[data-testid=layer][data-id="${id}"] button >> nth=-1`);
-const setLayout = (on) => page.evaluate((v) => window.__mfEngine.setLayoutOnCanvas(v), on);
+/** Turns "Auto layout on canvas" on or off with the command palette, and says what the palette showed for it. */
+async function toggleLayout() {
+  await page.keyboard.press('Control+k');
+  await page.fill('[data-testid=palette-input]', 'auto layout');
+  const row = page.locator('[data-testid=palette-option]').first();
+  await row.waitFor();
+  const text = await row.textContent();
+  await page.keyboard.press('Enter');
+  await page.locator('[data-testid=palette]').waitFor({ state: 'detached' });
+  // The page says what the switch is now, in a live region.
+  const now = /Off/.test(text) ? 'on' : 'off';
+  await page.locator('[data-testid=toast-region] [data-testid=notice]', { hasText: `Auto layout on canvas: ${now}` }).waitFor();
+  return text;
+}
+/** The click that selects a node on the canvas: the focus stays on the canvas, so the keys reach the editor. */
+const clickNode = async (hex, mods = []) => {
+  const c = centre(await bbox(hex));
+  for (const m of mods) await page.keyboard.down(m);
+  await page.mouse.click(c.x, c.y);
+  for (const m of mods) await page.keyboard.up(m);
+};
+const stored = async (id) => { const r = await nodeOf(id); return [r.x, r.y]; };
 /** Whether an input of the Inspector is disabled. */
 const disabled = (testId) => page.locator(`[data-testid=${testId}]`).isDisabled();
 
@@ -114,7 +140,6 @@ async function check(name, fn) {
     results.push(false);
     console.log(`FAIL ${name}: ${String(e.message ?? e).split('\n')[0]}${shots ? `\n     ${String(e.stack).split('\n')[1]?.trim()}` : ''}`);
     if (shots) await page.screenshot({ path: `${shots}/failed-${results.length}.png` }).catch(() => {});
-    if (shots) console.log('     events:', JSON.stringify(await page.evaluate(() => window.__events).catch(() => null)));
   }
 }
 
@@ -139,18 +164,9 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
 
   browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, colorScheme: 'dark' });
-  if (shots) page.on('console', (m) => { if (m.text().startsWith('mf-event')) console.log('    ', m.text()); });
   page.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
-  await page.route('**/src/main.ts*', async (route) => {
-    const res = await route.fetch();
-    const body = (await res.text()).replace(/(const engine = )(Engine\.create\([^;]*\));/, '$1window.__mfEngine = $2;');
-    if (!body.includes('window.__mfEngine')) throw new Error('src/main.ts no longer has `const engine = Engine.create(...)`: update the patch of this script');
-    await route.fulfill({ response: res, body });
-  });
-  await page.goto(web);
+  await page.goto(`${web}/?canvaslayout=0`);
   await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
-  // What the app said (refusals, divergence), for the failure report.
-  await page.evaluate(() => { window.__events = []; window.__mfEngine.subscribe((s) => { const names = s.events.map((e) => (e.code ? `${e.type}:${e.code}` : e.type)); window.__events.push(...names); if (names.some((x) => /diverged|refused/.test(x))) console.log('mf-event', JSON.stringify(s.events)); }); });
   await until('the nodes are drawn', async () => (await bbox(PURPLE)) && (await bbox(AMBER)));
   await sleep(400);
 
@@ -172,7 +188,8 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
   });
 
   await check('the layout on: the children are drawn in the flow, the x and y fields of a child are disabled and say why', async () => {
-    await setLayout(true);
+    assert.match(await toggleLayout(), /Off/, 'the palette says it is off, as the page was opened with ?canvaslayout=0');
+    assert.equal(await page.evaluate(() => localStorage.getItem('meldframe.autoLayoutOnCanvas')), 'on', 'the choice is remembered');
     const z = await zoomOf();
     await until('the flow on the canvas', async () => { const a = await bbox(RED); const b = await bbox(GREEN); return a && b && Math.abs((b.y0 - a.y0) / z - 70) < 3; });
     await select(A);
@@ -228,7 +245,8 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
     const target = { x: (f.x1 + h.x0) / 2, y: c.y - 40 };
     const drawn = await bbox(AMBER);
     await dragTo(c, target);
-    const out = await until('the reparent on the server', async () => { const r = await nodeOf(C); return r.parentId === null ? r : null; });
+    // The drop is two ops (the reparent, then the place): wait for the second, or the poll can read the node between them.
+    const out = await until('the reparent on the server', async () => { const r = await nodeOf(C); return r.parentId === null && (r.x !== 20 || r.y !== 240) ? r : null; });
     // The node keeps the place it was drawn at plus the drag, now in the space of the page (world = screen over the zoom).
     say(`reparented to the page at x ${out.x.toFixed(1)}, y ${out.y.toFixed(1)} (drawn at 120, 260, dragged ${((target.x - c.x) / z).toFixed(1)} x ${((target.y - c.y) / z).toFixed(1)} world units)`);
     near(out.x - 120, (target.x - c.x) / z, 3, 'x: where it was drawn, plus the drag');
@@ -248,8 +266,8 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
     const sizing = (axis) => page.locator(`[data-testid=prop-${axis}] [role=radio][aria-checked=true]`).textContent();
     assert.deepEqual([(await sizing('sw')).trim(), (await sizing('sh')).trim()], ['Hug', 'Hug']);
     const box = await bbox(PURPLE);
-    // The drawn width, from the scene the canvas draws (the pixels of the frame are covered by its outline at the edges).
-    const width = await page.evaluate((id) => window.__mfEngine.snapshot().scene.nodes.find((x) => x.id === id).w, H);
+    // The drawn width, as the Inspector shows it with the layout on (the pixels of the frame are covered by its outline at the edges).
+    const width = Number(await page.inputValue('[data-testid=prop-w]'));
     await dragTo({ x: box.x1 + 0.5, y: (box.y0 + box.y1) / 2 }, { x: box.x1 + 40.5, y: (box.y0 + box.y1) / 2 });
     const hug = await until('the resize on the server', async () => { const r = await nodeOf(H); return r.sw === 'fixed' ? r : null; });
     assert.equal(hug.sh, 'hug', 'the height was not touched');
@@ -260,14 +278,128 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
     await until('one undo', async () => { const r = await nodeOf(H); return r.sw === 'hug' && r.sh === 'hug'; });
   });
 
+  await check('a north-west handle on a child of the flow keeps the drawn origin while the pointer is down and after the release', async () => {
+    const z = await zoomOf();
+    const before = await bbox(GREEN);
+    const start = await nodeOf(B);
+    await clickNode(GREEN);
+    await until('B is selected', async () => (await page.inputValue('[data-testid=prop-name]')) === B);
+    // The handle sits on the north-west corner of the box; the pointer goes up and left, which would move the origin if the
+    // preview followed it. The app layer says the position is the layout's, so the preview only grows the box to the right and down.
+    await dragTo({ x: before.x0, y: before.y0 }, { x: before.x0 - 24, y: before.y0 - 12 }, async () => {
+      const held = await bbox(GREEN);
+      near(held.x0, before.x0, 2, 'the left edge while the pointer is down');
+      near(held.y0, before.y0, 2, 'the top edge while the pointer is down');
+      near((held.x1 - held.x0) - (before.x1 - before.x0), 24, 3, 'the box is wider by the drag');
+      // The box below it (the next child, drawn over it) hides the last pixels of the growth, so only a range is checked.
+      const taller = (held.y1 - held.y0) - (before.y1 - before.y0);
+      assert.ok(taller >= 5 && taller <= 14, `and taller by the drag: ${taller}`);
+      say(`while the pointer is down: left edge ${held.x0} (was ${before.x0}), top ${held.y0} (was ${before.y0}), ${held.x1 - held.x0 + 1} x ${held.y1 - held.y0 + 1} px (was ${before.x1 - before.x0 + 1} x ${before.y1 - before.y0 + 1})`);
+    });
+    const done = await until('the resize on the server', async () => { const r = await nodeOf(B); return r.w !== start.w ? r : null; });
+    near(done.w - start.w, 24 / z, 2, 'the width grew by the drag');
+    near(done.h - start.h, 12 / z, 2, 'the height grew by the drag');
+    assert.deepEqual([done.x, done.y], [start.x, start.y], 'the stored x and y are left alone');
+    await until('the box is where the flow puts it', async () => { const after = await bbox(GREEN); return Math.abs(after.x0 - before.x0) <= 2 && Math.abs(after.y0 - before.y0) <= 2; });
+    await page.keyboard.press('Control+z');
+    await until('one undo', async () => (await nodeOf(B)).w === start.w);
+    await page.mouse.click(5, 5); // clear the selection
+  });
+
+  await check('an arrow key along the flow moves the selected child one place; the key across it does nothing; one undo each', async () => {
+    const start = await stored(B);
+    await clickNode(GREEN);
+    await until('B is selected', async () => (await page.inputValue('[data-testid=prop-name]')) === B);
+    await page.keyboard.press('ArrowLeft'); // across the column
+    await page.keyboard.press('ArrowRight');
+    await sleep(300);
+    assert.deepEqual(await flowOf(F), [A, B, C], 'the keys across the column do nothing');
+    await page.keyboard.press('ArrowUp');
+    assert.deepEqual(await until('B first', async () => { const o = await flowOf(F); return o[0] === B ? o : null; }), [B, A, C]);
+    await until('drawn first', async () => { const g = await bbox(GREEN); const r = await bbox(RED); return g && r && g.y0 < r.y0; });
+    await page.keyboard.press('ArrowUp'); // already first
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    assert.deepEqual(await until('B last', async () => { const o = await flowOf(F); return o[2] === B ? o : null; }), [A, C, B]);
+    assert.deepEqual(await stored(B), start, 'the stored x and y are left alone');
+    await page.keyboard.press('Control+z');
+    assert.deepEqual(await until('one undo is one key', async () => { const o = await flowOf(F); return o[1] === B ? o : null; }), [A, B, C]);
+    await page.keyboard.press('Control+z');
+    await page.keyboard.press('Control+z');
+    await until('back as it was', async () => (await flowOf(F)).join() === [A, B, C].join());
+    await page.mouse.click(5, 5);
+  });
+
+  await check('two selected children dragged below the third move as one block in order, with no stored position written; one undo', async () => {
+    const before = [await stored(A), await stored(B)];
+    await clickNode(RED);
+    await clickNode(GREEN, ['Shift']);
+    const c = centre(await bbox(RED));
+    const last = await bbox(AMBER);
+    const target = { x: c.x, y: last.y1 - 4 }; // inside the frame, past the middle of the third child
+    await dragTo(c, target, async () => {
+      const f = await bbox(FRAME);
+      const line = await bbox(ACCENT, 18, { x: f.x0, y: last.y1 - 14, width: f.x1 - f.x0 + 1, height: 40 });
+      assert.ok(line && line.count > 100, 'the insertion line shows below the third child while the pointer is down');
+    });
+    assert.deepEqual(await until('the block moved', async () => { const o = await flowOf(F); return o[0] === C ? o : null; }), [C, A, B]);
+    assert.deepEqual([await stored(A), await stored(B)], before, 'no stored position of a flow child is written');
+    await until('drawn in that order', async () => { const [a, b, m] = [await bbox(RED), await bbox(GREEN), await bbox(AMBER)]; return m.y0 < a.y0 && a.y0 < b.y0; });
+    await page.keyboard.press('Control+z');
+    assert.deepEqual(await until('one undo', async () => { const o = await flowOf(F); return o[0] === A ? o : null; }), [A, B, C]);
+    await page.mouse.click(5, 5);
+  });
+
+  await check('a child dragged with a node that is not in a flow: the child goes to the slot, the other moves by the drag', async () => {
+    const z = await zoomOf();
+    const start = await nodeOf(H);
+    const was = await stored(A);
+    // The frame is picked in the Layers panel (a click in the middle of it would pick its text), with Shift to add it.
+    await select(A);
+    await page.click(`[data-testid=layer][data-id="${H}"] button >> nth=-1`, { modifiers: ['Shift'] });
+    await until('both are selected', async () => (await page.locator('[data-testid=layer][data-selected=true]').count()) === 2);
+    const c = centre(await bbox(RED));
+    const last = await bbox(AMBER);
+    const target = { x: c.x, y: last.y1 - 4 };
+    await dragTo(c, target);
+    assert.deepEqual(await until('the child moved in the flow', async () => { const o = await flowOf(F); return o[2] === A ? o : null; }), [B, C, A]);
+    const moved = await until('the frame moved by the drag', async () => { const r = await nodeOf(H); return r.x !== start.x || r.y !== start.y ? r : null; });
+    near(moved.x - start.x, (target.x - c.x) / z, 2, 'x moved by the drag');
+    near(moved.y - start.y, (target.y - c.y) / z, 2, 'y moved by the drag');
+    assert.deepEqual(await stored(A), was, 'the flow child keeps its stored x and y');
+    await page.keyboard.press('Control+z');
+    await until('one undo for both', async () => { const r = await nodeOf(H); return r.x === start.x && r.y === start.y && (await flowOf(F)).join() === [A, B, C].join(); });
+    await page.mouse.click(5, 5);
+  });
+
   await check('the layout off again: the children are drawn where they are stored and the fields are enabled', async () => {
-    await setLayout(false);
+    assert.match(await toggleLayout(), /On/, 'the palette says it is on');
+    assert.equal(await page.evaluate(() => localStorage.getItem('meldframe.autoLayoutOnCanvas')), 'off', 'the choice is remembered');
     const z = await zoomOf();
     await until('the stored boxes on the canvas', async () => { const f = await bbox(FRAME); const b = await bbox(GREEN); return f && b && Math.abs((b.y0 - f.y0) / z - 120) < 3; });
     await select(A);
     await until('the Inspector of A', async () => (await page.inputValue('[data-testid=prop-name]')) === A);
     assert.equal(await disabled('prop-x'), false);
     assert.equal(await page.locator('#prop-position-note').count(), 0);
+  });
+
+  await check('the choice is remembered: a reload starts laid out after it was turned on, ?canvaslayout=0 forces it off and ?canvaslayout=1 on', async () => {
+    const z = async () => zoomOf();
+    const laidOut = async () => { const a = await bbox(RED); const b = await bbox(GREEN); return a && b && Math.abs((b.y0 - a.y0) / (await z()) - 70) < 3; };
+    assert.match(await toggleLayout(), /Off/); // on again, remembered
+    await page.goto(web);
+    await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
+    await until('laid out after a reload with no parameter', laidOut);
+    await page.goto(`${web}/?canvaslayout=0`);
+    await until('the editor is live again', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
+    await until('the stored boxes with ?canvaslayout=0', async () => { const f = await bbox(FRAME); const b = await bbox(GREEN); return f && b && Math.abs((b.y0 - f.y0) / (await z()) - 120) < 3; });
+    assert.equal(await page.evaluate(() => localStorage.getItem('meldframe.autoLayoutOnCanvas')), 'on', 'a forced page does not change the choice');
+    await page.evaluate(() => localStorage.setItem('meldframe.autoLayoutOnCanvas', 'off'));
+    await page.goto(`${web}/?canvaslayout=1`);
+    await until('laid out with ?canvaslayout=1 over a choice of off', async () => { await sleep(150); return laidOut(); });
+    await page.evaluate(() => localStorage.removeItem('meldframe.autoLayoutOnCanvas'));
+    await page.goto(web);
+    await until('laid out with no choice at all: the default is on', async () => { await sleep(150); return laidOut(); });
   });
 
   assert.deepEqual(pageErrors, [], 'no page errors');

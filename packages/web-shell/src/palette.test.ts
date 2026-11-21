@@ -3,12 +3,12 @@ import { filterEntries, firstEnabled, paletteEntries, paletteKey, type PaletteIn
 import { PRESET_ORDER, PRESETS } from './presets';
 import { shortcutGroups, shortcutLabels } from './shortcuts';
 
-function setup(over: Partial<Omit<PaletteInput, 'on'>> = {}) {
+function setup(over: Partial<Omit<PaletteInput, 'on'>> = {}, withSwitch = false) {
   const calls: unknown[][] = [];
   const log = (name: string) => (...args: unknown[]) => void calls.push([name, ...args]);
   const input: PaletteInput = {
     mac: false, layersOpen: false, inspectorOpen: true, canUndo: true, canRedo: false, canDelete: true, canExport: true, canVariant: true, ...over,
-    on: { tool: log('tool'), undo: log('undo'), redo: log('redo'), remove: log('remove'), zoom: log('zoom'), preset: log('preset'), layers: log('layers'), inspector: log('inspector'), exportFrame: log('export'), variant: log('variant'), help: log('help') },
+    on: { tool: log('tool'), undo: log('undo'), redo: log('redo'), remove: log('remove'), zoom: log('zoom'), preset: log('preset'), layers: log('layers'), inspector: log('inspector'), exportFrame: log('export'), variant: log('variant'), help: log('help'), ...(withSwitch ? { autoLayout: log('auto-layout') } : {}) },
   };
   return { calls, entries: paletteEntries(input) };
 }
@@ -149,5 +149,27 @@ describe('the keys of the palette', () => {
     expect(paletteKey('Enter', 0, [])).toBeNull();
     expect(paletteKey('ArrowDown', 0, rows(false, false))).toBeNull();
     for (const k of ['Home', 'End', 'a', 'Tab', 'ArrowLeft', 'ArrowRight']) expect(paletteKey(k, 0, rows(true, true))).toBeNull();
+  });
+});
+
+describe('the entry "Auto layout on canvas"', () => {
+  it('is there only when the page has the switch, in the View group, and the list is the one it was without', () => {
+    expect(setup().entries.some((e) => e.id === 'auto-layout')).toBe(false);
+    const { entries } = setup({}, true);
+    const e = byId(entries, 'auto-layout');
+    expect([e.label, e.group, e.enabled]).toEqual(['Auto layout on canvas', 'View', true]);
+    expect(entries.filter((x) => x.id !== 'auto-layout').map((x) => x.id)).toEqual(setup().entries.map((x) => x.id));
+  });
+  it('runs the switch of the page and says what is on', () => {
+    const on = setup({ autoLayout: true }, true);
+    byId(on.entries, 'auto-layout').run();
+    expect(on.calls).toEqual([['auto-layout']]);
+    expect(byId(on.entries, 'auto-layout').detail).toMatch(/^On/);
+    expect(byId(setup({ autoLayout: false }, true).entries, 'auto-layout').detail).toMatch(/^Off/);
+  });
+  it('is found by a few words of it, and by what it is about', () => {
+    const { entries } = setup({}, true);
+    for (const q of ['auto layout', 'layout canvas', 'hug', 'switch']) expect(filterEntries(entries, q).some((e) => e.id === 'auto-layout'), q).toBe(true);
+    expect(filterEntries(entries, 'auto layout')[0]!.id).toBe('auto-layout');
   });
 });
