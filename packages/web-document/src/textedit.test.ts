@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { Node } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
 import { isControl } from './edit';
@@ -47,7 +48,18 @@ describe('commitText', () => {
 describe('textBoxStyle', () => {
   it('puts the editor over the node on the screen and scales the font with the zoom', () => {
     const s = textBoxStyle({ x: 10, y: 20, zoom: 2 }, { x: 5, y: 6, w: 100, h: 30 }, 20);
-    expect(s).toEqual({ left: 20, top: 32, width: 200, height: 60, fontSize: 40 });
+    expect(s).toEqual({ left: 20, top: 32, width: 200, height: 60, fontSize: 40, fontWeight: 400, textAlign: 'left' });
+  });
+  it('carries the weight and the alignment the canvas draws the text with', () => {
+    const s = textBoxStyle({ x: 0, y: 0, zoom: 1 }, { x: 0, y: 0, w: 100, h: 30 }, 20, { fontWeight: 700, textAlign: 'center' });
+    expect(s).toMatchObject({ fontWeight: 700, textAlign: 'center' });
+    expect(textBoxStyle({ x: 0, y: 0, zoom: 1 }, { x: 0, y: 0, w: 100, h: 30 }, 20, { fontWeight: 0 })).toMatchObject({ fontWeight: 400, textAlign: 'left' });
+  });
+  it('is applied by the field: its source sets the weight and the alignment from the style', () => {
+    const view = readFileSync(new URL('../../../apps/web/src/TextEditor.svelte', import.meta.url), 'utf8');
+    expect(view).toMatch(/style:font-weight=\{box\.fontWeight\}/);
+    expect(view).toMatch(/style:text-align=\{box\.textAlign\}/);
+    expect(view).toMatch(/style:font-size="\{box\.fontSize\}px"/);
   });
   it('never makes the field smaller than one line', () => {
     const s = textBoxStyle({ x: 0, y: 0, zoom: 1 }, { x: 0, y: 0, w: 10, h: 2 }, 20);

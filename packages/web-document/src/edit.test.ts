@@ -2,7 +2,7 @@ import type { Node } from '@meldframe/protocol';
 import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
 import type { Scene } from '@meldframe/web-canvas/scene';
 import { describe, expect, it } from 'vitest';
-import { OWNS_KEYS_SELECTOR, containerFor, createActionFor, deleteAction, drawnBox, keyAction, movePreviewFor, moveActionsFor, ownsKeys, previewScene, resizeActionFor, resizePreviewFor, resizedBox, documentChanged, gestureGoing, toolMode, worldOrigin } from './edit';
+import { OWNS_KEYS_SELECTOR, containerFor, createActionFor, deleteAction, drawnBox, keyAction, movePreviewFor, moveActionsFor, ownsKeys, previewScene, resizeActionFor, resizePreviewFor, resizedBox, originLocked, documentChanged, gestureGoing, toolMode, worldOrigin } from './edit';
 
 const node = (id: string, over: Partial<Node> = {}): Node =>
   ({ id, name: id, type: 'rect', parentId: null, x: 0, y: 0, w: 100, h: 50, ...over }) as Node;
@@ -178,6 +178,28 @@ describe('drawn boxes', () => {
     expect(resizePreviewFor({ ...rz, cancelled: true }, drawnNodes, drawn)).toBeNull();
     expect(resizePreviewFor({ ...rz, ids: ['c', 'f'] }, drawnNodes, drawn)).toBeNull();
     expect(resizePreviewFor({ ...rz, ids: ['ghost'] }, drawnNodes, drawn)).toBeNull();
+  });
+});
+
+describe('the preview of a resize of a child of an auto layout frame', () => {
+  const rz = (handle: ResizeIntent['handle'], dx: number, dy: number): ResizeIntent => ({ ...gesture, final: false, ids: ['c'], handle, dx, dy });
+  it('keeps the drawn origin and changes only the size when the app layer says the position is the layout\'s', () => {
+    // `c` is drawn at (5, 6), 40 by 30: a west or north handle would move the origin of the box; the flow does not.
+    expect(resizePreviewFor(rz('nw', -10, -5), drawnNodes, drawn, true)).toEqual({ kind: 'box', id: 'c', box: { x: 5, y: 6, w: 50, h: 35 } });
+    expect(resizePreviewFor(rz('w', 8, 0), drawnNodes, drawn, true)).toEqual({ kind: 'box', id: 'c', box: { x: 5, y: 6, w: 32, h: 30 } });
+    expect(resizePreviewFor(rz('n', 0, 4), drawnNodes, drawn, true)).toEqual({ kind: 'box', id: 'c', box: { x: 5, y: 6, w: 40, h: 26 } });
+    expect(resizePreviewFor(rz('se', 10, 5), drawnNodes, drawn, true)).toEqual(resizePreviewFor(rz('se', 10, 5), drawnNodes, drawn));
+  });
+  it('moves the origin as before when the position is not locked', () => {
+    expect(resizePreviewFor(rz('nw', -10, -5), drawnNodes, drawn)).toEqual({ kind: 'box', id: 'c', box: { x: -5, y: 1, w: 50, h: 35 } });
+    expect(resizePreviewFor(rz('nw', -10, -5), drawnNodes, drawn, false)).toEqual(resizePreviewFor(rz('nw', -10, -5), drawnNodes, drawn));
+  });
+  it('is told by the Properties of that node and no other', () => {
+    expect(originLocked({ id: 'c', positionLocked: true }, 'c')).toBe(true);
+    expect(originLocked({ id: 'c', positionLocked: false }, 'c')).toBe(false);
+    expect(originLocked({ id: 'x', positionLocked: true }, 'c')).toBe(false);
+    expect(originLocked(null, 'c')).toBe(false);
+    expect(originLocked(undefined, 'c')).toBe(false);
   });
 });
 

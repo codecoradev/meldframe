@@ -31,3 +31,24 @@ export function alignOffset(align: SceneTextAlign, boxW: number, textW: number):
   const room = Math.max(0, boxW - textW);
   return align === 'center' ? room / 2 : align === 'right' ? room : 0;
 }
+
+/** What a field laid over a text must carry, besides the size (which the zoom scales where the field is placed), to look like the text the canvas draws. */
+export interface TextFieldStyle {
+  /** CSS `font-weight`: 100 to 900. */
+  fontWeight: number;
+  /** CSS `text-align`. */
+  textAlign: SceneTextAlign;
+}
+
+const ALIGNS: readonly SceneTextAlign[] = ['left', 'center', 'right'];
+
+/**
+ * The weight and the alignment a text is drawn with, for the field that edits it: the drawing's own values (the resolved ones the
+ * scene carries), with a weight outside 100 to 900 or not a number taken as regular (400) and an unknown alignment as left, which is
+ * what the canvas shows for them.
+ */
+export function textFieldStyle(n: { fontWeight?: number; textAlign?: SceneTextAlign }): TextFieldStyle {
+  const w = n.fontWeight;
+  const weight = typeof w === 'number' && Number.isFinite(w) && w >= 100 && w <= 900 ? Math.round(w / 100) * 100 : 400;
+  return { fontWeight: weight, textAlign: n.textAlign && ALIGNS.includes(n.textAlign) ? n.textAlign : 'left' };
+}

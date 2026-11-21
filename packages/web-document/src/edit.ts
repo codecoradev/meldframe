@@ -1,6 +1,6 @@
 // What the canvas reports (a move, a resize, a drawn box) as actions of the app layer, and what to show while a
 // gesture is going on. Pure: the canvas applies nothing and this module holds no state. The app layer decides.
-import type { Action, CreateKind, Direction, Node, Tool } from '@meldframe/protocol';
+import type { Action, CreateKind, Direction, Node, Properties, Tool } from '@meldframe/protocol';
 import type { CreateIntent, CreateTool, MoveIntent, ResizeIntent, ToolMode } from '@meldframe/web-canvas/interaction';
 import type { DropPreview, HandleId } from '@meldframe/web-canvas/overlay';
 import type { Scene } from '@meldframe/web-canvas/scene';
@@ -160,11 +160,23 @@ export function movePreviewFor(i: MoveIntent, slotOf: (ids: readonly string[], a
   return { kind: 'move', ids: p.follow, dx: i.dx, dy: i.dy };
 }
 
-/** What a handle drag shows: the box it is drawn at, moved by the handle (not the stored one). */
-export function resizePreviewFor(i: ResizeIntent, nodes: readonly Node[], scene?: Scene): Preview | null {
+/**
+ * What a handle drag shows: the box it is drawn at, moved by the handle (not the stored one). With `originFixed` (the app layer
+ * says the position of the node is the layout's: `Properties::position_locked`) the box keeps its drawn origin and only its size
+ * changes, because a resize of a child of an auto layout frame writes no position and the flow puts the box where it is.
+ */
+export function resizePreviewFor(i: ResizeIntent, nodes: readonly Node[], scene?: Scene, originFixed = false): Preview | null {
   if (i.cancelled || i.final || i.ids.length !== 1) return null;
   const n = byId(nodes, i.ids[0]!);
-  return n ? { kind: 'box', id: n.id, box: resizedBox(drawnBox(scene, n.id) ?? n, i.handle, i.dx, i.dy) } : null;
+  if (!n) return null;
+  const from = drawnBox(scene, n.id) ?? n;
+  const b = resizedBox(from, i.handle, i.dx, i.dy);
+  return { kind: 'box', id: n.id, box: originFixed ? { x: from.x, y: from.y, w: b.w, h: b.h } : b };
+}
+
+/** Whether the app layer says the position of node `id` is the layout's (its Properties are those of `id` and `position_locked` is set). */
+export function originLocked(properties: Pick<Properties, 'id' | 'positionLocked'> | null | undefined, id: string): boolean {
+  return !!properties && properties.id === id && properties.positionLocked;
 }
 
 /** The scene with the preview applied: the nodes that follow the pointer (their descendants follow them) or a resized box. A slot is a line over the canvas and changes no box. */

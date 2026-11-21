@@ -3,6 +3,7 @@
 import type { Action, Node } from '@meldframe/protocol';
 import { rectToScreen, type Camera } from '@meldframe/web-canvas/camera';
 import type { Rect } from '@meldframe/web-canvas/geometry';
+import { textFieldStyle, type TextFieldStyle } from '@meldframe/web-canvas/textstyle';
 import { isControl, type ControlTarget, type KeyLike } from './edit';
 
 /** The node when it is a text node. */
@@ -27,7 +28,7 @@ export function commitText(id: string, before: string, after: string): Action | 
   return before === after ? null : { type: 'editText', id, text: after };
 }
 
-export interface TextBoxStyle {
+export interface TextBoxStyle extends TextFieldStyle {
   left: number;
   top: number;
   width: number;
@@ -35,9 +36,13 @@ export interface TextBoxStyle {
   fontSize: number;
 }
 
-/** Where the field goes, in screen pixels: over the node, with the font scaled by the zoom and at least one line high. */
-export function textBoxStyle(camera: Camera, world: Rect, fontSize: number): TextBoxStyle {
+/**
+ * Where the field goes, in screen pixels: over the node, with the font scaled by the zoom and at least one line high, and the
+ * weight and the alignment of the text as the canvas draws it (`text`: the drawn node, which the scene holds; nothing given
+ * is regular and left).
+ */
+export function textBoxStyle(camera: Camera, world: Rect, fontSize: number, text: { fontWeight?: number; textAlign?: 'left' | 'center' | 'right' } = {}): TextBoxStyle {
   const r = rectToScreen(camera, world);
   const font = fontSize * camera.zoom;
-  return { left: r.x, top: r.y, width: Math.max(r.w, 10), height: Math.max(r.h, font), fontSize: font };
+  return { left: r.x, top: r.y, width: Math.max(r.w, 10), height: Math.max(r.h, font), fontSize: font, ...textFieldStyle(text) };
 }

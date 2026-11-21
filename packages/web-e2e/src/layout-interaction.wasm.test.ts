@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type { Node } from '@meldframe/protocol';
 import type { MoveIntent, ResizeIntent, CreateIntent } from '@meldframe/web-canvas/interaction';
-import { createActionFor, keyAction, movePreviewFor, moveActionsFor, resizeActionFor, worldOrigin } from '@meldframe/web-document/edit';
+import { createActionFor, keyAction, movePreviewFor, moveActionsFor, originLocked, resizeActionFor, resizePreviewFor, worldOrigin } from '@meldframe/web-document/edit';
+import { textBoxStyle } from '@meldframe/web-document/textedit';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Engine as EngineType } from '@meldframe/web-link/engine';
 
@@ -172,5 +173,32 @@ describe.skipIf(!built)('with the layout on the canvas', () => {
     expect([t.sw, t.sh]).toEqual(['fixed', 'hug']);
     // The stored box (height 7) would have been sent for the side the handle does not hold, and made that side fixed.
     expect(drawn.h).not.toBe(7);
+  });
+
+  it('the app layer says the position of a flow child is the layout\'s, and the preview of a north-west handle keeps the drawn origin the release leaves', () => {
+    const e = make();
+    e.setLayoutOnCanvas(true);
+    e.dispatch({ type: 'select', ids: ['b'] });
+    expect(originLocked(e.snapshot().state.properties, 'b')).toBe(true);
+    expect(originLocked(e.snapshot().state.properties, 'g')).toBe(false);
+    const { nodes, scene } = e.snapshot();
+    const drawn = scene.nodes.find((n) => n.id === 'b')!;
+    const i: ResizeIntent = { ...gesture, final: false, ids: ['b'], handle: 'nw', dx: -10, dy: -5 };
+    const shown = resizePreviewFor(i, nodes, scene, originLocked(e.snapshot().state.properties, 'b'));
+    expect(shown).toEqual({ kind: 'box', id: 'b', box: { x: drawn.x, y: drawn.y, w: drawn.w + 10, h: drawn.h + 5 } });
+    e.dispatch(resizeActionFor({ ...i, final: true }, nodes, scene)!);
+    const after = e.snapshot().scene.nodes.find((n) => n.id === 'b')!;
+    expect([after.x, after.y, after.w, after.h]).toEqual([drawn.x, drawn.y, drawn.w + 10, drawn.h + 5]);
+    // With a free node the origin does move: the preview is the plain box.
+    e.dispatch({ type: 'select', ids: ['k'] });
+    expect(originLocked(e.snapshot().state.properties, 'k')).toBe(false);
+  });
+
+  it('the field that edits a text carries the weight and the alignment the scene draws it with', () => {
+    const styled = { id: 'u', type: 'text', pos: 'a0', x: 5, y: 5, w: 120, h: 24, text: 'Hi', fontSize: 20, fontWeight: 700, textAlign: 'center' } as unknown as Node;
+    const e = Engine.create({ actor: 'usr_me', nodes: [styled], seq: 0, session: 2 });
+    const u = e.snapshot().scene.nodes.find((n) => n.id === 'u')!;
+    expect(u).toMatchObject({ fontWeight: 700, textAlign: 'center' });
+    expect(textBoxStyle({ x: 0, y: 0, zoom: 1 }, u, 20, u)).toMatchObject({ fontWeight: 700, textAlign: 'center', fontSize: 20 });
   });
 });
