@@ -41,8 +41,14 @@ env:
   CARGO_PROFILE_TEST_DEBUG: "0"
 
 jobs:
-  checks:
-    name: checks
+  # Split #176 (21 Nov run #44879715706: the sequential job took 7m20s while
+  # one runner idled through the other track's steps): the cheap Rust rules run
+  # in `checks-rust`, the web client runs in `checks-web`, in parallel. The
+  # `checks` gate job aggregates them and keeps the branch-protection context
+  # name exactly `checks`; a skipped sub-job fails the gate. Coverage is
+  # identical to the previous sequential job — every step runs exactly once.
+  checks-rust:
+    name: checks (rust)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -67,11 +73,6 @@ jobs:
           path: ~/.cache/kache-store
           key: kache-checks-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: kache-checks-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
       - name: Check scripts (good and bad examples for the branch, message and description checks)
         run: sh scripts/ci/selftest.sh
       # Cheap steps first, so a rule break fails the run in a minute instead of after the build and the tests.
@@ -90,9 +91,30 @@ jobs:
         run: cargo xtask licences --check
       - name: UI literals (colours, fonts and sizes come from the tokens)
         run: cargo xtask ui-literals
+      # Regenerates the TypeScript types from Rust (runs the protocol crates' tests) and
+      # compiles a sample consumer — needs only the Rust toolchain, so it lives here.
       - name: Protocol drift (generated TypeScript matches the committed files)
         run: bash tools/check-protocol.sh
-      # Web client (apps/web): after the cheap Rust gates, before the build-heavy Rust steps. npm is cached.
+      - name: Lint
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+      # The daemon's control socket sits in the store and makes the cache save (tar) fail; stopping it removes it.
+      - name: Stop kache (so the store can be saved)
+        if: always()
+        run: command -v kache >/dev/null && kache daemon stop || true
+
+  checks-web:
+    name: checks (web)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
       - name: Web install
         run: npm ci --prefix apps/web
       - name: Web typecheck (svelte-check)
@@ -107,14 +129,20 @@ jobs:
         run: npm run licences --prefix apps/web
       - name: Web build
         run: npm run build --prefix apps/web
-      - name: Lint
-        run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Tests
-        run: cargo test --workspace
-      # The daemon's control socket sits in the store and makes the cache save (tar) fail; stopping it removes it.
-      - name: Stop kache (so the store can be saved)
-        if: always()
-        run: command -v kache >/dev/null && kache daemon stop || true
+
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    needs: [checks-rust, checks-web]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Both halves succeeded
+        run: |
+          failed=0
+          for r in "${{ needs.checks-rust.result }}" "${{ needs.checks-web.result }}"; do
+            if [ "$r" != "success" ]; then failed=1; echo "::error::sub-job finished with: $r"; fi
+          done
+          exit $failed
 
   # Migrations apply from an empty database and keep the schema_version rules (tools/check-migrations.sh).
   # The job runs on the host, so the service publishes its port and is reached on localhost.
