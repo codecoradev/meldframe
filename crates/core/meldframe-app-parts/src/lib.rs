@@ -6,6 +6,7 @@
 
 pub mod binding;
 pub mod document;
+pub mod image;
 pub mod layout;
 pub mod manage;
 pub mod panel;

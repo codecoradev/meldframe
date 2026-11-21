@@ -35,8 +35,8 @@ gradientAllowed: boolean, minStops: number, maxStops: number,
  */
 gradient?: Gradient, 
 /**
- * The image over `fill` and the gradient. It can be shown and taken away here; the app layer has no way to pick
- * an asset yet.
+ * The image over `fill` and the gradient. It is picked from the workspace's assets (`Action::OpenAssets`,
+ * `Action::SetImageFill`) and taken away by the Solid, None or gradient type.
  */
 image?: ImageFill, radius: number, 
 /**

@@ -1,6 +1,7 @@
-//! The image picker of the Fill section (E2.5, ADR-0015 follow-up): which node the picker is open for, and the page of
-//! the workspace's assets it reads (`Effect::FetchAssets`, answered by `Action::AssetsLoaded`).
-//! The picker is view state: nothing is written to the file. The rules are `AssetsState`'s and the two here.
+//! The image picker of the Fill section and the choice of an image (E2.5, ADR-0015 follow-up): which node the picker is
+//! open for, the page of the workspace's assets it reads (`Effect::FetchAssets`, answered by `Action::AssetsLoaded`), and
+//! `Action::SetImageFill`. The picker is view state: nothing is written to the file until an image is chosen, and that is
+//! one undo step. The rules are those of `meldframe-app-parts` (`image`) and `AssetsState`.
 
 use crate::action::Action;
 use crate::app::App;
@@ -8,7 +9,10 @@ use crate::document::refuse;
 use crate::effect::Effect;
 use crate::event::Event;
 use meldframe_app_model::{ASSET_PAGE, AssetsState};
-use meldframe_protocol::{Node, NodeKind};
+use meldframe_app_parts::document::update;
+use meldframe_app_parts::image::{image_fill_patch, is_open_valid, open_refusal};
+use meldframe_protocol::ImageFit;
+use meldframe_sync::SubmitError;
 
 impl App {
     pub(crate) fn assets_action(&mut self, action: Action, fx: &mut Vec<Effect>) {
@@ -80,20 +84,30 @@ impl App {
             self.events.push(Event::AssetsChanged {});
         }
     }
-}
 
-/// The code a request to open the picker for node `id` is refused with, when it is: no such node, the node is not the one
-/// selected, or it is text, which takes no image.
-fn open_refusal(nodes: &[Node], selection: &[String], id: &str) -> Option<&'static str> {
-    match nodes.iter().find(|n| n.id == id) {
-        None => Some("not_found"),
-        Some(_) if !matches!(selection, [only] if only == id) => Some("not_selected"),
-        Some(n) if n.kind == NodeKind::Text => Some("image_on_text"),
-        Some(_) => None,
+    pub(crate) fn set_image_fill(
+        &mut self,
+        id: &str,
+        asset_id: String,
+        fit: Option<ImageFit>,
+    ) -> Result<(), SubmitError> {
+        let Some(node) = self.nodes().iter().find(|n| n.id == id) else {
+            return refuse(&mut self.events, "not_found");
+        };
+        let Some(patch) = image_fill_patch(node, asset_id, fit) else {
+            // Already this image: nothing to change, and the picker has done its work.
+            self.close_assets_for(id);
+            return Ok(());
+        };
+        self.replica.apply(&update(id, patch))?;
+        self.close_assets_for(id);
+        Ok(())
     }
-}
 
-/// Whether the picker open for node `id` still has what it needs: the node is there and is the one selected.
-fn is_open_valid(nodes: &[Node], selection: &[String], id: &str) -> bool {
-    matches!(selection, [only] if only == id) && nodes.iter().any(|n| n.id == id)
+    /// The image of node `id` is settled: the picker open for it closes. One that was refused leaves it open.
+    fn close_assets_for(&mut self, id: &str) {
+        if self.state.assets.target.as_deref() == Some(id) && self.state.assets.close() {
+            self.events.push(Event::AssetsChanged {});
+        }
+    }
 }
