@@ -124,7 +124,7 @@ jobs:
       - name: wasm bridge smoke test
         run: bash tools/check-wasm.sh
 
-  # More seeds than a pull request run (600, the default of `cargo test --workspace`).
+  # More seeds than a pull request run (600, the default of `cargo test --workspace`; meldframe-variables-props defaults to 200, so it gets 30 times its default).
   property-tests:
     name: property-tests
     runs-on: ubuntu-latest
@@ -134,7 +134,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: more seeds
-        run: MELDFRAME_SEEDS=6000 cargo test --release -p meldframe-history -p meldframe-history-props -p meldframe-sync-props
+        run: MELDFRAME_SEEDS=6000 cargo test --release -p meldframe-history -p meldframe-history-props -p meldframe-sync-props -p meldframe-variables-props
 
   # The E1.1 mutation check: each rule switched off must make a test fail (tools/mutation-check-sync.sh).
   # A job of its own, so its time does not add to the seeds run and one failure does not hide the other.
