@@ -3,14 +3,15 @@
   collections with their mode switch, and the variables listed by type with a swatch, the name and the value of the mode
   on view in the mono face (an alias as a chip with the name it points at). It draws the rows the app layer gives it
   (order, headings, checks) and reports input as actions (see variables.ts). It holds one bit of view state: whether the
-  manage view (ManageDialog) is open.
+  manage view (ManageDialog) is open. The Export variables dialog is open while the app layer holds its text.
 -->
 <script lang="ts">
-  import type { Action, Event, VariableRow, VariablesPanel } from '@meldframe/protocol';
+  import type { Action, Event, VariableRow, VariablesIo, VariablesPanel } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { TYPE_LABEL } from '@meldframe/web-document/labels';
+  import ExportVariablesDialog from '@meldframe/web-variables-io/ExportVariablesDialog.svelte';
   import ManageDialog from '@meldframe/web-variables/ManageDialog.svelte';
   import { FIELD_LABEL, bindAction, display, listedCount, modeAction, modeName, shownValue, swatch, truncated, valueAction } from './variables';
 
@@ -21,8 +22,10 @@
     dispatch: (a: Action) => void;
     /** The events of the last dispatch: the manage view words a refusal and finds what it added from them. */
     events?: readonly Event[];
+    /** `state.variablesIo`: the text of the Export variables dialog while it is open, and the result of the last import. */
+    io?: VariablesIo;
   }
-  let { panel, target, dispatch, events = [] }: Props = $props();
+  let { panel, target, dispatch, events = [], io = { export: null, import: null } }: Props = $props();
 
   // The manage view reads the whole list: it starts with the search cleared (the counts of a removal are of what is listed).
   let manageOpen = $state(false);
@@ -31,6 +34,9 @@
     manageOpen = open;
     if (open && panel.query.trim() !== '') dispatch({ type: 'setVariablesQuery', query: '' });
   };
+
+  // Export variables is open while the app layer holds its text.
+  let exportButton = $state<HTMLElement | null>(null);
 
   const commit = (row: VariableRow, mode: string) => (raw: string) => {
     const a = valueAction(row, mode, raw);
@@ -44,6 +50,10 @@
     <span bind:this={manageButton} class="contents"><Button size="sm" onclick={() => setManage(true)} data-testid="var-manage">Manage</Button></span>
     <p class="m-0 text-right text-caption text-text-muted" data-testid="var-count">{panel.matched} of {panel.total}</p>
   </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <span bind:this={exportButton} class="contents"><Button size="sm" onclick={() => dispatch({ type: 'openVariablesExport' })} data-testid="var-export">Export variables</Button></span>
+  </div>
+  <ExportVariablesDialog dialog={io.export ?? null} {dispatch} opener={() => exportButton?.querySelector('button')} />
   <ManageDialog open={manageOpen} onOpenChange={setManage} {panel} {events} {dispatch} opener={() => manageButton?.querySelector('button')} />
   {#each panel.collections.filter((c) => c.modes.length > 1) as c (c.id)}
     <div class="flex flex-col gap-1">

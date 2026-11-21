@@ -1,0 +1,7 @@
+{
+  "name": "@meldframe/web-variables-io",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The Export variables dialog of the web client: every variable of a file as CSS text. It draws `state.variablesIo` of the app layer and dispatches actions; the text of the export and its limit are the app layer's. Used as source by apps/web."
+}
