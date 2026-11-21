@@ -110,3 +110,37 @@ fn a_root_that_is_not_a_frame_is_reported_and_not_exported() {
     assert_eq!(out.fixtures[0].errors.len(), 1);
     assert!(out.fixtures[0].errors[0].contains("E_NOT_A_FRAME"));
 }
+
+/// A fixture with one colour variable in two modes and a frame whose fill is bound to it.
+fn bound(modes: serde_json::Value) -> Input {
+    serde_json::from_value(json!({
+        "fixtures": [{
+            "name": "bound",
+            "variables": {
+                "collections": [{"id": "c", "name": "Brand", "modes": [{"id": "l", "name": "Light"}, {"id": "d", "name": "Dark"}]}],
+                "variables": [{"id": "v", "collection": "c", "name": "color/primary", "type": "color", "values": {"l": "#ff0000", "d": "#0000ff"}}]
+            },
+            "modes": modes,
+            "nodes": [{"id": "f", "type": "frame", "w": 50, "h": 50, "fill": {"var": "v"}}]
+        }],
+        "table": []
+    }))
+    .unwrap()
+}
+
+#[test]
+fn the_variables_and_the_picked_modes_of_a_fixture_reach_the_export() {
+    let light = run(&bound(json!({})));
+    let f = &light.fixtures[0].frames[0];
+    let css = &f.css.as_ref().expect("css form").css;
+    assert!(css.contains("--brand-color-primary:#ff0000"), "{css}");
+    assert!(css.contains("var(--brand-color-primary)"), "{css}");
+    let tag = |html: &str| {
+        let from = &html[html.find("<html").unwrap()..];
+        from[..from.find('>').unwrap()].to_owned()
+    };
+    assert!(!tag(&f.css.as_ref().unwrap().html).contains("data-mode-brand"));
+    let dark = run(&bound(json!({"c": "d"})));
+    let html = tag(&dark.fixtures[0].frames[0].css.as_ref().unwrap().html);
+    assert!(html.contains("data-mode-brand=\"dark\""), "{html}");
+}

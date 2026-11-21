@@ -241,4 +241,77 @@ add('f18-opacity', 'opacity 0.5 on a rect, and on a frame whose child is painted
   rect('o3', 'o2', { x: 20, y: 10, w: 40, h: 40, fill: '#0000ff' }),
 ]);
 
+// 19. gradients, probed on pixels (probes.mjs): hard-edged stops make the colours exact, so the angle convention (0 points up, 90
+// right, 180 down), the stop positions, the circle of a radial gradient, the layering (over the fill, under the image) and the
+// clipping by a radius and an ellipse can be read at fixed points
+const hard = (a, b, angle, extra = {}) => ({ kind: 'linear', ...(angle === undefined ? {} : { angle }), stops: [{ pos: 0, color: a }, { pos: 0.5, color: a }, { pos: 0.5, color: b }, { pos: 1, color: b }], ...extra });
+const hardRadial = (a, b) => ({ kind: 'radial', stops: [{ pos: 0, color: a }, { pos: 0.5, color: a }, { pos: 0.5, color: b }, { pos: 1, color: b }] });
+const R = '#ff0000', G = '#00ff00', B = '#0000ff';
+const gx = (i) => 40 + 180 * i;
+add('f19-gradient', 'linear gradients at 90, 180 (the default), 0 and 45 degrees, stop positions, radial on a square and a wide box, a gradient over a fill, on an ellipse and a rounded rect, and over a fill under an image', [
+  frame('stage', null, { w: 1160, h: 300, layout: 'none', fill: '#ffffff', clip: false }),
+  rect('g90', 'stage', { x: gx(0), y: 40, w: 120, h: 80, gradient: hard(R, B, 90) }),
+  rect('g180', 'stage', { x: gx(1), y: 40, w: 120, h: 80, gradient: hard(R, B) }),
+  rect('g0', 'stage', { x: gx(2), y: 40, w: 120, h: 80, gradient: hard(R, B, 0) }),
+  rect('g45', 'stage', { x: gx(3), y: 40, w: 120, h: 80, gradient: hard(R, B, 45) }),
+  rect('gs', 'stage', { x: gx(4), y: 40, w: 120, h: 80, gradient: { kind: 'linear', angle: 90, stops: [{ pos: 0, color: '#000000' }, { pos: 1, color: '#ffffff' }] } }),
+  rect('gp', 'stage', { x: gx(5), y: 40, w: 120, h: 80, gradient: { kind: 'linear', angle: 90, stops: [{ pos: 0, color: R }, { pos: 0.25, color: R }, { pos: 0.75, color: B }, { pos: 1, color: B }] } }),
+  rect('rs', 'stage', { x: gx(0), y: 160, w: 100, h: 100, gradient: hardRadial(R, B) }),
+  rect('rw', 'stage', { x: gx(1), y: 160, w: 160, h: 80, gradient: hardRadial(R, B) }),
+  rect('go', 'stage', { x: gx(2), y: 160, w: 120, h: 80, fill: G, gradient: hard(B, '#0000ff00', 90) }),
+  ell('ge', 'stage', { x: gx(3), y: 160, w: 100, h: 100, gradient: hard(R, B, 90) }),
+  rect('gr', 'stage', { x: gx(4), y: 160, w: 120, h: 80, radius: 30, gradient: hard(R, B, 90) }),
+  rect('gi', 'stage', { x: gx(5), y: 160, w: 100, h: 100, fill: '#ffffff', gradient: hard(G, '#ffff00'), image: img('contain') }),
+]);
+
+// 20 and 21. fills bound to a variable (ADR-0017, ADR-0019): a colour variable of a collection with two modes, an alias, an alias
+// across collections, a binding that does not resolve, and a bound fill under a gradient and under an image; also the two other
+// fields that bind a number variable, the radius and the opacity (the second mode has no radius and is opaque). f20 shows the
+// default mode, f21 the same file with the second mode picked for the collection `brand`: the export says it as an attribute of <html>
+const VARS = {
+  collections: [{ id: 'brand', name: 'Brand', modes: [{ id: 'light', name: 'Light' }, { id: 'dark', name: 'Dark' }] }, { id: 'canvas', name: 'Canvas', modes: [{ id: 'base', name: 'Base' }] }],
+  variables: [
+    { id: 'v1', collection: 'brand', name: 'color/primary', type: 'color', values: { light: '#ff0000', dark: '#0000ff' } },
+    { id: 'v2', collection: 'brand', name: 'color/surface', type: 'color', values: { light: '#00ff00', dark: '#ffff00' } },
+    { id: 'v4', collection: 'brand', name: 'radius/round', type: 'number', values: { light: 40, dark: 0 } },
+    { id: 'v5', collection: 'brand', name: 'opacity/muted', type: 'number', values: { light: 0.5, dark: 1 } },
+    { id: 'v3', collection: 'brand', name: 'color/accent', type: 'color', values: { light: { var: 'v1' }, dark: { var: 'v1' } } },
+    { id: 'vp', collection: 'canvas', name: 'bg/page', type: 'color', values: { base: '#ffffff' } },
+    { id: 'vx', collection: 'canvas', name: 'bg/brand', type: 'color', values: { base: { var: 'v1' } } },
+  ],
+};
+const bound = (id) => ({ var: id });
+const vx = (i) => 40 + 180 * (i % 5), vy = (i) => [40, 170, 300][Math.floor(i / 5)];
+const variableNodes = () => [
+  frame('stage', null, { w: 1000, h: 400, layout: 'none', fill: bound('vp'), clip: false }),
+  rect('a', 'stage', { x: vx(0), y: vy(0), w: 100, h: 80, fill: bound('v1') }),
+  rect('b', 'stage', { x: vx(1), y: vy(1), w: 100, h: 80, fill: bound('v3') }),
+  rect('c', 'stage', { x: vx(2), y: vy(2), w: 100, h: 80, radius: 24, fill: bound('v2') }),
+  ell('d', 'stage', { x: vx(3), y: vy(3), w: 80, h: 80, fill: bound('v1') }),
+  frame('e', 'stage', { x: vx(4), y: vy(4), w: 100, h: 80, layout: 'row', padding: 10, fill: bound('v2'), clip: false }),
+  rect('e1', 'e', { w: 40, h: 40, fill: bound('v1') }),
+  rect('f', 'stage', { x: vx(5), y: vy(5), w: 100, h: 80, fill: bound('vx') }),
+  rect('g', 'stage', { x: vx(6), y: vy(6), w: 100, h: 80, fill: bound('missing') }),
+  rect('h', 'stage', { x: vx(7), y: vy(7), w: 100, h: 80, fill: bound('v2'), gradient: hard(B, '#0000ff00', 90) }),
+  rect('i', 'stage', { x: vx(8), y: vy(8), w: 100, h: 80, fill: bound('v2'), image: img('contain') }),
+  rect('j', 'stage', { x: vx(9), y: vy(9), w: 100, h: 80, fill: G, radius: bound('v4') }),
+  rect('k', 'stage', { x: vx(10), y: vy(10), w: 100, h: 80, fill: R, opacity: bound('v5') }),
+];
+add('f20-variable-fill', 'fills bound to a variable in the default mode: direct, alias, alias across collections, unresolved, under a gradient and under an image; a bound radius and a bound opacity', variableNodes(), { variables: VARS });
+add('f21-variable-modes', 'the same fills with the dark mode of the collection Brand picked', variableNodes(), { variables: VARS, modes: { brand: 'dark' } });
+
+// 22. no fill (`none`): nothing is painted for it, what is behind shows; a node with no `fill` at all takes the default fill
+add('f22-no-fill', 'fill none on a rect, a frame over a coloured box (with a border), a layout frame around a child, an ellipse ring, a gradient and an image; a rect with no fill at all', [
+  frame('stage', null, { w: 1000, h: 300, layout: 'none', fill: '#ffffff', clip: false }),
+  rect('n1', 'stage', { x: 40, y: 40, w: 100, h: 80, fill: 'none' }),
+  rect('bg', 'stage', { x: 200, y: 40, w: 200, h: 100, fill: G }),
+  frame('n3', 'stage', { x: 240, y: 60, w: 120, h: 60, layout: 'none', fill: 'none', border: bd(6, 'inside', R), clip: false }),
+  frame('n4', 'stage', { x: 440, y: 40, w: 160, h: 100, layout: 'row', padding: 10, fill: 'none', clip: false }),
+  rect('n4c', 'n4', { w: 60, h: 60, fill: B }),
+  rect('n7', 'stage', { x: 640, y: 40, w: 100, h: 80 }),
+  rect('n8', 'stage', { x: 780, y: 40, w: 160, h: 80, fill: 'none', gradient: hard(R, '#ff000000', 90) }),
+  ell('n9', 'stage', { x: 40, y: 170, w: 100, h: 100, fill: 'none', border: bd(8, 'inside', R) }),
+  rect('n10', 'stage', { x: 200, y: 170, w: 100, h: 100, fill: 'none', image: img('contain') }),
+]);
+
 export default fixtures;

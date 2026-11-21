@@ -1770,6 +1770,7 @@ dependencies = [
  "export",
  "meldframe-layout",
  "meldframe-protocol",
+ "meldframe-variables",
  "serde",
  "serde_json",
 ]

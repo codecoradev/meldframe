@@ -50,7 +50,7 @@ function subtree(nodes, root) {
 /** `mutate(form, exported)` may change an export before it is loaded: the sensitivity check (sensitivity.mjs) uses it to prove that the gate fails on a wrong export. */
 export async function geometry({ browser, base, mp, seeds, only = [], log = () => {}, mutate = (_form, e) => e }) {
   const docs = [...fixtures, ...fuzzFixtures(seeds)].filter((d) => !only.length || only.includes(d.name));
-  const { out, table, rounds } = await solve(docs.map(({ name, nodes }) => ({ name, nodes })), mp);
+  const { out, table, rounds } = await solve(docs.map(({ name, nodes, variables, modes }) => ({ name, nodes, variables, modes })), mp);
   log(`text table settled in ${rounds} runs, ${table.size} measurements`);
   const contexts = await Promise.all(SETTINGS.map(async ([label, viewport, dpr]) => ({ label, ctx: await browser.newContext({ viewport, deviceScaleFactor: dpr }) })));
   const pages = Object.fromEntries(await Promise.all(contexts.map(async ({ label, ctx }) => [label, await ctx.newPage()])));

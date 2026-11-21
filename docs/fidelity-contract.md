@@ -57,7 +57,7 @@ Chromium, and any document that violates a rule in section 5.
 ## 4. Supported subset
 
 Status legend: **supported** = emitted by the product export (`crates/features/export/export`, E4.1) and checked by the oracle of
-`tools/fidelity-oracle` (E4.2: fixtures `f01` to `f18`, the paint probes, the ink cases); **partly** = emitted, checked, and a
+`tools/fidelity-oracle` (E4.2: fixtures `f01` to `f22`, the paint probes, the ink cases); **partly** = emitted, checked, and a
 known gap is listed in `tools/fidelity-oracle/known-gaps.mjs`; **planned (model)** = not in the model yet (concept.md W1 or
 later); **unsupported** = deliberately outside the contract, with the reason. The notes of a row keep what the spike
 experiment found; where they say "the spike emitted ..." that was the spike export, which the product export replaced.
@@ -86,6 +86,8 @@ idiomatic; token-based classes arrive with decision 17.
 | `clip` (frame) | `overflow:hidden` | `overflow-hidden` | supported | boxes verified (f04 has a clipping frame); the paint of the clip is probed only where it meets a radius or an ellipse (f08: the image is clipped at a rounded corner and by an ellipse) |
 | `radius` | `border-radius:<px>` | `rounded-[..]` | supported | verified up to radius = half the height (probe). The canvas clamps to `min(radius, w/2, h/2)`; CSS clamps by its own rule, which gives the same shape for a single radius, but radius above half the size was **not** tested |
 | `fill` colour (frame/rect/ellipse) | `background-color` (omitted when transparent) | `bg-[#..]` | supported | |
+| `fill` `none` (frame/rect/ellipse) | no `background-color` | no `bg-[..]` | supported | nothing is painted for the node, so what is behind shows, through a frame, an ellipse ring and the letterbox of an image; probed on pixels in f22 (both forms). A node with no `fill` at all takes the default fill `#3f3f46`, probed in the same file |
+| `fill` bound to a colour variable | `background-color:var(--collection-name)` | `bg-[color:var(--..)]` | supported | direct, alias, alias across collections, under a gradient and under an image, with the default mode (f20) and a picked mode (f21: `data-mode-<collection>` on `<html>`); a binding that does not resolve paints the default fill and the export warns `unresolved_binding` |
 | `fill` on text | `color` | `text-[color:..]` | supported | |
 | `fill` + `fill2` on shader | `background:linear-gradient(135deg, ..)` | `bg-[linear-gradient(..)]` | unsupported | GPU shader has no CSS equivalent; exported as an approximation with a warning. Not part of the fidelity promise |
 
@@ -107,12 +109,12 @@ idiomatic; token-based classes arrive with decision 17.
 | Property | Status | Position |
 |---|---|---|
 | opacity | in the model and drawn on the canvas (E3.2, ADR-0013); exported as `opacity` and probed on pixels (f18: a node and what is inside it, both forms) | maps to `opacity`; supported (f18). Note: opacity creates a stacking context, check overlapping children |
-| gradients | in the model and on the canvas (E3.2: `gradient`, linear and radial; one gradient per node, over the fill); exported, **not probed yet** |
+| gradients | in the model and on the canvas (E3.2: `gradient`, linear and radial; one gradient per node, over the fill and under the image) | `linear-gradient(<angle>deg, ..)` (no angle is 180: 0 points up, 90 right) and `radial-gradient(circle farthest-corner, ..)` as a layer over the fill and under the image; supported, probed on pixels in f19 (both forms): the angle at 0, 45, 90 and 180 (other angles are not probed), stop positions, a circle on a wide box, transparent stops over a fill, clipping by a radius and an ellipse, and the letterbox of an image. A stop colour cannot bind a variable yet |
 | multiple fills | planned (model, W1) | `linear-gradient`/`radial-gradient` layers; needs probes for angle conventions |
 | per-side padding | in the model and the layout (E3.2: `padT`, `padR`, `padB`, `padL`); exported and checked on boxes (f16) | `padding: t r b l`; the S9 spike docs report that 12 of 25 frames of a hand-made shop page fell back to free layout when captured, mostly 9 buttons with `padding: 12px 20px` |
 | absolute child inside an auto layout frame | in the model (`absolute`); exported and checked on boxes (f16) | `position:absolute` child of a `position:relative` flex container; removes the child from flow, as `ignoreAutoLayout` in the model would |
 | margin | in the model and the layout (E3.2: `marT`, `marR`, `marB`, `marL`); exported and checked on boxes (f16) | the spike capture turns margins into gap/padding; per-child margin only if round trip is required |
-| design tokens as CSS variables | exported (variables, E3.3 and E4.1: `var(--collection-name)`; no probe yet, so not marked supported) | `var(--token)`; the oracle resolves variables in the browser, so geometry tests are unchanged |
+| variables as CSS custom properties | exported (E3.3 and E4.1: `var(--collection-name)`; the `fill`, `radius` and `opacity` fields bind); supported, probed on pixels in f20 and f21: a bound fill (above), a bound radius as `calc(var(--..) * 1px)` and a bound opacity, in the default mode and a picked one | `var(--token)`; the oracle resolves variables in the browser, so geometry tests are unchanged |
 | per-corner radius, rotation, scale, skew | unsupported until proposed | rotation changes `getBoundingClientRect`; the oracle would compare untransformed layout boxes |
 | flex-wrap, CSS grid, min/max size, aspect ratio, space-around, baseline alignment, sticky/fixed | unsupported until proposed | each needs a core implementation and its own oracle fixtures first |
 | letter-spacing, text decoration, italic, `lineHeight` field, `fontFamily`, text runs | unsupported until proposed | font metrics rules in section 6 would have to be extended |
@@ -187,7 +189,7 @@ How it works:
    - fuzz files (rule G1 applied to them) that do not fall under rule G3: every box within 0.05 px; files under G3 are
      counted and not gated; a failing seed prints its file, to be added as a fixture;
    - paint probes (border inside, center and outside, shadow offset, spread and order, image cover, contain and fill,
-     clipping, opacity), text ink edges within 1 px, and the CSS blur model within 20/255 of the Pixi blur (that last check compares a hand-written CSS page with Pixi and does not go through the export: it says how close the blur the export writes would be, not that the export wrote it; the shadow probes through the export cover offset, spread and order, not blur);
+     clipping, opacity, gradients, fills bound to a variable in two modes with a bound radius and opacity, no fill), text ink edges within 1 px, and the CSS blur model within 20/255 of the Pixi blur (that last check compares a hand-written CSS page with Pixi and does not go through the export: it says how close the blur the export writes would be, not that the export wrote it; the shadow probes through the export cover offset, spread and order, not blur);
    - a fixture in `known-gaps.mjs` that starts passing fails the job, as does an entry that is no longer a fixture: the entry
      is removed and this contract updated.
 6. Pull requests run the fixtures and 50 fuzz seeds, the nightly 500. Playwright 1.63.0, Pixi 8.23.0, Tailwind 4.3.5 and
@@ -233,7 +235,7 @@ What the oracle cannot prove (the list for the product oracle; the experiment's 
   their interactions are not.
 - **Rule G3 files are not gated**, and the export's own `overflow` and `smaller_than_padding` warnings skip every frame
   that holds a hug text: of 500 seeds, 207 are under G3 and for 89 of them the export gave no such warning.
-- **Pixel probes check points, not whole images.** Variables (`var(--...)`), gradients and shaders have no probe.
+- **Pixel probes check points, not whole images.** Shaders have no probe (the contract does not promise them). A gradient stop and a text colour cannot bind a variable yet, and no probe reads a shadow or a border colour bound to one.
 
 ## 8. Experiment results
 
