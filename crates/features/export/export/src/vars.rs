@@ -5,9 +5,10 @@
 //! `:root[data-mode-<collection>="<mode>"]`, and the mode picked in the options is the attribute on `<html>`. An
 //! alias is `var(--other)`. All of it sits on the one element, so an alias follows the mode picked for the collection
 //! it points at, as `meldframe_variables::resolve` does. A colour is written as the render model paints it
-//! (`#rrggbb`, the alpha dropped); a number is unitless, and the field that reads it adds the unit.
+//! (`#rrggbb`, the alpha dropped); a number is unitless, and the field that reads it adds the unit. [`file`] writes the
+//! same names and blocks for every variable of the file, a line each, with the colour as its stored hex, lowercased.
 
-use crate::names::{hex, num, slug, unique};
+use crate::names::{hex, hex_colour, num, slug, unique};
 use crate::report::Report;
 use meldframe_protocol::{Bind, Value, Variable, Variables};
 use meldframe_render::{Fields, ModeChoice};
@@ -46,17 +47,34 @@ fn closure<'a>(vars: &'a Variables, used: &HashSet<String>) -> Vec<&'a Variable>
         .collect()
 }
 
-pub(crate) fn build(
+/// One rule of the variables: the selector and the declarations it holds, `--name:value` each.
+pub(crate) struct Block {
+    pub selector: String,
+    pub decls: Vec<String>,
+}
+
+/// How a colour is written. A frame is painted by the render model, which drops the alpha, so its variables are
+/// `#rrggbb`; a file of variables written for a person keeps the stored hex, alpha included, and lowercases it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Colours {
+    Painted,
+    Stored,
+}
+
+/// The names, the rules and the attributes of `list`, in the order of the file: the default mode of each collection
+/// in the one `:root` block, every other mode in a block of its own. A block of a mode is made even when it is empty;
+/// the `:root` block only when it holds a declaration.
+pub(crate) fn blocks(
     vars: &Variables,
-    used: &HashSet<String>,
+    list: &[&Variable],
     choice: &ModeChoice,
     fields: &Fields,
+    colours: Colours,
     report: &mut Report,
-) -> VarCss {
-    let list = closure(vars, used);
+) -> (VarCss, Vec<Block>) {
     let mut out = VarCss::default();
     let mut taken = HashSet::new();
-    for v in &list {
+    for v in list {
         let col = vars.collection(&v.collection).map_or("x", |c| &c.name);
         let name = unique(&mut taken, format!("--{}-{}", slug(col), slug(&v.name)));
         out.names.insert(v.id.clone(), name);
@@ -79,37 +97,103 @@ pub(crate) fn build(
                     let default = col.modes.first()?;
                     v.values.get(&default.id)
                 });
-                if let Some(text) = value_css(bind, &out.names, fields, report, v, &mode.name) {
+                let cx = Cx {
+                    names: &out.names,
+                    fields,
+                    colours,
+                };
+                if let Some(text) = value_css(bind, &cx, report, v, &mode.name) {
                     decls.push(format!("{}:{text}", out.names[&v.id]));
                 }
             }
             if i == 0 {
                 root.extend(decls);
             } else {
-                modes.push(format!(
-                    ":root[{attr}=\"{value}\"]{{{}}}\n",
-                    decls.join(";")
-                ));
+                modes.push(Block {
+                    selector: format!(":root[{attr}=\"{value}\"]"),
+                    decls,
+                });
             }
             if i > 0 && choice.get(&col.id) == Some(mode.id.as_str()) {
                 out.attrs.push((attr.clone(), value));
             }
         }
     }
+    let mut all = Vec::new();
     if !root.is_empty() {
-        out.rules = format!(":root{{{}}}\n{}", root.join(";"), modes.concat());
+        all.push(Block {
+            selector: ":root".into(),
+            decls: root,
+        });
     }
+    all.extend(modes);
+    (out, all)
+}
+
+/// The variables a frame uses (and what its aliases reach), as one line per rule: what an export document carries.
+pub(crate) fn build(
+    vars: &Variables,
+    used: &HashSet<String>,
+    choice: &ModeChoice,
+    fields: &Fields,
+    report: &mut Report,
+) -> VarCss {
+    let list = closure(vars, used);
+    let (mut out, all) = blocks(vars, &list, choice, fields, Colours::Painted, report);
+    out.rules = all
+        .iter()
+        .map(|b| format!("{}{{{}}}\n", b.selector, b.decls.join(";")))
+        .collect();
     out
+}
+
+/// Every variable of the file as CSS, one declaration per line (ADR-0019 naming and mode blocks): the default mode of
+/// each collection in `:root`, every other mode in `:root[data-mode-<collection>="<mode>"]`. A collection with no
+/// variable writes nothing. The colour is the stored hex, lowercased, alpha included.
+pub(crate) fn file(vars: &Variables) -> (String, usize, usize, Report) {
+    let list: Vec<&Variable> = vars.variables.iter().collect();
+    let choice = ModeChoice::default();
+    let fields = Fields::new(vars, &choice);
+    let mut report = Report::default();
+    let (_, all) = blocks(vars, &list, &choice, &fields, Colours::Stored, &mut report);
+    let mut css = String::new();
+    for b in &all {
+        css.push_str(&b.selector);
+        css.push_str(" {\n");
+        for d in &b.decls {
+            css.push_str("  ");
+            css.push_str(&d.replacen(':', ": ", 1));
+            css.push_str(";\n");
+        }
+        css.push_str("}\n");
+    }
+    let collections = vars
+        .collections
+        .iter()
+        .filter(|c| list.iter().any(|v| v.collection == c.id))
+        .count();
+    (css, collections, all.len(), report)
+}
+
+/// What [`build`] needs to write one value.
+struct Cx<'a> {
+    names: &'a HashMap<String, String>,
+    fields: &'a Fields<'a>,
+    colours: Colours,
 }
 
 fn value_css(
     bind: Option<&Bind<Value>>,
-    names: &HashMap<String, String>,
-    fields: &Fields,
+    cx: &Cx<'_>,
     report: &mut Report,
     v: &Variable,
     mode: &str,
 ) -> Option<String> {
+    let Cx {
+        names,
+        fields,
+        colours,
+    } = cx;
     let Some(bind) = bind else {
         report.warn(
             "missing_value",
@@ -124,6 +208,11 @@ fn value_css(
     match bind {
         Bind::Lit(Value::Number(n)) => Some(num(*n)),
         Bind::Lit(Value::Color(css)) => {
+            if *colours == Colours::Stored
+                && let Some(text) = hex_colour(css)
+            {
+                return Some(text.to_ascii_lowercase());
+            }
             Some(match fields.fill(&Bind::Lit(css.clone())) {
                 Some(rgb) => hex(rgb),
                 None => {

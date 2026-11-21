@@ -274,7 +274,7 @@ A test in `crates/features/capture/capture/tests/registration.rs` reads this tab
 | --- | --- | --- |
 | `E_NODE_NOT_FOUND` | No node with the `frame` id in the file of your workspace. | Read the tree with `get_tree` and use the id of a frame that exists. |
 | `E_NOT_A_FRAME` | The node is not a frame; only a frame is exported. | Export the frame that holds the node. |
-| `E_EXPORT_TOO_LARGE` | The HTML and the stylesheet together would be over 256 KiB. Nothing is returned. | Export a smaller frame, such as one section of the page. |
+| `E_EXPORT_TOO_LARGE` | The HTML and the stylesheet together (or, for the Export variables dialog, the text of all variables) would be over 256 KiB. Nothing is returned. | Export a smaller frame, such as one section of the page (for the variables of a file, there is no smaller export: remove variables you do not need). |
 
 ## Variables import codes
 
