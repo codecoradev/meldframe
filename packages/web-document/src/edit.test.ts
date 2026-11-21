@@ -69,32 +69,24 @@ describe('createActionFor', () => {
 });
 
 describe('moveActionsFor', () => {
-  const nodes = [node('a', { x: 1, y: 2 }), node('b', { x: 10, y: 20 })];
   const at = { x: 40, y: 50 };
   const mv = (over: Partial<MoveIntent>): MoveIntent => ({ ...gesture, ids: ['a'], dx: 5, dy: -3, at, ...over });
-  it('moves the whole selection as one step', () => {
-    expect(moveActionsFor(mv({ ids: ['b', 'a'] }), ['a', 'b'], nodes)).toEqual([{ type: 'moveBy', dx: 5, dy: -3 }]);
+  it('is one dropNodes of the dragged ids and the pointer, whatever the selection: the app layer decides', () => {
+    expect(moveActionsFor(mv({ ids: ['a'] }))).toEqual([{ type: 'dropNodes', ids: ['a'], x: 40, y: 50, dx: 5, dy: -3 }]);
+    expect(moveActionsFor(mv({ ids: ['b', 'a'] }))).toEqual([{ type: 'dropNodes', ids: ['b', 'a'], x: 40, y: 50, dx: 5, dy: -3 }]);
+    expect(moveActionsFor(mv({ ids: ['f', 'd', 'c'] }))).toEqual([{ type: 'dropNodes', ids: ['f', 'd', 'c'], x: 40, y: 50, dx: 5, dy: -3 }]);
   });
-  it('drops one dragged node where the pointer is: the app layer decides between a move, a reorder and a reparent', () => {
-    expect(moveActionsFor(mv({ ids: ['a'] }), ['a'], nodes)).toEqual([{ type: 'dropNode', id: 'a', x: 40, y: 50, dx: 5, dy: -3 }]);
-    expect(moveActionsFor(mv({ ids: ['a'] }), ['a', 'b'], nodes)).toEqual([{ type: 'dropNode', id: 'a', x: 40, y: 50, dx: 5, dy: -3 }]);
+  it('copies the ids, so a later change of the selection does not change the action', () => {
+    const ids = ['a'];
+    const [action] = moveActionsFor(mv({ ids }));
+    ids.push('b');
+    expect(action).toMatchObject({ ids: ['a'] });
   });
-  it('drops only the top node when a node and one of its descendants are both selected (the descendant follows its parent)', () => {
-    const tree = [node('f', { type: 'frame', x: 10, y: 20 }), node('c', { parentId: 'f', x: 1, y: 1 }), node('g', { type: 'frame', parentId: 'f' }), node('d', { parentId: 'g' })];
-    const drop = [{ type: 'dropNode', id: 'f', x: 40, y: 50, dx: 5, dy: -3 }];
-    expect(moveActionsFor(mv({ ids: ['f', 'c'] }), ['f', 'c'], tree)).toEqual(drop);
-    expect(moveActionsFor(mv({ ids: ['f', 'd', 'c'] }), ['f', 'd', 'c'], tree)).toEqual(drop);
-    // Two nodes that are not related are still one step.
-    expect(moveActionsFor(mv({ ids: ['c', 'g'] }), ['c', 'g'], tree)).toEqual([{ type: 'moveBy', dx: 5, dy: -3 }]);
-  });
-  it('moves several nodes that are not the selection one by one to their new place', () => {
-    expect(moveActionsFor(mv({ ids: ['a', 'b'] }), ['a'], nodes)).toEqual([{ type: 'move', id: 'a', x: 6, y: -1 }, { type: 'move', id: 'b', x: 15, y: 17 }]);
-  });
-  it('a gesture that did not move, was cancelled, or is not final does nothing', () => {
-    expect(moveActionsFor(mv({ dx: 0, dy: 0 }), ['a'], nodes)).toEqual([]);
-    expect(moveActionsFor(mv({ cancelled: true }), ['a'], nodes)).toEqual([]);
-    expect(moveActionsFor(mv({ final: false }), ['a'], nodes)).toEqual([]);
-    expect(moveActionsFor(mv({ ids: ['ghost'] }), ['ghost'], nodes)).toEqual([]);
+  it('a gesture that did not move, was cancelled, is not final or has no node does nothing', () => {
+    expect(moveActionsFor(mv({ dx: 0, dy: 0 }))).toEqual([]);
+    expect(moveActionsFor(mv({ cancelled: true }))).toEqual([]);
+    expect(moveActionsFor(mv({ final: false }))).toEqual([]);
+    expect(moveActionsFor(mv({ ids: [] }))).toEqual([]);
   });
 });
 
@@ -217,39 +209,34 @@ describe('with the flag off the drawn box is the stored box and nothing changes'
 });
 
 describe('the preview of a drag', () => {
-  const nodes = [node('a'), node('b'), node('f', { type: 'frame' }), node('c', { parentId: 'f' }), node('g', { type: 'frame', parentId: 'f' }), node('d', { parentId: 'g' })];
   const m = (over: Partial<MoveIntent> = {}): MoveIntent => ({ ...gesture, final: false, ids: ['a'], dx: 5, dy: 6, at: { x: 7, y: 8 }, ...over });
-  const slot = { frame: 'f', index: 1, line: { x: 1, y: 2, w: 30, h: 0 } };
-  it('shows the line of the slot the app layer names, and the dragged box stays where it is drawn', () => {
+  const line = { x: 1, y: 2, w: 30, h: 0 };
+  const slot = { frame: 'f', index: 1, line };
+  it('shows the line of the slot the app layer names; the nodes it says follow the pointer, and no other', () => {
     const asked: unknown[][] = [];
-    const p = movePreviewFor(m(), nodes, (id, at, by) => (asked.push([id, at, by]), slot));
-    expect(p).toEqual({ kind: 'slot', line: slot.line });
-    expect(asked).toEqual([['a', { x: 7, y: 8 }, { dx: 5, dy: 6 }]]);
+    const p = movePreviewFor(m({ ids: ['a', 'b', 'c'] }), (ids, at, by) => (asked.push([ids, at, by]), { slot, follow: ['c'] }));
+    expect(p).toEqual({ kind: 'slot', line, follow: ['c'], dx: 5, dy: 6 });
+    expect(asked).toEqual([[['a', 'b', 'c'], { x: 7, y: 8 }, { dx: 5, dy: 6 }]]);
+    const scene: Scene = { space: 'parent', nodes: [
+      { id: 'a', parent: null, kind: 'rect', x: 1, y: 1, w: 5, h: 5, fill: 1 },
+      { id: 'c', parent: null, kind: 'rect', x: 9, y: 9, w: 5, h: 5, fill: 1 },
+    ] };
+    expect(previewScene(scene, p).nodes.map((n) => [n.id, n.x, n.y])).toEqual([['a', 1, 1], ['c', 14, 15]]);
+  });
+  it('a slot with nothing following changes no box', () => {
+    const p = movePreviewFor(m(), () => ({ slot, follow: [] }));
     const scene: Scene = { space: 'parent', nodes: [{ id: 'a', parent: null, kind: 'rect', x: 1, y: 1, w: 5, h: 5, fill: 1 }] };
     expect(previewScene(scene, p)).toBe(scene);
   });
-  it('shows the box moving with the pointer when there is no slot', () => {
-    expect(movePreviewFor(m(), nodes, () => null)).toEqual({ kind: 'move', ids: ['a'], dx: 5, dy: 6 });
+  it('shows the nodes the app layer says follow the pointer when there is no slot (a flow child that stays is not one)', () => {
+    expect(movePreviewFor(m({ ids: ['a', 'b'] }), () => ({ slot: null, follow: ['b'] }))).toEqual({ kind: 'move', ids: ['b'], dx: 5, dy: 6 });
   });
-  it('asks about the one node that the drop is of, as moveActionsFor does: a node and its selected descendants are one dragged node', () => {
-    for (const ids of [['f', 'c'], ['f', 'd', 'c'], ['c', 'f']]) {
-      const asked: string[] = [];
-      expect(movePreviewFor(m({ ids }), nodes, (id) => (asked.push(id), slot))).toEqual({ kind: 'slot', line: slot.line });
-      expect(asked).toEqual(['f']);
-      // The same intent, finished, is a drop of that node.
-      expect(moveActionsFor(m({ ids, final: true }), ids, nodes)).toEqual([{ type: 'dropNode', id: 'f', x: 7, y: 8, dx: 5, dy: 6 }]);
-    }
-  });
-  it('asks nothing for nodes that are not one dragged node (a selection of several: moveBy), and shows them moving', () => {
-    let asked = 0;
-    expect(movePreviewFor(m({ ids: ['a', 'b'] }), nodes, () => (asked++, slot))).toEqual({ kind: 'move', ids: ['a', 'b'], dx: 5, dy: 6 });
-    expect(movePreviewFor(m({ ids: ['c', 'g'] }), nodes, () => (asked++, slot))).toEqual({ kind: 'move', ids: ['c', 'g'], dx: 5, dy: 6 });
-    expect(asked).toBe(0);
-    expect(moveActionsFor(m({ ids: ['a', 'b'], final: true }), ['a', 'b'], nodes)).toEqual([{ type: 'moveBy', dx: 5, dy: 6 }]);
+  it('shows every dragged node following the pointer when the app layer has no answer (the layout is not on the canvas)', () => {
+    expect(movePreviewFor(m({ ids: ['a', 'b'] }), () => null)).toEqual({ kind: 'move', ids: ['a', 'b'], dx: 5, dy: 6 });
   });
   it('shows nothing when the gesture ended or was cancelled', () => {
-    expect(movePreviewFor(m({ final: true }), nodes, () => slot)).toBeNull();
-    expect(movePreviewFor(m({ cancelled: true }), nodes, () => slot)).toBeNull();
+    expect(movePreviewFor(m({ final: true }), () => ({ slot, follow: [] }))).toBeNull();
+    expect(movePreviewFor(m({ cancelled: true }), () => ({ slot, follow: [] }))).toBeNull();
   });
 });
 

@@ -204,17 +204,17 @@
   // latest move; the end of the gesture is never held back.
   const slotQuery = perFrame<MoveIntent>(
     { request: (cb) => requestAnimationFrame(cb), cancel: (id) => cancelAnimationFrame(id) },
-    (i) => (preview = movePreviewFor(i, nodes, (id, at, by) => engine.dropPreview(id, at, by))),
+    (i) => (preview = movePreviewFor(i, (ids, at, by) => engine.dropPreview(ids, at, by))),
   );
   onDestroy(() => slotQuery.cancel());
 
-  /** The app layer says where a dragged child of a flow would land (a line), else the box follows the pointer. */
+  /** The app layer says where the dragged flow children would land (a line) and which nodes follow the pointer. */
   function onMove(i: MoveIntent) {
     gesture = gestureGoing(i);
     if (!i.final && !i.cancelled) return slotQuery.push(i);
     slotQuery.cancel();
     preview = null;
-    for (const a of moveActionsFor(i, snap.state.selection, nodes)) dispatch(a);
+    for (const a of moveActionsFor(i)) dispatch(a);
   }
 
   /** One node is resized at a time: the handles of a selection of several nodes do nothing yet. */
