@@ -1387,6 +1387,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-checkpoint-pg-tests"
+version = "0.0.0"
+dependencies = [
+ "checkpoint-store",
+ "meldframe-checkpoints",
+ "meldframe-host",
+ "meldframe-protocol",
+ "meldframe-server",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-checkpoint-tests"
 version = "0.0.0"
 dependencies = [
@@ -1990,9 +2002,11 @@ name = "meldframe-store-pg"
 version = "0.0.0"
 dependencies = [
  "activity-store",
+ "checkpoint-store",
  "design-review",
  "meldframe-activity",
  "meldframe-calls",
+ "meldframe-checkpoints",
  "meldframe-host",
  "meldframe-module",
  "meldframe-protocol",

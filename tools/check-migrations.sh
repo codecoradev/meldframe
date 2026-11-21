@@ -6,6 +6,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Two files with one number prefix mean two stacks took the same number: the sqlx migrator would refuse the second at
+# run time, so fail here, where the one that lands second can see it and renumber.
+DUPLICATES=$(ls migrations/*.sql 2>/dev/null | sed 's|.*/||; s|_.*||' | sort | uniq -d)
+if [ -n "$DUPLICATES" ]; then
+  echo "FAIL: more than one file in migrations/ has the number $(echo $DUPLICATES | tr ' ' ',') (renumber the one that landed second)" >&2
+  exit 1
+fi
+
 ADMIN_URL=${ADMIN_DATABASE_URL:-postgres://postgres@127.0.0.1:5433/postgres}
 DB="meldframe_migrate_$$"
 # Same host and credentials as the admin URL, other database name.
@@ -16,7 +24,7 @@ VERSION=$(grep -oE 'SCHEMA_VERSION: u32 = [0-9]+' crates/core/meldframe-protocol
 psql "$ADMIN_URL" -q -v ON_ERROR_STOP=1 -c "create database $DB"
 trap 'psql "$ADMIN_URL" -q -c "drop database if exists $DB" >/dev/null 2>&1 || true' EXIT
 
-echo "[1/4] migrations apply to an empty database"
+echo "[1/5] migrations apply to an empty database"
 shopt -s nullglob
 FILES=(migrations/*.sql)
 [ ${#FILES[@]} -gt 0 ] || { echo "FAIL: no migrations found" >&2; exit 1; }
@@ -25,7 +33,7 @@ for f in "${FILES[@]}"; do
   psql "$URL" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
 done
 
-echo "[2/4] every stored file, op and snapshot carries a schema version"
+echo "[2/5] every stored file, op and snapshot carries a schema version"
 psql "$URL" -q -v ON_ERROR_STOP=1 -v v="$VERSION" <<'SQL'
 do $$
 declare t text;
@@ -63,7 +71,7 @@ begin
 end $$;
 SQL
 
-echo "[3/4] ops and calls are append-only; ops are idempotent per actor and file"
+echo "[3/5] ops and calls are append-only; ops are idempotent per actor and file"
 psql "$URL" -q -v ON_ERROR_STOP=1 <<'SQL'
 do $$
 begin
@@ -112,7 +120,7 @@ begin
   if exists (select 1 from ops) or exists (select 1 from snapshots) then raise exception 'history outlived its file'; end if;
 end $$;
 SQL
-echo "[4/4] batch headers (ADR-0021): bounds of a row, what an update may change, and the cascade with the file"
+echo "[4/5] batch headers (ADR-0021): bounds of a row, what an update may change, and the cascade with the file"
 psql "$URL" -q -v ON_ERROR_STOP=1 -v v="$VERSION" <<'SQL'
 do $$
 begin
@@ -262,6 +270,109 @@ begin
   -- Deleting a file removes its headers and their counters with it, so a file name that is recreated starts again.
   delete from files where id = 'f3';
   if exists (select 1 from batches) or exists (select 1 from batch_files) then raise exception 'headers outlived their file'; end if;
+end $$;
+SQL
+echo "[5/5] checkpoints (ADR-0023): the shape and bounds of a row, a row never changes, and the cascade with the file"
+psql "$URL" -q -v ON_ERROR_STOP=1 <<'SQL'
+do $$
+begin
+  insert into files (id, schema_version, workspace_id, name) values ('f4', 1, 'ws', 'f4');
+  insert into checkpoint_files (file_id, workspace_id) values ('f4', 'ws');
+  insert into checkpoints (file_id, workspace_id, n, seq, kind, label, by, key, at_ms)
+    values ('f4', 'ws', 1, 0, 'manual', 'before the logo', 'person:p', 'k1', 10);
+  insert into checkpoints (file_id, workspace_id, n, seq, kind, about, at_ms)
+    values ('f4', 'ws', 2, 5, 'runStart', 'agent:a', 11);
+  insert into checkpoints (file_id, workspace_id, n, seq, kind, about, by, at_ms)
+    values ('f4', 'ws', 3, 5, 'beforeRevert', 'agent:a', 'person:p', 12);
+  insert into checkpoints (file_id, workspace_id, n, seq, kind, by, at_ms)
+    values ('f4', 'ws', 4, 5, 'beforeRestore', 'person:p', 13);
+  -- The bounds and the shape of one row.
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, by, at_ms) values ('f4', 'ws', 5, 1, 'snapshot', 'p', 1);
+    raise exception 'a kind outside the four was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, label, by, at_ms) values ('f4', 'ws', 5, 1, 'manual', repeat('x', 129), 'p', 1);
+    raise exception 'a label over 128 characters was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, label, by, at_ms) values ('f4', 'ws', 5, 1, 'manual', '', 'p', 1);
+    raise exception 'an empty label was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, label, by, at_ms) values ('f4', 'ws', 5, 1, 'beforeRestore', 'x', 'p', 1);
+    raise exception 'a label on an automatic kind was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, label, about, at_ms) values ('f4', 'ws', 5, 1, 'runStart', 'x', 'a', 1);
+    raise exception 'a label on a run start was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, about, by, at_ms) values ('f4', 'ws', 5, 1, 'runStart', 'a', 'p', 1);
+    raise exception 'a run start by an actor was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, at_ms) values ('f4', 'ws', 5, 1, 'runStart', 1);
+    raise exception 'a run start about nobody was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, at_ms) values ('f4', 'ws', 5, 1, 'manual', 1);
+    raise exception 'a manual row by nobody was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, about, by, at_ms) values ('f4', 'ws', 5, 1, 'manual', 'a', 'p', 1);
+    raise exception 'a manual row about an actor was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, about, by, at_ms) values ('f4', 'ws', 5, 1, 'beforeRestore', 'a', 'p', 1);
+    raise exception 'a restore about an actor was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, by, at_ms) values ('f4', 'ws', 5, 1, 'manual', repeat('a', 129), 1);
+    raise exception 'an actor over 128 bytes was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, by, key, at_ms) values ('f4', 'ws', 5, 1, 'manual', 'p', repeat('k', 101), 1);
+    raise exception 'a key over 100 bytes was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, by, at_ms) values ('f4', 'ws', 0, 1, 'manual', 'p', 1);
+    raise exception 'checkpoint number 0 was accepted';
+  exception when check_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, by, at_ms) values ('f4', 'ws', 5, -1, 'manual', 'p', 1);
+    raise exception 'a negative seq was accepted';
+  exception when check_violation then null; end;
+  -- The two unique indexes, the number, and the foreign key.
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, by, key, at_ms) values ('f4', 'ws', 5, 1, 'manual', 'person:p', 'k1', 1);
+    raise exception 'a repeated key of one actor was accepted';
+  exception when unique_violation then null; end;
+  insert into checkpoints (file_id, workspace_id, n, seq, kind, by, key, at_ms) values ('f4', 'ws', 5, 1, 'manual', 'person:q', 'k1', 1);
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, about, at_ms) values ('f4', 'ws', 6, 5, 'runStart', 'agent:a', 1);
+    raise exception 'a second run start for one actor and seq was accepted';
+  exception when unique_violation then null; end;
+  insert into checkpoints (file_id, workspace_id, n, seq, kind, about, at_ms) values ('f4', 'ws', 6, 6, 'runStart', 'agent:a', 1);
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, by, at_ms) values ('f4', 'ws', 6, 1, 'manual', 'p', 1);
+    raise exception 'a repeated number was accepted';
+  exception when unique_violation then null; end;
+  begin insert into checkpoints (file_id, workspace_id, n, seq, kind, by, at_ms) values ('missing', 'ws', 1, 1, 'manual', 'p', 1);
+    raise exception 'a checkpoint for an unknown file was accepted';
+  exception when foreign_key_violation then null; end;
+  -- A row never changes, not even its label.
+  begin update checkpoints set label = 'other' where file_id = 'f4' and n = 1;
+    raise exception 'a label was changed';
+  exception when others then if sqlerrm not like 'a checkpoint never changes%' then raise; end if; end;
+  begin update checkpoints set seq = 9 where file_id = 'f4' and n = 2;
+    raise exception 'a seq was changed';
+  exception when others then if sqlerrm not like 'a checkpoint never changes%' then raise; end if; end;
+  -- The counter row: next_n only rises, the shares hold, and the row keeps its file.
+  update checkpoint_files set next_n = 7, manual_rows = 2, before_rows = 2, run_rows = 2 where file_id = 'f4';
+  begin update checkpoint_files set next_n = 6 where file_id = 'f4';
+    raise exception 'next_n was lowered';
+  exception when others then if sqlerrm not like 'a checkpoint counter only rises%' then raise; end if; end;
+  begin update checkpoint_files set manual_rows = 51 where file_id = 'f4';
+    raise exception 'more manual rows than the share were accepted';
+  exception when check_violation then null; end;
+  begin update checkpoint_files set before_rows = 26 where file_id = 'f4';
+    raise exception 'more before rows than the share were accepted';
+  exception when check_violation then null; end;
+  begin update checkpoint_files set run_rows = 26 where file_id = 'f4';
+    raise exception 'more run starts than the share were accepted';
+  exception when check_violation then null; end;
+  begin update checkpoint_files set workspace_id = 'other' where file_id = 'f4';
+    raise exception 'a counter row changed its workspace';
+  exception when others then if sqlerrm not like 'a checkpoint counter row keeps its file%' then raise; end if; end;
+  -- A roll is a delete of a row, which is allowed; the number it held stays taken by the counter.
+  delete from checkpoints where file_id = 'f4' and n = 2;
+  -- Deleting a file removes its checkpoints and their counters with it, so a file name that is recreated starts again.
+  delete from files where id = 'f4';
+  if exists (select 1 from checkpoints) or exists (select 1 from checkpoint_files) then raise exception 'checkpoints outlived their file'; end if;
 end $$;
 SQL
 echo "OK: migrations apply from an empty database and hold the schema contract"
