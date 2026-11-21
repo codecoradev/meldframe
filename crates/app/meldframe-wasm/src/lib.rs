@@ -4,9 +4,13 @@
 //! reads `AppState`, the nodes, the painted boxes (the scene) and the `Event`s as JSON. The rules stay in `meldframe-app`; this crate
 //! only converts. [`Bridge`] is plain Rust (tested natively); [`WasmApp`] is its wasm-bindgen face.
 
-use meldframe_app::{Action, App};
+mod measure;
+
+use meldframe_app::{Action, App, MeasurerBox};
 use meldframe_protocol::{Doc, Node, Variables};
 use wasm_bindgen::prelude::*;
+
+pub use measure::{GuardedMeasurer, MAX_MEASURE, MeasureQuery, is_size};
 
 /// The largest whole number a JS number holds exactly (2^53 - 1).
 const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
@@ -86,6 +90,13 @@ impl Bridge {
     /// the flag (they show the drawn box), so the state is read again too.
     pub fn set_layout_on_canvas(&mut self, on: bool) -> String {
         to_json(&self.app.set_layout_on_canvas(on))
+    }
+
+    /// Host configuration, not an action: the measurer that sizes texts in the laid-out scene (the stub until a host
+    /// gives one). Answers like [`Bridge::set_layout_on_canvas`]: a redraw of everything while the flag is on, `[]`
+    /// while it is off, no event, no state.
+    pub fn set_measurer(&mut self, measurer: MeasurerBox) -> String {
+        to_json(&self.app.set_measurer(measurer))
     }
 }
 
@@ -200,5 +211,20 @@ impl WasmApp {
     #[wasm_bindgen(js_name = setLayoutOnCanvas)]
     pub fn set_layout_on_canvas(&mut self, on: bool) -> String {
         self.bridge.set_layout_on_canvas(on)
+    }
+
+    /// Gives the canvas a text measurer: `(text, fontSize, fontWeight, wrapWidth | null) => [width, height]` (see the
+    /// `measure` module); a bad answer falls back to the stub. Calling it again with the same function makes the app
+    /// measure again (the host does that when its fonts finish loading). Returns the effects like `setLayoutOnCanvas`.
+    /// Only on wasm: a JavaScript function cannot be held by a native build.
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen(js_name = setMeasurer)]
+    pub fn set_measurer(&mut self, function: JsValue) -> Result<String, JsValue> {
+        let function: js_sys::Function = function
+            .dyn_into()
+            .map_err(|_| JsValue::from_str("measurer: not a function"))?;
+        Ok(self
+            .bridge
+            .set_measurer(Box::new(measure::js_measurer(function))))
     }
 }

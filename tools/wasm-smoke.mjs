@@ -91,6 +91,42 @@ assert.equal(lay.takeEventsJson(), '[]', 'the flag raises no event');
 lay.setLayoutOnCanvas(false);
 assert.deepEqual([boxB().x, boxB().w], [0, 1]);
 
+// The text measurer (host configuration): a JavaScript function `(text, fontSize, fontWeight, wrapWidth | null) => [w, h]`
+// sizes the hug texts of the laid-out scene; whatever else it does, the stub answers, so the scene never holds a NaN.
+const meas = new WasmApp('usr_me', 'web', 10, JSON.stringify([
+  { id: 'f', type: 'frame', pos: 'a0', w: 400, h: 100, layout: 'row', padding: 0, gap: 0 },
+  { id: 't', type: 'text', pos: 'a0', parentId: 'f', text: 'Hello', fontSize: 20, fontWeight: 700, sw: 'hug', sh: 'hug' },
+]), 0);
+const boxT = () => JSON.parse(meas.sceneJson()).find((b) => b.id === 't');
+const size = () => [boxT().w, boxT().h];
+const calls = [];
+let answer = () => [77, 31];
+const measurer = (...args) => { calls.push(args); return answer(...args); };
+assert.deepEqual(JSON.parse(meas.setMeasurer(measurer)), [], 'the flag is off: nothing to redraw, the measurer is not asked');
+assert.equal(calls.length, 0, 'the stored scene asks nobody');
+assert.deepEqual(JSON.parse(meas.setLayoutOnCanvas(true)), [{ type: 'render', nodes: [] }]);
+assert.deepEqual(size(), [77, 31], 'the host sizes the hug text');
+assert.deepEqual(calls[0], ['Hello', 20, 700, null], 'text, size, weight, and null for one line');
+assert.deepEqual(JSON.parse(meas.setMeasurer(measurer)), [{ type: 'render', nodes: [] }], 'the flag is on: a redraw of everything');
+answer = (_t, _s, _w, wrap) => (wrap === null ? [60, 24] : [40, 48]);
+meas.setMeasurer(measurer);
+assert.deepEqual(size(), [60, 24]);
+const stub = [50, 24]; // the stub: half an em per character, ceil(1.2 em) high
+for (const bad of [
+  () => { throw new Error('no fonts'); },
+  () => [NaN, 10], () => [10, NaN], () => [Infinity, 10], () => [-1, 10], () => [10, -1], () => [1e9, 10],
+  () => [10], () => 5, () => null, () => undefined, () => ({ 0: 1, 1: 2 }), () => ['10', '10'], () => [10n, 10n],
+]) {
+  answer = bad;
+  meas.setMeasurer(measurer);
+  assert.deepEqual(size(), stub, String(bad));
+}
+assert.ok(JSON.parse(meas.sceneJson()).every((b) => [b.x, b.y, b.w, b.h].every(Number.isFinite)), 'no NaN in the scene');
+assert.equal(meas.takeEventsJson(), '[]', 'the measurer raises no event');
+for (const notAFunction of ['not a function', undefined, null, {}]) {
+  assert.throws(() => meas.setMeasurer(notAFunction), (e) => e === 'measurer: not a function', 'refused at the boundary, as a string');
+}
+
 // Errors are thrown as strings, not as a trap.
 assert.throws(() => app.dispatch('not json'), (e) => typeof e === 'string' && e.startsWith('action:'));
 assert.throws(() => new WasmApp('usr_me', 'web', 1, '{', 0), (e) => typeof e === 'string' && e.startsWith('nodes:'));
