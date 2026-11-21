@@ -87,6 +87,21 @@ export class Engine {
     return effects;
   }
 
+  /**
+   * Host configuration of the canvas: draw laid-out boxes (hug, fill, auto layout; the Rust layout does the work) or the
+   * stored ones. It is not an action and raises no event, so the scene is read again here when the flag changed.
+   * The default is off.
+   */
+  setLayoutOnCanvas(on: boolean): Effect[] {
+    const effects: Effect[] = JSON.parse(this.app.setLayoutOnCanvas(on));
+    if (effects.length) {
+      this.snap = { ...this.snap, scene: this.readScene(), events: [] };
+      for (const fn of this.listeners) fn(this.snap);
+      this.effectHandler(effects);
+    }
+    return effects;
+  }
+
   private readState(): AppState {
     this.stats.stateReads++;
     return JSON.parse(this.app.stateJson());

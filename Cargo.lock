@@ -1165,6 +1165,7 @@ dependencies = [
  "meldframe-app-rules",
  "meldframe-check",
  "meldframe-history",
+ "meldframe-layout",
  "meldframe-protocol",
  "meldframe-render",
  "meldframe-revert",
@@ -1274,6 +1275,7 @@ dependencies = [
  "meldframe-app",
  "meldframe-app-model",
  "meldframe-protocol",
+ "meldframe-render",
  "serde_json",
  "wasm-bindgen-test",
 ]

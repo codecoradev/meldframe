@@ -10,6 +10,10 @@
 //! export, in the tests of the `export` crate (a feature crate cannot be a dependency of a core one): a field
 //! marked `Rendered` there changes the export when it changes, and one marked unsupported does not. A field that
 //! one consumer renders and the other does not carries a reason on the side that does not.
+//!
+//! The canvas column describes the default canvas, which reads `resolve`. The inputs of layout ([`FROM_LAYOUT`]) are
+//! unsupported there; a host that turns `layout_on_canvas` on makes the canvas read `resolve_laid_out`, which renders
+//! them (a second test checks that for each of those rows), so the mark stays true until the flag is the default.
 
 use meldframe_protocol::VarType;
 
@@ -33,8 +37,10 @@ pub struct FieldSupport {
     pub bindable: Option<VarType>,
 }
 
-const FROM_LAYOUT: Support = Support::Unsupported(
-    "an input of layout; resolve reads the stored box, so the canvas does not apply it yet",
+/// The mark of the sixteen inputs of layout. `resolve` reads the stored box, so the default canvas ignores them;
+/// `resolve_laid_out` applies them, and `tests/coverage.rs` proves it for every row that carries this mark.
+pub const FROM_LAYOUT: Support = Support::Unsupported(
+    "an input of layout; resolve reads the stored box, so the canvas ignores it unless the host turns on layout_on_canvas (resolve_laid_out)",
 );
 const NOT_DRAWN: Support = Support::Unsupported("the canvas does not draw it yet");
 

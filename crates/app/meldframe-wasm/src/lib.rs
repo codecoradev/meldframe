@@ -79,6 +79,13 @@ impl Bridge {
     pub fn take_events_json(&mut self) -> String {
         to_json(&self.app.take_events())
     }
+
+    /// Host configuration, not an action: whether the scene is laid out (hug, fill, auto layout) or the stored boxes.
+    /// Returns the effects to carry out (JSON array; a redraw of everything when the flag changed, `[]` when it did
+    /// not). It raises no event and changes no state, so the caller reads the scene again itself.
+    pub fn set_layout_on_canvas(&mut self, on: bool) -> String {
+        to_json(&self.app.set_layout_on_canvas(on))
+    }
 }
 
 fn to_json<T: serde::Serialize + ?Sized>(value: &T) -> String {
@@ -187,5 +194,10 @@ impl WasmApp {
     #[wasm_bindgen(js_name = takeEventsJson)]
     pub fn take_events_json(&mut self) -> String {
         self.bridge.take_events_json()
+    }
+
+    #[wasm_bindgen(js_name = setLayoutOnCanvas)]
+    pub fn set_layout_on_canvas(&mut self, on: bool) -> String {
+        self.bridge.set_layout_on_canvas(on)
     }
 }

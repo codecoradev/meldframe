@@ -5,9 +5,11 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
+use meldframe_layout::StubMeasurer;
+use meldframe_protocol::Variables;
 use meldframe_protocol::{Gradient, GradientStop, ImageFill, Node, NodeKind};
-use meldframe_render::coverage::{NODE_FIELDS, Support};
-use meldframe_render::resolve;
+use meldframe_render::coverage::{FROM_LAYOUT, NODE_FIELDS, Support};
+use meldframe_render::{ModeChoice, PaintedBox, resolve, resolve_laid_out};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
@@ -159,5 +161,64 @@ fn a_field_one_consumer_renders_and_the_other_does_not_is_marked_unsupported_wit
                 );
             }
         }
+    }
+}
+
+fn laid_out(nodes: &[Node]) -> Vec<PaintedBox> {
+    resolve_laid_out(
+        nodes,
+        &Variables::default(),
+        &ModeChoice::default(),
+        &StubMeasurer,
+    )
+}
+
+/// A column frame with two children, in two forms so that every layout field has room to show. Fixed: the frame is
+/// bigger than what is in it, so the children are narrower than it (align) and it is taller than they are (justify).
+/// Hug: the frame is as big as its content, so the padding on the far sides and the margins give it its size.
+fn column(hug: bool) -> Vec<Node> {
+    let n = |v: Value| -> Node { serde_json::from_value(v).unwrap() };
+    let frame = if hug {
+        json!({"id": "p", "type": "frame", "layout": "column", "sw": "hug", "sh": "hug"})
+    } else {
+        json!({"id": "p", "type": "frame", "layout": "column", "w": 200, "h": 200})
+    };
+    vec![
+        n(frame),
+        n(json!({"id": "r", "type": "rect", "parentId": "p", "pos": "a", "w": 20, "h": 20})),
+        n(json!({"id": "s", "type": "rect", "parentId": "p", "pos": "b", "w": 20, "h": 20})),
+    ]
+}
+
+/// The table says the canvas does not render the layout fields because `resolve` reads the stored box. That stays
+/// true of `resolve` (the test above) and so of the default canvas; this test says what the flag adds: with
+/// `resolve_laid_out`, which the canvas reads when the host turns `layout_on_canvas` on, every field the table marks
+/// as an input of layout does change what is painted.
+#[test]
+fn the_layout_fields_the_canvas_does_not_render_by_default_are_rendered_by_resolve_laid_out() {
+    let rows: Vec<_> = NODE_FIELDS
+        .iter()
+        .filter(|f| f.canvas == FROM_LAYOUT)
+        .collect();
+    assert_eq!(rows.len(), 16, "the layout inputs of the table");
+    for f in rows {
+        let mut shown = false;
+        for hug in [false, true] {
+            let mut nodes = column(hug);
+            for (i, n) in nodes.iter_mut().enumerate() {
+                change(f.field, i, n);
+            }
+            shown |= laid_out(&nodes) != laid_out(&column(hug));
+            assert!(
+                resolve(&nodes) == resolve(&column(hug)),
+                "`{}` is marked unsupported by the canvas: resolve must still ignore it",
+                f.field
+            );
+        }
+        assert!(
+            shown,
+            "`{}` is an input of layout but changing it paints nothing different through resolve_laid_out",
+            f.field
+        );
     }
 }

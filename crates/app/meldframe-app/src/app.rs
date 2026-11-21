@@ -1,6 +1,7 @@
 //! The state machine: one action in, state changes, events and effects out. No I/O, clock or randomness.
 
 use crate::action::Action;
+use crate::canvas::CanvasLayout;
 use crate::effect::Effect;
 use crate::event::Event;
 use crate::panel::PanelCache;
@@ -14,7 +15,7 @@ use meldframe_app_rules::link::Link;
 use meldframe_app_rules::retry::Retries;
 use meldframe_app_rules::review::Review;
 use meldframe_protocol::{Doc, Node, Variables};
-use meldframe_render::{PaintedBox, resolve_with};
+use meldframe_render::PaintedBox;
 use meldframe_sync::{LoadError, Replica};
 use std::collections::HashSet;
 
@@ -34,6 +35,8 @@ pub struct App {
     pub(crate) next_id: u64,
     /// What the Export dialog was built from, and how often (`App::export_builds`).
     pub(crate) export_cache: export_dialog::Cache,
+    /// The host's text measurer and the `layout_on_canvas` flag (`crate::canvas`).
+    pub(crate) canvas: CanvasLayout,
 }
 
 impl App {
@@ -79,6 +82,7 @@ impl App {
             prefix,
             next_id: 0,
             export_cache: Default::default(),
+            canvas: CanvasLayout::default(),
         };
         app.refresh(&mut Vec::new());
         app.events.clear();
@@ -100,11 +104,12 @@ impl App {
         self.replica.nodes()
     }
 
-    /// The boxes the canvas paints, back to front: the one `resolve_with` step of the render model (E3.1) over
+    /// The boxes the canvas paints, back to front: the one resolve step of the render model (E3.1) over
     /// [`App::nodes`], with the variables resolved in the modes of `AppState::modes` (E3.3). The canvas reads
-    /// this and computes nothing of its own.
+    /// this and computes nothing of its own. The step is `resolve_with` (the stored boxes) unless the host turned
+    /// `layout_on_canvas` on: then it is `resolve_laid_out` with the host's text measurer (`crate::canvas`).
     pub fn scene(&self) -> Vec<PaintedBox> {
-        resolve_with(self.nodes(), self.vars(), &self.choice())
+        self.canvas.scene(self.nodes(), self.vars(), &self.choice())
     }
 
     /// The collections and variables of the document as the person sees them.

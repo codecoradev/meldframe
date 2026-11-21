@@ -7,7 +7,8 @@
 //! fields each consumer renders and which are marked unsupported, and a test checks the table
 //! against what `resolve` paints. A bound field (`{"var": id}`) paints the value its variable has in the mode a
 //! [`ModeChoice`] picks (E3.3); `resolve` is `resolve_with` for a file without variables. `resolve_laid_out` is
-//! `resolve_with` with the boxes of the layout core (hug, fill, auto layout); nothing calls it yet.
+//! `resolve_with` with the boxes of the layout core (hug, fill, auto layout); the app layer calls it for the scene when the
+//! host turns `layout_on_canvas` on, and `resolve_with` otherwise.
 
 pub mod coverage;
 mod laid_out;
