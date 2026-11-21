@@ -40,7 +40,7 @@ test:
 
 # The core crates' tests under WASM on Node (needs wasm-bindgen-test-runner; see AGENTS.md)
 wasm-test:
-    cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-layout-tests -p meldframe-render -p meldframe-export-tests -p meldframe-history -p meldframe-revert -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-variables-tests -p meldframe-variables-limits-tests -p meldframe-variables-rename-tests -p meldframe-variables-panel-tests -p meldframe-variables-import-tests -p meldframe-activity-tests -p meldframe-app-unit-tests -p meldframe-app-export-tests -p meldframe-variables-manage-tests -p meldframe-variables-props
+    cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-layout-tests -p meldframe-render -p meldframe-export-tests -p meldframe-history -p meldframe-revert -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-variables-tests -p meldframe-variables-limits-tests -p meldframe-variables-rename-tests -p meldframe-variables-panel-tests -p meldframe-variables-import-tests -p meldframe-activity-tests -p meldframe-app-unit-tests -p meldframe-app-layout-tests -p meldframe-app-export-tests -p meldframe-variables-manage-tests -p meldframe-variables-props
 
 # Build the wasm bridge for the web client into apps/web/.wasm (git-ignored); needs wasm-bindgen-cli, see AGENTS.md
 wasm-build:

@@ -8,7 +8,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod layout_fixture;
 use layout_fixture::*;
-use meldframe_app::Action;
+use meldframe_app::{Action, Effect, Event, Frame};
 use meldframe_protocol::{Command, SizeMode};
 use serde_json::json;
 
@@ -346,4 +346,56 @@ fn the_drop_action_reads_from_json() {
     .unwrap();
     assert!(matches!(a, Action::DropNode { dx, .. } if dx == 3.0));
     assert!(serde_json::from_value::<Action>(json!({"type": "dropNode", "id": "b"})).is_err());
+}
+
+// --- the server's answer ------------------------------------------------------------------------------------------
+
+/// Sends the drop and gives every op back as the server does (in order, with its key and the command as sent): the app must
+/// take each as its own, with nothing pending and no divergence.
+fn confirmed_drop(id: &str, at: (f64, f64), by: (f64, f64)) -> meldframe_app::App {
+    let mut a = app(true);
+    let fx = a.dispatch(Action::DropNode {
+        id: id.into(),
+        x: at.0,
+        y: at.1,
+        dx: by.0,
+        dy: by.1,
+    });
+    let ops: Vec<_> = fx
+        .iter()
+        .flat_map(|e| match e {
+            Effect::SendOps { ops } => ops.clone(),
+            _ => vec![],
+        })
+        .collect();
+    assert!(!ops.is_empty());
+    a.take_events();
+    for (i, op) in ops.iter().enumerate() {
+        a.dispatch(Action::Frame {
+            now_ms: 1,
+            frame: Frame::Event {
+                seq: 1 + i as u64,
+                actor: "user:me".into(),
+                key: Some(op.key.clone()),
+                command: op.command.clone(),
+            },
+        });
+    }
+    let events = a.take_events();
+    assert!(
+        !events.contains(&Event::Diverged {}),
+        "diverged: {events:?}"
+    );
+    assert!(a.state().pending.is_empty(), "every op was confirmed");
+    a
+}
+
+#[test]
+fn a_reorder_a_reparent_and_a_drop_out_of_the_flow_are_each_confirmed_by_the_server() {
+    let a = confirmed_drop("b", (30.0, 15.0), (0.0, -20.0));
+    assert_eq!(kids(&a, Some("f")), ["b", "a", "c", "abs"]);
+    let a = confirmed_drop("a", (720.0, 50.0), (0.0, 0.0));
+    assert_eq!(kids(&a, Some("r")), ["a", "r1", "r2"]);
+    let a = confirmed_drop("c", (1500.0, 900.0), (0.0, 0.0));
+    assert_eq!(node(&a, "c").parent_id, None);
 }

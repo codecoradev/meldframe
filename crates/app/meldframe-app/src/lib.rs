@@ -41,5 +41,6 @@ pub use meldframe_app_model::{
     OutOp, Panel, Panels, Picker, PickerRow, Properties, Property, RevertSkip, RevertSkipReason,
     Side, Sides, Tool, TypeHeading, VariableEntity, VariableRow, VariableValue, VariablesPanel,
 };
+pub use meldframe_app_rules::drop::Slot as DropSlot;
 pub use meldframe_layout::{StubMeasurer, TextMeasurer};
 pub use meldframe_sync::LoadError;

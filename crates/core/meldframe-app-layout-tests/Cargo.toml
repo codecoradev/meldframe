@@ -1,0 +1,22 @@
+[package]
+name = "meldframe-app-layout-tests"
+description = "The tests of the interaction on a laid-out canvas of meldframe-app: a drop, the preview of a drop and a resize with the host flag layout_on_canvas on and off, and that the preview and the drop agree. Split from meldframe-app-unit-tests for the size band. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-app = { path = "../../app/meldframe-app" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+serde_json = "1"
+
+# See meldframe-order/Cargo.toml: the tests run under WASM through wasm-bindgen-test.
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
+
+[lints]
+workspace = true
