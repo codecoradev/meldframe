@@ -9,6 +9,7 @@ declare module '@meldframe/wasm' {
     nodesJson(): string;
     variablesJson(): string;
     sceneJson(): string;
+    dropPreviewJson(id: string, x: number, y: number, dx: number, dy: number): string;
     takeEventsJson(): string;
     setLayoutOnCanvas(on: boolean): string;
     setMeasurer(measure: (text: string, fontSize: number, fontWeight: number, wrapWidth: number | null) => [number, number]): string;

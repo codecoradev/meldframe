@@ -2,7 +2,7 @@ import type { Node } from '@meldframe/protocol';
 import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
 import type { Scene } from '@meldframe/web-canvas/scene';
 import { describe, expect, it } from 'vitest';
-import { OWNS_KEYS_SELECTOR, containerFor, createActionFor, deleteAction, keyAction, moveActionsFor, ownsKeys, previewScene, resizeActionFor, resizedBox, toolMode, worldOrigin } from './edit';
+import { OWNS_KEYS_SELECTOR, containerFor, createActionFor, deleteAction, drawnBox, keyAction, movePreviewFor, moveActionsFor, ownsKeys, previewScene, resizeActionFor, resizePreviewFor, resizedBox, toolMode, worldOrigin } from './edit';
 
 const node = (id: string, over: Partial<Node> = {}): Node =>
   ({ id, name: id, type: 'rect', parentId: null, x: 0, y: 0, w: 100, h: 50, ...over }) as Node;
@@ -70,24 +70,31 @@ describe('createActionFor', () => {
 
 describe('moveActionsFor', () => {
   const nodes = [node('a', { x: 1, y: 2 }), node('b', { x: 10, y: 20 })];
-  const mv = (over: Partial<MoveIntent>): MoveIntent => ({ ...gesture, ids: ['a'], dx: 5, dy: -3, ...over });
+  const at = { x: 40, y: 50 };
+  const mv = (over: Partial<MoveIntent>): MoveIntent => ({ ...gesture, ids: ['a'], dx: 5, dy: -3, at, ...over });
   it('moves the whole selection as one step', () => {
     expect(moveActionsFor(mv({ ids: ['b', 'a'] }), ['a', 'b'], nodes)).toEqual([{ type: 'moveBy', dx: 5, dy: -3 }]);
   });
-  it('moves nodes that are not the selection one by one to their new place', () => {
-    expect(moveActionsFor(mv({ ids: ['a'] }), ['a', 'b'], nodes)).toEqual([{ type: 'move', id: 'a', x: 6, y: -1 }]);
+  it('drops one dragged node where the pointer is: the app layer decides between a move, a reorder and a reparent', () => {
+    expect(moveActionsFor(mv({ ids: ['a'] }), ['a'], nodes)).toEqual([{ type: 'dropNode', id: 'a', x: 40, y: 50, dx: 5, dy: -3 }]);
+    expect(moveActionsFor(mv({ ids: ['a'] }), ['a', 'b'], nodes)).toEqual([{ type: 'dropNode', id: 'a', x: 40, y: 50, dx: 5, dy: -3 }]);
   });
-  it('moves only the top node when a node and one of its descendants are both selected (the descendant follows its parent)', () => {
+  it('drops only the top node when a node and one of its descendants are both selected (the descendant follows its parent)', () => {
     const tree = [node('f', { type: 'frame', x: 10, y: 20 }), node('c', { parentId: 'f', x: 1, y: 1 }), node('g', { type: 'frame', parentId: 'f' }), node('d', { parentId: 'g' })];
-    expect(moveActionsFor(mv({ ids: ['f', 'c'] }), ['f', 'c'], tree)).toEqual([{ type: 'move', id: 'f', x: 15, y: 17 }]);
-    expect(moveActionsFor(mv({ ids: ['f', 'd', 'c'] }), ['f', 'd', 'c'], tree)).toEqual([{ type: 'move', id: 'f', x: 15, y: 17 }]);
+    const drop = [{ type: 'dropNode', id: 'f', x: 40, y: 50, dx: 5, dy: -3 }];
+    expect(moveActionsFor(mv({ ids: ['f', 'c'] }), ['f', 'c'], tree)).toEqual(drop);
+    expect(moveActionsFor(mv({ ids: ['f', 'd', 'c'] }), ['f', 'd', 'c'], tree)).toEqual(drop);
     // Two nodes that are not related are still one step.
     expect(moveActionsFor(mv({ ids: ['c', 'g'] }), ['c', 'g'], tree)).toEqual([{ type: 'moveBy', dx: 5, dy: -3 }]);
+  });
+  it('moves several nodes that are not the selection one by one to their new place', () => {
+    expect(moveActionsFor(mv({ ids: ['a', 'b'] }), ['a'], nodes)).toEqual([{ type: 'move', id: 'a', x: 6, y: -1 }, { type: 'move', id: 'b', x: 15, y: 17 }]);
   });
   it('a gesture that did not move, was cancelled, or is not final does nothing', () => {
     expect(moveActionsFor(mv({ dx: 0, dy: 0 }), ['a'], nodes)).toEqual([]);
     expect(moveActionsFor(mv({ cancelled: true }), ['a'], nodes)).toEqual([]);
     expect(moveActionsFor(mv({ final: false }), ['a'], nodes)).toEqual([]);
+    expect(moveActionsFor(mv({ ids: ['ghost'] }), ['ghost'], nodes)).toEqual([]);
   });
 });
 
@@ -130,6 +137,119 @@ describe('previewScene', () => {
     ] };
     const s = previewScene(tree, { kind: 'move', ids: ['f', 'c'], dx: 3, dy: 4 });
     expect(s.nodes.map((n) => [n.id, n.x, n.y])).toEqual([['f', 13, 14], ['c', 1, 1]]);
+  });
+});
+
+// A laid-out file: the frame `f` is stored at (10, 20) but drawn at (110, 120) and its child `c` is stored at (0, 0)
+// with size 1 by 1 (hug, fill) but drawn at (5, 6), 40 by 30 in the frame.
+const drawnNodes = [node('f', { type: 'frame', x: 10, y: 20, w: 200, h: 100 }), node('c', { parentId: 'f', x: 0, y: 0, w: 1, h: 1 })];
+const drawn: Scene = { space: 'parent', nodes: [
+  { id: 'f', parent: null, kind: 'frame', x: 110, y: 120, w: 200, h: 100, fill: 1 },
+  { id: 'c', parent: 'f', kind: 'rect', x: 5, y: 6, w: 40, h: 30, fill: 2 },
+] };
+/** What the canvas draws with the host flag off: the stored boxes. */
+const storedScene = (nodes: readonly Node[]): Scene => ({ space: 'parent', nodes: nodes.map((n) => ({ id: n.id, parent: n.parentId, kind: n.type as 'rect', x: n.x, y: n.y, w: n.w, h: n.h, fill: 0 })) });
+
+describe('drawn boxes', () => {
+  it('reads the box a node is drawn at from the scene, in the space of its parent', () => {
+    expect(drawnBox(drawn, 'c')).toEqual({ x: 5, y: 6, w: 40, h: 30 });
+    expect(drawnBox(drawn, 'ghost')).toBeNull();
+    expect(drawnBox(undefined, 'c')).toBeNull();
+    expect(drawnBox({ ...drawn, space: 'world' }, 'c')).toBeNull(); // not the form the engine hands over: the stored box is used
+  });
+  it('the origin of a parent is the drawn one when the scene has it, else the stored one', () => {
+    expect(worldOrigin(drawnNodes, 'f')).toEqual({ x: 10, y: 20 });
+    expect(worldOrigin(drawnNodes, 'f', drawn)).toEqual({ x: 110, y: 120 });
+    expect(worldOrigin(drawnNodes, 'c', drawn)).toEqual({ x: 115, y: 126 });
+    expect(worldOrigin(drawnNodes, 'c', { ...drawn, nodes: drawn.nodes.slice(0, 1) })).toEqual({ x: 110, y: 120 });
+  });
+  it('a node is created in the space of the frame as it is drawn', () => {
+    const i: CreateIntent = { ...gesture, tool: 'rect', at: 'f', x: 150, y: 170, w: 0, h: 0 };
+    expect(createActionFor(i, drawnNodes)).toEqual({ type: 'createNode', kind: 'rectangle', x: 140, y: 150, parent: 'f' });
+    expect(createActionFor(i, drawnNodes, drawn)).toEqual({ type: 'createNode', kind: 'rectangle', x: 40, y: 50, parent: 'f' });
+  });
+  it('a resize starts from the drawn box and sends the drawn value of the side that did not change', () => {
+    const rz = (over: Partial<ResizeIntent>): ResizeIntent => ({ ...gesture, ids: ['c'], handle: 'e', dx: 10, dy: 7, ...over });
+    // Only the width changes: the height is sent as it is drawn (30), so a hug height is not made fixed by the app layer.
+    expect(resizeActionFor(rz({}), drawnNodes, drawn)).toEqual({ type: 'resize', id: 'c', w: 50, h: 30 });
+    expect(resizeActionFor(rz({ handle: 's' }), drawnNodes, drawn)).toEqual({ type: 'resize', id: 'c', w: 40, h: 37 });
+    expect(resizeActionFor(rz({ handle: 'nw', dx: -4, dy: -2 }), drawnNodes, drawn)).toEqual({ type: 'resize', id: 'c', w: 44, h: 32, x: 1, y: 4 });
+  });
+  it('a resize of a node the scene does not hold works on the stored box', () => {
+    const rz: ResizeIntent = { ...gesture, ids: ['c'], handle: 'e', dx: 10, dy: 0 };
+    expect(resizeActionFor(rz, drawnNodes, { ...drawn, nodes: [] })).toEqual({ type: 'resize', id: 'c', w: 11, h: 1 });
+  });
+  it('the preview of a resize is the drawn box moved by the handle', () => {
+    const rz: ResizeIntent = { ...gesture, final: false, ids: ['c'], handle: 'e', dx: 10, dy: 0 };
+    expect(resizePreviewFor(rz, drawnNodes, drawn)).toEqual({ kind: 'box', id: 'c', box: { x: 5, y: 6, w: 50, h: 30 } });
+    expect(resizePreviewFor({ ...rz, final: true }, drawnNodes, drawn)).toBeNull();
+    expect(resizePreviewFor({ ...rz, cancelled: true }, drawnNodes, drawn)).toBeNull();
+    expect(resizePreviewFor({ ...rz, ids: ['c', 'f'] }, drawnNodes, drawn)).toBeNull();
+    expect(resizePreviewFor({ ...rz, ids: ['ghost'] }, drawnNodes, drawn)).toBeNull();
+  });
+});
+
+describe('with the flag off the drawn box is the stored box and nothing changes', () => {
+  const nodes = [node('f', { type: 'frame', x: 10, y: 20, w: 200, h: 100 }), node('c', { parentId: 'f', x: 3, y: 4, w: 40, h: 30 }), node('t', { parentId: 'f', type: 'text', x: 50, y: 60, w: 70, h: 20 })];
+  const scene = storedScene(nodes);
+  it('every origin is the same', () => {
+    for (const id of [null, 'f', 'c', 't', 'ghost']) expect(worldOrigin(nodes, id, scene)).toEqual(worldOrigin(nodes, id));
+  });
+  it('every resize, from every handle, is the same action and the same preview', () => {
+    const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
+    for (const id of ['f', 'c', 't']) {
+      for (const handle of handles) {
+        for (const [dx, dy] of [[10, 5], [-7, -3], [-500, 500]] as const) {
+          const i: ResizeIntent = { ...gesture, ids: [id], handle, dx, dy };
+          expect(JSON.stringify(resizeActionFor(i, nodes, scene))).toBe(JSON.stringify(resizeActionFor(i, nodes)));
+          const live = { ...i, final: false };
+          expect(JSON.stringify(resizePreviewFor(live, nodes, scene))).toBe(JSON.stringify(resizePreviewFor(live, nodes)));
+        }
+      }
+    }
+  });
+  it('every created node is the same', () => {
+    for (const at of [null, 'f', 'c']) {
+      const i: CreateIntent = { ...gesture, tool: 'text', at, x: 77, y: 88, w: 30, h: 20 };
+      expect(JSON.stringify(createActionFor(i, nodes, scene))).toBe(JSON.stringify(createActionFor(i, nodes)));
+    }
+  });
+});
+
+describe('the preview of a drag', () => {
+  const nodes = [node('a'), node('b'), node('f', { type: 'frame' }), node('c', { parentId: 'f' }), node('g', { type: 'frame', parentId: 'f' }), node('d', { parentId: 'g' })];
+  const m = (over: Partial<MoveIntent> = {}): MoveIntent => ({ ...gesture, final: false, ids: ['a'], dx: 5, dy: 6, at: { x: 7, y: 8 }, ...over });
+  const slot = { frame: 'f', index: 1, line: { x: 1, y: 2, w: 30, h: 0 } };
+  it('shows the line of the slot the app layer names, and the dragged box stays where it is drawn', () => {
+    const asked: unknown[][] = [];
+    const p = movePreviewFor(m(), nodes, (id, at, by) => (asked.push([id, at, by]), slot));
+    expect(p).toEqual({ kind: 'slot', line: slot.line });
+    expect(asked).toEqual([['a', { x: 7, y: 8 }, { dx: 5, dy: 6 }]]);
+    const scene: Scene = { space: 'parent', nodes: [{ id: 'a', parent: null, kind: 'rect', x: 1, y: 1, w: 5, h: 5, fill: 1 }] };
+    expect(previewScene(scene, p)).toBe(scene);
+  });
+  it('shows the box moving with the pointer when there is no slot', () => {
+    expect(movePreviewFor(m(), nodes, () => null)).toEqual({ kind: 'move', ids: ['a'], dx: 5, dy: 6 });
+  });
+  it('asks about the one node that the drop is of, as moveActionsFor does: a node and its selected descendants are one dragged node', () => {
+    for (const ids of [['f', 'c'], ['f', 'd', 'c'], ['c', 'f']]) {
+      const asked: string[] = [];
+      expect(movePreviewFor(m({ ids }), nodes, (id) => (asked.push(id), slot))).toEqual({ kind: 'slot', line: slot.line });
+      expect(asked).toEqual(['f']);
+      // The same intent, finished, is a drop of that node.
+      expect(moveActionsFor(m({ ids, final: true }), ids, nodes)).toEqual([{ type: 'dropNode', id: 'f', x: 7, y: 8, dx: 5, dy: 6 }]);
+    }
+  });
+  it('asks nothing for nodes that are not one dragged node (a selection of several: moveBy), and shows them moving', () => {
+    let asked = 0;
+    expect(movePreviewFor(m({ ids: ['a', 'b'] }), nodes, () => (asked++, slot))).toEqual({ kind: 'move', ids: ['a', 'b'], dx: 5, dy: 6 });
+    expect(movePreviewFor(m({ ids: ['c', 'g'] }), nodes, () => (asked++, slot))).toEqual({ kind: 'move', ids: ['c', 'g'], dx: 5, dy: 6 });
+    expect(asked).toBe(0);
+    expect(moveActionsFor(m({ ids: ['a', 'b'], final: true }), ['a', 'b'], nodes)).toEqual([{ type: 'moveBy', dx: 5, dy: 6 }]);
+  });
+  it('shows nothing when the gesture ended or was cancelled', () => {
+    expect(movePreviewFor(m({ final: true }), nodes, () => slot)).toBeNull();
+    expect(movePreviewFor(m({ cancelled: true }), nodes, () => slot)).toBeNull();
   });
 });
 

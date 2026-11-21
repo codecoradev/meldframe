@@ -10,7 +10,7 @@
   import type { Engine } from '@meldframe/web-link/engine';
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
   import Canvas from './canvas/Canvas.svelte';
-  import { createActionFor, deleteAction, keyAction, ownsKeys, worldOrigin, moveActionsFor, previewScene, resizeActionFor, resizedBox, toolMode, type Preview } from '@meldframe/web-document/edit';
+  import { createActionFor, deleteAction, drawnBox, keyAction, ownsKeys, worldOrigin, moveActionsFor, movePreviewFor, previewScene, resizeActionFor, resizePreviewFor, toolMode, type Preview } from '@meldframe/web-document/edit';
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
   import Layout from '@meldframe/web-shell/Layout.svelte';
@@ -67,6 +67,8 @@
   // What a gesture in progress shows; the file changes only when it ends (one action, one undo step).
   let preview = $state<Preview | null>(null);
   const shown = $derived(previewScene(scene, preview));
+  // The line of the slot in a flow that a dragged node would land in (a drag of a child of an auto layout frame).
+  const indicator = $derived(preview?.kind === 'slot' ? preview.line : null);
   // The one overlay of the layout that can be open: the shortcut sheet or the command palette.
   let overlay = $state<'help' | 'palette' | null>(null);
 
@@ -127,12 +129,14 @@
   // The text being edited: the node and the text it had when the field opened (an unchanged commit makes no step).
   let editing = $state<{ id: string; before: string } | null>(null);
   const editedNode = $derived(editing ? textTarget(editing.id, nodes) : null);
-  // The box comes from the nodes (not from what the canvas drew last), so it follows a change of the node at once.
+  // The box comes from the document (not from what the canvas drew last), so it follows a change of the node at once: the
+  // box the node is drawn at (with the layout on the canvas, the laid-out one; else the stored one).
   const editBox = $derived.by(() => {
     const n = editedNode;
     if (!n) return null;
-    const o = worldOrigin(nodes, n.parentId);
-    return textBoxStyle(camera, { x: o.x + n.x, y: o.y + n.y, w: n.w, h: n.h }, n.fontSize);
+    const o = worldOrigin(nodes, n.parentId, scene);
+    const b = drawnBox(scene, n.id) ?? n;
+    return textBoxStyle(camera, { x: o.x + b.x, y: o.y + b.y, w: b.w, h: b.h }, n.fontSize);
   });
   // The node is gone (someone deleted it): the field closes with nothing to commit.
   $effect(() => {
@@ -192,25 +196,23 @@
     }
   });
 
+  /** The app layer says where a dragged child of a flow would land (a line), else the box follows the pointer. */
   function onMove(i: MoveIntent) {
-    if (i.cancelled || i.final) preview = null;
-    else preview = { kind: 'move', ids: i.ids, dx: i.dx, dy: i.dy };
+    preview = movePreviewFor(i, nodes, (id, at, by) => engine.dropPreview(id, at, by));
     for (const a of moveActionsFor(i, snap.state.selection, nodes)) dispatch(a);
   }
 
   /** One node is resized at a time: the handles of a selection of several nodes do nothing yet. */
   function onResize(i: ResizeIntent) {
-    if (i.cancelled || i.final) preview = null;
-    const n = i.ids.length === 1 ? nodes.find((x) => x.id === i.ids[0]) : undefined;
-    if (!n) return; // a node that is gone meanwhile (a change of someone else) ends the gesture quietly
-    if (!i.cancelled && !i.final) preview = { kind: 'box', id: n.id, box: resizedBox(n, i.handle, i.dx, i.dy) };
-    const a = resizeActionFor(i, nodes);
+    // The box is the one the node is drawn at, and a node that is gone meanwhile (a change of someone else) ends the gesture quietly.
+    preview = resizePreviewFor(i, nodes, scene);
+    const a = resizeActionFor(i, nodes, scene);
     if (a) dispatch(a);
   }
 
   /** The canvas draws the box while it is dragged; the node is made when the gesture ends. */
   function onCreate(i: CreateIntent) {
-    const a = createActionFor(i, nodes);
+    const a = createActionFor(i, nodes, scene);
     if (a) dispatch(a);
   }
 
@@ -278,6 +280,7 @@
       bind:camera
       {theme}
       {touches}
+      {indicator}
       label={`File ${file}`}
       {onSelect}
       {onMove}

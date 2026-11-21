@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { rectToScreen } from './camera';
 import {
-  BADGE_GAP, HANDLE_SIZE, badgeOrigin, badgeText, handleAt, handlePositions, resizeCursor, selectionBox,
+  BADGE_GAP, HANDLE_SIZE, badgeOrigin, badgeText, handleAt, handlePositions, resizeCursor, selectionBox, slotSegment,
   touchAlpha, touchRing, visibleHandles,
 } from './overlay';
 
@@ -120,5 +120,13 @@ describe('touch ring', () => {
     expect(ring.label.y).toBeLessThan(ring.rect.y);
     expect(ring.label.x).toBe(ring.rect.x);
     expect(ring.stroke).toBe(2);
+  });
+});
+
+describe('drop slot line', () => {
+  const cam = { x: 100, y: 20, zoom: 2 };
+  it('is the two ends of the world line on screen: a column slot runs left to right, a row slot top to bottom', () => {
+    expect(slotSegment(cam, { x: 10, y: 30, w: 50, h: 0 })).toEqual({ from: { x: 120, y: 80 }, to: { x: 220, y: 80 } });
+    expect(slotSegment(cam, { x: 40, y: 5, w: 0, h: 20 })).toEqual({ from: { x: 180, y: 30 }, to: { x: 180, y: 70 } });
   });
 });

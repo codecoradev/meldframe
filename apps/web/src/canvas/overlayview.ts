@@ -6,7 +6,7 @@ import { Container, Graphics, Text } from 'pixi.js';
 import { rectToScreen, type Camera } from '@meldframe/web-canvas/camera';
 import { rectsOverlap, unionRects, type Rect, type Size } from '@meldframe/web-canvas/geometry';
 import {
-  HANDLE_SIZE, badgeOrigin, badgeText, handlePositions, selectionBox, touchAlpha, touchRing, visibleHandles,
+  HANDLE_SIZE, badgeOrigin, badgeText, handlePositions, selectionBox, slotSegment, touchAlpha, touchRing, visibleHandles,
 } from '@meldframe/web-canvas/overlay';
 import type { ResolvedScene } from '@meldframe/web-canvas/scene';
 import { rectsOf } from '@meldframe/web-canvas/scene';
@@ -37,6 +37,8 @@ export interface OverlayState {
   touches: readonly Touch[];
   /** Rubber band of a create tool, in world units. */
   draft: Rect | null;
+  /** The line of the slot in a flow a dragged node would land in, in world units (zero thick on one axis). */
+  indicator?: Rect | null;
   palette: Palette;
   reducedMotion: boolean;
   now: number;
@@ -89,6 +91,11 @@ export class OverlayView {
     if (s.draft) {
       const r = rectToScreen(cam, s.draft);
       g.rect(r.x, r.y, r.w, r.h).fill({ color: pal.accent, alpha: DRAFT_FILL_ALPHA }).stroke({ width: stroke.selection, color: pal.selection });
+    }
+
+    if (s.indicator) {
+      const { from, to } = slotSegment(cam, s.indicator);
+      g.moveTo(from.x, from.y).lineTo(to.x, to.y).stroke({ width: stroke.focus, color: pal.accent, cap: 'round' });
     }
 
     if (s.hover && !s.selection.includes(s.hover)) {

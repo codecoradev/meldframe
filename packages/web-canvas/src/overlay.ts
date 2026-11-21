@@ -4,6 +4,16 @@
 import { rectToScreen, type Camera } from './camera';
 import { unionRects, type Point, type Rect, type Size } from './geometry';
 
+/**
+ * Where a dragged node would land in a flow, as the app layer names it: the frame, how many of its other flow children come
+ * before the node, and a line across the gap in world units (zero thick on the cross axis) for the overlay to draw.
+ */
+export interface DropSlot {
+  frame: string;
+  index: number;
+  line: Rect;
+}
+
 export type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 /** Side of a square resize handle, in px (design: 6 px square with a 1.5 px stroke). */
@@ -65,6 +75,12 @@ export function handleAt(b: Rect, px: number, py: number): HandleId | null {
     }
   }
   return best;
+}
+
+/** The two ends on screen of the line of a drop slot (zero thick on one axis in world units): the overlay strokes it. */
+export function slotSegment(cam: Camera, line: Rect): { from: Point; to: Point } {
+  const r = rectToScreen(cam, line);
+  return { from: { x: r.x, y: r.y }, to: { x: r.x + r.w, y: r.y + r.h } };
 }
 
 const CURSORS: Record<HandleId, string> = {
