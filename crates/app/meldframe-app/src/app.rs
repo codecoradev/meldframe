@@ -224,12 +224,14 @@ impl App {
     }
 
     /// The properties panel follows the selection.
-    fn refresh_properties(&mut self) {
+    pub(crate) fn refresh_properties(&mut self) {
+        let drawn = self.drawn_selection();
         self.state.properties = selected_properties(
             self.vars(),
             &self.choice(),
             self.replica.nodes(),
             &self.state.selection,
+            drawn,
         );
     }
 

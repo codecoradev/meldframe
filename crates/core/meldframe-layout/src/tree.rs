@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 /// A frame that arranges its children (row or column); other frames leave children at their own offsets.
-pub(super) fn is_layout_frame(n: &Node) -> bool {
+pub fn is_layout_frame(n: &Node) -> bool {
     n.kind == NodeKind::Frame && n.layout != LayoutMode::None
 }
 
