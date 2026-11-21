@@ -63,6 +63,8 @@ pub enum Event {
     ActivityChanged {},
     /// `AppState::export` changed (the frame an export acts on, the dialog opening, closing or following the document).
     ExportChanged {},
+    /// `AppState::variables_io` changed (a dialog opening, closing or following the variables, the result of an import).
+    VariablesIoChanged {},
     /// An action could not be carried out; nothing changed. A stable code such as `not_found`.
     Refused {
         code: String,

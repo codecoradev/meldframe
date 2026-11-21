@@ -8,6 +8,7 @@ import type { Panels } from "./Panels";
 import type { Picker } from "./Picker";
 import type { Properties } from "./Properties";
 import type { Tool } from "./Tool";
+import type { VariablesIo } from "./VariablesIo";
 import type { VariablesPanel } from "./VariablesPanel";
 
 /**
@@ -59,6 +60,10 @@ activity: ActivityState,
  * Export (D9): the frame an export acts on, and the dialog while it is open.
  */
 export: ExportState, 
+/**
+ * The Export variables and Import variables dialogs (D8).
+ */
+variablesIo: VariablesIo, 
 /**
  * The bind picker of a field of the selected node: `Some` only while it is open.
  */

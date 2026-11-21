@@ -82,4 +82,6 @@ export type { VariableEntity } from './VariableEntity';
 export type { VariableRow } from './VariableRow';
 export type { VariableValue } from './VariableValue';
 export type { Variables } from './Variables';
+export type { VariablesExportDialog } from './VariablesExportDialog';
+export type { VariablesIo } from './VariablesIo';
 export type { VariablesPanel } from './VariablesPanel';
