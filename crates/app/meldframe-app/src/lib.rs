@@ -43,7 +43,10 @@ pub use meldframe_app_model::{
     RevertSkipReason, Side, Sides, Tool, TypeHeading, VariableEntity, VariableRow, VariableValue,
     VariablesPanel,
 };
-pub use meldframe_app_model::{VariablesExportDialog, VariablesIo};
+pub use meldframe_app_model::{
+    ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,
+    VariablesImportResult, VariablesIo,
+};
 pub use meldframe_app_rules::drop::Slot as DropSlot;
 pub use meldframe_app_rules::multi::Preview as DropPreview;
 pub use meldframe_layout::{StubMeasurer, TextMeasurer};
