@@ -24,6 +24,14 @@ The owner accepted every proposal on 18 Nov 2026:
 
 What is built: the routes (1, 2), the agent tool (3), the quota (4) and the root directory (5). The quota: `assets::Usage` keeps the bytes of the assets of each workspace (it starts from what the store holds, so a restart loses nothing); an upload of an image the workspace does not hold yet reserves its bytes against the storage limit together with the bytes of its ops (the reservation goes back when the write fails or finds the image already written by another call, so the same image sent twice at once is charged once) and is refused with `quota_storage` when it does not fit (a store that cannot say what the workspace holds is `unavailable`, retryable), and the gate counts the same asset bytes when it admits an op (`Gate::extra_storage`). An image the workspace holds already costs nothing. The agent tool (3) is built: `upload_asset` (Change tier, base64 in a JSON call, so an agent uploads what fits an MCP request, and sends a larger image to `POST /v1/assets`). The canvas that renders image fills is the last slice.
 
+## Follow-up: listing assets (21 Nov 2026, decision 36)
+
+Picking an image for a fill needs a list of what the workspace holds. The owner accepted the recommended defaults:
+
+- An asset has no name in v1. A picker shows a thumbnail and the short id (the first 8 characters of the hash); there is no file name and no alt text yet.
+- `BlobStore::list(workspace, after, limit)` walks the workspace's directory on disk, at most 200 assets a page, in the order of the ids: the store keeps no upload time, so newest first is not possible without metadata, and the id order is stable (an asset added between two pages shows up where its id sorts and nothing is repeated or lost). The type comes from the first 12 bytes of each file and the size from the file; the content hash is checked only when the asset is read. `GET /v1/assets?limit=&after=` answers `{"assets": [{"id", "bytes", "mime"}], "next"}` for the workspace of the token, with no content. A Postgres table of asset metadata (name, upload time, newest first) is a later change; `docs/architecture.md` says metadata belongs in Postgres, so this walk is a known deviation until then.
+- There is no browser upload before sign-in (M2): agents upload through `upload_asset`, and a picker lists what is already in the workspace. The dev proxy and its guard stay as they are.
+
 ## Considered options
 
 - Assets in Postgres (`bytea`): one store to back up, but large rows in the database that every backup copies; the PRD names local disk behind a blob interface.

@@ -373,6 +373,9 @@ impl BlobStore for Down {
     fn used(&self, _: &str) -> Result<u64, assets::AssetError> {
         Err(assets::AssetError::Unavailable("down".into()))
     }
+    fn list(&self, _: &str, _: Option<&str>, _: usize) -> Result<assets::Page, assets::AssetError> {
+        Err(assets::AssetError::Unavailable("down".into()))
+    }
 }
 
 #[tokio::test]
