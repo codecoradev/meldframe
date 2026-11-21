@@ -89,6 +89,8 @@ pub struct Replica {
     counter: u64,
     limits: Limits,
     max_pending: usize,
+    /// How many times the view was replaced as a whole by a reload (`resync`): its own version starts again then.
+    epoch: u64,
 }
 
 impl Replica {
@@ -125,6 +127,7 @@ impl Replica {
             counter: 0,
             limits,
             max_pending: DEFAULT_MAX_PENDING,
+            epoch: 0,
         })
     }
 
@@ -135,6 +138,14 @@ impl Replica {
     /// The view: the confirmed state plus my pending ops.
     pub fn nodes(&self) -> &[Node] {
         self.view.nodes()
+    }
+
+    /// A number that names the state of the view: it differs from every earlier value whenever the nodes or the variables
+    /// of [`Replica::nodes`] changed (an edit of mine, an undo or a redo, an event of another actor, a rebuild after a
+    /// refusal, a reload), so something worked out from the view can be kept for as long as the revision is the same. It
+    /// says nothing about the order: two values are equal or different, never earlier or later.
+    pub fn revision(&self) -> (u64, u64) {
+        (self.epoch, self.view.version())
     }
 
     /// The confirmed state.

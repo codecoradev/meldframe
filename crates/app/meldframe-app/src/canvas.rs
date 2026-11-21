@@ -15,6 +15,7 @@ use crate::effect::Effect;
 use meldframe_layout::{Rect, StubMeasurer, TextMeasurer, compute_rects};
 use meldframe_protocol::{Node, Variables};
 use meldframe_render::{ModeChoice, PaintedBox, resolve_laid_out, resolve_with};
+use std::cell::{Cell, RefCell};
 use std::fmt;
 
 /// The measurer a host hands over. Native hosts need it `Send` (a desktop shell keeps the app behind a mutex);
@@ -26,10 +27,26 @@ pub type MeasurerBox = Box<dyn TextMeasurer>;
 #[cfg(not(target_arch = "wasm32"))]
 pub type MeasurerBox = Box<dyn TextMeasurer + Send>;
 
-/// The flag and the measurer, held by the [`App`].
+/// What the boxes of the layout depend on: the revision of the document (the nodes with the pending ops, see
+/// `Replica::revision`) and which measurer answered. Nothing else reaches them: `compute_rects` takes the nodes and the
+/// measurer and no variables, so a mode switch changes no box (the painted colours, which do read the mode, are the
+/// scene's and not cached here), and the flag only decides whether anyone asks.
+type Key = ((u64, u64), u64);
+
+/// The boxes of the layout in world space, in drawing order, with the key they were worked out for.
+type Cached = (Key, Vec<(String, Rect)>);
+
+/// The flag and the measurer, held by the [`App`], and the boxes of the last layout.
 pub(crate) struct CanvasLayout {
     pub(crate) enabled: bool,
     measurer: MeasurerBox,
+    /// Goes up each time the host gives a measurer (even the same function again: its answers may have changed).
+    generation: u64,
+    /// The boxes of the layout for the key they were worked out at: a preview asks for them on every pointer move, and
+    /// the file has not changed between two of those. Interior, because a preview reads the app and changes nothing.
+    cache: RefCell<Option<Cached>>,
+    /// How many times the whole file was laid out for `rects` (a test reads it through `App::layout_runs`).
+    runs: Cell<u64>,
 }
 
 impl Default for CanvasLayout {
@@ -37,6 +54,9 @@ impl Default for CanvasLayout {
         CanvasLayout {
             enabled: false,
             measurer: Box::new(StubMeasurer),
+            generation: 0,
+            cache: RefCell::new(None),
+            runs: Cell::new(0),
         }
     }
 }
@@ -50,10 +70,23 @@ impl fmt::Debug for CanvasLayout {
 }
 
 impl CanvasLayout {
-    /// The boxes of the layout in world space, in drawing order, with the host's measurer (the rules of a drop and a
-    /// resize read these).
-    pub(crate) fn rects(&self, nodes: &[Node]) -> Vec<(String, Rect)> {
-        compute_rects(nodes, self.measurer.as_ref())
+    /// Reads the boxes of the layout in world space, in drawing order, with the host's measurer (the rules of a drop and a
+    /// resize read these). They are laid out again only when `revision` (that of the document `nodes` is read from) or the
+    /// measurer is not the one of the last call.
+    pub(crate) fn with_rects<R>(
+        &self,
+        revision: (u64, u64),
+        nodes: &[Node],
+        read: impl FnOnce(&[(String, Rect)]) -> R,
+    ) -> R {
+        let key = (revision, self.generation);
+        let mut cache = self.cache.borrow_mut();
+        if cache.as_ref().is_none_or(|(k, _)| *k != key) {
+            self.runs.set(self.runs.get() + 1);
+            *cache = Some((key, compute_rects(nodes, self.measurer.as_ref())));
+        }
+        let (_, rects) = cache.as_ref().expect("just filled");
+        read(rects)
     }
 
     pub(crate) fn scene(
@@ -89,10 +122,17 @@ impl App {
         redraw()
     }
 
+    /// How many times the app laid the whole file out to answer a drop, a preview or a resize (the scene is worked out
+    /// apart from this). A second question about a file that has not changed, with the same measurer, costs none.
+    pub fn layout_runs(&self) -> u64 {
+        self.canvas.runs.get()
+    }
+
     /// Replace the text measurer (the default is [`StubMeasurer`]). It matters only while the flag is on, so the
     /// redraw is asked for only then. The Export dialog does not use it yet: it keeps measuring as before.
     pub fn set_measurer(&mut self, measurer: MeasurerBox) -> Vec<Effect> {
         self.canvas.measurer = measurer;
+        self.canvas.generation += 1;
         if self.canvas.enabled {
             self.refresh_properties();
             redraw()
