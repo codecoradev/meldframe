@@ -14,6 +14,7 @@ pub mod drop;
 pub mod level;
 pub mod link;
 pub mod modes;
+pub mod multi;
 pub mod resize;
 pub mod retry;
 pub mod review;
