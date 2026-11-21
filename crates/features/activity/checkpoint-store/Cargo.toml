@@ -1,0 +1,22 @@
+[package]
+name = "checkpoint-store"
+description = "Activity feature module: the store of checkpoints (numbered rows beside a file's op log, with the roll and the shares of ADR-0023), with an in-memory adapter and a shared contract (E5.3)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "feature"
+group = "activity"
+
+[features]
+# The contract suite every adapter passes. Off by default: a product build, WASM included, does not carry it.
+contract = []
+
+[dependencies]
+meldframe-activity = { path = "../../../core/meldframe-activity" }
+meldframe-checkpoints = { path = "../../../core/meldframe-checkpoints" }
+
+[lints]
+workspace = true

@@ -224,6 +224,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "checkpoint-store"
+version = "0.0.0"
+dependencies = [
+ "meldframe-activity",
+ "meldframe-checkpoints",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1382,6 +1390,7 @@ dependencies = [
 name = "meldframe-checkpoint-tests"
 version = "0.0.0"
 dependencies = [
+ "checkpoint-store",
  "meldframe-activity",
  "meldframe-checkpoints",
  "meldframe-revert",
