@@ -50,7 +50,7 @@ The panel has two tabs, Design and Activity (section 4). On the Design tab, sect
 
 | Section | Fields |
 |---|---|
-| Position | X, Y |
+| Position | X, Y (shown as drawn; disabled, with the reason "Set by the auto layout of the parent.", for a node that an auto layout parent places) |
 | Layout | Flow (free, row, column, grid); gap and alignment for flex; columns, rows and gap for grid; padding (two fields, expands to four sides); margin (four sides) |
 | Size | Width and height with a unit and a sizing mode (fixed, hug, fill) |
 | Appearance | Opacity, corner radius, clip content, visibility |
@@ -73,7 +73,7 @@ Colour variables show as OKLCH by default, for example `OKLCH(0.99 0.004 150)`, 
 
 - **Actor colour.** Each actor has a stable colour: the person blue, agents orange, teal, purple. It appears on the layer dot, the touch ring, the review tint and the Activity lane. Actors also differ by name, never by colour alone. `[P]`
 - **Layers panel.** A dot and a relative time for the last writer, a "new" badge for nodes an agent added in the current run, and a filter that shows only agent changes (`collab-ux.md` 5.2).
-- **Canvas.** A touch ring (2 px, actor colour, fades over 1.5 s; with reduced motion it stays fully drawn until the app layer drops it, 1.5 s after the touch) and a name label. Selection is a 1.5 px outline with square handles and a size badge. Rings are ephemeral events (ADR-0009).
+- **Canvas.** A touch ring (2 px, actor colour, fades over 1.5 s; with reduced motion it stays fully drawn until the app layer drops it, 1.5 s after the touch) and a name label. Selection is a 1.5 px outline with square handles and a size badge. Dragging a child of an auto layout frame shows a 2 px accent line across the gap it would land in (the box stays where it is drawn); a drop on the page or in a frame with no layout moves the box with the pointer. A handle drags the drawn box, and a hug or fill side that changes becomes fixed. Rings are ephemeral events (ADR-0009).
 - **Activity** is the second tab of the right panel, next to Design, with a count of batches that need review. This settles `collab-ux.md` Q6. `[P]`
 - **Follow agent** is a Preferences setting, off by default (Q7 in that page stays open for v1).
 - **Messages.** Every message says what happened, whether the file changed and what happens next; the texts in `collab-ux.md` section 7 apply. A connection bar shows connected, reconnecting (edits are kept), catching up and offline.

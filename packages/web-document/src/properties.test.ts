@@ -40,6 +40,13 @@ describe('boxAction', () => {
     expect(boxAction(p, 'w', '120')).toEqual({ type: 'resize', id: 'n', w: 120, h: 50 });
     expect(boxAction(p, 'h', '10')).toEqual({ type: 'resize', id: 'n', w: 100, h: 10 });
   });
+  it('does nothing for x or y while the position comes from the layout (a move would write a stored position that nothing reads), and still resizes', () => {
+    const locked = { ...p, positionLocked: true };
+    expect(boxAction(locked, 'x', '30')).toBeNull();
+    expect(boxAction(locked, 'y', '-5')).toBeNull();
+    expect(boxAction(locked, 'w', '120')).toEqual({ type: 'resize', id: 'n', w: 120, h: 50 });
+    expect(boxAction(locked, 'h', '10')).toEqual({ type: 'resize', id: 'n', w: 100, h: 10 });
+  });
   it('does nothing for an unchanged, empty, non-numeric or too small value', () => {
     expect(boxAction(p, 'x', '10')).toBeNull();
     expect(boxAction(p, 'x', '')).toBeNull();

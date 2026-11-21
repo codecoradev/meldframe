@@ -29,9 +29,11 @@
     placeholder?: string;
     /** `data-testid` of the input. */
     testId?: string;
+    /** The id of the element that explains the field (why it is disabled, for one): its description. */
+    describedBy?: string;
     [data: `data-${string}`]: string | undefined;
   }
-  let { label, value, onInput, onCommit, prefix, suffix, size = 'default', disabled = false, invalid = false, bound = false, lead, mono = false, placeholder, testId, ...rest }: Props = $props();
+  let { label, value, onInput, onCommit, prefix, suffix, size = 'default', disabled = false, invalid = false, bound = false, lead, mono = false, placeholder, testId, describedBy, ...rest }: Props = $props();
   const name = $derived(requireLabel(label, 'Field'));
   const look = $derived(
     invalid
@@ -50,6 +52,7 @@
     class="{mono ? 'font-mono' : 'font-[inherit]'} min-w-0 flex-1 border-0 bg-transparent p-0 text-[inherit] outline-none"
     aria-label={name}
     aria-invalid={invalid || undefined}
+    aria-describedby={describedBy}
     {value}
     {placeholder}
     {disabled}
