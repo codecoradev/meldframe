@@ -2158,7 +2158,9 @@ dependencies = [
 name = "meldframe-wasm"
 version = "0.0.0"
 dependencies = [
+ "js-sys",
  "meldframe-app",
+ "meldframe-layout",
  "meldframe-protocol",
  "serde",
  "serde_json",
