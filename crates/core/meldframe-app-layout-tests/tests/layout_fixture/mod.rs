@@ -79,6 +79,23 @@ pub fn drop_node(a: &mut App, id: &str, at: (f64, f64), by: (f64, f64)) -> Vec<C
         .collect()
 }
 
+/// Drops the selection `ids` with the pointer at `at` after a drag of `by`; returns the commands that were sent.
+pub fn drop_nodes(a: &mut App, ids: &[&str], at: (f64, f64), by: (f64, f64)) -> Vec<Command> {
+    let fx = a.dispatch(Action::DropNodes {
+        ids: ids.iter().map(|s| s.to_string()).collect(),
+        x: at.0,
+        y: at.1,
+        dx: by.0,
+        dy: by.1,
+    });
+    fx.iter()
+        .flat_map(|e| match e {
+            Effect::SendOps { ops } => ops.iter().map(|o| o.command.clone()).collect(),
+            _ => vec![],
+        })
+        .collect()
+}
+
 pub fn refusals(a: &mut App) -> Vec<String> {
     a.take_events()
         .into_iter()

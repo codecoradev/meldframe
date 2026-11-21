@@ -100,6 +100,20 @@ pub enum Action {
         dx: f64,
         dy: f64,
     },
+    /// A selection was dragged and let go with the pointer at `(x, y)` (world space) after travelling `(dx, dy)`: the
+    /// general form of `DropNode`, and what a front end sends for any drag (`ids` are the dragged nodes, the selected ones).
+    /// One undo step. A node and its selected descendants are one node. With the host flag `layout_on_canvas` on: one node
+    /// is `DropNode`; several move by the rules of `meldframe-app-rules`, `multi` (the flow children of one frame as a block
+    /// to the slot at the pointer, the others by the drag, the flow children of several frames stay). With the flag off it
+    /// is the move by `(dx, dy)` it always was: of the selection in one step when `ids` are the selection, else node by node.
+    /// An id that is not a node is skipped (someone deleted it while the drag went on) and the others are dropped; when none is a node the action is refused (`not_found`) and nothing is applied; a value that is not a number is refused (`invalid`).
+    DropNodes {
+        ids: Vec<String>,
+        x: f64,
+        y: f64,
+        dx: f64,
+        dy: f64,
+    },
     /// An arrow key was pressed with the selection (no modifier). With the host flag `layout_on_canvas` on, the selected
     /// children of one auto layout frame move one place along its main axis, as one undo step: up or down in a column,
     /// left or right in a row, towards the start or the end of the flow (`meldframe-app-rules`, `arrow`); the other

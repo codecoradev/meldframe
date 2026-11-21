@@ -25,6 +25,9 @@
 //! index among its other flow children and a line across the gap), for a front end that shows it while the pointer is
 //! down. Both read one decision (`aim`), so the preview and the drop cannot disagree.
 //!
+//! A drag of several selected nodes is `multi`'s (it builds on the functions here; a drag of one node is this module's, to
+//! the bit).
+//!
 //! `Properties::position_locked` is advisory in this slice: the panel is told the position comes from the layout, and a
 //! front end that disables the fields keeps a person from typing one; `Move` and `MoveBy` are not guarded here.
 
@@ -33,7 +36,7 @@ use meldframe_layout::{Rect, is_layout_frame};
 use meldframe_order::{children_map, fracindex, sib_cmp};
 use meldframe_protocol::{Command, LayoutMode, Node, NodeKind, NodePatch, SizeMode};
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// A finished drag: the node, where the pointer was let go (world space) and how far it travelled since the press.
 #[derive(Debug, Clone, Copy)]
@@ -64,7 +67,12 @@ pub fn drop_commands(
     match aim(nodes, rects, n, d) {
         Aim::Reorder(frame) => Ok(reorder(nodes, rects, n, frame, d.at)),
         Aim::Into(frame) => into_flow(nodes, rects, n, frame, d.at),
-        Aim::Out(to) => Ok(out_of_flow(n, to, mine, rects, d.by)),
+        Aim::Out(to) => {
+            let origin = to
+                .and_then(|t| box_of(rects, &t.id))
+                .map_or((0.0, 0.0), |r| (r.x, r.y));
+            Ok(out_of_flow(n, to, mine, origin, d.by))
+        }
         Aim::Move => Ok(vec![moved(n, d.by)]),
     }
 }
@@ -81,7 +89,7 @@ pub fn drop_slot(nodes: &[Node], rects: &[(String, Rect)], d: &Drag) -> Option<S
     box_of(rects, d.id)?;
     match aim(nodes, rects, n, d) {
         Aim::Reorder(frame) | Aim::Into(frame) => {
-            let sibs = flow_siblings(nodes, rects, frame, &n.id);
+            let sibs = flow_siblings(nodes, rects, frame, &HashSet::from([n.id.as_str()]));
             let index = index_at(frame, &sibs, d.at);
             let line = slot_line(rects, frame, &sibs, index);
             Some(Slot {
@@ -141,7 +149,12 @@ fn aim<'a>(nodes: &'a [Node], rects: &[(String, Rect)], n: &'a Node, d: &Drag) -
 
 /// The line of a slot: across the main axis of the frame, in the middle of the gap between the neighbours (on the edge
 /// of the only neighbour at either end, at the start of the inside of the frame when there is none), as wide as the neighbour.
-fn slot_line(rects: &[(String, Rect)], frame: &Node, sibs: &[(&Node, f64)], index: usize) -> Rect {
+pub(crate) fn slot_line(
+    rects: &[(String, Rect)],
+    frame: &Node,
+    sibs: &[(&Node, f64)],
+    index: usize,
+) -> Rect {
     let row = frame.layout == LayoutMode::Row;
     let of = |i: usize| sibs.get(i).and_then(|(k, _)| box_of(rects, &k.id));
     let (prev, next) = (index.checked_sub(1).and_then(of), of(index));
@@ -186,16 +199,16 @@ fn slot_line(rects: &[(String, Rect)], frame: &Node, sibs: &[(&Node, f64)], inde
     }
 }
 
-fn find<'a>(nodes: &'a [Node], id: &str) -> Option<&'a Node> {
+pub(crate) fn find<'a>(nodes: &'a [Node], id: &str) -> Option<&'a Node> {
     nodes.iter().find(|n| n.id == id)
 }
 
-fn box_of(rects: &[(String, Rect)], id: &str) -> Option<Rect> {
+pub(crate) fn box_of(rects: &[(String, Rect)], id: &str) -> Option<Rect> {
     rects.iter().find(|(i, _)| i == id).map(|(_, r)| *r)
 }
 
 /// The stored position moved by the drag.
-fn moved(n: &Node, by: (f64, f64)) -> Command {
+pub(crate) fn moved(n: &Node, by: (f64, f64)) -> Command {
     update(
         &n.id,
         NodePatch {
@@ -206,7 +219,7 @@ fn moved(n: &Node, by: (f64, f64)) -> Command {
     )
 }
 
-fn update(id: &str, patch: NodePatch) -> Command {
+pub(crate) fn update(id: &str, patch: NodePatch) -> Command {
     Command::UpdateNode {
         id: id.to_string(),
         patch,
@@ -227,7 +240,7 @@ fn is_self_or_above(nodes: &[Node], id: &str, start: &Node) -> bool {
 }
 
 /// Whether the point is in the box (the left and top edges are in, the right and bottom ones are out).
-fn contains(r: Rect, (x, y): (f64, f64)) -> bool {
+pub(crate) fn contains(r: Rect, (x, y): (f64, f64)) -> bool {
     x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h
 }
 
@@ -244,12 +257,12 @@ fn frame_under<'a>(nodes: &'a [Node], rects: &[(String, Rect)], d: &Drag) -> Opt
     })
 }
 
-/// The flow children of `frame` other than `id`, in sibling order, with the middle of their box on the main axis.
-fn flow_siblings<'a>(
+/// The flow children of `frame` other than those in `skip`, in sibling order, with the middle of their box on the main axis.
+pub(crate) fn flow_siblings<'a>(
     nodes: &'a [Node],
     rects: &[(String, Rect)],
     frame: &Node,
-    id: &str,
+    skip: &HashSet<&str>,
 ) -> Vec<(&'a Node, f64)> {
     let row = frame.layout == LayoutMode::Row;
     let kids = children_map(nodes);
@@ -257,7 +270,7 @@ fn flow_siblings<'a>(
     let mut out = Vec::new();
     for &i in kids.get(&Some(frame.id.as_str())).into_iter().flatten() {
         let k = &nodes[i];
-        if k.id == id || k.absolute {
+        if skip.contains(k.id.as_str()) || k.absolute {
             continue;
         }
         if let Some(r) = boxes.get(k.id.as_str()).copied() {
@@ -275,7 +288,7 @@ fn flow_siblings<'a>(
 }
 
 /// How many of the flow siblings the pointer is past: the place it puts a node in the flow.
-fn index_at(frame: &Node, siblings: &[(&Node, f64)], at: (f64, f64)) -> usize {
+pub(crate) fn index_at(frame: &Node, siblings: &[(&Node, f64)], at: (f64, f64)) -> usize {
     let p = if frame.layout == LayoutMode::Row {
         at.0
     } else {
@@ -292,7 +305,7 @@ fn reorder(
     frame: &Node,
     at: (f64, f64),
 ) -> Vec<Command> {
-    let sibs = flow_siblings(nodes, rects, frame, &n.id);
+    let sibs = flow_siblings(nodes, rects, frame, &HashSet::from([n.id.as_str()]));
     let idx = index_at(frame, &sibs, at);
     let now = sibs.iter().filter(|(s, _)| sib_cmp(s, n).is_lt()).count();
     if idx == now {
@@ -319,21 +332,9 @@ fn into_flow(
     frame: &Node,
     at: (f64, f64),
 ) -> Result<Vec<Command>, ApplyError> {
-    let sibs = flow_siblings(nodes, rects, frame, &n.id);
+    let sibs = flow_siblings(nodes, rects, frame, &HashSet::from([n.id.as_str()]));
     let idx = index_at(frame, &sibs, at);
-    // Every child counts for the bounds of the key, the absolute ones too: the key is unique among them.
-    let keys: Vec<&str> = nodes
-        .iter()
-        .filter(|k| k.parent_id.as_deref() == Some(frame.id.as_str()) && k.id != n.id)
-        .map(|k| k.pos.as_str())
-        .collect();
-    let below = |p: &str| keys.iter().copied().filter(|k| *k < p).max();
-    let above = |p: &str| keys.iter().copied().filter(|k| *k > p).min();
-    let (lo, hi) = match (idx.checked_sub(1).and_then(|i| sibs.get(i)), sibs.get(idx)) {
-        (_, Some((s, _))) => (below(&s.pos), Some(s.pos.as_str())),
-        (Some((s, _)), None) => (Some(s.pos.as_str()), above(&s.pos)),
-        (None, None) => (keys.iter().copied().max(), None),
-    };
+    let (lo, hi) = slot_bounds(nodes, frame, &HashSet::from([n.id.as_str()]), &sibs, idx);
     let pos = fracindex::between(lo, hi).map_err(|e| ApplyError::InvalidPos(e.to_string()))?;
     Ok(vec![Command::Reparent {
         id: n.id.clone(),
@@ -342,18 +343,42 @@ fn into_flow(
     }])
 }
 
+/// The two keys a node put at place `idx` of the flow of `frame` goes between: the keys of its neighbours, widened to the
+/// nearest key of any other child (the key is unique among all of them, the absolute ones too). `skip` are the nodes that
+/// are on their way and so count for nothing.
+pub(crate) fn slot_bounds<'a>(
+    nodes: &'a [Node],
+    frame: &Node,
+    skip: &HashSet<&str>,
+    sibs: &[(&'a Node, f64)],
+    idx: usize,
+) -> (Option<&'a str>, Option<&'a str>) {
+    let keys: Vec<&str> = nodes
+        .iter()
+        .filter(|k| {
+            k.parent_id.as_deref() == Some(frame.id.as_str()) && !skip.contains(k.id.as_str())
+        })
+        .map(|k| k.pos.as_str())
+        .collect();
+    let below = |p: &str| keys.iter().copied().filter(|k| *k < p).max();
+    let above = |p: &str| keys.iter().copied().filter(|k| *k > p).min();
+    match (idx.checked_sub(1).and_then(|i| sibs.get(i)), sibs.get(idx)) {
+        (_, Some((s, _))) => (below(&s.pos), Some(s.pos.as_str())),
+        (Some((s, _)), None) => (Some(s.pos.as_str()), above(&s.pos)),
+        (None, None) => (keys.iter().copied().max(), None),
+    }
+}
+
 /// A node of a flow taken to a frame with no layout, or to the page: it keeps the place it was drawn at plus the
-/// drag, and a `fill` side becomes fixed at the size it was drawn at.
-fn out_of_flow(
+/// drag, and a `fill` side becomes fixed at the size it was drawn at. `origin` is where the space of the new frame starts
+/// (the page: 0, 0), which the caller looks up once.
+pub(crate) fn out_of_flow(
     n: &Node,
     to: Option<&Node>,
     mine: Rect,
-    rects: &[(String, Rect)],
+    origin: (f64, f64),
     by: (f64, f64),
 ) -> Vec<Command> {
-    let origin = to
-        .and_then(|t| box_of(rects, &t.id))
-        .map_or((0.0, 0.0), |r| (r.x, r.y));
     let mut patch = NodePatch {
         x: Some(mine.x + by.0 - origin.0),
         y: Some(mine.y + by.1 - origin.1),
