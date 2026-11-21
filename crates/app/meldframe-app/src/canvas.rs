@@ -70,6 +70,11 @@ impl fmt::Debug for CanvasLayout {
 }
 
 impl CanvasLayout {
+    /// The host's measurer (the stub when it gave none): the canvas lays text out with it and so does the Export dialog.
+    pub(crate) fn measurer(&self) -> &dyn TextMeasurer {
+        self.measurer.as_ref()
+    }
+
     /// Reads the boxes of the layout in world space, in drawing order, with the host's measurer (the rules of a drop and a
     /// resize read these). They are laid out again only when `revision` (that of the document `nodes` is read from) or the
     /// measurer is not the one of the last call.
@@ -128,11 +133,14 @@ impl App {
         self.canvas.runs.get()
     }
 
-    /// Replace the text measurer (the default is [`StubMeasurer`]). It matters only while the flag is on, so the
-    /// redraw is asked for only then. The Export dialog does not use it yet: it keeps measuring as before.
+    /// Replace the text measurer (the default is [`StubMeasurer`]). The canvas lays text out with it while the flag is on,
+    /// so the redraw is asked for only then. The Export dialog measures with it whatever the flag is, so a hug text exports
+    /// the width the canvas draws: an open dialog is built again (`Event::ExportChanged` when it changed), and nothing is
+    /// built while it is closed. No measurer given, the stub measures, as it always did.
     pub fn set_measurer(&mut self, measurer: MeasurerBox) -> Vec<Effect> {
         self.canvas.measurer = measurer;
         self.canvas.generation += 1;
+        self.measurer_changed();
         if self.canvas.enabled {
             self.refresh_properties();
             redraw()

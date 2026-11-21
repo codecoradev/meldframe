@@ -36,6 +36,13 @@ impl App {
         }
     }
 
+    /// The host gave a measurer (or the same one again, its fonts having changed): what the open dialog shows was measured
+    /// with the old answers, so it is built again. Nothing is built while the dialog is closed.
+    pub(crate) fn measurer_changed(&mut self) {
+        self.export_cache.changed();
+        self.refresh_export();
+    }
+
     pub(crate) fn close_export(&mut self) {
         self.export_cache.forget();
         self.set_dialog(None);
@@ -87,7 +94,15 @@ impl App {
     /// The dialog for a frame of the document, or none when there is no such frame (the dialog closes). The export
     /// feature is run, and counted, only when the frame is there.
     fn build_dialog(&mut self, id: &str, format: ExportFormat) -> Option<ExportDialog> {
-        let d = dialog(self.nodes(), self.vars(), self.choice(), id, format)?;
+        let measurer = self.canvas.measurer();
+        let d = dialog(
+            self.nodes(),
+            self.vars(),
+            self.choice(),
+            id,
+            format,
+            measurer,
+        )?;
         self.export_cache.built(id, format, &self.state.modes);
         Some(d)
     }
