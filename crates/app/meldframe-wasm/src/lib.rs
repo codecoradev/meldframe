@@ -79,10 +79,15 @@ impl Bridge {
         to_json(&self.app.scene())
     }
 
-    /// Where in a flow a drop would put the node: `null`, or `{frame, index, line: {x, y, w, h}}` (JSON; `meldframe_app::DropSlot`;
-    /// `at` is the pointer and `(dx, dy)` the drag, world space). It changes nothing.
-    pub fn drop_preview_json(&self, id: &str, at: (f64, f64), by: (f64, f64)) -> String {
-        to_json(&self.app.drop_preview(id, at, by))
+    /// What to show while a selection is dragged: `null`, or `{slot, follow}` where `slot` is `null` or
+    /// `{frame, index, line: {x, y, w, h}}` and `follow` lists the dragged nodes drawn moving with the pointer (JSON;
+    /// `meldframe_app::DropPreview`). `ids_json` is a JSON array of node ids, `at` is the pointer and `(dx, dy)` the drag,
+    /// world space. `null` also for ids that are not a JSON array of text. It changes nothing.
+    pub fn drop_preview_json(&self, ids_json: &str, at: (f64, f64), by: (f64, f64)) -> String {
+        match serde_json::from_str::<Vec<String>>(ids_json) {
+            Ok(ids) => to_json(&self.app.drop_preview_many(&ids, at, by)),
+            Err(_) => "null".into(),
+        }
     }
 
     /// The events since the last call (JSON array); empties the queue.
@@ -210,8 +215,8 @@ impl WasmApp {
     }
 
     #[wasm_bindgen(js_name = dropPreviewJson)]
-    pub fn drop_preview_json(&self, id: &str, x: f64, y: f64, dx: f64, dy: f64) -> String {
-        self.bridge.drop_preview_json(id, (x, y), (dx, dy))
+    pub fn drop_preview_json(&self, ids_json: &str, x: f64, y: f64, dx: f64, dy: f64) -> String {
+        self.bridge.drop_preview_json(ids_json, (x, y), (dx, dy))
     }
 
     #[wasm_bindgen(js_name = takeEventsJson)]

@@ -61,21 +61,32 @@ fn the_flag_is_not_state_not_an_event_and_not_the_file() {
 }
 
 #[test]
-fn the_drop_preview_is_null_until_the_layout_is_on_and_then_a_slot_as_json() {
+fn the_drop_preview_is_null_until_the_layout_is_on_and_then_a_slot_and_the_nodes_that_follow_as_json()
+ {
     let mut b = bridge();
     // `b` is drawn from y 35 to 65 once laid out; `a` is dragged to a pointer past its middle.
-    assert_eq!(b.drop_preview_json("a", (30.0, 60.0), (0.0, 0.0)), "null");
+    assert_eq!(
+        b.drop_preview_json(r#"["a"]"#, (30.0, 60.0), (0.0, 0.0)),
+        "null"
+    );
     b.set_layout_on_canvas(true);
     let slot: Value =
-        serde_json::from_str(&b.drop_preview_json("a", (30.0, 60.0), (0.0, 0.0))).unwrap();
+        serde_json::from_str(&b.drop_preview_json(r#"["a"]"#, (30.0, 60.0), (0.0, 0.0))).unwrap();
     assert_eq!(
         slot,
-        json!({"frame": "f", "index": 1, "line": {"x": 10.0, "y": 65.0, "w": 180.0, "h": 0.0}})
+        json!({"slot": {"frame": "f", "index": 1, "line": {"x": 10.0, "y": 65.0, "w": 180.0, "h": 0.0}}, "follow": []})
+    );
+    let out: Value =
+        serde_json::from_str(&b.drop_preview_json(r#"["a"]"#, (1500.0, 900.0), (0.0, 0.0)))
+            .unwrap();
+    assert_eq!(
+        out,
+        json!({"slot": null, "follow": ["a"]}),
+        "out of the flow: no slot, the node follows"
     );
     assert_eq!(
-        b.drop_preview_json("a", (1500.0, 900.0), (0.0, 0.0)),
-        "null",
-        "out of the flow"
+        b.drop_preview_json("not json", (0.0, 0.0), (0.0, 0.0)),
+        "null"
     );
     assert_eq!(b.take_events_json(), "[]", "a preview raises no event");
 }

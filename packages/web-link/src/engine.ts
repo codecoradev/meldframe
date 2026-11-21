@@ -2,7 +2,7 @@
 // latest state, nodes and events for the views, and hands effects to whoever carries them out. It holds
 // no editing rules of its own (those live in meldframe-app).
 import type { Action, AppState, Effect, Event, Node, Variables } from '@meldframe/protocol';
-import type { DropSlot } from '@meldframe/web-canvas/overlay';
+import type { DropPreview } from '@meldframe/web-canvas/overlay';
 import type { Scene } from '@meldframe/web-canvas/scene';
 import init, { initSync, WasmApp } from '@meldframe/wasm';
 import type { MeasureFn } from './measurer';
@@ -57,12 +57,14 @@ export class Engine {
   }
 
   /**
-   * Where in a flow a drop would put the node `id`: the pointer `at` and the drag `by`, in world units (what a finished
-   * drag would send as `dropNode`), or null when the drop goes into no flow or the layout is not on the canvas. The rule is
-   * the app layer's; this only asks and reads the answer. It changes nothing and raises no event.
+   * What to show while the nodes `ids` are dragged: the pointer `at` and the drag `by`, in world units (what a finished drag
+   * would send as `dropNodes`). `slot` is where in a flow the dragged flow children would land (null when they land in no
+   * flow) and `follow` the dragged nodes to draw moving with the pointer. Null with the layout not on the canvas: then every
+   * dragged node simply follows the pointer. The rules are the app layer's; this only asks and reads the answer. It changes
+   * nothing and raises no event.
    */
-  dropPreview(id: string, at: { x: number; y: number }, by: { dx: number; dy: number }): DropSlot | null {
-    return JSON.parse(this.app.dropPreviewJson(id, at.x, at.y, by.dx, by.dy));
+  dropPreview(ids: readonly string[], at: { x: number; y: number }, by: { dx: number; dy: number }): DropPreview | null {
+    return JSON.parse(this.app.dropPreviewJson(JSON.stringify(ids), at.x, at.y, by.dx, by.dy));
   }
 
   subscribe(fn: (s: Snapshot) => void): () => void {

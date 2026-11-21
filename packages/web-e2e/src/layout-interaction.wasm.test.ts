@@ -49,19 +49,27 @@ describe.skipIf(!built)('with the layout off the canvas', () => {
     }
   });
 
-  it('a drop of one node is the same op, the same document and the same undo step as the move it was before', () => {
-    for (const id of ids) {
-      const [dx, dy] = [13, -8]; // the old action of a single selected node was moveBy
-      const intent: MoveIntent = { ...gesture, ids: [id], dx, dy, at: { x: 500, y: 40 } };
+  it('a drop of the dragged nodes is the same ops, the same document and the same undo steps as the moves it was before', () => {
+    // [dragged ids, selection]: one node, the selection, a node with its descendant, and ids that are not the selection.
+    const cases: [string[], string[]][] = [...ids.map((id): [string[], string[]] => [[id], [id]]), [['a', 'b'], ['a', 'b']], [['a', 'k', 'g'], ['a', 'k', 'g']], [['g', 'k', 'f'], ['g', 'k', 'f']], [['a', 'b'], ['a', 'k']]];
+    for (const [dragged, selection] of cases) {
+      const [dx, dy] = [13, -8];
+      const intent: MoveIntent = { ...gesture, ids: dragged, dx, dy, at: { x: 500, y: 40 } };
       const a = make();
       const b = make();
-      a.dispatch({ type: 'select', ids: [id] });
-      b.dispatch({ type: 'select', ids: [id] });
-      const now = moveActionsFor(intent, [id], a.snapshot().nodes);
-      expect(now).toEqual([{ type: 'dropNode', id, x: 500, y: 40, dx, dy }]);
-      const sent = JSON.stringify(a.dispatch(now[0]!));
-      const was = JSON.stringify(b.dispatch({ type: 'moveBy', dx, dy }));
-      expect(sent).toBe(was);
+      a.dispatch({ type: 'select', ids: selection });
+      b.dispatch({ type: 'select', ids: selection });
+      const now = moveActionsFor(intent);
+      expect(now).toEqual([{ type: 'dropNodes', ids: dragged, x: 500, y: 40, dx, dy }]);
+      const sent = a.dispatch(now[0]!);
+      // What the web sent before: one dropNode of a single top node, else the selection as one moveBy when it is the dragged
+      // ids and none is under another, else a move of each top node.
+      const parentOf = (id: string) => file.find((n) => n.id === id)?.parentId ?? null;
+      const tops = dragged.filter((id) => !dragged.includes(parentOf(id) ?? '') && !dragged.includes(parentOf(parentOf(id) ?? '') ?? ''));
+      const whole = tops.length === dragged.length && dragged.length === selection.length && dragged.every((id) => selection.includes(id));
+      const before = tops.length === 1 ? [b.dispatch({ type: 'dropNode', id: tops[0]!, x: 500, y: 40, dx, dy })] : whole ? [b.dispatch({ type: 'moveBy', dx, dy })] : tops.map((id) => { const n = file.find((x) => x.id === id)!; return b.dispatch({ type: 'move', id, x: n.x! + dx, y: n.y! + dy }); });
+      const ops = (fx: unknown[]) => JSON.stringify(fx.flat().flatMap((e) => ((e as { type: string; ops?: { command: unknown }[] }).type === 'sendOps' ? (e as { ops: { command: unknown }[] }).ops.map((o) => o.command) : [])));
+      expect(ops(sent), `${dragged} / ${selection}`).toBe(ops(before));
       expect(JSON.stringify(a.snapshot().nodes)).toBe(JSON.stringify(b.snapshot().nodes));
       expect(a.snapshot().state.history).toEqual(b.snapshot().state.history);
     }
@@ -81,8 +89,8 @@ describe.skipIf(!built)('with the layout off the canvas', () => {
   it('a drag has no slot to show, so the box follows the pointer', () => {
     const e = make();
     const i: MoveIntent = { ...gesture, final: false, ids: ['a'], dx: 5, dy: 5, at: { x: 60, y: 60 } };
-    expect(e.dropPreview('a', i.at, { dx: 5, dy: 5 })).toBeNull();
-    expect(movePreviewFor(i, e.snapshot().nodes, (id, at, by) => e.dropPreview(id, at, by))).toEqual({ kind: 'move', ids: ['a'], dx: 5, dy: 5 });
+    expect(e.dropPreview(['a'], i.at, { dx: 5, dy: 5 })).toBeNull();
+    expect(movePreviewFor(i, (ids, at, by) => e.dropPreview(ids, at, by))).toEqual({ kind: 'move', ids: ['a'], dx: 5, dy: 5 });
   });
 });
 
@@ -94,13 +102,14 @@ describe.skipIf(!built)('with the layout on the canvas', () => {
     const f = scene.nodes.find((n) => n.id === 'f')!;
     // The pointer is above the first child, inside the frame (world: the frame is at 40, 30).
     const at = { x: f.x + 20, y: f.y + 2 };
-    const slot = e.dropPreview('t', at, { dx: 0, dy: -50 });
+    const { slot, follow } = e.dropPreview(['t'], at, { dx: 0, dy: -50 })!;
     expect(slot).toMatchObject({ frame: 'f', index: 0 });
     expect(slot!.line.h).toBe(0);
+    expect(follow).toEqual([]);
     const i: MoveIntent = { ...gesture, final: false, ids: ['t'], dx: 0, dy: -50, at };
-    expect(movePreviewFor(i, e.snapshot().nodes, (id, p, by) => e.dropPreview(id, p, by))).toEqual({ kind: 'slot', line: slot!.line });
+    expect(movePreviewFor(i, (ids, p, by) => e.dropPreview(ids, p, by))).toEqual({ kind: 'slot', line: slot!.line, follow: [], dx: 0, dy: -50 });
     expect(order(e)).toEqual(['a', 'b', 't']);
-    e.dispatch(moveActionsFor({ ...i, final: true }, ['t'], e.snapshot().nodes)[0]!);
+    e.dispatch(moveActionsFor({ ...i, final: true })[0]!);
     expect(order(e)).toEqual(['t', 'a', 'b']);
     e.dispatch({ type: 'undo' });
     expect(order(e)).toEqual(['a', 'b', 't']);
@@ -124,22 +133,29 @@ describe.skipIf(!built)('with the layout on the canvas', () => {
     expect(order(e)).toEqual(['a', 'b', 't']);
   });
 
-  it('a drag of several nodes is still a moveBy, documented and not guarded: the stored positions move by the drag and the flow is left alone', () => {
+  it('a drag of several flow children of one frame moves them as one block to the slot, in order, writing no position, in one step', () => {
     const e = make();
     e.setLayoutOnCanvas(true);
     const { nodes, scene } = e.snapshot();
-    const i: MoveIntent = { ...gesture, ids: ['a', 'b'], dx: 12, dy: 7, at: { x: 300, y: 300 } };
-    const actions = moveActionsFor(i, ['a', 'b'], nodes);
-    expect(actions).toEqual([{ type: 'moveBy', dx: 12, dy: 7 }]);
+    const f = scene.nodes.find((n) => n.id === 'f')!;
+    const t = scene.nodes.find((n) => n.id === 't')!;
+    // The pointer is past the middle of the text, the last child: a and b go after it.
+    const at = { x: f.x + 20, y: f.y + t.y + t.h + 5 };
+    const i: MoveIntent = { ...gesture, final: false, ids: ['b', 'a'], dx: 0, dy: 80, at };
+    const p = movePreviewFor(i, (ids, pt, by) => e.dropPreview(ids, pt, by));
+    expect(p).toMatchObject({ kind: 'slot', follow: [] });
     e.dispatch({ type: 'select', ids: ['a', 'b'] });
+    const actions = moveActionsFor({ ...i, final: true });
+    expect(actions).toHaveLength(1);
     e.dispatch(actions[0]!);
-    const after = e.snapshot();
+    expect(order(e)).toEqual(['t', 'a', 'b']);
     for (const id of ['a', 'b']) {
       const was = nodes.find((n) => n.id === id)!;
-      const now = after.nodes.find((n) => n.id === id)!;
-      expect([now.x, now.y, now.parentId]).toEqual([was.x + 12, was.y + 7, 'f']);
-      expect(after.scene.nodes.find((n) => n.id === id)).toMatchObject(scene.nodes.find((n) => n.id === id)!); // drawn where the flow puts it
+      const now = e.snapshot().nodes.find((n) => n.id === id)!;
+      expect([now.x, now.y, now.parentId]).toEqual([was.x, was.y, 'f']);
     }
+    expect(e.snapshot().state.history.undoSteps).toBe(1); // the selection is not a step; the drop is one
+    e.dispatch({ type: 'undo' });
     expect(order(e)).toEqual(['a', 'b', 't']);
   });
 

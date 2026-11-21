@@ -14,6 +14,12 @@ export interface DropSlot {
   line: Rect;
 }
 
+/** What the app layer says to show while nodes are dragged: the slot (if any) and the dragged nodes to draw moving with the pointer. */
+export interface DropPreview {
+  slot: DropSlot | null;
+  follow: string[];
+}
+
 export type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 /** Side of a square resize handle, in px (design: 6 px square with a 1.5 px stroke). */

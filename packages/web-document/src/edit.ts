@@ -2,7 +2,7 @@
 // gesture is going on. Pure: the canvas applies nothing and this module holds no state. The app layer decides.
 import type { Action, CreateKind, Direction, Node, Tool } from '@meldframe/protocol';
 import type { CreateIntent, CreateTool, MoveIntent, ResizeIntent, ToolMode } from '@meldframe/web-canvas/interaction';
-import type { DropSlot, HandleId } from '@meldframe/web-canvas/overlay';
+import type { DropPreview, HandleId } from '@meldframe/web-canvas/overlay';
 import type { Scene } from '@meldframe/web-canvas/scene';
 
 export interface Box {
@@ -115,30 +115,14 @@ function topOf(ids: readonly string[], parentOf: (id: string) => string | null):
   });
 }
 
-/** The top nodes of the dragged ids: the one rule of "which node is dragged" for the drop and for its preview. */
-const topNodes = (ids: readonly string[], nodes: readonly Node[]) => topOf(ids, (id) => byId(nodes, id)?.parentId ?? null);
-
 /**
- * A finished move as actions: the whole selection moves as one step; one dragged node (with its selected descendants, which
- * follow it) is dropped where the pointer is, and the app layer decides whether that is a move, a reorder in a flow or a
- * reparent (with the layout off it is the plain move); anything else moves node by node. A node and a descendant of it both
- * being selected, only the node moves (positions are relative to the parent: the descendant would move twice).
- * The layout rules are those of one dropped node: a selection of several is moved by the same distance, whatever the layout
- * (`moveBy`; the app layer does not guard it), so the children of a flow in it change their stored x and y and not the flow.
+ * A finished move as one action: the dragged nodes and where the pointer let go (`dropNodes`). Which of them move by the drag,
+ * which are put in a flow and which stay is the app layer's to decide (a node and its selected descendants are one node; with
+ * the layout off it is the plain move by the drag). Nothing here reads the nodes.
  */
-export function moveActionsFor(i: MoveIntent, selection: readonly string[], nodes: readonly Node[]): Action[] {
-  if (!i.final || i.cancelled || (i.dx === 0 && i.dy === 0)) return [];
-  const tops = topNodes(i.ids, nodes);
-  if (tops.length === 1) {
-    const n = byId(nodes, tops[0]!);
-    return n ? [{ type: 'dropNode', id: n.id, x: i.at.x, y: i.at.y, dx: i.dx, dy: i.dy }] : [];
-  }
-  const same = tops.length === i.ids.length && i.ids.length === selection.length && i.ids.every((id) => selection.includes(id));
-  if (same) return [{ type: 'moveBy', dx: i.dx, dy: i.dy }];
-  return tops.flatMap((id) => {
-    const n = byId(nodes, id);
-    return n ? [{ type: 'move', id, x: n.x + i.dx, y: n.y + i.dy } as Action] : [];
-  });
+export function moveActionsFor(i: MoveIntent): Action[] {
+  if (!i.final || i.cancelled || (i.dx === 0 && i.dy === 0) || i.ids.length === 0) return [];
+  return [{ type: 'dropNodes', ids: [...i.ids], x: i.at.x, y: i.at.y, dx: i.dx, dy: i.dy }];
 }
 
 /**
@@ -160,18 +144,20 @@ export function resizeActionFor(i: ResizeIntent, nodes: readonly Node[], scene?:
 export type Preview =
   | { kind: 'move'; ids: readonly string[]; dx: number; dy: number }
   | { kind: 'box'; id: string; box: Box }
-  // Where in a flow the dragged node would go: a line over the canvas (the box itself stays where it is drawn).
-  | { kind: 'slot'; line: Box };
+  // Where in a flow the dragged flow children would go: a line over the canvas (their boxes stay where they are drawn); the
+  // `follow` nodes, if any, move with the pointer meanwhile.
+  | { kind: 'slot'; line: Box; follow: readonly string[]; dx: number; dy: number };
 
 /**
- * What a drag shows: the slot the app layer names for the one node that is dragged (the same rule as `moveActionsFor`: a node
- * and its selected descendants are one node), else the boxes moving with the pointer.
+ * What a drag shows, as the app layer says it (`slotOf` asks it): the slot for the flow children and the nodes that follow the
+ * pointer. With no answer (the layout is not on the canvas) every dragged node follows the pointer.
  */
-export function movePreviewFor(i: MoveIntent, nodes: readonly Node[], slotOf: (id: string, at: { x: number; y: number }, by: { dx: number; dy: number }) => DropSlot | null): Preview | null {
+export function movePreviewFor(i: MoveIntent, slotOf: (ids: readonly string[], at: { x: number; y: number }, by: { dx: number; dy: number }) => DropPreview | null): Preview | null {
   if (i.cancelled || i.final) return null;
-  const tops = topNodes(i.ids, nodes);
-  const slot = tops.length === 1 ? slotOf(tops[0]!, i.at, { dx: i.dx, dy: i.dy }) : null;
-  return slot ? { kind: 'slot', line: slot.line } : { kind: 'move', ids: i.ids, dx: i.dx, dy: i.dy };
+  const p = slotOf(i.ids, i.at, { dx: i.dx, dy: i.dy });
+  if (!p) return { kind: 'move', ids: i.ids, dx: i.dx, dy: i.dy };
+  if (p.slot) return { kind: 'slot', line: p.slot.line, follow: p.follow, dx: i.dx, dy: i.dy };
+  return { kind: 'move', ids: p.follow, dx: i.dx, dy: i.dy };
 }
 
 /** What a handle drag shows: the box it is drawn at, moved by the handle (not the stored one). */
@@ -181,15 +167,17 @@ export function resizePreviewFor(i: ResizeIntent, nodes: readonly Node[], scene?
   return n ? { kind: 'box', id: n.id, box: resizedBox(drawnBox(scene, n.id) ?? n, i.handle, i.dx, i.dy) } : null;
 }
 
-/** The scene with the preview applied: the moved nodes (their descendants follow) or a resized box. A slot changes no box, and the box being drawn is the canvas's own. */
+/** The scene with the preview applied: the nodes that follow the pointer (their descendants follow them) or a resized box. A slot is a line over the canvas and changes no box. */
 export function previewScene(scene: Scene, p: Preview | null): Scene {
-  if (!p || p.kind === 'slot') return scene;
+  if (!p) return scene;
   const parents = new Map(scene.nodes.map((n) => [n.id, n.parent]));
-  const tops = p.kind === 'move' ? new Set(topOf(p.ids, (id) => parents.get(id) ?? null)) : null;
+  const following = p.kind === 'move' ? p.ids : p.kind === 'slot' ? p.follow : [];
+  if (p.kind !== 'box' && following.length === 0) return scene;
+  const tops = p.kind !== 'box' ? new Set(topOf(following, (id) => parents.get(id) ?? null)) : null;
   return {
     ...scene,
     nodes: scene.nodes.map((n) => {
-      if (p.kind === 'move') return tops!.has(n.id) ? { ...n, x: n.x + p.dx, y: n.y + p.dy } : n;
+      if (p.kind !== 'box') return tops!.has(n.id) ? { ...n, x: n.x + p.dx, y: n.y + p.dy } : n;
       return n.id === p.id ? { ...n, ...p.box } : n;
     }),
   };
