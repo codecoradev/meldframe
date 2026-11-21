@@ -1,0 +1,21 @@
+[package]
+name = "meldframe-checkpoint-tests"
+description = "The tests of the checkpoint stack (E5.3, ADR-0023). No library code: no crate of the stack carries its own tests, so none of them nears its ceiling."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-activity = { path = "../meldframe-activity" }
+meldframe-checkpoints = { path = "../meldframe-checkpoints" }
+
+# See meldframe-order/Cargo.toml: the tests run under WASM through wasm-bindgen-test.
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
+
+[lints]
+workspace = true
