@@ -2091,6 +2091,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-variables-props"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-host",
+ "meldframe-protocol",
+ "meldframe-sync",
+ "meldframe-variables",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-variables-rename-tests"
 version = "0.0.0"
 dependencies = [

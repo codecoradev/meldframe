@@ -1,0 +1,25 @@
+[package]
+name = "meldframe-variables-props"
+description = "Property tests for the variable commands: random runs of several replicas against the real gate and room of meldframe-host, renames of collections, modes and variables among them. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-check = { path = "../meldframe-check" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-sync = { path = "../meldframe-sync" }
+meldframe-variables = { path = "../meldframe-variables" }
+serde_json = "1"
+
+# See meldframe-order/Cargo.toml: the tests run under WASM through wasm-bindgen-test.
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
+
+[lints]
+workspace = true

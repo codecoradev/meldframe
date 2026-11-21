@@ -122,6 +122,7 @@ crates/
     meldframe-app-inspector-tests   (tool) the tests of the inspector fields of `meldframe-app` (D5, D6: fill types and gradients, border and shadows, layout, padding, margin and sizing); split from `meldframe-app-unit-tests` for the size ceiling and includes its `tests/common` by path
     meldframe-app-export-tests   (tool) the tests of the Export dialog of `meldframe-app` (D9: the target of an export, the HTML built for the open dialog, and how the dialog follows the document); split from `meldframe-app-unit-tests` for the size ceiling and includes its `tests/common` by path; run under WASM too
     meldframe-sync-props  (tool) property tests of replicas against an in-memory server and the host room; no library code
+    meldframe-variables-props  (tool) property tests of the variable commands (renames among them): random runs of replicas against the host gate and room; no library code
     meldframe-module      Module trait, registry, risk tiers
     meldframe-host        room, store, admission gate; jobs later
     meldframe-rooms       activity log of accepted ops and the room registry (open, close, a bound, idle close by a caller-supplied clock); split from host, which is near its 2,000-line ceiling
