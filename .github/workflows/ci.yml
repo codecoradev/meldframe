@@ -13,7 +13,8 @@
 # pull request that already ran this workflow.
 #
 # Contexts the `develop-protection` ruleset requires: `checks`, `migrations` and `pr checks` (the job of
-# pr-checks.yml). Keep the job names as they are. The Cora review in CI is disabled. The `oracle` job is not
+# pr-checks.yml). Keep the job names as they are. The compile caches are saved by ci-cache.yml on every push to
+# `develop` and only read here (a pull request's own cache is visible to that pull request alone). The Cora review in CI is disabled. The `oracle` job is not
 # required yet.
 #
 # This is the GitHub Actions copy. The Gitea copy in .gitea/workflows/ is kept (Actions are off in the Gitea repository) for the day it is
@@ -55,9 +56,13 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           cache-targets: false
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
       - name: Install kache
         run: sh scripts/ci/install-kache.sh
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      # Restore only: a pull request's cache is visible to that pull request alone, so saving one per pull
+      # request filled the repository's cache quota and no other run read it. ci-cache.yml saves the store
+      # on `develop`, where every pull request into it reads it (the key prefix finds the newest one).
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/kache-store
           key: kache-checks-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
@@ -146,6 +151,8 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
       - name: Store contract and restart tests against Postgres
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
@@ -172,6 +179,8 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
       - name: Build the runner
         run: cargo build -p meldframe-oracle-runner
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -183,7 +192,7 @@ jobs:
         run: npm ci --prefix tools/fidelity-oracle
       # The browser build follows the Playwright version, so the lockfile is the cache key.
       - id: browsers
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('tools/fidelity-oracle/package-lock.json') }}
