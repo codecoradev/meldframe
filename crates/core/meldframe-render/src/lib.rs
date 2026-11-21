@@ -6,11 +6,14 @@
 //! that a consumer paints goes through [`PaintedBox`]; the table in [`coverage`] says which node
 //! fields each consumer renders and which are marked unsupported, and a test checks the table
 //! against what `resolve` paints. A bound field (`{"var": id}`) paints the value its variable has in the mode a
-//! [`ModeChoice`] picks (E3.3); `resolve` is `resolve_with` for a file without variables.
+//! [`ModeChoice`] picks (E3.3); `resolve` is `resolve_with` for a file without variables. `resolve_laid_out` is
+//! `resolve_with` with the boxes of the layout core (hug, fill, auto layout); nothing calls it yet.
 
 pub mod coverage;
+mod laid_out;
 mod resolve;
 
+pub use laid_out::resolve_laid_out;
 pub use meldframe_variables::ModeChoice;
 pub use resolve::{
     Fields, Paint, PaintedBox, PaintedGradient, PaintedImage, resolve, resolve_with,
