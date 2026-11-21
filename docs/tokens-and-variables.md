@@ -131,6 +131,8 @@ AddVariable{variable}                     RemoveVariable{id, detach}  UpdateVari
 SetVariableValue{id, modeId, value}       // the field-level unit for LWW and undo
 ```
 
+Status: the rename commands are in the core as `renameCollection {id, name}`, `renameMode {collection, mode, name}` and `renameVariable {id, name}` (ADR-0017, note of 20 Nov 2026). `UpdateVariable{id, patch}` is not taken: a variable has no field to patch but its name. `SetModeCss` is not built. `RemoveVariable` has no `detach` flag as a Command (removal never detaches, ADR-0017); the app layer has `Action::RemoveVariable {id, detach}` since #156.
+
 Design question [Q6]: implement variables as a **second entity table that reuses the node patch/undo machinery** (same `ifSeq` trace, same field-level LWW, same S12 inverse logic, same fractional index for order) versus adding bespoke commands. Recommendation: generalize the store (entity kind + id + field), because S12 took significant effort to get node undo right and variables need the same properties. Needs a spike (T1).
 
 ### 5.2 Validation (deterministic function of state at seq, as `check_command` is today)

@@ -69,6 +69,27 @@ redo-empty	crates/core/meldframe-sync/src/replica.rs	if !self\.view\.can_redo() 
 app-acked	crates/app/meldframe-app/src/app.rs	if let Some(dropped) = self\.replica\.on_ack(&key, seq) {	if let Some(dropped) = None::<usize> {	the app ignores the answer to a repeated send, so an op the snapshot holds stays pending
 app-dropped	crates/app/meldframe-app/src/app.rs	if count > 0 {	if false {	a reload that drops ops says nothing
 app-refused-code	crates/app/meldframe-app/src/link.rs	code: e\.code()\.to_string(),	code: String::new(),	a refused reload does not say why
+rename-stale-var	crates/core/meldframe-undo/src/remote_vars.rs	if !variable_replaced(r, &id) {	if true {	my rename of a variable stays after another actor renamed, removed or made it again, so undo overwrites theirs
+rename-stale-col	crates/core/meldframe-undo/src/remote_vars.rs	if !collection_replaced(r, &id) {	if true {	my rename of a collection stays after another actor renamed, removed or made it again
+rename-stale-mode	crates/core/meldframe-undo/src/remote_vars.rs	if !mode_replaced(r, &collection, &mode) {	if true {	my rename of a mode stays after another actor renamed or removed the mode, or removed its collection
+rename-remote-removed	crates/core/meldframe-undo/src/remote_vars.rs	Command::RenameVariable { id: rid, .. } | Command::RemoveVariable { id: rid } => rid == id,	Command::RenameVariable { id: rid, .. } => rid == id,	my rename of a variable stays after another actor removed the variable
+rename-snapshot-var	crates/core/meldframe-undo/src/remote_vars.rs	variable\.name = name\.clone();	let _ = name;	the variable my undo adds again takes no rename of another actor
+rename-snapshot-col	crates/core/meldframe-undo/src/remote_vars.rs	collection\.name = name\.clone();	let _ = name;	the collection my undo adds again takes no rename of another actor
+rename-snapshot-mode	crates/core/meldframe-undo/src/remote_vars.rs	mode\.name = name\.clone();	let _ = name;	the mode my undo adds again takes no rename of another actor
+rename-inverse-var	crates/core/meldframe-variables/src/apply.rs	name: v\.name\.clone(),	name: format!("{}-x", v.name),	the inverse of a variable rename is not the rename back
+rename-inverse-mode	crates/core/meldframe-variables/src/apply.rs	name: m\.name\.clone(),	name: format!("{}-x", m.name),	the inverse of a mode rename is not the rename back
+rename-dup-name	crates/core/meldframe-variables/src/check.rs	.any(|o| o\.id != \*id && o\.collection == v\.collection && o\.name == \*name)	.any(|_| false)	a rename to a name another variable of the collection holds is accepted (the last writer does not check)
+rename-dup-self	crates/core/meldframe-variables/src/check.rs	.any(|o| o\.id != \*id && o\.collection	.any(|o| o.collection	a rename to the name the variable already has is refused as a duplicate
+rename-footprint	crates/core/meldframe-variables/src/footprint.rs	Command::RenameVariable { id, .. } => field(var(id), vec!\[NAME\.into()\]),	Command::RenameVariable { id, .. } => (vec![], vec![]),	an undo does not depend on the pending rename it reverses
+rename-touched	crates/core/meldframe-variables/src/apply.rs	Command::RenameCollection { id, .. } => vec!\[col(id)\],	Command::RenameCollection { id, .. } => vec![],	ifSeq does not guard a collection against a rename
+rename-revert	crates/core/meldframe-revert/src/revert.rs	| Command::RenameVariable { id, .. }	| Command::RenameCollection { id, .. }	a revert does not list a rename of a variable as not taken back
+rename-inverse-col	crates/core/meldframe-variables/src/apply.rs	name: c\.name\.clone(),	name: format!("{}-x", c.name),	the inverse of a collection rename is not the rename back
+rename-addmode-name	crates/core/meldframe-variables/src/footprint.rs	, mode_name(&mode\.id)\],	],	an undo that adds a mode again does not depend on the pending rename that named it
+rename-mode-exists	crates/core/meldframe-variables/src/footprint.rs	r\.push(pair(col(collection), mode));	let _ = mode;	an undo of a mode rename does not depend on the pending op that added the mode
+rename-mode-write	crates/core/meldframe-variables/src/footprint.rs	vec!\[mode_name(mode)\]	vec![]	a mode rename writes no name, so an undo does not depend on the pending rename it reverses
+rename-readd-var	crates/core/meldframe-undo/src/remote_vars.rs	^        Command::AddVariable { variable } => variable\.id == id,	        Command::AddVariable { .. } => false,	my rename of a variable stays after another actor made a variable of that id again
+rename-readd-col	crates/core/meldframe-undo/src/remote_vars.rs	Command::AddCollection { collection: c } => c\.id == collection,	Command::AddCollection { .. } => false,	my rename of a mode stays after another actor made its collection again
+rename-readd-mode	crates/core/meldframe-undo/src/remote_vars.rs	} => rc == collection && rm\.id == mode,	} => false,	my rename of a mode stays after another actor made a mode of that id again
 TABLE
 )
 
@@ -81,7 +102,7 @@ want=("$@")
 current=""
 trap '[ -n "$current" ] && git checkout -- "$current"' EXIT
 killed=0; survived=0
-crates=(-p meldframe-history -p meldframe-sync -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-app -p meldframe-app-tests)
+crates=(-p meldframe-history -p meldframe-sync -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-app -p meldframe-app-tests -p meldframe-variables-rename-tests)
 while IFS=$'\t' read -r name file from to what; do
   if [ ${#want[@]} -gt 0 ] && [[ ! " ${want[*]} " == *" $name "* ]]; then continue; fi
   if ! git diff --quiet -- "$file"; then echo "FAIL: $file has local changes; commit or stash them first"; exit 2; fi

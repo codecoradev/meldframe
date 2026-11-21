@@ -72,7 +72,7 @@ _Avoid_: Brand kit, style guide
 ### Change model
 
 **Command**:
-The single vocabulary of change: add, update, remove, reparent, reorder, and the variable commands (add or remove a collection, a mode or a variable, set the value of a variable in a mode). The canvas, the agent tools and undo all use it.
+The single vocabulary of change: add, update, remove, reparent, reorder, and the variable commands (add, remove or rename a collection, a mode or a variable, set the value of a variable in a mode). The canvas, the agent tools and undo all use it.
 _Avoid_: Mutation, action, edit event
 
 **Op**:
