@@ -47,14 +47,15 @@ fn a_plain_node_is_solid_and_a_none_fill_is_none() {
 }
 
 #[test]
-fn the_panel_is_told_the_limits_of_the_fill_and_whether_the_node_takes_a_gradient() {
+fn the_panel_is_told_the_limits_of_the_fill_and_whether_the_node_takes_a_gradient_or_an_image() {
     let mut l = Loopback::live();
     open(&mut l, "r1");
     let p = props(&l);
-    assert!(p.gradient_allowed);
+    assert!(p.gradient_allowed && p.image_allowed);
     assert_eq!((p.min_stops, p.max_stops), (2, 8));
     open(&mut l, "t1");
-    assert!(!props(&l).gradient_allowed);
+    let t = props(&l);
+    assert!(!t.gradient_allowed && !t.image_allowed);
 }
 
 #[test]

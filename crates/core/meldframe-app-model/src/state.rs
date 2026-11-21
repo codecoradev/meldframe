@@ -195,6 +195,9 @@ pub struct Properties {
     pub fill_kind: FillKind,
     /// Whether the node's fill can be a gradient (the canvas paints none on text), and the fewest and most stops of one.
     pub gradient_allowed: bool,
+    /// Whether the node can be given an image (the kinds but text: the core refuses `image_on_text`), so the Fill section
+    /// offers the Image type.
+    pub image_allowed: bool,
     pub min_stops: usize,
     pub max_stops: usize,
     /// The gradient over `fill`, as the file holds it.

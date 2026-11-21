@@ -29,7 +29,12 @@ fillKind: FillKind,
 /**
  * Whether the node's fill can be a gradient (the canvas paints none on text), and the fewest and most stops of one.
  */
-gradientAllowed: boolean, minStops: number, maxStops: number, 
+gradientAllowed: boolean, 
+/**
+ * Whether the node can be given an image (the kinds but text: the core refuses `image_on_text`), so the Fill section
+ * offers the Image type.
+ */
+imageAllowed: boolean, minStops: number, maxStops: number, 
 /**
  * The gradient over `fill`, as the file holds it.
  */
