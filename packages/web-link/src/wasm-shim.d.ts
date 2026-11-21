@@ -10,6 +10,7 @@ declare module '@meldframe/wasm' {
     variablesJson(): string;
     sceneJson(): string;
     takeEventsJson(): string;
+    setLayoutOnCanvas(on: boolean): string;
     free(): void;
   }
   export function initSync(module: { module: BufferSource } | BufferSource): unknown;

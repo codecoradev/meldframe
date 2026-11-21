@@ -14,6 +14,7 @@
 
 mod activity;
 mod app;
+mod canvas;
 mod document;
 mod export;
 mod frames;
@@ -30,6 +31,7 @@ mod view;
 pub(crate) use meldframe_app_model::{action, effect, event, state};
 
 pub use app::App;
+pub use canvas::MeasurerBox;
 pub use link::{ATTEMPT_MS, SILENT_MS};
 pub use meldframe_app_model::{
     Action, AppState, Axis, BindField, BindOption, Checkpoint, CheckpointKind, CollectionRow,
@@ -38,4 +40,5 @@ pub use meldframe_app_model::{
     OutOp, Panel, Panels, Picker, PickerRow, Properties, Property, RevertSkip, RevertSkipReason,
     Side, Sides, Tool, TypeHeading, VariableEntity, VariableRow, VariableValue, VariablesPanel,
 };
+pub use meldframe_layout::{StubMeasurer, TextMeasurer};
 pub use meldframe_sync::LoadError;

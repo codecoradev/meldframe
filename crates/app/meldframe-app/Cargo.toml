@@ -13,6 +13,7 @@ kind = "app"
 meldframe-activity = { path = "../../core/meldframe-activity" }
 export-dialog = { path = "../../features/export/export-dialog" }
 meldframe-check = { path = "../../core/meldframe-check" }
+meldframe-layout = { path = "../../core/meldframe-layout" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
 meldframe-render = { path = "../../core/meldframe-render" }
 meldframe-revert = { path = "../../core/meldframe-revert" }

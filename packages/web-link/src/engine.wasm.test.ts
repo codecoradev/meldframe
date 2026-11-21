@@ -126,6 +126,42 @@ describe.skipIf(!built)('Engine re-reads only what changed', () => {
   });
 });
 
+describe.skipIf(!built)('The layout flag of the canvas over the real app layer (WASM)', () => {
+  const nodes = [
+    { id: 'f', type: 'frame', pos: 'a0', w: 200, h: 300, layout: 'column', padding: 10, gap: 5 },
+    { id: 'b', type: 'rect', pos: 'a0', parentId: 'f', w: 1, h: 30, sw: 'fill' },
+  ] as unknown as import('@meldframe/protocol').Node[];
+  const box = (e: EngineType) => e.snapshot().scene.nodes.find((n) => n.id === 'b')!;
+
+  it('draws the stored boxes until the host turns the layout on, and reads the scene again when it does', () => {
+    const e = Engine.create({ actor: 'usr_me', nodes, seq: 0, session: 1 });
+    expect([box(e).x, box(e).y, box(e).w]).toEqual([0, 0, 1]);
+    const reads = { ...e.stats };
+    const seen: number[] = [];
+    e.subscribe((s) => seen.push(s.scene.nodes.find((n) => n.id === 'b')!.w));
+    const fx: string[] = [];
+    e.onEffects((f) => fx.push(...f.map((x) => x.type)));
+    e.setLayoutOnCanvas(true);
+    expect([box(e).x, box(e).y, box(e).w, box(e).h]).toEqual([10, 10, 180, 30]);
+    expect(e.stats.sceneReads).toBe(reads.sceneReads + 1);
+    expect(e.stats.nodeReads).toBe(reads.nodeReads);
+    expect(seen).toEqual([180]);
+    expect(fx).toEqual(['render']);
+    // The same value again changes nothing and costs nothing.
+    expect(e.setLayoutOnCanvas(true)).toEqual([]);
+    expect(e.stats.sceneReads).toBe(reads.sceneReads + 1);
+    e.setLayoutOnCanvas(false);
+    expect([box(e).x, box(e).w]).toEqual([0, 1]);
+  });
+
+  it('keeps drawing laid-out boxes as the document changes', () => {
+    const e = Engine.create({ actor: 'usr_me', nodes, seq: 0, session: 1 });
+    e.setLayoutOnCanvas(true);
+    e.dispatch({ type: 'move', id: 'b', x: 99, y: 99 });
+    expect([box(e).x, box(e).y, box(e).w]).toEqual([10, 10, 180]);
+  });
+});
+
 describe.skipIf(!built)('The Variables panel and the mode over the real app layer (WASM)', () => {
   const nodes = [{ id: 'card', type: 'rect', pos: 'a0', fill: { var: 'bg' } }] as unknown as import('@meldframe/protocol').Node[];
   const variables = {

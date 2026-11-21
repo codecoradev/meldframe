@@ -77,6 +77,20 @@ assert.ok(dialog.html.includes('data-node="f"'), 'the document of the frame cros
 runExp({ type: 'closeExport' });
 assert.equal(JSON.parse(exp.stateJson()).export.dialog, null);
 
+// The canvas flag (host configuration): the stored boxes until it is on, then the laid-out ones, through the real wasm.
+const lay = new WasmApp('usr_me', 'web', 9, JSON.stringify([
+  { id: 'f', type: 'frame', pos: 'a0', w: 200, h: 300, layout: 'column', padding: 10, gap: 5 },
+  { id: 'b', type: 'rect', pos: 'a0', parentId: 'f', w: 1, h: 30, sw: 'fill' },
+]), 0);
+const boxB = () => JSON.parse(lay.sceneJson()).find((b) => b.id === 'b');
+assert.deepEqual([boxB().x, boxB().w], [0, 1]);
+assert.deepEqual(JSON.parse(lay.setLayoutOnCanvas(true)), [{ type: 'render', nodes: [] }]);
+assert.deepEqual([boxB().x, boxB().y, boxB().w, boxB().h], [10, 10, 180, 30]);
+assert.deepEqual(JSON.parse(lay.setLayoutOnCanvas(true)), [], 'the same value asks for nothing');
+assert.equal(lay.takeEventsJson(), '[]', 'the flag raises no event');
+lay.setLayoutOnCanvas(false);
+assert.deepEqual([boxB().x, boxB().w], [0, 1]);
+
 // Errors are thrown as strings, not as a trap.
 assert.throws(() => app.dispatch('not json'), (e) => typeof e === 'string' && e.startsWith('action:'));
 assert.throws(() => new WasmApp('usr_me', 'web', 1, '{', 0), (e) => typeof e === 'string' && e.startsWith('nodes:'));

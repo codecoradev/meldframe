@@ -199,7 +199,10 @@ What the oracle cannot prove (the list for the product oracle; the experiment's 
 
 - **The "canvas" side is the layout core, not the editor.** Only the export and the layout findings call the layout core
   (`compute_rects`) today; the editor paints the stored `x`, `y`, `w` and `h` of each node (`resolve_with` does not lay
-  anything out). The oracle shows that the export reproduces the core's layout in a browser. Whether the boxes stored in a
+  anything out). Since the app layer holds a `layout_on_canvas` flag the canvas can read the core's boxes instead
+  (`resolve_laid_out` with the measurer the host gives, the stub until a host injects one), but the flag is off by default and
+  not offered to people: it stays off until the interaction rules for laid-out frames land, and the canvas does not use
+  the oracle's measurer table yet. The oracle shows that the export reproduces the core's layout in a browser. Whether the boxes stored in a
   file, and so drawn on the canvas, equal the core's layout is not checked by it.
 - **The text table is Chromium's measurer by assumption.** The core and the export agree on text because both use the one
   measurer they are given: the export pins `min-width` and `line-height` from it and the core sizes the boxes with it.
