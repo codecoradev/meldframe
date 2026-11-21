@@ -36,10 +36,11 @@ pub use canvas::MeasurerBox;
 pub use link::{ATTEMPT_MS, SILENT_MS};
 pub use meldframe_app_model::{
     Action, AppState, Axis, BindField, BindOption, Checkpoint, CheckpointKind, CollectionRow,
-    Connection, CreateKind, Effect, Event, ExportDialog, ExportFinding, ExportFormat, ExportState,
-    ExportTarget, FieldBinding, FillKind, Frame, FramePreset, History, LayoutNote, ModeValue,
-    OutOp, Panel, Panels, Picker, PickerRow, Properties, Property, RevertSkip, RevertSkipReason,
-    Side, Sides, Tool, TypeHeading, VariableEntity, VariableRow, VariableValue, VariablesPanel,
+    Connection, CreateKind, Direction, Effect, Event, ExportDialog, ExportFinding, ExportFormat,
+    ExportState, ExportTarget, FieldBinding, FillKind, Frame, FramePreset, History, LayoutNote,
+    ModeValue, OutOp, Panel, Panels, Picker, PickerRow, Properties, Property, RevertSkip,
+    RevertSkipReason, Side, Sides, Tool, TypeHeading, VariableEntity, VariableRow, VariableValue,
+    VariablesPanel,
 };
 pub use meldframe_app_rules::drop::Slot as DropSlot;
 pub use meldframe_layout::{StubMeasurer, TextMeasurer};

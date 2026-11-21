@@ -94,6 +94,7 @@ impl App {
             }
             Action::Resize { id, w, h, x, y } => self.resize_node(&id, (w, h), (x, y)),
             Action::DropNode { id, x, y, dx, dy } => self.drop_node(&id, (x, y), (dx, dy)),
+            Action::ArrowKey { direction } => self.arrow_key(direction),
             Action::EditText { id, text } => self.replica.apply(&edit_text(&id, text)),
             Action::SetProperty { id, property } => self.set_property(&id, property),
             Action::Delete { ids } => self.delete(&ids),

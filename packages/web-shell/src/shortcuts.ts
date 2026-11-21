@@ -15,6 +15,8 @@ export interface Shortcut {
   id: string;
   name: string;
   keys: Combo[];
+  /** The editor answers it only while "Auto layout on canvas" is on: the sheet leaves the row out while it is off. */
+  needsAutoLayout?: boolean;
 }
 
 export interface ShortcutGroup {
@@ -39,6 +41,7 @@ export const shortcutGroups: ShortcutGroup[] = [
       { id: 'undo', name: 'Undo', keys: [{ mod: true, key: 'Z' }] },
       { id: 'redo', name: 'Redo', keys: [{ mod: true, shift: true, key: 'Z' }, { mod: true, key: 'Y' }] },
       { id: 'delete', name: 'Delete the selection', keys: [k('Delete'), k('Backspace')] },
+      { id: 'move-in-flow', name: 'Move one place in an auto layout frame', keys: [k('ArrowUp'), k('ArrowDown'), k('ArrowLeft'), k('ArrowRight')], needsAutoLayout: true },
       { id: 'edit-text', name: 'Edit the selected text', keys: [k('Enter')] },
       { id: 'commit-text', name: 'Finish editing the text', keys: [{ mod: true, key: 'Enter' }] },
       { id: 'cancel', name: 'Cancel a drag or a text edit', keys: [k('Escape')] },
@@ -71,7 +74,7 @@ export const shortcutGroups: ShortcutGroup[] = [
   },
 ];
 
-const words: Record<string, string> = { Escape: 'Esc' };
+const words: Record<string, string> = { Escape: 'Esc', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
 
 /** A combo the way the platform writes it: symbols in front of the key on a Mac (`⇧⌘Z`), words joined by + elsewhere (`Ctrl+Shift+Z`). */
 export function comboLabel(c: Combo, mac: boolean): string {
@@ -92,7 +95,11 @@ export interface SheetGroup {
   rows: { id: string; name: string; keys: string[] }[];
 }
 
-/** The groups of the sheet with every key written for the platform. */
-export function sheetGroups(mac: boolean): SheetGroup[] {
-  return shortcutGroups.map((g) => ({ id: g.id, title: g.title, rows: g.rows.map((r) => ({ id: r.id, name: r.name, keys: r.keys.map((c) => comboLabel(c, mac)) })) }));
+/** The groups of the sheet with every key written for the platform; a row that needs "Auto layout on canvas" is there only while it is on. */
+export function sheetGroups(mac: boolean, autoLayout = true): SheetGroup[] {
+  return shortcutGroups.map((g) => ({
+    id: g.id,
+    title: g.title,
+    rows: g.rows.filter((r) => autoLayout || !r.needsAutoLayout).map((r) => ({ id: r.id, name: r.name, keys: r.keys.map((c) => comboLabel(c, mac)) })),
+  }));
 }

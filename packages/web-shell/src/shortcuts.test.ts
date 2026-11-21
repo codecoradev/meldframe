@@ -42,6 +42,15 @@ describe('the sheet', () => {
     expect(new Set(rows.map((r) => r.id)).size).toBe(rows.length);
   });
 
+  it('leaves out the row that needs Auto layout on canvas while it is off, and has it while it is on', () => {
+    const ids = (on: boolean) => sheetGroups(false, on).flatMap((g) => g.rows.map((r) => r.id));
+    expect(ids(true)).toContain('move-in-flow');
+    expect(ids(false)).not.toContain('move-in-flow');
+    expect(ids(true)).toEqual(sheetGroups(false).flatMap((g) => g.rows.map((r) => r.id)));
+    // Every other row is there either way.
+    expect(ids(false)).toEqual(ids(true).filter((id) => id !== 'move-in-flow'));
+  });
+
   it('is written for the platform', () => {
     const flat = (mac: boolean) => sheetGroups(mac).flatMap((g) => g.rows.flatMap((r) => r.keys));
     expect(flat(false)).toContain('Ctrl+Z');
@@ -87,6 +96,7 @@ const checks: Record<string, (c: Combo) => void> = {
   undo: (c) => expect(keyAction(eventOf(c), [])).toEqual({ type: 'undo' }),
   redo: (c) => expect(keyAction(eventOf(c), [])).toEqual({ type: 'redo' }),
   delete: (c) => expect(keyAction(eventOf(c), ['a'])).toEqual({ type: 'delete', ids: ['a'] }),
+  'move-in-flow': (c) => expect(keyAction(eventOf(c), ['a'])).toEqual({ type: 'arrowKey', direction: c.key.slice('Arrow'.length).toLowerCase() }),
   'edit-text': (c) => expect(editKeyTarget(eventOf(c), ['t'], [textNode])).toBe('t'),
   // The field of `apps/web/src/TextEditor.svelte` is a view with no pure part: its keys are read from its source.
   'commit-text': () => expect(editor()).toMatch(/e\.key === 'Enter' && \(e\.ctrlKey \|\| e\.metaKey\)/),

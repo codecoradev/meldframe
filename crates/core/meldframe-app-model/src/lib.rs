@@ -24,7 +24,7 @@ pub use activity::{
 pub use effect::{Effect, OutOp};
 pub use event::{Event, RevertSkip, RevertSkipReason, VariableEntity};
 pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget};
-pub use layout::{Axis, LayoutNote, Side, Sides};
+pub use layout::{Axis, Direction, LayoutNote, Side, Sides};
 pub use state::{
     AppState, Checkpoint, CheckpointKind, Connection, FieldBinding, FillKind, History, Panel,
     Panels, Properties, Tool,

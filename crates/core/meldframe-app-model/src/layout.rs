@@ -26,6 +26,17 @@ pub enum Side {
     Left,
 }
 
+/// An arrow key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
 /// An axis of the size of a node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]

@@ -1,13 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type { Node } from '@meldframe/protocol';
 import type { MoveIntent, ResizeIntent, CreateIntent } from '@meldframe/web-canvas/interaction';
-import { createActionFor, movePreviewFor, moveActionsFor, resizeActionFor, worldOrigin } from '@meldframe/web-document/edit';
+import { createActionFor, keyAction, movePreviewFor, moveActionsFor, resizeActionFor, worldOrigin } from '@meldframe/web-document/edit';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Engine as EngineType } from '@meldframe/web-link/engine';
 
 // The layout interaction of the web (a drop, a handle, a drawn box) against the real app layer through the WASM build
 // (`just wasm-build`). Without the build the tests are skipped, as those of web-link are.
-const wasmFile = new URL('../.wasm/meldframe_wasm_bg.wasm', import.meta.url);
+const wasmFile = new URL('../../../apps/web/.wasm/meldframe_wasm_bg.wasm', import.meta.url);
 const built = existsSync(wasmFile);
 let Engine: typeof EngineType;
 
@@ -67,6 +67,17 @@ describe.skipIf(!built)('with the layout off the canvas', () => {
     }
   });
 
+  it('an arrow key does nothing at all: no effect, no event, the same state and nodes', () => {
+    const e = make();
+    e.dispatch({ type: 'select', ids: ['b'] });
+    const before = JSON.stringify([e.snapshot().state, e.snapshot().nodes]);
+    for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
+      const a = keyAction({ key, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false }, ['b'])!;
+      expect(e.dispatch(a)).toEqual([]);
+    }
+    expect(JSON.stringify([e.snapshot().state, e.snapshot().nodes])).toBe(before);
+  });
+
   it('a drag has no slot to show, so the box follows the pointer', () => {
     const e = make();
     const i: MoveIntent = { ...gesture, final: false, ids: ['a'], dx: 5, dy: 5, at: { x: 60, y: 60 } };
@@ -91,6 +102,24 @@ describe.skipIf(!built)('with the layout on the canvas', () => {
     expect(order(e)).toEqual(['a', 'b', 't']);
     e.dispatch(moveActionsFor({ ...i, final: true }, ['t'], e.snapshot().nodes)[0]!);
     expect(order(e)).toEqual(['t', 'a', 'b']);
+    e.dispatch({ type: 'undo' });
+    expect(order(e)).toEqual(['a', 'b', 't']);
+  });
+
+  it('an arrow key along the flow moves the child one place in one step and writes no position; the key across does nothing', () => {
+    const e = make();
+    e.setLayoutOnCanvas(true);
+    e.dispatch({ type: 'select', ids: ['b'] });
+    const key = (name: string) => keyAction({ key: name, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false }, ['b'])!;
+    const stored = JSON.stringify(e.snapshot().nodes.map((n) => [n.id, n.x, n.y]));
+    expect(e.dispatch(key('ArrowLeft'))).toEqual([]);
+    e.dispatch(key('ArrowUp'));
+    expect(order(e)).toEqual(['b', 'a', 't']);
+    e.dispatch(key('ArrowDown'));
+    e.dispatch(key('ArrowDown'));
+    expect(order(e)).toEqual(['a', 't', 'b']);
+    expect(JSON.stringify(e.snapshot().nodes.map((n) => [n.id, n.x, n.y]))).toBe(stored);
+    expect(e.snapshot().state.history.undoSteps).toBe(3);
     e.dispatch({ type: 'undo' });
     expect(order(e)).toEqual(['a', 'b', 't']);
   });

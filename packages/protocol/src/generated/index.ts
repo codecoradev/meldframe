@@ -24,6 +24,7 @@ export type { CollectionRow } from './CollectionRow';
 export type { Command } from './Command';
 export type { Connection } from './Connection';
 export type { CreateKind } from './CreateKind';
+export type { Direction } from './Direction';
 export type { Effect } from './Effect';
 export type { Event } from './Event';
 export type { ExportDialog } from './ExportDialog';

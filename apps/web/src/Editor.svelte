@@ -10,7 +10,7 @@
   import type { Engine } from '@meldframe/web-link/engine';
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
   import Canvas from './canvas/Canvas.svelte';
-  import { createActionFor, deleteAction, drawnBox, keyAction, ownsKeys, worldOrigin, moveActionsFor, movePreviewFor, previewScene, resizeActionFor, resizePreviewFor, toolMode, type Preview } from '@meldframe/web-document/edit';
+  import { createActionFor, deleteAction, documentChanged, drawnBox, gestureGoing, keyAction, ownsKeys, worldOrigin, moveActionsFor, movePreviewFor, previewScene, resizeActionFor, resizePreviewFor, toolMode, type Preview } from '@meldframe/web-document/edit';
   import { perFrame } from '@meldframe/web-document/coalesce';
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
@@ -197,6 +197,9 @@
     }
   });
 
+  // A drag, a resize or a drawn box is going on: an arrow key then is not a command (the gesture is the person's hands' business).
+  let gesture = false;
+
   // The pointer reports faster than the screen draws: the slot is asked of the app layer once per animation frame, on the
   // latest move; the end of the gesture is never held back.
   const slotQuery = perFrame<MoveIntent>(
@@ -207,6 +210,7 @@
 
   /** The app layer says where a dragged child of a flow would land (a line), else the box follows the pointer. */
   function onMove(i: MoveIntent) {
+    gesture = gestureGoing(i);
     if (!i.final && !i.cancelled) return slotQuery.push(i);
     slotQuery.cancel();
     preview = null;
@@ -215,6 +219,7 @@
 
   /** One node is resized at a time: the handles of a selection of several nodes do nothing yet. */
   function onResize(i: ResizeIntent) {
+    gesture = gestureGoing(i);
     // The box is the one the node is drawn at, and a node that is gone meanwhile (a change of someone else) ends the gesture quietly.
     preview = resizePreviewFor(i, nodes, scene);
     const a = resizeActionFor(i, nodes, scene);
@@ -223,6 +228,7 @@
 
   /** The canvas draws the box while it is dragged; the node is made when the gesture ends. */
   function onCreate(i: CreateIntent) {
+    gesture = gestureGoing(i);
     const a = createActionFor(i, nodes, scene);
     if (a) dispatch(a);
   }
@@ -246,6 +252,15 @@
       return;
     }
     const a = keyAction(e, snap.state.selection);
+    if (a?.type === 'arrowKey') {
+      // The key is the editor's only when it changed the document (the layout is on, and the selection is a child of a flow that can
+      // move that way): dispatch first, then take it from the browser; any other time it goes on to whatever else answers an arrow key.
+      if (gesture) return;
+      const before = engine.snapshot();
+      engine.dispatch(a);
+      if (documentChanged(before, engine.snapshot())) e.preventDefault();
+      return;
+    }
     if (a) { e.preventDefault(); dispatch(a); }
   }
 
