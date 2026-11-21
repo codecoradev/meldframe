@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-checkpoints"
-description = "The rules of checkpoints kept by the server (E5.3, ADR-0023): the row, its kinds, the label and its hidden-text rule, the bounds. No I/O."
+description = "The rules of checkpoints kept by the server (E5.3, ADR-0023): the row, its kinds, the label and its hidden-text rule, the bounds and the roll, the run rule and the seam a write reports to. No I/O."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,6 +11,7 @@ kind = "core"
 
 [dependencies]
 meldframe-activity = { path = "../meldframe-activity" }
+meldframe-revert = { path = "../meldframe-revert" }
 
 [lints]
 workspace = true

@@ -12,6 +12,7 @@ kind = "tool"
 [dev-dependencies]
 meldframe-activity = { path = "../meldframe-activity" }
 meldframe-checkpoints = { path = "../meldframe-checkpoints" }
+meldframe-revert = { path = "../meldframe-revert" }
 
 # See meldframe-order/Cargo.toml: the tests run under WASM through wasm-bindgen-test.
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]

@@ -5,7 +5,7 @@ mod record;
 mod restore;
 mod revert;
 
-pub use checkpoint::RunDetector;
+pub use checkpoint::{RUN_GAP_MS, RunDetector, starts_run};
 pub use record::{ConfirmedLog, FOLD_CHUNK, MAX_LOG};
 pub use restore::{RestoreError, restore_commands, state_at};
 pub use revert::{

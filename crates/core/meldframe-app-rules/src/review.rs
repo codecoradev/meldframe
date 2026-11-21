@@ -5,13 +5,11 @@
 use meldframe_app_model::{Checkpoint, CheckpointKind, RevertSkip, RevertSkipReason};
 use meldframe_protocol::{Command, Node};
 use meldframe_revert::{
-    Batch, ConfirmedLog, LoggedOp, RevertError, RunDetector, SkipReason, restore_commands,
-    revert_batch, state_at,
+    Batch, ConfirmedLog, LoggedOp, RUN_GAP_MS, RevertError, RunDetector, SkipReason,
+    restore_commands, revert_batch, state_at,
 };
 use meldframe_sync::Outgoing;
 
-/// A run ends after this long without an op of its actor (5 minutes).
-const RUN_GAP_MS: u64 = 300_000;
 /// The checkpoints kept; past it the oldest one taken on its own is dropped, and a saved one only when none is left.
 const MAX_CHECKPOINTS: usize = 100;
 /// The longest label of a saved checkpoint, in characters.
