@@ -72,12 +72,12 @@ Counted from the acceptance-criteria boxes in `docs/epics.md` (a box is ticked o
 |---|---|---|---|---|
 | M0 Foundation | 15 | 15 | 100% | nothing: E0.4 is ticked since `just web` starts an editor that talks to the server |
 | M1 Connected skeleton | 29 | 29 | 100% | nothing open in M1: the demonstration runs with Claude Code as the MCP client in the real browser editor (step 6 keeps its decision column for the M2 call log) |
-| M2 Platform and agent identity | 3 | 13 | 23% | E2.3 quotas are in (they survive a restart) and E2.5 assets are in (upload by a route, one storage quota with the ops, image fills on the canvas); the rest of E2.3 (variable collections) and E2.1, E2.2, E2.4 are open and wait for Gatehouse |
-| M3 Model round 2 and variables | 4 | 13 | 31% | E3.5 (layer names) and E3.2 (layout and paint round 2) are in; E3.1, E3.3 and E3.4 are open |
-| M4 Export and fidelity | 1 | 6 | 17% | E4.3 (PNG export from the editor and through capture) is in; E4.1 has its first slice (the `export` feature and the `export_frame` tool; its boxes wait for the owner and a review) and E4.2 has its first slice (the oracle runs against the product export in a pull request job and nightly; the job is not required yet, and its boxes wait for the owner and a review) |
-| M5 Agent review and design quality | 2 | 8 | 25% | E5.4 is in (frame duplication as a variant: editor button and MCP `make_variant`; the MCP `design_review` tool, ADR-0018); E5.1, E5.2, E5.3 and E5.5 are built in part (numbered batches with notes, the Activity panel, review states, revert, checkpoints, ADR-0021) and wait for the real Claude Code run and the owner's review |
+| M2 Platform and agent identity | 4 | 13 | 31% | E2.3 (every table has its workspace test, quotas survive a restart) and E2.5 assets are in; E2.1, E2.2 and the grant, risk-tier answer and revocation parts of E2.4 wait for Gatehouse; the release rule for development tokens is partial (the override `MELDFRAME_ALLOW_DEV_TOKENS=1` remains) |
+| M3 Model round 2 and variables | 12 | 13 | 92% | E3.1, E3.2, E3.3, E3.4 and E3.5 are in except one box: the real Uteke Cloud theme as the import corpus (the owner supplies the file) |
+| M4 Export and fidelity | 5 | 6 | 83% | E4.1, E4.2 and E4.3 are in except one box: probes for gradients, variable-bound fields and no fill (E4.1, every M3 property); the oracle is green on pull requests and nightly but not yet a required check (owner action) |
+| M5 Agent review and design quality | 3 | 8 | 38% | E5.4 and E5.5 are in; E5.1, E5.2 and E5.3 are built and wait for the real Claude Code run (owner, `m1-claude-demo.mjs` with two tokens); the server-kept checkpoints of ADR-0023 are the open part of E5.3 |
 | M6 V2 and the W1 gate | 0 | 4 | 0% | not started |
-| Total | 54 | 88 | 61% | |
+| Total | 68 | 88 | 77% | |
 
 M0 and M1 are complete. The M1 demonstration runs with Claude Code as the MCP client in the real browser editor (`packages/web-e2e/scripts/m1-claude-demo.mjs`); the backend, MCP surface, live events, capture relay, app layer and the web editor (layers, canvas, properties, tool bar, text editing, actor labels, touch rings, capture) are covered by tests and by the browser checks that are run by hand.
 

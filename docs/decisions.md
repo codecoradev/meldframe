@@ -69,6 +69,12 @@ Details in `docs/ui-design.md`.
 |---|---|---|
 | 35 | The size of a crate (or package) is an ideal band of 1,500 to 2,500 lines with a hard ceiling of 4,000, in place of the flat ceiling of 2,000 (D1 of `docs/standards/modular-thin-ui.md`, version 1.2). The file limit of 500 lines is unchanged. Allow-list entries still only go down, now measured against the 4,000 ceiling. Above 2,500 a crate is a candidate for a planned split, not an emergency; at 4,000 the split comes before the next addition. | decided |
 
+## Owner orders of 21 Nov 2026
+
+| # | Decision | Status |
+|---|---|---|
+| 36 | Tick the epic boxes that are done and valid, each checked against the code and the tests (the boxes of E5.1 to E5.3 wait for the real Claude Code run, the owner's rule of 19 Nov; E6 and the Gatehouse boxes are not built). Continue the parked work with the answers proposed in ADR-0023 and with the smallest reversible defaults for the Import and Export variables dialogs and for image fill picking, all open to change by the owner. Finish the canvas layout (the host flag on by default with an off switch in the View menu; the owner accepts the one-time visual change for files that already have layout set). Then Gatehouse. | decided (owner, 21 Nov 2026) |
+
 ## Workflow
 
 Branches `feat/`, `fix/`, `docs/`, `chore/` from `develop`; rebase onto `develop`; squash merge with a clean message; commits signed off (DCO); a local Cora agent review before every pull request (the Cora review in CI is an addition, not a replacement); all git artifacts in English.
