@@ -7,11 +7,14 @@
 
 use crate::app::App;
 use meldframe_app_model::Direction;
-use meldframe_app_parts::document::apply_all;
+use meldframe_app_parts::document::{apply_all, move_by, move_to};
 use meldframe_app_parts::panel::selected_node;
 use meldframe_app_parts::properties::Drawn;
 use meldframe_app_rules::arrow::arrow_commands;
 use meldframe_app_rules::drop::{Drag, Slot, drop_commands, drop_slot};
+use meldframe_app_rules::multi::{
+    DragMany, Preview, drop_many_commands, drop_many_preview, top_nodes,
+};
 use meldframe_app_rules::resize::resize;
 use meldframe_check::ApplyError;
 use meldframe_layout::Rect;
@@ -31,6 +34,62 @@ impl App {
         let cmds = self.with_rects(|rects| drop_commands(nodes, rects, &Drag { id, at, by }))?;
         self.validate(&cmds)?;
         apply_all(&mut self.replica, &cmds)
+    }
+
+    /// A selection was dropped (`Action::DropNodes`): one step, or none when nothing changes. With the flag on the rules of a
+    /// block of flow children decide (`meldframe-app-rules`, `multi`); with it off the move is the one a drag always was.
+    pub(crate) fn drop_nodes(
+        &mut self,
+        ids: &[String],
+        at: (f64, f64),
+        by: (f64, f64),
+    ) -> Result<(), SubmitError> {
+        if self.canvas.enabled {
+            let nodes = self.replica.nodes();
+            let cmds = self
+                .with_rects(|rects| drop_many_commands(nodes, rects, &DragMany { ids, at, by }))?;
+            self.validate(&cmds)?;
+            return apply_all(&mut self.replica, &cmds);
+        }
+        self.move_dragged(ids, at, by)
+    }
+
+    /// The move by the drag that the layout does not touch: one node is the plain move of `drop_node`, the selection in one
+    /// step when `ids` are the selection and none is under another, else each top node on its own step (as the web sent
+    /// them before the layout rules).
+    fn move_dragged(
+        &mut self,
+        ids: &[String],
+        at: (f64, f64),
+        by: (f64, f64),
+    ) -> Result<(), SubmitError> {
+        let nodes = self.replica.nodes();
+        let tops: Vec<String> = top_nodes(nodes, ids)?
+            .iter()
+            .map(|n| n.id.clone())
+            .collect();
+        if let [one] = &tops[..] {
+            let cmds = drop_commands(nodes, &[], &Drag { id: one, at, by })?;
+            self.validate(&cmds)?;
+            return apply_all(&mut self.replica, &cmds);
+        }
+        let selection = &self.state.selection;
+        let whole = tops.len() == ids.len()
+            && ids.len() == selection.len()
+            && ids.iter().all(|i| selection.contains(i));
+        if whole {
+            let cmds = move_by(selection, nodes, by.0, by.1);
+            self.validate(&cmds)?;
+            return apply_all(&mut self.replica, &cmds);
+        }
+        for id in &tops {
+            let Some(n) = self.replica.nodes().iter().find(|n| n.id == *id) else {
+                continue;
+            };
+            let cmd = move_to(id, n.x + by.0, n.y + by.1);
+            self.replica.apply(&cmd)?;
+        }
+        Ok(())
     }
 
     /// An arrow key with the selection (`Action::ArrowKey`): the selected children of an auto layout frame move one place
@@ -59,6 +118,25 @@ impl App {
         }
         let nodes = self.replica.nodes();
         self.with_rects(|rects| drop_slot(nodes, rects, &Drag { id, at, by }))
+    }
+
+    /// What a front end shows while a selection is dragged (`Action::DropNodes`): the slot the flow children would land in
+    /// and which of the dragged nodes follow the pointer, from the same decision as the drop. None with the flag off (the
+    /// nodes then simply follow the pointer), when none of the ids is a node and for a number that is not one. A drag of one
+    /// node is [`App::drop_preview`] with the node as `follow` when there is no slot. It reads and changes nothing. Cost: the
+    /// layout once per revision of the document and measurer (see `drop_preview`), and on each call a few passes over the
+    /// nodes and the selection, linear in both (a test holds 5,000 selected siblings to a budget).
+    pub fn drop_preview_many(
+        &self,
+        ids: &[String],
+        at: (f64, f64),
+        by: (f64, f64),
+    ) -> Option<Preview> {
+        if !self.canvas.enabled {
+            return None;
+        }
+        let nodes = self.replica.nodes();
+        self.with_rects(|rects| drop_many_preview(nodes, rects, &DragMany { ids, at, by }))
     }
 
     /// The laid-out boxes for a rule to read, kept for the revision of the document and the measurer (empty with the flag
