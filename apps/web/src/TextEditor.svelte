@@ -65,6 +65,8 @@
   style:width="{box.width}px"
   style:min-height="{box.height}px"
   style:font-size="{box.fontSize}px"
+  style:font-weight={box.fontWeight}
+  style:text-align={box.textAlign}
   style:line-height="1.2"
   onkeydown={onKey}
   onblur={() => finish(true)}

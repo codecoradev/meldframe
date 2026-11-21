@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alignOffset, textDrawShape, textMeasureShape } from './textstyle';
+import { alignOffset, textDrawShape, textFieldStyle, textMeasureShape } from './textstyle';
 
 describe('the shape of a text, as drawn and as measured', () => {
   it('draws a text with the size and weight it has and wraps it at the width of its box', () => {
@@ -30,5 +30,21 @@ describe('alignOffset', () => {
   });
   it('a block wider than its box starts at the left edge, as the lines of an overflowing line do in CSS', () => {
     for (const a of ['left', 'center', 'right'] as const) expect(alignOffset(a, 50, 80)).toBe(0);
+  });
+});
+
+describe('textFieldStyle', () => {
+  it('is the weight and the alignment the text is drawn with', () => {
+    expect(textFieldStyle({ fontWeight: 700, textAlign: 'center' })).toEqual({ fontWeight: 700, textAlign: 'center' });
+    expect(textFieldStyle({ fontWeight: 300, textAlign: 'right' })).toEqual({ fontWeight: 300, textAlign: 'right' });
+  });
+  it('takes a weight that is no weight as regular and an alignment that is none as left (what the canvas shows)', () => {
+    for (const fontWeight of [0, 950, -1, NaN, Infinity, undefined]) expect(textFieldStyle({ fontWeight }).fontWeight, String(fontWeight)).toBe(400);
+    expect(textFieldStyle({ textAlign: 'justify' as never }).textAlign).toBe('left');
+    expect(textFieldStyle({}).textAlign).toBe('left');
+  });
+  it('holds a weight to the hundreds, as the font does', () => {
+    expect(textFieldStyle({ fontWeight: 640 }).fontWeight).toBe(600);
+    expect(textFieldStyle({ fontWeight: 650 }).fontWeight).toBe(700);
   });
 });
