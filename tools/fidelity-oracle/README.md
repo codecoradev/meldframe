@@ -16,7 +16,9 @@ For each file (hand-written fixtures in `fixtures.mjs`, seeded fuzz files in `fu
 3. Each page is loaded as delivered (HTML page, stylesheet, font next to it) and every `[data-node]` box is read with
    `getBoundingClientRect`. Fixtures run at 1280 px DPR 1, 700 px DPR 1 and 1280 px DPR 2; fuzz files at 1280 px DPR 1.
 4. Paint (`probes.mjs`): pixel probes at fixed points of the border (inside, center, outside), shadow (offset, spread, order),
-   image (cover, contain, fill, clipping by a radius and an ellipse) and opacity fixtures, on both forms, whose
+   image (cover, contain, fill, clipping by a radius and an ellipse), opacity, gradient (angle, stop positions, radial, over the
+   fill and under the image), variable (a fill, a radius and an opacity bound to a variable, in the default mode and a picked one:
+   `f20` and `f21` carry `variables` and `modes` to the runner) and no-fill (`f22`) fixtures, on both forms, whose
    screenshots must also be identical pixel for pixel; and the falloff of a blurred shadow against the blur the canvas
    draws (Pixi `BlurFilter` as `Canvas` builds it). That last check does NOT go through the export: it compares a hand-written
    CSS `box-shadow` page with Pixi, i.e. how close the CSS blur model is to the canvas's. The shadows the export writes are
@@ -56,10 +58,10 @@ node oracle.mjs --seeds 500                     # what the nightly runs
 node oracle.mjs --seeds 50 --geometry-only      # skip the paint and ink oracles (the slow part is the browser start)
 node oracle.mjs f13-overflow fz-007 --seeds 10  # only these files (geometry only)
 npm test                                        # the gate on made-up results and the screenshot retry on a fake page (no browser)
-npm run sensitivity                             # the gate fails on a wrong export (mutations in geometry and paint are caught)
+npm run sensitivity                             # the gate fails on a wrong export (mutations in geometry and paint are caught; a mutation whose search string is not in an export counts as missed)
 ```
 
-The gate also fails when the run checks too little: fewer than 17 fixtures, fewer fuzz files than seeds, fewer than 30% of the
+The gate also fails when the run checks too little: fewer than 21 fixtures, a paint fixture (`PAINT_FIXTURES` in `gate.mjs`) with no probe in either form or no comparison of its two forms, fewer fuzz files than seeds, fewer than 30% of the
 seeds inside the contract, a missing or empty paint, ink or blur section, or `--seeds 0`. A fuzz file that carries `fill_under_hug` fails (rule G1 is applied to the fuzz
 files). Inside rule G3 only box deltas are excused.
 

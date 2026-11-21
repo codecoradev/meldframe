@@ -1,4 +1,4 @@
-// Oracle B and D: paint. Pixel probes on the exported pages (border, shadow, image, opacity; both forms, and the two forms must
+// Oracle B and D: paint. Pixel probes on the exported pages (border, shadow, image, opacity, gradient, fill bound to a variable, no fill; both forms, and the two forms must
 // draw the same pixels), and the falloff of a blurred shadow against the blur the canvas draws. The expectations come from the
 // model semantics of the contract (section 4), not from a canvas screenshot.
 import fs from 'node:fs';
@@ -7,8 +7,54 @@ import { decodePng, diffPixels, fontsReady, openMeasurePage, OUT, solve, writePa
 import { screenshot } from './screenshot.mjs';
 import fixtures from './fixtures.mjs';
 
-const C = { red: [255, 0, 0], green: [0, 255, 0], blue: [0, 0, 255], white: [255, 255, 255], pink: [255, 128, 128], mint: [128, 255, 128], lilac: [128, 128, 255] };
+const C = {
+  red: [255, 0, 0], green: [0, 255, 0], blue: [0, 0, 255], white: [255, 255, 255], pink: [255, 128, 128], mint: [128, 255, 128], lilac: [128, 128, 255],
+  yellow: [255, 255, 0], black: [0, 0, 0], gray: [128, 128, 128], purple: [128, 0, 128], zinc: [63, 63, 70] /* DEFAULT_FILL, #3f3f46 */,
+};
 const near = (p, c, t = 40) => p.every((v, i) => Math.abs(v - c[i]) <= t);
+/** The probes of one box: the offsets are from the box's top left corner, so a probe reads as "inside this box". */
+const at = (x0, y0, list) => list.map(([what, dx, dy, colour]) => [what, x0 + dx, y0 + dy, colour]);
+const gx = (i) => 40 + 180 * i;
+/** f19: the boxes of fixtures.mjs, in the order of the gradients. */
+const gradient = [
+  ...at(gx(0), 40, [['linear 90deg: the first stop is on the left', 20, 40, 'red'], ['linear 90deg: the last stop is on the right', 100, 40, 'blue']]),
+  ...at(gx(1), 40, [['linear with no angle is 180deg: first stop on top', 60, 15, 'red'], ['linear with no angle is 180deg: last stop at the bottom', 60, 65, 'blue']]),
+  ...at(gx(2), 40, [['linear 0deg points up: the first stop is at the bottom', 60, 65, 'red'], ['linear 0deg points up: the last stop is on top', 60, 15, 'blue']]),
+  ...at(gx(3), 40, [['linear 45deg: first stop at the bottom left', 10, 70, 'red'], ['linear 45deg: last stop at the top right', 110, 10, 'blue'], ['linear 45deg: the middle runs from top left to bottom right, top (not 90 or 135)', 45, 5, 'blue'], ['linear 45deg: and below it on the left (not 135 or 270)', 40, 70, 'red'], ['linear 45deg: and right of it, below the centre line (not 0)', 100, 50, 'blue']]),
+  ...at(gx(4), 40, [['two stops: near the first colour', 6, 40, 'black'], ['two stops: the middle is the mix', 60, 40, 'gray'], ['two stops: near the last colour', 114, 40, 'white']]),
+  ...at(gx(5), 40, [['stop positions: flat before the first position', 10, 40, 'red'], ['stop positions: the mix between 25% and 75%', 60, 40, 'purple'], ['stop positions: flat after the last position', 110, 40, 'blue']]),
+  ...at(gx(0), 160, [['radial: the first stop is the centre', 50, 50, 'red'], ['radial: inside the hard stop', 75, 50, 'red'], ['radial: beyond the hard stop', 95, 50, 'blue'], ['radial: the corner is the last stop', 8, 8, 'blue']]),
+  ...at(gx(1), 160, [['radial on a wide box: centre', 80, 40, 'red'], ['radial is a circle: inside the radius sideways', 110, 40, 'red'], ['radial is a circle, not an ellipse: beyond it sideways', 132, 40, 'blue'], ['radial is a circle, not an ellipse: inside it vertically', 80, 76, 'red']]),
+  ...at(gx(2), 160, [['gradient over the fill: the gradient on the left', 20, 40, 'blue'], ['gradient over the fill: transparent stops show the fill', 100, 40, 'green']]),
+  ...at(gx(3), 160, [['ellipse: first stop on the left', 30, 50, 'red'], ['ellipse: last stop on the right', 70, 50, 'blue'], ['ellipse: the corner is clipped', 4, 4, 'white']]),
+  ...at(gx(4), 160, [['rounded: the corner is clipped', 2, 2, 'white'], ['rounded: first stop on the left', 20, 40, 'red'], ['rounded: last stop on the right', 100, 40, 'blue']]),
+  ...at(gx(5), 160, [['under an image: the letterbox shows the gradient, top', 50, 10, 'green'], ['under an image: the letterbox shows the gradient, bottom', 50, 90, 'yellow'], ['under an image: the image is over the gradient, left', 25, 40, 'red'], ['under an image: the image is over the gradient, right', 75, 40, 'blue']]),
+];
+/** f20 and f21: what a fill bound to `brand/color/primary` (v1) and `brand/color/surface` (v2) paints in a mode, and the corner and the
+ *  opacity that `brand/radius/round` (v4, 40 or 0) and `brand/opacity/muted` (v5, 0.5 or 1) give. */
+const bound = ({ v1, v2, corner, muted }) => [
+  ...at(40, 40, [['bound fill', 50, 40, v1]]),
+  ...at(220, 40, [['alias of a variable', 50, 40, v1]]),
+  ...at(400, 40, [['bound fill with a radius', 50, 40, v2], ['bound fill with a radius: the corner is clipped', 2, 2, 'white']]),
+  ...at(580, 40, [['bound fill on an ellipse', 40, 40, v1], ['bound fill on an ellipse: the corner is clipped', 4, 4, 'white']]),
+  ...at(760, 40, [['bound fill on a frame', 80, 40, v2], ['bound fill on a child of a bound frame', 30, 40, v1]]),
+  ...at(40, 170, [['alias of a variable of another collection', 50, 40, v1]]),
+  ...at(220, 170, [['a binding that does not resolve paints the default fill', 50, 40, 'zinc']]),
+  ...at(400, 170, [['bound fill under a gradient: the gradient', 20, 40, 'blue'], ['bound fill under a gradient: transparent stops show the bound fill', 80, 40, v2]]),
+  ...at(580, 170, [['bound fill under an image: the letterbox, top', 50, 6, v2], ['bound fill under an image: the letterbox, bottom', 50, 74, v2], ['bound fill under an image: the image, left', 25, 40, 'red'], ['bound fill under an image: the image, right', 75, 40, 'blue']]),
+  ...at(760, 170, [['bound radius: the corner', 2, 2, corner], ['bound radius: the middle is the fill', 50, 40, 'green']]),
+  ...at(40, 300, [['bound opacity', 50, 40, muted]]),
+  ['the bound fill of the stage', 20, 20, 'white'],
+];
+/** f22: no fill. */
+const noFill = [
+  ['fill none on a rect shows what is behind', 90, 80, 'white'],
+  ['a frame with fill none shows the box behind it', 300, 90, 'green'], ['a frame with fill none keeps its border', 243, 90, 'red'],   ['a layout frame with fill none paints its child', 480, 80, 'blue'], ['a layout frame with fill none paints nothing of its own', 570, 80, 'white'],
+  ['a node with no fill at all takes the default fill', 690, 80, 'zinc'],
+  ['fill none under a gradient: the gradient', 800, 80, 'red'], ['fill none under a gradient: transparent stops show what is behind', 920, 80, 'white'],
+  ['an ellipse with fill none: the ring', 44, 220, 'red'], ['an ellipse with fill none: the inside shows what is behind', 90, 220, 'white'], ['an ellipse with fill none: outside the ring', 42, 172, 'white'],
+  ['fill none under an image: the letterbox shows what is behind', 250, 180, 'white'], ['fill none under an image: the image, left', 225, 220, 'red'], ['fill none under an image: the image, right', 275, 220, 'blue'],
+];
 
 /** [fixture, viewport, probes]; a probe is [what, x, y, colour]. */
 const CASES = [
@@ -29,6 +75,10 @@ const CASES = [
     ['cover on a 160x100 box: red side', 680, 90, 'red'], ['cover on a 160x100 box: blue side', 760, 90, 'blue'],
     ['a radius clips the image corner', 641, 41, 'white'], ['an ellipse clips the image corner', 841, 41, 'white'], ['ellipse: centre left is red', 880, 90, 'red'],
   ]],
+  ['f19-gradient', { width: 1160, height: 300 }, gradient],
+  ['f20-variable-fill', { width: 1000, height: 400 }, bound({ v1: 'red', v2: 'green', corner: 'white', muted: 'pink' })],
+  ['f21-variable-modes', { width: 1000, height: 400 }, bound({ v1: 'blue', v2: 'yellow', corner: 'green', muted: 'red' })],
+  ['f22-no-fill', { width: 1000, height: 300 }, noFill],
   ['f18-opacity', { width: 300, height: 100 }, [
     ['opacity 0.5 on a red rect over white', 60, 50, 'pink'], ['opacity 0.5 on a frame: the fill is half', 170, 70, 'mint'], ['opacity 0.5 on a frame: its child is half too, not opaque', 200, 40, 'lilac'],
   ]],
@@ -37,7 +87,7 @@ const CASES = [
 /** `mutate(form, exported)` as in geometry.mjs: the sensitivity check loads a wrong export. */
 export async function paint({ browser, base, log = () => {}, mutate = (_form, e) => e }) {
   const docs = CASES.map(([name]) => fixtures.find((f) => f.name === name));
-  const { out } = await solve(docs.map(({ name, nodes }) => ({ name, nodes })), await openMeasurePage(browser, base));
+  const { out } = await solve(docs.map(({ name, nodes, variables, modes }) => ({ name, nodes, variables, modes })), await openMeasurePage(browser, base));
   const probes = [], forms = [];
   for (const [i, [name, viewport, list]] of CASES.entries()) {
     const shots = {};

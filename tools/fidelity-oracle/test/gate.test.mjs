@@ -7,6 +7,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { KNOWN_GAPS } from '../known-gaps.mjs';
+import { FLOORS, PAINT_FIXTURES } from '../gate.mjs';
 import { overflowing } from '../geometry.mjs';
 
 const gate = path.join(path.dirname(fileURLToPath(import.meta.url)), '../gate.mjs');
@@ -17,8 +18,10 @@ const exit = (files, more = {}) => {
   const r = spawnSync('node', [gate, file], { encoding: 'utf8' });
   return { code: r.status, out: r.stdout };
 };
+/** One passing probe, in each form, for every fixture the paint oracle must cover. */
+const probesFor = (names) => names.flatMap((n) => ['css', 'tailwind'].map((form) => ({ id: `${n} ${form}: a probe`, at: [1, 1], want: 'red', got: [255, 0, 0], ok: true })));
 const sections = {
-  paint: { probes: [{ id: 'border inside: stripe', at: [43, 80], want: 'red', got: [255, 0, 0], ok: true }], forms: [{ fixture: 'f07-decor', differing: 0 }] },
+  paint: { probes: probesFor(PAINT_FIXTURES), forms: PAINT_FIXTURES.map((fixture) => ({ fixture, differing: 0 })) },
   ink: { rows: [{ id: 'hug700', form: 'css', dLeft: 0, dRight: 0, dTop: 0, dBottom: 0 }], worst: 0 },
   blur: [{ blur: 8, maxAbs: 19 }],
 };
@@ -27,7 +30,7 @@ const gaps = Object.keys(KNOWN_GAPS);
 const standing = (g, over = {}) => run(g, 5, { warnings: [`${KNOWN_GAPS[g].warning}x`], runs: { 'css@1280@1': { max: 5, worst: KNOWN_GAPS[g].nodes[0], missing: 0, fontOk: true, bad: [KNOWN_GAPS[g].nodes[0]] } }, ...over });
 const fz = (i, over = {}) => run(`fz-${i}`, 0, { fuzz: true, unspecified: false, g3: false, ...over });
 /** A full run: the floor of fixtures, the standing gaps, and 10 seeds of which 7 are inside the contract. */
-const full = () => [...gaps.map((g) => standing(g)), ...Array.from({ length: 17 - gaps.length }, (_, i) => run(`f${i}`, 0.01)), ...Array.from({ length: 10 }, (_, i) => fz(i, i < 3 ? { unspecified: true, g3: true } : {}))];
+const full = () => [...gaps.map((g) => standing(g)), ...Array.from({ length: FLOORS.fixtures - gaps.length }, (_, i) => run(`f${i}`, 0.01)), ...Array.from({ length: 10 }, (_, i) => fz(i, i < 3 ? { unspecified: true, g3: true } : {}))];
 const without = (files, name) => files.filter((f) => f.name !== name);
 const swap = (files, name, over) => files.map((f) => (f.name === name ? { ...f, ...over } : f));
 
@@ -94,10 +97,28 @@ test('a run without the paint, ink or blur section, or with an empty one, fails;
   assert.equal(exit(full(), { paint: undefined, ink: undefined, blur: undefined, geometryOnly: true }).code, 0);
 });
 test('a paint probe that fails, or two forms that draw different pixels, fail', () => {
-  const probe = (ok) => ({ probes: [{ id: 'border inside: stripe', at: [43, 80], want: 'red', got: [0, 255, 0], ok }], forms: [{ fixture: 'f07-decor', differing: 0 }] });
+  const probe = (ok) => ({ probes: [...sections.paint.probes, { id: 'f07-decor css: border inside: stripe', at: [43, 80], want: 'red', got: [0, 255, 0], ok }], forms: sections.paint.forms });
   assert.equal(exit(full(), { paint: probe(true) }).code, 0);
   assert.equal(exit(full(), { paint: probe(false) }).code, 1);
-  assert.equal(exit(full(), { paint: { probes: sections.paint.probes, forms: [{ fixture: 'f07-decor', differing: 12 }] } }).code, 1);
+  const forms = sections.paint.forms.map((f) => (f.fixture === 'f07-decor' ? { ...f, differing: 12 } : f));
+  assert.equal(exit(full(), { paint: { probes: sections.paint.probes, forms } }).code, 1);
+});
+test('the paint oracle must probe, in both forms, gradients, fills bound to a variable (default and picked mode) and no fill', () => {
+  for (const name of ['f19-gradient', 'f20-variable-fill', 'f21-variable-modes', 'f22-no-fill']) {
+    assert.ok(PAINT_FIXTURES.includes(name), `${name} is a required paint fixture`);
+    const probes = sections.paint.probes.filter((p) => !p.id.startsWith(`${name} `));
+    const r = exit(full(), { paint: { probes, forms: sections.paint.forms } });
+    assert.equal(r.code, 1, `no probe of ${name}`);
+    assert.match(r.out, new RegExp(`no (css|tailwind) paint probe for ${name}`));
+  }
+  for (const form of ['css', 'tailwind']) {
+    const probes = sections.paint.probes.filter((p) => p.id !== `f22-no-fill ${form}: a probe`);
+    const r = exit(full(), { paint: { probes, forms: sections.paint.forms } });
+    assert.equal(r.code, 1, `f22 probed in one form only (no ${form})`);
+    assert.match(r.out, new RegExp(`no ${form} paint probe for f22-no-fill`));
+  }
+  const forms = sections.paint.forms.filter((f) => f.fixture !== 'f22-no-fill');
+  assert.equal(exit(full(), { paint: { probes: sections.paint.probes, forms } }).code, 1, 'the two forms of f22 are not compared');
 });
 test('text ink more than 1 px from the canvas text fails, and so does a case with no ink to compare', () => {
   const ink = (d, extra = {}) => ({ rows: [{ id: 'hug700', form: 'css', dLeft: 0, dRight: d, dTop: 0, dBottom: 0, ...extra }], worst: Math.abs(d) });

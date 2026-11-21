@@ -7,7 +7,11 @@ import { OUT } from './lib.mjs';
 
 export const LIMITS = { geometry: 0.05, tailwind: 0.001, ink: 1, blur: 20 };
 /** A run that checks less than this is not a run of the oracle: the hand-written fixtures, and the share of the seeds the gate must hold. */
-export const FLOORS = { fixtures: 17, gatedShare: 0.3 };
+export const FLOORS = { fixtures: 21, gatedShare: 0.3 };
+/** The fixtures the paint oracle must probe (probes.mjs): a run without a probe in each form for one, or without the pixel comparison of its two
+ *  forms, is not a run of the oracle. The fills of the contract: solid and image (f07, f08), opacity (f18), gradients (f19), a fill
+ *  bound to a variable in the default mode and in a picked one (f20, f21) and no fill (f22). */
+export const PAINT_FIXTURES = ['f07-decor', 'f08-image', 'f18-opacity', 'f19-gradient', 'f20-variable-fill', 'f21-variable-modes', 'f22-no-fill'];
 
 /** The violations in a results object, as lines of text. */
 export function evaluate(results) {
@@ -27,6 +31,12 @@ export function evaluate(results) {
     // a missing or empty section is a run that checked nothing
     if (!results.paint?.probes?.length) fail.push('the paint oracle ran no probes');
     if (!results.paint?.forms?.length) fail.push('the paint oracle compared no pages of the two forms');
+    for (const name of PAINT_FIXTURES) {
+      for (const form of ['css', 'tailwind']) {
+        if (!(results.paint?.probes ?? []).some((p) => p.id.startsWith(`${name} ${form}: `))) fail.push(`no ${form} paint probe for ${name}`);
+      }
+      if (!(results.paint?.forms ?? []).some((f) => f.fixture === name)) fail.push(`the paint oracle did not compare the two forms of ${name}`);
+    }
     if (!results.ink?.rows?.length) fail.push('the text ink oracle ran no case');
     if (!results.blur?.length) fail.push('the blur check ran no case');
   }
