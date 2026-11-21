@@ -1180,8 +1180,10 @@ name = "meldframe-app-export-tests"
 version = "0.0.0"
 dependencies = [
  "meldframe-app",
+ "meldframe-app-model",
  "meldframe-protocol",
  "serde_json",
+ "variables-import-dialog",
  "wasm-bindgen-test",
 ]
 
@@ -3599,6 +3601,16 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-variables",
+]
+
+[[package]]
+name = "variables-import-dialog"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app-model",
+ "meldframe-app-rules",
+ "meldframe-protocol",
+ "variables-import",
 ]
 
 [[package]]

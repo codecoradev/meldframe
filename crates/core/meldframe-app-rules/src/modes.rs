@@ -61,13 +61,22 @@ pub fn check_edit(
     vars: &Variables,
     commands: &[Command],
 ) -> Result<(), EditRefusal> {
+    check_edit_at(nodes, vars, commands).map_err(|(_, e)| e)
+}
+
+/// [`check_edit`], and the place in the list of the command that is refused, so a caller can name what it is about.
+pub fn check_edit_at(
+    nodes: &[Node],
+    vars: &Variables,
+    commands: &[Command],
+) -> Result<(), (usize, EditRefusal)> {
     let limits = Limits::default();
     let mut vars = vars.clone();
-    for c in commands {
+    for (i, c) in commands.iter().enumerate() {
         if !is_variable_command(c) {
-            return Err(EditRefusal::NotVariable);
+            return Err((i, EditRefusal::NotVariable));
         }
-        check_command_with(nodes, &vars, c, &limits).map_err(EditRefusal::Invalid)?;
+        check_command_with(nodes, &vars, c, &limits).map_err(|e| (i, EditRefusal::Invalid(e)))?;
         apply(&mut vars, c);
     }
     Ok(())

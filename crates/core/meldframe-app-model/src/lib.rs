@@ -34,4 +34,7 @@ pub use variables::{
     BindField, BindOption, CollectionRow, ModeValue, Picker, PickerRow, TypeHeading, VariableRow,
     VariableValue, VariablesPanel,
 };
-pub use variables_io::{VariablesExportDialog, VariablesIo};
+pub use variables_io::{
+    ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,
+    VariablesImportResult, VariablesIo,
+};

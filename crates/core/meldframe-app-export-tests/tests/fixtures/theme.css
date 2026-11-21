@@ -1,0 +1,15 @@
+:root {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --primary: var(--foreground);
+  --radius: 8px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+}
+.dark {
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+}
+@theme {
+  --color-brand-500: oklch(0.6 0.2 250);
+  --spacing-4: 1rem;
+}
