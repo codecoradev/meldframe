@@ -1,7 +1,7 @@
 import { mount, unmount } from 'svelte';
 import './app.css';
 import { Engine, loadWasm } from '@meldframe/web-link/engine';
-import { Shell, browserEnv, type CaptureRequest } from '@meldframe/web-link/shell';
+import { Shell, browserEnv, type CaptureRequest } from '@meldframe/web-transport/shell';
 import App from './App.svelte';
 import Editor from './Editor.svelte';
 import ErrorPage from '@meldframe/web-feedback/ErrorPage.svelte';

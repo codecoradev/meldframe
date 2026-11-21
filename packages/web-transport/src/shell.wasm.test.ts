@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type { Command, Node } from '@meldframe/protocol';
 import { beforeAll, describe, expect, it } from 'vitest';
-import type { Engine as EngineType } from './engine';
+import type { Engine as EngineType } from '@meldframe/web-link/engine';
 import { Shell, type Env, type SocketLike } from './shell';
 
 // These tests drive the real app layer through the WASM build (`just wasm-build`, tools/build-wasm.sh). Without
@@ -12,7 +12,7 @@ let Engine: typeof EngineType;
 
 beforeAll(async () => {
   if (!built) return;
-  const mod = await import('./engine');
+  const mod = await import('@meldframe/web-link/engine');
   await mod.loadWasm(readFileSync(wasmFile));
   Engine = mod.Engine as unknown as typeof EngineType;
 });
