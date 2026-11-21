@@ -2,13 +2,15 @@
   The Variables section of the inspector, as the Variables, ModeSwitch and Inspector boards draw it: a search, the
   collections with their mode switch, and the variables listed by type with a swatch, the name and the value of the mode
   on view in the mono face (an alias as a chip with the name it points at). It draws the rows the app layer gives it
-  (order, headings, checks) and reports input as actions (see variables.ts); it holds no state of its own.
+  (order, headings, checks) and reports input as actions (see variables.ts). It holds one bit of view state: whether the
+  manage view (ManageDialog) is open.
 -->
 <script lang="ts">
-  import type { Action, VariableRow, VariablesPanel } from '@meldframe/protocol';
+  import type { Action, Event, VariableRow, VariablesPanel } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
+  import ManageDialog from './ManageDialog.svelte';
   import { FIELD_LABEL, TYPE_LABEL, bindAction, display, listedCount, modeAction, modeName, shownValue, swatch, truncated, valueAction } from './variables';
 
   interface Props {
@@ -16,8 +18,18 @@
     /** The id of the one selected node, which the bind buttons act on; none for no selection or several. */
     target: string | null;
     dispatch: (a: Action) => void;
+    /** The events of the last dispatch: the manage view words a refusal and finds what it added from them. */
+    events?: readonly Event[];
   }
-  let { panel, target, dispatch }: Props = $props();
+  let { panel, target, dispatch, events = [] }: Props = $props();
+
+  // The manage view reads the whole list: it starts with the search cleared (the counts of a removal are of what is listed).
+  let manageOpen = $state(false);
+  let manageButton = $state<HTMLElement | null>(null);
+  const setManage = (open: boolean) => {
+    manageOpen = open;
+    if (open && panel.query.trim() !== '') dispatch({ type: 'setVariablesQuery', query: '' });
+  };
 
   const commit = (row: VariableRow, mode: string) => (raw: string) => {
     const a = valueAction(row, mode, raw);
@@ -27,7 +39,11 @@
 
 <div class="flex flex-col gap-2 text-small text-text" data-testid="variables">
   <Field label="Search variables" prefix="Search" size="dense" value={panel.query} onInput={(q) => dispatch({ type: 'setVariablesQuery', query: q })} testId="var-search" />
-  <p class="m-0 text-right text-caption text-text-muted" data-testid="var-count">{panel.matched} of {panel.total}</p>
+  <div class="flex items-center justify-between gap-2">
+    <span bind:this={manageButton} class="contents"><Button size="sm" onclick={() => setManage(true)} data-testid="var-manage">Manage</Button></span>
+    <p class="m-0 text-right text-caption text-text-muted" data-testid="var-count">{panel.matched} of {panel.total}</p>
+  </div>
+  <ManageDialog open={manageOpen} onOpenChange={setManage} {panel} {events} {dispatch} opener={() => manageButton?.querySelector('button')} />
   {#each panel.collections.filter((c) => c.modes.length > 1) as c (c.id)}
     <div class="flex flex-col gap-1">
       <span class="truncate text-caption font-semibold text-text-muted" title={c.name}>{c.name}</span>

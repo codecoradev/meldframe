@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { Event } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
 import { noticeFor, noticeFromEvents } from './notices';
@@ -79,5 +80,62 @@ describe('noticeFor refusals of the inspector', () => {
       expect(text, code).not.toContain(code);
       expect(text, code).not.toMatch(/server|was not made/i);
     }
+  });
+});
+
+// The Variables manage view (D8): every code its actions can come back with has words of its own. The codes are read
+// from the Rust sources and the table of docs/error-codes.md, so a new code of the core fails here until it is sorted.
+describe('the codes of the Variables manage actions', () => {
+  const root = new URL('../../../', import.meta.url);
+  const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
+  const errors = read('crates/core/meldframe-variables/src/error.rs');
+  const listed = errors.slice(errors.indexOf('VAR_ERROR_CODES'), errors.indexOf('];'));
+  const common = errors.slice(errors.indexOf('A value rule that nodes share'), errors.indexOf('Common {'));
+  const codes = [...listed.matchAll(/"(E_[A-Z_]+)"/g), ...common.matchAll(/`(E_[A-Z_]+)`/g)].map((m) => m[1]!);
+  // What the six actions can come back with: from the app layer (the check of the group, a name that is refused) or
+  // from the server (an op that lost a race with another actor's).
+  const REACHABLE = ['E_INVALID_NAME', 'E_DUPLICATE_NAME', 'E_TOO_LONG', 'E_TOO_MANY_ENTRIES', 'E_COLLECTION_NOT_FOUND', 'E_MODE_NOT_FOUND', 'E_VARIABLE_NOT_FOUND', 'E_DEFAULT_MODE', 'E_VARIABLE_IN_USE', 'E_COLLECTION_NOT_EMPTY', 'E_INCOMPLETE_VALUES', 'E_INVALID_MODES', 'E_DUPLICATE_ID'];
+  // The rest belong to values, bindings and aliases (the Variables panel words them) or to a caller that is not a replica;
+  // the ids and the values of the manage actions are made by the app layer.
+  const NOT_REACHABLE = ['E_TYPE_MISMATCH', 'E_ALIAS_CYCLE', 'E_ALIAS_TOO_DEEP', 'E_NO_VARIABLES', 'E_INVALID_ID', 'E_INVALID_COLOR', 'E_NOT_FINITE', 'E_OUT_OF_RANGE'];
+  const refused = (code: string) => ({ type: 'refused', code }) as Event;
+  const rejected = (code: string) => ({ type: 'opRejected', key: 'k', code, node: null, retryable: false }) as Event;
+
+  it('sorts every variable code of the core as reachable from the actions or not', () => {
+    expect(codes.length).toBeGreaterThan(15);
+    for (const code of codes) expect([...REACHABLE, ...NOT_REACHABLE], code).toContain(code);
+    for (const code of [...REACHABLE, ...NOT_REACHABLE]) expect(codes, code).toContain(code);
+  });
+  it('has words for each reachable code, as a refusal of the app and as a rejection by the server, with no code in them', () => {
+    for (const code of [...REACHABLE, 'outbox_full']) {
+      for (const e of [refused(code), rejected(code)]) {
+        const text = noticeFor(e)!;
+        expect(text, code).not.toContain(code);
+        expect(text, code).not.toMatch(/^The (change was not made|server refused)/);
+        expect(text.length, code).toBeGreaterThan(20);
+      }
+    }
+  });
+  it('lists each reachable code in the table of docs/error-codes.md', () => {
+    const doc = read('docs/error-codes.md');
+    for (const code of REACHABLE) expect(doc, code).toContain(`| \`${code}\` |`);
+  });
+  it('says what to do about a removal that was refused, in the words of the view (Detach)', () => {
+    // The question has closed when the refusal arrives: the words say to ask again.
+    expect(noticeFor(refused('E_VARIABLE_IN_USE'))).toMatch(/Remove it again and choose Detach/);
+    expect(noticeFor(refused('E_COLLECTION_NOT_EMPTY'))).toMatch(/Remove it again and choose Detach/);
+    expect(noticeFor(refused('outbox_full'))).toMatch(/nothing was changed|not changed/i);
+  });
+  it('keeps the words of the limits and of the id that the nodes share free of variables, collections and modes', () => {
+    // The core uses these three for nodes, texts, shadows and gradient stops too (meldframe-check error.rs): the toast of the
+    // editor must not talk about variables. The manage view words them for what it sent (manage.ts).
+    for (const code of ['E_TOO_LONG', 'E_TOO_MANY_ENTRIES', 'E_DUPLICATE_ID']) {
+      for (const e of [refused(code), rejected(code)]) expect(noticeFor(e), code).not.toMatch(/variable|collection|mode|name/i);
+    }
+  });
+  it('words a default mode that cannot go, and a duplicate name, as the rule of the view', () => {
+    expect(noticeFor(refused('E_DEFAULT_MODE'))).toMatch(/first mode/i);
+    expect(noticeFor(refused('E_DUPLICATE_NAME'))).toMatch(/already/i);
+    expect(noticeFor(refused('E_INVALID_NAME'))).toMatch(/lowercase/i);
   });
 });

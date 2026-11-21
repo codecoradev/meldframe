@@ -1,6 +1,9 @@
 // What a refusal says to the person. Pure.
 import type { Event } from '@meldframe/protocol';
 
+/** The rule of the name of a variable or a collection (`valid_name` in meldframe-variables), as the field and the refusal both say it. */
+export const NAME_RULE_WORDS = 'Use lowercase letters, digits and single hyphens, with / between the parts, such as color/brand-500.';
+
 const WORDS: Record<string, string> = {
   forbidden: 'This change is not allowed.',
   approval_required: "This delete needs the owner's approval and was not done.",
@@ -12,7 +15,24 @@ const WORDS: Record<string, string> = {
   stale_client: 'This page is out of date. Reload it.',
   quota_storage: 'The workspace storage is full. Your files are unchanged; edits that add data are paused until space is freed.',
   rate_limited: 'Too fast: wait a moment and try again.',
-  outbox_full: 'Too many changes are waiting for the server. Wait until it catches up.',
+  outbox_full: 'Too many changes are waiting for the server, so nothing was changed. Wait until it catches up, then try again.',
+  // The Variables manage view. Each of these can come back from the app layer before anything is sent, or from the server
+  // when an op lost a race with another actor's, so the words fit both. The limits are those of `Limits` in meldframe-check.
+  E_INVALID_NAME: NAME_RULE_WORDS,
+  E_DUPLICATE_NAME: 'A variable in this collection already has that name.',
+  // The core uses these three for nodes, texts, shadows and gradient stops as well as for variables, so the words here name
+  // none of them; the manage view words them for what it sent (web-panels manage.ts).
+  E_TOO_LONG: 'That text is longer than this field allows. Shorten it.',
+  E_TOO_MANY_ENTRIES: 'That would go over a limit: there are already as many as the file allows. Remove one first.',
+  E_DEFAULT_MODE: 'The first mode is the default one and stays. Remove another mode.',
+  E_VARIABLE_IN_USE: 'Something still uses this variable, so it was not removed. Remove it again and choose Detach to turn each use into its value.',
+  E_COLLECTION_NOT_EMPTY: 'This collection still has variables, so it was not removed. Remove it again and choose Detach to remove them with it.',
+  E_VARIABLE_NOT_FOUND: 'That variable no longer exists.',
+  E_MODE_NOT_FOUND: 'That mode no longer exists.',
+  E_COLLECTION_NOT_FOUND: 'That collection no longer exists.',
+  E_INCOMPLETE_VALUES: 'The modes of this collection changed at the same moment, so the variable was not added. Try again.',
+  E_INVALID_MODES: 'That mode could not be added to this collection.',
+  E_DUPLICATE_ID: 'Something with the same id exists already. Try again.',
 };
 
 // Refusals made on this page, before anything is sent: the Variables panel and the checks of the document.
@@ -32,9 +52,6 @@ const LOCAL: Record<string, string> = {
   E_TYPE_MISMATCH: 'That variable has the wrong type for this field.',
   E_ALIAS_CYCLE: 'An alias cannot lead back to itself.',
   E_ALIAS_TOO_DEEP: 'That chain of aliases is too long.',
-  E_VARIABLE_NOT_FOUND: 'That variable no longer exists.',
-  E_MODE_NOT_FOUND: 'That mode no longer exists.',
-  E_COLLECTION_NOT_FOUND: 'That collection no longer exists.',
 };
 
 /** The message for a refusal, null for any other event and for a rejection that the app sends again by itself. */
