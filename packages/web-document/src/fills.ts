@@ -3,7 +3,7 @@
 // a click or a typed text into the action to send, or into nothing when there is nothing to send. Pure.
 import type { Action, FillKind, Gradient, Properties } from '@meldframe/protocol';
 
-/** The types the switch offers, in the order of the Fill board. Image is shown when the node has one, not offered. */
+/** The types the switch offers, in the order of the Fill board. The Image type is added by the panel (`fillTypes` in web-panels), since it opens a picker. */
 export const FILL_TYPES: { value: FillKind; label: string }[] = [
   { value: 'solid', label: 'Solid' },
   { value: 'linear', label: 'Linear' },
@@ -13,7 +13,7 @@ export const FILL_TYPES: { value: FillKind; label: string }[] = [
 
 const set = (p: Properties, property: Extract<Action, { type: 'setProperty' }>['property']): Action => ({ type: 'setProperty', id: p.id, property });
 
-/** The type switch: nothing to send for the type the fill has already, or for the image (it cannot be picked here). */
+/** The type switch: nothing to send for the type the fill has already, or for the image (it is chosen in the picker: `Action::OpenAssets`). */
 export function fillTypeAction(p: Properties, kind: FillKind): Action | null {
   return kind === p.fillKind || kind === 'image' ? null : set(p, { property: 'fillType', value: kind });
 }

@@ -1,43 +1,77 @@
 <!--
   The Fill section as the Properties, Inspector and Fill-and-layout boards draw it: the type switch (solid, linear,
-  radial, none), then the fields of the type: a colour with the bind button (or the chip of the variable it is bound to),
-  or a gradient with its angle, a bar, its stops and a button to add one. An image fill is shown, not picked: the app
-  layer has no way to choose an asset yet. It draws the document and reports input as actions (see fills.ts).
+  radial, image, none), then the fields of the type: a colour with the bind button (or the chip of the variable it is bound to),
+  or a gradient with its angle, a bar, its stops and a button to add one. The Image type opens the image picker (the
+  workspace's images, ImageFillPicker; open while the app state says so); an image fill shows its thumbnail and short id,
+  a button to change it and its fit. It draws the document and reports input as actions (see fills.ts and images.ts).
 -->
 <script lang="ts">
-  import type { Snippet } from 'svelte';
-  import type { Action, BindField, FieldBinding, Picker, Properties } from '@meldframe/protocol';
+  import { tick, type Snippet } from 'svelte';
+  import type { Action, AssetsState, BindField, FieldBinding, ImageFit, Picker, Properties } from '@meldframe/protocol';
+  import { assetUrl, isAssetId } from '@meldframe/web-assets/assets';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
-  import { addStopAction, angleAction, FILL_TYPES, fillTypeAction, gradientBar, removeStopAction, stopColorAction, stopPercent, stopPosAction } from '@meldframe/web-document/fills';
+  import { addStopAction, angleAction, fillTypeAction, gradientBar, removeStopAction, stopColorAction, stopPercent, stopPosAction } from '@meldframe/web-document/fills';
   import { bindingOf, propertyAction } from '@meldframe/web-document/properties';
   import BindPicker from './BindPicker.svelte';
+  import ImageFillPicker from './ImageFillPicker.svelte';
+  import { fillTypes, fitAction, IMAGE_FITS, openAssetsAction, shortId } from './images';
+
+  const CLOSED: AssetsState = { items: [], loading: false, loaded: false, capped: false, request: 0 };
 
   interface Props {
     properties: Properties;
     picker: Picker | null;
+    /** The image picker of the app state: open for the node it names, with the images read so far. */
+    assets?: AssetsState;
     dispatch: (a: Action) => void;
     /** The chip of a bound field, drawn by the panel so every bound field looks alike. */
     chip: Snippet<[string, BindField, FieldBinding, string]>;
   }
-  let { properties: p, picker, dispatch, chip }: Props = $props();
+  let { properties: p, picker, assets = CLOSED, dispatch, chip }: Props = $props();
   const send = (a: Action | null) => {
     if (a) dispatch(a);
   };
   const fill = $derived(bindingOf(p, 'fill'));
-  // What the node can take is the app layer's to say; an image fill is not offered, but it is marked when the node has one.
-  const types = $derived([...(p.gradientAllowed ? FILL_TYPES : FILL_TYPES.filter((t) => t.value === 'solid' || t.value === 'none')), ...(p.fillKind === 'image' ? [{ value: 'image' as const, label: 'Image' }] : [])]);
+  // What the node can take is the app layer's to say (gradientAllowed, imageAllowed).
+  const types = $derived(fillTypes(p));
+  const open = $derived(assets.target === p.id);
+  const choose = (k: string) => send(k === 'image' ? openAssetsAction(p) : fillTypeAction(p, k as typeof p.fillKind));
+  // The picker closed for this node (a choice, Escape or its button) and focus fell to the page: put it back on the switch.
+  // A picker that closed because another node was selected, or because the person clicked somewhere else, leaves focus alone.
+  let host: HTMLElement | undefined = $state();
+  let was: string | null = null;
+  $effect(() => {
+    const now = open ? p.id : null;
+    const closed = was === p.id && now === null;
+    was = now;
+    if (!closed) return;
+    void tick().then(() => {
+      if (document.activeElement && document.activeElement !== document.body) return;
+      host?.querySelector<HTMLElement>('[role=radio][aria-checked=true]')?.focus();
+    });
+  });
   const swatch = $derived(p.fill === 'none' ? 'transparent' : p.fill);
 </script>
 
 <Section title="Fill">
-  <Segmented label="Fill type" options={types} value={p.fillKind} onChange={(k) => send(fillTypeAction(p, k as typeof p.fillKind))} data-testid="prop-fill-type" />
+  <div bind:this={host} class="contents">
+    <Segmented label="Fill type" options={types} value={p.fillKind} onChange={choose} data-testid="prop-fill-type" />
+  </div>
+  {#if open}
+    <ImageFillPicker properties={p} {assets} {dispatch} />
+  {/if}
   {#if p.fillKind === 'solid' || p.fillKind === 'none' || p.fillKind === 'image'}
     {#if p.fillKind === 'image' && p.image}
-      <p class="m-0 text-text-muted" data-testid="prop-fill-image">Image fill, {p.image.fit}. Choosing an image is not available here yet.</p>
+      <div class="flex items-center gap-2" data-testid="prop-fill-image">
+        <span class="block size-8 shrink-0 overflow-hidden rounded-sm border border-border bg-field">{#if isAssetId(p.image.assetId)}<img src={assetUrl(p.image.assetId)} alt="" decoding="async" class="size-full object-contain" />{/if}</span>
+        <span class="min-w-0 flex-1 truncate font-mono text-caption" title={p.image.assetId}>Image {shortId(p.image.assetId)}</span>
+        <Button size="sm" onclick={() => send(openAssetsAction(p))} data-testid="prop-fill-image-change">Change image</Button>
+      </div>
+      <Segmented label="Image fit" options={IMAGE_FITS} value={p.image.fit} onChange={(f) => send(fitAction(p, f as ImageFit))} data-testid="prop-fill-image-fit" />
     {/if}
     {#if p.fillKind === 'solid'}
       {#if fill}

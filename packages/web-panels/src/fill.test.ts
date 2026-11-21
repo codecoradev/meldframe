@@ -21,10 +21,10 @@ const labels = (out: string, group: string): string[] => {
 };
 
 describe('the Fill section as the boards draw it', () => {
-  it('has the type switch with solid, linear, radial and none, the chosen one checked', () => {
+  it('has the type switch with solid, linear, radial, image and none, the chosen one checked', () => {
     const out = html(base);
     expect(out).toContain('aria-label="Fill type"');
-    expect(labels(out, 'Fill type')).toEqual(['Solid', 'Linear', 'Radial', 'None']);
+    expect(labels(out, 'Fill type')).toEqual(['Solid', 'Linear', 'Radial', 'Image', 'None']);
     expect(checked(out, 'Fill type')).toEqual(['Solid']);
     expect(checked(html({ ...base, fillKind: 'linear', gradient }), 'Fill type')).toEqual(['Linear']);
     expect(checked(html({ ...base, fill: 'none', fillKind: 'none' }), 'Fill type')).toEqual(['None']);
@@ -53,7 +53,7 @@ describe('the Fill section as the boards draw it', () => {
     expect(radial).not.toContain('data-testid="prop-gradient-angle"');
   });
   it('offers no gradient on text', () => {
-    const out = html({ ...base, kind: 'text', gradientAllowed: false });
+    const out = html({ ...base, kind: 'text', gradientAllowed: false, imageAllowed: false });
     expect(labels(out, 'Fill type')).toEqual(['Solid', 'None']);
   });
   it('takes the limits of the stops from the app layer: no add at the most, no remove at the fewest', () => {
@@ -68,17 +68,30 @@ describe('the Fill section as the boards draw it', () => {
     expect(off(at(2, 8), 'prop-gradient-remove')).toEqual([false, false, false]);
     expect(off(at(4, 8), 'prop-gradient-remove')).toEqual([true, true, true]);
   });
-  it('marks the image type when the node has an image fill, and offers it for no other', () => {
+  it('marks the image type when the node has an image fill, and offers it to a node that can hold one but not to text', () => {
     const out = html({ ...base, fillKind: 'image', image: { assetId: 'a'.repeat(64), fit: 'cover' } });
     expect(checked(out, 'Fill type')).toEqual(['Image']);
-    expect(labels(html(base), 'Fill type')).not.toContain('Image');
+    expect(labels(html(base), 'Fill type')).toContain('Image');
+    expect(labels(html({ ...base, kind: 'text', gradientAllowed: false, imageAllowed: false }), 'Fill type')).not.toContain('Image');
   });
-  it('says an image is shown but cannot be picked yet', () => {
+  it('draws no thumbnail for an image fill whose id is not an asset id (the file is the sender\'s, not trusted)', () => {
+    const out = html({ ...base, fillKind: 'image', image: { assetId: '../../etc/passwd', fit: 'cover' } });
+    expect(out).toContain('data-testid="prop-fill-image"');
+    expect(out).not.toContain('/v1/assets/');
+    expect(out).not.toContain('<img');
+  });
+  it('shows the image fill with its short id, a way to change it and its fit', () => {
     const out = html({ ...base, fillKind: 'image', gradientAllowed: true, minStops: 2, maxStops: 8, image: { assetId: 'a'.repeat(64), fit: 'cover' } });
     expect(out).toContain('data-testid="prop-fill-image"');
     // The colour under an image does nothing here, so there is no field for it and no bind button.
     expect(out).not.toContain('data-testid="prop-fill"');
     expect(out).not.toContain('data-testid="prop-fill-bind"');
-    expect(out).toContain('not available here yet');
+    expect(out).toContain('Image aaaaaaaa');
+    expect(out).toContain('data-testid="prop-fill-image-change"');
+    expect(out).toContain('aria-label="Image fit"');
+    expect(labels(out, 'Image fit')).toEqual(['Cover', 'Contain', 'Fill']);
+    expect(checked(out, 'Image fit')).toEqual(['Cover']);
+    expect(out).toContain('src="/v1/assets/' + 'a'.repeat(64) + '"');
+    expect(out).not.toContain('data-testid="image-picker"');
   });
 });
