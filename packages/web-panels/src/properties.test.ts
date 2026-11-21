@@ -21,6 +21,23 @@ describe('the properties panel as the Properties and Inspector boards draw it', 
     for (const id of ['prop-name', 'prop-x', 'prop-y', 'prop-w', 'prop-h', 'prop-fill', 'prop-radius', 'prop-opacity', 'prop-clip']) expect(out).toContain(`data-testid="${id}"`);
     expect(out).toMatch(/data-testid="prop-opacity"[^>]*value="50"|value="50"[^>]*data-testid="prop-opacity"/);
   });
+  it('leaves x and y editable, with no note, while the position is the node\'s own', () => {
+    const out = html(base);
+    expect(out).not.toMatch(/data-testid="prop-x"[^>]*disabled|disabled[^>]*data-testid="prop-x"/);
+    expect(out).not.toContain('prop-position-note');
+  });
+  it('disables x and y and says why, tied to both fields, while the position comes from the auto layout of the parent', () => {
+    const out = html({ ...base, positionLocked: true, inLayout: true });
+    for (const id of ['prop-x', 'prop-y']) expect(out).toMatch(new RegExp(`<input[^>]*data-testid="${id}"[^>]*>`));
+    for (const id of ['prop-x', 'prop-y']) {
+      const input = out.match(new RegExp(`<input[^>]*data-testid="${id}"[^>]*>`))![0];
+      expect(input).toContain('disabled');
+      expect(input).toContain('aria-describedby="prop-position-note"');
+    }
+    expect(out).toMatch(/id="prop-position-note"[^>]*>[^<]*auto layout/);
+    // The size fields stay editable.
+    for (const id of ['prop-w', 'prop-h']) expect(out.match(new RegExp(`<input[^>]*data-testid="${id}"[^>]*>`))![0]).not.toContain('disabled');
+  });
   it('offers the fields of the kind: no corners on text, a font size instead, and only a frame clips', () => {
     const text = html({ ...base, kind: 'text' });
     expect(text).toContain('data-testid="prop-fontSize"');
