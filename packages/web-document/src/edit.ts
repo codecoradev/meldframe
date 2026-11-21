@@ -2,7 +2,7 @@
 // gesture is going on. Pure: the canvas applies nothing and this module holds no state. The app layer decides.
 import type { Action, CreateKind, Node, Tool } from '@meldframe/protocol';
 import type { CreateIntent, CreateTool, MoveIntent, ResizeIntent, ToolMode } from '@meldframe/web-canvas/interaction';
-import type { HandleId } from '@meldframe/web-canvas/overlay';
+import type { DropSlot, HandleId } from '@meldframe/web-canvas/overlay';
 import type { Scene } from '@meldframe/web-canvas/scene';
 
 export interface Box {
@@ -41,14 +41,29 @@ export function resizedBox(b: Box, handle: HandleId, dx: number, dy: number): Bo
 
 const byId = (nodes: readonly Node[], id: string | null) => (id === null ? undefined : nodes.find((n) => n.id === id));
 
-/** Where the space of a node starts on the canvas: the origins along its parents added up (the canvas itself is 0, 0). */
-export function worldOrigin(nodes: readonly Node[], id: string | null): { x: number; y: number } {
+/**
+ * The box the canvas draws a node at, in the space of its parent, read from the scene the engine hands over; null when the
+ * scene has no such node. With the host flag `layout_on_canvas` off it is the stored box; with it on, the laid-out one
+ * (hug, fill, auto layout), which is what the person sees and points at. Only a scene in parent space is read.
+ */
+export function drawnBox(scene: Scene | undefined, id: string): Box | null {
+  if (!scene || scene.space !== 'parent') return null;
+  const n = scene.nodes.find((x) => x.id === id);
+  return n ? { x: n.x, y: n.y, w: n.w, h: n.h } : null;
+}
+
+/**
+ * Where the space of a node starts on the canvas: the origins along its parents added up (the canvas itself is 0, 0). With
+ * the `scene` each origin is the one the node is drawn at, else the stored one.
+ */
+export function worldOrigin(nodes: readonly Node[], id: string | null, scene?: Scene): { x: number; y: number } {
   if (!cycleFree(nodes, id)) return { x: 0, y: 0 }; // a file with a cycle is not trusted for positions
   let x = 0;
   let y = 0;
   for (let n = byId(nodes, id); n; n = byId(nodes, n.parentId)) {
-    x += n.x;
-    y += n.y;
+    const b = drawnBox(scene, n.id) ?? n;
+    x += b.x;
+    y += b.y;
   }
   return { x, y };
 }
@@ -75,11 +90,11 @@ export function containerFor(at: string | null, nodes: readonly Node[]): string 
 
 const kindOf: Record<CreateTool, CreateKind> = { frame: 'frame', rect: 'rectangle', text: 'text' };
 
-/** A drawn box (or a click) as the action that makes the node, in the space of the frame it goes into. */
-export function createActionFor(i: CreateIntent, nodes: readonly Node[]): Action | null {
+/** A drawn box (or a click) as the action that makes the node, in the space of the frame it goes into (as it is drawn, with the `scene`). */
+export function createActionFor(i: CreateIntent, nodes: readonly Node[], scene?: Scene): Action | null {
   if (!i.final || i.cancelled) return null;
   const parent = containerFor(i.at, nodes);
-  const o = worldOrigin(nodes, parent);
+  const o = worldOrigin(nodes, parent, scene);
   const at = { x: i.x - o.x, y: i.y - o.y };
   // The canvas reports a click as a box of size 0 and starts a drag only after a few pixels: a box with a size was drawn.
   if (i.w === 0 && i.h === 0) return { type: 'createNode', kind: kindOf[i.tool], ...at, parent };
@@ -100,13 +115,24 @@ function topOf(ids: readonly string[], parentOf: (id: string) => string | null):
   });
 }
 
+/** The top nodes of the dragged ids: the one rule of "which node is dragged" for the drop and for its preview. */
+const topNodes = (ids: readonly string[], nodes: readonly Node[]) => topOf(ids, (id) => byId(nodes, id)?.parentId ?? null);
+
 /**
- * A finished move as actions: the whole selection moves as one step; anything else node by node. A node and a descendant
- * of it both being selected, only the node moves (positions are relative to the parent: the descendant would move twice).
+ * A finished move as actions: the whole selection moves as one step; one dragged node (with its selected descendants, which
+ * follow it) is dropped where the pointer is, and the app layer decides whether that is a move, a reorder in a flow or a
+ * reparent (with the layout off it is the plain move); anything else moves node by node. A node and a descendant of it both
+ * being selected, only the node moves (positions are relative to the parent: the descendant would move twice).
+ * The layout rules are those of one dropped node: a selection of several is moved by the same distance, whatever the layout
+ * (`moveBy`; the app layer does not guard it), so the children of a flow in it change their stored x and y and not the flow.
  */
 export function moveActionsFor(i: MoveIntent, selection: readonly string[], nodes: readonly Node[]): Action[] {
   if (!i.final || i.cancelled || (i.dx === 0 && i.dy === 0)) return [];
-  const tops = topOf(i.ids, (id) => byId(nodes, id)?.parentId ?? null);
+  const tops = topNodes(i.ids, nodes);
+  if (tops.length === 1) {
+    const n = byId(nodes, tops[0]!);
+    return n ? [{ type: 'dropNode', id: n.id, x: i.at.x, y: i.at.y, dx: i.dx, dy: i.dy }] : [];
+  }
   const same = tops.length === i.ids.length && i.ids.length === selection.length && i.ids.every((id) => selection.includes(id));
   if (same) return [{ type: 'moveBy', dx: i.dx, dy: i.dy }];
   return tops.flatMap((id) => {
@@ -115,22 +141,49 @@ export function moveActionsFor(i: MoveIntent, selection: readonly string[], node
   });
 }
 
-/** A finished resize of one node as one action (the origin goes with it when the left or top edge moved). */
-export function resizeActionFor(i: ResizeIntent, nodes: readonly Node[]): Action | null {
+/**
+ * A finished resize of one node as one action (the origin goes with it when the left or top edge moved). It starts from the
+ * box the node is drawn at (the `scene`; the stored box when the scene has none), and the side the handle does not touch is
+ * sent as it is drawn, so the app layer does not take it for a change and make a hug or fill side fixed.
+ */
+export function resizeActionFor(i: ResizeIntent, nodes: readonly Node[], scene?: Scene): Action | null {
   if (!i.final || i.cancelled || i.ids.length !== 1) return null;
   const n = byId(nodes, i.ids[0]!);
   if (!n) return null;
-  const b = resizedBox(n, i.handle, i.dx, i.dy);
-  if (b.x === n.x && b.y === n.y && b.w === n.w && b.h === n.h) return null;
-  return { type: 'resize', id: n.id, w: b.w, h: b.h, ...(b.x !== n.x ? { x: b.x } : {}), ...(b.y !== n.y ? { y: b.y } : {}) };
+  const from = drawnBox(scene, n.id) ?? n;
+  const b = resizedBox(from, i.handle, i.dx, i.dy);
+  if (b.x === from.x && b.y === from.y && b.w === from.w && b.h === from.h) return null;
+  return { type: 'resize', id: n.id, w: b.w, h: b.h, ...(b.x !== from.x ? { x: b.x } : {}), ...(b.y !== from.y ? { y: b.y } : {}) };
 }
 
 /** What is shown while a gesture is going on; the file changes only when it ends. */
-export type Preview = { kind: 'move'; ids: readonly string[]; dx: number; dy: number } | { kind: 'box'; id: string; box: Box };
+export type Preview =
+  | { kind: 'move'; ids: readonly string[]; dx: number; dy: number }
+  | { kind: 'box'; id: string; box: Box }
+  // Where in a flow the dragged node would go: a line over the canvas (the box itself stays where it is drawn).
+  | { kind: 'slot'; line: Box };
 
-/** The scene with the preview applied: the moved nodes (their descendants follow) or a resized box. (The box being drawn is the canvas's own.) */
+/**
+ * What a drag shows: the slot the app layer names for the one node that is dragged (the same rule as `moveActionsFor`: a node
+ * and its selected descendants are one node), else the boxes moving with the pointer.
+ */
+export function movePreviewFor(i: MoveIntent, nodes: readonly Node[], slotOf: (id: string, at: { x: number; y: number }, by: { dx: number; dy: number }) => DropSlot | null): Preview | null {
+  if (i.cancelled || i.final) return null;
+  const tops = topNodes(i.ids, nodes);
+  const slot = tops.length === 1 ? slotOf(tops[0]!, i.at, { dx: i.dx, dy: i.dy }) : null;
+  return slot ? { kind: 'slot', line: slot.line } : { kind: 'move', ids: i.ids, dx: i.dx, dy: i.dy };
+}
+
+/** What a handle drag shows: the box it is drawn at, moved by the handle (not the stored one). */
+export function resizePreviewFor(i: ResizeIntent, nodes: readonly Node[], scene?: Scene): Preview | null {
+  if (i.cancelled || i.final || i.ids.length !== 1) return null;
+  const n = byId(nodes, i.ids[0]!);
+  return n ? { kind: 'box', id: n.id, box: resizedBox(drawnBox(scene, n.id) ?? n, i.handle, i.dx, i.dy) } : null;
+}
+
+/** The scene with the preview applied: the moved nodes (their descendants follow) or a resized box. A slot changes no box, and the box being drawn is the canvas's own. */
 export function previewScene(scene: Scene, p: Preview | null): Scene {
-  if (!p) return scene;
+  if (!p || p.kind === 'slot') return scene;
   const parents = new Map(scene.nodes.map((n) => [n.id, n.parent]));
   const tops = p.kind === 'move' ? new Set(topOf(p.ids, (id) => parents.get(id) ?? null)) : null;
   return {

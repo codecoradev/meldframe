@@ -3,7 +3,7 @@ import type { Camera } from './camera';
 import { screenToWorld } from './camera';
 import type { Rect, Size } from './geometry';
 import {
-  DRAG_THRESHOLD, Interaction, type Env, type Intents, type Mods, type PointerIn, type ToolMode,
+  DRAG_THRESHOLD, Interaction, type Env, type Intents, type Mods, type MoveIntent, type PointerIn, type ToolMode,
 } from './interaction';
 
 const NONE: Mods = { shift: false, alt: false, ctrl: false, meta: false };
@@ -11,6 +11,8 @@ const NONE: Mods = { shift: false, alt: false, ctrl: false, meta: false };
 interface Rig {
   it: Interaction;
   log: unknown[][];
+  /** The move intents as they were reported. */
+  moves: MoveIntent[];
   state: { camera: Camera; selection: string[]; tool: ToolMode; box: Rect | null };
 }
 
@@ -18,6 +20,7 @@ interface Rig {
 function rig(init: Partial<Rig['state']> = {}): Rig {
   const state = { camera: { x: 0, y: 0, zoom: 1 } as Camera, selection: [] as string[], tool: 'move' as ToolMode, box: null as Rect | null, ...init };
   const log: unknown[][] = [];
+  const moves: MoveIntent[] = [];
   const viewport: Size = { w: 800, h: 600 };
   const env: Env = {
     camera: () => state.camera,
@@ -29,14 +32,17 @@ function rig(init: Partial<Rig['state']> = {}): Rig {
   };
   const out: Intents = {
     select: (ids, additive) => log.push(['select', ids, additive]),
-    move: (i) => log.push(['move', i.ids, i.dx, i.dy, i.final, i.cancelled]),
+    move: (i) => {
+      moves.push(i);
+      log.push(['move', i.ids, i.dx, i.dy, i.final, i.cancelled]);
+    },
     resize: (i) => log.push(['resize', i.ids, i.handle, i.dx, i.dy, i.final, i.cancelled]),
     create: (i) => log.push(['create', i.tool, i.at, i.x, i.y, i.w, i.h, i.final, i.cancelled]),
     camera: (c, final) => { state.camera = c; log.push(['camera', c, final]); },
     hover: (id) => log.push(['hover', id]),
     fit: (kind) => log.push(['fit', kind]),
   };
-  return { it: new Interaction(env, out), log, state };
+  return { it: new Interaction(env, out), log, moves, state };
 }
 const p = (x: number, y: number, o: Partial<PointerIn> = {}): PointerIn => ({ id: 1, x, y, button: 0, pointerType: 'mouse', mods: NONE, ...o });
 const kinds = (r: Rig) => r.log.map((e) => e[0]);
@@ -150,6 +156,32 @@ describe('move', () => {
     expect(kinds(r)).toEqual(['select']);
     r.it.move(p(5 + DRAG_THRESHOLD + 1, 5));
     expect(kinds(r)).toEqual(['select', 'move']);
+  });
+});
+
+describe('move reports where the pointer is', () => {
+  it('the world position of the pointer comes with every move intent, while dragging and on release', () => {
+    const r = rig();
+    r.it.down(p(50, 50));
+    r.it.move(p(70, 90));
+    r.it.up(p(75, 95));
+    expect(r.moves.map((m) => [m.at, m.final])).toEqual([[{ x: 70, y: 90 }, false], [{ x: 75, y: 95 }, true]]);
+  });
+  it('is in world units, not screen pixels, when the camera is zoomed and panned', () => {
+    const r = rig({ camera: { x: 100, y: 20, zoom: 2 } });
+    r.it.down(p(150, 70)); // world (25, 25), on node a
+    r.it.move(p(200, 120));
+    r.it.up(p(220, 140));
+    const last = r.moves.at(-1)!;
+    expect(last.at).toEqual(screenToWorld({ x: 100, y: 20, zoom: 2 }, 220, 140));
+    expect([last.dx, last.dy]).toEqual([35, 35]);
+  });
+  it('a cancelled drag still says where the pointer was pressed', () => {
+    const r = rig();
+    r.it.down(p(50, 50));
+    r.it.move(p(90, 50));
+    r.it.cancel();
+    expect(r.moves.at(-1)).toMatchObject({ cancelled: true, at: { x: 50, y: 50 } });
   });
 });
 

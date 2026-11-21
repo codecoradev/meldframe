@@ -27,6 +27,8 @@
     /** The camera; the canvas changes it for pan, zoom and fit, and says so through `onCameraChange`. */
     camera?: Camera;
     touches?: readonly Touch[];
+    /** Where a dragged node would land in a flow: a line in world units, or none. */
+    indicator?: Rect | null;
     tool?: ToolMode;
     theme?: Theme;
     /** Overrides the system's reduced-motion setting when set. */
@@ -55,6 +57,7 @@
     selection = [],
     camera = $bindable({ ...HOME }),
     touches = [],
+    indicator = null,
     tool = 'move',
     theme = 'dark',
     reducedMotion,
@@ -109,7 +112,7 @@
     }
     const t0 = performance.now();
     overlay.draw({
-      camera, viewport, scene: resolved, selection, hover, touches, draft, palette, reducedMotion: reduced, now,
+      camera, viewport, scene: resolved, selection, hover, touches, draft, indicator, palette, reducedMotion: reduced, now,
     });
     const t1 = performance.now();
     app.renderer.render(app.stage);
@@ -174,7 +177,7 @@
 
   $effect(() => {
     // Anything the overlay draws from: a change only needs another frame.
-    void [selection, touches, palette, reduced, tool];
+    void [selection, touches, indicator, palette, reduced, tool];
     if (ready) schedule();
   });
 
