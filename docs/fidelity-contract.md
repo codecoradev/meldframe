@@ -151,6 +151,9 @@ idiomatic; token-based classes arrive with decision 17.
    in the key and the export CLI cannot see the weight at all. Wrap width should be quantised (for example to 1/64 px):
    in 2 of 200 fuzz documents the Rust core asked for a wrap width that differed in the last bit from the one the table
    recorded (119.33333333333333 vs the TypeScript value) and the lookup failed.
+   The browser host's measurer (`packages/web-link/src/measurer.ts`) keys its cache on that grid and measures at the gridded
+   width, so a last-bit difference is one query. The grid rounds to the nearest 1/64 px, so a line that is within 1/128 px
+   of the width of its box can be measured as fitting and drawn wrapped (the oracle's `TableMeasurer` has the same edge).
 6. Glyphs missing from Inter fall back to system fonts, which differ per machine. Text relying on fallback fonts is outside
    the contract. (In the experiment the CJK sample matched because both renderers ran on the same machine, which says
    nothing about other machines.)
@@ -201,8 +204,12 @@ What the oracle cannot prove (the list for the product oracle; the experiment's 
   (`compute_rects`) today; the editor paints the stored `x`, `y`, `w` and `h` of each node (`resolve_with` does not lay
   anything out). Since the app layer holds a `layout_on_canvas` flag the canvas can read the core's boxes instead
   (`resolve_laid_out` with the measurer the host gives, the stub until a host injects one), but the flag is off by default and
-  not offered to people: it stays off until the interaction rules for laid-out frames land, and the canvas does not use
-  the oracle's measurer table yet. The oracle shows that the export reproduces the core's layout in a browser. Whether the boxes stored in a
+  not offered to people: it stays off until the interaction rules for laid-out frames land. The browser host can now inject
+  the measurer of this contract (Pixi `CanvasTextMetrics` on Inter, keyed and rounded as section 6 says, `Engine.setMeasurer`,
+  the development switch `/?canvaslayout=1`), so with the flag on the canvas lays text out as the oracle's table does, from
+  a live measurement instead of a recorded one; `packages/web-e2e/scripts/measurer-e2e.mjs` checks in Chromium that a hug text
+  box is Pixi's width within 1 px and is not wrapped by Pixi when drawn. The oracle does not run that path. The Export dialog
+  and the MCP export tool still measure with the stub. The oracle shows that the export reproduces the core's layout in a browser. Whether the boxes stored in a
   file, and so drawn on the canvas, equal the core's layout is not checked by it.
 - **The text table is Chromium's measurer by assumption.** The core and the export agree on text because both use the one
   measurer they are given: the export pins `min-width` and `line-height` from it and the core sizes the boxes with it.

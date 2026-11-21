@@ -6,6 +6,7 @@ import App from './App.svelte';
 import Editor from './Editor.svelte';
 import ErrorPage from '@meldframe/web-feedback/ErrorPage.svelte';
 import { pageFor } from '@meldframe/web-feedback/failure';
+import { canvasLayoutRequested, installPixiMeasurer } from './canvas/pixitext';
 import { loadFile, reloadOnDivergence } from '@meldframe/web-document/file';
 import { applyTheme, loadTheme } from '@meldframe/web-tokens/theme';
 
@@ -27,6 +28,11 @@ async function start() {
   // A fresh nonce per page load: the app never reuses an idempotency key (see `App::new`).
   const session = crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
   const engine = Engine.create({ actor, session, nodes, seq, variables });
+  // Development switch, off by default (AGENTS.md): /?canvaslayout=1 draws the laid-out boxes with Pixi's text metrics on the page's fonts.
+  if (canvasLayoutRequested(location.search)) {
+    installPixiMeasurer(engine);
+    engine.setLayoutOnCanvas(true);
+  }
   // When the file and the events no longer fit, start again from a fresh snapshot (a few times at most; after that
   // the page shows the reload button).
   engine.subscribe((s) => {

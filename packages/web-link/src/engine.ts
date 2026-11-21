@@ -4,6 +4,7 @@
 import type { Action, AppState, Effect, Event, Node, Variables } from '@meldframe/protocol';
 import type { Scene } from '@meldframe/web-canvas/scene';
 import init, { initSync, WasmApp } from '@meldframe/wasm';
+import type { MeasureFn } from './measurer';
 import { type PaintedBox, sceneFromBoxes } from './scene';
 
 export interface Snapshot {
@@ -93,7 +94,21 @@ export class Engine {
    * The default is off.
    */
   setLayoutOnCanvas(on: boolean): Effect[] {
-    const effects: Effect[] = JSON.parse(this.app.setLayoutOnCanvas(on));
+    return this.hostChanged(JSON.parse(this.app.setLayoutOnCanvas(on)));
+  }
+
+  /**
+   * Host configuration of the canvas: the text measurer that sizes texts in the laid-out scene (`MeasureFn`, see
+   * measurer.ts; the stub measures until a host gives one). It matters while `setLayoutOnCanvas(true)` is in force: then the
+   * scene is read again. Setting the same function again measures again, which is how a host answers fonts that finished
+   * loading. A value that is not a function throws.
+   */
+  setMeasurer(measure: MeasureFn): Effect[] {
+    return this.hostChanged(JSON.parse(this.app.setMeasurer(measure)));
+  }
+
+  /** The scene is not painted from an event here: read it again and tell the views, when the host's change asked for a redraw. */
+  private hostChanged(effects: Effect[]): Effect[] {
     if (effects.length) {
       this.snap = { ...this.snap, scene: this.readScene(), events: [] };
       for (const fn of this.listeners) fn(this.snap);

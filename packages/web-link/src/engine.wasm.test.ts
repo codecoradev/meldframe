@@ -162,6 +162,62 @@ describe.skipIf(!built)('The layout flag of the canvas over the real app layer (
   });
 });
 
+describe.skipIf(!built)('The text measurer of the canvas over the real app layer (WASM)', () => {
+  const nodes = [
+    { id: 'f', type: 'frame', pos: 'a0', w: 400, h: 100, layout: 'row', padding: 0, gap: 0 },
+    { id: 't', type: 'text', pos: 'a0', parentId: 'f', text: 'Hello', fontSize: 20, fontWeight: 700, sw: 'hug', sh: 'hug' },
+  ] as unknown as import('@meldframe/protocol').Node[];
+  const size = (e: EngineType) => {
+    const t = e.snapshot().scene.nodes.find((n) => n.id === 't')!;
+    return [t.w, t.h];
+  };
+  const make3 = () => {
+    const e = Engine.create({ actor: 'usr_me', nodes, seq: 0, session: 1 });
+    e.setLayoutOnCanvas(true);
+    return e;
+  };
+
+  it('sizes the hug text with the host measurer, and reads the scene again when it is set', () => {
+    const e = make3();
+    expect(size(e)).toEqual([50, 24]); // the stub
+    const reads = e.stats.sceneReads;
+    const seen: number[] = [];
+    e.subscribe((s) => seen.push(s.scene.nodes.find((n) => n.id === 't')!.w));
+    const asked: unknown[][] = [];
+    e.setMeasurer((...args) => { asked.push(args); return [91, 27]; });
+    expect(size(e)).toEqual([91, 27]);
+    expect(asked[0]).toEqual(['Hello', 20, 700, null]);
+    expect(e.stats.sceneReads).toBe(reads + 1);
+    expect(seen).toEqual([91]);
+  });
+
+  it('measures again when the same measurer is set again (the fonts changed)', () => {
+    const e = make3();
+    let w = 60;
+    const fn = () => [w, 24] as [number, number];
+    e.setMeasurer(fn);
+    expect(size(e)).toEqual([60, 24]);
+    w = 80;
+    e.setMeasurer(fn);
+    expect(size(e)).toEqual([80, 24]);
+  });
+
+  it('falls back to the stub for an answer that is no size, and to nothing at all while the flag is off', () => {
+    const e = make3();
+    e.setMeasurer(() => [NaN, NaN]);
+    expect(size(e)).toEqual([50, 24]);
+    e.setLayoutOnCanvas(false);
+    const reads = e.stats.sceneReads;
+    expect(e.setMeasurer(() => [1, 1])).toEqual([]);
+    expect(e.stats.sceneReads).toBe(reads);
+  });
+
+  it('refuses a value that is not a function, as an error and not a trap', () => {
+    const e = make3();
+    expect(() => e.setMeasurer('x' as never)).toThrow('measurer: not a function');
+  });
+});
+
 describe.skipIf(!built)('The Variables panel and the mode over the real app layer (WASM)', () => {
   const nodes = [{ id: 'card', type: 'rect', pos: 'a0', fill: { var: 'bg' } }] as unknown as import('@meldframe/protocol').Node[];
   const variables = {

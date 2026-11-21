@@ -11,6 +11,7 @@ declare module '@meldframe/wasm' {
     sceneJson(): string;
     takeEventsJson(): string;
     setLayoutOnCanvas(on: boolean): string;
+    setMeasurer(measure: (text: string, fontSize: number, fontWeight: number, wrapWidth: number | null) => [number, number]): string;
     free(): void;
   }
   export function initSync(module: { module: BufferSource } | BufferSource): unknown;
