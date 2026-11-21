@@ -44,10 +44,15 @@ export function propertyAction(p: Properties, field: PropertyField, raw: string)
   }
 }
 
-/** x and y move the node (the other coordinate stays); w and h resize it (the origin and the other side stay). */
+/**
+ * x and y move the node (the other coordinate stays); w and h resize it (the origin and the other side stay). While the
+ * position comes from the layout (`positionLocked`) x and y do nothing: a move would only write a stored position that the
+ * layout ignores.
+ */
 export function boxAction(p: Properties, field: BoxField, raw: string): Action | null {
   const v = num(raw);
   if (v === null || v === p[field]) return null;
+  if (p.positionLocked && (field === 'x' || field === 'y')) return null;
   if (field === 'x') return { type: 'move', id: p.id, x: v, y: p.y };
   if (field === 'y') return { type: 'move', id: p.id, x: p.x, y: v };
   if (v < MIN_SIZE) return null;

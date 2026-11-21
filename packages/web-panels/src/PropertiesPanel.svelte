@@ -65,9 +65,13 @@
       </header>
       <Section title="Position">
         <div class="grid grid-cols-2 gap-2">
-          <Field label="X" prefix="X" mono value={round(p.x)} onCommit={box(p, 'x')} testId="prop-x" />
-          <Field label="Y" prefix="Y" mono value={round(p.y)} onCommit={box(p, 'y')} testId="prop-y" />
+          <Field label="X" prefix="X" mono value={round(p.x)} onCommit={box(p, 'x')} testId="prop-x" disabled={p.positionLocked} describedBy={p.positionLocked ? 'prop-position-note' : undefined} />
+          <Field label="Y" prefix="Y" mono value={round(p.y)} onCommit={box(p, 'y')} testId="prop-y" disabled={p.positionLocked} describedBy={p.positionLocked ? 'prop-position-note' : undefined} />
         </div>
+        {#if p.positionLocked}
+          <!-- The position is the layout's: the fields show where the node is drawn and cannot move it. -->
+          <p id="prop-position-note" class="m-0 text-caption text-text-muted">Set by the auto layout of the parent.</p>
+        {/if}
       </Section>
       <Section title="Size">
         <div class="grid grid-cols-2 gap-2">
