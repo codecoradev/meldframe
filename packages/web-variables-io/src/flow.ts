@@ -13,3 +13,74 @@ export interface Said {
 export function saidFor(said: Said | null, css: string): { ok: boolean; text: string } | null {
   return said !== null && said.css === css ? { ok: said.ok, text: said.text } : null;
 }
+
+/** What the person was told about the file they chose: read, or why not. */
+export interface Note {
+  ok: boolean;
+  text: string;
+}
+
+/** What the Import field holds: the text and the note about the file it came from. */
+export interface ImportView {
+  text: string;
+  note: Note | null;
+}
+
+export const FRESH: ImportView = { text: '', note: null };
+
+/** The person typed: the text changes, and the note about a file no longer describes it. */
+export const typed = (_: ImportView, text: string): ImportView => ({ text, note: null });
+
+/**
+ * The person typed while a file may still be read: what they type is the field, so the read that is under way goes
+ * stale (it would otherwise replace the text with the file's), and the view is the typed one.
+ */
+export function edited(guard: ReturnType<typeof latest>, v: ImportView, text: string): ImportView {
+  guard.cancel();
+  return typed(v, text);
+}
+
+/** A file was read into the field. `size` is the words for its size. */
+export const fileRead = (name: string, size: string, text: string): ImportView => ({ text, note: { ok: true, text: `Read ${name} (${size}). Check it, then import.` } });
+
+/** A file was not read: the field stays as it was, with the reason. */
+export const fileRefused = (v: ImportView, error: string): ImportView => ({ ...v, note: { ok: false, text: error } });
+
+/**
+ * An import was applied: the field and the note start again (a second press would only be refused as a duplicate, and
+ * the note would still say a file was read). A dialog closed without an import keeps both: Escape is not a Clear.
+ */
+export const applied = (): ImportView => FRESH;
+
+/**
+ * Whether the focus is on nothing that can take a key: nowhere, on the page body, or on a control that has become disabled
+ * (the Import and Clear buttons are, once an import empties the field). In a modal dialog that leaves the keyboard with
+ * nothing to act on, so the dialog moves the focus to a control that works.
+ */
+export const stranded = (active: { disabled?: boolean } | null | undefined, body: unknown): boolean => !active || active === body || active.disabled === true;
+
+/**
+ * The latest of a series of things that finish later, such as a file being read: `start` numbers one, `current` says whether
+ * it is still the one that counts, and `cancel` makes every one that is under way stale (a dialog that closed, a Clear).
+ */
+export function latest(): { start: () => number; current: (token: number) => boolean; cancel: () => void } {
+  let n = 0;
+  return { start: () => ++n, current: (token) => token === n, cancel: () => void ++n };
+}
+
+/**
+ * A file chosen for the field, read by `reader`: the view to take when it is read, or null when it went stale on the way
+ * (the dialog closed, a Clear, another file chosen), so that a late result never fills a field the person has left.
+ */
+export async function fileInto<F extends { name: string; size: number }>(
+  guard: ReturnType<typeof latest>,
+  file: F,
+  now: () => ImportView,
+  reader: (f: F) => Promise<{ ok: true; text: string } | { ok: false; error: string }>,
+  sizeText: (bytes: number) => string,
+): Promise<ImportView | null> {
+  const token = guard.start();
+  const read = await reader(file);
+  if (!guard.current(token)) return null;
+  return read.ok ? fileRead(file.name, sizeText(file.size), read.text) : fileRefused(now(), read.error);
+}
