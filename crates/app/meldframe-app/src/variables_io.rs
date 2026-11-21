@@ -1,12 +1,18 @@
-//! The Export variables dialog (D8): the `export` feature's text of every variable of the file, built from the person's
-//! own view and kept while the dialog is open. The text is made by the `export-dialog` crate and this decides when.
-//! View state: nothing is written to the file and the undo history does not change.
+//! The Export variables and Import variables dialogs (D8). The export is the `export` feature's text of every variable
+//! of the file, built from the person's own view and kept while its dialog is open; the import is `variables-import`'s
+//! reading of CSS text, applied as `Action::EditVariables` applies commands (`apply_variables`, after the same check
+//! of the whole list: one undo step, the person's own edit, sent to the server as ops like any other). The export text and the plan are made by the
+//! `export-dialog` and `variables-import-dialog` crates, and this decides when. Nothing is applied by a refusal.
 
 use crate::app::App;
 use crate::document::refuse;
 use crate::event::Event;
 use export_dialog::variables_dialog;
-use meldframe_app_model::Connection;
+use meldframe_app_model::{Connection, ImportStatus, VariablesImportResult};
+use meldframe_app_parts::document::code;
+use meldframe_protocol::Command;
+use meldframe_sync::SubmitError;
+use variables_import_dialog::plan;
 
 impl App {
     /// How many times the export feature was run for the Export variables dialog (a test seam: it must stay as it is
@@ -54,5 +60,58 @@ impl App {
             self.state.variables_io.export = dialog;
             self.events.push(Event::VariablesIoChanged {});
         }
+    }
+
+    pub(crate) fn close_variables_import(&mut self) {
+        self.import_ids.clear();
+        self.set_import(None);
+    }
+
+    /// The result of an applied import is about what the file holds: when an undo, or someone else, takes away a variable
+    /// it added, the result goes, so an open dialog does not say "Imported" about a file that no longer has it.
+    pub(crate) fn refresh_variables_import(&mut self) {
+        let vars = self.replica.vars();
+        if !self.import_ids.is_empty()
+            && self.import_ids.iter().any(|id| vars.variable(id).is_none())
+        {
+            self.close_variables_import();
+        }
+    }
+
+    fn set_import(&mut self, result: Option<VariablesImportResult>) {
+        if self.state.variables_io.import != result {
+            self.state.variables_io.import = result;
+            self.events.push(Event::VariablesIoChanged {});
+        }
+    }
+
+    /// Read the text and apply what it holds as one undo step, or apply nothing and say why. The result is kept in
+    /// `AppState::variables_io.import` either way.
+    pub(crate) fn import_variables(&mut self, text: &str) -> Result<(), SubmitError> {
+        let mut plan = plan(text, self.nodes(), self.vars());
+        let mut done = Ok(());
+        if plan.result.status == ImportStatus::Imported {
+            done = self
+                .check_room(&plan.commands)
+                .and_then(|()| self.apply_variables(&plan.commands));
+            if let Err(e) = &done {
+                // The queue has no room (or, never expected after the plan's own check, the replica disagrees).
+                plan.result.status = ImportStatus::Refused;
+                plan.result.code = Some(code(e).to_string());
+            }
+        }
+        self.import_ids.clear();
+        if plan.result.status == ImportStatus::Imported {
+            self.import_ids = plan
+                .commands
+                .iter()
+                .filter_map(|c| match c {
+                    Command::AddVariable { variable } => Some(variable.id.clone()),
+                    _ => None,
+                })
+                .collect();
+        }
+        self.set_import(Some(plan.result));
+        done
     }
 }

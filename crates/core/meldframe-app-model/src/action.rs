@@ -254,6 +254,18 @@ pub enum Action {
     OpenVariablesExport {},
     /// Close the Export variables dialog.
     CloseVariablesExport {},
+    /// Import the variables of CSS text (custom properties of `:root`, a dark rule, `@theme`) as one undo step, the
+    /// person's own edit. It only adds: text that holds a name the file has is refused whole (`E_DUPLICATE_ID`, naming
+    /// the first). Also refused whole: text of more than 50 variables (`E_IMPORT_TOO_MANY`: the browser sends one
+    /// request for each op, and a longer style sheet goes through the agent tool `import_tokens`), text over 256 KiB
+    /// (`E_IMPORT_TOO_LARGE`), empty text (`empty_text`) and a list that does not fit the queue (`outbox_full`).
+    /// The result, report included, is `AppState::variables_io.import`; a refusal applies nothing. The result goes
+    /// when the file no longer holds the variables the import added (an undo).
+    ImportVariables {
+        text: String,
+    },
+    /// Forget the result of the last import (the dialog closed).
+    CloseVariablesImport {},
     /// Remove the nodes with their descendants, as one undo step.
     Delete {
         ids: Vec<String>,
