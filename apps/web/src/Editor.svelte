@@ -10,7 +10,7 @@
   import type { Engine } from '@meldframe/web-link/engine';
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
   import Canvas from './canvas/Canvas.svelte';
-  import { createActionFor, deleteAction, documentChanged, drawnBox, gestureGoing, keyAction, ownsKeys, worldOrigin, moveActionsFor, movePreviewFor, previewScene, resizeActionFor, resizePreviewFor, toolMode, type Preview } from '@meldframe/web-document/edit';
+  import { createActionFor, deleteAction, documentChanged, drawnBox, gestureGoing, keyAction, ownsKeys, worldOrigin, moveActionsFor, movePreviewFor, originLocked, previewScene, resizeActionFor, resizePreviewFor, toolMode, type Preview } from '@meldframe/web-document/edit';
   import { perFrame } from '@meldframe/web-document/coalesce';
   import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
@@ -137,7 +137,8 @@
     if (!n) return null;
     const o = worldOrigin(nodes, n.parentId, scene);
     const b = drawnBox(scene, n.id) ?? n;
-    return textBoxStyle(camera, { x: o.x + b.x, y: o.y + b.y, w: b.w, h: b.h }, n.fontSize);
+    // The weight and the alignment are those the canvas draws the text with (the scene's, resolved).
+    return textBoxStyle(camera, { x: o.x + b.x, y: o.y + b.y, w: b.w, h: b.h }, n.fontSize, scene.nodes.find((x) => x.id === n.id));
   });
   // The node is gone (someone deleted it): the field closes with nothing to commit.
   $effect(() => {
@@ -220,8 +221,8 @@
   /** One node is resized at a time: the handles of a selection of several nodes do nothing yet. */
   function onResize(i: ResizeIntent) {
     gesture = gestureGoing(i);
-    // The box is the one the node is drawn at, and a node that is gone meanwhile (a change of someone else) ends the gesture quietly.
-    preview = resizePreviewFor(i, nodes, scene);
+    // The box is the one the node is drawn at (its origin stays when the layout places the node), and a node that is gone meanwhile (a change of someone else) ends the gesture quietly.
+    preview = resizePreviewFor(i, nodes, scene, originLocked(snap.state.properties, i.ids[0] ?? ''));
     const a = resizeActionFor(i, nodes, scene);
     if (a) dispatch(a);
   }
