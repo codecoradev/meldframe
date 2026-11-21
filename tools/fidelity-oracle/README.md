@@ -22,9 +22,9 @@ For each file (hand-written fixtures in `fixtures.mjs`, seeded fuzz files in `fu
    CSS `box-shadow` page with Pixi, i.e. how close the CSS blur model is to the canvas's. The shadows the export writes are
    probed on pixels (offset, spread, order), their blur is not.
 5. Text ink (`ink.mjs`): 17 texts drawn by Pixi (the way `apps/web/src/canvas/stage.ts` draws them) and by the exported
-   page, the edges of the ink compared. The product canvas does not draw weight or alignment yet (the coverage table says
-   NOT_DRAWN), so for those rows Pixi draws what the contract says the canvas will: they prove the export against the
-   contract, not against the canvas.
+   page, the edges of the ink compared. The product canvas draws weight and alignment now (the coverage table says
+   rendered), but this page is the oracle's own Pixi text, not the canvas: the rows prove the export against the contract's
+   canvas, not against `stage.ts`.
 6. The gate (`gate.mjs`) fails when a box is more than 0.05 px from the core rect, when a node is missing, when the font
    did not load, when the Tailwind page differs from the CSS page by more than 0.001 px (boxes) or at all (pixels), when
    a probe fails, when an ink edge is more than 1 px away, or when a blur falloff is more than 20/255 away.

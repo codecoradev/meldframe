@@ -22,6 +22,9 @@ describe('sceneFromBoxes', () => {
     expect(nested.find((n) => n.id === 'g1')).toMatchObject({ kind: 'frame', parent: 'f1', x: 20, y: 30, radius: 8, clip: false, fill: 0xeeeeee });
     // The text, its size and the name are read by the canvas too: a field renamed in Rust must fail here.
     expect(nested.find((n) => n.id === 't1')).toMatchObject({ kind: 'text', parent: 'g1', text: 'Hello', fontSize: 24, name: '' });
+    // The weight and the alignment are drawn by the canvas too (E3.1 coverage table: rendered).
+    expect(nested.find((n) => n.id === 't1')).toMatchObject({ fontWeight: 400, textAlign: 'left' });
+    expect(sceneFromBoxes(byName('text weight and alignment')).nodes.find((n) => n.id === 't')).toMatchObject({ fontWeight: 700, textAlign: 'center' });
     expect(sceneFromBoxes(byName('opacity')).nodes.map((n) => n.opacity)).toEqual([1, 0.5, 1, 0, 0.25]);
     const paint = sceneFromBoxes(byName('gradient and image')).nodes;
     expect(paint.find((n) => n.id === 'r')).toMatchObject({

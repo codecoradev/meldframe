@@ -210,8 +210,9 @@ What the oracle cannot prove (the list for the product oracle; the experiment's 
   does (section 6). The MCP export tool uses `StubMeasurer` (half an em per character, breaks at spaces only) because the
   server has no browser: its pinned widths and line heights are the stub's, and a browser that wraps real text
   differently gives other heights. The oracle does not measure that distance.
-- **Text ink compares against a Pixi page that follows the contract, not the app.** The product canvas draws text without
-  weight and alignment (coverage table: NOT_DRAWN), so those cases test the export against the contract's canvas.
+- **Text ink compares against a Pixi page that follows the contract, not the app.** The oracle draws its own Pixi text; the
+  product canvas (`stage.ts`) draws weight and alignment too (coverage table: rendered) but the
+  oracle does not read the canvas, so these cases test the export against the contract's canvas.
 - **One browser, one machine class.** Chromium 153 headless with software rendering, Inter latin only, three viewport and
   DPR settings. No other browser or OS. Glyphs outside Inter fall back to system fonts.
 - **The fuzz generator** produces auto layout, hug, fill, fixed, text, rect and ellipse; not borders, shadows, images,
