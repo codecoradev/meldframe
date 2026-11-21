@@ -43,7 +43,7 @@ Every button has a name and its shortcut in a tooltip, and a pressed state when 
 
 The panel has two tabs, Design and Activity (section 4). On the Design tab, sections stack from the top and scroll inside the panel; each section collapses.
 
-1. **Variables** (open by default): a count in the title, search and add buttons, a list grouped by type: Color, Dimensions, Font family. Dimensions group further by name prefix (`radius`, `space`), as slash names already imply. The list scrolls inside a fixed height so Properties stays in view. A link in the header opens the full table with modes (`tokens-and-variables.md` 10.3). `[P]`
+1. **Variables** (open by default): a count in the title, search and add buttons, a list grouped by type: Color, Dimensions, Font family. Dimensions group further by name prefix (`radius`, `space`), as slash names already imply. The list scrolls inside a fixed height so Properties stays in view. A link in the header opens the full table with modes (`tokens-and-variables.md` 10.3).  The header also has **Export variables**, a dialog with every variable of the file as CSS custom properties, one per line, a preview, Copy and Download (`variables.css`), the warnings of what could not be written as stored, and a note that DTCG and `@theme` output come later (`tokens-and-variables.md` 10.3.1). The text is built by the app layer and the dialog opens and closes through it; Escape closes it and the focus goes back to the button. `[P]`
 2. **Properties**: for the selected node: Position, Layout, Size, Appearance, Fill, Border, Shadow, Export. With nothing selected it shows the page: background colour, opacity and visibility.
 
 ### 3.1 Properties fields

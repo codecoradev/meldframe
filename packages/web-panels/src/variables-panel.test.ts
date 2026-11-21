@@ -56,3 +56,15 @@ describe('the Variables panel and the manage view', () => {
     expect(out).toMatch(/>Manage</);
   });
 });
+
+describe('the Export variables button', () => {
+  const out = html(panel([col()]));
+  it('is in the header of the section, before the list, named with the glossary words', () => {
+    expect(out).toMatch(/data-testid="var-export"[^>]*>(?:<!---->)?Export variables</);
+    expect(out.indexOf('data-testid="var-export"')).toBeLessThan(out.indexOf('max-h-(--mf-size-variables-list)'));
+    expect(out).not.toMatch(/>Export tokens?</i);
+  });
+  it('is there with no io given (a section drawn alone), and the dialog stays closed', () => {
+    expect(out).not.toContain('data-testid="export-vars-dialog"');
+  });
+});
