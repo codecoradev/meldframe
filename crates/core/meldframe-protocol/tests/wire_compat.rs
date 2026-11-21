@@ -317,3 +317,13 @@ fn an_event_carries_the_idempotency_key_and_an_old_event_without_one_still_reads
         "no key: no field"
     );
 }
+
+#[test]
+fn a_command_is_read_back_as_it_was_written_to_the_last_bit() {
+    // A client keeps the command it sent and compares it with the one the server gives back: a float read one bit off
+    // (`223.73056994818654` read as `...657` without serde_json's `float_roundtrip`) would be another command.
+    let sent =
+        r#"{"type":"updateNode","id":"c","patch":{"x":450.0518134715026,"y":223.73056994818654}}"#;
+    let command: Command = serde_json::from_str(sent).unwrap();
+    assert_eq!(serde_json::to_string(&command).unwrap(), sent);
+}
