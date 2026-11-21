@@ -48,7 +48,7 @@ resync-seq	crates/core/meldframe-sync/src/replica/resync.rs	self\.seq = seq;	let
 resync-applied	crates/core/meldframe-sync/src/replica/resync.rs	if done\.contains(p\.out\.key\.as_str()) {	if false \&\& done.contains(p.out.key.as_str()) {	an op the snapshot already holds is replayed (and sent) again after a resync
 resync-deps	crates/core/meldframe-sync/src/replica/resync.rs	let live = !p\.out\.deps\.iter()\.any(|d| dead\.contains(d))	let live = true	after a resync an op whose dependency was dropped is kept
 resync-outbox	crates/core/meldframe-sync/src/replica/resync.rs	self\.outbox = self\.pending\.iter()\.map(|p| p\.out\.clone())\.collect();	self.outbox.clear();	a resync does not queue the pending ops to be sent again
-app-key	crates/app/meldframe-app/src/app.rs	\.on_event_keyed(seq, actor, key, command)	.on_event_keyed(seq, actor, None, command)	the app ignores the key an event frame carries and compares actor and command
+app-key	crates/app/meldframe-app/src/frames.rs	\.on_event_keyed(seq, actor, key, command)	.on_event_keyed(seq, actor, None, command)	the app ignores the key an event frame carries and compares actor and command
 app-reload-applied	crates/app/meldframe-app/src/link.rs	self\.replica\.resync_doc(doc, seq, applied)	self.replica.resync_doc(doc, seq, \&[])	a reload replays ops the snapshot already holds
 app-reload-subscribe	crates/app/meldframe-app/src/link.rs	self\.start(now_ms, fx);	let _ = now_ms;	a reload does not go to connecting and subscribe from the snapshot
 app-reload-halted	crates/app/meldframe-app/src/app.rs	!ui \&\& !reload {	!ui {	a halted app ignores a reload like any other action
@@ -66,8 +66,8 @@ resync-optimistic	crates/core/meldframe-sync/src/replica/resync.rs	view\.set_opt
 resync-ideal	crates/core/meldframe-sync/src/replica/resync.rs	self\.drop_ideal();	{}	a resync keeps the confirmed state a stale undo was worked out against
 undo-empty	crates/core/meldframe-sync/src/replica.rs	if !self\.view\.can_undo() {	if false {	undo at the cap with nothing to undo is an error, not false
 redo-empty	crates/core/meldframe-sync/src/replica.rs	if !self\.view\.can_redo() {	if false {	redo at the cap with nothing to redo is an error, not false
-app-acked	crates/app/meldframe-app/src/app.rs	if let Some(dropped) = self\.replica\.on_ack(&key, seq) {	if let Some(dropped) = None::<usize> {	the app ignores the answer to a repeated send, so an op the snapshot holds stays pending
-app-dropped	crates/app/meldframe-app/src/app.rs	if count > 0 {	if false {	a reload that drops ops says nothing
+app-acked	crates/app/meldframe-app/src/frames.rs	if let Some(dropped) = self\.replica\.on_ack(&key, seq) {	if let Some(dropped) = None::<usize> {	the app ignores the answer to a repeated send, so an op the snapshot holds stays pending
+app-dropped	crates/app/meldframe-app/src/frames.rs	if count > 0 {	if false {	a reload that drops ops says nothing
 app-refused-code	crates/app/meldframe-app/src/link.rs	code: e\.code()\.to_string(),	code: String::new(),	a refused reload does not say why
 rename-stale-var	crates/core/meldframe-undo/src/remote_vars.rs	if !variable_replaced(r, &id) {	if true {	my rename of a variable stays after another actor renamed, removed or made it again, so undo overwrites theirs
 rename-stale-col	crates/core/meldframe-undo/src/remote_vars.rs	if !collection_replaced(r, &id) {	if true {	my rename of a collection stays after another actor renamed, removed or made it again
