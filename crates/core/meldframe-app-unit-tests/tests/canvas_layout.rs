@@ -132,29 +132,73 @@ fn the_flag_and_the_measurer_are_host_configuration_not_state_and_not_the_file()
     assert!(!text.to_string().contains("layoutOnCanvas"));
 }
 
+/// The HTML of the Export dialog for the frame `f`, opened on `a`.
+fn exported(a: &mut App) -> String {
+    use meldframe_app::Action;
+    a.dispatch(Action::Select {
+        ids: vec!["f".into()],
+    });
+    a.dispatch(Action::OpenExport {});
+    a.state()
+        .export
+        .dialog
+        .as_ref()
+        .expect("a dialog")
+        .html
+        .clone()
+}
+
 #[test]
-fn the_export_dialog_keeps_the_measurer_it_had() {
-    // Export output does not change with the canvas flag or the injected measurer (the dialog still measures with
-    // the stub; moving it to the app's measurer is a later, separate change).
-    let html = |a: &mut App| {
-        use meldframe_app::Action;
-        a.dispatch(Action::Select {
-            ids: vec!["f".into()],
-        });
-        a.dispatch(Action::OpenExport {});
-        a.state()
-            .export
-            .dialog
-            .as_ref()
-            .expect("a dialog")
-            .html
-            .clone()
-    };
-    let plain = html(&mut app());
+fn the_export_dialog_measures_with_the_stub_until_the_host_gives_a_measurer() {
+    // The stub measures "hello" at 16 px as 40 x 20 (the export pins a hug text at its measured width, `min-w`), and nothing changes for a host that gives none: with the flag on or off.
+    let plain = exported(&mut app());
+    assert!(plain.contains("min-w-[40px]"), "{plain}");
     let mut a = app();
     a.set_layout_on_canvas(true);
+    assert_eq!(exported(&mut a), plain);
+}
+
+#[test]
+fn the_export_dialog_measures_with_the_measurer_the_host_gave_whatever_the_flag_is() {
+    // A hug text exports the width the host's measurer gives it: what the canvas draws.
+    for flag in [false, true] {
+        let mut a = app();
+        a.set_layout_on_canvas(flag);
+        a.set_measurer(Box::new(Fixed(77.0, 33.0)));
+        let html = exported(&mut a);
+        assert!(html.contains("min-w-[77px]"), "flag {flag}: {html}");
+        assert!(!html.contains("min-w-[40px]"), "flag {flag}: {html}");
+    }
+}
+
+#[test]
+fn an_open_dialog_is_built_again_when_the_host_gives_a_measurer_and_a_closed_one_builds_nothing() {
+    use meldframe_app::{Action, Event};
+    let mut a = app();
+    // Closed: nothing is built, whatever the host gives.
+    a.set_measurer(Box::new(Fixed(10.0, 10.0)));
+    assert_eq!(a.export_builds(), 0);
     a.set_measurer(Box::new(Fixed(77.0, 33.0)));
-    assert_eq!(html(&mut a), plain);
+    assert_eq!(a.export_builds(), 0);
+    exported(&mut a);
+    assert_eq!(a.export_builds(), 1);
+    a.take_events();
+    // Open: the dialog shows the new measurer at once, and the front end is told, as for any change of the dialog.
+    a.set_measurer(Box::new(Fixed(55.0, 20.0)));
+    assert_eq!(a.export_builds(), 2);
+    let html = a.state().export.dialog.as_ref().unwrap().html.clone();
+    assert!(html.contains("min-w-[55px]"), "{html}");
+    assert!(
+        a.take_events()
+            .iter()
+            .any(|e| matches!(e, Event::ExportChanged {}))
+    );
+    // The same measurer given again (the fonts finished loading): it may answer differently, so it is built again.
+    a.set_measurer(Box::new(Fixed(55.0, 20.0)));
+    assert_eq!(a.export_builds(), 3);
+    a.dispatch(Action::CloseExport {});
+    a.set_measurer(Box::new(Fixed(1.0, 1.0)));
+    assert_eq!(a.export_builds(), 3);
 }
 
 /// A desktop shell keeps the `App` behind a mutex, so on a native target the app and the measurer it holds are

@@ -1,10 +1,12 @@
 //! The Export dialog (D9), the parts that read no `App`: the frame an export acts on, and the HTML built for it. The
 //! export is the `export` feature's, run on the person's own view of the file (pending ops included, the modes on
-//! view). Text is measured by the layout core's stub, as the MCP tool `export_frame` does: the app layer has no browser.
+//! view). Text is measured by the measurer the caller gives: the app layer gives the one its host injected (the browser's
+//! Pixi metrics on the font the canvas draws with), so a hug text exports the width the canvas draws, and the layout
+//! core's stub when the host gave none. The MCP tool `export_frame` runs on the server, which has no fonts: it keeps the stub.
 
 use export::{ExportError, ExportOptions, Finding, Format, MAX_OUTPUT_BYTES};
 use meldframe_app_model::{ExportDialog, ExportFinding, ExportFormat, ExportTarget};
-use meldframe_layout::StubMeasurer;
+use meldframe_layout::TextMeasurer;
 use meldframe_protocol::{Node, NodeKind, Variables};
 use meldframe_variables::ModeChoice;
 use std::collections::BTreeMap;
@@ -31,6 +33,7 @@ pub fn dialog(
     choice: ModeChoice,
     id: &str,
     format: ExportFormat,
+    measurer: &dyn TextMeasurer,
 ) -> Option<ExportDialog> {
     let name = nodes
         .iter()
@@ -57,7 +60,7 @@ pub fn dialog(
         ExportFormat::Tailwind => Format::Tailwind,
         ExportFormat::Css => Format::Css,
     };
-    let options = ExportOptions::new(style, &StubMeasurer).modes(choice);
+    let options = ExportOptions::new(style, measurer).modes(choice);
     match export::export_frame(nodes, vars, id, &options) {
         Ok(e) => {
             d.css_file = options.css_href;

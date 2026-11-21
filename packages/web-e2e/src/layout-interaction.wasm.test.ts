@@ -201,4 +201,19 @@ describe.skipIf(!built)('with the layout on the canvas', () => {
     expect(u).toMatchObject({ fontWeight: 700, textAlign: 'center' });
     expect(textBoxStyle({ x: 0, y: 0, zoom: 1 }, u, 20, u)).toMatchObject({ fontWeight: 700, textAlign: 'center', fontSize: 20 });
   });
+
+  it('the Export dialog measures a hug text with the measurer the host gave, and an open dialog follows a new one', () => {
+    const e = make();
+    const seen: unknown[] = [];
+    e.subscribe((snap) => seen.push(snap.state.export.dialog?.html ?? null));
+    e.dispatch({ type: 'select', ids: ['f'] });
+    e.dispatch({ type: 'openExport' });
+    const stub = e.snapshot().state.export.dialog!.html;
+    expect(stub).toContain('min-w-[40px]'); // the stub: "Hello" at 16 px
+    seen.length = 0;
+    e.setMeasurer(() => [91, 23]);
+    expect(e.snapshot().state.export.dialog!.html).toContain('min-w-[91px]');
+    expect(seen.length).toBeGreaterThan(0); // the views were told, with the layout still off the canvas
+    expect(e.snapshot().state.export.dialog!.html).not.toBe(stub);
+  });
 });

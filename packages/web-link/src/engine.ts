@@ -102,7 +102,7 @@ export class Engine {
 
   /**
    * Host configuration of the canvas: draw laid-out boxes (hug, fill, auto layout; the Rust layout does the work) or the
-   * stored ones. It is not an action and raises no event, so the scene is read again here when the flag changed.
+   * stored ones. It is not an action: the scene is read again here when the flag changed.
    * The default is off.
    */
   setLayoutOnCanvas(on: boolean): Effect[] {
@@ -113,19 +113,30 @@ export class Engine {
    * Host configuration of the canvas: the text measurer that sizes texts in the laid-out scene (`MeasureFn`, see
    * measurer.ts; the stub measures until a host gives one). It matters while `setLayoutOnCanvas(true)` is in force: then the
    * scene is read again. Setting the same function again measures again, which is how a host answers fonts that finished
-   * loading. A value that is not a function throws.
+   * loading. The Export dialog measures with it too, whatever the flag is: an open dialog is built again and the state read.
+   * A value that is not a function throws.
    */
   setMeasurer(measure: MeasureFn): Effect[] {
     return this.hostChanged(JSON.parse(this.app.setMeasurer(measure)));
   }
 
-  /** The scene is not painted from an event here: read it again and tell the views, when the host's change asked for a redraw. */
+  /**
+   * A change the host made (the flag, the measurer) is not an action, but it can change what the views read: the scene (a redraw
+   * was asked for) and the state (the Export dialog is built again when the measurer changes, which raises its event). Read
+   * what changed, and tell the views.
+   */
   private hostChanged(effects: Effect[]): Effect[] {
-    if (effects.length) {
-      this.snap = { ...this.snap, scene: this.readScene(), events: [] };
+    const events: Event[] = JSON.parse(this.app.takeEventsJson());
+    if (effects.length || events.length) {
+      this.snap = {
+        ...this.snap,
+        state: events.length ? this.readState() : this.snap.state,
+        scene: effects.length ? this.readScene() : this.snap.scene,
+        events,
+      };
       for (const fn of this.listeners) fn(this.snap);
-      this.effectHandler(effects);
     }
+    if (effects.length) this.effectHandler(effects);
     return effects;
   }
 
