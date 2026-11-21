@@ -229,6 +229,10 @@ pub struct Properties {
     pub absolute: bool,
     /// The parent is a frame with auto layout: the margin and the fill sizing mean something there.
     pub in_layout: bool,
+    /// `x` and `y` are where the auto layout of the parent puts the node, not values of the node: the panel shows them
+    /// and does not take an edit. Only with the host flag `layout_on_canvas` on, and only for a child of the flow (not an
+    /// absolute one).
+    pub position_locked: bool,
     /// Settings that have no effect where the node is, in the order of the fields.
     pub notes: Vec<LayoutNote>,
     pub text: String,

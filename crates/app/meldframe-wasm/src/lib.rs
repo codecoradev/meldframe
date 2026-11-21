@@ -82,7 +82,8 @@ impl Bridge {
 
     /// Host configuration, not an action: whether the scene is laid out (hug, fill, auto layout) or the stored boxes.
     /// Returns the effects to carry out (JSON array; a redraw of everything when the flag changed, `[]` when it did
-    /// not). It raises no event and changes no state, so the caller reads the scene again itself.
+    /// not). It raises no event, so the caller reads the scene again itself; the properties of the selected node follow
+    /// the flag (they show the drawn box), so the state is read again too.
     pub fn set_layout_on_canvas(&mut self, on: bool) -> String {
         to_json(&self.app.set_layout_on_canvas(on))
     }

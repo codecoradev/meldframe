@@ -12,7 +12,7 @@
 
 use crate::app::App;
 use crate::effect::Effect;
-use meldframe_layout::{StubMeasurer, TextMeasurer};
+use meldframe_layout::{Rect, StubMeasurer, TextMeasurer, compute_rects};
 use meldframe_protocol::{Node, Variables};
 use meldframe_render::{ModeChoice, PaintedBox, resolve_laid_out, resolve_with};
 use std::fmt;
@@ -50,6 +50,12 @@ impl fmt::Debug for CanvasLayout {
 }
 
 impl CanvasLayout {
+    /// The boxes of the layout in world space, in drawing order, with the host's measurer (the rules of a drop and a
+    /// resize read these).
+    pub(crate) fn rects(&self, nodes: &[Node]) -> Vec<(String, Rect)> {
+        compute_rects(nodes, self.measurer.as_ref())
+    }
+
     pub(crate) fn scene(
         &self,
         nodes: &[Node],
@@ -71,13 +77,15 @@ impl App {
     }
 
     /// Turn the laid-out scene on or off. Returns the effect the host carries out: `Effect::Render` with an empty
-    /// list (everything) when the flag changed, nothing when it did not. No event is raised and no state changes,
-    /// so a shell that reads the scene on events must read it again itself after this call.
+    /// list (everything) when the flag changed, nothing when it did not. No event is raised, so a front end that reads the
+    /// scene on events must read it again itself after this call. The only state it changes is the properties of the
+    /// selected node: they show the box the canvas draws (`Properties::position_locked`), so they are brought up to date.
     pub fn set_layout_on_canvas(&mut self, on: bool) -> Vec<Effect> {
         if self.canvas.enabled == on {
             return Vec::new();
         }
         self.canvas.enabled = on;
+        self.refresh_properties();
         redraw()
     }
 
@@ -86,6 +94,7 @@ impl App {
     pub fn set_measurer(&mut self, measurer: MeasurerBox) -> Vec<Effect> {
         self.canvas.measurer = measurer;
         if self.canvas.enabled {
+            self.refresh_properties();
             redraw()
         } else {
             Vec::new()

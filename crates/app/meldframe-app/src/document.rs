@@ -6,7 +6,7 @@ use crate::effect::Effect;
 use crate::state::Tool;
 use meldframe_app_parts::document::{
     Variant, apply_all, check_all, code, edit_text, make_variant, move_by, move_to, new_node,
-    preset_node, resize,
+    preset_node,
 };
 use meldframe_app_parts::manage::Target;
 use meldframe_app_parts::touched::render_set;
@@ -92,7 +92,8 @@ impl App {
                     Err(e) => Err(e),
                 }
             }
-            Action::Resize { id, w, h, x, y } => self.replica.apply(&resize(&id, w, h, x, y)),
+            Action::Resize { id, w, h, x, y } => self.resize_node(&id, (w, h), (x, y)),
+            Action::DropNode { id, x, y, dx, dy } => self.drop_node(&id, (x, y), (dx, dy)),
             Action::EditText { id, text } => self.replica.apply(&edit_text(&id, text)),
             Action::SetProperty { id, property } => self.set_property(&id, property),
             Action::Delete { ids } => self.delete(&ids),
@@ -183,7 +184,7 @@ impl App {
 
     /// Every command is valid on the current document and the queue has room for all of them: checked
     /// before any is applied, so a list that would fail half way applies nothing.
-    fn validate(&self, cmds: &[Command]) -> Result<(), SubmitError> {
+    pub(crate) fn validate(&self, cmds: &[Command]) -> Result<(), SubmitError> {
         self.check_room(cmds)?;
         check_all(self.replica.nodes(), self.replica.vars(), cmds)
     }

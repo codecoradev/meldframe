@@ -18,6 +18,7 @@ mod canvas;
 mod document;
 mod export;
 mod frames;
+mod interact;
 mod link;
 mod manage;
 mod panel;

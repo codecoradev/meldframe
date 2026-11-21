@@ -25,18 +25,6 @@ pub fn move_to(id: &str, x: f64, y: f64) -> Command {
     update(id, patch)
 }
 
-/// The command that sizes a node, and moves it when a position is given.
-pub fn resize(id: &str, w: f64, h: f64, x: Option<f64>, y: Option<f64>) -> Command {
-    let patch = NodePatch {
-        x,
-        y,
-        w: Some(w),
-        h: Some(h),
-        ..Default::default()
-    };
-    update(id, patch)
-}
-
 /// The command that sets the text of a node.
 pub fn edit_text(id: &str, text: String) -> Command {
     let patch = NodePatch {

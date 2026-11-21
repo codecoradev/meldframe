@@ -25,6 +25,16 @@ pub fn fill_kind(n: &Node) -> FillKind {
     }
 }
 
+/// The box the canvas draws a node at when it reads laid-out boxes: the offset inside its parent and the size, as
+/// `PaintedBox` holds them. The panel shows these instead of the stored values (the host flag `layout_on_canvas`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Drawn {
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+}
+
 /// The editable values of a node as they are painted: a bound field shows what the render step resolves it to
 /// (`Fields` is the one place that does it, so the panel and the canvas agree, unresolved defaults included).
 pub fn properties(
@@ -32,6 +42,7 @@ pub fn properties(
     choice: &ModeChoice,
     n: &Node,
     parent: Option<&Node>,
+    drawn: Option<Drawn>,
 ) -> Properties {
     let fields = Fields::new(vars, choice);
     let found = node_bindings(n);
@@ -55,14 +66,21 @@ pub fn properties(
             })
         })
         .collect();
-    Properties {
-        id: n.id.clone(),
-        name: n.name.clone(),
-        kind: n.kind,
+    let flows = parent.is_some_and(is_layout);
+    let at = drawn.unwrap_or(Drawn {
         x: n.x,
         y: n.y,
         w: n.w,
         h: n.h,
+    });
+    Properties {
+        id: n.id.clone(),
+        name: n.name.clone(),
+        kind: n.kind,
+        x: at.x,
+        y: at.y,
+        w: at.w,
+        h: at.h,
         fill: fields.fill_text(&n.fill),
         fill_kind: fill_kind(n),
         gradient_allowed: n.kind != NodeKind::Text,
@@ -84,7 +102,8 @@ pub fn properties(
         align: n.align,
         justify: n.justify,
         absolute: n.absolute,
-        in_layout: parent.is_some_and(is_layout),
+        in_layout: flows,
+        position_locked: drawn.is_some() && flows && !n.absolute,
         notes: layout_notes(n, parent),
         text: n.text.clone(),
         font_size: n.font_size,
@@ -96,16 +115,18 @@ pub fn properties(
 }
 
 /// The properties panel follows the selection: the values of the one node selected, with its parent's layout in view.
+/// `drawn` is the box the canvas draws the selected node at when it reads laid-out boxes, `None` for the stored box.
 pub fn selected_properties(
     vars: &Variables,
     choice: &ModeChoice,
     nodes: &[Node],
     selection: &[String],
+    drawn: Option<Drawn>,
 ) -> Option<Properties> {
     let n = selected_node(selection, nodes)?;
     let parent = n
         .parent_id
         .as_deref()
         .and_then(|p| nodes.iter().find(|x| x.id == p));
-    Some(properties(vars, choice, n, parent))
+    Some(properties(vars, choice, n, parent, drawn))
 }

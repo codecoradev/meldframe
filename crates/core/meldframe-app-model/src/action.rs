@@ -86,8 +86,23 @@ pub enum Action {
         dx: f64,
         dy: f64,
     },
+    /// A node was dragged and let go with the pointer at `(x, y)` on the canvas (world space) after travelling `(dx, dy)`.
+    /// One undo step. With the host flag `layout_on_canvas` on, the rules of the layout decide (`meldframe-app-rules`,
+    /// `drop`): a child of an auto layout frame is put in its flow at the pointer (a reorder), or taken to the frame
+    /// under the pointer; a node of a free frame dropped on an auto layout frame goes into its flow; anything else moves
+    /// by `(dx, dy)`. With the flag off it is `Move` by `(dx, dy)`, whatever the pointer is over. A drop that changes
+    /// nothing makes no step; an unknown node is refused (`not_found`), a value that is not a number (`invalid`).
+    DropNode {
+        id: String,
+        x: f64,
+        y: f64,
+        dx: f64,
+        dy: f64,
+    },
     /// Change the size of a node. `x` and `y` move its origin in the same step: resizing from the left or the top
-    /// edge changes both, and one undo takes both back.
+    /// edge changes both, and one undo takes both back. With the host flag `layout_on_canvas` on, a side that is sized
+    /// hug or fill and gets another size than it is drawn at becomes fixed in the same step, and the origin of a child of
+    /// an auto layout frame is not written (its place is the flow's).
     Resize {
         id: String,
         w: f64,

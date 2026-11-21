@@ -84,6 +84,12 @@ absolute: boolean,
  */
 inLayout: boolean, 
 /**
+ * `x` and `y` are where the auto layout of the parent puts the node, not values of the node: the panel shows them
+ * and does not take an edit. Only with the host flag `layout_on_canvas` on, and only for a child of the flow (not an
+ * absolute one).
+ */
+positionLocked: boolean, 
+/**
  * Settings that have no effect where the node is, in the order of the fields.
  */
 notes: Array<LayoutNote>, text: string, fontSize: number, 

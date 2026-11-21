@@ -14,6 +14,7 @@ mod tree;
 pub use findings::{LayoutFinding, layout_findings};
 pub use measure::{StubMeasurer, TextMeasurer};
 pub use rect::Rect;
+pub use tree::is_layout_frame;
 
 use meldframe_protocol::Node;
 use std::collections::HashMap;
