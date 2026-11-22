@@ -1,0 +1,14 @@
+{
+  "collections": [
+    {"id": "c1", "name": "appearance", "modes": [{"id": "m1", "name": "Light"}, {"id": "m2", "name": "Dark"}]},
+    {"id": "c2", "name": "sizes", "modes": [{"id": "m3", "name": "Default"}]},
+    {"id": "c3", "name": "empty", "modes": [{"id": "m4", "name": "Default"}, {"id": "m5", "name": "Other"}]}
+  ],
+  "variables": [
+    {"id": "v1", "collection": "c1", "name": "color/brand", "type": "color", "values": {"m1": "#112233", "m2": "#AABBCC"}},
+    {"id": "v2", "collection": "c2", "name": "radius/card", "type": "number", "values": {"m3": 12}},
+    {"id": "v3", "collection": "c2", "name": "opacity/muted", "type": "number", "values": {"m3": 0.4}},
+    {"id": "v4", "collection": "c1", "name": "color/accent", "type": "color", "values": {"m1": {"var": "v1"}, "m2": "#000000"}},
+    {"id": "v5", "collection": "c1", "name": "color/unused", "type": "color", "values": {"m1": "#ffffff80", "m2": "#fff"}}
+  ]
+}
