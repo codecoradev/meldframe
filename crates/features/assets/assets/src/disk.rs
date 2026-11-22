@@ -8,8 +8,11 @@
 //! checks the file there and writes it anew when it does not match. A crash between the write and the rename
 //! leaves a `.tmp` file that nothing removes yet.
 
-use super::{AssetError, BlobStore, ImageType, Stored, asset_id, check_id, check_upload, sniff};
-use std::io::Write;
+use super::{
+    AssetError, BlobStore, ImageType, Listed, MAX_LIST, Page, Stored, asset_id, check_id,
+    check_upload, is_asset_id, page_of, sniff,
+};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -108,6 +111,76 @@ impl BlobStore for DiskBlobs {
             .and_then(|d| d.sync_all())
             .map_err(unavailable)?;
         Ok(stored)
+    }
+
+    fn list(&self, workspace: &str, after: Option<&str>, limit: usize) -> Result<Page, AssetError> {
+        if let Some(after) = after {
+            check_id(after)?;
+        }
+        let limit = limit.clamp(1, MAX_LIST);
+        let dir = self.root.join(asset_id(workspace.as_bytes()));
+        let top = match std::fs::read_dir(&dir) {
+            Ok(top) => top,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Page::default()),
+            Err(e) => return Err(unavailable(e)),
+        };
+        // The two-character directories in order, from the one the cursor is in. At most 256 names.
+        let mut shards = Vec::new();
+        for sub in top {
+            let sub = sub.map_err(unavailable)?;
+            let name = sub.file_name().to_string_lossy().into_owned();
+            let hex =
+                name.len() == 2 && name.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'));
+            if hex
+                && sub.file_type().map_err(unavailable)?.is_dir()
+                && after.is_none_or(|a| &a[..2] <= name.as_str())
+            {
+                shards.push(name);
+            }
+        }
+        shards.sort();
+        // One more than a page, to know whether a cursor is needed; only those files are opened.
+        let mut items = Vec::new();
+        'walk: for shard in shards {
+            let mut names = Vec::new();
+            for file in std::fs::read_dir(dir.join(&shard)).map_err(unavailable)? {
+                let name = file
+                    .map_err(unavailable)?
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned();
+                if is_asset_id(&name)
+                    && name.starts_with(&shard)
+                    && after.is_none_or(|a| name.as_str() > a)
+                {
+                    names.push(name);
+                }
+            }
+            names.sort();
+            for id in names {
+                let path = dir.join(&shard).join(&id);
+                let Ok(mut file) = std::fs::File::open(&path) else {
+                    continue;
+                };
+                // The first bytes tell the type; the length is the size. The whole file is checked only by `get`.
+                let mut head = Vec::with_capacity(12);
+                let size = file.metadata().map_err(unavailable)?.len();
+                Read::by_ref(&mut file)
+                    .take(12)
+                    .read_to_end(&mut head)
+                    .map_err(unavailable)?;
+                let Some(kind) = sniff(&head) else { continue };
+                items.push(Listed {
+                    id,
+                    kind,
+                    bytes: usize::try_from(size).unwrap_or(usize::MAX),
+                });
+                if items.len() > limit {
+                    break 'walk;
+                }
+            }
+        }
+        Ok(page_of(items, limit))
     }
 
     fn used(&self, workspace: &str) -> Result<u64, AssetError> {

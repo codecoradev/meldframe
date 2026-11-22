@@ -169,6 +169,26 @@ pub struct Stored {
     pub created: bool,
 }
 
+/// The most assets one [`BlobStore::list`] page holds.
+pub const MAX_LIST: usize = 200;
+
+/// One asset in a listing: what is known without reading the whole file. There is no name and no upload time (the
+/// store keeps neither), so a listing shows the id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Listed {
+    pub id: String,
+    pub kind: ImageType,
+    pub bytes: usize,
+}
+
+/// A page of a listing. `next` is the cursor for the page after it (the last id of this page; pass it as `after`)
+/// and is `None` on the last page.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Page {
+    pub items: Vec<Listed>,
+    pub next: Option<String>,
+}
+
 /// The seam: keep the assets of each workspace. Methods take `&self` and a store is `Sync`: calls run at once, so a
 /// slow write of one image never makes a read of another wait. Every method checks its input first ([`check_upload`], the form of
 /// the id), so no implementation sees an unchecked id or an unchecked upload.
@@ -180,6 +200,12 @@ pub trait BlobStore: Send + Sync {
     fn get(&self, workspace: &str, id: &str) -> Result<(ImageType, Vec<u8>), AssetError>;
     /// The bytes of every asset `workspace` holds (what its storage quota counts).
     fn used(&self, workspace: &str) -> Result<u64, AssetError>;
+    /// The assets of `workspace`, at most `limit` (kept between 1 and [`MAX_LIST`]) with an id after `after`, in the
+    /// order of their ids. That order is stable (an asset added later shows up where its id sorts and nothing is
+    /// repeated or lost between pages) but it is not the order of upload: the store keeps no upload time, and a
+    /// newest-first list needs a metadata index (ADR-0015). `after` is checked like an id. A file that is not an
+    /// image is not listed; the bytes are checked against the id only by [`BlobStore::get`].
+    fn list(&self, workspace: &str, after: Option<&str>, limit: usize) -> Result<Page, AssetError>;
     /// Whether `workspace` has the asset.
     fn has(&self, workspace: &str, id: &str) -> Result<bool, AssetError> {
         match self.get(workspace, id) {
@@ -187,6 +213,22 @@ pub trait BlobStore: Send + Sync {
             Err(AssetError::NotFound) => Ok(false),
             Err(e) => Err(e),
         }
+    }
+}
+
+/// The first `limit` of `sorted` (one more than a page is enough) as a page: a cursor only when more follow.
+fn page_of(mut sorted: Vec<Listed>, limit: usize) -> Page {
+    let limit = limit.clamp(1, MAX_LIST);
+    let more = sorted.len() > limit;
+    sorted.truncate(limit);
+    let next = if more {
+        sorted.last().map(|l| l.id.clone())
+    } else {
+        None
+    };
+    Page {
+        items: sorted,
+        next,
     }
 }
 
@@ -230,6 +272,27 @@ impl BlobStore for MemoryBlobs {
             bytes: bytes.len(),
             created,
         })
+    }
+
+    fn list(&self, workspace: &str, after: Option<&str>, limit: usize) -> Result<Page, AssetError> {
+        if let Some(after) = after {
+            check_id(after)?;
+        }
+        let blobs = self
+            .blobs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut held: Vec<Listed> = blobs
+            .iter()
+            .filter(|((w, id), _)| w == workspace && after.is_none_or(|a| id.as_str() > a))
+            .map(|((_, id), (kind, bytes))| Listed {
+                id: id.clone(),
+                kind: *kind,
+                bytes: bytes.len(),
+            })
+            .collect();
+        held.sort_by(|a, b| a.id.cmp(&b.id));
+        Ok(page_of(held, limit))
     }
 
     fn used(&self, workspace: &str) -> Result<u64, AssetError> {

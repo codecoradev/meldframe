@@ -297,6 +297,9 @@ impl BlobStore for Broken {
     fn used(&self, _: &str) -> Result<u64, AssetError> {
         Err(AssetError::Unavailable("down".into()))
     }
+    fn list(&self, _: &str, _: Option<&str>, _: usize) -> Result<assets::Page, AssetError> {
+        Err(AssetError::Unavailable("down".into()))
+    }
 }
 
 #[test]
