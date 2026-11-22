@@ -96,4 +96,6 @@ pub struct Checkpoint {
 pub enum CheckpointRequest {
     /// `Effect::FetchCheckpoints`.
     List {},
+    /// `Effect::PostCheckpoint` with this key.
+    Post { key: String },
 }

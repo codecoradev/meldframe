@@ -153,6 +153,8 @@ export class Shell {
         return this.batches('PUT', this.batchPath(`/${Math.trunc(e.n)}/review`), { state: e.state }, answerOfReview);
       case 'fetchCheckpoints':
         return this.checkpoint(checkpointCall(this.opts.file, e));
+      case 'postCheckpoint':
+        return; // the post is carried out in the next commit of the web transport (ADR-0023)
       case 'render':
         return; // the views redraw from every snapshot
       default: {

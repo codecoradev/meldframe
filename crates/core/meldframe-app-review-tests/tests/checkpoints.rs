@@ -1,13 +1,16 @@
-//! E5.3, ADR-0023: the checkpoints of the file as the server keeps them. The list, a frame, a gap, the second check of
-//! what the server sends, the bounds of the list and the wire shape.
+//! E5.3, ADR-0023: the checkpoints of the file as the server keeps them. The list, a frame, a gap, a new row, the second
+//! check of what the server sends, the bounds of the list and the wire shape. A revert or restore that waits for a row is
+//! in `revert_checkpoint.rs`.
 
 #[path = "../../meldframe-app-unit-tests/tests/common/mod.rs"]
 mod common;
+mod scripted;
 use common::*;
 use meldframe_app::{
     Action, Checkpoint, CheckpointKind as Kind, CheckpointRequest, CheckpointRow,
     CheckpointsStatus, Effect, Frame,
 };
+use scripted::*;
 
 fn row(n: u32, kind: Kind) -> CheckpointRow {
     let by = (kind != Kind::RunStart).then(|| "user:me".to_string());
@@ -274,6 +277,111 @@ fn a_new_run_start_rolls_the_oldest_of_its_share_out_as_the_server_does() {
 }
 
 #[test]
+fn a_person_makes_a_row_by_a_key_and_the_list_changes_only_when_the_server_says() {
+    let mut c = Cp::live();
+    c.silent = true;
+    c.l.remote("agent:x", "b1:0", 0, set("r1", |p| p.x = Some(5.0)));
+    let fx = c.send(Action::CreateCheckpoint {
+        label: " Before the pitch ".into(),
+    });
+    let Some(Effect::PostCheckpoint {
+        key,
+        kind,
+        label,
+        about,
+        seq,
+    }) = fx.first()
+    else {
+        panic!("a post: {fx:?}");
+    };
+    assert_eq!(
+        (*kind, label.as_deref(), about.as_deref(), *seq),
+        (Kind::Manual, Some("Before the pitch"), None, 1)
+    );
+    assert!(c.l.app.state().checkpoints.is_empty(), "not at once");
+    // The answer joins the row; its frame, which comes too, is the same row.
+    let manual = CheckpointRow {
+        n: 1,
+        seq: 1,
+        kind: Kind::Manual,
+        label: label.clone(),
+        about: None,
+        by: Some("user:me".into()),
+        at_ms: 3,
+    };
+    c.l.send(Action::CheckpointPosted {
+        key: key.clone(),
+        checkpoint: manual.clone(),
+    });
+    assert_eq!(fetches(&frame(&mut c.l, manual)), 0);
+    assert_eq!(ids(&c.l), ["1"]);
+    // Another request has another key; an empty label is no label.
+    c.silent = false;
+    let fx = c.send(Action::CreateCheckpoint { label: "  ".into() });
+    let keys: Vec<_> = c
+        .asked
+        .iter()
+        .filter_map(|e| match e {
+            Effect::PostCheckpoint { key, .. } => Some(key.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(keys.len(), 2);
+    assert_ne!(keys[0], keys[1]);
+    assert!(matches!(&fx[0], Effect::PostCheckpoint { label: None, .. }));
+}
+
+#[test]
+fn a_label_with_a_hidden_character_is_refused_before_anything_is_sent() {
+    let mut c = Cp::live();
+    c.l.remote("agent:x", "b1:0", 0, set("r1", |p| p.x = Some(5.0)));
+    for bad in [
+        "two\nlines",
+        "pay\u{202e}now",
+        "a\u{200b}b",
+        &"x".repeat(129),
+        "e\u{301}\u{301}\u{301}\u{301}\u{301}",
+    ] {
+        let fx = c.send(Action::CreateCheckpoint { label: bad.into() });
+        assert!(fx.is_empty(), "nothing is sent for {bad:?}");
+    }
+    assert_eq!(refused(&mut c.l), vec!["invalid"; 5]);
+    // 128 characters are fine.
+    assert_eq!(
+        c.send(Action::CreateCheckpoint {
+            label: "x".repeat(128)
+        })
+        .len(),
+        1
+    );
+}
+
+#[test]
+fn a_caller_who_may_not_make_one_is_refused_and_a_refusal_leaves_the_list_as_it_was() {
+    let mut l = Loopback::live();
+    let fx = l.send(Action::CreateCheckpoint { label: "v1".into() });
+    assert!(fx.is_empty());
+    assert_eq!(
+        refused(&mut l),
+        vec!["forbidden"],
+        "the list was never read: nothing is allowed"
+    );
+    let mut c = Cp::live();
+    c.l.remote("agent:x", "b1:0", 0, set("r1", |p| p.x = Some(5.0)));
+    let first = c.make(Kind::Manual, Some("kept"), None);
+    c.fail_post = Some("checkpoint_full");
+    c.send(Action::CreateCheckpoint {
+        label: "one too many".into(),
+    });
+    c.fail_post = Some("key_reused");
+    c.send(Action::CreateCheckpoint {
+        label: "again".into(),
+    });
+    assert_eq!(refused(&mut c.l), vec!["checkpoint_full", "key_reused"]);
+    assert_eq!(ids(&c.l), [first.to_string()]);
+}
+
+#[test]
 fn a_server_without_the_module_leaves_no_list_and_no_noise() {
     let mut l = Loopback::live();
     loaded(&mut l, vec![row(1, Kind::Manual)], true);
@@ -299,25 +407,35 @@ fn a_server_without_the_module_leaves_no_list_and_no_noise() {
 
 #[test]
 fn the_actions_effects_frame_and_list_have_a_wire_shape() {
-    let list = serde_json::json!({
-        "type": "checkpointsLoaded", "canCreate": true,
-        "checkpoints": [{"n": 2, "seq": 9, "kind": "runStart", "about": "agent:x", "atMs": 5}]
-    });
-    let a: Action = serde_json::from_value(list).unwrap();
+    let a: Action = serde_json::from_value(serde_json::json!({
+        "type": "checkpointPosted", "key": "k",
+        "checkpoint": {"n": 2, "seq": 9, "kind": "runStart", "about": "agent:x", "atMs": 5}
+    }))
+    .unwrap();
     assert!(
-        matches!(a, Action::CheckpointsLoaded { ref checkpoints, .. } if checkpoints[0].kind == Kind::RunStart)
+        matches!(a, Action::CheckpointPosted { ref checkpoint, .. } if checkpoint.kind == Kind::RunStart)
     );
-    let extra = serde_json::json!({"type": "checkpointsLoaded", "canCreate": true, "checkpoints": [], "x": 1});
-    assert!(serde_json::from_value::<Action>(extra).is_err());
-    let failed = serde_json::json!({"type": "checkpointRequestFailed", "request": {"type": "list"}, "code": "forbidden"});
+    let bad = serde_json::json!({"type": "createCheckpoint", "label": "v1", "x": 1});
+    assert!(serde_json::from_value::<Action>(bad).is_err());
+    let failed = serde_json::json!({"type": "checkpointRequestFailed", "request": {"type": "post", "key": "k"}, "code": "forbidden"});
     assert!(serde_json::from_value::<Action>(failed).is_ok());
     let f: Frame = serde_json::from_value(serde_json::json!({
         "type": "checkpoint", "checkpoint": {"n": 1, "seq": 0, "kind": "manual", "by": "user:me", "atMs": 1}
     }))
     .unwrap();
     assert!(matches!(f, Frame::Checkpoint { .. }));
-    let e = serde_json::to_value(Effect::FetchCheckpoints {}).unwrap();
-    assert_eq!(e, serde_json::json!({"type": "fetchCheckpoints"}));
+    let e = serde_json::to_value(Effect::PostCheckpoint {
+        key: "k".into(),
+        kind: Kind::BeforeRevert,
+        label: None,
+        about: Some("agent:x".into()),
+        seq: 4,
+    })
+    .unwrap();
+    assert_eq!(
+        e,
+        serde_json::json!({"type": "postCheckpoint", "key": "k", "kind": "beforeRevert", "label": null, "about": "agent:x", "seq": 4})
+    );
     let mut l = Loopback::live();
     loaded(&mut l, vec![row(4, Kind::Manual)], true);
     let v = serde_json::to_value(l.app.state()).unwrap();

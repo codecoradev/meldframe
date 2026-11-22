@@ -267,6 +267,13 @@ pub enum Action {
         actor: String,
         key_prefix: String,
     },
+    /// Ask the server for a `manual` checkpoint at the confirmed file (`Effect::PostCheckpoint`); the list changes only
+    /// when it answers. A label with a control or hidden character, over 128 characters or with more than 4 combining
+    /// marks in a row is refused as `invalid` before anything is sent; an empty one is no label; `forbidden` where the
+    /// caller may not make one.
+    CreateCheckpoint {
+        label: String,
+    },
     /// Bring the file back to a checkpoint as new ops of the person (one undo step; the log is not rewritten), worked
     /// out from the ops the app has seen since it loaded the file. Refused with `unknown_checkpoint`, `not_in_log` (the
     /// app has dropped the ops back to it), `nothing_to_restore` or `log_mismatch`.
@@ -277,6 +284,11 @@ pub enum Action {
     CheckpointsLoaded {
         checkpoints: Vec<CheckpointRow>,
         can_create: bool,
+    },
+    /// The server made the row asked for with the effect that carried `key` (or had made it already).
+    CheckpointPosted {
+        key: String,
+        checkpoint: CheckpointRow,
     },
     /// A checkpoint request failed, was refused or got no answer in time: `Event::Refused`.
     CheckpointRequestFailed {
