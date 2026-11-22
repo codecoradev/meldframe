@@ -2,7 +2,7 @@
 // the actions to dispatch. The Svelte files only call these, so a sequence of clicks is a test and not a promise. Which
 // batch may be reverted is the app layer's (`revertable`, `inEffect`); this holds the confirmation the person is in.
 import type { Action, ActivityState, BatchRef, BatchRow, Checkpoint } from '@meldframe/protocol';
-import { refOf, restore, revert, show as showAction } from './actions';
+import { createCheckpoint, refOf, restore, revert, show as showAction } from './actions';
 
 /** The one question the person is being asked: revert a batch, or restore a checkpoint. */
 export type Confirm = ({ kind: 'revert' } & BatchRef) | { kind: 'restore'; id: string };
@@ -44,6 +44,27 @@ export function confirmRestore(ui: Ui, id: string): Step {
   if (ui.confirm?.kind !== 'restore' || ui.confirm.id !== id) return { ui, actions: [] };
   return { ui: { ...ui, confirm: null }, actions: [restore(id)] };
 }
+
+/**
+ * Create checkpoint with the text of the field. Nothing goes out where the caller may not make one (the button is
+ * disabled then, and Enter in the field must not get round it); an open question closes, as the person moved on.
+ */
+export const createStep = (ui: Ui, canCreate: boolean, text: string): Step =>
+  canCreate ? { ui: ui.confirm === null ? ui : { ...ui, confirm: null }, actions: [createCheckpoint(text)] } : { ui, actions: [] };
+
+/**
+ * Whether `now` holds the checkpoint a request made: a new manual row of this actor with the name that was asked for. The
+ * rows an agent's run start or another person adds say nothing about a name the person is still correcting. A refused
+ * request adds no row, so the text stays.
+ */
+export function madeByRequest(asked: { label: string } | null, before: readonly Checkpoint[], now: readonly Checkpoint[], self: string): boolean {
+  if (asked === null) return false;
+  const had = new Set(before.map((c) => c.id));
+  return now.some((c) => !had.has(c.id) && c.kind === 'manual' && c.by === self && (c.label ?? '') === asked.label);
+}
+
+/** Enter in the field makes the checkpoint; Enter that confirms an input method's text, or Shift+Enter, does not. */
+export const isSubmitKey = (e: { key: string; isComposing: boolean; shiftKey: boolean }): boolean => e.key === 'Enter' && !e.isComposing && !e.shiftKey;
 
 /** Cancel, Close and Esc. */
 export const cancel = (ui: Ui): Step => ({ ui: { ...ui, confirm: null }, actions: [] });

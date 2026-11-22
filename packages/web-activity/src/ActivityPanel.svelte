@@ -6,7 +6,7 @@
 -->
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
-  import type { Action, ActivityState, Checkpoint, Event } from '@meldframe/protocol';
+  import type { Action, ActivityState, Checkpoint, CheckpointsStatus, Event } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Icon from '@meldframe/web-chrome/Icon.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
@@ -14,14 +14,19 @@
   import { duration } from '@meldframe/web-tokens/tokens';
   import { older, setReview } from './actions';
   import BatchItem from './BatchItem.svelte';
+  import CheckpointCreate from './CheckpointCreate.svelte';
   import CheckpointList from './CheckpointList.svelte';
-  import { askRestore, askRevert, cancel, confirmRestore, confirmRevert, laneOpen, settle, show, start, toggleLane, type Step, type Ui } from './controller';
+  import { askRestore, askRevert, cancel, confirmRestore, confirmRevert, createStep, laneOpen, settle, show, start, toggleLane, type Step, type Ui } from './controller';
   import MessageLine from './MessageLine.svelte';
-  import { clockText, laneSummary, laneViews, messageFor, type Message } from './view';
+  import { checkpointMade, clockText, laneSummary, laneViews, messageFor, type Message } from './view';
 
   interface Props {
     activity: ActivityState;
     checkpoints: readonly Checkpoint[];
+    /** Whether this caller may make a checkpoint (`AppState.canCreateCheckpoint`). */
+    canCreate: boolean;
+    /** Whether the list was read and whether the server keeps checkpoints (`AppState.checkpointsStatus`). */
+    status: CheckpointsStatus;
     /** The actor of this page: its lane is called You. */
     self: string;
     dispatch: (a: Action) => void;
@@ -31,13 +36,19 @@
      */
     events?: readonly Event[];
   }
-  let { activity, checkpoints, self, dispatch, events = [] }: Props = $props();
+  let { activity, checkpoints, canCreate, status, self, dispatch, events = [] }: Props = $props();
 
   const lanes = $derived(laneViews(activity, self));
   let ui = $state.raw<Ui>(start);
+  // What the person asked for last decides the words of a refusal: `forbidden` means one thing for a review and another for a checkpoint.
+  let about = $state.raw<'checkpoint' | undefined>(undefined);
   const run = (s: Step) => {
     ui = s.ui;
-    for (const a of s.actions) dispatch(a);
+    for (const a of s.actions) {
+      if (a.type === 'createCheckpoint' || a.type === 'restoreCheckpoint' || a.type === 'revertBatch') about = 'checkpoint';
+      else if (a.type === 'setBatchReview') about = undefined;
+      dispatch(a);
+    }
   };
   // A confirmation belongs to a row that is still there and still selected, and to a checkpoint that still exists.
   $effect(() => {
@@ -52,12 +63,14 @@
     const now = events;
     if (now === seen) return;
     seen = now;
-    const m = messageFor(now);
-    if (!m) return;
+    const m = messageFor(now, about);
+    if (m) say(m);
+  });
+  function say(m: Message) {
     message = m;
     clearTimeout(timer);
     timer = setTimeout(() => (message = null), duration.notice);
-  });
+  }
   onDestroy(() => clearTimeout(timer));
 
   const key = (actor: string, prefix: string) => `${actor}\u0000${prefix}`;
@@ -126,6 +139,7 @@
     {/if}
   </Section>
   <Section title="Checkpoints">
+    <CheckpointCreate {canCreate} {status} {self} {checkpoints} onCreate={(label) => run(createStep(ui, canCreate, label))} onMade={() => say(checkpointMade)} />
     <CheckpointList
       {checkpoints}
       asking={ui.confirm?.kind === 'restore' ? ui.confirm.id : null}

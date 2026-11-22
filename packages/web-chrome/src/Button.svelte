@@ -16,6 +16,8 @@
     onclick?: (e: MouseEvent) => void;
     /** A name that starts with the visible text, where the text alone does not say what it acts on. */
     'aria-label'?: string;
+    /** The id of the text that says why the button is disabled, or what it does beyond its name. */
+    'aria-describedby'?: string;
     children: Snippet;
     [data: `data-${string}`]: string | undefined;
   }
