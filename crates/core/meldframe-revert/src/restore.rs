@@ -4,7 +4,7 @@
 
 use crate::{LoggedOp, RevertError};
 use meldframe_history::FileState;
-use meldframe_protocol::{Command, Node, NodePatch};
+use meldframe_protocol::{Command, Doc, Node, NodePatch};
 use std::collections::{HashMap, HashSet};
 
 /// A restore that cannot be worked out.
@@ -19,7 +19,13 @@ pub enum RestoreError {
 /// The tree as it was after op `seq`: `base` is the tree before the first op of `log`, and the ops with a
 /// number above `seq` are left out.
 pub fn state_at(base: &[Node], log: &[LoggedOp], seq: u64) -> Result<Vec<Node>, RevertError> {
-    let mut fs = FileState::from_nodes_unchecked(base.to_vec());
+    state_at_doc(&Doc::of_nodes(base.to_vec()), log, seq)
+}
+
+/// [`state_at`] for a base with variables (a snapshot of the file): an op of `log` that touches a variable replays on
+/// the variables the base holds. Only the nodes are given back.
+pub fn state_at_doc(base: &Doc, log: &[LoggedOp], seq: u64) -> Result<Vec<Node>, RevertError> {
+    let mut fs = FileState::from_doc_unchecked(base.clone());
     for op in log.iter().take_while(|op| op.seq <= seq) {
         fs.replay_pending(&op.command)
             .map_err(|_| RevertError::LogDoesNotReplay { seq: op.seq })?;
