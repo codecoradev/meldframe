@@ -131,6 +131,36 @@ for (const notAFunction of ['not a function', undefined, null, {}]) {
   assert.throws(() => meas.setMeasurer(notAFunction), (e) => e === 'measurer: not a function', 'refused at the boundary, as a string');
 }
 
+// Checkpoints (E5.3, ADR-0023): the list, a post, and a restore that waits for its row, through the real wasm. The file
+// at a checkpoint comes from the server, so a restore needs no record of the app's own.
+const ck = new WasmApp('usr_me', 'web', 11, '[]', 0);
+const runCk = (action) => JSON.parse(ck.dispatch(JSON.stringify(action)));
+runCk({ type: 'start', nowMs: T });
+assert.ok(runCk({ type: 'connected', nowMs: T + 1 }).some((e) => e.type === 'fetchCheckpoints'), 'a subscribe reads the list');
+const cpRow = (n, seq, kind, extra = {}) => ({ n, seq, kind, by: 'usr_me', atMs: T, ...extra });
+runCk({ type: 'checkpointsLoaded', canCreate: true, checkpoints: [cpRow(1, 0, 'manual', { label: 'empty' }), cpRow(2, 0, 'runStart', { by: undefined, about: 'agent:x' })] });
+let cps = JSON.parse(ck.stateJson());
+assert.deepEqual(cps.checkpoints.map((c) => c.id), ['2', '1'], 'newest first, the text of n as the id');
+assert.equal(cps.canCreateCheckpoint, true);
+assert.equal(cps.checkpointsStatus, 'loaded');
+const posted = runCk({ type: 'createCheckpoint', label: ' kept ' }).find((e) => e.type === 'postCheckpoint');
+assert.deepEqual([posted.kind, posted.label, posted.about, posted.seq], ['manual', 'kept', null, 0]);
+assert.equal(JSON.parse(ck.stateJson()).checkpoints.length, 2, 'the list changes when the server says');
+runCk({ type: 'checkpointPosted', key: posted.key, checkpoint: cpRow(3, 0, 'manual', { label: 'kept' }) });
+assert.equal(JSON.parse(ck.stateJson()).checkpoints[0].label, 'kept');
+runCk({ type: 'createNode', kind: 'rectangle', x: 1, y: 2, parent: null });
+assert.deepEqual(runCk({ type: 'restoreCheckpoint', id: '1' }), [{ type: 'fetchCheckpointState', n: 1 }]);
+const before = runCk({ type: 'checkpointStateLoaded', n: 1, seq: 0, nodes: [] }).find((e) => e.type === 'postCheckpoint');
+assert.deepEqual([before.kind, before.about], ['beforeRestore', null]);
+const restored = runCk({ type: 'checkpointPosted', key: before.key, checkpoint: cpRow(4, 0, 'beforeRestore') });
+assert.ok(restored.some((e) => e.type === 'sendOps' && e.ops.some((o) => o.command.type === 'removeNode')), 'the restore is sent once its row is made');
+assert.equal(JSON.parse(ck.nodesJson()).length, 0, 'and the file is as it was at the checkpoint');
+ck.takeEventsJson();
+runCk({ type: 'checkpointRequestFailed', request: { type: 'list' }, code: 'forbidden' });
+assert.deepEqual(JSON.parse(ck.takeEventsJson()), [{ type: 'refused', code: 'forbidden' }], 'a failed read is a refusal');
+assert.throws(() => runCk({ type: 'checkpointsLoaded', canCreate: true, checkpoints: [{ n: 1, seq: 0, kind: 'snapshot', atMs: 1 }] }), (e) => typeof e === 'string' && e.startsWith('action:'));
+assert.throws(() => runCk({ type: 'frame', nowMs: T, frame: { type: 'checkpoint', checkpoint: { n: 1 } } }), (e) => typeof e === 'string' && e.startsWith('action:'));
+
 // Errors are thrown as strings, not as a trap.
 assert.throws(() => app.dispatch('not json'), (e) => typeof e === 'string' && e.startsWith('action:'));
 assert.throws(() => new WasmApp('usr_me', 'web', 1, '{', 0), (e) => typeof e === 'string' && e.startsWith('nodes:'));

@@ -2,6 +2,10 @@
 //! from the file as the server had it at the checkpoint (so it still works after a reload), and one undo takes either
 //! back. The server is scripted (`scripted/mod.rs`).
 
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 #[path = "../../meldframe-app-unit-tests/tests/common/mod.rs"]
 mod common;
 mod scripted;
