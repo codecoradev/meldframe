@@ -3,10 +3,12 @@
 //! machine that uses them is `meldframe-app`, which re-exports all of this; this crate only keeps that one
 //! under the size ceiling and holds no rules. The only code is conversions (`From`: what `Feed::view` of
 //! `meldframe-activity` gives, a `BatchPage`), `Frame::observe` (a plain mapping of a frame to the feed's calls) and
-//! the classification of an action (`Action::is_activity`, `Action::only_activity`).
+//! the classification of an action (`Action::is_activity`, `Action::only_activity`, `Action::is_checkpoint`).
 
 pub mod action;
 pub mod activity;
+pub mod checkpoint;
+mod classify;
 pub mod effect;
 pub mod event;
 pub mod export;
@@ -21,13 +23,13 @@ pub use activity::{
     ActivityLane, ActivityRun, ActivityState, BatchHeader, BatchPage, BatchRef, BatchRow,
     BatchStatus, BatchSummary, LaneKind, LaneState, ReviewState, TouchRing,
 };
+pub use checkpoint::{Checkpoint, CheckpointKind, CheckpointRequest, CheckpointRow};
 pub use effect::{Effect, OutOp};
 pub use event::{Event, RevertSkip, RevertSkipReason, VariableEntity};
 pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget};
 pub use layout::{Axis, Direction, LayoutNote, Side, Sides};
 pub use state::{
-    AppState, Checkpoint, CheckpointKind, Connection, FieldBinding, FillKind, History, Panel,
-    Panels, Properties, Tool,
+    AppState, Connection, FieldBinding, FillKind, History, Panel, Panels, Properties, Tool,
 };
 pub use variables::{
     BindField, BindOption, CollectionRow, ModeValue, Picker, PickerRow, TypeHeading, VariableRow,

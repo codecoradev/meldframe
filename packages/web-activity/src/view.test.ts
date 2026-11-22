@@ -92,12 +92,12 @@ describe('the words of a row', () => {
 });
 
 describe('checkpointWords', () => {
-  const cp = (over: Partial<Checkpoint>): Checkpoint => ({ id: 'c1', seq: 42, label: '', kind: 'manual', ...over });
-  it('uses the label the person typed, and words the checkpoints the app took by themselves', () => {
+  const cp = (over: Partial<Checkpoint>): Checkpoint => ({ id: '1', n: 1, seq: 42, kind: 'manual', atMs: 1, ...over });
+  it('uses the label the person typed, and words the checkpoints the server took by itself', () => {
     expect(checkpointWords(cp({ label: 'Before the pitch' }))).toBe('Before the pitch');
     expect(checkpointWords(cp({}))).toBe('Checkpoint');
-    expect(checkpointWords(cp({ kind: 'otherActorRun', actor: 'agent:claude' }))).toBe("Before claude's run");
-    expect(checkpointWords(cp({ kind: 'beforeRevert', actor: 'agent:claude' }))).toBe("Before reverting claude's batch");
+    expect(checkpointWords(cp({ kind: 'runStart', about: 'agent:claude' }))).toBe("Before claude's run");
+    expect(checkpointWords(cp({ kind: 'beforeRevert', about: 'agent:claude' }))).toBe("Before reverting claude's batch");
     expect(checkpointWords(cp({ kind: 'beforeRestore' }))).toBe('Before a restore');
   });
 });
@@ -116,14 +116,16 @@ describe('messageFor', () => {
   const rust = (path: string) => readFileSync(new URL(`../../../crates/${path}`, import.meta.url), 'utf8');
   const appCodes = (): string[] => {
     const found = new Set<string>();
-    for (const src of [rust('app/meldframe-app/src/review.rs'), rust('app/meldframe-app/src/activity.rs')]) for (const m of src.matchAll(/refuse\(\s*&mut self\.events,\s*"([a-z_]+)"\s*\)/g)) found.add(m[1]!);
+    for (const src of [rust('app/meldframe-app/src/review.rs'), rust('app/meldframe-app/src/activity.rs'), rust('app/meldframe-app/src/checkpoints.rs')]) {
+      for (const m of src.matchAll(/refuse\(\s*&mut self\.events,\s*"([a-z_]+)"\s*\)/g)) found.add(m[1]!);
+    }
     // The plans of a revert and of a restore live in meldframe-app-rules and answer with the code as `Err("code")`.
     for (const m of rust('core/meldframe-app-rules/src/review.rs').matchAll(/Err\("([a-z_]+)"\)/g)) found.add(m[1]!);
     for (const m of rust('core/meldframe-activity/src/feed.rs').matchAll(/ok_or\("([a-z_]+)"\)/g)) found.add(m[1]!);
     return [...found].sort();
   };
   it('reads the codes from the sources, and finds the ones the review flows refuse with', () => {
-    expect(appCodes()).toEqual(expect.arrayContaining(['batch_incomplete', 'limit', 'log_mismatch', 'no_batch_number', 'not_in_log', 'nothing_to_restore', 'nothing_to_revert', 'unknown_batch', 'unknown_checkpoint']));
+    expect(appCodes()).toEqual(expect.arrayContaining(['batch_incomplete', 'log_mismatch', 'no_batch_number', 'not_in_log', 'nothing_to_restore', 'nothing_to_revert', 'unknown_batch', 'unknown_checkpoint']));
   });
   it('has words for every code the app layer refuses with, and never prints the code', () => {
     for (const code of [...appCodes(), 'forbidden', 'not_found', 'invalid', 'rate_limited', 'unavailable']) {

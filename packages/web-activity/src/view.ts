@@ -80,12 +80,12 @@ export function clockText(ms: number): string {
   return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
 }
 
-/** What a checkpoint is called: the person's label, or words for the ones the app took by itself. */
+/** What a checkpoint is called: the person's label, or words for the ones the server took on its own. */
 export function checkpointWords(c: Checkpoint): string {
-  const who = c.actor ? actorLabel(c.actor).name : 'an actor';
+  const who = c.about ? actorLabel(c.about).name : 'an actor';
   switch (c.kind) {
-    case 'manual': return c.label.trim() || 'Checkpoint';
-    case 'otherActorRun': return `Before ${who}'s run`;
+    case 'manual': return c.label?.trim() || 'Checkpoint';
+    case 'runStart': return `Before ${who}'s run`;
     case 'beforeRevert': return `Before reverting ${who}'s batch`;
     case 'beforeRestore': return 'Before a restore';
   }

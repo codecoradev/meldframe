@@ -2,15 +2,19 @@
 import type { CheckpointKind } from "./CheckpointKind";
 
 /**
- * A named point in the file's history that can be restored: the file as the server confirmed it after op `seq`.
- * The person's own pending ops (sent, not yet confirmed) are not in it.
+ * A checkpoint of the file as the server keeps it: the file as the server had it after op `seq`, never a copy of it.
+ * `id` is the text of `n`, the same in every editor. The person's own pending ops are not in it.
  */
-export type Checkpoint = { id: string, seq: number, 
+export type Checkpoint = { id: string, n: number, seq: number, kind: CheckpointKind, 
 /**
- * What the person typed (`Manual`); empty for the checkpoints the app takes: the front end words those.
+ * The person's text, only on a `Manual` one.
  */
-label: string, kind: CheckpointKind, 
+label?: string, 
 /**
- * The actor whose run (`OtherActorRun`) or batch (`BeforeRevert`) it is about.
+ * The actor the checkpoint is about: the agent whose run started, the actor of the batch being reverted.
  */
-actor?: string, };
+about?: string, 
+/**
+ * The actor that asked for it (none for a run start, which the server takes by its own rule).
+ */
+by?: string, atMs: number, };

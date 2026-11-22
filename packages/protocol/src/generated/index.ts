@@ -18,6 +18,8 @@ export type { Border } from './Border';
 export type { BorderPosition } from './BorderPosition';
 export type { Checkpoint } from './Checkpoint';
 export type { CheckpointKind } from './CheckpointKind';
+export type { CheckpointRequest } from './CheckpointRequest';
+export type { CheckpointRow } from './CheckpointRow';
 export type { ClientMsg } from './ClientMsg';
 export type { Collection } from './Collection';
 export type { CollectionRow } from './CollectionRow';

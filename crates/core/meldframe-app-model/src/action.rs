@@ -1,6 +1,7 @@
 //! Inputs to the app layer. They are UI-neutral: no toolkit events (standard rule U6).
 
 use crate::activity::{BatchHeader, BatchPage, BatchRef, ReviewState};
+use crate::checkpoint::{CheckpointRequest, CheckpointRow};
 use crate::export::ExportFormat;
 pub use crate::frame::Frame;
 use crate::layout::Direction;
@@ -259,24 +260,28 @@ pub enum Action {
         before: Option<String>,
         after: Option<String>,
     },
-    /// Revert an agent's batch (E5.2): the ops of `actor` whose keys are `{key_prefix}:{n}`. Only the fields
-    /// whose last writer is still that batch go back; the change is the person's own and one undo takes it
-    /// back. Refused with `unknown_batch` (no such ops since the app loaded the file), `nothing_to_revert` or
-    /// `log_mismatch`. A checkpoint is taken first.
+    /// Revert an agent's batch (E5.2): the ops of `actor` whose keys are `{key_prefix}:{n}`. Only the fields whose last
+    /// writer is still that batch go back, as the person's own change that one undo takes back. Refused with
+    /// `unknown_batch`, `nothing_to_revert` or `log_mismatch`.
     RevertBatch {
         actor: String,
         key_prefix: String,
     },
-    /// Make a checkpoint at the confirmed state of the file (E5.3). A label over 128 characters is refused as
-    /// `limit`.
-    CreateCheckpoint {
-        label: String,
-    },
-    /// Bring the file back to a checkpoint as new ops of the person (one undo step); nothing in the log is
-    /// rewritten. A checkpoint is taken first. Refused with `unknown_checkpoint`, `not_in_log` (the app has
-    /// dropped the ops back to it), `nothing_to_restore` or `log_mismatch`.
+    /// Bring the file back to a checkpoint as new ops of the person (one undo step; the log is not rewritten), worked
+    /// out from the ops the app has seen since it loaded the file. Refused with `unknown_checkpoint`, `not_in_log` (the
+    /// app has dropped the ops back to it), `nothing_to_restore` or `log_mismatch`.
     RestoreCheckpoint {
         id: String,
+    },
+    /// The answer of `Effect::FetchCheckpoints`: it replaces the list held.
+    CheckpointsLoaded {
+        checkpoints: Vec<CheckpointRow>,
+        can_create: bool,
+    },
+    /// A checkpoint request failed, was refused or got no answer in time: `Event::Refused`.
+    CheckpointRequestFailed {
+        request: CheckpointRequest,
+        code: String,
     },
     /// The Activity tab was opened: ask for the newest page of batches (heal rule (c)).
     OpenActivity {},
@@ -362,26 +367,6 @@ pub enum Action {
 }
 
 impl Action {
-    /// Whether the activity rules handle it (`meldframe-app`, `activity.rs`) and not the document.
-    pub fn is_activity(&self) -> bool {
-        matches!(
-            self,
-            Action::OpenActivity {}
-                | Action::LoadOlderBatches {}
-                | Action::SelectBatch { .. }
-                | Action::SetBatchReview { .. }
-                | Action::BatchesLoaded { .. }
-                | Action::BatchReviewed { .. }
-                | Action::BatchRequestFailed { .. }
-        )
-    }
-
-    /// An activity action that does not touch the document, the selection or the properties panel (all but
-    /// `SelectBatch`): the app has only the panel to bring up to date.
-    pub fn only_activity(&self) -> bool {
-        self.is_activity() && !matches!(self, Action::SelectBatch { .. })
-    }
-
     /// `CreateNode` with the default size.
     pub fn create_node(kind: CreateKind, x: f64, y: f64, parent: Option<String>) -> Self {
         Self::CreateNode {

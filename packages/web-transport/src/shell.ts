@@ -150,6 +150,8 @@ export class Shell {
         return this.batches('GET', this.batchPath(listQuery(e)), undefined, answerOfList);
       case 'putBatchReview':
         return this.batches('PUT', this.batchPath(`/${Math.trunc(e.n)}/review`), { state: e.state }, answerOfReview);
+      case 'fetchCheckpoints':
+        return; // the checkpoint routes are carried out by the web link of the checkpoints (a later slice of ADR-0023)
       case 'render':
         return; // the views redraw from every snapshot
       default: {
