@@ -1,5 +1,5 @@
 //! The checkpoints of the file in the app layer (E5.3, ADR-0023): the list as the server last said it, the requests the
-//! app makes (the list, a new row). A checkpoint
+//! app makes (the list, a new row, the file at a checkpoint) and what a revert or a restore waits for. A checkpoint
 //! changes only when the server has said so, never optimistically, and the app takes none itself. The rules are in
 //! `meldframe_app_rules::checkpoints` and `meldframe-checkpoints`.
 
@@ -11,7 +11,7 @@ use crate::state::Connection;
 use meldframe_app_model::{
     Action, CheckpointKind, CheckpointRequest, CheckpointRow, CheckpointsStatus,
 };
-use meldframe_app_rules::checkpoints::{Taken, merge, take};
+use meldframe_app_rules::checkpoints::{Taken, Waiting, merge, take};
 use meldframe_checkpoints::Label;
 use meldframe_sync::SubmitError;
 
@@ -34,9 +34,37 @@ impl App {
         self.fetch_checkpoints(fx);
     }
 
-    /// The file was loaded again: a read of the list that was out will not come back.
+    /// The file was loaded again: what was waited for will not come back.
     pub(crate) fn checkpoints_reset(&mut self) {
         self.cps.listing = false;
+        if self.cps.waiting.take().is_some() {
+            self.say("checkpoint_failed");
+        }
+    }
+
+    /// Ask the server for a row at the file the person sees and hold what the app wants done when it is made.
+    pub(crate) fn wait_for_post(
+        &mut self,
+        kind: CheckpointKind,
+        about: Option<&str>,
+        waiting: impl FnOnce(String) -> Waiting,
+        fx: &mut Vec<Effect>,
+    ) -> Result<(), SubmitError> {
+        if self.cps.waiting.is_some() {
+            return refuse(&mut self.events, "checkpoint_pending");
+        }
+        let key = self.cps.next_key(&self.prefix);
+        let about = about.map(String::from);
+        let seq = self.replica.seq();
+        fx.push(Effect::PostCheckpoint {
+            key: key.clone(),
+            kind,
+            label: None,
+            about,
+            seq,
+        });
+        self.cps.waiting = Some(waiting(key));
+        Ok(())
     }
 
     pub(crate) fn create_checkpoint(
@@ -80,8 +108,28 @@ impl App {
         }
     }
 
-    /// The answers that change no node: the list, a row that was made, a failed request.
-    pub(crate) fn checkpoint_action(&mut self, action: Action) {
+    /// The row asked for with `key` is made: it joins the list, and the revert or restore that waited for it goes on.
+    pub(crate) fn checkpoint_posted(
+        &mut self,
+        key: &str,
+        row: CheckpointRow,
+    ) -> Result<(), SubmitError> {
+        self.join(row);
+        let mine = match &self.cps.waiting {
+            Some(Waiting::Revert { key: k, .. } | Waiting::Restore { key: k, .. }) => k == key,
+            _ => false,
+        };
+        match mine.then(|| self.cps.waiting.take()).flatten() {
+            Some(Waiting::Revert {
+                actor, key_prefix, ..
+            }) => self.go_on_revert(&actor, &key_prefix),
+            Some(Waiting::Restore { id, target, .. }) => self.go_on_restore(&id, &target),
+            _ => Ok(()),
+        }
+    }
+
+    /// The answers that change no node: the list, the file at a checkpoint, a failed request.
+    pub(crate) fn checkpoint_action(&mut self, action: Action, fx: &mut Vec<Effect>) {
         match action {
             Action::CheckpointsLoaded {
                 checkpoints,
@@ -97,8 +145,20 @@ impl App {
                 self.state.can_create_checkpoint = can_create;
                 self.state.checkpoints_status = CheckpointsStatus::Loaded;
             }
-            Action::CheckpointPosted { checkpoint, .. } => {
-                self.join(checkpoint);
+            Action::CheckpointStateLoaded { n, seq, nodes } => {
+                let Some(Waiting::State { n: asked, id }) = self.cps.waiting.clone() else {
+                    return;
+                };
+                if asked != n {
+                    return;
+                }
+                self.cps.waiting = None;
+                let held = self.state.checkpoints.iter().find(|c| c.id == id);
+                match held.map(|c| c.seq) {
+                    None => self.say("unknown_checkpoint"),
+                    Some(at) if at != seq => self.say("log_mismatch"),
+                    Some(_) => self.restore_planned(id, nodes, fx),
+                }
             }
             Action::CheckpointRequestFailed { request, code } => {
                 self.checkpoint_failed(request, &code)
@@ -108,8 +168,8 @@ impl App {
     }
 
     fn checkpoint_failed(&mut self, request: CheckpointRequest, code: &str) {
-        match request {
-            CheckpointRequest::List {} => {
+        match (request, &self.cps.waiting) {
+            (CheckpointRequest::List {}, _) => {
                 self.cps.listing = false;
                 // A server that keeps no checkpoints answers the route with not found: nothing to say about it.
                 if code != "not_found" {
@@ -122,7 +182,21 @@ impl App {
                     self.events.push(Event::CheckpointsChanged { count: 0 });
                 }
             }
-            CheckpointRequest::Post { .. } => self.say(code),
+            (
+                CheckpointRequest::Post { key },
+                Some(Waiting::Revert { key: k, .. } | Waiting::Restore { key: k, .. }),
+            ) if *k == key => {
+                self.cps.waiting = None;
+                self.say("checkpoint_failed");
+            }
+            (CheckpointRequest::Post { .. }, _) => self.say(code),
+            (CheckpointRequest::State { n }, Some(Waiting::State { n: asked, .. }))
+                if *asked == n =>
+            {
+                self.cps.waiting = None;
+                self.say(code);
+            }
+            (CheckpointRequest::State { .. }, _) => {}
         }
     }
 }

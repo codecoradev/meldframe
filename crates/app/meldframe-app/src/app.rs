@@ -166,7 +166,7 @@ impl App {
             Action::Tick { now_ms } => self.tick(now_ms, &mut fx),
             Action::Frame { now_ms, frame } => self.frame(now_ms, frame, &mut fx),
             a if a.is_activity() => self.activity_action(a, &mut fx),
-            a if a.is_checkpoint() => self.checkpoint_action(a),
+            a if a.is_checkpoint() => self.checkpoint_action(a, &mut fx),
             Action::Reload {
                 now_ms,
                 nodes,

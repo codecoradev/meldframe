@@ -196,7 +196,8 @@ impl World {
             | Effect::FetchBatches { .. }
             | Effect::PutBatchReview { .. }
             | Effect::FetchCheckpoints {}
-            | Effect::PostCheckpoint { .. } => vec![],
+            | Effect::PostCheckpoint { .. }
+            | Effect::FetchCheckpointState { .. } => vec![],
         }
     }
 

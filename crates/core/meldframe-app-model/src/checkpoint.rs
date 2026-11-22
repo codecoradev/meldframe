@@ -98,4 +98,6 @@ pub enum CheckpointRequest {
     List {},
     /// `Effect::PostCheckpoint` with this key.
     Post { key: String },
+    /// `Effect::FetchCheckpointState` for this number.
+    State { n: u32 },
 }

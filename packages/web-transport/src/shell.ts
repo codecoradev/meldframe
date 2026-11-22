@@ -154,7 +154,8 @@ export class Shell {
       case 'fetchCheckpoints':
         return this.checkpoint(checkpointCall(this.opts.file, e));
       case 'postCheckpoint':
-        return; // the post is carried out in the next commit of the web transport (ADR-0023)
+      case 'fetchCheckpointState':
+        return; // the post and the read of a file at a checkpoint are carried out in the next commit of the web transport (ADR-0023)
       case 'render':
         return; // the views redraw from every snapshot
       default: {
