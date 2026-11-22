@@ -1397,6 +1397,8 @@ dependencies = [
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-checkpoints",
+ "meldframe-http-live",
+ "meldframe-module",
  "meldframe-protocol",
  "meldframe-server",
  "reqwest",
@@ -1606,11 +1608,16 @@ dependencies = [
 name = "meldframe-http-checkpoints"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "checkpoint-store",
  "meldframe-checkpoints",
  "meldframe-host",
  "meldframe-http",
  "meldframe-module",
+ "meldframe-protocol",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

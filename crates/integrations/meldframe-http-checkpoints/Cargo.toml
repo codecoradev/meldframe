@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-http-checkpoints"
-description = "The server side of checkpoints over HTTP (E5.3, ADR-0023): the sink that takes a run start when an agent's write starts a run, the detector behind it, the registry entries of the two calls a person makes, and the one install the binary calls."
+description = "The server side of checkpoints over HTTP (E5.3, ADR-0023): the sink that takes a run start when an agent's write starts a run, the detector behind it, the routes a person lists and makes checkpoints through, the live frame, the registry entries of the two calls, and the one install the binary calls."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -15,6 +15,11 @@ meldframe-checkpoints = { path = "../../core/meldframe-checkpoints" }
 meldframe-http = { path = "../meldframe-http", features = ["mcp"] }
 meldframe-host = { path = "../../core/meldframe-host" }
 meldframe-module = { path = "../../core/meldframe-module" }
+meldframe-protocol = { path = "../../core/meldframe-protocol" }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["time"] }
 
 [lints]
 workspace = true

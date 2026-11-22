@@ -11,7 +11,8 @@ use meldframe_checkpoints::{Checkpoint, NewCheckpoint};
 use meldframe_host::{Accepted, Op, Principal};
 use meldframe_http::mcp::{McpConfig, Reader};
 use meldframe_http::{Config, DevTokens, Failure, Guard, Submitter};
-use meldframe_http_checkpoints::{Checkpoints, install_with};
+use meldframe_http_checkpoints::{Checkpoints, Gate, Publish, install_with};
+use meldframe_module::Policy;
 use meldframe_server::{Server, SharedServer};
 use serde_json::{Value, json};
 use std::net::SocketAddr;
@@ -109,19 +110,25 @@ pub struct World {
 }
 
 pub async fn start() -> World {
-    build(
-        Arc::new(SharedServer::new(Server::assemble())),
-        Arc::new(Shaky::default()),
-        T0,
-    )
-    .await
+    start_gate(&["user:bea"], Some(Policy::Auto)).await
 }
+
+/// As [`start`], with the actors that may make a checkpoint and the registry's policy for `checkpoint_create`.
+pub async fn start_gate(may: &[&str], policy: Option<Policy>) -> World {
+    let gate = (may.iter().map(|a| (*a).to_owned()).collect(), policy);
+    let server = Arc::new(SharedServer::new(Server::assemble()));
+    build(server, Arc::new(Shaky::default()), T0, gate).await
+}
+
+/// The listed actors and the policy a world is built with.
+pub type GateSpec = (Vec<String>, Option<Policy>);
 
 impl World {
     /// The same server and store behind a new router and a new sink: a process that restarted, with the files and the
     /// rows kept and the detector empty.
     pub async fn restarted(&self) -> World {
-        build(self.server.clone(), self.store.clone(), self.now()).await
+        let gate = (vec!["user:bea".to_owned()], Some(Policy::Auto));
+        build(self.server.clone(), self.store.clone(), self.now(), gate).await
     }
 
     pub fn now(&self) -> u64 {
@@ -138,7 +145,7 @@ impl World {
     }
 }
 
-async fn build(server: Arc<SharedServer>, store: Arc<Shaky>, now: u64) -> World {
+async fn build(server: Arc<SharedServer>, store: Arc<Shaky>, now: u64, gate: GateSpec) -> World {
     let cut = Arc::new(Cut {
         inner: server.clone(),
         cut: AtomicUsize::new(0),
@@ -157,8 +164,17 @@ async fn build(server: Arc<SharedServer>, store: Arc<Shaky>, now: u64) -> World 
     let seen = clock.clone();
     let sink = Checkpoints::new(store.clone(), reader.clone())
         .with_clock(Arc::new(move || seen.load(Ordering::SeqCst)));
-    let runs = install_with(&state, sink);
-    let app = meldframe_http::routes(state.clone());
+    let live = server.clone();
+    let publish: Publish = Arc::new(move |w, f, m| live.publish_with_headroom(w, f, m));
+    let (listed, policy) = gate;
+    let may = Arc::new(move |actor: &str| listed.iter().any(|a| a == actor));
+    let gate = Gate {
+        may,
+        policy,
+        publish,
+    };
+    let (runs, routes) = install_with(&state, sink, gate);
+    let app = meldframe_http::routes(state.clone()).merge(routes);
     let app = app.merge(meldframe_http::mcp::routes(
         state,
         reader,
@@ -227,4 +243,26 @@ pub async fn socket(w: &World, token: &str, file: &str, ops: Vec<Value>) -> Valu
 /// `apply_commands` over MCP: one frame per key.
 pub fn apply(file: &str, key: &str, id: &str) -> Value {
     json!({"file": file, "idempotencyKey": key, "commands": [frame(id, id)]})
+}
+
+pub async fn get(w: &World, token: Option<&str>, path: &str) -> (u16, Value) {
+    let mut req = reqwest::Client::new().get(format!("http://{}{path}", w.h.addr));
+    if let Some(t) = token {
+        req = req.bearer_auth(t);
+    }
+    let r = req.send().await.unwrap();
+    (r.status().as_u16(), r.json().await.unwrap_or(Value::Null))
+}
+
+/// A POST of `body` as it is, so a test can send what is not JSON.
+pub async fn post(w: &World, token: Option<&str>, path: &str, body: &str) -> (u16, Value) {
+    let mut req = reqwest::Client::new()
+        .post(format!("http://{}{path}", w.h.addr))
+        .header("content-type", "application/json")
+        .body(body.to_owned());
+    if let Some(t) = token {
+        req = req.bearer_auth(t);
+    }
+    let r = req.send().await.unwrap();
+    (r.status().as_u16(), r.json().await.unwrap_or(Value::Null))
 }
