@@ -31,6 +31,7 @@ use axum::{
     routing::{get, post},
 };
 use meldframe_activity::BatchSink;
+use meldframe_checkpoints::{RunCall, RunSink, is_agent};
 use meldframe_host::{Accepted, Op, Principal, Refusal};
 use meldframe_protocol::Command;
 use serde::Deserialize;
@@ -202,6 +203,8 @@ pub struct Shared {
     pub on_write: OnceLock<WriteHook>,
     /// Set once by the server that keeps batch headers; without it `apply_commands` refuses a `note`.
     pub batches: OnceLock<Arc<dyn BatchSink>>,
+    /// Set once by the server that keeps checkpoints: told after an agent's write, so a run start takes a row.
+    pub runs: OnceLock<Arc<dyn RunSink>>,
     pub(crate) clients: RateLimiter,
     principals: RateLimiter,
     /// The per-principal budget as configured, for `whoami`.
@@ -298,6 +301,22 @@ impl Shared {
         }
         let submitter = self.submitter.clone();
         let (sent, woken) = (who.clone(), file.clone());
+        // An agent's call keeps its keys, so a call that fails after it wrote a prefix is found by key; any other
+        // call costs the prefix test.
+        let run = self
+            .runs
+            .get()
+            .filter(|_| is_agent(&who.actor))
+            .map(|sink| {
+                let keys = ops.iter().map(|o| o.key.clone()).collect();
+                (
+                    sink.clone(),
+                    RunCall {
+                        file: file.clone(),
+                        keys,
+                    },
+                )
+            });
         let done = self
             .blocking(&who, move || {
                 if let Some(guards) = atomic {
@@ -315,14 +334,47 @@ impl Shared {
                 {
                     hook(&who, &woken);
                 }
+                let seen: Vec<(u64, bool)> = accepted.iter().map(|a| (a.seq, a.written)).collect();
+                self.run_started(&who, run, Some(seen)).await;
                 Reply::accepted(&accepted)
             }
             Ok(Err(failure)) => {
+                self.run_started(&who, run, None).await;
                 if let Failure::Unavailable(why) | Failure::Permanent(why) = &failure {
                     eprintln!("meldframe-http: unavailable: {why:?}");
                 }
                 Reply::failure(&failure)
             }
+        }
+    }
+}
+
+impl Shared {
+    /// Tell the run sink about an agent's call that ran. `done` is what a call that succeeded accepted (a run starts
+    /// only when it wrote an op and the in-memory detector says so); `None` is a call that failed, which the sink
+    /// looks into on its own. The store write is its own job under the caller's slot, so it never holds the call's own
+    /// job, and nothing here changes the reply; the reply does wait for the job, for at most the call's time limit, as
+    /// it does for the batch sink. A job that cannot run, outlasts the limit or panics is reported to the sink, which
+    /// logs and counts it and gives the claim back.
+    async fn run_started(
+        &self,
+        who: &Principal,
+        run: Option<(Arc<dyn RunSink>, RunCall)>,
+        done: Option<Vec<(u64, bool)>>,
+    ) {
+        let Some((sink, call)) = run else {
+            return;
+        };
+        if let Some(done) = &done
+            && !(done.iter().any(|d| d.1) && sink.starts(&who.workspace, &call.file, &who.actor))
+        {
+            return;
+        }
+        let (w, file, taker) = (who.clone(), call.file.clone(), sink.clone());
+        let job = move || taker.take(&w.workspace, &w.actor, &call, done.as_deref());
+        if let Err(reply) = self.blocking(who, job).await {
+            let why = reply.body["error"]["code"].as_str().unwrap_or("internal");
+            sink.lost(&who.workspace, &file, &who.actor, why);
         }
     }
 }
@@ -347,6 +399,7 @@ pub fn shared(
         slots: Slots::new(config.max_in_flight, config.max_per_principal),
         on_write: OnceLock::new(),
         batches: OnceLock::new(),
+        runs: OnceLock::new(),
         clients: RateLimiter::new(config.per_client, config.clock.clone()),
         principals: RateLimiter::new(config.per_principal, config.clock),
         principal_rate: config.per_principal,

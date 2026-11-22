@@ -94,6 +94,16 @@ impl RunWatch {
         starts_run(seen.map(|(at, _)| at), now_ms, self.gap_ms)
     }
 
+    /// Give a claim back: the entry of an actor is dropped, so its next write counts as a run start again. For a run
+    /// start that was claimed and then not taken (the store failed, the job did not run): the entry it replaced was
+    /// older than the gap or none, so dropping it is the state before the claim.
+    pub fn forget(&mut self, workspace: &str, file: &str, actor: &str) {
+        let key = (workspace.to_owned(), file.to_owned(), actor.to_owned());
+        if let Some(at) = self.last.remove(&key) {
+            self.by_age.remove(&at);
+        }
+    }
+
     /// How many entries it holds.
     pub fn len(&self) -> usize {
         self.last.len()
@@ -122,10 +132,21 @@ pub struct RunCall {
     pub keys: Vec<String>,
 }
 
-/// Told by the one place every write passes, after a call of an actor ran, to take a run start. The server sets it
-/// once. It blocks, so it runs on the blocking pool, and it never changes the reply of the call. `done` is the
-/// `(seq, written)` of each op of a call that succeeded, `written` false for a replay of one already in the log;
-/// `None` is a call that failed, and the sink finds out by key how much of it was written.
+/// Told by the one place every write passes, after a call of an agent ran, to take a run start. The server sets it
+/// once. It never changes the reply of the call, and it is two steps so the common path stays cheap.
 pub trait RunSink: std::fmt::Debug + Send + Sync {
-    fn observe(&self, workspace: &str, actor: &str, call: &RunCall, done: Option<&[(u64, bool)]>);
+    /// In memory, never blocks: whether a write of `actor` in `file` of `workspace` now starts a run. Called after a
+    /// call that wrote at least one op and, when it is true, followed by [`RunSink::take`].
+    fn starts(&self, workspace: &str, file: &str, actor: &str) -> bool;
+
+    /// Blocks, so it runs on the blocking pool: take the row of a run that started. `done` is the `(seq, written)` of
+    /// each op of a call that succeeded, `written` false for a replay of one already in the log. `None` is a call that
+    /// failed: the sink finds out by key how much of it was written, and only when some was does it ask
+    /// [`RunSink::starts`], so a call that wrote nothing claims no run.
+    fn take(&self, workspace: &str, actor: &str, call: &RunCall, done: Option<&[(u64, bool)]>);
+
+    /// The job of [`RunSink::take`] did not run to its end (no slot was free, it outlasted the call's time limit, it
+    /// panicked); `why` is the code of the failure. The sink logs and counts it and gives the claim back, so the next
+    /// call of the run can take the run start. The job may still finish later, which costs one extra row.
+    fn lost(&self, workspace: &str, file: &str, actor: &str, why: &str);
 }

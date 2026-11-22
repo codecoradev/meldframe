@@ -12,7 +12,7 @@ kind = "bin"
 [features]
 # Each feature module is compiled in only when its cargo feature is on; leaving one out removes its
 # tools from the registry (ADR-0007). The example module is the first.
-default = ["example", "mcp", "capture", "assets", "design-review", "export", "variables-import", "variant", "activity"]
+default = ["example", "mcp", "capture", "assets", "design-review", "export", "variables-import", "variant", "activity", "checkpoints"]
 example = ["dep:example"]
 # The MCP surface: its tools in the registry and the read path behind them (E1.5).
 mcp = ["meldframe-http/mcp"]
@@ -36,6 +36,11 @@ variant = ["mcp", "dep:meldframe-http-variant"]
 # Batch headers and the note of apply_commands (E5.1, ADR-0021): numbered batches kept beside the log, in memory or in
 # Postgres. Without it a call with a note is refused as invalid; it is an MCP argument, so it needs `mcp`.
 activity = ["mcp", "dep:activity-store", "dep:meldframe-http-activity"]
+
+# Checkpoints kept by the server (E5.3, ADR-0023): a run start taken when an agent's write starts a run, in memory or in
+# Postgres with the files, and the two calls of a person. Left out, there is no run sink and no registry entry; the
+# sink reads through the MCP reader, so it needs `mcp`.
+checkpoints = ["mcp", "dep:checkpoint-store", "dep:meldframe-http-checkpoints"]
 
 [dependencies]
 meldframe-http = { path = "../../crates/integrations/meldframe-http" }
@@ -61,6 +66,8 @@ meldframe-http-variables-import = { path = "../../crates/integrations/meldframe-
 meldframe-http-variant = { path = "../../crates/integrations/meldframe-http-variant", optional = true }
 activity-store = { path = "../../crates/features/activity/activity-store", optional = true }
 meldframe-http-activity = { path = "../../crates/integrations/meldframe-http-activity", optional = true }
+checkpoint-store = { path = "../../crates/features/activity/checkpoint-store", optional = true }
+meldframe-http-checkpoints = { path = "../../crates/integrations/meldframe-http-checkpoints", optional = true }
 meldframe-protocol = { path = "../../crates/core/meldframe-protocol" }
 meldframe-stream = { path = "../../crates/core/meldframe-stream" }
 serde_json = { version = "1", features = ["float_roundtrip"] }
