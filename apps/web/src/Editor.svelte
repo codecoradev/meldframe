@@ -364,7 +364,7 @@
   {/snippet}
   {#snippet designPanel()}
     <Section title="Variables" open={snap.state.panels.variables} onToggle={() => dispatch({ type: 'togglePanel', panel: 'variables' })} toggleId="toggle-variables">
-      <VariablesPanel panel={snap.state.variables} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} events={snap.events} />
+      <VariablesPanel panel={snap.state.variables} io={snap.state.variablesIo} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} events={snap.events} />
     </Section>
     <PropertiesPanel properties={snap.state.properties} picker={snap.state.picker ?? null} selected={snap.state.selection.length} {dispatch} />
     <ExportSection {target} scale={pngScale} onScale={(s) => (pngScale = s)} plan={planOf(target)} onPng={() => exportPng(target)} onHtml={() => dispatch({ type: 'openExport' })} />
