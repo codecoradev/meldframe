@@ -7,7 +7,7 @@ import { activity, lane, row } from './fixtures';
 
 const html = (a: ActivityState, extra: { checkpoints?: Checkpoint[]; self?: string } = {}) =>
   render(ActivityPanel as never, { props: { activity: a, checkpoints: [], self: 'person:ana', dispatch: () => {}, ...extra } as never }).body.replace(/<!--.*?-->/g, '');
-const cp = (id: string, seq: number): Checkpoint => ({ id, seq, label: id, kind: 'manual' });
+const cp = (id: string, seq: number): Checkpoint => ({ id, n: seq, seq, label: id, kind: 'manual', atMs: 1 });
 
 describe('the Activity panel', () => {
   it('says what it is for when there is nothing yet', () => {
@@ -158,7 +158,7 @@ describe('messages, checkpoints and older batches', () => {
     expect(withOld).toMatch(/<div role="status" data-testid="activity-message"><\/div>/);
   });
   it('lists the checkpoints newest first, each with Restore', () => {
-    const out = html(activity(), { checkpoints: [cp('Alpha', 10), cp('Beta', 20)] });
+    const out = html(activity(), { checkpoints: [cp('Beta', 20), cp('Alpha', 10)] });
     expect(out.indexOf('Beta')).toBeLessThan(out.indexOf('Alpha'));
     expect(out).toContain('After change 20');
     expect(out.match(/data-testid="checkpoint-restore"/g)).toHaveLength(2);

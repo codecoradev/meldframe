@@ -20,7 +20,7 @@ const MAX_LABEL: usize = 128;
 pub struct Review {
     pub log: ConfirmedLog,
     runs: RunDetector,
-    next_checkpoint: u64,
+    next_checkpoint: u32,
 }
 
 impl Review {
@@ -42,32 +42,33 @@ impl Review {
         self.runs.observe(actor, now_ms)
     }
 
-    /// The id of the next checkpoint.
-    pub fn next_checkpoint_id(&mut self, prefix: &str) -> String {
+    /// The number of the next checkpoint.
+    pub fn next_checkpoint(&mut self) -> u32 {
         self.next_checkpoint += 1;
-        format!("{prefix}-cp{}", self.next_checkpoint)
+        self.next_checkpoint
     }
 }
 
-/// Add a checkpoint to the list and keep it within its bound.
+/// Add a checkpoint to the list, newest first, and keep it within its bound.
 pub fn push_checkpoint(list: &mut Vec<Checkpoint>, checkpoint: Checkpoint) {
-    list.push(checkpoint);
+    list.insert(0, checkpoint);
     if list.len() > MAX_CHECKPOINTS {
         // The oldest one the app took, not the one just added; a saved one only when all are saved.
-        let at = list[..list.len() - 1]
+        let at = list[1..]
             .iter()
-            .position(|c| c.kind != CheckpointKind::Manual);
-        list.remove(at.unwrap_or(0));
+            .rposition(|c| c.kind != CheckpointKind::Manual)
+            .map(|i| i + 1);
+        list.remove(at.unwrap_or(list.len() - 1));
     }
 }
 
-/// The label of a saved checkpoint, trimmed; the code of the refusal when it is too long.
-pub fn checkpoint_label(label: String) -> Result<String, &'static str> {
+/// The label of a saved checkpoint, trimmed (none when empty); the code of the refusal when it is too long.
+pub fn checkpoint_label(label: String) -> Result<Option<String>, &'static str> {
     let label = label.trim().to_string();
     if label.chars().count() > MAX_LABEL {
         return Err("limit");
     }
-    Ok(label)
+    Ok((!label.is_empty()).then_some(label))
 }
 
 /// The confirmed ops, then the person's own unconfirmed ones as if the server numbered them next.
