@@ -151,6 +151,8 @@ pub fn import_css(text: &str, options: &ImportOptions) -> Result<Import, ImportE
             max: options.max_bytes,
         });
     }
+    // A byte order mark that an editor or a download put in front of the text is not part of the first selector.
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     Ok(plan::build(&scan::scan(text), &options.limits))
 }
 
