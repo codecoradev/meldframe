@@ -121,8 +121,17 @@ fn held(c: &Checkpoint) -> Option<rules::Checkpoint> {
     })
 }
 
-/// The app's part of the checkpoints: whether a read of the list is out.
+/// The app's part of the checkpoints: whether a read of the list is out, and the key counter.
 #[derive(Debug, Default)]
 pub struct Checkpoints {
     pub listing: bool,
+    next_key: u64,
+}
+
+impl Checkpoints {
+    /// A key no earlier request of this session used; the server remembers a key, and `prefix` is the session's.
+    pub fn next_key(&mut self, prefix: &str) -> String {
+        self.next_key += 1;
+        format!("{prefix}-ck{}", self.next_key)
+    }
 }

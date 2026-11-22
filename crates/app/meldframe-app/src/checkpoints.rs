@@ -1,14 +1,19 @@
-//! The checkpoints of the file in the app layer (E5.3, ADR-0023): the list as the server last said it, the request the
-//! app makes (the list). A checkpoint
+//! The checkpoints of the file in the app layer (E5.3, ADR-0023): the list as the server last said it, the requests the
+//! app makes (the list, a new row). A checkpoint
 //! changes only when the server has said so, never optimistically, and the app takes none itself. The rules are in
 //! `meldframe_app_rules::checkpoints` and `meldframe-checkpoints`.
 
 use crate::app::App;
+use crate::document::refuse;
 use crate::effect::Effect;
 use crate::event::Event;
 use crate::state::Connection;
-use meldframe_app_model::{Action, CheckpointRequest, CheckpointRow, CheckpointsStatus};
+use meldframe_app_model::{
+    Action, CheckpointKind, CheckpointRequest, CheckpointRow, CheckpointsStatus,
+};
 use meldframe_app_rules::checkpoints::{Taken, merge, take};
+use meldframe_checkpoints::Label;
+use meldframe_sync::SubmitError;
 
 impl App {
     fn say(&mut self, code: &str) {
@@ -32,6 +37,31 @@ impl App {
     /// The file was loaded again: a read of the list that was out will not come back.
     pub(crate) fn checkpoints_reset(&mut self) {
         self.cps.listing = false;
+    }
+
+    pub(crate) fn create_checkpoint(
+        &mut self,
+        label: &str,
+        fx: &mut Vec<Effect>,
+    ) -> Result<(), SubmitError> {
+        let label = match Label::parse(label) {
+            Ok(label) => label.map(|l| l.as_str().to_owned()),
+            Err(e) => return refuse(&mut self.events, e.code()),
+        };
+        if !self.state.can_create_checkpoint {
+            return refuse(&mut self.events, "forbidden");
+        }
+        let key = self.cps.next_key(&self.prefix);
+        let seq = self.replica.seq();
+        let kind = CheckpointKind::Manual;
+        fx.push(Effect::PostCheckpoint {
+            key,
+            kind,
+            label,
+            about: None,
+            seq,
+        });
+        Ok(())
     }
 
     /// A row joined the list: say so, unless it changed nothing.
@@ -67,6 +97,9 @@ impl App {
                 self.state.can_create_checkpoint = can_create;
                 self.state.checkpoints_status = CheckpointsStatus::Loaded;
             }
+            Action::CheckpointPosted { checkpoint, .. } => {
+                self.join(checkpoint);
+            }
             Action::CheckpointRequestFailed { request, code } => {
                 self.checkpoint_failed(request, &code)
             }
@@ -89,6 +122,7 @@ impl App {
                     self.events.push(Event::CheckpointsChanged { count: 0 });
                 }
             }
+            CheckpointRequest::Post { .. } => self.say(code),
         }
     }
 }

@@ -1,14 +1,19 @@
-//! A scripted server for the checkpoint tests: it keeps rows and answers the effects of the app that ask for them. The
-//! app talks to it only through effects and actions, as the shell does.
+//! A scripted server for the checkpoint tests: it keeps rows, answers the effects of the app that ask for them, and can
+//! be told to fail or to say nothing. The app talks to it only through effects and
+//! actions, as the shell does.
 #![allow(dead_code)]
 
 use super::common::*;
-use meldframe_app::{Action, CheckpointKind, CheckpointRow, Effect, Frame};
+use meldframe_app::{Action, CheckpointKind, CheckpointRequest, CheckpointRow, Effect, Frame};
 use meldframe_protocol::{Command, NodePatch};
 
 pub struct Cp {
     pub l: Loopback,
     pub rows: Vec<CheckpointRow>,
+    /// A code to answer the next post with, as a refusal.
+    pub fail_post: Option<&'static str>,
+    /// Say nothing to posts and reads: the answer has not come yet.
+    pub silent: bool,
     /// Every effect the app asked for, in order.
     pub asked: Vec<Effect>,
 }
@@ -19,6 +24,8 @@ impl Cp {
         let mut c = Cp {
             l: Loopback::live(),
             rows: Vec::new(),
+            fail_post: None,
+            silent: false,
             asked: Vec::new(),
         };
         c.l.send(Action::CheckpointsLoaded {
@@ -73,13 +80,49 @@ impl Cp {
     }
 
     fn answer(&mut self, effect: &Effect) -> Option<Action> {
+        if self.silent {
+            return None;
+        }
         match effect {
             Effect::FetchCheckpoints {} => Some(Action::CheckpointsLoaded {
                 checkpoints: self.rows.iter().rev().cloned().collect(),
                 can_create: true,
             }),
+            Effect::PostCheckpoint {
+                key,
+                kind,
+                label,
+                about,
+                seq,
+            } => {
+                if let Some(code) = self.fail_post {
+                    let request = CheckpointRequest::Post { key: key.clone() };
+                    return Some(Action::CheckpointRequestFailed {
+                        request,
+                        code: code.into(),
+                    });
+                }
+                let row = self.row(*kind, label.as_deref(), about.as_deref(), *seq);
+                assert_eq!(*seq, self.l.seq, "the app asks for the file it confirmed");
+                self.rows.push(row.clone());
+                Some(Action::CheckpointPosted {
+                    key: key.clone(),
+                    checkpoint: row,
+                })
+            }
             _ => None,
         }
+    }
+
+    /// The effects asked for so far that are posts, as `(kind, about, seq)`.
+    pub fn posts(&self) -> Vec<(CheckpointKind, Option<String>, u64)> {
+        let post = |e: &Effect| match e {
+            Effect::PostCheckpoint {
+                kind, about, seq, ..
+            } => Some((*kind, about.clone(), *seq)),
+            _ => None,
+        };
+        self.asked.iter().filter_map(post).collect()
     }
 }
 

@@ -1,6 +1,7 @@
 //! Work only the platform can do. The shell carries it out and reports the result as an action.
 
 use crate::activity::ReviewState;
+use crate::checkpoint::CheckpointKind;
 use meldframe_protocol::Command;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -71,6 +72,17 @@ pub enum Effect {
     /// `GET /v1/files/{file}/checkpoints`. The answer comes back as `Action::CheckpointsLoaded`, a failure as
     /// `Action::CheckpointRequestFailed`.
     FetchCheckpoints {},
+    /// `POST /v1/files/{file}/checkpoints` with `{"key", "kind", "seq", "label"?, "about"?}`; sending it again with the
+    /// same `key` is safe. The row comes back as `Action::CheckpointPosted` (with this `key`), a refusal as
+    /// `Action::CheckpointRequestFailed`.
+    PostCheckpoint {
+        key: String,
+        kind: CheckpointKind,
+        label: Option<String>,
+        about: Option<String>,
+        #[ts(type = "number")]
+        seq: u64,
+    },
     /// Redraw. The nodes named changed; an empty list means everything.
     Render { nodes: Vec<String> },
 }
