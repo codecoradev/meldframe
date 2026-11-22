@@ -1,6 +1,7 @@
 // The shell carries out the effects of the app layer: it opens the live socket, sends ops over REST, and waits
 // for the timers the app asks for. Everything it learns goes back as an action. No editing rules here.
 import type { Action, AppState, Effect, OutOp, ServerMsg } from '@meldframe/protocol';
+import { answerOfAssets, assetsFailed, assetsQuery } from './assets';
 import { answerOfList, answerOfReview, listQuery, toBatchFrame, toTouchFrame } from './batches';
 
 /** An agent asks this editor for a PNG of a node (or of the whole page when `nodeId` is absent). */
@@ -150,6 +151,8 @@ export class Shell {
         return this.batches('GET', this.batchPath(listQuery(e)), undefined, answerOfList);
       case 'putBatchReview':
         return this.batches('PUT', this.batchPath(`/${Math.trunc(e.n)}/review`), { state: e.state }, answerOfReview);
+      case 'fetchAssets':
+        return this.fetching('GET', `/v1/assets${assetsQuery(e)}`, undefined, (status, body) => answerOfAssets(e.request, e.after, status, body), assetsFailed(e.request));
       case 'render':
         return; // the views redraw from every snapshot
       default: {
@@ -165,10 +168,15 @@ export class Shell {
 
   /** One request of the batch routes; whatever happens, the app is told once (a failure is `batchRequestFailed`). */
   private batches(method: 'GET' | 'PUT', path: string, body: unknown, answer: (status: number, body: unknown) => Action): void {
+    this.fetching(method, path, body, answer, { type: 'batchRequestFailed', code: 'unavailable' });
+  }
+
+  /** One request that is not an op (the batch routes, the asset list): the app is told once, by `answer`, or by `failed` when the network fails. */
+  private fetching(method: 'GET' | 'PUT', path: string, body: unknown, answer: (status: number, body: unknown) => Action, failed: Action): void {
     const gen = this.stopped;
     void this.env.request(method, path, body, POST_TIMEOUT_MS).then(
       (r) => this.answered(gen, answer(r.status, r.body)),
-      () => this.answered(gen, { type: 'batchRequestFailed', code: 'unavailable' }),
+      () => this.answered(gen, failed),
     );
   }
 

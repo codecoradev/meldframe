@@ -61,6 +61,8 @@ pub enum Event {
     },
     /// `AppState::activity` changed (a batch, a header, a touch, the clock or the selected row).
     ActivityChanged {},
+    /// `AppState::assets` changed (the image picker opening or closing, a page of the list arriving, a request failing).
+    AssetsChanged {},
     /// `AppState::export` changed (the frame an export acts on, the dialog opening, closing or following the document).
     ExportChanged {},
     /// `AppState::variables_io` changed (a dialog opening, closing or following the variables, the result of an import).

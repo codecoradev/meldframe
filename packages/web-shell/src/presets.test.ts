@@ -4,7 +4,7 @@ import { PRESET_ORDER, presetAction, presetItems, presetSize, PRESETS } from './
 
 // The sizes and names are the app layer's: they are read from `FramePreset` in the Rust source, so a size changed there
 // and not here fails this test (as `web-activity` reads the refusal codes from the Rust sources).
-const rust = readFileSync(new URL('../../../crates/core/meldframe-app-model/src/action.rs', import.meta.url), 'utf8');
+const rust = readFileSync(new URL('../../../crates/core/meldframe-app-model/src/preset.rs', import.meta.url), 'utf8');
 const camel = (v: string) => v.charAt(0).toLowerCase() + v.slice(1);
 const block = (start: string) => rust.slice(rust.indexOf(start), rust.indexOf('\n    }', rust.indexOf(start)));
 const ALL = [...block('pub const ALL: [FramePreset;').matchAll(/FramePreset::(\w+),/g)].map((m) => camel(m[1]!));
