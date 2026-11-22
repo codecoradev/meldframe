@@ -1,34 +1,25 @@
-//! Review and checkpoints (E5.2, E5.3), the parts that read no `App`: the record of the ops the server confirmed
-//! since the file was loaded with its run detector and checkpoint counter, the bound on the checkpoint list, and the
-//! plans of a revert and of a restore, worked out with the rules of `meldframe-revert`.
+//! Review (E5.2, E5.3), the parts that read no `App`: the record of the ops the server confirmed since the file was
+//! loaded, and the plans of a revert and of a restore, worked out with the rules of `meldframe-revert`. The checkpoint
+//! list is in `checkpoints.rs`.
 
-use meldframe_app_model::{Checkpoint, CheckpointKind, RevertSkip, RevertSkipReason};
+use meldframe_app_model::{RevertSkip, RevertSkipReason};
 use meldframe_protocol::{Command, Node};
 use meldframe_revert::{
-    Batch, ConfirmedLog, LoggedOp, RUN_GAP_MS, RevertError, RunDetector, SkipReason,
-    restore_commands, revert_batch, state_at,
+    Batch, ConfirmedLog, LoggedOp, RevertError, SkipReason, restore_commands, revert_batch,
+    state_at,
 };
 use meldframe_sync::Outgoing;
 
-/// The checkpoints kept; past it the oldest one taken on its own is dropped, and a saved one only when none is left.
-const MAX_CHECKPOINTS: usize = 100;
-/// The longest label of a saved checkpoint, in characters.
-const MAX_LABEL: usize = 128;
-
-/// The confirmed ops since the file was loaded (a bounded record), the run detector and the checkpoint counter.
+/// The confirmed ops since the file was loaded (a bounded record), which a revert is worked out from.
 #[derive(Debug)]
 pub struct Review {
     pub log: ConfirmedLog,
-    runs: RunDetector,
-    next_checkpoint: u32,
 }
 
 impl Review {
     pub fn new(base: Vec<Node>, base_seq: u64) -> Self {
         Review {
             log: ConfirmedLog::new(base, base_seq),
-            runs: RunDetector::new(RUN_GAP_MS),
-            next_checkpoint: 0,
         }
     }
 
@@ -36,39 +27,6 @@ impl Review {
     pub fn reset(&mut self, base: Vec<Node>, base_seq: u64) {
         self.log.reset(base, base_seq);
     }
-
-    /// An op of another actor at `now_ms`: true when it starts a run.
-    pub fn starts_run(&mut self, actor: &str, now_ms: u64) -> bool {
-        self.runs.observe(actor, now_ms)
-    }
-
-    /// The number of the next checkpoint.
-    pub fn next_checkpoint(&mut self) -> u32 {
-        self.next_checkpoint += 1;
-        self.next_checkpoint
-    }
-}
-
-/// Add a checkpoint to the list, newest first, and keep it within its bound.
-pub fn push_checkpoint(list: &mut Vec<Checkpoint>, checkpoint: Checkpoint) {
-    list.insert(0, checkpoint);
-    if list.len() > MAX_CHECKPOINTS {
-        // The oldest one the app took, not the one just added; a saved one only when all are saved.
-        let at = list[1..]
-            .iter()
-            .rposition(|c| c.kind != CheckpointKind::Manual)
-            .map(|i| i + 1);
-        list.remove(at.unwrap_or(list.len() - 1));
-    }
-}
-
-/// The label of a saved checkpoint, trimmed (none when empty); the code of the refusal when it is too long.
-pub fn checkpoint_label(label: String) -> Result<Option<String>, &'static str> {
-    let label = label.trim().to_string();
-    if label.chars().count() > MAX_LABEL {
-        return Err("limit");
-    }
-    Ok((!label.is_empty()).then_some(label))
 }
 
 /// The confirmed ops, then the person's own unconfirmed ones as if the server numbered them next.
@@ -138,13 +96,14 @@ pub fn plan_revert(
     })
 }
 
-/// Work out the commands that bring `current` back to the file as it was at `seq`, or the code of the refusal.
+/// Work out the commands that bring `current` back to the file as it was at `seq`, from the record, or the code of the
+/// refusal.
 pub fn plan_restore(
     log: &ConfirmedLog,
     seq: u64,
     current: &[Node],
 ) -> Result<Vec<Command>, &'static str> {
-    // A checkpoint older than the record is pruned when the record moves, so this is a guard.
+    // A checkpoint older than the record cannot be worked out from it.
     if seq < log.base_seq() {
         return Err("not_in_log");
     }

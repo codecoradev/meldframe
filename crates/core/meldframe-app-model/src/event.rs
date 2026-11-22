@@ -98,7 +98,7 @@ pub enum Event {
         id: String,
         requested: usize,
     },
-    /// A checkpoint was added (or the oldest dropped): how many there are now.
+    /// The list of checkpoints changed (the server said so): how many there are now.
     CheckpointsChanged {
         count: usize,
     },
