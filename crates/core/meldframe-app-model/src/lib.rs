@@ -15,6 +15,7 @@ pub mod layout;
 pub mod property;
 pub mod state;
 pub mod variables;
+pub mod variables_io;
 
 pub use action::{Action, CreateKind, Frame, FramePreset, Property};
 pub use activity::{
@@ -33,3 +34,4 @@ pub use variables::{
     BindField, BindOption, CollectionRow, ModeValue, Picker, PickerRow, TypeHeading, VariableRow,
     VariableValue, VariablesPanel,
 };
+pub use variables_io::{VariablesExportDialog, VariablesIo};

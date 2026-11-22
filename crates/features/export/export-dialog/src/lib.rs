@@ -4,6 +4,10 @@
 //! Pixi metrics on the font the canvas draws with), so a hug text exports the width the canvas draws, and the layout
 //! core's stub when the host gave none. The MCP tool `export_frame` runs on the server, which has no fonts: it keeps the stub.
 
+mod variables;
+
+pub use variables::variables_dialog;
+
 use export::{ExportError, ExportOptions, Finding, Format, MAX_OUTPUT_BYTES};
 use meldframe_app_model::{ExportDialog, ExportFinding, ExportFormat, ExportTarget};
 use meldframe_layout::TextMeasurer;
@@ -118,6 +122,9 @@ pub struct Cache {
     version: u64,
     builds: u64,
     key: Option<Key>,
+    /// The variables the open Export variables dialog was built from, and how often it was built.
+    vars_key: Option<Variables>,
+    vars_builds: u64,
 }
 
 impl Cache {
@@ -145,6 +152,28 @@ impl Cache {
     /// The dialog is closed: nothing is remembered.
     pub fn forget(&mut self) {
         self.key = None;
+    }
+
+    /// How many times the export feature was run for the Export variables dialog.
+    pub fn variables_builds(&self) -> u64 {
+        self.vars_builds
+    }
+
+    /// The Export variables dialog was built from these variables.
+    pub fn variables_built(&mut self, vars: &Variables) {
+        self.vars_builds += 1;
+        self.vars_key = Some(vars.clone());
+    }
+
+    /// The Export variables dialog is closed: nothing is remembered.
+    pub fn variables_forget(&mut self) {
+        self.vars_key = None;
+    }
+
+    /// Whether the open Export variables dialog was built from these variables. A node that moves does not change
+    /// them, so it does not build the text again.
+    pub fn variables_fresh(&self, vars: &Variables) -> bool {
+        self.vars_key.as_ref() == Some(vars)
     }
 
     /// Whether the open dialog was built from what the export reads now.

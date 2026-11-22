@@ -32,6 +32,8 @@ pub fn is_view(action: &Action) -> bool {
             | Action::OpenExport {}
             | Action::SetExportFormat { .. }
             | Action::CloseExport {}
+            | Action::OpenVariablesExport {}
+            | Action::CloseVariablesExport {}
     )
 }
 

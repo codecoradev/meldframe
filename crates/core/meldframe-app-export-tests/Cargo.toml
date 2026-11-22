@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-app-export-tests"
-description = "The Export dialog tests of meldframe-app (D9): the target of an export, the HTML built for the open dialog, and how it follows the document, against a loopback server. Split from meldframe-app-unit-tests for the size ceiling; it includes that crate's test harness by path. No library code."
+description = "The Export dialog tests of meldframe-app (D9: the target of an export, the HTML built for the open dialog, and how it follows the document, against a loopback server) and the Export variables dialog (D8). Split from meldframe-app-unit-tests for the size ceiling; it includes that crate's test harness by path. No library code."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

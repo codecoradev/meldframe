@@ -249,6 +249,11 @@ pub enum Action {
     },
     /// Close the Export dialog.
     CloseExport {},
+    /// Open the Export variables dialog: every variable of the file as CSS in `AppState::variables_io` until it is closed.
+    /// View state (no op, no undo step); refused as `out_of_sync` while the app is halted.
+    OpenVariablesExport {},
+    /// Close the Export variables dialog.
+    CloseVariablesExport {},
     /// Remove the nodes with their descendants, as one undo step.
     Delete {
         ids: Vec<String>,

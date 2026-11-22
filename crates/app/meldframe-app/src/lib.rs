@@ -27,6 +27,7 @@ mod props;
 mod retry;
 mod review;
 mod variables;
+mod variables_io;
 mod view;
 
 pub(crate) use meldframe_app_model::{action, effect, event, state};
@@ -42,6 +43,7 @@ pub use meldframe_app_model::{
     RevertSkipReason, Side, Sides, Tool, TypeHeading, VariableEntity, VariableRow, VariableValue,
     VariablesPanel,
 };
+pub use meldframe_app_model::{VariablesExportDialog, VariablesIo};
 pub use meldframe_app_rules::drop::Slot as DropSlot;
 pub use meldframe_app_rules::multi::Preview as DropPreview;
 pub use meldframe_layout::{StubMeasurer, TextMeasurer};
