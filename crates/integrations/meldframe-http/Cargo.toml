@@ -15,6 +15,7 @@ mcp = ["dep:rmcp", "dep:meldframe-check", "dep:meldframe-layout", "dep:meldframe
 
 [dependencies]
 meldframe-activity = { path = "../../core/meldframe-activity" }
+meldframe-checkpoints = { path = "../../core/meldframe-checkpoints" }
 meldframe-host = { path = "../../core/meldframe-host" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
 meldframe-check = { path = "../../core/meldframe-check", optional = true }

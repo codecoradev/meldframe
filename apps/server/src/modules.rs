@@ -23,5 +23,7 @@ pub(crate) fn modules() -> Vec<Box<dyn Module>> {
         Box::new(meldframe_http_variant::VariantModule),
         #[cfg(feature = "activity")]
         Box::new(meldframe_http_activity::ActivityModule),
+        #[cfg(feature = "checkpoints")]
+        Box::new(meldframe_http_checkpoints::CheckpointsModule),
     ]
 }
