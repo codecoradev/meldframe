@@ -82,7 +82,7 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - name: Build the Postgres tests
-        run: cargo test --no-run -p meldframe-server-tests -p meldframe-activity-pg-tests
+        run: cargo test --no-run -p meldframe-server-tests -p meldframe-activity-pg-tests -p meldframe-checkpoint-pg-tests
       - name: Build the server binary
         run: cargo build -p meldframe-server
 
