@@ -39,13 +39,17 @@ pub fn is_view(action: &Action) -> bool {
 pub fn of(action: &Action, ui: bool) -> Level {
     match action {
         _ if ui => Level::Ui,
-        a if a.only_activity() => Level::Nothing,
+        a if a.only_activity() || a.is_checkpoint() => Level::Nothing,
         Action::Start { .. }
         | Action::Disconnected {}
         | Action::Reconnect { .. }
         | Action::Tick { .. }
         | Action::Frame {
-            frame: Frame::Heartbeat {} | Frame::Batch { .. } | Frame::Touch { .. },
+            frame:
+                Frame::Heartbeat {}
+                | Frame::Batch { .. }
+                | Frame::Touch { .. }
+                | Frame::Checkpoint { .. },
             ..
         } => Level::Nothing,
         _ => Level::Full,

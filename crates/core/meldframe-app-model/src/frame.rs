@@ -1,6 +1,7 @@
 //! The messages of the live connection, as the transport decodes them.
 
 use crate::activity::BatchHeader;
+use crate::checkpoint::CheckpointRow;
 use meldframe_protocol::Command;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -73,4 +74,7 @@ pub enum Frame {
         #[ts(type = "number")]
         seq: u64,
     },
+    /// A checkpoint row was made (`ServerMsg::Checkpoint`, ephemeral: a hint, the list route is the truth). A row more
+    /// than one `n` above the highest held makes the app fetch the list.
+    Checkpoint { checkpoint: CheckpointRow },
 }

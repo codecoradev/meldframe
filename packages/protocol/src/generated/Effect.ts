@@ -2,4 +2,4 @@
 import type { OutOp } from "./OutOp";
 import type { ReviewState } from "./ReviewState";
 
-export type Effect = { "type": "sendOps", ops: Array<OutOp>, } | { "type": "subscribe", afterSeq: number, } | { "type": "reconnect", afterMs: number, } | { "type": "wakeAfter", afterMs: number, } | { "type": "fetchBatches", beforeN: number | null, afterN: number | null, limit: number, } | { "type": "putBatchReview", n: number, state: ReviewState, } | { "type": "render", nodes: Array<string>, };
+export type Effect = { "type": "sendOps", ops: Array<OutOp>, } | { "type": "subscribe", afterSeq: number, } | { "type": "reconnect", afterMs: number, } | { "type": "wakeAfter", afterMs: number, } | { "type": "fetchBatches", beforeN: number | null, afterN: number | null, limit: number, } | { "type": "putBatchReview", n: number, state: ReviewState, } | { "type": "fetchCheckpoints", } | { "type": "render", nodes: Array<string>, };

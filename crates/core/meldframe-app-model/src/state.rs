@@ -1,7 +1,7 @@
 //! Everything a front end needs to draw the editor.
 
 use crate::activity::ActivityState;
-use crate::checkpoint::Checkpoint;
+use crate::checkpoint::{Checkpoint, CheckpointsStatus};
 use crate::export::ExportState;
 use crate::layout::{LayoutNote, Sides};
 use crate::variables::{BindField, Picker, VariablesPanel};
@@ -35,9 +35,17 @@ pub struct AppState {
     pub pending: Vec<String>,
     /// For the layers panel: the actor of the last change to each node, as the server stamped it.
     pub last_actor: BTreeMap<String, String>,
-    /// The checkpoints of this session, newest first (E5.3): saved by the person, or taken on their own at the start
-    /// of an agent run and before a revert or a restore.
+    /// The checkpoints of the file as the server last said (E5.3, ADR-0023), newest first: a person's, the one the
+    /// server takes when an agent's run starts, and the ones before a revert or a restore. The app never adds one
+    /// itself: a row is here when the server has said so.
     pub checkpoints: Vec<Checkpoint>,
+    /// Whether this caller may make a checkpoint (the list route's `canCreate`). False until the list is read, and
+    /// where the server keeps none.
+    #[serde(default)]
+    pub can_create_checkpoint: bool,
+    /// Whether the list was read and whether the server keeps any, so the panel can say why nothing can be made.
+    #[serde(default)]
+    pub checkpoints_status: CheckpointsStatus,
     /// The mode picked for each collection that is not on its default mode (collection id to mode id). View
     /// state: it decides what the canvas paints and is never written to the file.
     pub modes: BTreeMap<String, String>,

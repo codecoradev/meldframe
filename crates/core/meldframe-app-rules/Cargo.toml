@@ -12,6 +12,7 @@ kind = "core"
 [dependencies]
 meldframe-app-model = { path = "../meldframe-app-model" }
 meldframe-check = { path = "../meldframe-check" }
+meldframe-checkpoints = { path = "../meldframe-checkpoints" }
 meldframe-layout = { path = "../meldframe-layout" }
 meldframe-order = { path = "../meldframe-order" }
 meldframe-protocol = { path = "../meldframe-protocol" }
