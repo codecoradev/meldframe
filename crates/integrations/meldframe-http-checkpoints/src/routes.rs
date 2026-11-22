@@ -1,4 +1,4 @@
-//! `GET` and `POST /v1/files/{file}/checkpoints` (ADR-0023). Both take the path of the snapshot route: the per-address
+//! `GET` and `POST /v1/files/{file}/checkpoints` (ADR-0023); the state route is in `state.rs`. Both take the path of the snapshot route: the per-address
 //! bucket, the token, the per-principal bucket, the call's slot and time limit, `valid_file`, and the workspace of the
 //! principal. Neither takes a workspace or an actor from a request.
 //!
@@ -18,6 +18,7 @@
 //! false and sends no frame; the same key with another request is `key_reused`, whose error carries the first row's `n`; a row that was made is queued as a
 //! `checkpoint` frame to every stream of the file.
 
+use crate::state::{StateCache, state};
 use crate::wire::row;
 use crate::{CREATE_TOOL, Checkpoints, Gate};
 use axum::extract::{Path, Request, State};
@@ -38,6 +39,7 @@ pub(crate) struct Routed {
     pub(crate) shared: Arc<Shared>,
     pub(crate) checkpoints: Arc<Checkpoints>,
     pub(crate) gate: Gate,
+    pub(crate) cache: StateCache,
 }
 
 impl Routed {
@@ -46,29 +48,39 @@ impl Routed {
     fn can_create(&self, who: &Principal) -> bool {
         (self.gate.may)(&who.actor) && self.gate.policy == Some(meldframe_module::Policy::Auto)
     }
+
+    /// Whether the caller may read a file as it was at a checkpoint: the same people as make one, under the policy of
+    /// `checkpoint_state`.
+    pub(crate) fn can_read_state(&self, who: &Principal) -> bool {
+        let allowed = self.gate.state_policy == Some(meldframe_module::Policy::Auto);
+        allowed && (self.gate.may)(&who.actor)
+    }
 }
 
 /// Adds the two routes to the routes of a `Shared`.
 pub(crate) fn routes(shared: Arc<Shared>, checkpoints: Arc<Checkpoints>, gate: Gate) -> Router {
-    let state = Routed {
+    let cache = StateCache::new(checkpoints.limits());
+    let routed = Routed {
         shared,
         checkpoints,
         gate,
+        cache,
     };
     Router::new()
         .route("/v1/files/{file}/checkpoints", get(list).post(create))
-        .with_state(Arc::new(state))
+        .route("/v1/files/{file}/checkpoints/{n}/state", get(state))
+        .with_state(Arc::new(routed))
 }
 
 /// A failed call: the status, the stable code and the JSON body.
-struct Fail {
-    status: StatusCode,
-    code: String,
-    body: Value,
+pub(crate) struct Fail {
+    pub(crate) status: StatusCode,
+    pub(crate) code: String,
+    pub(crate) body: Value,
 }
 
 impl Fail {
-    fn new(status: StatusCode, code: &str, message: &str, retryable: bool) -> Self {
+    pub(crate) fn new(status: StatusCode, code: &str, message: &str, retryable: bool) -> Self {
         let error = json!({"code": code, "message": message, "retryable": retryable});
         Fail {
             status,
@@ -77,7 +89,7 @@ impl Fail {
         }
     }
 
-    fn invalid(message: &str) -> Self {
+    pub(crate) fn invalid(message: &str) -> Self {
         Self::new(StatusCode::BAD_REQUEST, "invalid", message, false)
     }
 }
@@ -116,7 +128,7 @@ impl From<CheckpointError> for Fail {
     }
 }
 
-const BAD_FILE: &str =
+pub(crate) const BAD_FILE: &str =
     "a file name is 1 to 128 bytes without slashes, control or invisible formatting characters";
 
 async fn list(

@@ -8,16 +8,19 @@ use checkpoint_store::{CheckpointError, CheckpointStore, Made, MemoryCheckpoints
 pub use common::*;
 use futures_util::{SinkExt, StreamExt};
 use meldframe_checkpoints::{Checkpoint, NewCheckpoint};
-use meldframe_host::{Accepted, Op, Principal};
+use meldframe_host::{Accepted, Op, Principal, StoredOp};
 use meldframe_http::mcp::{McpConfig, Reader};
-use meldframe_http::{Config, DevTokens, Failure, Guard, Submitter};
-use meldframe_http_checkpoints::{Checkpoints, Gate, Publish, install_with};
+use meldframe_http::{Config, DevTokens, Failure, Guard, Rate, Submitter};
+use meldframe_http_checkpoints::{
+    Checkpoints, Gate, Log, Past, Publish, StateLimits, install_with,
+};
 use meldframe_module::Policy;
+use meldframe_protocol::Doc;
 use meldframe_server::{Server, SharedServer};
 use serde_json::{Value, json};
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio_tungstenite::tungstenite::{Message, client::IntoClientRequest};
 
@@ -100,8 +103,82 @@ impl CheckpointStore for Shaky {
     }
 }
 
+/// The reads of the state route, counted: openings of the file, reads of the snapshot, the numbers the log was paged from.
+/// What a `CountPast` does to the log it reads, to make a log the server cannot work out.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Fault {
+    /// The first op it pages is an update of a node that is not there.
+    Corrupt,
+    /// It pages nothing: the log ends before the checkpoint.
+    Short,
+}
+
+pub struct CountPast {
+    pub fault: Mutex<Option<Fault>>,
+    pub inner: Arc<SharedServer>,
+    pub opened: AtomicUsize,
+    pub snapshots: AtomicUsize,
+    pub afters: Mutex<Vec<u64>>,
+}
+
+impl CountPast {
+    pub fn pages(&self) -> usize {
+        self.afters.lock().unwrap().len()
+    }
+
+    pub fn reset(&self) {
+        self.opened.store(0, Ordering::SeqCst);
+        self.snapshots.store(0, Ordering::SeqCst);
+        self.afters.lock().unwrap().clear();
+    }
+}
+
+struct Counted<'a> {
+    log: &'a dyn Log,
+    past: &'a CountPast,
+}
+
+impl Log for Counted<'_> {
+    fn snapshot(&self) -> Result<Option<(u64, Doc)>, Failure> {
+        self.past.snapshots.fetch_add(1, Ordering::SeqCst);
+        self.log.snapshot()
+    }
+
+    fn ops_after(&self, after: u64, limit: usize) -> Result<Vec<StoredOp>, Failure> {
+        self.past.afters.lock().unwrap().push(after);
+        let mut ops = self.log.ops_after(after, limit)?;
+        match *self.past.fault.lock().unwrap() {
+            Some(Fault::Short) => ops.clear(),
+            Some(Fault::Corrupt) => {
+                if let Some(first) = ops.first_mut() {
+                    first.command = serde_json::from_value(
+                        serde_json::json!({"type": "updateNode", "id": "nope", "patch": {"x": 1}}),
+                    )
+                    .unwrap();
+                }
+            }
+            None => {}
+        }
+        Ok(ops)
+    }
+}
+
+impl Past for CountPast {
+    fn with_log(
+        &self,
+        w: &Principal,
+        f: &str,
+        run: &mut dyn FnMut(&dyn Log),
+    ) -> Result<(), Failure> {
+        self.opened.fetch_add(1, Ordering::SeqCst);
+        self.inner
+            .with_log(w, f, &mut |log| run(&Counted { log, past: self }))
+    }
+}
+
 pub struct World {
     pub h: Harness,
+    pub past: Arc<CountPast>,
     pub server: Arc<SharedServer>,
     pub store: Arc<Shaky>,
     pub clock: Arc<AtomicU64>,
@@ -115,20 +192,50 @@ pub async fn start() -> World {
 
 /// As [`start`], with the actors that may make a checkpoint and the registry's policy for `checkpoint_create`.
 pub async fn start_gate(may: &[&str], policy: Option<Policy>) -> World {
-    let gate = (may.iter().map(|a| (*a).to_owned()).collect(), policy);
+    let spec = Spec {
+        may: may.iter().map(|a| (*a).to_owned()).collect(),
+        policy,
+        ..Spec::default()
+    };
     let server = Arc::new(SharedServer::new(Server::assemble()));
-    build(server, Arc::new(Shaky::default()), T0, gate).await
+    build(server, Arc::new(Shaky::default()), T0, spec).await
 }
 
-/// The listed actors and the policy a world is built with.
-pub type GateSpec = (Vec<String>, Option<Policy>);
+/// What a world is built with: who may make or read, the registry's policy for each call, the state bounds and budget.
+#[derive(Clone)]
+pub struct Spec {
+    pub may: Vec<String>,
+    pub policy: Option<Policy>,
+    pub state_policy: Option<Policy>,
+    pub limits: StateLimits,
+    pub per_principal: Option<Rate>,
+    pub timeout: Duration,
+}
+
+impl Default for Spec {
+    fn default() -> Self {
+        Spec {
+            may: vec!["user:bea".to_owned()],
+            policy: Some(Policy::Auto),
+            state_policy: Some(Policy::Auto),
+            limits: StateLimits::default(),
+            per_principal: None,
+            timeout: Duration::from_millis(400),
+        }
+    }
+}
+
+/// A world on a server the test built, with a spec of its own.
+pub async fn start_on(server: Arc<SharedServer>, spec: Spec) -> World {
+    build(server, Arc::new(Shaky::default()), T0, spec).await
+}
 
 impl World {
     /// The same server and store behind a new router and a new sink: a process that restarted, with the files and the
     /// rows kept and the detector empty.
     pub async fn restarted(&self) -> World {
-        let gate = (vec!["user:bea".to_owned()], Some(Policy::Auto));
-        build(self.server.clone(), self.store.clone(), self.now(), gate).await
+        let (server, store) = (self.server.clone(), self.store.clone());
+        build(server, store, self.now(), Spec::default()).await
     }
 
     pub fn now(&self) -> u64 {
@@ -145,17 +252,18 @@ impl World {
     }
 }
 
-async fn build(server: Arc<SharedServer>, store: Arc<Shaky>, now: u64, gate: GateSpec) -> World {
+async fn build(server: Arc<SharedServer>, store: Arc<Shaky>, now: u64, spec: Spec) -> World {
     let cut = Arc::new(Cut {
         inner: server.clone(),
         cut: AtomicUsize::new(0),
     });
-    let spec = format!(
+    let accounts = format!(
         "{AGENT}:ws_1:agent:alpha,{PERSON}:ws_1:user:bea,{OTHER}:ws_2:agent:gamma,{DELTA}:ws_1:agent:delta"
     );
-    let tokens = Arc::new(DevTokens::parse(&spec).unwrap());
+    let tokens = Arc::new(DevTokens::parse(&accounts).unwrap());
     let cfg = Config {
-        timeout: Duration::from_millis(400),
+        timeout: spec.timeout,
+        per_principal: spec.per_principal.unwrap_or(config().per_principal),
         ..config()
     };
     let state = meldframe_http::shared(tokens, cut.clone(), cfg);
@@ -163,15 +271,25 @@ async fn build(server: Arc<SharedServer>, store: Arc<Shaky>, now: u64, gate: Gat
     let clock = Arc::new(AtomicU64::new(now));
     let seen = clock.clone();
     let sink = Checkpoints::new(store.clone(), reader.clone())
+        .with_state_limits(spec.limits)
         .with_clock(Arc::new(move || seen.load(Ordering::SeqCst)));
     let live = server.clone();
     let publish: Publish = Arc::new(move |w, f, m| live.publish_with_headroom(w, f, m));
-    let (listed, policy) = gate;
+    let listed = spec.may;
     let may = Arc::new(move |actor: &str| listed.iter().any(|a| a == actor));
+    let past = Arc::new(CountPast {
+        fault: Mutex::new(None),
+        inner: server.clone(),
+        opened: AtomicUsize::new(0),
+        snapshots: AtomicUsize::new(0),
+        afters: Mutex::new(Vec::new()),
+    });
     let gate = Gate {
         may,
-        policy,
+        policy: spec.policy,
+        state_policy: spec.state_policy,
         publish,
+        past: past.clone(),
     };
     let (runs, routes) = install_with(&state, sink, gate);
     let app = meldframe_http::routes(state.clone()).merge(routes);
@@ -194,6 +312,7 @@ async fn build(server: Arc<SharedServer>, store: Arc<Shaky>, now: u64, gate: Gat
     });
     World {
         h: Harness { addr, spy },
+        past,
         server,
         store,
         clock,
