@@ -107,7 +107,6 @@ impl App {
                 pos: None,
             }),
             Action::RevertBatch { actor, key_prefix } => self.revert_batch(&actor, &key_prefix),
-            Action::CreateCheckpoint { label } => self.create_checkpoint(label),
             Action::RestoreCheckpoint { id } => self.restore_checkpoint(&id),
             Action::EditVariables { commands } => self.edit_variables(&commands),
             Action::ImportVariables { text } => self.import_variables(&text),
