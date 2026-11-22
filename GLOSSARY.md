@@ -124,7 +124,7 @@ One actor's work in one file, as the Activity panel shows it: its kind (agent or
 _Avoid_: Session, swimlane
 
 **Run**:
-The stretch of one actor's work with no gap of more than 5 minutes between its ops (a longer gap starts a new run). A lane lists its runs (a person's own edits, which are single ops and not batches, show there as runs), and a **Checkpoint** is taken when another actor's run starts.
+The stretch of one actor's work with no gap of more than 5 minutes between its ops (a longer gap starts a new run). A lane lists its runs (a person's own edits, which are single ops and not batches, show there as runs). An agent's run starts a **Checkpoint**, which the server takes by itself; a person's run does not.
 _Avoid_: Session, episode
 
 **Room**:
@@ -144,7 +144,7 @@ A new batch, authored by the human, that restores what an agent's batch changed;
 _Avoid_: Rollback, undo (undo is only for one's own changes)
 
 **Checkpoint**:
-A named point in a file's history that can be restored.
+A point in a file's history that can be restored, kept by the server as a row beside the file's log: the file as the server had it after change `seq`, never a copy of it. A person makes one with a name (Create checkpoint); the server takes one when an agent's run starts; one goes first before a revert and before a restore. A restore is new changes of the person at the end of the log, never a rewrite. A checkpoint is not part of the file and is not undone with the design.
 _Avoid_: Snapshot, save
 
 ### Structure of the product
