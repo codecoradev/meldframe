@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-web-variables-io"
-description = "The Export variables dialog of the web client: CSS text of the variables, with the words of its warnings and of a refusal (Svelte and TypeScript; built on the primitives of web-chrome; split from web-variables to keep both under the size guidance; this manifest makes the package a unit of the size and layering checks)."
+description = "The Import variables and Export variables dialogs of the web client: CSS text of the variables out and in, with the words of the report and of a refusal (Svelte and TypeScript; built on the primitives of web-chrome; split from web-variables to keep both under the size guidance; this manifest makes the package a unit of the size and layering checks)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
