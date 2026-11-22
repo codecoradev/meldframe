@@ -84,6 +84,7 @@ pub fn properties(
         fill: fields.fill_text(&n.fill),
         fill_kind: fill_kind(n),
         gradient_allowed: n.kind != NodeKind::Text,
+        image_allowed: n.kind != NodeKind::Text,
         min_stops: MIN_STOPS,
         max_stops: Limits::default().max_gradient_stops,
         gradient: n.gradient.clone(),

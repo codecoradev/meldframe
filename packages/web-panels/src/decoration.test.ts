@@ -5,7 +5,7 @@ import TestHost from '@meldframe/web-chrome/TestHost.svelte';
 import PropertiesPanel from './PropertiesPanel.svelte';
 
 const shadow = { x: 0, y: 4, blur: 8, spread: 0, color: '#00000040' };
-const base: Properties = { id: 'n', name: 'Hero', kind: 'rect', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, minStops: 2, maxStops: 8, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], maxShadows: 4, radius: 0, layout: 'none', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, margin: { top: 0, right: 0, bottom: 0, left: 0 }, sw: 'fixed', sh: 'fixed', align: 'start', justify: 'start', absolute: false, inLayout: false, positionLocked: false, notes: [], text: '', fontSize: 16, opacity: 1, clip: false, bound: [], bindings: [] };
+const base: Properties = { id: 'n', name: 'Hero', kind: 'rect', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, imageAllowed: true, minStops: 2, maxStops: 8, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], maxShadows: 4, radius: 0, layout: 'none', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, margin: { top: 0, right: 0, bottom: 0, left: 0 }, sw: 'fixed', sh: 'fixed', align: 'start', justify: 'start', absolute: false, inLayout: false, positionLocked: false, notes: [], text: '', fontSize: 16, opacity: 1, clip: false, bound: [], bindings: [] };
 // The labels of the options of a segmented control that are checked.
 const checked = (out: string, group: string): string[] => {
   const from = out.slice(out.indexOf(`aria-label="${group}"`));

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { absoluteAction, alignAction, gapAction, justifyAction, layoutAction, marginSideAction, noteText, paddingAllAction, showPlacement, paddingSideAction, sizingAction } from './layout';
 
 const sides = { top: 1, right: 2, bottom: 3, left: 4 };
-const p: Properties = { id: 'n', name: 'Box', kind: 'frame', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, minStops: 2, maxStops: 8, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], maxShadows: 4, radius: 0, layout: 'row', gap: 8, padding: sides, margin: { top: 0, right: 0, bottom: 0, left: 0 }, sw: 'fixed', sh: 'hug', align: 'start', justify: 'start', absolute: false, inLayout: true, positionLocked: false, notes: [], text: '', fontSize: 16, opacity: 1, clip: true, bound: [], bindings: [] };
+const p: Properties = { id: 'n', name: 'Box', kind: 'frame', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, imageAllowed: true, minStops: 2, maxStops: 8, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], maxShadows: 4, radius: 0, layout: 'row', gap: 8, padding: sides, margin: { top: 0, right: 0, bottom: 0, left: 0 }, sw: 'fixed', sh: 'hug', align: 'start', justify: 'start', absolute: false, inLayout: true, positionLocked: false, notes: [], text: '', fontSize: 16, opacity: 1, clip: true, bound: [], bindings: [] };
 const prop = (property: object) => ({ type: 'setProperty', id: 'n', property });
 
 describe('the choices', () => {

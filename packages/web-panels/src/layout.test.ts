@@ -5,7 +5,7 @@ import TestHost from '@meldframe/web-chrome/TestHost.svelte';
 import PropertiesPanel from './PropertiesPanel.svelte';
 
 const zero = { top: 0, right: 0, bottom: 0, left: 0 };
-const base: Properties = { id: 'n', name: 'Hero', kind: 'frame', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, minStops: 2, maxStops: 8, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], maxShadows: 4, radius: 0, layout: 'none', gap: 8, padding: zero, margin: zero, sw: 'fixed', sh: 'fixed', align: 'start', justify: 'start', absolute: false, inLayout: false, positionLocked: false, notes: [], text: '', fontSize: 16, opacity: 1, clip: true, bound: [], bindings: [] };
+const base: Properties = { id: 'n', name: 'Hero', kind: 'frame', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, imageAllowed: true, minStops: 2, maxStops: 8, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], maxShadows: 4, radius: 0, layout: 'none', gap: 8, padding: zero, margin: zero, sw: 'fixed', sh: 'fixed', align: 'start', justify: 'start', absolute: false, inLayout: false, positionLocked: false, notes: [], text: '', fontSize: 16, opacity: 1, clip: true, bound: [], bindings: [] };
 const html = (properties: Properties) => render(TestHost as never, { props: { of: PropertiesPanel, props: { properties, picker: null, selected: 1, dispatch: () => {} } } as never }).body;
 
 describe('the layout fields as the boards draw them', () => {
