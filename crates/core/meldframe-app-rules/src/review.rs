@@ -1,12 +1,11 @@
 //! Review (E5.2, E5.3), the parts that read no `App`: the record of the ops the server confirmed since the file was
-//! loaded, and the plans of a revert and of a restore, worked out with the rules of `meldframe-revert`. The checkpoint
-//! list is in `checkpoints.rs`.
+//! loaded, and the plans of a revert and of a restore, worked out with the rules of `meldframe-revert`. The checkpoints
+//! themselves are in `checkpoints.rs`.
 
 use meldframe_app_model::{RevertSkip, RevertSkipReason};
 use meldframe_protocol::{Command, Node};
 use meldframe_revert::{
     Batch, ConfirmedLog, LoggedOp, RevertError, SkipReason, restore_commands, revert_batch,
-    state_at,
 };
 use meldframe_sync::Outgoing;
 
@@ -96,23 +95,10 @@ pub fn plan_revert(
     })
 }
 
-/// Work out the commands that bring `current` back to the file as it was at `seq`, from the record, or the code of the
-/// refusal.
-pub fn plan_restore(
-    log: &ConfirmedLog,
-    seq: u64,
-    current: &[Node],
-) -> Result<Vec<Command>, &'static str> {
-    // A checkpoint older than the record cannot be worked out from it.
-    if seq < log.base_seq() {
-        return Err("not_in_log");
-    }
-    if log.diverged() {
-        return Err("log_mismatch");
-    }
-    let target = state_at(log.base(), log.ops(), seq);
-    let cmds = target.ok().and_then(|t| restore_commands(&t, current).ok());
-    let Some(cmds) = cmds else {
+/// Work out the commands that bring `current` back to `target`, the file as the server had it at a checkpoint, or the
+/// code of the refusal.
+pub fn plan_restore(target: &[Node], current: &[Node]) -> Result<Vec<Command>, &'static str> {
+    let Ok(cmds) = restore_commands(target, current) else {
         return Err("log_mismatch");
     };
     if cmds.is_empty() {

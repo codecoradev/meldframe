@@ -83,6 +83,9 @@ pub enum Effect {
         #[ts(type = "number")]
         seq: u64,
     },
+    /// `GET /v1/files/{file}/checkpoints/{n}/state`. The file at the checkpoint comes back as
+    /// `Action::CheckpointStateLoaded`, a failure as `Action::CheckpointRequestFailed`.
+    FetchCheckpointState { n: u32 },
     /// Redraw. The nodes named changed; an empty list means everything.
     Render { nodes: Vec<String> },
 }

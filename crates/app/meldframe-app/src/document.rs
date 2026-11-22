@@ -106,9 +106,12 @@ impl App {
                 after,
                 pos: None,
             }),
-            Action::RevertBatch { actor, key_prefix } => self.revert_batch(&actor, &key_prefix),
+            Action::RevertBatch { actor, key_prefix } => self.revert_batch(&actor, &key_prefix, fx),
             Action::CreateCheckpoint { label } => self.create_checkpoint(&label, fx),
-            Action::RestoreCheckpoint { id } => self.restore_checkpoint(&id),
+            Action::RestoreCheckpoint { id } => self.restore_checkpoint(&id, fx),
+            Action::CheckpointPosted { key, checkpoint } => {
+                self.checkpoint_posted(&key, checkpoint)
+            }
             Action::EditVariables { commands } => self.edit_variables(&commands),
             Action::ImportVariables { text } => self.import_variables(&text),
             Action::CreateCollection { name } => self.create_collection(&name),

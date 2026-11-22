@@ -1,6 +1,6 @@
 // The shell carries out the effects of the app layer: it opens the live socket, sends ops over REST, and waits
 // for the timers the app asks for. Everything it learns goes back as an action. No editing rules here.
-import type { Action, AppState, Effect, OutOp, ServerMsg } from '@meldframe/protocol';
+import type { Action, AppState, CheckpointRequest, Effect, OutOp, ServerMsg } from '@meldframe/protocol';
 import { answerOfAssets, assetsFailed, assetsQuery } from './assets';
 import { answerOfList, answerOfReview, listQuery, toBatchFrame, toTouchFrame } from './batches';
 import { checkpointCall, toCheckpointFrame, type CheckpointCall } from './checkpoints';
@@ -157,7 +157,9 @@ export class Shell {
       case 'fetchCheckpoints':
         return this.checkpoint(checkpointCall(this.opts.file, e));
       case 'postCheckpoint':
-        return; // the post is carried out in the next commit of the web transport (ADR-0023)
+        return this.notCarriedOut({ type: 'post', key: e.key });
+      case 'fetchCheckpointState':
+        return this.notCarriedOut({ type: 'state', n: e.n });
       case 'render':
         return; // the views redraw from every snapshot
       default: {
@@ -211,6 +213,18 @@ export class Shell {
         console.warn('batches: the app could not take an answer', err);
       }
     }
+  }
+
+  /**
+   * The post and the read of a file at a checkpoint are carried out in a later commit of the web transport (ADR-0023).
+   * Until then the app is told, at once and not from inside this effect, that they failed, so a revert or a restore
+   * that waits for them is refused as `checkpoint_failed` and never left waiting.
+   */
+  private notCarriedOut(request: CheckpointRequest): void {
+    const gen = this.stopped;
+    void Promise.resolve().then(() => {
+      if (gen === this.stopped) this.failed({ type: 'checkpointRequestFailed', request, code: 'unavailable' });
+    });
   }
 
   /** The failure of a request, told once more when the answer was not taken: if the app cannot take this either, nothing is left to do. */

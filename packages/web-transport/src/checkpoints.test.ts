@@ -145,6 +145,17 @@ describe('the effects', () => {
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
+  it('until the transport carries them out, a post and a read of the state are told to the app as failed, so a revert or a restore that waits for them is refused and not left waiting', async () => {
+    const { engine, env } = setup();
+    engine.effect({ type: 'postCheckpoint', key: 'k1', kind: 'beforeRevert', label: null, about: null, seq: 3 } as Effect);
+    engine.effect({ type: 'fetchCheckpointState', n: 7 } as Effect);
+    await settle();
+    expect(engine.dispatched).toEqual([
+      { type: 'checkpointRequestFailed', request: { type: 'post', key: 'k1' }, code: 'unavailable' },
+      { type: 'checkpointRequestFailed', request: { type: 'state', n: 7 }, code: 'unavailable' },
+    ]);
+    expect(env.calls).toHaveLength(0);
+  });
   it('a failure the app cannot take either is warned about, and the queue goes on', async () => {
     const { engine, env } = setup();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

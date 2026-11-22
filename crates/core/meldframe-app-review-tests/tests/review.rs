@@ -1,13 +1,11 @@
-//! E5.2 and E5.3: revert an agent's batch and restore a checkpoint of the server, as changes of the person that one undo
-//! takes back. The checkpoints themselves are in `checkpoints.rs`.
+//! E5.2: revert an agent's batch, as a change of the person that one undo takes back. Where the server keeps
+//! checkpoints the revert waits for its row: `revert_checkpoint.rs`.
 
 #[path = "../../meldframe-app-unit-tests/tests/common/mod.rs"]
 mod common;
-mod scripted;
 use common::*;
-use meldframe_app::{Action, CheckpointKind, Effect, Event, Frame, Property};
+use meldframe_app::{Action, Event, Property};
 use meldframe_protocol::{Command, NodePatch};
-use scripted::Cp;
 
 fn set(id: &str, f: impl FnOnce(&mut NodePatch)) -> Command {
     let mut patch = NodePatch::default();
@@ -223,139 +221,4 @@ fn a_batch_cut_by_the_end_of_the_record_is_told_apart_from_an_unknown_one() {
         "the batch inside the record reverts"
     );
     assert_eq!(get(&l.app, "t1").x, 1.0, "the cut batch is left alone");
-}
-
-fn restore(n: u32) -> Action {
-    Action::RestoreCheckpoint { id: n.to_string() }
-}
-
-#[test]
-fn restoring_a_checkpoint_appends_a_change_of_the_person_that_undo_takes_back() {
-    let mut c = Cp::live();
-    let before = c.make(CheckpointKind::Manual, Some("before the agent"), None);
-    c.l.remote("agent:x", "b1:0", 0, set("r1", |p| p.x = Some(50.0)));
-    let name = Property::Name("Headline".into());
-    c.l.send(Action::SetProperty {
-        id: "t1".into(),
-        property: name,
-    });
-    let head = c.l.seq;
-    let effects = c.send(restore(before));
-    assert_eq!(get(&c.l.app, "r1").x, 0.0);
-    assert_eq!(get(&c.l.app, "t1").name, "");
-    assert_eq!(sent(&effects).len(), 2, "two commands, appended to the log");
-    assert!(c.l.seq > head, "the log only grew");
-    c.l.send(Action::Undo {});
-    assert_eq!(get(&c.l.app, "t1").name, "Headline");
-    assert_eq!(get(&c.l.app, "r1").x, 50.0);
-}
-
-#[test]
-fn a_restore_that_cannot_be_done_is_refused_with_its_code() {
-    let mut c = Cp::live();
-    let now = c.make(CheckpointKind::Manual, None, None);
-    c.send(restore(now));
-    c.send(restore(99));
-    // A row older than the ops the record holds cannot be worked out from it.
-    c.l.remote("agent:x", "old:0", 0, set("r1", |p| p.x = Some(1.0)));
-    let rows = vec![meldframe_app::CheckpointRow {
-        n: 7,
-        seq: 0,
-        kind: CheckpointKind::Manual,
-        label: None,
-        about: None,
-        by: Some("user:me".into()),
-        at_ms: 1,
-    }];
-    let nodes = c.l.app.nodes().to_vec();
-    let seq = c.l.seq;
-    let reload = Action::Reload {
-        now_ms: 0,
-        nodes,
-        seq,
-        applied: vec![],
-        variables: Default::default(),
-    };
-    c.l.app.dispatch(reload);
-    c.l.send(Action::CheckpointsLoaded {
-        checkpoints: rows,
-        can_create: true,
-    });
-    c.send(restore(7));
-    assert_eq!(
-        refused(&c.l),
-        vec!["nothing_to_restore", "unknown_checkpoint", "not_in_log"]
-    );
-}
-
-#[test]
-fn a_restore_that_does_not_fit_the_queue_is_refused_whole() {
-    let mut c = Cp::live();
-    let before = c.make(CheckpointKind::Manual, Some("v1"), None);
-    c.l.remote("agent:x", "b1:0", 0, set("r1", |p| p.x = Some(10.0)));
-    c.l.remote("agent:x", "b1:1", 0, set("t1", |p| p.x = Some(10.0)));
-    c.l.app.set_max_pending(1);
-    c.send(restore(before));
-    assert_eq!(refused(&c.l), vec!["outbox_full"]);
-    assert_eq!((get(&c.l.app, "r1").x, get(&c.l.app, "t1").x), (10.0, 10.0));
-    assert!(c.l.app.state().pending.is_empty());
-}
-
-#[test]
-fn a_restore_across_an_added_frame_leaves_it_empty_and_names_the_refused_removal() {
-    let mut c = Cp::live();
-    let before = c.make(CheckpointKind::Manual, Some("before"), None);
-    c.l.remote("agent:x", "b1:0", 0, scripted::add("hero", "frame", "root"));
-    c.l.remote("agent:x", "b1:1", 0, scripted::add("pic", "rect", "hero"));
-    // The server confirms the leaf and refuses the frame, as the Delete tier does, so the loopback is not used for it.
-    let effects = c.l.app.dispatch(restore(before));
-    let ops: Vec<_> = effects
-        .iter()
-        .flat_map(|e| match e {
-            Effect::SendOps { ops } => ops.clone(),
-            _ => vec![],
-        })
-        .collect();
-    assert_eq!(ops.len(), 2, "remove pic, then remove hero");
-    let seq = c.l.seq + 1;
-    let confirmed = Frame::Event {
-        seq,
-        actor: "user:me".into(),
-        key: Some(ops[0].key.clone()),
-        command: ops[0].command.clone(),
-    };
-    c.l.app.dispatch(Action::Frame {
-        now_ms: 0,
-        frame: confirmed,
-    });
-    let refused_frame = Frame::Rejected {
-        key: ops[1].key.clone(),
-        code: "approval_required".into(),
-        retryable: false,
-    };
-    c.l.app.dispatch(Action::Frame {
-        now_ms: 0,
-        frame: refused_frame,
-    });
-    c.l.events.extend(c.l.app.take_events());
-    let nodes = c.l.app.nodes();
-    assert!(nodes.iter().any(|n| n.id == "hero") && !nodes.iter().any(|n| n.id == "pic"));
-    assert!(c.l.app.state().pending.is_empty());
-    let rejected: Vec<_> =
-        c.l.events
-            .iter()
-            .filter_map(|e| match e {
-                Event::OpRejected { node, code, .. } => Some((node.clone(), code.clone())),
-                _ => None,
-            })
-            .collect();
-    assert_eq!(
-        rejected,
-        vec![(Some("hero".to_string()), "approval_required".to_string())]
-    );
-    assert!(
-        c.l.events
-            .iter()
-            .any(|e| matches!(e, Event::Restored { requested: 2, .. }))
-    );
 }

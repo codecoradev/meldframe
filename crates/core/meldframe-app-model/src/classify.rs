@@ -23,7 +23,7 @@ impl Action {
         matches!(
             self,
             Action::CheckpointsLoaded { .. }
-                | Action::CheckpointPosted { .. }
+                | Action::CheckpointStateLoaded { .. }
                 | Action::CheckpointRequestFailed { .. }
         )
     }

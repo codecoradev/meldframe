@@ -281,7 +281,10 @@ pub enum Action {
     },
     /// Revert an agent's batch (E5.2): the ops of `actor` whose keys are `{key_prefix}:{n}`. Only the fields whose last
     /// writer is still that batch go back, as the person's own change that one undo takes back. Refused with
-    /// `unknown_batch`, `nothing_to_revert` or `log_mismatch`.
+    /// `unknown_batch`, `nothing_to_revert` or `log_mismatch`. Where the caller may make a checkpoint
+    /// (`AppState::can_create_checkpoint`) the app first posts a `beforeRevert` row (`Effect::PostCheckpoint`) and
+    /// changes nothing until `CheckpointPosted`; a failed post refuses it as `checkpoint_failed`, and while one revert
+    /// or restore waits another is `checkpoint_pending`.
     RevertBatch {
         actor: String,
         key_prefix: String,
@@ -293,9 +296,11 @@ pub enum Action {
     CreateCheckpoint {
         label: String,
     },
-    /// Bring the file back to a checkpoint as new ops of the person (one undo step; the log is not rewritten), worked
-    /// out from the ops the app has seen since it loaded the file. Refused with `unknown_checkpoint`, `not_in_log` (the
-    /// app has dropped the ops back to it), `nothing_to_restore` or `log_mismatch`.
+    /// Bring the file back to a checkpoint as new ops of the person (one undo step; the log is not rewritten): the app
+    /// fetches the file at the checkpoint (`Effect::FetchCheckpointState`), works the commands out on its own replica,
+    /// posts a `beforeRestore` row and applies them on `CheckpointPosted`. Refused with `unknown_checkpoint`,
+    /// `forbidden`, `nothing_to_restore`, `log_mismatch`, `checkpoint_pending`, `checkpoint_failed` or the code of the
+    /// failed fetch (`too_far`: further back than the server replays).
     RestoreCheckpoint {
         id: String,
     },
@@ -309,7 +314,15 @@ pub enum Action {
         key: String,
         checkpoint: CheckpointRow,
     },
-    /// A checkpoint request failed, was refused or got no answer in time: `Event::Refused`.
+    /// The answer of `Effect::FetchCheckpointState`: the nodes of the file at checkpoint `n`.
+    CheckpointStateLoaded {
+        n: u32,
+        #[ts(type = "number")]
+        seq: u64,
+        nodes: Vec<Node>,
+    },
+    /// A checkpoint request failed, was refused, or was given up on by the shell (its client timeout; the app has no clock here): `Event::Refused`, and the revert or restore
+    /// that waited for it is refused.
     CheckpointRequestFailed {
         request: CheckpointRequest,
         code: String,
