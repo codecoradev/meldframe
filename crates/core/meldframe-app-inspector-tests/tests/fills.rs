@@ -4,7 +4,7 @@
 #[path = "../../meldframe-app-unit-tests/tests/common/mod.rs"]
 mod common;
 use common::*;
-use meldframe_app::{Action, Event, FillKind, Property};
+use meldframe_app::{Action, Event, FillKind, ImageFit, Property};
 use meldframe_protocol::{GradientKind, Node};
 
 fn set(id: &str, property: Property) -> Action {
@@ -295,4 +295,204 @@ fn the_new_properties_read_from_json() {
     }))
     .unwrap();
     assert!(matches!(a, Action::SetProperty { .. }));
+}
+
+// Choosing an image (E2.5): `Action::SetImageFill`; the picker is in `image_fill.rs`. The server says if an asset exists.
+
+fn id_of(n: u8) -> String {
+    format!("{n:02x}").repeat(32)
+}
+
+#[test]
+fn set_image_fill_makes_the_node_an_image_in_one_undo_step_and_undo_takes_it_back() {
+    let mut l = Loopback::live();
+    select(&mut l, "r1");
+    let id = id_of(7);
+    l.send(Action::SetImageFill {
+        id: "r1".into(),
+        asset_id: id.clone(),
+        fit: Some(ImageFit::Contain),
+    });
+    let n = get(&l.app, "r1");
+    let im = n.image.clone().unwrap();
+    assert_eq!(
+        (im.asset_id.as_str(), im.fit),
+        (id.as_str(), ImageFit::Contain)
+    );
+    let p = l.app.state().properties.clone().unwrap();
+    assert_eq!(p.fill_kind, FillKind::Image);
+    assert_eq!(l.app.state().history.undo_steps, 1);
+    l.send(Action::Undo {});
+    assert!(get(&l.app, "r1").image.is_none());
+    assert_eq!(
+        l.app.state().properties.as_ref().unwrap().fill_kind,
+        FillKind::Solid
+    );
+    assert!(refused(&mut l).is_empty());
+}
+
+#[test]
+fn set_image_fill_keeps_the_colour_and_the_gradient_and_the_same_image_again_makes_no_step() {
+    let mut l = Loopback::live();
+    select(&mut l, "r1");
+    l.send(Action::SetProperty {
+        id: "r1".into(),
+        property: Property::Fill("#336699".into()),
+    });
+    l.send(Action::SetProperty {
+        id: "r1".into(),
+        property: Property::FillType(FillKind::Linear),
+    });
+    let before = get(&l.app, "r1");
+    let steps = l.app.state().history.undo_steps;
+    let set = |fit| Action::SetImageFill {
+        id: "r1".into(),
+        asset_id: id_of(3),
+        fit,
+    };
+    l.send(set(Some(ImageFit::Cover)));
+    let after = get(&l.app, "r1");
+    assert_eq!(
+        (&after.fill, &after.gradient),
+        (&before.fill, &before.gradient)
+    );
+    assert_eq!(l.app.state().history.undo_steps, steps + 1);
+    l.send(set(Some(ImageFit::Cover)));
+    assert_eq!(
+        l.app.state().history.undo_steps,
+        steps + 1,
+        "the same image and fit: no step"
+    );
+    l.send(set(Some(ImageFit::Fill)));
+    assert_eq!(get(&l.app, "r1").image.unwrap().fit, ImageFit::Fill);
+    assert_eq!(
+        l.app.state().history.undo_steps,
+        steps + 2,
+        "another fit is a step"
+    );
+    // The solid type takes the image away again.
+    l.send(Action::SetProperty {
+        id: "r1".into(),
+        property: Property::FillType(FillKind::Solid),
+    });
+    assert!(get(&l.app, "r1").image.is_none());
+}
+
+#[test]
+fn set_image_fill_refuses_what_is_not_a_content_hash_text_and_unknown_nodes_and_changes_nothing() {
+    let mut l = Loopback::live();
+    select(&mut l, "r1");
+    for bad in [
+        "",
+        "abc",
+        &"A".repeat(64),
+        &"g".repeat(64),
+        &"a".repeat(63),
+        &"a".repeat(65),
+        "../../etc/passwd",
+    ] {
+        l.send(Action::SetImageFill {
+            id: "r1".into(),
+            asset_id: bad.into(),
+            fit: Some(ImageFit::Cover),
+        });
+    }
+    l.send(Action::SetImageFill {
+        id: "t1".into(),
+        asset_id: id_of(1),
+        fit: Some(ImageFit::Cover),
+    });
+    l.send(Action::SetImageFill {
+        id: "nope".into(),
+        asset_id: id_of(1),
+        fit: Some(ImageFit::Cover),
+    });
+    let codes = refused(&mut l);
+    assert_eq!(codes.len(), 9, "{codes:?}");
+    assert!(
+        codes[..7].iter().all(|c| c == "invalid_asset_id"),
+        "{codes:?}"
+    );
+    assert_eq!(&codes[7..], ["image_on_text", "not_found"]);
+    assert!(get(&l.app, "r1").image.is_none() && get(&l.app, "t1").image.is_none());
+    assert_eq!(l.app.state().history.undo_steps, 0);
+}
+
+#[test]
+fn without_a_fit_the_node_keeps_its_fit_and_a_node_with_no_image_gets_cover() {
+    let mut l = Loopback::live();
+    select(&mut l, "r1");
+    let pick = |n: u8, fit| Action::SetImageFill {
+        id: "r1".into(),
+        asset_id: id_of(n),
+        fit,
+    };
+    l.send(pick(1, None));
+    assert_eq!(get(&l.app, "r1").image.unwrap().fit, ImageFit::Cover);
+    l.send(pick(2, Some(ImageFit::Contain)));
+    l.send(pick(3, None));
+    let im = get(&l.app, "r1").image.unwrap();
+    assert_eq!(
+        (im.asset_id, im.fit),
+        (id_of(3), ImageFit::Contain),
+        "the fit stays"
+    );
+    let steps = l.app.state().history.undo_steps;
+    l.send(pick(3, None));
+    assert_eq!(
+        l.app.state().history.undo_steps,
+        steps,
+        "the same image: no step"
+    );
+    // The wire form may leave the fit out.
+    let a: Action = serde_json::from_value(
+        serde_json::json!({"type": "setImageFill", "id": "r1", "assetId": id_of(1)}),
+    )
+    .unwrap();
+    assert!(matches!(a, Action::SetImageFill { fit: None, .. }));
+    let a: Action = serde_json::from_value(
+        serde_json::json!({"type": "setImageFill", "id": "r1", "assetId": id_of(1), "fit": "contain"}),
+    )
+    .unwrap();
+    assert!(matches!(
+        a,
+        Action::SetImageFill {
+            fit: Some(ImageFit::Contain),
+            ..
+        }
+    ));
+}
+
+#[test]
+fn choosing_an_image_closes_the_picker_and_a_refused_choice_leaves_it_open() {
+    let mut l = Loopback::live();
+    let choose = |asset_id: &str| Action::SetImageFill {
+        id: "r1".into(),
+        asset_id: asset_id.into(),
+        fit: None,
+    };
+    select(&mut l, "r1");
+    let app = &mut l.app;
+    let told = |app: &mut meldframe_app::App| {
+        let events = app.take_events();
+        events
+            .iter()
+            .filter(|e| matches!(e, Event::AssetsChanged {}))
+            .count()
+    };
+    app.dispatch(Action::OpenAssets { id: "r1".into() });
+    told(app);
+    app.dispatch(choose(&id_of(1)));
+    assert!(app.state().assets.target.is_none() && app.state().assets.items.is_empty());
+    assert_eq!(told(app), 1, "the front end is told");
+    app.dispatch(Action::OpenAssets { id: "r1".into() });
+    told(app);
+    app.dispatch(choose("nope"));
+    assert!(app.state().assets.target.is_some());
+    assert_eq!(told(app), 0, "a refused choice changes nothing");
+    app.dispatch(choose(&id_of(1)));
+    assert!(
+        app.state().assets.target.is_none(),
+        "the same image makes no step and still closes it"
+    );
 }

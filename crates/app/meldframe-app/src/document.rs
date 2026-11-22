@@ -98,6 +98,7 @@ impl App {
             Action::ArrowKey { direction } => self.arrow_key(direction),
             Action::EditText { id, text } => self.replica.apply(&edit_text(&id, text)),
             Action::SetProperty { id, property } => self.set_property(&id, property),
+            Action::SetImageFill { id, asset_id, fit } => self.set_image_fill(&id, asset_id, fit),
             Action::Delete { ids } => self.delete(&ids),
             Action::Reorder { id, before, after } => self.replica.apply(&Command::Reorder {
                 id,

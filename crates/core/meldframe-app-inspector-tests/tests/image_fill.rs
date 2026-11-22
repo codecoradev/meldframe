@@ -394,6 +394,11 @@ fn the_picker_closes_when_the_selection_moves_off_its_node() {
 fn the_wire_shapes_are_camel_case_and_strict() {
     let a: Action = serde_json::from_value(serde_json::json!({"type": "assetsLoaded", "request": 3, "page": {"assets": [{"id": id_of(1), "bytes": 5, "mime": "image/png"}], "next": null}, "after": null})).unwrap();
     assert!(matches!(a, Action::AssetsLoaded { after: None, .. }));
+    assert!(serde_json::from_value::<Action>(serde_json::json!({"type": "setImageFill", "id": "r1", "assetId": "x", "fit": "stretch"})).is_err());
+    assert!(matches!(
+        serde_json::from_value(serde_json::json!({"type": "retryAssets"})),
+        Ok(Action::RetryAssets {})
+    ));
     assert!(
         serde_json::from_value::<Action>(
             serde_json::json!({"type": "openAssets", "id": "r1", "extra": 1})
