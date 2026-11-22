@@ -3,7 +3,7 @@
 //! machine that uses them is `meldframe-app`, which re-exports all of this; this crate only keeps that one
 //! under the size ceiling. It holds few rules, each a plain function of its data. The code is conversions (`From`: what
 //! `Feed::view` of `meldframe-activity` gives, a `BatchPage`), `Frame::observe` (a plain mapping of a frame to the
-//! feed's calls), the classification of an action (`Action::is_activity`, `Action::only_activity`, `Action::is_assets`),
+//! feed's calls), the classification of an action (`Action::is_activity`, `Action::only_activity`, `Action::is_assets`, `Action::is_checkpoint`),
 //! and the one real rule set, the transitions of the image picker's list (`AssetsState`: which answer is taken, what a
 //! page has to look like, the cap on the list). The rules of the other screens are in `meldframe-app-parts` and
 //! `meldframe-app-rules`.
@@ -12,6 +12,7 @@ pub mod action;
 pub mod activity;
 pub mod assets;
 pub mod checkpoint;
+mod classify;
 pub mod effect;
 pub mod event;
 pub mod export;
@@ -29,7 +30,9 @@ pub use activity::{
     BatchStatus, BatchSummary, LaneKind, LaneState, ReviewState, TouchRing,
 };
 pub use assets::{ASSET_LIST_MAX, ASSET_PAGE, ASSET_PAGE_MAX, AssetInfo, AssetPage, AssetsState};
-pub use checkpoint::{Checkpoint, CheckpointKind};
+pub use checkpoint::{
+    Checkpoint, CheckpointKind, CheckpointRequest, CheckpointRow, CheckpointsStatus,
+};
 pub use effect::{Effect, OutOp};
 pub use event::{Event, RevertSkip, RevertSkipReason, VariableEntity};
 pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget};

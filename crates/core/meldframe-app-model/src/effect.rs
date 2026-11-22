@@ -68,6 +68,9 @@ pub enum Effect {
         limit: u32,
         request: u32,
     },
+    /// `GET /v1/files/{file}/checkpoints`. The answer comes back as `Action::CheckpointsLoaded`, a failure as
+    /// `Action::CheckpointRequestFailed`.
+    FetchCheckpoints {},
     /// Redraw. The nodes named changed; an empty list means everything.
     Render { nodes: Vec<String> },
 }

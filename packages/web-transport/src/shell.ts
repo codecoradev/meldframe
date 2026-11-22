@@ -153,6 +153,8 @@ export class Shell {
         return this.batches('PUT', this.batchPath(`/${Math.trunc(e.n)}/review`), { state: e.state }, answerOfReview);
       case 'fetchAssets':
         return this.fetching('GET', `/v1/assets${assetsQuery(e)}`, undefined, (status, body) => answerOfAssets(e.request, e.after, status, body), assetsFailed(e.request));
+      case 'fetchCheckpoints':
+        return; // the checkpoint routes are carried out by the web link of the checkpoints (a later slice of ADR-0023)
       case 'render':
         return; // the views redraw from every snapshot
       default: {

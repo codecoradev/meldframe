@@ -46,6 +46,7 @@ impl App {
             .reset(self.replica.base().to_vec(), self.replica.seq());
         self.feed.reset(self.replica.seq());
         self.prune_checkpoints();
+        self.checkpoints_reset();
         self.retries = Retries::default();
         self.link.reloaded();
         self.start(now_ms, fx);
@@ -58,6 +59,7 @@ impl App {
         self.link.live(now_ms);
         self.set_connection(Connection::Live);
         self.fetched(|f, _| f.connected(now_ms), fx);
+        self.checkpoints_connected(fx);
         let ops = out_ops(self.replica.unconfirmed());
         // What the replica queued before is part of `unconfirmed`: do not send it twice.
         self.replica.take_outbox();

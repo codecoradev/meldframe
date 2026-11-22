@@ -19,7 +19,9 @@ impl App {
                 // A marker ahead of the replica (a stale one) must not skip ops it has not got.
                 self.resubscribe(after_seq.min(self.replica.seq()), fx);
                 self.fetched(|f, _| f.connected(now_ms), fx);
+                self.checkpoints_connected(fx);
             }
+            Frame::Checkpoint { checkpoint } => self.checkpoint_frame(checkpoint, fx),
             Frame::Batch { .. } | Frame::Touch { .. } => self.activity_frame(now_ms, frame, fx),
             Frame::Rejected {
                 key,
