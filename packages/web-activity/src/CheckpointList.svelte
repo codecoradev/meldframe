@@ -19,8 +19,8 @@
   }
   let { checkpoints, asking, onAsk, onRestore, onCancel }: Props = $props();
   let list = $state<HTMLElement | null>(null);
-  // Newest first: the app keeps them oldest first.
-  const shown = $derived([...checkpoints].reverse());
+  // Newest first, as the app keeps them.
+  const shown = $derived(checkpoints);
 
   const button = (id: string, testid: string) => list?.querySelector<HTMLElement>(`[data-checkpoint="${CSS.escape(id)}"] [data-testid="${testid}"] button`);
   // The question takes the focus (on its safe button), and Restore gets it back when the question closes.

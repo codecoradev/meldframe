@@ -7,6 +7,7 @@
 
 pub mod action;
 pub mod activity;
+pub mod checkpoint;
 pub mod effect;
 pub mod event;
 pub mod export;
@@ -21,13 +22,13 @@ pub use activity::{
     ActivityLane, ActivityRun, ActivityState, BatchHeader, BatchPage, BatchRef, BatchRow,
     BatchStatus, BatchSummary, LaneKind, LaneState, ReviewState, TouchRing,
 };
+pub use checkpoint::{Checkpoint, CheckpointKind};
 pub use effect::{Effect, OutOp};
 pub use event::{Event, RevertSkip, RevertSkipReason, VariableEntity};
 pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget};
 pub use layout::{Axis, Direction, LayoutNote, Side, Sides};
 pub use state::{
-    AppState, Checkpoint, CheckpointKind, Connection, FieldBinding, FillKind, History, Panel,
-    Panels, Properties, Tool,
+    AppState, Connection, FieldBinding, FillKind, History, Panel, Panels, Properties, Tool,
 };
 pub use variables::{
     BindField, BindOption, CollectionRow, ModeValue, Picker, PickerRow, TypeHeading, VariableRow,

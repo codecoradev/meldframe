@@ -6,7 +6,7 @@
 use crate::app::App;
 use crate::document::refuse;
 use crate::event::Event;
-use crate::state::{Checkpoint, CheckpointKind};
+use meldframe_app_model::{Checkpoint, CheckpointKind};
 use meldframe_app_parts::document::apply_all;
 use meldframe_app_rules::review::{
     checkpoint_label, full_log, plan_restore, plan_revert, push_checkpoint,
@@ -29,8 +29,8 @@ impl App {
         if actor != self.replica.actor() && self.review.starts_run(actor, now_ms) {
             self.add_checkpoint(
                 seq.saturating_sub(1),
-                String::new(),
-                CheckpointKind::OtherActorRun,
+                None,
+                CheckpointKind::RunStart,
                 Some(actor),
             );
         }
@@ -62,20 +62,25 @@ impl App {
     fn add_checkpoint(
         &mut self,
         seq: u64,
-        label: String,
+        label: Option<String>,
         kind: CheckpointKind,
-        actor: Option<&str>,
+        about: Option<&str>,
     ) {
-        let id = self.review.next_checkpoint_id(&self.prefix);
+        let n = self.review.next_checkpoint();
+        // The person asked for every kind but the run start; the clock is the server's, which a local row has no use for.
+        let by = (kind != CheckpointKind::RunStart).then(|| self.replica.actor().to_string());
         let list = &mut self.state.checkpoints;
         push_checkpoint(
             list,
             Checkpoint {
-                id,
+                id: n.to_string(),
+                n,
                 seq,
-                label,
                 kind,
-                actor: actor.map(String::from),
+                label,
+                about: about.map(String::from),
+                by,
+                at_ms: 0,
             },
         );
         let count = list.len();
@@ -107,12 +112,7 @@ impl App {
         };
         self.check_room(&r.commands)?;
         let seq = self.replica.seq();
-        self.add_checkpoint(
-            seq,
-            String::new(),
-            CheckpointKind::BeforeRevert,
-            Some(actor),
-        );
+        self.add_checkpoint(seq, None, CheckpointKind::BeforeRevert, Some(actor));
         apply_all(&mut self.replica, &r.commands)?;
         self.events.push(Event::Reverted {
             requested: r.commands.len(),
@@ -132,7 +132,7 @@ impl App {
         };
         self.check_room(&cmds)?;
         let seq = self.replica.seq();
-        self.add_checkpoint(seq, String::new(), CheckpointKind::BeforeRestore, None);
+        self.add_checkpoint(seq, None, CheckpointKind::BeforeRestore, None);
         apply_all(&mut self.replica, &cmds)?;
         self.events.push(Event::Restored {
             id: id.to_string(),

@@ -38,8 +38,8 @@ pending: Array<string>,
  */
 lastActor: { [key in string]: string }, 
 /**
- * The checkpoints of this session, oldest first (E5.3): saved by the person, or taken on their own at the
- * start of an agent run and before a revert or a restore.
+ * The checkpoints of this session, newest first (E5.3): saved by the person, or taken on their own at the start
+ * of an agent run and before a revert or a restore.
  */
 checkpoints: Array<Checkpoint>, 
 /**

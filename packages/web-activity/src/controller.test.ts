@@ -7,7 +7,7 @@ const a = row({ actor: 'agent:a', keyPrefix: 'ka', n: 1 });
 const b = row({ actor: 'agent:b', keyPrefix: 'kb', n: 2 });
 const refA = { actor: 'agent:a', keyPrefix: 'ka' };
 const refB = { actor: 'agent:b', keyPrefix: 'kb' };
-const cp = (id: string): Checkpoint => ({ id, seq: 1, label: id, kind: 'manual' });
+const cp = (id: string): Checkpoint => ({ id, n: Number(id.replace(/\D/g, '')) || 1, seq: 1, label: id, kind: 'manual', atMs: 1 });
 const state = (selected: typeof refA | null = null) => activity({ lanes: [lane({ actor: 'agent:a', batches: ['ka'] }), lane({ actor: 'agent:b', batches: ['kb'] })], rows: [a, b], selected });
 
 describe('the revert confirmation', () => {

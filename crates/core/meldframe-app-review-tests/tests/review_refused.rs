@@ -20,7 +20,7 @@ fn a_restore_across_an_added_frame_leaves_it_empty_and_names_the_refused_removal
     l.send(Action::CreateCheckpoint {
         label: "before".into(),
     });
-    let id = l.app.state().checkpoints.last().unwrap().id.clone();
+    let id = l.app.state().checkpoints.first().unwrap().id.clone();
     l.remote("agent:x", "b1:0", 0, add("hero", "frame", "root"));
     l.remote("agent:x", "b1:1", 0, add("pic", "rect", "hero"));
     let effects = l.app.dispatch(Action::RestoreCheckpoint { id });
