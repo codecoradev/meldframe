@@ -54,6 +54,10 @@ mod feature_on {
             .into_iter()
             .filter(|_| cfg!(feature = "activity"));
         expected.extend(activity);
+        let checkpoints = ["checkpoints"]
+            .into_iter()
+            .filter(|_| cfg!(feature = "checkpoints"));
+        expected.extend(checkpoints);
         assert_eq!(server.registry().module_names(), expected);
         let tool = server.registry().agent_tool("example_ping").unwrap();
         assert_eq!(tool.tier, RiskTier::Read);
@@ -135,5 +139,24 @@ fn the_capture_tool_is_listed_only_when_the_feature_is_on() {
         assert_eq!((tool.module, tool.tier), ("capture", RiskTier::Read));
     } else {
         assert!(tool.is_none());
+    }
+}
+
+/// The checkpoints module is compiled in only with its feature: its two calls are registered so a deployment can deny
+/// them and the call log records their tier, and neither is an MCP tool.
+#[test]
+fn the_checkpoint_calls_are_registered_only_when_the_feature_is_on() {
+    let server = Server::assemble();
+    let create = server.registry().agent_tool("checkpoint_create");
+    let state = server.registry().agent_tool("checkpoint_state");
+    if cfg!(feature = "checkpoints") {
+        let (create, state) = (create.expect("listed"), state.expect("listed"));
+        assert_eq!(
+            (create.module, create.tier),
+            ("checkpoints", RiskTier::Change)
+        );
+        assert_eq!((state.module, state.tier), ("checkpoints", RiskTier::Read));
+    } else {
+        assert!(create.is_none() && state.is_none());
     }
 }

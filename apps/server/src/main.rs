@@ -45,6 +45,8 @@ fn main() {
     let reviews = backing.reviews();
     #[cfg(feature = "activity")]
     let batches = backing.batches();
+    #[cfg(feature = "checkpoints")]
+    let checkpoints = backing.checkpoints();
     let server = Server::assemble_in(Vec::new(), backing).with_touch_hints(TOUCH_WINDOW_MS);
     for module in server.registry().module_names() {
         println!("module {module}");
@@ -60,6 +62,8 @@ fn main() {
             reviews,
             #[cfg(feature = "activity")]
             batches,
+            #[cfg(feature = "checkpoints")]
+            checkpoints,
         )
     {
         fail(&e);
@@ -76,6 +80,7 @@ fn serve(
     server: Server,
     #[cfg(feature = "design-review")] reviews: Arc<dyn design_review::ReviewStore>,
     #[cfg(feature = "activity")] batches: Arc<dyn activity_store::BatchStore>,
+    #[cfg(feature = "checkpoints")] checkpoints: Arc<dyn checkpoint_store::CheckpointStore>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = listen.parse()?;
     // Gatehouse (M2) replaces this adapter; until then only development tokens exist.
@@ -173,6 +178,9 @@ fn serve(
             (&mut extra_tools, batches_policy),
         ));
     }
+    // The run starts of agents' writes, taken by the server itself (ADR-0023).
+    #[cfg(feature = "checkpoints")]
+    meldframe_http_checkpoints::install(&state, checkpoints, shared.clone());
     #[cfg(feature = "capture")]
     extra_tools.push(cap.tool());
     #[cfg(feature = "assets")]

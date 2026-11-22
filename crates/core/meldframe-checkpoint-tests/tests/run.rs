@@ -156,3 +156,24 @@ fn a_run_starts_just_before_the_first_op_it_wrote() {
     assert_eq!(seq_before_first([0]), Some(0));
     assert_eq!(seq_before_first(Vec::new()), None);
 }
+
+#[test]
+fn a_claim_given_back_makes_the_next_write_a_start_again_and_touches_no_other_entry() {
+    let mut w = RunWatch::new();
+    assert!(start(&mut w, "agent:a", T0));
+    assert!(start(&mut w, "agent:b", T0));
+    assert!(!start(&mut w, "agent:a", T0 + 1), "inside the run");
+    w.forget("ws", "file", "agent:a");
+    assert_eq!(w.len(), 1);
+    assert!(start(&mut w, "agent:a", T0 + 2), "the claim was given back");
+    assert!(
+        !start(&mut w, "agent:b", T0 + 3),
+        "another actor's claim stays"
+    );
+    // Nothing to give back is nothing, and the by-age index stays whole: the entries prune as they should.
+    w.forget("ws", "file", "agent:nobody");
+    w.forget("ws2", "file", "agent:a");
+    assert_eq!(w.len(), 2);
+    assert!(start(&mut w, "agent:c", T0 + 3 * GAP));
+    assert_eq!(w.len(), 1, "the older entries were pruned by age");
+}
