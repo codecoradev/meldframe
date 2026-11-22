@@ -1,9 +1,9 @@
 // The web-transport seam of the checkpoints (E5.3, ADR-0023): the flat `checkpoint` frame of the socket becomes the app
-// layer's `Frame::Checkpoint`, the answer of the list route becomes an action, and the read of the list is carried out
-// with a fake fetch. Nothing from the network is trusted: shape and bounds are checked here.
+// layer's `Frame::Checkpoint`, the answers of the list, post and state routes become actions, and the three effects are
+// carried out with a fake fetch. Nothing from the network is trusted: shape and bounds are checked here.
 import type { Action, AppState, Effect } from '@meldframe/protocol';
 import { describe, expect, it, vi } from 'vitest';
-import { answerOfRows, checkpointCall, toCheckpointFrame } from './checkpoints';
+import { answerOfPost, answerOfRows, answerOfState, checkpointCall, toCheckpointFrame } from './checkpoints';
 import { Shell, type Engine, type Env, type SocketLike } from './shell';
 
 const wire = (over: Record<string, unknown> = {}) => ({ type: 'checkpoint', room: 'file_dev', n: 3, seq: 12, kind: 'manual', label: 'v1', by: 'user:bea', atMs: 5, ...over });
@@ -50,11 +50,37 @@ describe('the answers', () => {
     expect(answerOfRows(403, { error: { code: 'forbidden', message: 'm' } })).toEqual(failed({ type: 'list' }, 'forbidden'));
     expect(answerOfRows(500, { error: { code: 'x'.repeat(5000) } })).toEqual(failed({ type: 'list' }, 'unavailable'));
   });
+  it('a post answers with its row and the key it was sent with', () => {
+    expect(answerOfPost('k1')(200, { checkpoint: row, created: true })).toEqual({ type: 'checkpointPosted', key: 'k1', checkpoint: row });
+    expect(answerOfPost('k1')(200, { created: true })).toEqual(failed({ type: 'post', key: 'k1' }, 'unavailable'));
+  });
+  it('a refused post carries the code of the error', () => {
+    for (const code of ['checkpoint_full', 'key_reused', 'invalid', 'forbidden']) {
+      expect(answerOfPost('k1')(409, { error: { code, message: 'm', n: 2 } })).toEqual(failed({ type: 'post', key: 'k1' }, code));
+    }
+  });
+  it('the state is checkpointStateLoaded with the number it was asked for', () => {
+    const node = { id: 'a', type: 'rect' };
+    expect(answerOfState(3)(200, { seq: 12, nodes: [node] })).toEqual({ type: 'checkpointStateLoaded', n: 3, seq: 12, nodes: [node] });
+    for (const body of [{ seq: -1, nodes: [] }, { seq: 1 }, { seq: 1, nodes: [1] }, { seq: 1, nodes: 'x' }, null]) {
+      expect(answerOfState(3)(200, body), JSON.stringify(body)).toEqual(failed({ type: 'state', n: 3 }, 'unavailable'));
+    }
+    expect(answerOfState(3)(422, { error: { code: 'too_far', message: 'm' } })).toEqual(failed({ type: 'state', n: 3 }, 'too_far'));
+  });
 });
 
 describe('checkpointCall', () => {
   it('a read of the list is a GET of the collection', () => {
     expect(checkpointCall('file dev', { type: 'fetchCheckpoints' })).toMatchObject({ method: 'GET', path: '/v1/files/file%20dev/checkpoints' });
+  });
+  it('a post sends the key, the kind, the seq and what it has, and leaves a null out', () => {
+    const e: Effect = { type: 'postCheckpoint', key: 'k1', kind: 'manual', label: 'v1', about: null, seq: 4 };
+    expect(checkpointCall('f', e)).toMatchObject({ method: 'POST', path: '/v1/files/f/checkpoints', body: { key: 'k1', kind: 'manual', seq: 4, label: 'v1' } });
+    const revert: Effect = { type: 'postCheckpoint', key: 'k2', kind: 'beforeRevert', label: null, about: 'agent:x', seq: 4 };
+    expect(checkpointCall('f', revert).body).toEqual({ key: 'k2', kind: 'beforeRevert', seq: 4, about: 'agent:x' });
+  });
+  it('a read of the state is a GET of the number', () => {
+    expect(checkpointCall('f', { type: 'fetchCheckpointState', n: 7 })).toMatchObject({ method: 'GET', path: '/v1/files/f/checkpoints/7/state' });
   });
 });
 
@@ -107,16 +133,33 @@ describe('the effects', () => {
     expect(env.calls[0]!.timeoutMs).toBeGreaterThan(0);
     expect(engine.dispatched).toEqual([{ type: 'checkpointsLoaded', checkpoints: [row], canCreate: true }]);
   });
-  it('a refusal and a network failure tell the app that the read failed', async () => {
+  it('postCheckpoint is a POST with the key, answered as checkpointPosted with that key', async () => {
     const { engine, env } = setup();
-    env.reply = async () => ({ status: 403, body: { error: { code: 'forbidden', message: 'm' } } });
-    engine.effect({ type: 'fetchCheckpoints' });
+    env.reply = async () => ({ status: 200, body: { checkpoint: row, created: true } });
+    engine.effect({ type: 'postCheckpoint', key: 'k1', kind: 'manual', label: 'v1', about: null, seq: 12 });
+    await settle();
+    expect(env.calls[0]).toMatchObject({ method: 'POST', path: '/v1/files/f/checkpoints', body: { key: 'k1', kind: 'manual', seq: 12, label: 'v1' } });
+    expect(engine.dispatched).toEqual([{ type: 'checkpointPosted', key: 'k1', checkpoint: row }]);
+  });
+  it('fetchCheckpointState is a GET answered as checkpointStateLoaded', async () => {
+    const { engine, env } = setup();
+    env.reply = async () => ({ status: 200, body: { seq: 12, nodes: [] } });
+    engine.effect({ type: 'fetchCheckpointState', n: 3 });
+    await settle();
+    expect(env.calls[0]).toMatchObject({ method: 'GET', path: '/v1/files/f/checkpoints/3/state' });
+    expect(engine.dispatched).toEqual([{ type: 'checkpointStateLoaded', n: 3, seq: 12, nodes: [] }]);
+  });
+  it('a refusal and a network failure tell the app which request failed', async () => {
+    const { engine, env } = setup();
+    env.reply = async () => ({ status: 422, body: { error: { code: 'too_far', message: 'm' } } });
+    engine.effect({ type: 'fetchCheckpointState', n: 3 });
     await settle();
     env.reply = async () => { throw new Error('offline'); };
-    engine.effect({ type: 'fetchCheckpoints' });
+    engine.effect({ type: 'postCheckpoint', key: 'k9', kind: 'beforeRestore', label: null, about: null, seq: 1 }, { type: 'fetchCheckpoints' });
     await settle();
     expect(engine.dispatched).toEqual([
-      { type: 'checkpointRequestFailed', request: { type: 'list' }, code: 'forbidden' },
+      { type: 'checkpointRequestFailed', request: { type: 'state', n: 3 }, code: 'too_far' },
+      { type: 'checkpointRequestFailed', request: { type: 'post', key: 'k9' }, code: 'unavailable' },
       { type: 'checkpointRequestFailed', request: { type: 'list' }, code: 'unavailable' },
     ]);
   });
@@ -130,19 +173,30 @@ describe('the effects', () => {
     expect(engine.dispatched).toEqual([]);
     expect(env.calls).toHaveLength(1);
   });
-  it('an answer the app cannot take is told to it as the failure of the read, so the read is never left out', async () => {
+  it('an answer the app cannot take is told to it as the failure of its request, so nothing waits for it for ever', async () => {
     const { engine, env } = setup();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    env.reply = async () => ({ status: 200, body: { checkpoints: [], canCreate: true } });
     const take = engine.dispatch.bind(engine);
+    const answers = ['checkpointsLoaded', 'checkpointPosted', 'checkpointStateLoaded'];
     engine.dispatch = (a) => {
-      if (a.type === 'checkpointsLoaded') throw new Error('the app refused the action');
+      if (answers.includes(a.type)) throw new Error('the app refused the action');
       return take(a);
     };
+    env.reply = async () => ({ status: 200, body: { checkpoints: [], canCreate: true } });
     engine.effect({ type: 'fetchCheckpoints' });
     await settle();
-    expect(engine.dispatched).toEqual([{ type: 'checkpointRequestFailed', request: { type: 'list' }, code: 'unavailable' }]);
-    expect(warn).toHaveBeenCalledTimes(1);
+    env.reply = async () => ({ status: 200, body: { checkpoint: row, created: true } });
+    engine.effect({ type: 'postCheckpoint', key: 'k7', kind: 'beforeRevert', label: null, about: 'agent:x', seq: 3 });
+    await settle();
+    env.reply = async () => ({ status: 200, body: { seq: 12, nodes: [] } });
+    engine.effect({ type: 'fetchCheckpointState', n: 3 });
+    await settle();
+    expect(engine.dispatched).toEqual([
+      { type: 'checkpointRequestFailed', request: { type: 'list' }, code: 'unavailable' },
+      { type: 'checkpointRequestFailed', request: { type: 'post', key: 'k7' }, code: 'unavailable' },
+      { type: 'checkpointRequestFailed', request: { type: 'state', n: 3 }, code: 'unavailable' },
+    ]);
+    expect(warn).toHaveBeenCalled();
     warn.mockRestore();
   });
   it('a failure the app cannot take either is warned about, and the queue goes on', async () => {
