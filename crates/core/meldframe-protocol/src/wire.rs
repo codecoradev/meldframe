@@ -180,6 +180,32 @@ pub enum ServerMsg {
         reviewed_at_ms: Option<u64>,
         unreviewed_count: u32,
     },
+    /// Ephemeral hint on a live stream (ADR-0023): a checkpoint of the file was made, as the server read it back. It
+    /// comes after the call's op events, has no sequence number of its own, is best effort (queued only while the
+    /// queue keeps its last slots free, so it never causes a resync by itself; never replayed; a drop gives no signal)
+    /// and is a hint over the rows: `GET /v1/files/{file}/checkpoints` is the truth. A row never changes, so the frame
+    /// needs no `rev`; a client that sees `n` more than 1 above the highest it holds reads the list. A roll of old
+    /// rows is not announced. `seq` is a number in the file's log (the file as it was after op `seq`). `kind` is
+    /// `runStart`, `beforeRevert`, `beforeRestore` or `manual`. `label` is plain text, `about` the actor the checkpoint
+    /// is about and `by` the actor that asked for it (none for a run start).
+    Checkpoint {
+        room: String,
+        n: u32,
+        #[ts(type = "number")]
+        seq: u64,
+        kind: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        label: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        about: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        by: Option<String>,
+        #[ts(type = "number")]
+        at_ms: u64,
+    },
     Error {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]

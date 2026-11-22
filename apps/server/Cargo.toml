@@ -38,9 +38,10 @@ variant = ["mcp", "dep:meldframe-http-variant"]
 activity = ["mcp", "dep:activity-store", "dep:meldframe-http-activity"]
 
 # Checkpoints kept by the server (E5.3, ADR-0023): a run start taken when an agent's write starts a run, in memory or in
-# Postgres with the files, and the two calls of a person. Left out, there is no run sink and no registry entry; the
-# sink reads through the MCP reader, so it needs `mcp`.
-checkpoints = ["mcp", "dep:checkpoint-store", "dep:meldframe-http-checkpoints"]
+# Postgres with the files, the list and create routes and the live frame. Left out, there is no run sink, no route and
+# no registry entry. The sink reads through the MCP reader, so it needs `mcp`, and the people who may make a checkpoint
+# are the reviewers of the activity module, so it needs `activity`.
+checkpoints = ["mcp", "activity", "dep:checkpoint-store", "dep:meldframe-http-checkpoints"]
 
 [dependencies]
 meldframe-http = { path = "../../crates/integrations/meldframe-http" }

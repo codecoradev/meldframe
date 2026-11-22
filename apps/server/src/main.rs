@@ -113,6 +113,13 @@ fn serve(
     let review_policy = server.registry().policy_for(design_review::TOOL);
     #[cfg(feature = "activity")]
     let batches_policy = meldframe_http_activity::policies(server.registry())?;
+    #[cfg(feature = "checkpoints")]
+    let (reviewers, create_policy) = (
+        batches_policy.reviewers.clone(),
+        server
+            .registry()
+            .policy_for(meldframe_http_checkpoints::CREATE_TOOL),
+    );
     #[cfg(feature = "export")]
     let export_policy = server.registry().policy_for(export::TOOL);
     #[cfg(feature = "variables-import")]
@@ -169,7 +176,26 @@ fn serve(
     #[cfg(feature = "activity")]
     {
         let live = shared.clone();
-        let publish = Arc::new(move |w: &_, f: &_, m| live.publish_with_headroom(w, f, m));
+        let publish: meldframe_http_activity::Publish =
+            Arc::new(move |w: &_, f: &_, m| live.publish_with_headroom(w, f, m));
+        // The checkpoints, the run starts of agents and the routes of a person (ADR-0023); the actors that may make one
+        // are the reviewers of ADR-0021 until a principal has a kind.
+        #[cfg(feature = "checkpoints")]
+        {
+            let may = Arc::new(move |actor: &str| reviewers.contains(actor));
+            let gate = meldframe_http_checkpoints::Gate {
+                may,
+                policy: create_policy,
+                publish: publish.clone(),
+            };
+            let reader = shared.clone();
+            app = app.merge(meldframe_http_checkpoints::install(
+                &state,
+                checkpoints,
+                reader,
+                gate,
+            ));
+        }
         app = app.merge(meldframe_http_activity::install(
             &state,
             batches,
@@ -178,9 +204,6 @@ fn serve(
             (&mut extra_tools, batches_policy),
         ));
     }
-    // The run starts of agents' writes, taken by the server itself (ADR-0023).
-    #[cfg(feature = "checkpoints")]
-    meldframe_http_checkpoints::install(&state, checkpoints, shared.clone());
     #[cfg(feature = "capture")]
     extra_tools.push(cap.tool());
     #[cfg(feature = "assets")]
