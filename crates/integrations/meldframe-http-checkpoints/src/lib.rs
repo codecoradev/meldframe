@@ -12,8 +12,14 @@
 //! the run can take the run start, and never changes the reply; a job that outlasts the limit may still finish, which
 //! costs one extra row.
 //!
-//! [`CheckpointsModule`] registers the two calls of a person, `checkpoint_create` and `checkpoint_state`, so a
-//! deployment can deny them and the call log records their tier; neither is an MCP tool. Their routes follow.
+//! A row that was made, a run start or a person's, is queued as a `checkpoint` frame on the live streams of the file
+//! (ephemeral, with headroom, through the publisher of [`Gate`]); the routes in `routes.rs` list the rows and let a
+//! listed person make one. [`CheckpointsModule`] registers the two calls of a person, `checkpoint_create` and
+//! `checkpoint_state`, so a deployment can deny them and the call log records their tier; neither is an MCP tool.
+//! The route of `checkpoint_state` follows.
+
+mod routes;
+mod wire;
 
 use checkpoint_store::CheckpointStore;
 use meldframe_checkpoints::{
@@ -22,7 +28,8 @@ use meldframe_checkpoints::{
 use meldframe_host::Principal;
 use meldframe_http::Shared;
 use meldframe_http::mcp::Reader;
-use meldframe_module::{Module, Registrar, RiskTier};
+use meldframe_module::{Module, Policy, Registrar, RiskTier};
+use meldframe_protocol::ServerMsg;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -49,6 +56,31 @@ impl Module for CheckpointsModule {
     }
 }
 
+/// Queues a frame on the live streams of a file of the principal's workspace, as ephemeral and with headroom; answers
+/// how many streams took it. The server's `SharedServer::publish_with_headroom` is the one.
+pub type Publish = Arc<dyn Fn(&Principal, &str, ServerMsg) -> usize + Send + Sync>;
+
+/// Whether an actor may make a checkpoint: until a principal has a kind, the listed reviewers of ADR-0021 (the binary
+/// builds the closure from `MELDFRAME_REVIEWERS`, so this crate does not depend on the activity one).
+pub type May = Arc<dyn Fn(&str) -> bool + Send + Sync>;
+
+/// What the server hands the routes: who may make a row, what the registry's policy for [`CREATE_TOOL`] is (a row is
+/// made only under `Auto`) and the publisher of the frame.
+#[derive(Clone)]
+pub struct Gate {
+    pub may: May,
+    pub policy: Option<Policy>,
+    pub publish: Publish,
+}
+
+impl std::fmt::Debug for Gate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Gate")
+            .field("policy", &self.policy)
+            .finish_non_exhaustive()
+    }
+}
+
 /// The server clock in milliseconds.
 pub type Clock = Arc<dyn Fn() -> u64 + Send + Sync>;
 
@@ -64,6 +96,7 @@ pub struct Checkpoints {
     watch: Mutex<RunWatch>,
     clock: Clock,
     failures: AtomicU64,
+    live: Option<Publish>,
 }
 
 impl std::fmt::Debug for Checkpoints {
@@ -80,6 +113,7 @@ impl Checkpoints {
             watch: Mutex::new(RunWatch::new()),
             clock: Arc::new(now_ms),
             failures: AtomicU64::new(0),
+            live: None,
         }
     }
 
@@ -99,6 +133,46 @@ impl Checkpoints {
     fn forget(&self, workspace: &str, file: &str, actor: &str) {
         let mut watch = self.watch.lock().unwrap_or_else(PoisonError::into_inner);
         watch.forget(workspace, file, actor);
+    }
+
+    pub(crate) fn store(&self) -> &Arc<dyn CheckpointStore> {
+        &self.store
+    }
+
+    pub(crate) fn now(&self) -> u64 {
+        (self.clock)()
+    }
+
+    /// The head of a file, a read that is not a call of its own.
+    pub(crate) fn head(&self, who: &Principal, file: &str) -> Result<u64, meldframe_http::Failure> {
+        self.reader.head(who, file)
+    }
+
+    /// Queue the frame of a row that was made. A drop is silent: the list is the truth.
+    pub(crate) fn announce(
+        &self,
+        who: &Principal,
+        file: &str,
+        row: &meldframe_checkpoints::Checkpoint,
+    ) {
+        if let Some(live) = &self.live {
+            live(who, file, wire::frame(file, row));
+        }
+    }
+
+    /// One entry of the call log, in a slot of the principal and under the time limit like every other call (a busy
+    /// server loses the entry rather than holding the answer).
+    pub(crate) async fn log(
+        &self,
+        shared: &Shared,
+        who: &Principal,
+        tool: &'static str,
+        file: &str,
+        code: Option<String>,
+    ) {
+        let (reader, w, file) = (self.reader.clone(), who.clone(), file.to_owned());
+        let job = move || reader.record(&w, tool, &file, code.as_deref());
+        let _ = shared.blocking(who, job).await;
     }
 
     fn failed(&self, what: &str, why: &dyn std::fmt::Display) {
@@ -147,9 +221,16 @@ impl RunSink for Checkpoints {
         let made = self
             .store
             .create(workspace, &call.file, None, &new, (self.clock)());
-        if let Err(e) = made {
-            self.failed("no run start kept", &e);
-            self.forget(workspace, &call.file, actor);
+        match made {
+            Ok(made) if made.created => {
+                let who = Principal::new(workspace, actor);
+                self.announce(&who, &call.file, &made.checkpoint);
+            }
+            Ok(_) => {}
+            Err(e) => {
+                self.failed("no run start kept", &e);
+                self.forget(workspace, &call.file, actor);
+            }
         }
     }
 
@@ -159,20 +240,29 @@ impl RunSink for Checkpoints {
     }
 }
 
-/// Everything the server wires for checkpoints in one call: the sink is set on `shared`, so every write of an agent
-/// is watched, and the sink comes back (for its failure count). A second install on the same `Shared` keeps the first
-/// sink. The routes join here in the next slices, so the binary's `main` does not grow with them.
+/// Everything the server wires for checkpoints in one call: the sink is set on `shared`, so every write of an agent is
+/// watched and a run start is announced, and the routes come back to merge into the router. A second install on the
+/// same `Shared` keeps the first sink. The route of `checkpoint_state` joins here in the next slice, so the binary's
+/// `main` does not grow with it.
 pub fn install(
     shared: &Arc<Shared>,
     store: Arc<dyn CheckpointStore>,
     reader: Arc<dyn Reader>,
-) -> Arc<Checkpoints> {
-    install_with(shared, Checkpoints::new(store, reader))
+    gate: Gate,
+) -> axum::Router {
+    install_with(shared, Checkpoints::new(store, reader), gate).1
 }
 
-/// As [`install`], for a sink built by the caller (a test gives it a clock).
-pub fn install_with(shared: &Arc<Shared>, checkpoints: Checkpoints) -> Arc<Checkpoints> {
+/// As [`install`], for a sink built by the caller (a test gives it a clock); the sink comes back too, for its failure
+/// count.
+pub fn install_with(
+    shared: &Arc<Shared>,
+    mut checkpoints: Checkpoints,
+    gate: Gate,
+) -> (Arc<Checkpoints>, axum::Router) {
+    checkpoints.live = Some(gate.publish.clone());
     let checkpoints = Arc::new(checkpoints);
     let _ = shared.runs.set(checkpoints.clone());
-    checkpoints
+    let router = routes::routes(shared.clone(), checkpoints.clone(), gate);
+    (checkpoints, router)
 }

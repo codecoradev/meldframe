@@ -145,6 +145,22 @@ describe('touch frames', () => {
   });
 });
 
+describe('a checkpoint frame', () => {
+  it('is an ephemeral hint the app layer does not take yet: nothing is dispatched and the connection stays', () => {
+    const engine = new FakeEngine();
+    const env = new FakeEnv();
+    const shell = new Shell(engine, env, { file: 'file_dev' });
+    shell.start();
+    engine.effect({ type: 'subscribe', afterSeq: 0 });
+    const socket = env.sockets[0]!;
+    const before = engine.dispatched.length;
+    socket.onmessage('{"type":"checkpoint","room":"file_dev","n":3,"seq":12,"kind":"manual","label":"v1","by":"user:bea","atMs":5}');
+    socket.onmessage('{"type":"checkpoint","room":"file_dev","n":4,"seq":12,"kind":"runStart","about":"agent:x","atMs":6}');
+    expect(engine.dispatched).toHaveLength(before);
+    expect(socket.closed).toBe(false);
+  });
+});
+
 describe('a batch frame', () => {
   it('passes the shape check of parseFrame; the mapping to the app frame is in batches.test.ts', () => {
     const frame = '{"type":"batch","room":"file_dev","n":1,"rev":1,"actor":"agent:x","keyPrefix":"k","tool":"apply_commands","commands":1,"written":1,"atomic":true,"firstSeq":1,"lastSeq":1,"atMs":5,"review":"unreviewed","unreviewedCount":1}';

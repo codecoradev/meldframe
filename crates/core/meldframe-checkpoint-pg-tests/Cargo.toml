@@ -16,6 +16,8 @@ meldframe-host = { path = "../meldframe-host" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-http = { path = "../../integrations/meldframe-http", features = ["mcp"] }
 meldframe-http-checkpoints = { path = "../../integrations/meldframe-http-checkpoints" }
+meldframe-module = { path = "../meldframe-module" }
+meldframe-http-live = { path = "../../integrations/meldframe-http-live" }
 meldframe-server = { path = "../../../apps/server" }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
 futures-util = "0.3"
