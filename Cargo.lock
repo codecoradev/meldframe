@@ -1379,6 +1379,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-checkpoint-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-activity",
+ "meldframe-checkpoints",
+ "wasm-bindgen-test",
+]
+
+[[package]]
+name = "meldframe-checkpoints"
+version = "0.0.0"
+dependencies = [
+ "meldframe-activity",
+]
+
+[[package]]
 name = "meldframe-core"
 version = "0.0.0"
 dependencies = [
