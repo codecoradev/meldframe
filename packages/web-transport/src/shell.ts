@@ -2,6 +2,7 @@
 // for the timers the app asks for. Everything it learns goes back as an action. No editing rules here.
 import type { Action, AppState, Effect, OutOp, ServerMsg } from '@meldframe/protocol';
 import { answerOfList, answerOfReview, listQuery, toBatchFrame, toTouchFrame } from './batches';
+import { checkpointCall, toCheckpointFrame, type CheckpointCall } from './checkpoints';
 
 /** An agent asks this editor for a PNG of a node (or of the whole page when `nodeId` is absent). */
 export type CaptureRequest = Extract<ServerMsg, { type: 'captureRequest' }>;
@@ -151,7 +152,7 @@ export class Shell {
       case 'putBatchReview':
         return this.batches('PUT', this.batchPath(`/${Math.trunc(e.n)}/review`), { state: e.state }, answerOfReview);
       case 'fetchCheckpoints':
-        return; // the checkpoint routes are carried out by the web link of the checkpoints (a later slice of ADR-0023)
+        return this.checkpoint(checkpointCall(this.opts.file, e));
       case 'render':
         return; // the views redraw from every snapshot
       default: {
@@ -174,16 +175,40 @@ export class Shell {
     );
   }
 
-  private answered(gen: number, a: Action): void {
+  /**
+   * One request of the checkpoint routes (ADR-0023); whatever happens, the app is told once, and a failure names its
+   * request. An answer the app cannot take is told to it as the failure of the request, so a read or a revert that waits
+   * for it is never left waiting: the deadline of a request is the client timeout of `Env`, as the app has no clock here.
+   */
+  private checkpoint(c: CheckpointCall): void {
+    const gen = this.stopped;
+    const sent = c.method === 'POST' ? this.env.post(c.path, c.body, POST_TIMEOUT_MS) : this.env.request('GET', c.path, undefined, POST_TIMEOUT_MS);
+    void sent.then(
+      (r) => this.answered(gen, c.answer(r.status, r.body), c.failure),
+      () => this.answered(gen, c.failure),
+    );
+  }
+
+  private answered(gen: number, a: Action, failure?: Action): void {
     if (gen !== this.stopped) return; // the shell was stopped meanwhile
     try {
       this.dispatch(a);
     } catch (err) {
+      if (failure) this.failed(failure);
       // The app took no part of it; the panel heals by the next frame or fetch. Say so once: a wasm panic must not stay silent.
       if (!this.warnedAnswer) {
         this.warnedAnswer = true;
         console.warn('batches: the app could not take an answer', err);
       }
+    }
+  }
+
+  /** The failure of a request, told once more when the answer was not taken: if the app cannot take this either, nothing is left to do. */
+  private failed(failure: Action): void {
+    try {
+      this.dispatch(failure);
+    } catch {
+      // the app is past help; the next frame or fetch heals what it can
     }
   }
 
@@ -303,6 +328,12 @@ export class Shell {
       }
       case 'touch': {
         const frame = toTouchFrame(m);
+        if (frame) this.dispatch({ type: 'frame', nowMs, frame });
+        return;
+      }
+      case 'checkpoint': {
+        // An ephemeral hint, like a batch frame: one that does not pass the check is ignored, and a read heals the gap.
+        const frame = toCheckpointFrame(m);
         if (frame) this.dispatch({ type: 'frame', nowMs, frame });
         return;
       }
