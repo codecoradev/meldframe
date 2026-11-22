@@ -81,6 +81,13 @@ impl App {
             }
             Err(EditRefusal::Invalid(e)) => return Err(SubmitError::Invalid(e)),
         }
+        self.apply_variables(commands)
+    }
+
+    /// Apply variable commands that were checked already, as one undo step. The Import variables action calls this after
+    /// its own check of the whole list, which is the one `edit_variables` makes: checking 5,000 commands twice is
+    /// most of a second.
+    pub(crate) fn apply_variables(&mut self, commands: &[Command]) -> Result<(), SubmitError> {
         self.replica.begin_group();
         let done = commands.iter().try_for_each(|c| self.replica.apply(c));
         self.replica.end_group();

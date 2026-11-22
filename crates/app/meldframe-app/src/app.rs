@@ -35,6 +35,8 @@ pub struct App {
     pub(crate) next_id: u64,
     /// What the Export dialog was built from, and how often (`App::export_builds`).
     pub(crate) export_cache: export_dialog::Cache,
+    /// The ids of the variables the last applied import added: the result stays while the file still holds them all.
+    pub(crate) import_ids: Vec<String>,
     /// The host's text measurer and the `layout_on_canvas` flag (`crate::canvas`).
     pub(crate) canvas: CanvasLayout,
 }
@@ -82,6 +84,7 @@ impl App {
             prefix,
             next_id: 0,
             export_cache: Default::default(),
+            import_ids: Vec::new(),
             canvas: CanvasLayout::default(),
         };
         app.refresh(&mut Vec::new());
@@ -158,6 +161,7 @@ impl App {
             Action::CloseExport {} => self.close_export(),
             Action::OpenVariablesExport {} => self.open_variables_export(),
             Action::CloseVariablesExport {} => self.close_variables_export(),
+            Action::CloseVariablesImport {} => self.close_variables_import(),
             Action::Start { now_ms } => self.start(now_ms, &mut fx),
             Action::Connected { now_ms } => self.connected(now_ms, &mut fx),
             Action::Disconnected {} => self.disconnected(&mut fx),
@@ -271,6 +275,7 @@ impl App {
         self.refresh_picker();
         self.refresh_export();
         self.refresh_variables_export();
+        self.refresh_variables_import();
         let history = history_of(&self.replica);
         if self.state.history != history {
             self.state.history = history;
