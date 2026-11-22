@@ -7,7 +7,7 @@
   import { tick } from 'svelte';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import type { Checkpoint } from '@meldframe/protocol';
-  import { checkpointWords } from './view';
+  import { checkpointBy, checkpointWords } from './view';
 
   interface Props {
     checkpoints: readonly Checkpoint[];
@@ -36,15 +36,18 @@
 
 <div bind:this={list} data-testid="checkpoints">
   {#if shown.length === 0}
-    <p class="m-0 text-small text-text-muted">No checkpoint yet. One is made before an agent's run starts, and before a revert or a restore.</p>
+    <p class="m-0 text-small text-text-muted">No checkpoint yet. The server makes one when an agent's run starts, and one goes first before a revert or a restore.</p>
   {:else}
     <ul class="m-0 flex list-none flex-col gap-2 p-0">
       {#each shown as c (c.id)}
         <li class="flex flex-col gap-2 rounded-md border border-hairline bg-field px-3 py-2" data-testid="checkpoint" data-checkpoint={c.id}>
           <div class="flex items-baseline justify-between gap-2">
-            <span class="min-w-0 break-words text-small font-medium text-text-strong"><bdi>{checkpointWords(c)}</bdi></span>
+            <span class="line-clamp-2 min-w-0 break-words text-small font-medium text-text-strong" title={checkpointWords(c)}><bdi>{checkpointWords(c)}</bdi></span>
             <span class="shrink-0 text-caption text-text-muted">After change {c.seq}</span>
           </div>
+          {#if checkpointBy(c)}
+            <span class="text-caption text-text-muted" data-testid="checkpoint-by"><bdi>{checkpointBy(c)}</bdi></span>
+          {/if}
           {#if asking === c.id}
             <!-- Escape closes the question from either button; the group is not a control itself. -->
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

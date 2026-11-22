@@ -1,7 +1,7 @@
 // The Activity panel as words and rows: what to call things and which rows go under which lane. Pure. The app layer
 // has already decided the lanes, their order, the counts and which row may be reverted; nothing here decides, it joins
 // and words what `state.activity` says (ADR-0021).
-import type { ActivityLane, ActivityState, BatchRow, BatchSummary, Checkpoint, Event, LaneKind, LaneState, ReviewState } from '@meldframe/protocol';
+import type { ActivityLane, ActivityState, BatchRow, BatchSummary, Checkpoint, CheckpointsStatus, Event, LaneKind, LaneState, ReviewState } from '@meldframe/protocol';
 import { actorLabel, actorTone } from '@meldframe/web-document/layers';
 
 export interface LaneView {
@@ -80,6 +80,13 @@ export function clockText(ms: number): string {
   return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
 }
 
+// The codes that mean something else in a checkpoint request than in a review (the words above are the review's).
+const CHECKPOINT_REFUSALS: Record<string, string> = {
+  forbidden: 'You may not make or restore checkpoints in this file.',
+  invalid: 'That label cannot be used: a label is one line of plain text, at most 128 characters.',
+  not_found: 'That checkpoint is no longer on the server.',
+};
+
 /** What a checkpoint is called: the person's label, or words for the ones the server took on its own. */
 export function checkpointWords(c: Checkpoint): string {
   const who = c.about ? actorLabel(c.about).name : 'an actor';
@@ -90,6 +97,22 @@ export function checkpointWords(c: Checkpoint): string {
     case 'beforeRestore': return 'Before a restore';
   }
 }
+
+/** Who made a manual checkpoint, for a second line: the others are the server's own or say it in their words. */
+export function checkpointBy(c: Checkpoint): string | null {
+  return c.kind === 'manual' && c.by ? `Made by ${actorLabel(c.by).name}` : null;
+}
+
+/** Why Create checkpoint cannot be used, by what the app knows: nothing is blamed on the person for a list that is not there. */
+export function createWhyNot(canCreate: boolean, status: CheckpointsStatus): string | null {
+  if (canCreate) return null;
+  if (status === 'unread') return 'The checkpoints have not loaded yet.';
+  if (status === 'absent') return 'This server does not keep checkpoints.';
+  return 'This account may not make checkpoints in this file.';
+}
+
+/** What the live region says when the checkpoint that was asked for is made: success is announced, not only seen. */
+export const checkpointMade: Message = { tone: 'info', text: 'Checkpoint made.' };
 
 export interface Message {
   tone: 'info' | 'warning';
@@ -108,6 +131,8 @@ const REFUSALS: Record<string, string> = {
   log_mismatch: "This page's record of the file no longer fits the server's. Reload the page, then try again.",
   nothing_to_restore: 'The file is already as that checkpoint has it.',
   unknown_checkpoint: 'That checkpoint no longer exists.',
+  checkpoint_full: 'This file already holds as many checkpoints as it keeps of that kind, so none was made.',
+  key_reused: 'The server already has a different checkpoint under that request. Try again.',
   checkpoint_failed: 'The server could not make the checkpoint that goes first, so nothing was changed. Try again.',
   checkpoint_pending: 'A revert or a restore is still waiting for its checkpoint.',
   too_far: 'That checkpoint is further back than the server can work out, so it cannot be restored.',
@@ -119,14 +144,16 @@ const REFUSALS: Record<string, string> = {
 };
 
 /**
- * The last thing the panel should say about the events of one dispatch (a refusal, a revert, a restore), or null. A
+ * The last thing the panel should say about the events of one dispatch (a refusal, a revert, a restore), or null; `about`
+ * says the person's last request was a checkpoint's, so a code that also means something in a review is worded for it. A
  * refusal it has no words for is left to the page's toast, which words any code; the panel never prints a raw code.
  */
-export function messageFor(events: readonly Event[]): Message | null {
+export function messageFor(events: readonly Event[], about?: 'checkpoint'): Message | null {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i]!;
     if (e.type === 'refused') {
-      const text = Object.hasOwn(REFUSALS, e.code) ? REFUSALS[e.code] : undefined;
+      const own = about === 'checkpoint' && Object.hasOwn(CHECKPOINT_REFUSALS, e.code) ? CHECKPOINT_REFUSALS[e.code] : undefined;
+      const text = own ?? (Object.hasOwn(REFUSALS, e.code) ? REFUSALS[e.code] : undefined);
       if (text) return { tone: 'warning', text };
       continue;
     }

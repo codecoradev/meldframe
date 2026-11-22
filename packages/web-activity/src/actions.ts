@@ -10,6 +10,9 @@ export const show = (r: BatchRow): Action => ({ type: 'selectBatch', batch: refO
 /** The revert itself, after the person confirmed it. */
 export const revert = (r: BatchRow): Action => ({ type: 'revertBatch', actor: r.actor, keyPrefix: r.keyPrefix });
 
+/** Create checkpoint: the label as typed, trimmed (empty is no label); the app checks it again before anything is sent. */
+export const createCheckpoint = (label: string): Action => ({ type: 'createCheckpoint', label: label.trim() });
+
 export const restore = (id: string): Action => ({ type: 'restoreCheckpoint', id });
 
 export const older = (): Action => ({ type: 'loadOlderBatches' });
