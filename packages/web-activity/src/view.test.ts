@@ -125,7 +125,7 @@ describe('messageFor', () => {
     return [...found].sort();
   };
   it('reads the codes from the sources, and finds the ones the review flows refuse with', () => {
-    expect(appCodes()).toEqual(expect.arrayContaining(['batch_incomplete', 'log_mismatch', 'no_batch_number', 'not_in_log', 'nothing_to_restore', 'nothing_to_revert', 'unknown_batch', 'unknown_checkpoint']));
+    expect(appCodes()).toEqual(expect.arrayContaining(['batch_incomplete', 'forbidden', 'log_mismatch', 'no_batch_number', 'not_in_log', 'nothing_to_restore', 'nothing_to_revert', 'unknown_batch', 'unknown_checkpoint']));
   });
   it('has words for every code the app layer refuses with, and never prints the code', () => {
     for (const code of [...appCodes(), 'forbidden', 'not_found', 'invalid', 'rate_limited', 'unavailable']) {

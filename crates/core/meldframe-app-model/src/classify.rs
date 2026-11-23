@@ -22,7 +22,9 @@ impl Action {
     pub fn is_checkpoint(&self) -> bool {
         matches!(
             self,
-            Action::CheckpointsLoaded { .. } | Action::CheckpointRequestFailed { .. }
+            Action::CheckpointsLoaded { .. }
+                | Action::CheckpointPosted { .. }
+                | Action::CheckpointRequestFailed { .. }
         )
     }
 

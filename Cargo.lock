@@ -1172,6 +1172,7 @@ dependencies = [
  "meldframe-app-parts",
  "meldframe-app-rules",
  "meldframe-check",
+ "meldframe-checkpoints",
  "meldframe-history",
  "meldframe-layout",
  "meldframe-protocol",

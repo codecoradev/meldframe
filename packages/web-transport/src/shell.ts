@@ -156,6 +156,8 @@ export class Shell {
         return this.fetching('GET', `/v1/assets${assetsQuery(e)}`, undefined, (status, body) => answerOfAssets(e.request, e.after, status, body), assetsFailed(e.request));
       case 'fetchCheckpoints':
         return this.checkpoint(checkpointCall(this.opts.file, e));
+      case 'postCheckpoint':
+        return; // the post is carried out in the next commit of the web transport (ADR-0023)
       case 'render':
         return; // the views redraw from every snapshot
       default: {
