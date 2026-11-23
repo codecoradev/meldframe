@@ -13,7 +13,8 @@ const EPS = 1e-9;
  * `readout` (0.43 for "43%") can stand for, give or take `tol`.
  */
 export function withinReadout(actual, pixels, readout, tol) {
-  const lo = pixels / (readout + READOUT_HALF_STEP);
-  const hi = pixels / (readout - READOUT_HALF_STEP);
-  return actual >= lo - tol - EPS && actual <= hi + tol + EPS;
+  // The two ends, in whichever order the sign of the distance puts them (a drag to the left is a negative distance).
+  const a = pixels / (readout + READOUT_HALF_STEP);
+  const b = pixels / (readout - READOUT_HALF_STEP);
+  return actual >= Math.min(a, b) - tol - EPS && actual <= Math.max(a, b) + tol + EPS;
 }

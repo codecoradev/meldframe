@@ -36,4 +36,15 @@ describe('a distance on the canvas, worked out from the rounded zoom readout', (
     expect(withinReadout(80 / 0.0151, 80, 0.02, 0)).toBe(true);
     expect(withinReadout(80 / 0.0149, 80, 0.02, 0)).toBe(false);
   });
+  it('works for a distance to the left or up, which is negative', () => {
+    // A drag to the left is a negative distance on the screen and on the canvas; the range is the same, mirrored.
+    expect(withinReadout(-188.23529411764707, -80, 0.43, 2)).toBe(true);
+    expect(withinReadout(-186.04651162790697, -80, 0.43, 2)).toBe(true);
+    expect(withinReadout(-80 / 0.5, -80, 0.43, 2)).toBe(false);
+    expect(withinReadout(80 / 0.43, -80, 0.43, 2)).toBe(false);
+  });
+  it('takes a distance of zero as zero', () => {
+    expect(withinReadout(0, 0, 0.43, 0)).toBe(true);
+    expect(withinReadout(1, 0, 0.43, 0)).toBe(false);
+  });
 });
