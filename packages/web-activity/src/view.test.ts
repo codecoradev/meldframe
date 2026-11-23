@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Checkpoint, Event } from '@meldframe/protocol';
 import { activity, lane, row } from './fixtures';
-import { batchHeading, checkpointWords, clockText, laneSummary, laneViews, messageFor, reviewChoices, reviewWords, reviewedBy, statusWords, summaryWords } from './view';
+import { batchHeading, checkpointBy, checkpointMade, checkpointWords, clockText, createWhyNot, laneSummary, laneViews, messageFor, reviewChoices, reviewWords, reviewedBy, statusWords, summaryWords } from './view';
 
 describe('laneViews', () => {
   it('lists the rows of a lane in the order the lane gives, and leaves out a key prefix that has no row', () => {
@@ -181,5 +181,48 @@ describe('the review state of a row', () => {
 
   it('offers nothing for a row with no number, which the server cannot review', () => {
     expect(reviewChoices(row({ n: null, status: 'headerless' }), true)).toEqual([]);
+  });
+});
+
+describe('checkpoints in words', () => {
+  const made = (over: Partial<Checkpoint>): Checkpoint => ({ id: '1', n: 1, seq: 4, kind: 'manual', atMs: 1, by: 'person:ana', ...over });
+  it('names the actor that made a manual one, and says nothing of who asked for the others', () => {
+    expect(checkpointBy(made({ label: 'v1' }))).toBe('Made by ana');
+    expect(checkpointBy(made({ kind: 'beforeRestore' }))).toBeNull();
+    expect(checkpointBy(made({ kind: 'runStart', by: undefined, about: 'agent:x' }))).toBeNull();
+    expect(checkpointBy(made({ by: undefined }))).toBeNull();
+  });
+  it('words what a refused checkpoint request means, in the context of a checkpoint', () => {
+    const refused = (code: string): Event => ({ type: 'refused', code });
+    const say = (code: string) => messageFor([refused(code)], 'checkpoint')?.text;
+    expect(say('forbidden')).toBe('You may not make or restore checkpoints in this file.');
+    expect(say('invalid')).toBe('That label cannot be used: a label is one line of plain text, at most 128 characters.');
+    expect(say('checkpoint_full')).toMatch(/as many checkpoints/);
+    expect(say('key_reused')).toMatch(/Try again/);
+    expect(say('not_found')).toBe('That checkpoint is no longer on the server.');
+    for (const code of ['forbidden', 'invalid', 'checkpoint_full', 'key_reused', 'not_found', 'too_far', 'checkpoint_failed', 'checkpoint_pending']) {
+      const text = say(code);
+      expect(text, code).toBeTruthy();
+      expect(text, code).not.toMatch(/_/);
+    }
+  });
+  it('keeps the words of the review for the same codes outside a checkpoint request', () => {
+    expect(messageFor([{ type: 'refused', code: 'forbidden' }])?.text).toBe('You may not accept or flag batches in this file.');
+    expect(messageFor([{ type: 'refused', code: 'checkpoint_full' }])?.text).toMatch(/as many checkpoints/);
+  });
+});
+
+describe('Create checkpoint in words', () => {
+  it('says nothing while the caller may make one, and says why not when it cannot, case by case', () => {
+    expect(createWhyNot(true, 'loaded')).toBeNull();
+    expect(createWhyNot(false, 'unread')).toBe('The checkpoints have not loaded yet.');
+    expect(createWhyNot(false, 'absent')).toBe('This server does not keep checkpoints.');
+    expect(createWhyNot(false, 'loaded')).toBe('This account may not make checkpoints in this file.');
+  });
+  it('does not claim a reason it does not know: no case blames the person for a list that is not there', () => {
+    for (const status of ['unread', 'absent'] as const) expect(createWhyNot(false, status)).not.toMatch(/may not|person/);
+  });
+  it('tells assistive technology when the checkpoint is made', () => {
+    expect(checkpointMade).toEqual({ tone: 'info', text: 'Checkpoint made.' });
   });
 });

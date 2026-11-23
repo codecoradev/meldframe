@@ -5,8 +5,8 @@ import ActivityPanel from './ActivityPanel.svelte';
 import MessageLine from './MessageLine.svelte';
 import { activity, lane, row } from './fixtures';
 
-const html = (a: ActivityState, extra: { checkpoints?: Checkpoint[]; self?: string } = {}) =>
-  render(ActivityPanel as never, { props: { activity: a, checkpoints: [], self: 'person:ana', dispatch: () => {}, ...extra } as never }).body.replace(/<!--.*?-->/g, '');
+const html = (a: ActivityState, extra: { checkpoints?: Checkpoint[]; self?: string; canCreate?: boolean; status?: 'unread' | 'loaded' | 'absent' } = {}) =>
+  render(ActivityPanel as never, { props: { activity: a, checkpoints: [], canCreate: true, status: 'loaded', self: 'person:ana', dispatch: () => {}, ...extra } as never }).body.replace(/<!--.*?-->/g, '');
 const cp = (id: string, seq: number): Checkpoint => ({ id, n: seq, seq, label: id, kind: 'manual', atMs: 1 });
 
 describe('the Activity panel', () => {
@@ -224,5 +224,54 @@ describe('the review of a batch', () => {
     expect(out).toContain('data-testid="review-count">12 batches to review<');
     expect(one({}, { unreviewedCount: 1 })).toContain('1 batch to review');
     expect(one({}, { unreviewedCount: 0 })).not.toContain('data-testid="review-count"');
+  });
+});
+
+describe('Create checkpoint', () => {
+  it('has a text field with a visible label, at most 128 characters, and a button', () => {
+    const out = html(activity());
+    expect(out).toMatch(/<label[^>]*for="([^"]+)"[^>]*>Name \(optional\)<\/label>/);
+    const id = /<label[^>]*for="([^"]+)"/.exec(out)![1]!;
+    expect(out).toMatch(new RegExp(`<input[^>]*id="${id}"[^>]*maxlength="128"|<input[^>]*maxlength="128"[^>]*id="${id}"`));
+    expect(out).toMatch(/data-testid="checkpoint-create"[^>]*>Create checkpoint</);
+    expect(out).not.toContain('Save checkpoint');
+  });
+
+  it('is enabled for a caller who may make one', () => {
+    expect(html(activity(), { canCreate: true })).not.toMatch(/data-testid="checkpoint-create"[^>]*\sdisabled=""/);
+    expect(html(activity(), { canCreate: true })).not.toContain('data-testid="checkpoint-create-why"');
+  });
+
+  it('is disabled where the caller may not, and says why in text that describes the button and the field', () => {
+    const out = html(activity(), { canCreate: false });
+    expect(out).toMatch(/<button[^>]*data-testid="checkpoint-create"[^>]*\sdisabled=""|<button[^>]*\sdisabled=""[^>]*data-testid="checkpoint-create"/);
+    expect(out).toMatch(/<input[^>]*data-testid="checkpoint-name"[^>]*\sdisabled=""|<input[^>]*\sdisabled=""[^>]*data-testid="checkpoint-name"/);
+    const why = /id="([^"]+)"[^>]*data-testid="checkpoint-create-why"|data-testid="checkpoint-create-why"[^>]*id="([^"]+)"/.exec(out)!;
+    expect(out).toContain(`aria-describedby="${why[1] ?? why[2]}"`);
+    expect(out.match(/aria-describedby="/g)).toHaveLength(2);
+  });
+
+  it('words the reason for each case: not loaded yet, no module on the server, or an account that may not', () => {
+    const say = (status: 'unread' | 'loaded' | 'absent') => /data-testid="checkpoint-create-why"[^>]*>([^<]*)</.exec(html(activity(), { canCreate: false, status }))![1];
+    expect(say('unread')).toBe('The checkpoints have not loaded yet.');
+    expect(say('absent')).toBe('This server does not keep checkpoints.');
+    expect(say('loaded')).toBe('This account may not make checkpoints in this file.');
+  });
+
+  it('shows a label as text: a script in it is escaped, a long one is clipped by the style and kept in the title', () => {
+    const evil = '<script>alert(1)</script>';
+    const long = 'L'.repeat(128);
+    const out = html(activity(), { checkpoints: [{ ...cp('2', 2), label: evil }, { ...cp('1', 1), label: long }] });
+    expect(out).not.toContain('<script>alert');
+    expect(out).toContain('&lt;script>alert(1)&lt;/script>');
+    expect(out).toMatch(/line-clamp-2[^>]*title="L{128}"|title="L{128}"[^>]*line-clamp-2/);
+  });
+
+  it('names who made a manual checkpoint, and nobody for the ones the server took itself', () => {
+    const run: Checkpoint = { id: '3', n: 3, seq: 5, kind: 'runStart', about: 'agent:claude', atMs: 1 };
+    const out = html(activity(), { checkpoints: [run, { ...cp('2', 2), by: 'person:bea' }] });
+    expect(out).toContain('Made by bea');
+    expect(out).toContain("Before claude's run");
+    expect(out.match(/Made by/g)).toHaveLength(1);
   });
 });
