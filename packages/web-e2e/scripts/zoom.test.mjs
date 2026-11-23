@@ -20,5 +20,20 @@ describe('a distance on the canvas, worked out from the rounded zoom readout', (
   it('applies the tolerance on both sides of the range', () => {
     expect(withinReadout(183.9 - 1.9, 80, 0.43, 2)).toBe(true);
     expect(withinReadout(183.9 - 2.5, 80, 0.43, 2)).toBe(false);
+    expect(withinReadout(188.24 + 1.9, 80, 0.43, 2)).toBe(true);
+    expect(withinReadout(188.24 + 2.5, 80, 0.43, 2)).toBe(false);
+  });
+  it('has its edges where the readout rounds: just outside the zoom range is refused with no tolerance', () => {
+    // A readout of 43% stands for a zoom from 0.425 to 0.435; 80 / 0.4351 and 80 / 0.4249 lie just outside it.
+    expect(withinReadout(80 / 0.4351, 80, 0.43, 0)).toBe(false);
+    expect(withinReadout(80 / 0.4249, 80, 0.43, 0)).toBe(false);
+    expect(withinReadout(80 / 0.4349, 80, 0.43, 0)).toBe(true);
+    expect(withinReadout(80 / 0.4251, 80, 0.43, 0)).toBe(true);
+  });
+  it('holds at the smallest readout, where half a percent is a quarter of the zoom', () => {
+    expect(withinReadout(80 / 0.02, 80, 0.02, 0)).toBe(true);
+    expect(withinReadout(80 / 0.0249, 80, 0.02, 0)).toBe(true);
+    expect(withinReadout(80 / 0.0151, 80, 0.02, 0)).toBe(true);
+    expect(withinReadout(80 / 0.0149, 80, 0.02, 0)).toBe(false);
   });
 });

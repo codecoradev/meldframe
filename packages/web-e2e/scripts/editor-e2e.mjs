@@ -174,6 +174,8 @@ const id = `e2e_${run}`;
       await drag(page, c, { x: c.x + 80, y: c.y + 40 });
       const moved = await until('the move on the server', async () => { const n = await nodeOf(id); return n.x !== start.x ? n : null; });
       nearZoom(moved.x - start.x, 80, z, 2, 'moved x'); nearZoom(moved.y - start.y, 40, z, 2, 'moved y');
+      // The readout's rounding is wider than the old tolerance, so the proportions, which do not depend on the zoom, are checked too.
+      near((moved.x - start.x) / (moved.y - start.y), 2, 0.02, 'the move keeps the proportion of the pointer (80 by 40)');
       await page.keyboard.press('Control+z');
       await until('the move undone', async () => (await nodeOf(id)).x === start.x);
     });
@@ -183,6 +185,8 @@ const id = `e2e_${run}`;
       await drag(page, { x: box.x0 + 1, y: box.y0 + 1 }, { x: box.x0 + 31, y: box.y0 + 21 });
       const n = await until('the resize on the server', async () => { const r = await nodeOf(id); return r.w !== start.w ? r : null; });
       nearZoom(n.x - start.x, 30, z, 2, 'x'); nearZoom(n.y - start.y, 20, z, 2, 'y'); nearZoom(start.w - n.w, 30, z, 2, 'w'); nearZoom(start.h - n.h, 20, z, 2, 'h');
+      // From the top-left handle the origin and the size move together by the same distance, whatever the zoom is.
+      near(n.x - start.x, start.w - n.w, 0.01, 'x and w move together'); near(n.y - start.y, start.h - n.h, 0.01, 'y and h move together');
       await page.keyboard.press('Control+z');
       await until('one undo', async () => { const r = await nodeOf(id); return r.x === start.x && r.y === start.y && r.w === start.w && r.h === start.h; });
     });
