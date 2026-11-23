@@ -17,10 +17,10 @@ export function labels(mac: boolean): Labels {
     : { layers: 'Alt+1', inspector: 'Alt+2', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z' };
 }
 
-/** True in a browser on a Mac (false when there is no navigator, as in a render test). */
+/** True in a browser on a Mac, and wherever `navigator.platform` says so (Node 21 and later has a `navigator` too, so a render test takes the host's answer unless it pins the platform); false when there is no navigator. */
 export const onMac = (): boolean => typeof navigator !== 'undefined' && isMac(navigator.platform ?? '');
 
-/** The labels of the browser this runs in (the Windows and Linux ones when there is no navigator, as in a render test). */
+/** The labels for the platform `onMac` answers for (the Windows and Linux ones when there is no navigator). */
 export function platformLabels(): Labels {
   return labels(onMac());
 }

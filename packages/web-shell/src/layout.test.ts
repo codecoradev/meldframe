@@ -1,11 +1,16 @@
 import { createRawSnippet } from 'svelte';
 import { render } from 'svelte/server';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { barClear, fileItems, PANEL_INSET, reserved, rightWidth } from './layout';
 import { layoutKey, paletteBlocked, readOverlays } from './keys';
 import { composeProps } from '@meldframe/web-chrome/compose';
 import { isMac, labels } from './platform';
 import Layout from './Layout.svelte';
+
+// The layout writes its shortcuts for the platform it runs on (`navigator.platform`, read when it renders), so a test that
+// looks at the words pins the platform and does not take the host's: Node on macOS reports `MacIntel`.
+const pinPlatform = (platform: string) => vi.stubGlobal('navigator', { platform });
+afterEach(() => vi.unstubAllGlobals());
 
 const key = (over: Partial<Parameters<typeof layoutKey>[0]>) => layoutKey({ key: '', code: '', altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, ...over });
 
@@ -200,6 +205,7 @@ describe('what the Layout says to the keyboard and to readers', () => {
     expect(out({ zoomText: '125%' })).toContain('aria-label="Zoom 125%"');
   });
   it('the sheet lists every group of shortcuts, written for the platform, and opens with the help button', () => {
+    pinPlatform('Linux x86_64');
     const open = out({ helpOpen: true });
     for (const title of ['Tools', 'Edit', 'View', 'Selection', 'Panels and help']) expect(open, title).toContain(title);
     for (const text of ['Zoom in', 'Pan with the pointer', 'Ctrl+Shift+Z', 'Shift+1', 'Esc']) expect(open, text).toContain(text);
@@ -211,8 +217,21 @@ describe('what the Layout says to the keyboard and to readers', () => {
     expect(isMac('Linux x86_64')).toBe(false);
     expect(labels(true)).toEqual({ layers: '⌥1', inspector: '⌥2', undo: '⌘Z', redo: '⇧⌘Z' });
     expect(labels(false).layers).toBe('Alt+1');
+    pinPlatform('Win32');
     expect(out({ helpOpen: true })).toContain('Alt+1');
     expect(out({ helpOpen: true })).not.toContain('⌥1');
+  });
+  it('on a Mac the shortcut sheet uses the Option, Command and Shift symbols and not the words', () => {
+    pinPlatform('MacIntel');
+    const open = out({ helpOpen: true });
+    for (const text of ['⌥1', '⇧⌘Z']) expect(open, text).toContain(text);
+    for (const text of ['Alt+1', 'Ctrl+Shift+Z']) expect(open, text).not.toContain(text);
+  });
+  it('the same sheet says the words again once the platform is not a Mac', () => {
+    pinPlatform('MacIntel');
+    expect(out({ helpOpen: true })).toContain('⇧⌘Z');
+    pinPlatform('Linux x86_64');
+    expect(out({ helpOpen: true })).toContain('Ctrl+Shift+Z');
   });
 });
 
