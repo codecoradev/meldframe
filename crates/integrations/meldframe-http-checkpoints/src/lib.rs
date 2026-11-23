@@ -16,12 +16,16 @@
 //! (ephemeral, with headroom, through the publisher of [`Gate`]); the routes in `routes.rs` list the rows and let a
 //! listed person make one. [`CheckpointsModule`] registers the two calls of a person, `checkpoint_create` and
 //! `checkpoint_state`, so a deployment can deny them and the call log records their tier; neither is an MCP tool.
-//! The route of `checkpoint_state` follows.
+//! The route of `checkpoint_state` (`state.rs`) answers a file as it was at a checkpoint, by a bounded replay, so a
+//! restore still works after a reload.
 
 mod routes;
+mod state;
 mod wire;
 
 use checkpoint_store::CheckpointStore;
+pub use state::{Log, Past, SCAN_COST};
+
 use meldframe_checkpoints::{
     NewCheckpoint, RunCall, RunSink, RunWatch, is_agent, seq_before_first,
 };
@@ -64,20 +68,43 @@ pub type Publish = Arc<dyn Fn(&Principal, &str, ServerMsg) -> usize + Send + Syn
 /// builds the closure from `MELDFRAME_REVIEWERS`, so this crate does not depend on the activity one).
 pub type May = Arc<dyn Fn(&str) -> bool + Send + Sync>;
 
-/// What the server hands the routes: who may make a row, what the registry's policy for [`CREATE_TOOL`] is (a row is
-/// made only under `Auto`) and the publisher of the frame.
+/// What the server hands the routes: who may make a row or read a file at one, what the registry's policy for
+/// [`CREATE_TOOL`] and for [`STATE_TOOL`] is (each call is made only under `Auto`), the publisher of the frame and the
+/// reader of the log the state route replays.
 #[derive(Clone)]
 pub struct Gate {
     pub may: May,
     pub policy: Option<Policy>,
+    pub state_policy: Option<Policy>,
     pub publish: Publish,
+    pub past: Arc<dyn Past>,
 }
 
 impl std::fmt::Debug for Gate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Gate")
             .field("policy", &self.policy)
+            .field("state_policy", &self.state_policy)
             .finish_non_exhaustive()
+    }
+}
+
+/// The bounds of the state route: how many ops a replay may read (the snapshot route's window), and how many answers the
+/// cache holds and how many bytes of their text (ADR-0023; a test gives smaller ones).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StateLimits {
+    pub replay: u64,
+    pub entries: usize,
+    pub bytes: usize,
+}
+
+impl Default for StateLimits {
+    fn default() -> Self {
+        StateLimits {
+            replay: 5_000,
+            entries: 64,
+            bytes: 16 * 1024 * 1024,
+        }
     }
 }
 
@@ -97,6 +124,7 @@ pub struct Checkpoints {
     clock: Clock,
     failures: AtomicU64,
     live: Option<Publish>,
+    limits: StateLimits,
 }
 
 impl std::fmt::Debug for Checkpoints {
@@ -114,7 +142,19 @@ impl Checkpoints {
             clock: Arc::new(now_ms),
             failures: AtomicU64::new(0),
             live: None,
+            limits: StateLimits::default(),
         }
+    }
+
+    /// The same, with bounds of the state route of its own (a test's).
+    #[must_use]
+    pub fn with_state_limits(mut self, limits: StateLimits) -> Self {
+        self.limits = limits;
+        self
+    }
+
+    pub(crate) fn limits(&self) -> StateLimits {
+        self.limits
     }
 
     /// The same, with a clock of its own (a test's).
@@ -242,8 +282,7 @@ impl RunSink for Checkpoints {
 
 /// Everything the server wires for checkpoints in one call: the sink is set on `shared`, so every write of an agent is
 /// watched and a run start is announced, and the routes come back to merge into the router. A second install on the
-/// same `Shared` keeps the first sink. The route of `checkpoint_state` joins here in the next slice, so the binary's
-/// `main` does not grow with it.
+/// same `Shared` keeps the first sink. The routes of the list, the create and the state are in the router.
 pub fn install(
     shared: &Arc<Shared>,
     store: Arc<dyn CheckpointStore>,

@@ -7,7 +7,7 @@ mod revert;
 
 pub use checkpoint::{RUN_GAP_MS, RunDetector, starts_run};
 pub use record::{ConfirmedLog, FOLD_CHUNK, MAX_LOG};
-pub use restore::{RestoreError, restore_commands, state_at};
+pub use restore::{RestoreError, restore_commands, state_at, state_at_doc};
 pub use revert::{
     Batch, LoggedOp, Revert, RevertError, SkipReason, Skipped, batch_index, revert_batch,
 };

@@ -190,6 +190,10 @@ impl Snapshots for SharedServer {
     }
 }
 
+/// The reads of the state route of a checkpoint (ADR-0023).
+#[cfg(feature = "checkpoints")]
+mod past;
+
 #[cfg(feature = "mcp")]
 mod read {
     use super::*;

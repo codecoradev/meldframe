@@ -114,11 +114,14 @@ fn serve(
     #[cfg(feature = "activity")]
     let batches_policy = meldframe_http_activity::policies(server.registry())?;
     #[cfg(feature = "checkpoints")]
-    let (reviewers, create_policy) = (
+    let (reviewers, create_policy, state_policy) = (
         batches_policy.reviewers.clone(),
         server
             .registry()
             .policy_for(meldframe_http_checkpoints::CREATE_TOOL),
+        server
+            .registry()
+            .policy_for(meldframe_http_checkpoints::STATE_TOOL),
     );
     #[cfg(feature = "export")]
     let export_policy = server.registry().policy_for(export::TOOL);
@@ -186,7 +189,9 @@ fn serve(
             let gate = meldframe_http_checkpoints::Gate {
                 may,
                 policy: create_policy,
+                state_policy,
                 publish: publish.clone(),
+                past: shared.clone(),
             };
             let reader = shared.clone();
             app = app.merge(meldframe_http_checkpoints::install(
