@@ -129,6 +129,47 @@ async fn a_variant_copies_the_frame_and_its_children_beside_it() {
     assert!(x(copy) > x(orig), "to the right of the original");
 }
 
+/// A frame whose fill and radius are bound to variables is copied with the bindings: the variables live in the file,
+/// not in the frame, so the copy needs none of its own (issue 223: the check of the copy ran without the variables
+/// and refused it as `E_VARIABLE_NOT_FOUND`).
+#[tokio::test]
+async fn a_frame_bound_to_variables_is_copied_with_its_bindings() {
+    let h = start().await;
+    let c = connect(&h, AGENT).await;
+    let seed = call(
+        &c,
+        "apply_commands",
+        json!({"file": "f", "idempotencyKey": "seed", "commands": [
+            {"type": "addCollection", "collection": {"id": "c1", "name": "brand",
+                "modes": [{"id": "light", "name": "Light"}, {"id": "dark", "name": "Dark"}]}},
+            {"type": "addVariable", "variable": {"id": "v-primary", "collection": "c1", "name": "color/primary",
+                "type": "color", "values": {"light": "#112233", "dark": "#aabbcc"}}},
+            {"type": "addVariable", "variable": {"id": "v-round", "collection": "c1", "name": "radius/card",
+                "type": "number", "values": {"light": 8, "dark": 12}}},
+            {"type": "addNode", "node": {"id": "hero", "type": "frame", "name": "Hero", "w": 800, "h": 400,
+                "fill": {"var": "v-primary"}, "radius": {"var": "v-round"}}},
+            {"type": "addNode", "node": {"id": "card", "type": "rect", "name": "card", "parentId": "hero",
+                "w": 100, "h": 50, "fill": {"var": "v-primary"}}}]}),
+    )
+    .await;
+    assert!(!seed.is_error, "{}", seed.body);
+
+    let r = call(
+        &c,
+        "make_variant",
+        json!({"file": "f", "id": "hero", "idempotencyKey": "v1"}),
+    )
+    .await;
+    assert!(!r.is_error, "{}", r.body);
+    assert_eq!(r.body["nodes"], 2, "the frame and its child");
+    let root = r.body["root"].as_str().unwrap().to_owned();
+
+    let copy = call(&c, "get_nodes", json!({"file": "f", "ids": [root]})).await;
+    let n = &copy.body["nodes"][0];
+    assert_eq!(n["fill"], json!({"var": "v-primary"}), "{}", copy.body);
+    assert_eq!(n["radius"], json!({"var": "v-round"}), "{}", copy.body);
+}
+
 #[tokio::test]
 async fn a_retry_with_the_same_key_makes_no_second_copy() {
     let h = start().await;

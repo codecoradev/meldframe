@@ -162,6 +162,7 @@ pub enum Variant {
 /// (the whole copy was applied to a copy of the file already, so it applies to the replica as one step).
 pub fn make_variant(
     nodes: &[Node],
+    vars: &Variables,
     id: &str,
     prefix: &str,
     next_id: &mut u64,
@@ -170,7 +171,7 @@ pub fn make_variant(
         *next_id += 1;
         format!("{prefix}-n{next_id}")
     };
-    match variant_of(nodes, id, next, &Limits::default()) {
+    match variant_of(nodes, vars, id, next, &Limits::default()) {
         Ok(v) => Ok(Variant::Made {
             commands: v.commands,
             root: v.root,

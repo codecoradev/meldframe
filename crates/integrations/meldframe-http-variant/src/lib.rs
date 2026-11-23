@@ -247,6 +247,9 @@ impl Variant {
         }
         let name = file.clone();
         let FileView { nodes, .. } = self.read(who, move |r, w| r.view(w, &name)).await?;
+        // The copy keeps the fields bound to variables, and the variables live in the file: they are checked together.
+        let name = file.clone();
+        let (_, vars) = self.read(who, move |r, w| r.variables(w, &name)).await?;
         // Copying and checking the file is work in proportion to it: on the blocking pool, under its limits.
         let (f, actor, k, frame) = (file.clone(), who.actor.clone(), key.clone(), id.clone());
         let built = self
@@ -255,6 +258,7 @@ impl Variant {
                 let mut n = 0;
                 meldframe_variant::variant_of(
                     &nodes,
+                    &vars,
                     &frame,
                     || {
                         n += 1;

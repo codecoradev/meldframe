@@ -6,11 +6,12 @@
 //! its parent, siblings in their order. Every node keeps all its properties and its sibling position; only its id
 //! and parent change, and the root also its place (to the right of its rightmost sibling, [`GAP`] apart, at the
 //! original's height), its position among its siblings (last) and its name (the original's, cut to fit the name
-//! limit, followed by "variant"). The commands are applied to a copy of the file first: a variant that would not
-//! fit a limit (nodes, coordinates) is refused whole, so nothing is ever applied half-way.
+//! limit, followed by "variant"). The commands are applied to a copy of the file first, with its variables: a field
+//! bound to `{var: id}` keeps its binding (the variable lives in the file, so the copy needs none of its own), and a
+//! variant that would not fit a limit (nodes, coordinates) is refused whole, so nothing is ever applied half-way.
 
 use meldframe_check::{ApplyError, Limits};
-use meldframe_protocol::{Command, Node, NodeKind};
+use meldframe_protocol::{Command, Doc, Node, NodeKind, Variables};
 use std::collections::{HashMap, HashSet};
 
 /// The room between the original and its variant, in pixels.
@@ -54,11 +55,13 @@ pub struct Variant {
     pub commands: Vec<Command>,
 }
 
-/// The variant of frame `id` in `nodes`. `fresh` gives candidate ids; one the file already has, or that this variant
-/// already took, is skipped, so the caller can pass any source (a counter, keys derived from a call). The commands
-/// are checked by applying them, in order, to a copy of `nodes` under `limits`.
+/// The variant of frame `id` in `nodes`, a file whose variables are `vars`. `fresh` gives candidate ids; one the file
+/// already has, or that this variant already took, is skipped, so the caller can pass any source (a counter, keys
+/// derived from a call). The commands are checked by applying them, in order, to a copy of the file (`nodes` and
+/// `vars`) under `limits`.
 pub fn variant_of(
     nodes: &[Node],
+    vars: &Variables,
     id: &str,
     mut fresh: impl FnMut() -> String,
     limits: &Limits,
@@ -134,9 +137,12 @@ pub fn variant_of(
             });
         }
     }
-    let mut copy = nodes.to_vec();
+    let mut copy = Doc {
+        nodes: nodes.to_vec(),
+        vars: vars.clone(),
+    };
     for c in &commands {
-        meldframe_core::apply_command(&mut copy, c, limits).map_err(VariantError::Apply)?;
+        meldframe_core::apply_doc(&mut copy, c, limits).map_err(VariantError::Apply)?;
     }
     Ok(Variant {
         root: root_id,
