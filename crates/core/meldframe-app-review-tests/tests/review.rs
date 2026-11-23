@@ -112,7 +112,7 @@ fn a_checkpoint_is_taken_when_an_agent_run_starts_and_not_again_within_it() {
             .state()
             .checkpoints
             .iter()
-            .filter(|c| c.kind == CheckpointKind::OtherActorRun)
+            .filter(|c| c.kind == CheckpointKind::RunStart)
             .map(|c| c.seq)
             .collect::<Vec<_>>()
     };
@@ -125,14 +125,14 @@ fn a_checkpoint_is_taken_when_an_agent_run_starts_and_not_again_within_it() {
     l.remote("agent:x", "b1:1", 2_000, set("r1", |p| p.x = Some(2.0)));
     assert_eq!(runs(&l), vec![0]);
     l.remote("agent:x", "b2:0", 2_000_000, set("r1", |p| p.x = Some(3.0)));
-    assert_eq!(runs(&l), vec![0, 2], "a new run after a long pause");
+    assert_eq!(runs(&l), vec![2, 0], "a new run after a long pause");
     // The person's own ops do not start a run.
     l.send(Action::Move {
         id: "t1".into(),
         x: 1.0,
         y: 1.0,
     });
-    assert_eq!(runs(&l), vec![0, 2]);
+    assert_eq!(runs(&l), vec![2, 0]);
 }
 
 #[test]
@@ -141,7 +141,7 @@ fn restoring_a_checkpoint_appends_a_change_of_the_person_that_undo_takes_back() 
     l.send(Action::CreateCheckpoint {
         label: "before the agent".into(),
     });
-    let saved = l.app.state().checkpoints.last().unwrap().clone();
+    let saved = l.app.state().checkpoints.first().unwrap().clone();
     assert_eq!(saved.kind, CheckpointKind::Manual);
     l.remote("agent:x", "b1:0", 0, set("r1", |p| p.x = Some(50.0)));
     l.send(Action::SetProperty {
@@ -211,7 +211,8 @@ fn the_new_actions_and_the_checkpoint_list_have_a_wire_shape() {
     let v = serde_json::to_value(l.app.state()).unwrap();
     assert_eq!(v["checkpoints"][0]["kind"], "manual");
     assert_eq!(v["checkpoints"][0]["label"], "v1");
-    assert!(v["checkpoints"][0].get("actor").is_none());
+    assert_eq!(v["checkpoints"][0]["by"], "user:me");
+    assert!(v["checkpoints"][0].get("about").is_none());
 }
 
 fn add(id: &str, kind: &str, parent: &str) -> Command {
@@ -336,7 +337,7 @@ fn a_refused_command_in_the_middle_of_a_restore_leaves_a_consistent_replica() {
     l.send(Action::CreateCheckpoint {
         label: "with hero".into(),
     });
-    let id = l.app.state().checkpoints.last().unwrap().id.clone();
+    let id = l.app.state().checkpoints.first().unwrap().id.clone();
     l.remote(
         "agent:x",
         "b2:0",
@@ -466,7 +467,11 @@ fn past_the_cap_the_checkpoints_the_app_took_go_before_the_saved_ones() {
         40
     );
     // Only the newest runs are left, and the newest checkpoint is the last one taken.
-    assert_eq!(cps.last().unwrap().seq, 79, "the point before the 80th run");
+    assert_eq!(
+        cps.first().unwrap().seq,
+        79,
+        "the point before the 80th run"
+    );
 }
 
 #[test]
@@ -479,5 +484,5 @@ fn with_only_saved_checkpoints_the_oldest_goes() {
     }
     let cps = &l.app.state().checkpoints;
     assert_eq!(cps.len(), 100);
-    assert_eq!(cps[0].label, "saved 1");
+    assert_eq!(cps.last().unwrap().label.as_deref(), Some("saved 1"));
 }

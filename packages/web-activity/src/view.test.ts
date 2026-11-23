@@ -92,12 +92,12 @@ describe('the words of a row', () => {
 });
 
 describe('checkpointWords', () => {
-  const cp = (over: Partial<Checkpoint>): Checkpoint => ({ id: 'c1', seq: 42, label: '', kind: 'manual', ...over });
-  it('uses the label the person typed, and words the checkpoints the app took by themselves', () => {
+  const cp = (over: Partial<Checkpoint>): Checkpoint => ({ id: '1', n: 1, seq: 42, kind: 'manual', atMs: 1, ...over });
+  it('uses the label the person typed, and words the checkpoints taken by themselves', () => {
     expect(checkpointWords(cp({ label: 'Before the pitch' }))).toBe('Before the pitch');
     expect(checkpointWords(cp({}))).toBe('Checkpoint');
-    expect(checkpointWords(cp({ kind: 'otherActorRun', actor: 'agent:claude' }))).toBe("Before claude's run");
-    expect(checkpointWords(cp({ kind: 'beforeRevert', actor: 'agent:claude' }))).toBe("Before reverting claude's batch");
+    expect(checkpointWords(cp({ kind: 'runStart', about: 'agent:claude' }))).toBe("Before claude's run");
+    expect(checkpointWords(cp({ kind: 'beforeRevert', about: 'agent:claude' }))).toBe("Before reverting claude's batch");
     expect(checkpointWords(cp({ kind: 'beforeRestore' }))).toBe('Before a restore');
   });
 });
