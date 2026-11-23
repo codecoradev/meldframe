@@ -24,6 +24,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { withinReadout } from './zoom.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 // Both URLs are required: there is no default that could point this at the development server and its token.
@@ -71,6 +72,10 @@ async function until(what, fn, ms = 15000) {
 }
 const say = (text) => console.log(`       ${text}`);
 const near = (a, b, tol, what) => assert.ok(Math.abs(a - b) <= tol, `${what}: ${a} is not within ${tol} of ${b}`);
+// A distance on the canvas and the same distance on the screen: the zoom readout is a whole percent, so the real zoom is only
+// known to within half a percent (see zoom.mjs; issue 226). `world` is a distance on the canvas, `pixels` one on the screen.
+const nearZoom = (world, pixels, readout, tol, what) =>
+  assert.ok(withinReadout(world, pixels, readout, tol), `${what}: ${world} is not within ${tol} of ${pixels} px at a zoom of ${readout} (readout, +-0.005)`);
 const rgb = (hex) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
 /** The box on the screen of the pixels near this colour, in the canvas or in `within` (CSS pixels: the screenshot is at scale 1), or null. */
 async function bbox(hex, tol = 6, within) {
@@ -175,11 +180,11 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
     const start = await nodeOf(B);
     const b = await bbox(GREEN);
     // Stored y 120 plus the frame at 100 plus the padding is not used: the child is drawn where its stored position says.
-    near((b.y0 - (await bbox(FRAME)).y0) / z, 120, 3, 'drawn at the stored y');
+    nearZoom(120, b.y0 - (await bbox(FRAME)).y0, z, 3, 'drawn at the stored y');
     const c = centre(b);
     await dragTo(c, { x: c.x + 30, y: c.y + 20 });
     const moved = await until('the move on the server', async () => { const r = await nodeOf(B); return r.x !== start.x ? r : null; });
-    near(moved.x - start.x, 30 / z, 2, 'moved x'); near(moved.y - start.y, 20 / z, 2, 'moved y');
+    nearZoom(moved.x - start.x, 30, z, 2, 'moved x'); nearZoom(moved.y - start.y, 20, z, 2, 'moved y');
     say(`dragged 30 x 20 px at zoom ${z}: x ${start.x} -> ${moved.x.toFixed(2)}, y ${start.y} -> ${moved.y.toFixed(2)}`);
     assert.equal(moved.parentId, F, 'still in the frame');
     assert.deepEqual(await flowOf(F), [A, B, C], 'the order did not change');
@@ -191,7 +196,7 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
     assert.match(await toggleLayout(), /Off/, 'the palette says it is off, as the page was opened with ?canvaslayout=0');
     assert.equal(await page.evaluate(() => localStorage.getItem('meldframe.autoLayoutOnCanvas')), 'on', 'the choice is remembered');
     const z = await zoomOf();
-    await until('the flow on the canvas', async () => { const a = await bbox(RED); const b = await bbox(GREEN); return a && b && Math.abs((b.y0 - a.y0) / z - 70) < 3; });
+    await until('the flow on the canvas', async () => { const a = await bbox(RED); const b = await bbox(GREEN); return a && b && withinReadout(70, b.y0 - a.y0, z, 3); });
     await select(A);
     await until('the Inspector of A', async () => (await page.inputValue('[data-testid=prop-name]')) === A);
     assert.equal(await disabled('prop-x'), true, 'x is disabled');
@@ -221,7 +226,7 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
       assert.ok(line, 'the insertion line is drawn');
       assert.ok(line.count > 100, `the line is long enough: ${line.count} px`);
       assert.ok(line.y1 - line.y0 <= 6, `and thin: ${line.y1 - line.y0} px`);
-      near((line.x1 - line.x0 + 1) / z, 200, 4, 'and as wide as the neighbour');
+      nearZoom(200, line.x1 - line.x0 + 1, z, 4, 'and as wide as the neighbour');
       say(`insertion line while the pointer is down: ${line.x1 - line.x0 + 1} x ${line.y1 - line.y0 + 1} px, ${line.count} px of accent, ${(a.y0 - line.y0).toFixed(1)} px above the first child`);
     });
     say('stored x, y of the moved child before the drop: ' + JSON.stringify([before.x, before.y]));
@@ -249,8 +254,8 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
     const out = await until('the reparent on the server', async () => { const r = await nodeOf(C); return r.parentId === null && (r.x !== 20 || r.y !== 240) ? r : null; });
     // The node keeps the place it was drawn at plus the drag, now in the space of the page (world = screen over the zoom).
     say(`reparented to the page at x ${out.x.toFixed(1)}, y ${out.y.toFixed(1)} (drawn at 120, 260, dragged ${((target.x - c.x) / z).toFixed(1)} x ${((target.y - c.y) / z).toFixed(1)} world units)`);
-    near(out.x - 120, (target.x - c.x) / z, 3, 'x: where it was drawn, plus the drag');
-    near(out.y - (100 + 20 + 70 + 70), (target.y - c.y) / z, 3, 'y: where it was drawn, plus the drag');
+    nearZoom(out.x - 120, target.x - c.x, z, 3, 'x: where it was drawn, plus the drag');
+    nearZoom(out.y - (100 + 20 + 70 + 70), target.y - c.y, z, 3, 'y: where it was drawn, plus the drag');
     assert.deepEqual(await flowOf(F), [A, B]);
     await until('drawn where it was dropped', async () => { const m = await bbox(AMBER); return m && Math.abs(m.x0 - drawn.x0 - (target.x - c.x)) <= 3; });
     await page.keyboard.press('Control+z');
@@ -272,7 +277,7 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
     const hug = await until('the resize on the server', async () => { const r = await nodeOf(H); return r.sw === 'fixed' ? r : null; });
     assert.equal(hug.sh, 'hug', 'the height was not touched');
     say(`hug frame: drawn width ${width.toFixed(2)}, dragged 40 px (${(40 / z).toFixed(2)} world units): width ${hug.w.toFixed(2)}, sw ${hug.sw}, sh ${hug.sh}`);
-    near(hug.w, width + 40 / z, 2, 'the width is the drawn width plus the drag');
+    nearZoom(hug.w - width, 40, z, 2, 'the width is the drawn width plus the drag');
     await until('the Inspector says fixed width and hug height', async () => (await sizing('sw')).trim() === 'Fixed' && (await sizing('sh')).trim() === 'Hug');
     await page.keyboard.press('Control+z');
     await until('one undo', async () => { const r = await nodeOf(H); return r.sw === 'hug' && r.sh === 'hug'; });
@@ -297,8 +302,8 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
       say(`while the pointer is down: left edge ${held.x0} (was ${before.x0}), top ${held.y0} (was ${before.y0}), ${held.x1 - held.x0 + 1} x ${held.y1 - held.y0 + 1} px (was ${before.x1 - before.x0 + 1} x ${before.y1 - before.y0 + 1})`);
     });
     const done = await until('the resize on the server', async () => { const r = await nodeOf(B); return r.w !== start.w ? r : null; });
-    near(done.w - start.w, 24 / z, 2, 'the width grew by the drag');
-    near(done.h - start.h, 12 / z, 2, 'the height grew by the drag');
+    nearZoom(done.w - start.w, 24, z, 2, 'the width grew by the drag');
+    nearZoom(done.h - start.h, 12, z, 2, 'the height grew by the drag');
     assert.deepEqual([done.x, done.y], [start.x, start.y], 'the stored x and y are left alone');
     await until('the box is where the flow puts it', async () => { const after = await bbox(GREEN); return Math.abs(after.x0 - before.x0) <= 2 && Math.abs(after.y0 - before.y0) <= 2; });
     await page.keyboard.press('Control+z');
@@ -364,8 +369,8 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
     await dragTo(c, target);
     assert.deepEqual(await until('the child moved in the flow', async () => { const o = await flowOf(F); return o[2] === A ? o : null; }), [B, C, A]);
     const moved = await until('the frame moved by the drag', async () => { const r = await nodeOf(H); return r.x !== start.x || r.y !== start.y ? r : null; });
-    near(moved.x - start.x, (target.x - c.x) / z, 2, 'x moved by the drag');
-    near(moved.y - start.y, (target.y - c.y) / z, 2, 'y moved by the drag');
+    nearZoom(moved.x - start.x, target.x - c.x, z, 2, 'x moved by the drag');
+    nearZoom(moved.y - start.y, target.y - c.y, z, 2, 'y moved by the drag');
     assert.deepEqual(await stored(A), was, 'the flow child keeps its stored x and y');
     await page.keyboard.press('Control+z');
     await until('one undo for both', async () => { const r = await nodeOf(H); return r.x === start.x && r.y === start.y && (await flowOf(F)).join() === [A, B, C].join(); });
@@ -376,7 +381,7 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
     assert.match(await toggleLayout(), /On/, 'the palette says it is on');
     assert.equal(await page.evaluate(() => localStorage.getItem('meldframe.autoLayoutOnCanvas')), 'off', 'the choice is remembered');
     const z = await zoomOf();
-    await until('the stored boxes on the canvas', async () => { const f = await bbox(FRAME); const b = await bbox(GREEN); return f && b && Math.abs((b.y0 - f.y0) / z - 120) < 3; });
+    await until('the stored boxes on the canvas', async () => { const f = await bbox(FRAME); const b = await bbox(GREEN); return f && b && withinReadout(120, b.y0 - f.y0, z, 3); });
     await select(A);
     await until('the Inspector of A', async () => (await page.inputValue('[data-testid=prop-name]')) === A);
     assert.equal(await disabled('prop-x'), false);
@@ -385,14 +390,14 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
 
   await check('the choice is remembered: a reload starts laid out after it was turned on, ?canvaslayout=0 forces it off and ?canvaslayout=1 on', async () => {
     const z = async () => zoomOf();
-    const laidOut = async () => { const a = await bbox(RED); const b = await bbox(GREEN); return a && b && Math.abs((b.y0 - a.y0) / (await z()) - 70) < 3; };
+    const laidOut = async () => { const a = await bbox(RED); const b = await bbox(GREEN); return a && b && withinReadout(70, b.y0 - a.y0, await z(), 3); };
     assert.match(await toggleLayout(), /Off/); // on again, remembered
     await page.goto(web);
     await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
     await until('laid out after a reload with no parameter', laidOut);
     await page.goto(`${web}/?canvaslayout=0`);
     await until('the editor is live again', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
-    await until('the stored boxes with ?canvaslayout=0', async () => { const f = await bbox(FRAME); const b = await bbox(GREEN); return f && b && Math.abs((b.y0 - f.y0) / (await z()) - 120) < 3; });
+    await until('the stored boxes with ?canvaslayout=0', async () => { const f = await bbox(FRAME); const b = await bbox(GREEN); return f && b && withinReadout(120, b.y0 - f.y0, await z(), 3); });
     assert.equal(await page.evaluate(() => localStorage.getItem('meldframe.autoLayoutOnCanvas')), 'on', 'a forced page does not change the choice');
     await page.evaluate(() => localStorage.setItem('meldframe.autoLayoutOnCanvas', 'off'));
     await page.goto(`${web}/?canvaslayout=1`);
