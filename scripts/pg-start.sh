@@ -30,9 +30,11 @@ find_bin() {
     printf '%s\n' "$MELDFRAME_PG_BIN"
     return 0
   fi
-  local d
-  for d in $(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -n 1 || true) \
-    /opt/homebrew/opt/postgresql@16/bin /usr/local/opt/postgresql@16/bin; do
+  # Homebrew's postgresql@16 (Apple silicon, then Intel); MELDFRAME_PG_BREW_ROOTS replaces the two roots (a test points it
+  # at an empty directory so that a machine that has the formula does not change the answer).
+  local d root brew=""
+  for root in ${MELDFRAME_PG_BREW_ROOTS:-/opt/homebrew/opt /usr/local/opt}; do brew="$brew $root/postgresql@16/bin"; done
+  for d in $(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -n 1 || true) $brew; do
     if [ -x "$d/pg_ctl" ]; then
       printf '%s\n' "$d"
       return 0
@@ -41,6 +43,10 @@ find_bin() {
   return 0
 }
 BIN=$(find_bin)
+if [ -n "${MELDFRAME_PG_BIN:-}" ] && [ ! -x "$BIN/pg_ctl" ]; then
+  echo "no Docker, and MELDFRAME_PG_BIN='$MELDFRAME_PG_BIN' has no executable pg_ctl: set it to the directory of pg_ctl and initdb" >&2
+  exit 1
+fi
 [ -n "$BIN" ] && [ -x "$BIN/pg_ctl" ] || {
   echo "no Docker and no Postgres binaries found (looked for /usr/lib/postgresql/*/bin and Homebrew's postgresql@16); install Docker or PostgreSQL 16, or set MELDFRAME_PG_BIN to the directory of pg_ctl" >&2
   exit 1

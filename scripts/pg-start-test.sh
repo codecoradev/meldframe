@@ -27,7 +27,9 @@ check() { # description, wanted exit, wanted text, env...
   local desc=$1 want=$2 text=$3
   shift 3
   local out got
-  out=$(env "$@" PATH="$tmp/bin:$PATH" bash scripts/pg-start.sh 2>&1)
+  # The environment of the machine does not decide: no inherited MELDFRAME_PG_BIN, no Homebrew formula found, and a data
+  # directory of its own, so a machine that has Postgres installed does not start one here.
+  out=$(env -u MELDFRAME_PG_BIN MELDFRAME_PG_BREW_ROOTS="$tmp/none" MELDFRAME_PG_DATA="$tmp/data" "$@" PATH="$tmp/bin:$PATH" bash scripts/pg-start.sh 2>&1)
   got=$?
   if [ "$got" -eq "$want" ] && printf '%s' "$out" | grep -q -- "$text"; then
     echo "pass  $desc"
@@ -40,9 +42,11 @@ check() { # description, wanted exit, wanted text, env...
 check "Docker reachable and no local binaries: compose starts Postgres" 0 "postgres ready (docker compose)" \
   MELDFRAME_PG_PORT=5499
 # Without Docker and without binaries the script stops with a message that names the way out.
-mv "$tmp/bin/docker" "$tmp/bin/docker.off"
 printf '#!/bin/sh\nexit 1\n' >"$tmp/bin/docker"
 chmod +x "$tmp/bin/docker"
-check "no Docker and no local binaries: says so and names MELDFRAME_PG_BIN" 1 "MELDFRAME_PG_BIN" \
+check "no Docker and no local binaries: says so and names MELDFRAME_PG_BIN" 1 "no Postgres binaries found" \
   MELDFRAME_PG_PORT=5499
+# A MELDFRAME_PG_BIN that is wrong is named back, and nothing else is tried in its place.
+check "no Docker and a wrong MELDFRAME_PG_BIN: names the path it was given" 1 "MELDFRAME_PG_BIN='$tmp/nowhere'" \
+  MELDFRAME_PG_PORT=5499 MELDFRAME_PG_BIN="$tmp/nowhere"
 exit $fail
