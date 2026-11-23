@@ -3,7 +3,7 @@
 
 use meldframe_check::Limits;
 use meldframe_core::apply_command;
-use meldframe_protocol::{Command, Node};
+use meldframe_protocol::{Command, Node, Variables};
 use meldframe_variant::{GAP, VariantError, variant_of};
 use serde_json::json;
 
@@ -47,7 +47,14 @@ fn get<'a>(nodes: &'a [Node], id: &str) -> &'a Node {
 fn a_variant_copies_the_frame_and_its_subtree_with_new_ids_beside_the_original() {
     let mut nodes = file();
     let before = nodes.clone();
-    let v = variant_of(&nodes, "hero", fresh(), &Limits::default()).unwrap();
+    let v = variant_of(
+        &nodes,
+        &Variables::default(),
+        "hero",
+        fresh(),
+        &Limits::default(),
+    )
+    .unwrap();
     assert_eq!(v.root, "v1");
     assert_eq!(v.commands.len(), 4, "the hero and its three descendants");
     for c in &v.commands {
@@ -88,7 +95,14 @@ fn a_variant_copies_the_frame_and_its_subtree_with_new_ids_beside_the_original()
 #[test]
 fn a_frame_at_the_top_level_gets_a_variant_at_the_top_level() {
     let mut nodes = file();
-    let v = variant_of(&nodes, "page", fresh(), &Limits::default()).unwrap();
+    let v = variant_of(
+        &nodes,
+        &Variables::default(),
+        "page",
+        fresh(),
+        &Limits::default(),
+    )
+    .unwrap();
     assert_eq!(v.commands.len(), 6, "the page and its five descendants");
     for c in &v.commands {
         apply_command(&mut nodes, c, &Limits::default()).unwrap();
@@ -101,11 +115,25 @@ fn a_frame_at_the_top_level_gets_a_variant_at_the_top_level() {
 fn only_a_frame_has_a_variant_and_the_node_must_exist() {
     let nodes = file();
     assert_eq!(
-        variant_of(&nodes, "title", fresh(), &Limits::default()).unwrap_err(),
+        variant_of(
+            &nodes,
+            &Variables::default(),
+            "title",
+            fresh(),
+            &Limits::default()
+        )
+        .unwrap_err(),
         VariantError::NotAFrame
     );
     assert_eq!(
-        variant_of(&nodes, "nope", fresh(), &Limits::default()).unwrap_err(),
+        variant_of(
+            &nodes,
+            &Variables::default(),
+            "nope",
+            fresh(),
+            &Limits::default()
+        )
+        .unwrap_err(),
         VariantError::NotFound
     );
     assert_eq!(VariantError::NotAFrame.code(), "E_NOT_A_FRAME");
@@ -119,6 +147,7 @@ fn an_id_the_file_already_has_is_never_used() {
     let mut offered = vec!["hero", "v1", "footer", "v1", "v2", "v2", "v3", "v4"].into_iter();
     let v = variant_of(
         &nodes,
+        &Variables::default(),
         "hero",
         move || offered.next().unwrap().to_string(),
         &Limits::default(),
@@ -143,7 +172,7 @@ fn a_variant_that_would_not_fit_the_limits_is_refused_whole() {
         max_nodes: nodes.len() + 2,
         ..Limits::default()
     };
-    match variant_of(&nodes, "hero", fresh(), &l).unwrap_err() {
+    match variant_of(&nodes, &Variables::default(), "hero", fresh(), &l).unwrap_err() {
         VariantError::Apply(e) => assert_eq!(e.code(), "E_TOO_MANY_NODES"),
         other => panic!("{other:?}"),
     }
@@ -168,7 +197,14 @@ fn the_variant_goes_right_of_every_sibling_and_its_name_fits_the_limit() {
     let long = "N".repeat(Limits::default().max_name);
     let hero = nodes.iter_mut().find(|n| n.id == "hero").unwrap();
     hero.name = long;
-    let v = variant_of(&nodes, "hero", fresh(), &Limits::default()).unwrap();
+    let v = variant_of(
+        &nodes,
+        &Variables::default(),
+        "hero",
+        fresh(),
+        &Limits::default(),
+    )
+    .unwrap();
     for c in &v.commands {
         apply_command(&mut nodes, c, &Limits::default()).unwrap();
     }
@@ -189,7 +225,7 @@ fn a_name_limit_smaller_than_the_suffix_still_gives_a_name_that_fits() {
             max_name,
             ..Limits::default()
         };
-        let v = variant_of(&nodes, "f", fresh(), &l).unwrap();
+        let v = variant_of(&nodes, &Variables::default(), "f", fresh(), &l).unwrap();
         let Command::AddNode { node, .. } = &v.commands[0] else {
             panic!()
         };
@@ -200,4 +236,61 @@ fn a_name_limit_smaller_than_the_suffix_still_gives_a_name_that_fits() {
         );
         assert!(!node.name.is_empty());
     }
+}
+
+/// Fields bound to `{var: id}` keep their binding in the copy: the variables are part of the file the copy is
+/// checked against, and the copy needs none of its own (issue 223).
+#[test]
+fn a_frame_bound_to_variables_keeps_its_bindings() {
+    let vars: Variables = serde_json::from_value(json!({
+        "collections": [{"id": "c1", "name": "brand", "modes": [{"id": "light", "name": "Light"}]}],
+        "variables": [
+            {"id": "v-primary", "collection": "c1", "name": "color/primary", "type": "color", "values": {"light": "#112233"}},
+            {"id": "v-round", "collection": "c1", "name": "radius/card", "type": "number", "values": {"light": 8}}
+        ]
+    }))
+    .unwrap();
+    let nodes = vec![
+        node(
+            json!({"id": "hero", "type": "frame", "name": "Hero", "w": 400, "h": 300,
+            "fill": {"var": "v-primary"}, "radius": {"var": "v-round"}}),
+        ),
+        node(
+            json!({"id": "card", "type": "rect", "name": "card", "parentId": "hero", "w": 10, "h": 10,
+            "fill": {"var": "v-primary"}}),
+        ),
+    ];
+    let v = variant_of(&nodes, &vars, "hero", fresh(), &Limits::default()).unwrap();
+    assert_eq!(v.commands.len(), 2);
+    let added: Vec<&Node> = v
+        .commands
+        .iter()
+        .map(|c| match c {
+            Command::AddNode { node, .. } => node,
+            other => panic!("not an addNode: {other:?}"),
+        })
+        .collect();
+    assert_eq!(added[0].fill, nodes[0].fill, "the frame's fill binding");
+    assert_eq!(
+        added[0].radius, nodes[0].radius,
+        "the frame's radius binding"
+    );
+    assert_eq!(added[1].fill, nodes[1].fill, "the child's fill binding");
+}
+
+/// A binding to a variable the file does not hold is still refused: the check is the file's own, not looser.
+#[test]
+fn a_binding_to_a_variable_the_file_lacks_is_still_refused() {
+    let nodes = vec![node(
+        json!({"id": "hero", "type": "frame", "name": "Hero", "w": 400, "h": 300, "fill": {"var": "gone"}}),
+    )];
+    let err = variant_of(
+        &nodes,
+        &Variables::default(),
+        "hero",
+        fresh(),
+        &Limits::default(),
+    )
+    .unwrap_err();
+    assert_eq!(err.code(), "E_VARIABLE_NOT_FOUND");
 }

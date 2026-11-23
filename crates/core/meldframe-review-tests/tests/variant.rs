@@ -80,6 +80,57 @@ async fn the_call_log_has_the_entry_of_the_gate_and_the_entry_of_the_call() {
     assert_eq!(mine[2].outcome, "E_NOT_A_FRAME");
 }
 
+/// A copy needs the nodes and the variables of the file together, and reads them as one picture of it: one read, under the
+/// one lock, so a write between two reads cannot tear it. None of the reads the tool makes for itself (the picture of the
+/// file, and the look at which keys are written) is an entry of the call log, or a dependency on the policy of another
+/// tool (`get_variables`, `batch_status`), as `head` and `written` are not: the log of a copy, and of its retry, holds the
+/// entries of the call itself and nothing else.
+#[tokio::test]
+async fn a_copy_reads_the_file_once_and_adds_nothing_but_its_own_entries_to_the_log() {
+    let h = start().await;
+    let c = connect(&h, AGENT).await;
+    hero(&c).await;
+    let reads = h.spy.reads.load(std::sync::atomic::Ordering::SeqCst);
+    let before = h.spy.server.calls(100).len();
+    let ok = call(
+        &c,
+        "make_variant",
+        json!({"file": "f", "id": "hero", "idempotencyKey": "one-read"}),
+    )
+    .await;
+    assert!(!ok.is_error, "{}", ok.body);
+    let made = h.spy.reads.load(std::sync::atomic::Ordering::SeqCst) - reads;
+    assert_eq!(made, 1, "the nodes and the variables are one read");
+    let log = h.spy.server.calls(100);
+    let unasked: Vec<_> = log[before..]
+        .iter()
+        .filter(|e| e.tool != "make_variant")
+        .collect();
+    assert!(
+        unasked.is_empty(),
+        "entries of calls the agent did not make: {unasked:?}"
+    );
+
+    // A retry with the same key is answered from the file and is the same on the log: no read entries of its own either.
+    let before_retry = h.spy.server.calls(100).len();
+    let again = call(
+        &c,
+        "make_variant",
+        json!({"file": "f", "id": "hero", "idempotencyKey": "one-read"}),
+    )
+    .await;
+    assert_eq!(again.body["replayed"], true, "{}", again.body);
+    let retry_log = h.spy.server.calls(100);
+    let retry_unasked: Vec<_> = retry_log[before_retry..]
+        .iter()
+        .filter(|e| e.tool != "make_variant")
+        .collect();
+    assert!(
+        retry_unasked.is_empty(),
+        "a retry logs calls the agent did not make: {retry_unasked:?}"
+    );
+}
+
 fn roots(tree: &Value) -> Vec<&Value> {
     tree["roots"].as_array().unwrap().iter().collect()
 }
@@ -127,6 +178,47 @@ async fn a_variant_copies_the_frame_and_its_children_beside_it() {
     let x = |n: &Value| n["x"].as_f64().unwrap();
     let orig = rs.iter().find(|n| n["id"] == "hero").unwrap();
     assert!(x(copy) > x(orig), "to the right of the original");
+}
+
+/// A frame whose fill and radius are bound to variables is copied with the bindings: the variables live in the file,
+/// not in the frame, so the copy needs none of its own (issue 223: the check of the copy ran without the variables
+/// and refused it as `E_VARIABLE_NOT_FOUND`).
+#[tokio::test]
+async fn a_frame_bound_to_variables_is_copied_with_its_bindings() {
+    let h = start().await;
+    let c = connect(&h, AGENT).await;
+    let seed = call(
+        &c,
+        "apply_commands",
+        json!({"file": "f", "idempotencyKey": "seed", "commands": [
+            {"type": "addCollection", "collection": {"id": "c1", "name": "brand",
+                "modes": [{"id": "light", "name": "Light"}, {"id": "dark", "name": "Dark"}]}},
+            {"type": "addVariable", "variable": {"id": "v-primary", "collection": "c1", "name": "color/primary",
+                "type": "color", "values": {"light": "#112233", "dark": "#aabbcc"}}},
+            {"type": "addVariable", "variable": {"id": "v-round", "collection": "c1", "name": "radius/card",
+                "type": "number", "values": {"light": 8, "dark": 12}}},
+            {"type": "addNode", "node": {"id": "hero", "type": "frame", "name": "Hero", "w": 800, "h": 400,
+                "fill": {"var": "v-primary"}, "radius": {"var": "v-round"}}},
+            {"type": "addNode", "node": {"id": "card", "type": "rect", "name": "card", "parentId": "hero",
+                "w": 100, "h": 50, "fill": {"var": "v-primary"}}}]}),
+    )
+    .await;
+    assert!(!seed.is_error, "{}", seed.body);
+
+    let r = call(
+        &c,
+        "make_variant",
+        json!({"file": "f", "id": "hero", "idempotencyKey": "v1"}),
+    )
+    .await;
+    assert!(!r.is_error, "{}", r.body);
+    assert_eq!(r.body["nodes"], 2, "the frame and its child");
+    let root = r.body["root"].as_str().unwrap().to_owned();
+
+    let copy = call(&c, "get_nodes", json!({"file": "f", "ids": [root]})).await;
+    let n = &copy.body["nodes"][0];
+    assert_eq!(n["fill"], json!({"var": "v-primary"}), "{}", copy.body);
+    assert_eq!(n["radius"], json!({"var": "v-round"}), "{}", copy.body);
 }
 
 #[tokio::test]

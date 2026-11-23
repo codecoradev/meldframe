@@ -305,6 +305,24 @@ mod read {
             self.read("get_variables", who, file, |r| (r.seq(), r.vars().clone()))
         }
 
+        fn view_with_variables(
+            &self,
+            who: &Principal,
+            file: &str,
+        ) -> Result<(FileView, meldframe_protocol::Variables), Failure> {
+            // One room, one lock: the nodes, the variables and the seq are one picture. Under the policy of `get_nodes`, and
+            // not logged: the calling tool has its own entry.
+            self.read_unlogged("get_nodes", who, file, |r| {
+                (
+                    FileView {
+                        seq: r.seq(),
+                        nodes: r.nodes().to_vec(),
+                    },
+                    r.vars().clone(),
+                )
+            })
+        }
+
         fn tree(
             &self,
             who: &Principal,

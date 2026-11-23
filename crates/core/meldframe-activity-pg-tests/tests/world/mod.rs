@@ -99,6 +99,13 @@ impl Reader for NoApplied {
     ) -> Result<(u64, meldframe_protocol::Variables), Failure> {
         self.0.variables(w, f)
     }
+    fn view_with_variables(
+        &self,
+        w: &Principal,
+        f: &str,
+    ) -> Result<(meldframe_http::mcp::FileView, meldframe_protocol::Variables), Failure> {
+        self.0.view_with_variables(w, f)
+    }
     fn tree(
         &self,
         w: &Principal,

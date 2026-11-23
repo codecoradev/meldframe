@@ -41,7 +41,13 @@ impl App {
                 done
             }
             Action::MakeVariant { id } => {
-                match make_variant(self.replica.nodes(), &id, &self.prefix, &mut self.next_id) {
+                match make_variant(
+                    self.replica.nodes(),
+                    self.replica.vars(),
+                    &id,
+                    &self.prefix,
+                    &mut self.next_id,
+                ) {
                     // The whole copy was applied to a copy of the file already, so it applies here as one step.
                     Ok(Variant::Made { commands, root }) => {
                         self.check_room(&commands).and_then(|()| {

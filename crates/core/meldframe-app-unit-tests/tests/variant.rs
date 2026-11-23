@@ -7,7 +7,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod common;
 use common::*;
-use meldframe_app::{Action, Event};
+use meldframe_app::{Action, BindField, Event};
 
 fn frame_with_a_child(l: &mut Loopback) -> String {
     l.send(Action::CreatePreset {
@@ -48,6 +48,43 @@ fn a_variant_copies_the_frame_beside_it_and_selects_the_copy() {
             .filter(|n| n.parent_id.as_deref() == Some(copy.as_str()))
             .count(),
         1
+    );
+}
+
+/// The editor's Variant button on a frame bound to variables: the copy keeps the bindings (issue 223, the same check
+/// ran without the file's variables).
+#[test]
+fn a_frame_bound_to_variables_is_copied_with_its_bindings() {
+    let mut l = Loopback::live();
+    let frame = frame_with_a_child(&mut l);
+    let commands: Vec<meldframe_protocol::Command> = serde_json::from_value(serde_json::json!([
+        {"type": "addCollection", "collection": {"id": "c1", "name": "brand",
+            "modes": [{"id": "light", "name": "Light"}]}},
+        {"type": "addVariable", "variable": {"id": "v1", "collection": "c1", "name": "color/primary",
+            "type": "color", "values": {"light": "#112233"}}},
+        {"type": "addVariable", "variable": {"id": "v2", "collection": "c1", "name": "radius/card",
+            "type": "number", "values": {"light": 8}}}
+    ]))
+    .unwrap();
+    l.send(Action::EditVariables { commands });
+    for (field, var) in [(BindField::Fill, "v1"), (BindField::Radius, "v2")] {
+        l.send(Action::BindProperty {
+            id: frame.clone(),
+            field,
+            variable: Some(var.into()),
+        });
+    }
+    assert!(refused(&mut l).is_empty(), "the setup is accepted");
+    let original = get(&l.app, &frame);
+    let before = l.app.nodes().len();
+    l.send(Action::MakeVariant { id: frame.clone() });
+    assert!(refused(&mut l).is_empty(), "the copy is not refused");
+    assert_eq!(l.app.nodes().len(), before + 2, "the frame and its child");
+    let copy = get(&l.app, &l.app.state().selection[0]);
+    assert_eq!(copy.fill, original.fill, "the fill binding came along");
+    assert_eq!(
+        copy.radius, original.radius,
+        "the radius binding came along"
     );
 }
 
