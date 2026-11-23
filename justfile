@@ -66,5 +66,6 @@ check:
     bash tools/check-wasm.sh
     cd apps/web && npm ci && npm run check
     bash scripts/dev-seed-test.sh
-    @bash -n scripts/pg-start.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh && echo "check (scripts): syntax ok"
+    bash scripts/pg-start-test.sh
+    @bash -n scripts/pg-start.sh scripts/pg-start-test.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh && echo "check (scripts): syntax ok"
     @echo "left to CI and the nightly: 'just wasm-test', 'cargo xtask licences --check', 'bash tools/check-migrations.sh' (after 'just dev-db')"
