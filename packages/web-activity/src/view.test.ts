@@ -117,7 +117,7 @@ describe('messageFor', () => {
   const appCodes = (): string[] => {
     const found = new Set<string>();
     for (const src of [rust('app/meldframe-app/src/review.rs'), rust('app/meldframe-app/src/activity.rs'), rust('app/meldframe-app/src/checkpoints.rs')]) {
-      for (const m of src.matchAll(/refuse\(\s*&mut self\.events,\s*"([a-z_]+)"\s*\)/g)) found.add(m[1]!);
+      for (const m of src.matchAll(/(?:refuse\(\s*&mut self\.events,|self\.say\()\s*"([a-z_]+)"\s*\)/g)) found.add(m[1]!);
     }
     // The plans of a revert and of a restore live in meldframe-app-rules and answer with the code as `Err("code")`.
     for (const m of rust('core/meldframe-app-rules/src/review.rs').matchAll(/Err\("([a-z_]+)"\)/g)) found.add(m[1]!);
@@ -125,7 +125,7 @@ describe('messageFor', () => {
     return [...found].sort();
   };
   it('reads the codes from the sources, and finds the ones the review flows refuse with', () => {
-    expect(appCodes()).toEqual(expect.arrayContaining(['batch_incomplete', 'forbidden', 'log_mismatch', 'no_batch_number', 'not_in_log', 'nothing_to_restore', 'nothing_to_revert', 'unknown_batch', 'unknown_checkpoint']));
+    expect(appCodes()).toEqual(expect.arrayContaining(['batch_incomplete', 'checkpoint_failed', 'checkpoint_pending', 'log_mismatch', 'no_batch_number', 'nothing_to_restore', 'nothing_to_revert', 'unknown_batch', 'unknown_checkpoint']));
   });
   it('has words for every code the app layer refuses with, and never prints the code', () => {
     for (const code of [...appCodes(), 'forbidden', 'not_found', 'invalid', 'rate_limited', 'unavailable']) {

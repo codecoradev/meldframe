@@ -3,4 +3,4 @@
 /**
  * The request of a checkpoint that failed or was refused (`Action::CheckpointRequestFailed`).
  */
-export type CheckpointRequest = { "type": "list", } | { "type": "post", key: string, };
+export type CheckpointRequest = { "type": "list", } | { "type": "post", key: string, } | { "type": "state", n: number, };

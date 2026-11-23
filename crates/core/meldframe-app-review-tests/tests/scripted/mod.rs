@@ -1,17 +1,19 @@
-//! A scripted server for the checkpoint tests: it keeps rows, answers the effects of the app that ask for them, and can
-//! be told to fail or to say nothing. The app talks to it only through effects and
+//! A scripted server for the checkpoint tests: it keeps rows and the file as it was at each, answers the effects of the
+//! app that ask for them, and can be told to fail or to say nothing. The app talks to it only through effects and
 //! actions, as the shell does.
 #![allow(dead_code)]
 
 use super::common::*;
 use meldframe_app::{Action, CheckpointKind, CheckpointRequest, CheckpointRow, Effect, Frame};
-use meldframe_protocol::{Command, NodePatch};
+use meldframe_protocol::{Command, Node, NodePatch};
 
 pub struct Cp {
     pub l: Loopback,
     pub rows: Vec<CheckpointRow>,
-    /// A code to answer the next post with, as a refusal.
+    states: Vec<(u32, u64, Vec<Node>)>,
+    /// A code to answer the next post (or the next state read) with, as a refusal.
     pub fail_post: Option<&'static str>,
+    pub fail_state: Option<&'static str>,
     /// Say nothing to posts and reads: the answer has not come yet.
     pub silent: bool,
     /// Every effect the app asked for, in order.
@@ -24,7 +26,9 @@ impl Cp {
         let mut c = Cp {
             l: Loopback::live(),
             rows: Vec::new(),
+            states: Vec::new(),
             fail_post: None,
+            fail_state: None,
             silent: false,
             asked: Vec::new(),
         };
@@ -39,6 +43,8 @@ impl Cp {
     pub fn make(&mut self, kind: CheckpointKind, label: Option<&str>, about: Option<&str>) -> u32 {
         let row = self.row(kind, label, about, self.l.seq);
         let n = row.n;
+        let state = self.l.app.base().to_vec();
+        self.states.push((n, row.seq, state));
         self.rows.push(row.clone());
         let frame = Frame::Checkpoint { checkpoint: row };
         self.l.app.dispatch(Action::Frame { now_ms: 0, frame });
@@ -104,14 +110,32 @@ impl Cp {
                 }
                 let row = self.row(*kind, label.as_deref(), about.as_deref(), *seq);
                 assert_eq!(*seq, self.l.seq, "the app asks for the file it confirmed");
+                self.states.push((row.n, *seq, self.l.app.base().to_vec()));
                 self.rows.push(row.clone());
                 Some(Action::CheckpointPosted {
                     key: key.clone(),
                     checkpoint: row,
                 })
             }
+            Effect::FetchCheckpointState { n } => {
+                if let Some(code) = self.fail_state {
+                    let request = CheckpointRequest::State { n: *n };
+                    return Some(Action::CheckpointRequestFailed {
+                        request,
+                        code: code.into(),
+                    });
+                }
+                let (_, seq, nodes) = self.states.iter().find(|s| s.0 == *n).cloned().unwrap();
+                Some(Action::CheckpointStateLoaded { n: *n, seq, nodes })
+            }
             _ => None,
         }
+    }
+
+    /// The file as the server kept it at row `n`, with its `seq`.
+    pub fn state_of(&self, n: u32) -> (u64, Vec<Node>) {
+        let (_, seq, nodes) = self.states.iter().find(|s| s.0 == n).cloned().unwrap();
+        (seq, nodes)
     }
 
     /// The effects asked for so far that are posts, as `(kind, about, seq)`.

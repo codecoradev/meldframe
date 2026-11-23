@@ -1,10 +1,11 @@
 //! The checkpoints of the file in the app layer (E5.3, ADR-0023), the parts that read no `App`: what makes a row of the
-//! server fit to show (the second check), the list as the server last said it, and how a row announced by a frame
-//! joins it. The rules themselves (the label, the shape of a row, the roll) are
+//! server fit to show (the second check), the list as the server last said it, how a row announced by a frame joins it,
+//! and what a revert or a restore is waiting for. The rules themselves (the label, the shape of a row, the roll) are
 //! `meldframe-checkpoints`, called here and not written again.
 
 use meldframe_app_model::{Checkpoint, CheckpointKind, CheckpointRow};
 use meldframe_checkpoints::{self as rules, Kind, Label, NewCheckpoint};
+use meldframe_protocol::Node;
 
 fn kind_of(kind: CheckpointKind) -> Kind {
     match kind {
@@ -121,9 +122,29 @@ fn held(c: &Checkpoint) -> Option<rules::Checkpoint> {
     })
 }
 
-/// The app's part of the checkpoints: whether a read of the list is out, and the key counter.
+/// What the app waits for before it changes the file: one revert or restore at a time.
+#[derive(Debug, Clone)]
+pub enum Waiting {
+    /// A restore asked for the file as it was at checkpoint `n` (id `id`).
+    State { n: u32, id: String },
+    /// A restore holds the file at the checkpoint and waits for its `beforeRestore` row, sent with `key`.
+    Restore {
+        key: String,
+        id: String,
+        target: Vec<Node>,
+    },
+    /// A revert waits for its `beforeRevert` row, sent with `key`.
+    Revert {
+        key: String,
+        actor: String,
+        key_prefix: String,
+    },
+}
+
+/// The app's part of the checkpoints: what it waits for, whether a read of the list is out, and the key counter.
 #[derive(Debug, Default)]
 pub struct Checkpoints {
+    pub waiting: Option<Waiting>,
     pub listing: bool,
     next_key: u64,
 }
