@@ -8,6 +8,7 @@ import { closeSync, openSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
+import { withinReadout } from './zoom.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const web = process.argv[2] ?? 'http://localhost:5173';
@@ -119,6 +120,10 @@ async function drag(page, from, to) {
   await page.mouse.up();
 }
 const near = (a, b, tol, what) => assert.ok(Math.abs(a - b) <= tol, `${what}: ${a} is not within ${tol} of ${b}`);
+// A distance on the canvas from a distance on the screen: the zoom readout is a whole percent, so the real zoom is only known to
+// within half a percent and the expected distance to the range that gives (issue 226).
+const nearZoom = (actual, pixels, readout, tol, what) =>
+  assert.ok(withinReadout(actual, pixels, readout, tol), `${what}: ${actual} is not within ${tol} of ${pixels} px at a zoom of ${readout} (readout, +-0.005)`);
 
 const results = [];
 async function check(name, fn) {
@@ -168,7 +173,7 @@ const id = `e2e_${run}`;
       const c = { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 };
       await drag(page, c, { x: c.x + 80, y: c.y + 40 });
       const moved = await until('the move on the server', async () => { const n = await nodeOf(id); return n.x !== start.x ? n : null; });
-      near(moved.x - start.x, 80 / z, 2, 'moved x'); near(moved.y - start.y, 40 / z, 2, 'moved y');
+      nearZoom(moved.x - start.x, 80, z, 2, 'moved x'); nearZoom(moved.y - start.y, 40, z, 2, 'moved y');
       await page.keyboard.press('Control+z');
       await until('the move undone', async () => (await nodeOf(id)).x === start.x);
     });
@@ -177,7 +182,7 @@ const id = `e2e_${run}`;
       box = await bbox(page, B); z = await zoomOf(page); start = await nodeOf(id);
       await drag(page, { x: box.x0 + 1, y: box.y0 + 1 }, { x: box.x0 + 31, y: box.y0 + 21 });
       const n = await until('the resize on the server', async () => { const r = await nodeOf(id); return r.w !== start.w ? r : null; });
-      near(n.x - start.x, 30 / z, 2, 'x'); near(n.y - start.y, 20 / z, 2, 'y'); near(start.w - n.w, 30 / z, 2, 'w'); near(start.h - n.h, 20 / z, 2, 'h');
+      nearZoom(n.x - start.x, 30, z, 2, 'x'); nearZoom(n.y - start.y, 20, z, 2, 'y'); nearZoom(start.w - n.w, 30, z, 2, 'w'); nearZoom(start.h - n.h, 20, z, 2, 'h');
       await page.keyboard.press('Control+z');
       await until('one undo', async () => { const r = await nodeOf(id); return r.x === start.x && r.y === start.y && r.w === start.w && r.h === start.h; });
     });
@@ -192,7 +197,7 @@ const id = `e2e_${run}`;
       const all = await until('the new node', async () => { const a = await nodesOnServer(); return a.length === before + 1 ? a : null; });
       const made = all.find((x) => x.parentId === id);
       assert.ok(made, 'the node is in the frame');
-      near(made.w, 80 / z, 2, 'w'); near(made.h, 50 / z, 2, 'h');
+      nearZoom(made.w, 80, z, 2, 'w'); nearZoom(made.h, 50, z, 2, 'h');
       assert.equal(await page.getAttribute('[data-testid=tool]', 'data-tool'), 'select', 'the tool goes back to select');
       await page.keyboard.press('Control+z');
       await until('the node removed by one undo', async () => (await nodesOnServer()).length === before);
