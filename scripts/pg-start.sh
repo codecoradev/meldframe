@@ -65,8 +65,13 @@ fi
 
 as_pg "'$BIN/pg_ctl' -D '$DATA' status >/dev/null 2>&1 || '$BIN/pg_ctl' -D '$DATA' -o '-p $PORT -c listen_addresses=127.0.0.1 -c unix_socket_directories=/tmp -c fsync=off -c synchronous_commit=off -c max_connections=200' -l '$DATA/log.txt' -w start >/dev/null"
 
+# The psql of the installation whose server this is, when it has one (Homebrew's postgresql@16 is keg-only: its binaries are
+# not on PATH), otherwise the one on PATH.
+PSQL=psql
+[ -x "$BIN/psql" ] && PSQL="$BIN/psql"
+
 for db in $DBS; do
-  psql -h 127.0.0.1 -p "$PORT" -U postgres -qtAc "select 1 from pg_database where datname='$db'" | grep -q 1 \
-    || psql -h 127.0.0.1 -p "$PORT" -U postgres -qc "create database $db"
+  "$PSQL" -h 127.0.0.1 -p "$PORT" -U postgres -qtAc "select 1 from pg_database where datname='$db'" | grep -q 1 \
+    || "$PSQL" -h 127.0.0.1 -p "$PORT" -U postgres -qc "create database $db"
 done
 echo "postgres ready (local, no Docker) on 127.0.0.1:$PORT, data in $DATA"
