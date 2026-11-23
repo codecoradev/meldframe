@@ -2,6 +2,10 @@
 //! check of what the server sends, the bounds of the list and the wire shape. A revert or restore that waits for a row is
 //! in `revert_checkpoint.rs`.
 
+// Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_test::wasm_bindgen_test as test;
+
 #[path = "../../meldframe-app-unit-tests/tests/common/mod.rs"]
 mod common;
 mod scripted;
