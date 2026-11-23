@@ -1,5 +1,5 @@
 // What the shell does for the checkpoints (E5.3, ADR-0023): it maps the `checkpoint` frame of the live socket to the app
-// layer's frame, carries out the read of the list over its route, and maps the answer to
+// layer's frame, carries out the three effects over the list, create and state routes, and maps their answers to
 // actions. Everything here comes from the network and is trusted for nothing: each field is checked for type and bound,
 // only the fields the app layer knows are copied (it refuses the rest), and a code is capped before it reaches the app.
 // Pure functions; the request itself goes through `Env`.
@@ -13,6 +13,8 @@ const MAX_ACTOR = 256;
 const MAX_LABEL = 2000;
 /** A file keeps 100 rows at most. */
 const MAX_ROWS = 100;
+/** A file at a checkpoint holds the nodes of one file: far more than a file has, so only a runaway answer is refused. */
+const MAX_NODES = 200_000;
 const KINDS: readonly string[] = ['runStart', 'beforeRevert', 'beforeRestore', 'manual'];
 
 type Rec = Record<string, unknown>;
@@ -70,9 +72,30 @@ export function answerOfRows(status: number, body: unknown): Action {
   return { type: 'checkpointsLoaded', checkpoints, canCreate };
 }
 
-type CheckpointEffect = Extract<Effect, { type: 'fetchCheckpoints' }>;
+/** The answer of `POST .../checkpoints`, `{checkpoint, created}`, as `checkpointPosted` with the key the post carried. */
+export const answerOfPost = (key: string) => (status: number, body: unknown): Action => {
+  const request: CheckpointRequest = { type: 'post', key };
+  if (status !== 200) return failed(request, codeOf(body));
+  const o = rec(body);
+  const r = o ? rec(own(o, 'checkpoint')) : null;
+  const checkpoint = r && row(r);
+  return checkpoint ? { type: 'checkpointPosted', key, checkpoint } : failed(request, 'unavailable');
+};
 
-/** One request of the checkpoint routes: how to send it, how to read the answer, and what a failure of it is. */
+/** The answer of `GET .../checkpoints/{n}/state`, `{seq, nodes}`, as `checkpointStateLoaded` (the app checks the nodes). */
+export const answerOfState = (n: number) => (status: number, body: unknown): Action => {
+  const request: CheckpointRequest = { type: 'state', n };
+  if (status !== 200) return failed(request, codeOf(body));
+  const o = rec(body);
+  const seq = o ? own(o, 'seq') : undefined;
+  const nodes = o ? own(o, 'nodes') : undefined;
+  if (!int(seq, 0, BIG) || !Array.isArray(nodes) || nodes.length > MAX_NODES || !nodes.every((x) => rec(x))) return failed(request, 'unavailable');
+  return { type: 'checkpointStateLoaded', n, seq, nodes: nodes as never };
+};
+
+type CheckpointEffect = Extract<Effect, { type: 'fetchCheckpoints' | 'postCheckpoint' | 'fetchCheckpointState' }>;
+
+/** One request of the checkpoint routes: how to send it, how to read the answer, and what a network failure is. */
 export interface CheckpointCall {
   method: 'GET' | 'POST';
   path: string;
@@ -81,11 +104,19 @@ export interface CheckpointCall {
   failure: Action;
 }
 
-/** The request an effect stands for. */
+/** The request an effect stands for. A null label or `about` is left out of the body. */
 export function checkpointCall(file: string, e: CheckpointEffect): CheckpointCall {
   const path = `/v1/files/${encodeURIComponent(file)}/checkpoints`;
   switch (e.type) {
     case 'fetchCheckpoints':
       return { method: 'GET', path, answer: answerOfRows, failure: failed({ type: 'list' }, 'unavailable') };
+    case 'postCheckpoint': {
+      const body = { key: e.key, kind: e.kind, seq: e.seq, ...(e.label !== null ? { label: e.label } : {}), ...(e.about !== null ? { about: e.about } : {}) };
+      return { method: 'POST', path, body, answer: answerOfPost(e.key), failure: failed({ type: 'post', key: e.key }, 'unavailable') };
+    }
+    case 'fetchCheckpointState': {
+      const n = Math.trunc(e.n);
+      return { method: 'GET', path: `${path}/${n}/state`, answer: answerOfState(n), failure: failed({ type: 'state', n }, 'unavailable') };
+    }
   }
 }
