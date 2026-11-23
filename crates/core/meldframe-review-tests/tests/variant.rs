@@ -80,6 +80,57 @@ async fn the_call_log_has_the_entry_of_the_gate_and_the_entry_of_the_call() {
     assert_eq!(mine[2].outcome, "E_NOT_A_FRAME");
 }
 
+/// A copy needs the nodes and the variables of the file together, and reads them as one picture of it: one read, under the
+/// one lock, so a write between two reads cannot tear it. None of the reads the tool makes for itself (the picture of the
+/// file, and the look at which keys are written) is an entry of the call log, or a dependency on the policy of another
+/// tool (`get_variables`, `batch_status`), as `head` and `written` are not: the log of a copy, and of its retry, holds the
+/// entries of the call itself and nothing else.
+#[tokio::test]
+async fn a_copy_reads_the_file_once_and_adds_nothing_but_its_own_entries_to_the_log() {
+    let h = start().await;
+    let c = connect(&h, AGENT).await;
+    hero(&c).await;
+    let reads = h.spy.reads.load(std::sync::atomic::Ordering::SeqCst);
+    let before = h.spy.server.calls(100).len();
+    let ok = call(
+        &c,
+        "make_variant",
+        json!({"file": "f", "id": "hero", "idempotencyKey": "one-read"}),
+    )
+    .await;
+    assert!(!ok.is_error, "{}", ok.body);
+    let made = h.spy.reads.load(std::sync::atomic::Ordering::SeqCst) - reads;
+    assert_eq!(made, 1, "the nodes and the variables are one read");
+    let log = h.spy.server.calls(100);
+    let unasked: Vec<_> = log[before..]
+        .iter()
+        .filter(|e| e.tool != "make_variant")
+        .collect();
+    assert!(
+        unasked.is_empty(),
+        "entries of calls the agent did not make: {unasked:?}"
+    );
+
+    // A retry with the same key is answered from the file and is the same on the log: no read entries of its own either.
+    let before_retry = h.spy.server.calls(100).len();
+    let again = call(
+        &c,
+        "make_variant",
+        json!({"file": "f", "id": "hero", "idempotencyKey": "one-read"}),
+    )
+    .await;
+    assert_eq!(again.body["replayed"], true, "{}", again.body);
+    let retry_log = h.spy.server.calls(100);
+    let retry_unasked: Vec<_> = retry_log[before_retry..]
+        .iter()
+        .filter(|e| e.tool != "make_variant")
+        .collect();
+    assert!(
+        retry_unasked.is_empty(),
+        "a retry logs calls the agent did not make: {retry_unasked:?}"
+    );
+}
+
 fn roots(tree: &Value) -> Vec<&Value> {
     tree["roots"].as_array().unwrap().iter().collect()
 }

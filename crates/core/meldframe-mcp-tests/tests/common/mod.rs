@@ -68,6 +68,14 @@ impl Reader for Spy {
         self.reads.fetch_add(1, Ordering::SeqCst);
         self.server.variables(who, file)
     }
+    fn view_with_variables(
+        &self,
+        who: &Principal,
+        file: &str,
+    ) -> Result<(FileView, meldframe_protocol::Variables), Failure> {
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        self.server.view_with_variables(who, file)
+    }
     fn tree(
         &self,
         who: &Principal,
@@ -95,6 +103,10 @@ impl Reader for Spy {
         keys: &[String],
     ) -> Result<Vec<Option<u64>>, Failure> {
         self.server.applied(who, file, keys)
+    }
+    fn written(&self, who: &Principal, file: &str, keys: &[String]) -> Result<Vec<u64>, Failure> {
+        // The server's own, which is not a call of its own (the default would ask `applied`, which is logged).
+        self.server.written(who, file, keys)
     }
     fn record(&self, who: &Principal, tool: &str, file: &str, code: Option<&str>) {
         self.server.record(who, tool, file, code);

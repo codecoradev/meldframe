@@ -192,8 +192,10 @@ impl Variant {
                 .map(|i| format!("{key}:{i}"))
                 .collect::<Vec<_>>(),
         );
-        let found = self.read(who, move |r, w| r.applied(w, &f, &keys)).await?;
-        let seqs: Vec<u64> = found.iter().map_while(|s| *s).collect();
+        // `written` is the look at the leading keys that are in the log without being a call of its own: not an entry of
+        // `batch_status` that the agent never made, nor a dependency on that tool's policy (as in the activity and
+        // checkpoint tools).
+        let seqs = self.read(who, move |r, w| r.written(w, &f, &keys)).await?;
         Ok((seqs.len(), seqs.iter().copied().max().unwrap_or(0)))
     }
 
@@ -204,8 +206,12 @@ impl Variant {
         if n == 0 {
             return Ok(None);
         }
+        // The same unlogged read as the copy itself makes (the variables are not needed here): the call has its own entries,
+        // and a retry leaves the same log as a first call.
         let name = c.file.to_owned();
-        let f = self.read(who, move |r, w| r.view(w, &name)).await?;
+        let (f, _) = self
+            .read(who, move |r, w| r.view_with_variables(w, &name))
+            .await?;
         if f.nodes.iter().any(|x| x.id == c.root) {
             return Ok(Some(c.result(n, seq, true)));
         }
@@ -245,11 +251,12 @@ impl Variant {
         if let Some(done) = self.replay(who, &call).await? {
             return Ok(done);
         }
+        // The copy keeps the fields bound to variables, and the variables live in the file: they are checked together, so
+        // the nodes and the variables are read as one picture of the file.
         let name = file.clone();
-        let FileView { nodes, .. } = self.read(who, move |r, w| r.view(w, &name)).await?;
-        // The copy keeps the fields bound to variables, and the variables live in the file: they are checked together.
-        let name = file.clone();
-        let (_, vars) = self.read(who, move |r, w| r.variables(w, &name)).await?;
+        let (FileView { nodes, .. }, vars) = self
+            .read(who, move |r, w| r.view_with_variables(w, &name))
+            .await?;
         // Copying and checking the file is work in proportion to it: on the blocking pool, under its limits.
         let (f, actor, k, frame) = (file.clone(), who.actor.clone(), key.clone(), id.clone());
         let built = self
