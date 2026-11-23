@@ -221,7 +221,7 @@ describe('what the Layout says to the keyboard and to readers', () => {
     expect(out({ helpOpen: true })).toContain('Alt+1');
     expect(out({ helpOpen: true })).not.toContain('⌥1');
   });
-  it('on a Mac the sheet and the labels use the Option, Command and Shift symbols and not the words', () => {
+  it('on a Mac the shortcut sheet uses the Option, Command and Shift symbols and not the words', () => {
     pinPlatform('MacIntel');
     const open = out({ helpOpen: true });
     for (const text of ['⌥1', '⇧⌘Z']) expect(open, text).toContain(text);
