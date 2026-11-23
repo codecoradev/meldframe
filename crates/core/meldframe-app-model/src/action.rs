@@ -2,6 +2,7 @@
 
 use crate::activity::{BatchHeader, BatchPage, BatchRef, ReviewState};
 use crate::assets::AssetPage;
+use crate::checkpoint::{CheckpointRequest, CheckpointRow};
 use crate::export::ExportFormat;
 pub use crate::frame::Frame;
 use crate::layout::Direction;
@@ -297,6 +298,16 @@ pub enum Action {
     RestoreCheckpoint {
         id: String,
     },
+    /// The answer of `Effect::FetchCheckpoints`: it replaces the list held.
+    CheckpointsLoaded {
+        checkpoints: Vec<CheckpointRow>,
+        can_create: bool,
+    },
+    /// A checkpoint request failed, was refused or got no answer in time: `Event::Refused`.
+    CheckpointRequestFailed {
+        request: CheckpointRequest,
+        code: String,
+    },
     /// The Activity tab was opened: ask for the newest page of batches (heal rule (c)).
     OpenActivity {},
     /// Fetch the page of batches older than the oldest held (when `AppState::activity.has_older`).
@@ -417,26 +428,6 @@ pub enum Action {
 }
 
 impl Action {
-    /// Whether the activity rules handle it (`meldframe-app`, `activity.rs`) and not the document.
-    pub fn is_activity(&self) -> bool {
-        matches!(
-            self,
-            Action::OpenActivity {}
-                | Action::LoadOlderBatches {}
-                | Action::SelectBatch { .. }
-                | Action::SetBatchReview { .. }
-                | Action::BatchesLoaded { .. }
-                | Action::BatchReviewed { .. }
-                | Action::BatchRequestFailed { .. }
-        )
-    }
-
-    /// An activity action that does not touch the document, the selection or the properties panel (all but
-    /// `SelectBatch`): the app has only the panel to bring up to date.
-    pub fn only_activity(&self) -> bool {
-        self.is_activity() && !matches!(self, Action::SelectBatch { .. })
-    }
-
     /// `CreateNode` with the default size.
     pub fn create_node(kind: CreateKind, x: f64, y: f64, parent: Option<String>) -> Self {
         Self::CreateNode {

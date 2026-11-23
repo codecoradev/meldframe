@@ -188,13 +188,15 @@ impl World {
                 }
                 back
             }
-            // The batch list, the review route and the asset list are the front end's: a test that needs them plays them.
+            // The batch list, the review route, the asset list and the checkpoint routes are the front end's: a test that
+            // needs them plays them.
             Effect::Reconnect { .. }
             | Effect::WakeAfter { .. }
             | Effect::Render { .. }
             | Effect::FetchBatches { .. }
             | Effect::FetchAssets { .. }
-            | Effect::PutBatchReview { .. } => vec![],
+            | Effect::PutBatchReview { .. }
+            | Effect::FetchCheckpoints {} => vec![],
         }
     }
 

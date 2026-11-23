@@ -28,7 +28,10 @@ impl App {
 
     pub(crate) fn activity_action(&mut self, action: Action, fx: &mut Vec<Effect>) {
         match action {
-            Action::OpenActivity {} => self.fetched(|_, _| Some(Fetch::NEWEST), fx),
+            Action::OpenActivity {} => {
+                self.fetched(|_, _| Some(Fetch::NEWEST), fx);
+                self.fetch_checkpoints(fx);
+            }
             Action::LoadOlderBatches {} => self.fetched(|f, _| f.older(), fx),
             Action::BatchesLoaded { page } => self.fetched(|f, _| f.page(page.into()), fx),
             Action::BatchReviewed { batch } => self.feed.red.observe_row(batch),

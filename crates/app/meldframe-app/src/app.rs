@@ -10,6 +10,7 @@ use meldframe_activity::Feed;
 use meldframe_app_parts::document::{history_of, out_ops};
 use meldframe_app_parts::properties::selected_properties;
 use meldframe_app_parts::selection::toggled;
+use meldframe_app_rules::checkpoints::Checkpoints;
 use meldframe_app_rules::level::{self, Level};
 use meldframe_app_rules::link::Link;
 use meldframe_app_rules::retry::Retries;
@@ -28,6 +29,7 @@ pub struct App {
     pub(crate) link: Link,
     pub(crate) retries: Retries,
     pub(crate) review: Review,
+    pub(crate) cps: Checkpoints,
     pub(crate) feed: Feed,
     pub(crate) panel: PanelCache,
     pub(crate) level: Level,
@@ -78,6 +80,7 @@ impl App {
             link: Link::default(),
             retries: Retries::default(),
             review: Review::new(review_nodes, seq),
+            cps: Checkpoints::default(),
             feed: Feed::new(actor, seq),
             panel: PanelCache::default(),
             level: Level::Full,
@@ -170,6 +173,7 @@ impl App {
             Action::Frame { now_ms, frame } => self.frame(now_ms, frame, &mut fx),
             a if a.is_assets() => self.assets_action(a, &mut fx),
             a if a.is_activity() => self.activity_action(a, &mut fx),
+            a if a.is_checkpoint() => self.checkpoint_action(a),
             Action::Reload {
                 now_ms,
                 nodes,

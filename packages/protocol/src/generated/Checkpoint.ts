@@ -2,8 +2,8 @@
 import type { CheckpointKind } from "./CheckpointKind";
 
 /**
- * A named point in the file's history that can be restored: the file as the server confirmed it after op `seq`, never a
- * copy of it. `id` is the text of `n`. The person's own pending ops are not in it.
+ * A checkpoint of the file as the server keeps it: the file as the server had it after op `seq`, never a copy of it.
+ * `id` is the text of `n`, the same in every editor. The person's own pending ops are not in it.
  */
 export type Checkpoint = { id: string, n: number, seq: number, kind: CheckpointKind, 
 /**
