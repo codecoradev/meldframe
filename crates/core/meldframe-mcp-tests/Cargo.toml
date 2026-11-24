@@ -14,6 +14,7 @@ meldframe-host = { path = "../meldframe-host" }
 meldframe-calls = { path = "../meldframe-calls" }
 meldframe-module = { path = "../meldframe-module" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-render = { path = "../meldframe-render" }
 meldframe-http = { path = "../../integrations/meldframe-http", features = ["mcp"] }
 meldframe-http-capture = { path = "../../integrations/meldframe-http-capture" }
 meldframe-http-assets = { path = "../../integrations/meldframe-http-assets" }

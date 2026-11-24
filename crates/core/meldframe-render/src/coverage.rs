@@ -42,7 +42,9 @@ pub struct FieldSupport {
 pub const FROM_LAYOUT: Support = Support::Unsupported(
     "an input of layout; resolve reads the stored box, so the canvas ignores it unless the host turns on layout_on_canvas (resolve_laid_out)",
 );
-const NOT_DRAWN: Support = Support::Unsupported("the canvas does not draw it yet");
+/// The mark of a field the canvas does not draw yet; the tool texts that tell an agent so are tied to it by a test in
+/// `meldframe-mcp-tests`.
+pub const NOT_DRAWN: Support = Support::Unsupported("the canvas does not draw it yet");
 
 const fn row(field: &'static str, canvas: Support) -> FieldSupport {
     FieldSupport {

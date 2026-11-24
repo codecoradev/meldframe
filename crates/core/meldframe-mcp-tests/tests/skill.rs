@@ -133,6 +133,60 @@ fn the_skill_and_the_tool_text_warn_that_notes_are_untrusted() {
     }
 }
 
+/// The properties the coverage table marks as not drawn by the canvas (`coverage.rs`, `NOT_DRAWN`). `capture` renders in the editor, so a capture lacks them too.
+fn not_drawn() -> Vec<&'static str> {
+    meldframe_render::coverage::NODE_FIELDS
+        .iter()
+        .filter(|f| f.canvas == meldframe_render::coverage::NOT_DRAWN)
+        .map(|f| f.field)
+        .collect()
+}
+
+/// The one sentence of a text that says the canvas does not draw something, with the words of one line.
+fn gap_sentence(text: &str) -> Option<String> {
+    let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    flat.split(". ")
+        .find(|s| s.contains("canvas does not draw"))
+        .map(str::to_owned)
+}
+
+/// An agent changes a design to fit what it can see: until the canvas draws a property, the texts it reads say so,
+/// and name every property of the table; once the table has none, the sentence has to go.
+#[test]
+fn the_texts_name_every_property_the_canvas_does_not_draw() {
+    let v: serde_json::Value = serde_json::from_str(CATALOGUE).unwrap();
+    let tool = |name: &str| {
+        v["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["name"] == name)
+            .unwrap_or_else(|| panic!("{name} is listed"))["description"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let gaps = not_drawn();
+    for (place, text) in [
+        ("apply_commands", tool("apply_commands")),
+        ("capture", tool("capture")),
+        ("the skill", SKILL.to_owned()),
+    ] {
+        match (gap_sentence(&text), gaps.is_empty()) {
+            (Some(s), false) => {
+                for field in &gaps {
+                    assert!(s.contains(field), "{place} says `{s}` but not {field}");
+                }
+            }
+            (None, false) => panic!("{place} does not say the canvas does not draw {gaps:?}"),
+            (Some(s), true) => {
+                panic!("{place} still says `{s}`, and the table has nothing not drawn")
+            }
+            (None, true) => {}
+        }
+    }
+}
+
 /// The server measures text with a stub, not a browser: a caller that reads only the tool text or the skill must learn
 /// that a hug text comes back with an estimated size, and which warning says so.
 #[test]
