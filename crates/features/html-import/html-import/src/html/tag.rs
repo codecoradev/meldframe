@@ -1,5 +1,6 @@
 //! One tag, start or end, read from its name to its `>`: the name folded to lower case and cut, and the attributes
-//! that stay (a repeated name, an event attribute and what a bound cuts are left out and counted). A tag that
+//! that stay (a repeated name, an event attribute and what a bound cuts are left out and counted). The first
+//! occurrence of a name decides: a later one is a repeat even when the first was cut for its length. A tag that
 //! reaches the end of the text before its `>` is not a tag.
 
 use super::report::{EntryKind, Report};
@@ -11,6 +12,14 @@ pub(super) struct Tag {
     pub attrs: Vec<Attr>,
     /// The byte after the `>`.
     pub end: usize,
+}
+
+/// The attributes of the tag so far: those kept, the names cut for their length, and whether the cap was reported.
+#[derive(Default)]
+struct Kept {
+    attrs: Vec<Attr>,
+    cut: Vec<String>,
+    dropped: bool,
 }
 
 fn space(c: u8) -> bool {
@@ -51,8 +60,7 @@ pub(super) fn read(
         j += 1;
     }
     let name = fold(&html[from..j]);
-    let mut attrs: Vec<Attr> = Vec::new();
-    let mut dropped = false;
+    let mut kept = Kept::default();
     loop {
         while j < n && (space(b[j]) || b[j] == b'/') {
             j += 1;
@@ -63,7 +71,7 @@ pub(super) fn read(
             Some(b'>') => {
                 return Some(Tag {
                     name,
-                    attrs,
+                    attrs: kept.attrs,
                     end: j + 1,
                 });
             }
@@ -105,14 +113,13 @@ pub(super) fn read(
             value = &html[vs.0..vs.1];
         }
         if keep {
-            keep_attr(&mut attrs, &mut dropped, aname, value, at, l, report);
+            keep_attr(&mut kept, aname, value, at, l, report);
         }
     }
 }
 
 fn keep_attr(
-    attrs: &mut Vec<Attr>,
-    dropped: &mut bool,
+    kept: &mut Kept,
     raw_name: &str,
     raw_value: &str,
     at: usize,
@@ -120,23 +127,28 @@ fn keep_attr(
     report: &mut Report,
 ) {
     let name = fold(raw_name);
-    report.work += attrs.len() + 1;
-    if attrs.iter().any(|a| a.name == name) {
+    report.work += kept.attrs.len() + kept.cut.len() + 1;
+    if kept.attrs.iter().any(|a| a.name == name) || kept.cut.contains(&name) {
         report.count("duplicate_attribute", 1);
     } else if name.len() > 2 && name.starts_with("on") {
         report.count("event_attribute", 1);
-    } else if raw_value.len() > l.max_value_bytes {
+    } else if raw_value.len() > l.max_value_bytes
+        && kept.attrs.len() + kept.cut.len() < l.max_attributes
+    {
+        // Its name is remembered, so that a later one of the name stays a repeat. Names looked at, kept or cut,
+        // are at most `max_attributes`, which bounds the list.
         let msg = format!(
             "{} bytes as written; an attribute value is at most {}",
             raw_value.len(),
             l.max_value_bytes
         );
         report.note(EntryKind::Cut, "attribute_too_long", &name, msg, at);
-    } else if attrs.len() >= l.max_attributes {
-        if *dropped {
+        kept.cut.push(name);
+    } else if kept.attrs.len() + kept.cut.len() >= l.max_attributes {
+        if kept.dropped {
             report.count("attribute_dropped", 1);
         } else {
-            *dropped = true;
+            kept.dropped = true;
             let msg = format!(
                 "an element keeps at most {} attributes; the rest are left out",
                 l.max_attributes
@@ -145,6 +157,6 @@ fn keep_attr(
         }
     } else {
         let value = decode(raw_value, true, &mut report.work);
-        attrs.push(Attr { name, value });
+        kept.attrs.push(Attr { name, value });
     }
 }

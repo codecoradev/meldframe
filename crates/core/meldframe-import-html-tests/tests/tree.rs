@@ -7,7 +7,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod common;
 use common::*;
-use html_import::html::Child;
+use html_import::html::{Child, Limits, ParseError, parse};
 
 #[test]
 fn a_fragment_is_the_children_of_the_root() {
@@ -275,4 +275,109 @@ fn the_same_text_gives_the_same_tree_and_report() {
     let b = run(html);
     assert_eq!(a.tree, b.tree);
     assert_eq!(a.report, b.report);
+}
+
+#[test]
+fn a_heading_a_list_item_or_a_definition_also_ends_a_paragraph() {
+    for (html, want) in [
+        ("<p>a<h2>b</h2>", r#"p{"a"} h2{"b"}"#),
+        ("<p>a<li>b", r#"p{"a"} li{"b"}"#),
+        ("<dl><dt>a<p>b<dd>c</dl>", r#"dl{dt{"a" p{"b"}} dd{"c"}}"#),
+        ("<ul><li><p>a<li>b</ul>", r#"ul{li{p{"a"}} li{"b"}}"#),
+        // A button between them keeps the paragraph open, as for a block.
+        (
+            "<p><button>x<h2>y</h2></button>",
+            r#"p{button{"x" h2{"y"}}}"#,
+        ),
+    ] {
+        assert_eq!(shape(html), want, "{html}");
+    }
+}
+
+#[test]
+fn the_first_of_an_attribute_name_decides_and_every_repeat_is_counted() {
+    let p = run("<a b=1 B=2 b=3 c=4>");
+    assert_eq!(dump(&p.tree), "a(b=1 c=4)");
+    assert_eq!(count(&p, "duplicate_attribute"), 2);
+    // A first one that is cut for its length still decides.
+    let p = run(&format!("<a b=\"{}\" b=ok c=d>", "x".repeat(1_001)));
+    assert_eq!(dump(&p.tree), "a(c=d)");
+    assert_eq!(count(&p, "attribute_too_long"), 1);
+    assert_eq!(count(&p, "duplicate_attribute"), 1);
+}
+
+#[test]
+fn a_text_with_a_nul_keeps_it_as_the_replacement_character() {
+    assert_eq!(shape("<p>a\0b</p>"), "p{\"a\u{fffd}b\"}");
+}
+
+#[test]
+fn attribute_names_are_folded_for_ascii_only() {
+    assert_eq!(shape("<p \u{d1}=X \u{c4}B=y>"), "p(\u{d1}=X \u{c4}b=y)");
+}
+
+#[test]
+fn a_script_ends_at_its_own_end_tag_only() {
+    let p = run("<i>x</i><script>a</scriptx>b</script>c");
+    assert_eq!(dump(&p.tree), r#"i{"x"} "c""#);
+    assert_eq!(count(&p, "script"), 1);
+}
+
+#[test]
+fn an_unfinished_tag_or_comment_ends_the_read_and_keeps_what_came_before() {
+    assert_eq!(shape(r#"<p>a<b>c</b><i class="x"#), r#"p{"a" b{"c"}}"#);
+    assert_eq!(shape("<p>a<!-- b"), r#"p{"a"}"#);
+}
+
+#[test]
+fn a_text_with_no_element_is_refused_as_empty() {
+    for html in ["", "plain text", "<!-- a --><script>x</script>"] {
+        assert_eq!(
+            refused(html, &Limits::default()),
+            ParseError::Empty,
+            "{html:?}"
+        );
+    }
+}
+
+#[test]
+fn the_input_bound_is_exact_and_refuses_before_reading() {
+    let l = Limits {
+        max_input_bytes: 5,
+        ..roomy()
+    };
+    assert!(parse("<p>ab", &l).is_ok());
+    assert_eq!(
+        refused("<p>abc", &l),
+        ParseError::TooLarge { bytes: 6, max: 5 }
+    );
+}
+
+#[test]
+fn the_element_bound_is_exact_and_names_where_the_first_one_past_it_starts() {
+    let l = Limits {
+        max_elements: 3,
+        ..roomy()
+    };
+    assert!(parse("<b></b><b></b><b></b>", &l).is_ok());
+    assert_eq!(
+        refused("<b></b><b></b><b></b><b></b>", &l),
+        ParseError::TooMany { max: 3, at: 21 }
+    );
+}
+
+#[test]
+fn an_element_past_the_depth_is_flattened_and_a_raw_text_one_loses_its_content() {
+    let l = Limits {
+        max_depth: 1,
+        ..roomy()
+    };
+    let p = parse(
+        "<div><style>a{color:red}</style><textarea>hi</textarea><p>x</p></div>",
+        &l,
+    )
+    .unwrap();
+    assert_eq!(dump(&p.tree), r#"div{"x"}"#);
+    assert_eq!(p.tree.style_texts().count(), 0);
+    assert_eq!(count(&p, "depth_cut"), 3);
 }

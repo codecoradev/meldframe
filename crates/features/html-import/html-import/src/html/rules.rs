@@ -56,18 +56,27 @@ const HEADINGS: &[&str] = &["h1", "h2", "h3", "h4", "h5", "h6"];
 const CELLS: &[&str] = &["td", "th"];
 const SECTIONS: &[&str] = &["thead", "tbody", "tfoot"];
 
-pub(super) fn implied(tag: &str) -> Option<Implied> {
+/// What stops the look for an open paragraph: a paragraph outside a cell, a button or the like is not this one's.
+const P_STOPS: &[&str] = &[
+    "table", "td", "th", "caption", "button", "object", "template", "html", "body",
+];
+
+const END_P: Implied = Implied {
+    closes: &["p"],
+    stops: P_STOPS,
+    top_only: false,
+};
+
+/// The rules a start tag of `tag` applies, in order. A block, a heading, a list item and a definition end an open
+/// paragraph first; then a list item, a definition, a heading, a row, a cell and the like end their own kind.
+pub(super) fn implied(tag: &str) -> [Option<Implied>; 2] {
     let (closes, stops, top_only): (&[&str], &[&str], bool) = match tag {
         // A paragraph ends where a block starts, unless a cell, a button or the like sits between them.
         "p" | "address" | "article" | "aside" | "blockquote" | "details" | "div" | "dl"
         | "fieldset" | "figcaption" | "figure" | "footer" | "form" | "header" | "hr" | "main"
-        | "menu" | "nav" | "ol" | "pre" | "section" | "table" | "ul" => (
-            &["p"],
-            &[
-                "table", "td", "th", "caption", "button", "object", "template", "html", "body",
-            ],
-            false,
-        ),
+        | "menu" | "nav" | "ol" | "pre" | "section" | "table" | "ul" => {
+            return [Some(END_P), None];
+        }
         "li" => (
             &["li"],
             &["ul", "ol", "menu", "table", "td", "th", "button"],
@@ -80,11 +89,19 @@ pub(super) fn implied(tag: &str) -> Option<Implied> {
         "thead" | "tbody" | "tfoot" => (SECTIONS, &["table"], false),
         "option" => (&["option"], &["select", "datalist"], false),
         "optgroup" => (&["option", "optgroup"], &["select"], false),
-        _ => return None,
+        _ => return [None, None],
     };
-    Some(Implied {
+    let own = Implied {
         closes,
         stops,
         top_only,
-    })
+    };
+    if matches!(
+        tag,
+        "li" | "dd" | "dt" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+    ) {
+        [Some(END_P), Some(own)]
+    } else {
+        [Some(own), None]
+    }
 }
