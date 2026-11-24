@@ -231,3 +231,59 @@ fn no_border_is_painted_for_no_width_a_text_or_a_colour_that_is_not_hex() {
         );
     }
 }
+
+#[test]
+fn shadows_are_painted_in_model_order_with_their_numbers_colour_and_alpha() {
+    let b = one(json!({"id": "n", "type": "rect", "shadows": [
+        {"x": 1, "y": 2, "blur": 3, "spread": 4, "color": "#ff000080"},
+        {"x": -5, "color": "#f80"},
+        {},
+    ]}));
+    let s = &b.shadows;
+    assert_eq!(s.len(), 3);
+    assert_eq!(
+        (s[0].x, s[0].y, s[0].blur, s[0].spread),
+        (1.0, 2.0, 3.0, 4.0)
+    );
+    assert_eq!(
+        (s[0].color, s[0].alpha),
+        (0xff0000, f64::from(0x80u8) / 255.0)
+    );
+    assert_eq!(
+        (s[1].x, s[1].blur, s[1].color, s[1].alpha),
+        (-5.0, 0.0, 0xff8800, 1.0)
+    );
+    // The default shadow is #00000040: black at a quarter.
+    assert_eq!((s[2].color, s[2].alpha), (0, f64::from(0x40u8) / 255.0));
+    assert!(one(json!({"id": "n", "type": "frame"})).shadows.is_empty());
+}
+
+#[test]
+fn no_shadow_is_painted_for_a_text_a_colour_that_is_not_hex_or_a_number_that_is_not_finite() {
+    let text = one(json!({"id": "n", "type": "text", "text": "hi", "shadows": [{"blur": 4}]}));
+    assert!(text.shadows.is_empty());
+    let mut n = node(json!({"id": "n", "type": "rect", "shadows": [
+        {"color": "red"}, {"blur": 2}, {"x": 1}, {"y": 1}, {"spread": 1}, {"color": "#12"},
+    ]}));
+    n.shadows[2].x = f64::NAN;
+    n.shadows[3].y = f64::INFINITY;
+    n.shadows[4].spread = f64::NEG_INFINITY;
+    let kept = &resolve(&[n])[0].shadows;
+    assert_eq!(kept.len(), 1, "{kept:?}");
+    assert_eq!(kept[0].blur, 2.0);
+}
+
+#[test]
+fn a_blur_below_zero_is_a_hard_edge() {
+    let mut n = node(json!({"id": "n", "type": "rect", "shadows": [{"blur": 4}]}));
+    n.shadows[0].blur = -3.0;
+    assert_eq!(resolve(&[n])[0].shadows[0].blur, 0.0);
+}
+
+#[test]
+fn an_ellipse_and_a_shader_take_shadows_like_a_rectangle() {
+    for kind in ["ellipse", "shader", "frame"] {
+        let n = json!({"id": "n", "type": kind, "shadows": [{"y": 4, "blur": 8}]});
+        assert_eq!(one(n).shadows.len(), 1, "{kind}");
+    }
+}

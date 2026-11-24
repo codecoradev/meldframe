@@ -46,6 +46,17 @@ describe('resolveScene', () => {
     expect(resolveScene(parentScene(node({ id: 'a' })), first).patch.changed).toEqual(['a']);
   });
 
+  it('resolves the shadows of a node, none when the scene says nothing, and a change of them is a change of the node', () => {
+    const shadows = [{ x: 0, y: 4, blur: 8, spread: 0, color: 0, alpha: 0.25 }];
+    const rs = resolveScene(parentScene(node({ id: 'a', shadows }), node({ id: 'b' }))).scene;
+    expect(rs.byId.get('a')?.shadows).toEqual(shadows);
+    expect(rs.byId.get('b')?.shadows).toBeUndefined();
+    const first = resolveScene(parentScene(node({ id: 'a', shadows }))).scene;
+    expect(resolveScene(parentScene(node({ id: 'a', shadows: [{ ...shadows[0]!, blur: 9 }] })), first).patch.changed).toEqual(['a']);
+    expect(resolveScene(parentScene(node({ id: 'a', shadows: [{ ...shadows[0]! }] })), first).patch.changed).toEqual([]);
+    expect(resolveScene(parentScene(node({ id: 'a' })), first).patch.changed).toEqual(['a']);
+  });
+
   it('adds the parent offset in parent space and keeps world space as given', () => {
     const p = resolveScene(parentScene(
       node({ id: 'f', kind: 'frame', x: 100, y: 50, w: 200, h: 100 }),
@@ -232,6 +243,36 @@ describe('capture box', () => {
   it('a hidden node adds nothing to the page', () => {
     const hidden = resolveScene(parentScene(node({ id: 'a', w: 10, h: 10 }), node({ id: 'b', x: 500, visible: false, border: border('outside', 20) }))).scene;
     expect(captureBounds(hidden)).toEqual({ x: 0, y: 0, w: 10, h: 10 });
+  });
+});
+
+describe('capture box with shadows', () => {
+  const sh = (o = {}) => ({ x: 0, y: 0, blur: 0, spread: 0, color: 0, alpha: 1, ...o });
+  const rs = resolveScene(parentScene(
+    node({ id: 'a', x: 100, y: 100, w: 50, h: 40, shadows: [sh({ y: 4, blur: 10 })] }),
+    node({ id: 'b', x: 300, y: 100, w: 50, h: 40, border: { width: 6, color: 1, alpha: 1, position: 'outside' }, shadows: [sh({ x: 20, spread: 2 })] }),
+    node({ id: 'c', x: 500, y: 100, w: 50, h: 40, shadows: [sh({ spread: -30, blur: 20 })] }),
+    node({ id: 'frame', kind: 'frame', x: 600, y: 100, w: 100, h: 100, clip: true }),
+    node({ id: 'in', parent: 'frame', x: 0, y: 0, w: 20, h: 20, shadows: [sh({ blur: 50 })] }),
+    node({ id: 'free', kind: 'frame', x: 800, y: 100, w: 100, h: 100 }),
+    node({ id: 'out', parent: 'free', x: 90, y: 0, w: 20, h: 20, shadows: [sh({ x: 30 })] }),
+  )).scene;
+
+  it('a node is captured with the reach of its shadows (offset, spread and blur), joined to the band of its border', () => {
+    expect(captureRectOf(rs, 'a')).toEqual({ x: 90, y: 94, w: 70, h: 60 });
+    expect(captureRectOf(rs, 'b')).toEqual({ x: 294, y: 94, w: 78, h: 52 });
+    // A shadow with nothing left of it adds nothing, and the rectangle that selects the node is never grown.
+    expect(captureRectOf(rs, 'c')).toEqual({ x: 500, y: 100, w: 50, h: 40 });
+    expect(rectsOf(rs, ['a'])[0]).toEqual({ x: 100, y: 100, w: 50, h: 40 });
+  });
+
+  it('the page is captured with the shadows of nodes at any depth, cut by a clipping ancestor and not by one that does not clip', () => {
+    const b = captureBounds(rs)!;
+    expect(b.x).toBe(90);
+    // `out` sits at the right edge of `free` (x 890) and casts 30 to the right: 890 + 20 + 30 = 940, past `free` at 900.
+    expect(b.x + b.w).toBe(940);
+    // The blur of `in` reaches 50 past the clipping `frame`, which cuts it: nothing above or left of the frame is in.
+    expect(b.y).toBe(94);
   });
 });
 

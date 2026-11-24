@@ -110,7 +110,7 @@ pub const NODE_FIELDS: &[FieldSupport] = &[
     row("fontWeight", R),
     row("textAlign", R),
     row("border", R),
-    row("shadows", NOT_DRAWN),
+    row("shadows", R),
     row("marT", FROM_LAYOUT),
     row("marR", FROM_LAYOUT),
     row("marB", FROM_LAYOUT),
