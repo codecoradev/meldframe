@@ -30,6 +30,8 @@ export interface SceneNode {
   h: number;
   /** `0xRRGGBB` of the node's own fill (document data, not a UI token); null for no fill. */
   fill: number | null;
+  /** The alpha of the fill's own colour, 0 to 1 (not the node's `opacity`, which fades the node and what is in it); absent means 1. */
+  fillAlpha?: number;
   /** Corner radius in world units. */
   radius?: number;
   /** Text content (kind 'text'). */
@@ -75,6 +77,8 @@ export interface ResolvedNode {
   lx: number;
   ly: number;
   fill: number | null;
+  /** The alpha of the fill's own colour, 0 to 1. */
+  fillAlpha: number;
   radius: number;
   text: string;
   fontSize: number;
@@ -112,7 +116,7 @@ function sameNode(a: ResolvedNode, b: ResolvedNode): boolean {
   return (
     a.parent === b.parent && a.kind === b.kind && a.depth === b.depth &&
     rectsEqual(a, b) && a.lx === b.lx && a.ly === b.ly &&
-    a.fill === b.fill && a.radius === b.radius && a.text === b.text && a.fontSize === b.fontSize && a.fontWeight === b.fontWeight && a.textAlign === b.textAlign &&
+    a.fill === b.fill && a.fillAlpha === b.fillAlpha && a.radius === b.radius && a.text === b.text && a.fontSize === b.fontSize && a.fontWeight === b.fontWeight && a.textAlign === b.textAlign &&
     a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) && sameImage(a.image, b.image) &&
     (a.clipRect === b.clipRect || (!!a.clipRect && !!b.clipRect && rectsEqual(a.clipRect, b.clipRect)))
   );
@@ -146,6 +150,7 @@ function resolveAll(scene: Scene): ResolvedNode[] {
         lx: parent ? wx - parent.x : wx,
         ly: parent ? wy - parent.y : wy,
         fill: n.fill,
+        fillAlpha: n.fillAlpha ?? 1,
         radius: n.radius ?? 0,
         text: n.text ?? '',
         fontSize: n.fontSize ?? 0,

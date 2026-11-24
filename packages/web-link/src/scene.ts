@@ -14,6 +14,8 @@ export interface PaintedBox {
   h: number;
   /** `0xRRGGBB`; null for no fill. */
   fill: number | null;
+  /** The alpha of the fill's own colour, 0 to 1; 1 when there is no fill. */
+  fillAlpha: number;
   radius: number;
   text: string;
   fontSize: number;
@@ -30,7 +32,7 @@ export interface PaintedBox {
 function toSceneNode(b: PaintedBox): SceneNode {
   const { gradient: g, image: i } = b;
   return {
-    id: b.id, parent: b.parent, kind: b.paint, x: b.x, y: b.y, w: b.w, h: b.h, fill: b.fill, radius: b.radius,
+    id: b.id, parent: b.parent, kind: b.paint, x: b.x, y: b.y, w: b.w, h: b.h, fill: b.fill, fillAlpha: b.fillAlpha, radius: b.radius,
     text: b.text, fontSize: b.fontSize, fontWeight: b.fontWeight, textAlign: b.textAlign, name: b.name, clip: b.clip, opacity: b.opacity,
     ...(g ? { gradient: { kind: g.kind, angle: g.angle, stops: g.stops.map(([pos, color]) => ({ pos, color })) } } : {}),
     ...(i ? { image: { assetId: i.assetId, fit: i.fit } } : {}),

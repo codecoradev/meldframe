@@ -131,7 +131,7 @@ export class WorldView {
     v.c.visible = n.visible;
     v.c.alpha = n.opacity;
     const geometry = first || prev.w !== n.w || prev.h !== n.h || prev.radius !== n.radius || prev.kind !== n.kind;
-    const fill = first || prev.fill !== n.fill || !sameGradient(prev.gradient, n.gradient) || !sameImage(prev.image, n.image);
+    const fill = first || prev.fill !== n.fill || prev.fillAlpha !== n.fillAlpha || !sameGradient(prev.gradient, n.gradient) || !sameImage(prev.image, n.image);
     if (n.kind === 'text') this.updateText(v, n, first || geometry || fill || prev.text !== n.text || prev.fontSize !== n.fontSize || prev.fontWeight !== n.fontWeight || prev.textAlign !== n.textAlign);
     else if (geometry || fill) this.updateBody(v, n);
     if (first || prev.clip !== n.clip || (n.clip && geometry)) this.updateMask(v, n);
@@ -175,6 +175,7 @@ export class WorldView {
       const { canvas, k } = paintBody({
         w: n.w, h: n.h, radius: n.radius,
         fill: n.fill === null ? null : `#${n.fill.toString(16).padStart(6, '0')}`,
+        fillAlpha: n.fillAlpha,
         gradient: n.gradient,
         image,
       });
@@ -193,6 +194,7 @@ export class WorldView {
         v.body = s;
       }
       s.tint = n.fill ?? 0;
+      s.alpha = n.fillAlpha;
       s.width = n.w;
       s.height = n.h;
       return;
@@ -204,7 +206,7 @@ export class WorldView {
       g.eventMode = 'none';
       v.body = g;
     }
-    g.clear().roundRect(0, 0, n.w, n.h, Math.min(n.radius, n.w / 2, n.h / 2)).fill(n.fill ?? 0);
+    g.clear().roundRect(0, 0, n.w, n.h, Math.min(n.radius, n.w / 2, n.h / 2)).fill({ color: n.fill ?? 0, alpha: n.fillAlpha });
   }
 
   private updateText(v: NodeView, n: ResolvedNode, redo: boolean): void {
@@ -219,6 +221,7 @@ export class WorldView {
       v.text.style = style;
     }
     // The block of lines is as wide as its widest line: put it where the alignment says in the box.
+    v.text.alpha = n.fillAlpha; // the alpha of the text's own colour; the container's alpha is the node's opacity
     v.text.x = alignOffset(n.textAlign, n.w, v.text.width);
   }
 

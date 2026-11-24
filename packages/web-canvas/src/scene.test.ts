@@ -24,6 +24,17 @@ describe('resolveScene', () => {
     expect(resolveScene(parentScene(node({ id: 'a', kind: 'text', fontWeight: 400 })), first).patch.changed).toEqual([]);
   });
 
+  it('resolves the alpha of a fill, opaque when the scene says nothing, and a change of it is a change of the node', () => {
+    const rs = resolveScene(parentScene(node({ id: 'a', fillAlpha: 0.5 }), node({ id: 'b' }))).scene;
+    expect(rs.byId.get('a')?.fillAlpha).toBe(0.5);
+    expect(rs.byId.get('b')?.fillAlpha).toBe(1);
+    // A fully transparent fill (`#00000000`) is alpha 0, not "none given".
+    expect(resolveScene(parentScene(node({ id: 'z', fillAlpha: 0 }))).scene.byId.get('z')?.fillAlpha).toBe(0);
+    const first = resolveScene(parentScene(node({ id: 'a', fillAlpha: 0.5 }))).scene;
+    expect(resolveScene(parentScene(node({ id: 'a', fillAlpha: 0.25 })), first).patch.changed).toEqual(['a']);
+    expect(resolveScene(parentScene(node({ id: 'a', fillAlpha: 0.5 })), first).patch.changed).toEqual([]);
+  });
+
   it('adds the parent offset in parent space and keeps world space as given', () => {
     const p = resolveScene(parentScene(
       node({ id: 'f', kind: 'frame', x: 100, y: 50, w: 200, h: 100 }),
