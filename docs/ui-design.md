@@ -60,7 +60,7 @@ This is the list QA checks the panel against: the table is what is built, and se
 | Appearance | Opacity; corner radius (frame, rectangle and shader; an ellipse and a text have none); Clip content (frames only) |
 | Text | Texts only: font size, font weight (the nine weights 100 to 900, a select) and text alignment (left, center, right) |
 | Fill | Type (solid, linear gradient, radial gradient, image, none; a text offers solid and none), a colour or the stops of a gradient, or the image picker (section 3.2a) |
-| Border | One uniform border: width in px (0 is no border), colour, and position (inside, center, outside) once the width is above 0 |
+| Border | One uniform border: width in px (0 is no border), colour, and position (inside, center, outside) and a Remove button (the minus after the position control) once the width is above 0; Remove sends the width command with 0, the same as typing 0 in the field and the same an agent sends, is one undo step (width, colour and position come back), and moves focus to the width field |
 | Shadow | Up to four, each with X, Y, blur, spread and colour, and a button to remove it; a button to add one |
 | Export | Below Properties, for one selected frame: PNG scale (1x or 2x) and Export as PNG, with the file name and the size in pixels shown before saving; HTML + Tailwind, which opens the dialog (Tailwind or plain CSS, preview, Copy, Download, and the PNG tab) |
 
@@ -75,10 +75,11 @@ Each item is recommended in decision 40 and waits for the owner. The one-line re
 | Grid layout (flow "grid", columns, rows) | `layout` is free, row or column; the layout core and the export have no grid, and the fidelity contract lists CSS grid as unsupported until the core and oracle fixtures exist | Its own epic box after W1: model fields, layout core, canvas, export rows and oracle fixtures |
 | Border per side, and the "sides" field | The border is one uniform width, colour and position; per-side border is unsupported in the fidelity contract | A contract change first, then model, canvas, export and oracle |
 | A visibility switch on a node, a border or a shadow, and a page-level visibility | The model has no visible field on a node, a border or a shadow, and no page-level fields | A model field with render, layout and export meaning: an ADR first |
-| A Remove button on the border | A width of 0 is no border and the width field takes 0, with the same command an agent sends; a shadow already has Remove | A small slice if QA finds 0 hard to find (one existing command) |
 | PNG scales other than 1x and 2x (0.5x to 4x) | 1x and 2x are what the E4.3 box was checked at; the area limit of 4096 x 4096 px refuses a large frame at the higher scales (a 1440 x 900 frame is over it at 4x) | A change of one constant in `packages/web-document/src/export.ts`, a check in a browser at each scale and the E4.3 text; no export crate change |
 | A file name field in Export | The file is named from the frame's name (rename the frame), the Tailwind style sheet has the name the HTML links, and the browser may offer its own name at save | Not planned |
 | Shader presets (`shader`, `fill2`) | The canvas draws a shader as its plain box and the export writes one gradient; section 6 leaves shader fills out | Not planned |
+
+Built from this list: the Remove button on the border (decision 40, item 3). It sends the width command with 0, so it needed no model field. The visibility switch of a border stays in the table.
 
 ### 3.2 Variables in fields
 
