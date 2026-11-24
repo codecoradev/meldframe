@@ -3,7 +3,7 @@
 // their parent's space (the resolved `lx`, `ly`), so a frame's clip mask and children follow it. Nodes take no
 // pointer events (the canvas hit-tests the scene model itself), and display objects are culled by hand.
 //
-// A node is a container with, back to front: its shadows (a layer with a part for each, with a blur filter when it has a blur, and the
+// A node is a container with, back to front: its shadows (a container with a part for each, with a blur filter when it has a blur, and the
 // node's box cut out of them as CSS does; not inside `content`, so the node's own clip does not cut them), its body, its text, `content` (the child nodes, which a clip
 // mask cuts) and its border ring (over the children, and not cut by the node's own clip: the export clips the border of a
 // clipping frame, the report says `border_clipped`, and the canvas does not).
@@ -19,7 +19,7 @@ import type { Camera } from '@meldframe/web-canvas/camera';
 import type { ResolvedNode, ResolvedScene, ScenePatch } from '@meldframe/web-canvas/scene';
 import { alignOffset } from '@meldframe/web-canvas/textstyle';
 import { drawStyle } from './pixitext';
-import { ShadowLayer } from './shadowparts';
+import { ShadowGroup } from './shadowparts';
 
 type Body = Sprite | Graphics;
 
@@ -27,7 +27,7 @@ interface NodeView {
   c: Container;
   node: ResolvedNode;
   /** Behind the body, first = bottom, with the box cut out; each part with its own blur filter when it has a blur. */
-  shadows: ShadowLayer | null;
+  shadows: ShadowGroup | null;
   body: Body | null;
   text: Text | null;
   /** Holds the child nodes, and the clip mask first; made when the node first needs it. */
@@ -170,8 +170,10 @@ export class WorldView {
     if (n.kind === 'text') this.updateText(v, n, first || geometry || fill || prev.text !== n.text || prev.fontSize !== n.fontSize || prev.fontWeight !== n.fontWeight || prev.textAlign !== n.textAlign);
     else if (geometry || fill) this.updateBody(v, n);
     if (first || prev.clip !== n.clip || (n.clip && geometry)) this.updateMask(v, n);
-    if (cast && (v.shadows || n.shadows?.length)) {
-      v.shadows ??= new ShadowLayer();
+    // A text node, and a box whose size is not a number, have no shadow to draw: no container is made for them.
+    const castable = n.kind !== 'text' && Number.isFinite(n.w) && Number.isFinite(n.h) && !!n.shadows?.length;
+    if (cast && (v.shadows || castable)) {
+      v.shadows ??= new ShadowGroup();
       if (v.shadows.paint(n, this.zoom)) {
         if (v.shadows.blurred) this.blurred.add(v);
         else this.blurred.delete(v);

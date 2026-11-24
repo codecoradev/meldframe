@@ -182,8 +182,10 @@ try {
   // The page frame is the one pure white area of the canvas: it gives the zoom and the origin, so the probes do not depend on the camera.
   const first = await look(page, await shotOf(page), { box: { rgb: WHITE, x0: 250, x1: 1440 * dpr - 250, y0: 40, y1: 860 * dpr - 20 } });
   assert.ok(first.found, 'the page frame was not found on the canvas');
-  const { x0, y0, x1 } = first.found;
+  const { x0, y0, x1, y1 } = first.found;
   const s = (x1 - x0) / 900;
+  // The frame is 900 x 780: a frame that is cropped (by the search area or the view) or shifted would give a wrong origin to every probe below.
+  assert.ok(Math.abs((y1 - y0) - 780 * s) <= 2 * dpr, `the page frame found on the canvas is ${x1 - x0} x ${y1 - y0} device px at (${x0}, ${y0}); a frame of 900 x 780 units at this scale is ${Math.round(780 * s)} high (cropped, or something else is as white as the page?)`);
   assert.ok(s > 0.3 * dpr && s < 3 * dpr, `the page frame was not found on the canvas (scale ${s})`);
   console.log(`camera zoom ${(s / dpr).toFixed(3)} at ${dpr}x`);
   const got = await page.evaluate(`(${sample})(${JSON.stringify({ points: probes.map(([, wx, wy]) => [x0 + wx * s, y0 + wy * s]) })})`);
@@ -201,7 +203,11 @@ try {
     let i = 0;
     for (const c of cssCases) for (const [wx, wy] of c.probes) {
       const d = Math.max(...have.points[i].map((v, j) => Math.abs(v - want.points[i][j])));
-      check(d <= BLUR_MAX, `blurred ${c.id} at (${wx}, ${wy}): canvas ${have.points[i].join(',')} css ${want.points[i].join(',')} (${d}/255; allowed ${BLUR_MAX})`);
+      // Inside the box the shadow is cut out, so the canvas is the fill over the page and has to be CSS's (4/255, as the hard probes); outside it the blur
+      // itself differs from CSS's, as in the other blur checks (20/255, 28 on a 2x screen).
+      const inside = wx >= c.x && wx <= c.x + c.w && wy >= c.y && wy <= c.y + c.h;
+      const tol = inside ? 4 : BLUR_MAX;
+      check(d <= tol, `blurred ${c.id} at (${wx}, ${wy}), ${inside ? 'inside' : 'outside'} the box: canvas ${have.points[i].join(',')} css ${want.points[i].join(',')} (${d}/255; allowed ${tol})`);
       i++;
     }
   }

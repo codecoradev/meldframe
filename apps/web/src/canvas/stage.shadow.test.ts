@@ -29,12 +29,12 @@ function drawn(g: Graphics) {
   return { style: data.style, x: s.x, y: s.y, w: s.width, h: s.height, r: s.radius };
 }
 const blurOf = (g: Graphics) => (g.filters as BlurFilter[] | null)?.[0];
-/** The layer of a node's shadows (the parts and the mask that cuts the box out of them), none when the node has no shadow. */
-const layerOf = (c: Container) => c.children.find((k) => k.label === 'shadows') as Container | undefined;
-/** The shadow parts of a node container: the Graphics of the layer, in order. */
-const shadowsOf = (c: Container) => (layerOf(c)?.children.filter((k) => k.label === 'shadow') ?? []) as Graphics[];
+/** The container of a node's shadows (the parts and the mask that cuts the box out of them), none when the node has no shadow. */
+const groupOf = (c: Container) => c.children.find((k) => k.label === 'shadows') as Container | undefined;
+/** The shadow parts of a node container: the Graphics of that container, in order. */
+const shadowsOf = (c: Container) => (groupOf(c)?.children.filter((k) => k.label === 'shadow') ?? []) as Graphics[];
 /** The halo containers of a node's blurred shadows (what the culling reads). */
-const halosOf = (c: Container) => layerOf(c)?.children.filter((k) => k.label === 'shadow-halo') ?? [];
+const halosOf = (c: Container) => groupOf(c)?.children.filter((k) => k.label === 'shadow-halo') ?? [];
 
 describe('WorldView draws the shadows of a node', () => {
   // A blur filter compiles its program against a test WebGL context, which a test in Node does not have: with none, Pixi falls back to a precision.
@@ -51,11 +51,11 @@ describe('WorldView draws the shadows of a node', () => {
     const { world } = draw(node({ id: 'a', shadows: [shadow({ color: 0xff0000 }), shadow({ color: 0x0000ff, alpha: 1 })] }));
     const c = top(world);
     const [s0, s1] = shadowsOf(c);
-    const layer = layerOf(c)!;
-    expect(layer.children.indexOf(s0!)).toBe(0);
-    expect(layer.children.indexOf(s1!)).toBe(1);
-    // The layer is the first part of the node, and the body (a sprite) is drawn over it.
-    expect(c.children.indexOf(layer)).toBe(0);
+    const group = groupOf(c)!;
+    expect(group.children.indexOf(s0!)).toBe(0);
+    expect(group.children.indexOf(s1!)).toBe(1);
+    // The container of the shadows is the first part of the node, and the body (a sprite) is drawn over it.
+    expect(c.children.indexOf(group)).toBe(0);
     expect(c.children[1]).not.toBeInstanceOf(Graphics);
     expect(drawn(s0!).style).toMatchObject({ color: 0xff0000, alpha: 0.5 });
     expect(drawn(s1!).style).toMatchObject({ color: 0x0000ff, alpha: 1 });
@@ -120,7 +120,7 @@ describe('WorldView draws the shadows of a node', () => {
     expect(shadowsOf(f)).toHaveLength(1);
     expect(shadowsOf(content)).toHaveLength(0);
     // [shadows, body, content]
-    expect(f.children.indexOf(layerOf(f)!)).toBeLessThan(f.children.indexOf(content));
+    expect(f.children.indexOf(groupOf(f)!)).toBeLessThan(f.children.indexOf(content));
     expect(content.children.map((c) => c.label)).toContain('k');
   });
 
@@ -239,9 +239,9 @@ describe('WorldView draws the shadows of a node', () => {
   });
 
   // The box is cut out of the shadows (issue 248): CSS draws no box-shadow inside the border box.
-  /** The shape of the mask of a node's shadow layer: the rectangle it fills and the hole cut out of it. */
+  /** The shape of the mask of a node's container of shadows: the rectangle it fills and the hole cut out of it. */
   const maskOf = (c: Container) => {
-    const g = layerOf(c)!.mask as Graphics;
+    const g = groupOf(c)!.mask as Graphics;
     const fills = g.context.instructions.filter((i) => i.action === 'fill');
     expect(fills).toHaveLength(1);
     const d = fills[0]!.data as unknown as { path: { shapePath: { shapePrimitives: { shape: RoundedRectangle }[] } }; hole?: { shapePath: { shapePrimitives: { shape: RoundedRectangle }[] } } };
@@ -249,13 +249,13 @@ describe('WorldView draws the shadows of a node', () => {
     return { outer: d.path.shapePath.shapePrimitives.map(shape), hole: d.hole?.shapePath.shapePrimitives.map(shape) };
   };
 
-  it('the shadow layer has a mask that is a rectangle holding every shadow and its halo, with the box cut out of it (the box, not the grown shape)', () => {
+  it('the container of the shadows has a mask that is a rectangle holding every shadow and its halo, with the box cut out of it (the box, not the grown shape)', () => {
     const { world } = draw(node({ id: 'a', radius: 10, shadows: [shadow({ x: 5, y: 5, blur: 8, spread: 2 }), shadow({ x: -30, y: 0, spread: 4 })] }));
     const c = top(world);
-    const layer = layerOf(c)!;
-    // The mask is a child of the layer, as a clip mask is of its content; it is not one of the parts.
-    expect(layer.mask).toBeTruthy();
-    expect(layer.children).toContain(layer.mask);
+    const group = groupOf(c)!;
+    // The mask is a child of the group, as a clip mask is of its content; it is not one of the parts.
+    expect(group.mask).toBeTruthy();
+    expect(group.children).toContain(group.mask);
     expect(shadowsOf(c)).toHaveLength(2);
     const { outer, hole } = maskOf(c);
     // The second shadow (hard: a margin of 2) starts at x = -30 - 4 = -34, so at -36; the first has a halo of 14 around (3, 3, 104, 64): from -11 to 121 and 81.
@@ -264,43 +264,72 @@ describe('WorldView draws the shadows of a node', () => {
     expect(hole).toMatchObject([{ x: 0, y: 0, w: 100, h: 60, r: 10 }]);
   });
 
-  it('the hole follows the box when it changes, and the layer is kept (a hard shadow too has the cut)', () => {
+  it('the hole follows the box when it changes, and the container is kept (a hard shadow too has the cut)', () => {
     const world = new WorldView();
     let prev = resolveScene(scene(node({ id: 'a', shadows: [shadow()] })));
     world.apply(prev.scene, prev.patch);
-    const layer = layerOf(top(world))!;
-    const mask = layer.mask;
+    const group = groupOf(top(world))!;
+    const mask = group.mask;
     expect(maskOf(top(world)).hole).toMatchObject([{ w: 100, h: 60, r: 0 }]);
     prev = resolveScene(scene(node({ id: 'a', w: 40, h: 30, radius: 99, shadows: [shadow()] })), prev.scene);
     world.apply(prev.scene, prev.patch);
-    expect(layerOf(top(world))).toBe(layer);
-    expect(layer.mask).toBe(mask);
+    expect(groupOf(top(world))).toBe(group);
+    expect(group.mask).toBe(mask);
     // The radius is held to half the smaller side, as the body does.
     expect(maskOf(top(world)).hole).toMatchObject([{ w: 40, h: 30, r: 15 }]);
   });
 
-  it('a box with no area has nothing to cut out: the layer has no mask', () => {
-    const { world } = draw(node({ id: 'z', w: 0, h: 40, shadows: [shadow({ spread: 6 })] }));
-    expect(shadowsOf(top(world))).toHaveLength(1);
-    expect(layerOf(top(world))!.mask).toBeFalsy();
+  it('the mask is a normal stencil mask, not an inverse one (an inverse mask lets pixels outside a clipping ancestor through)', () => {
+    const { world } = draw(node({ id: 'a', shadows: [shadow({ blur: 4 })] }));
+    const group = groupOf(top(world))!;
+    // `effects` is public: the mask of a Graphics is a stencil effect. The inverse flag has no public reader, so it is read from the
+    // container's `_maskOptions`, a private field of Pixi 8.23 (what its stencil pipe reads).
+    expect((group.effects ?? []).map((e) => (e as unknown as { pipe: string }).pipe)).toContain('stencilMask');
+    expect((group as unknown as { _maskOptions: { inverse: boolean } })._maskOptions.inverse).toBe(false);
   });
 
-  it('a node with a shadow has the layer; one without has none, and the layer, its mask and its parts go with the shadows and with the node', () => {
+  it('a shadow wholly inside the box (a negative spread) still has one rectangle with one hole, and the hole is strictly inside the rectangle', () => {
+    const { world } = draw(node({ id: 'n', w: 100, h: 60, shadows: [shadow({ x: 0, y: 0, spread: -10 })] }));
+    expect(shadowsOf(top(world))).toHaveLength(1);
+    const { outer, hole } = maskOf(top(world));
+    expect(outer).toHaveLength(1);
+    expect(hole).toHaveLength(1);
+    expect(hole).toMatchObject([{ x: 0, y: 0, w: 100, h: 60 }]);
+    // Grown by 1 unit at least on each side: the rectangle is never the hole.
+    expect(outer).toMatchObject([{ x: -1, y: -1, w: 102, h: 62 }]);
+  });
+
+  it('a box whose size is not a number has no container of shadows; a box with no width keeps its shadow and has no mask', () => {
+    const w = new WorldView();
+    const r = resolveScene(scene(node({ id: 'n', w: NaN, shadows: [shadow()] }), node({ id: 'z', w: 0, h: 40, shadows: [shadow({ spread: 6 })] })));
+    w.apply(r.scene, r.patch);
+    expect(groupOf(top(w, 0))).toBeUndefined();
+    expect(shadowsOf(top(w, 1))).toHaveLength(1);
+    expect(groupOf(top(w, 1))!.mask).toBeFalsy();
+  });
+
+  it('a box with no area has nothing to cut out: the container of its shadows has no mask', () => {
+    const { world } = draw(node({ id: 'z', w: 0, h: 40, shadows: [shadow({ spread: 6 })] }));
+    expect(shadowsOf(top(world))).toHaveLength(1);
+    expect(groupOf(top(world))!.mask).toBeFalsy();
+  });
+
+  it('a node with a shadow has a container for them; one without has none, and the container, its mask and its parts go with the shadows and with the node', () => {
     const world = new WorldView();
     let prev = resolveScene(scene(node({ id: 'a' }), node({ id: 'b', shadows: [shadow({ blur: 5 })] })));
     world.apply(prev.scene, prev.patch);
-    expect(layerOf(top(world, 0))).toBeUndefined();
-    const layer = layerOf(top(world, 1))!;
-    const mask = layer.mask as Graphics;
+    expect(groupOf(top(world, 0))).toBeUndefined();
+    const group = groupOf(top(world, 1))!;
+    const mask = group.mask as Graphics;
     const part = shadowsOf(top(world, 1))[0]!;
     prev = resolveScene(scene(node({ id: 'a' }), node({ id: 'b' })), prev.scene);
     world.apply(prev.scene, prev.patch);
-    expect(layerOf(top(world, 1))).toBeUndefined();
-    expect([layer.destroyed, mask.destroyed, part.destroyed]).toEqual([true, true, true]);
+    expect(groupOf(top(world, 1))).toBeUndefined();
+    expect([group.destroyed, mask.destroyed, part.destroyed]).toEqual([true, true, true]);
     // And with the node.
     prev = resolveScene(scene(node({ id: 'a' }), node({ id: 'b', shadows: [shadow()] })), prev.scene);
     world.apply(prev.scene, prev.patch);
-    const l2 = layerOf(top(world, 1))!;
+    const l2 = groupOf(top(world, 1))!;
     const m2 = l2.mask as Graphics;
     prev = resolveScene(scene(node({ id: 'a' })), prev.scene);
     world.apply(prev.scene, prev.patch);

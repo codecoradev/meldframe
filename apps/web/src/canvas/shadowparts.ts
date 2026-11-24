@@ -1,10 +1,10 @@
 // The shadows of a node as Pixi parts: one Graphics for each shadow, in the model's order, with a blur filter when the
-// shadow has a blur, in a layer of their own that is masked so that the node's own box is cut out of them. Kept out of `stage.ts`,
-// which places the layer. The shape is `shadowShape` (the rule of a CSS `box-shadow`).
+// shadow has a blur, in a container of their own that is masked so that the node's own box is cut out of them. Kept out of `stage.ts`,
+// which places the container. The shape is `shadowShape` (the rule of a CSS `box-shadow`).
 //
-// CSS draws no `box-shadow` inside the border box, so the layer has a stencil mask whose shape is a rectangle that holds every
+// CSS draws no `box-shadow` inside the border box, so that container has a stencil mask whose shape is a rectangle that holds every
 // shadow with its blur, with the box (its rounded rectangle) cut out as a hole (the same cut as the border ring). The stencil is
-// applied where the layer's filtered parts are composited, that is after the blur: a hole in the shape before the blur would blur
+// applied where the filtered parts are composited, that is after the blur: a hole in the shape before the blur would blur
 // the hole. A mask that is not inverse is the one that nests under the stencil of a clipping ancestor (Pixi's inverse mask lets
 // pixels outside the ancestor's clip through).
 //
@@ -51,7 +51,7 @@ function dropPart(p: ShadowPart): void {
 }
 
 /** The shadows of one node: the container that goes in the node, the parts in it and the mask that cuts the box out of them. */
-export class ShadowLayer {
+export class ShadowGroup {
   readonly c = new Container({ label: 'shadows' });
   parts: ShadowPart[] = [];
   private cut: Graphics | null = null;
@@ -60,7 +60,7 @@ export class ShadowLayer {
     this.c.eventMode = 'none';
   }
 
-  /** Whether a part has a blur (the layer then needs its filters tuned to the zoom). */
+  /** Whether a part has a blur (its filters then need tuning to the zoom). */
   get blurred(): boolean {
     return this.parts.some((p) => p.blur > 0);
   }
@@ -80,7 +80,7 @@ export class ShadowLayer {
     this.c.destroy();
   }
 
-  /** Draws the shadows of `n` again, reusing the parts and filters that fit: the same count and order draws into the same Graphics. False when `n` has none to draw (the layer is then to be destroyed). */
+  /** Draws the shadows of `n` again, reusing the parts and filters that fit: the same count and order draws into the same Graphics. False when `n` has none to draw (the group is then to be destroyed). */
   paint(n: ResolvedNode, zoom: number): boolean {
     const finite = Number.isFinite(n.w) && Number.isFinite(n.h);
     const shapes = n.kind === 'text' || !finite
@@ -136,8 +136,8 @@ export class ShadowLayer {
   }
 
   /**
-   * Cuts the box of `n` out of the layer: the mask is a rectangle that holds the box, every shadow and its halo, with the box's rounded
-   * rectangle (its radius as the body draws it) cut out. A box with no area has nothing to cut out, and then the layer has no mask.
+   * Cuts the box of `n` out of the container of the shadows: the mask is a rectangle that holds the box, every shadow and its halo, with the box's rounded
+   * rectangle (its radius as the body draws it) cut out. A box with no area has nothing to cut out, and then the container has no mask.
    */
   private cutBox(n: ResolvedNode, shapes: readonly { shape: ShadowShape; halo: number }[]): void {
     if (!(n.w > 0 && n.h > 0)) {
@@ -146,10 +146,12 @@ export class ShadowLayer {
       this.cut = null;
       return;
     }
-    let x0 = 0;
-    let y0 = 0;
-    let x1 = n.w;
-    let y1 = n.h;
+    // Start from the box grown by 1 unit, so that the hole lies strictly inside the rectangle (a rectangle that equals its hole is a degenerate
+    // input for the triangulation); then grow to hold every drawn shadow and its halo, uncapped as the drawing is.
+    let x0 = -1;
+    let y0 = -1;
+    let x1 = n.w + 1;
+    let y1 = n.h + 1;
     for (const { shape: sh, halo } of shapes) {
       x0 = Math.min(x0, sh.x - halo);
       y0 = Math.min(y0, sh.y - halo);
