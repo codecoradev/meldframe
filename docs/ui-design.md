@@ -1,6 +1,6 @@
 # Editor UI design
 
-Status: **draft for owner review** (16 Nov 2026). `[D]` = decided by the owner on 16 Nov 2026, `[P]` = proposed, `[Q]` = open question. Related: `decisions.md` #27 to #32 and #40, `collab-ux.md`, `tokens-and-variables.md` section 10, ADR-0008.
+Status: **draft for owner review** (16 Nov 2026). `[D]` = decided by the owner on 16 Nov 2026 (section 3.1a: on 24 Nov 2026, decision 40), `[P]` = proposed, `[Q]` = open question. Related: `decisions.md` #27 to #32 and #40, `collab-ux.md`, `tokens-and-variables.md` section 10, ADR-0008.
 
 This is a design note, not product code. It records what the first design pass of the editor looks like and why, so the web front end (E1.6, E3.4, E5.1) and a later desktop front end build the same thing. The pictures live in the design canvas "Meldframe UI/UX" (private); this page keeps the decisions. Wonder was the reference for layout and mood, studied from the owner's screenshots and recordings. Nothing is copied: names, accent colour and several features differ.
 
@@ -48,7 +48,7 @@ The panel has two tabs, Design and Activity (section 4). On the Design tab, sect
 
 ### 3.1 Properties fields
 
-This is the list QA checks the panel against: the table is what is built, and section 3.1a is what is not in W1 and will not be found in the panel. A control that appears from 3.1a, or a row of the table that is missing, is a defect or a change of scope that needs the decision named there (`decisions.md` #40, proposed).
+This is the list QA checks the panel against: the table is what is built, and section 3.1a is what is not in W1 and will not be found in the panel. A control that appears from 3.1a, or a row of the table that is missing, is a defect or a change of scope that needs the decision named there (`decisions.md` #40, decided by the owner on 24 Nov 2026).
 
 | Section | Fields (built) |
 |---|---|
@@ -60,25 +60,25 @@ This is the list QA checks the panel against: the table is what is built, and se
 | Appearance | Opacity; corner radius (frame, rectangle and shader; an ellipse and a text have none); Clip content (frames only) |
 | Text | Texts only: font size, font weight (the nine weights 100 to 900, a select) and text alignment (left, center, right) |
 | Fill | Type (solid, linear gradient, radial gradient, image, none; a text offers solid and none), a colour or the stops of a gradient, or the image picker (section 3.2a) |
-| Border | One uniform border: width in px (0 is no border), colour, and position (inside, center, outside) once the width is above 0 |
+| Border | One uniform border: width in px (0 is no border) and colour. Once the width is above 0 it also has the position (inside, center, outside) and a Remove button (the minus after the position control). Remove sends the width command with 0, the same as typing 0 in the field and the same an agent sends, is one undo step (width, colour and position come back), and moves focus to the width field |
 | Shadow | Up to four, each with X, Y, blur, spread and colour, and a button to remove it; a button to add one |
-| Export | Below Properties, for one selected frame: PNG scale (1x or 2x) and Export as PNG, with the file name and the size in pixels shown before saving; HTML + Tailwind, which opens the dialog (Tailwind or plain CSS, preview, Copy, Download, and the PNG tab) |
+| Export | Below Properties, for one selected frame: PNG scale (0.5x, 1x, 2x, 3x or 4x) and Export as PNG, with the file name and the size in pixels shown before saving (a scale whose image would pass the 4096 x 4096 px area limit cannot be exported: the section says the size it would have and the largest scale that fits); HTML + Tailwind, which opens the dialog (Tailwind or plain CSS, preview, Copy, Download, and the PNG tab) |
 
 The fields follow the round 2 model (E3.2): margin, per-side padding, gradients, opacity and no fill. Layout changes its fields with the direction. A variable button sits at the end of the Fill colour row and on the caption row of Opacity and Corner radius, the three fields that can be bound; border and shadow colours take a literal only. An agent can set the same fields with `apply_commands`, and a panel control and the tool share one command.
 
-### 3.1a Not in W1 `[P]`
+### 3.1a Not in W1 `[D]`
 
-Each item is recommended in decision 40 and waits for the owner. The one-line reason is the same in every case: the model, the canvas or the export would have to change first, and the panel only dispatches what the model already holds (principle 3).
+Each item is decided in decision 40 (owner approval, 24 Nov 2026), and each that has a next step has its follow-up issue, named in the last column. The one-line reason is the same in every case: the model, the canvas or the export would have to change first, and the panel only dispatches what the model already holds (principle 3).
 
 | Not in the panel | Why | What it would take |
 |---|---|---|
-| Grid layout (flow "grid", columns, rows) | `layout` is free, row or column; the layout core and the export have no grid, and the fidelity contract lists CSS grid as unsupported until the core and oracle fixtures exist | Its own epic box after W1: model fields, layout core, canvas, export rows and oracle fixtures |
-| Border per side, and the "sides" field | The border is one uniform width, colour and position; per-side border is unsupported in the fidelity contract | A contract change first, then model, canvas, export and oracle |
-| A visibility switch on a node, a border or a shadow, and a page-level visibility | The model has no visible field on a node, a border or a shadow, and no page-level fields | A model field with render, layout and export meaning: an ADR first |
-| A Remove button on the border | A width of 0 is no border and the width field takes 0, with the same command an agent sends; a shadow already has Remove | A small slice if QA finds 0 hard to find (one existing command) |
-| PNG scales other than 1x and 2x (0.5x to 4x) | 1x and 2x are what the E4.3 box was checked at; the area limit of 4096 x 4096 px refuses a large frame at the higher scales (a 1440 x 900 frame is over it at 4x) | A change of one constant in `packages/web-document/src/export.ts`, a check in a browser at each scale and the E4.3 text; no export crate change |
+| Grid layout (flow "grid", columns, rows) | `layout` is free, row or column; the layout core and the export have no grid, and the fidelity contract lists CSS grid as unsupported until the core and oracle fixtures exist | Its own epic box after W1: model fields, layout core, canvas, export rows and oracle fixtures (#271) |
+| Border per side, and the "sides" field | The border is one uniform width, colour and position; per-side border is unsupported in the fidelity contract | A contract change first, then model, canvas, export and oracle (#270) |
+| A visibility switch on a node, a border or a shadow, and a page-level visibility | The model has no visible field on a node, a border or a shadow, and no page-level fields | A model field with render, layout and export meaning: an ADR first (#269) |
 | A file name field in Export | The file is named from the frame's name (rename the frame), the Tailwind style sheet has the name the HTML links, and the browser may offer its own name at save | Not planned |
 | Shader presets (`shader`, `fill2`) | The canvas draws a shader as its plain box and the export writes one gradient; section 6 leaves shader fills out | Not planned |
+
+Built after the owner approved decision 40 on 24 Nov 2026, as the small later slice of item 3 (issue #267): the Remove button on the border. It sends the width command with 0, so it needed no model field. The visibility switch of a border stays in the table.
 
 ### 3.2 Variables in fields
 

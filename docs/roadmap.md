@@ -48,7 +48,7 @@ See `docs/decisions.md` (items 1 to 14 and 20 to 26), the working defaults in `d
 
 ## Out of scope
 
-Live multi-human collaboration; HTML import; Figma import; PPTX; Flutter and Dart; marketplace of variables or templates.
+Live multi-human collaboration; HTML import, except the scoped importer of decision 41 (E4.4, `docs/import-html.md`); `import_webpage` (a server that fetches a URL), Figma import and PSD import; the later decisions of slice 9 of `docs/import-html.md` (HTML of more than 100 nodes in parts, `data:` images, binding to Variables, Tailwind's standard scale, an Import HTML dialog in the app); PPTX; Flutter and Dart; marketplace of variables or templates.
 
 ## Follow-ups from E1.1 (14 Nov 2026)
 
@@ -74,7 +74,7 @@ Counted from the acceptance-criteria boxes in `docs/epics.md` (a box is ticked o
 | M1 Connected skeleton | 29 | 29 | 100% | nothing open in M1: the demonstration runs with Claude Code as the MCP client in the real browser editor (step 6 keeps its decision column for the M2 call log) |
 | M2 Platform and agent identity | 4 | 13 | 31% | E2.3 (every table has its workspace test, quotas survive a restart) and E2.5 assets are in; E2.1, E2.2 and the grant, risk-tier answer and revocation parts of E2.4 wait for Gatehouse; the release rule for development tokens is partial (the override `MELDFRAME_ALLOW_DEV_TOKENS=1` remains) |
 | M3 Model round 2 and variables | 12 | 13 | 92% | E3.1, E3.2, E3.3, E3.4 and E3.5 are in except one box: the real Uteke Cloud theme as the import corpus (the owner supplies the file) |
-| M4 Export and fidelity | 5 | 6 | 83% | E4.1, E4.2 and E4.3 are in except one box: probes for gradients, variable-bound fields and no fill (E4.1, every M3 property); the oracle is green on pull requests and nightly but not yet a required check (owner action) |
+| M4 Export and fidelity | 5 | 6 | 83% | E4.1, E4.2 and E4.3 are in except one box: probes for gradients, variable-bound fields and no fill (E4.1, every M3 property); the oracle is green on pull requests and nightly but not yet a required check (owner action); E4.4 HTML import (decision 41) is added since, ordered and not built yet, and its five boxes are not in these counts |
 | M5 Agent review and design quality | 3 | 8 | 38% | E5.4 and E5.5 are in; E5.1, E5.2 and E5.3 are built and wait for the real Claude Code run (owner, `m1-claude-demo.mjs` with two tokens); the server-kept checkpoints of ADR-0023 are the open part of E5.3 |
 | M6 V2 and the W1 gate | 0 | 4 | 0% | not started |
 | Total | 68 | 88 | 77% | |

@@ -1,0 +1,20 @@
+[package]
+name = "meldframe-css"
+description = "CSS value readers shared by the importers: a colour (hex, rgb, hsl, oklch, oklab, keyword, channel triplet) to the hex the model stores, and a length (px, rem, bare number) to pixels. Text in, a description out; nothing is evaluated."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dev-dependencies]
+# The tests run under WASM through wasm-bindgen-test (`just wasm-test`); each test file
+# imports it as `test` on wasm32 only. Keep the version in step with the `wasm-bindgen-cli` that
+# provides `wasm-bindgen-test-runner` (0.2.130 pairs with 0.3.80).
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
+
+[lints]
+workspace = true

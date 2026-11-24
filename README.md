@@ -9,7 +9,7 @@ Status: pre-alpha. This repository starts from a set of validated spikes (Rust c
 - Web editor plus an MCP server so external agents (Claude Code, Cursor, Codex) can design on the canvas.
 - One `Command` model shared by UI, WebSocket ops, MCP tools and undo.
 - Design tokens (variables) rendered on the canvas and exported as CSS variables.
-- Export first (HTML/Tailwind, PNG). Import is deferred.
+- Export first (HTML/Tailwind, PNG). Import is variables, plus a scoped HTML importer that is ordered and not built yet (decision 41).
 
 Carousel, slides and motion are planned extensions and are on hold until the core above is solid.
 
@@ -24,7 +24,7 @@ Carousel, slides and motion are planned extensions and are on hold until the cor
 - [docs/owner-questionnaire.md](docs/owner-questionnaire.md): questions for the owner.
 - [docs/decisions.md](docs/decisions.md): decision register. [docs/concept.md](docs/concept.md): original concept.
 - The token loop, with runnable examples: [docs/tokens-and-code.md](docs/tokens-and-code.md).
-- HTML import (code to design), spike note and proposed `import_html`: [docs/import-html.md](docs/import-html.md).
+- HTML import (code to design), the plan of record for E4.4 and the proposed `import_html`: [docs/import-html.md](docs/import-html.md).
 
 ## Run locally
 

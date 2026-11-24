@@ -16,6 +16,8 @@ const addButton = (out: string) => out.match(/<button[^>]*data-testid="prop-shad
 const addDisabled = (out: string) => /\sdisabled(?=[\s=>])/.test(addButton(out));
 const html = (properties: Properties) => render(TestHost as never, { props: { of: PropertiesPanel, props: { properties, picker: null, selected: 1, dispatch: () => {} } } as never }).body;
 
+const removeButton = (out: string) => out.match(/<button[^>]*data-testid="prop-border-remove"[^>]*>/)?.[0];
+
 describe('the Border and Shadow sections as the boards draw them', () => {
   it('comes after Fill, in the order Fill, Border, Shadow', () => {
     const out = html(base);
@@ -30,6 +32,17 @@ describe('the Border and Shadow sections as the boards draw them', () => {
     const out = html({ ...base, border: { width: 2, color: '#ff0000', position: 'outside' } });
     expect(out).toContain('aria-label="Border position"');
     expect(checked(out, 'Border position')).toEqual(['Outside']);
+  });
+  it('has a Remove border button only while the border width is above 0, named, 24 px and after the position control', () => {
+    expect(html(base)).not.toContain('prop-border-remove');
+    expect(html(base)).not.toContain('Remove border');
+    expect(html({ ...base, border: { width: 0.5, color: '#ff0000', position: 'inside' } })).toContain('data-testid="prop-border-remove"');
+    const out = html({ ...base, border: { width: 2, color: '#ff0000', position: 'outside' } });
+    const button = removeButton(out)!;
+    expect(button).toContain('aria-label="Remove border"');
+    expect(button).toContain('size-(--mf-size-control-sm)');
+    expect(out.indexOf('aria-label="Border position"')).toBeLessThan(out.indexOf('data-testid="prop-border-remove"'));
+    expect(out.match(/data-testid="prop-border-remove"/g)).toHaveLength(1);
   });
   it('has a row for each shadow with its four numbers, a colour and a remove button, and an add button', () => {
     const out = html({ ...base, shadows: [shadow, { ...shadow, blur: 20 }] });
