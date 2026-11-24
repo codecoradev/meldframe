@@ -20,6 +20,7 @@
   import PlacementSection from './PlacementSection.svelte';
   import ShadowSection from './ShadowSection.svelte';
   import SizeModes from './SizeModes.svelte';
+  import TextStyle from './TextStyle.svelte';
 
   interface Props {
     properties: Properties | null;
@@ -116,6 +117,7 @@
       {#if has.fontSize}
         <Section title="Text">
           <Field label="Font size" suffix="px" value={round(p.fontSize)} onCommit={prop(p, 'fontSize')} testId="prop-fontSize" />
+          {#if has.typography}<TextStyle properties={p} {dispatch} />{/if}
         </Section>
       {/if}
       <FillSection properties={p} {picker} {assets} {dispatch} {chip} />

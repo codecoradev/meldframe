@@ -12,6 +12,7 @@ import type { NodeKind } from "./NodeKind";
 import type { Shadow } from "./Shadow";
 import type { Sides } from "./Sides";
 import type { SizeMode } from "./SizeMode";
+import type { TextAlign } from "./TextAlign";
 
 /**
  * The editable values of the selected node.
@@ -98,6 +99,10 @@ positionLocked: boolean,
  * Settings that have no effect where the node is, in the order of the fields.
  */
 notes: Array<LayoutNote>, text: string, fontSize: number, 
+/**
+ * The weight (100 to 900 in steps of 100) and the alignment of a text; none for any other kind of node.
+ */
+fontWeight?: number, textAlign?: TextAlign, 
 /**
  * Opacity as painted, 0 to 1 (a bound field: what the variable resolves to, held to that range).
  */

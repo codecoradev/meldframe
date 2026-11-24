@@ -36,12 +36,20 @@ pub fn property_patch(
     if frame_only && node.kind != NodeKind::Frame {
         return Err("invalid");
     }
+    // Only a text has a weight and an alignment: the canvas and the export draw them for no other kind.
+    if matches!(property, Property::FontWeight(_) | Property::TextAlign(_))
+        && node.kind != NodeKind::Text
+    {
+        return Err("invalid");
+    }
     let mut patch = NodePatch::default();
     match property {
         Property::Name(v) => patch.name = Some(v),
         Property::Fill(v) => patch.fill = Some(v.into()),
         Property::Radius(v) => patch.radius = Some(v.into()),
         Property::FontSize(v) => patch.font_size = Some(v),
+        Property::FontWeight(v) => patch.font_weight = Some(v),
+        Property::TextAlign(v) => patch.text_align = Some(v),
         Property::Opacity(v) => patch.opacity = Some(v.into()),
         Property::Clip(v) => patch.clip = Some(v),
         Property::FillType(kind) => {

@@ -8,7 +8,7 @@ use crate::layout::{LayoutNote, Sides};
 use crate::variables::{BindField, Picker, VariablesPanel};
 use crate::variables_io::VariablesIo;
 use meldframe_protocol::{
-    Align, Border, Gradient, ImageFill, Justify, LayoutMode, NodeKind, Shadow, SizeMode,
+    Align, Border, Gradient, ImageFill, Justify, LayoutMode, NodeKind, Shadow, SizeMode, TextAlign,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -225,6 +225,13 @@ pub struct Properties {
     pub notes: Vec<LayoutNote>,
     pub text: String,
     pub font_size: f64,
+    /// The weight (100 to 900 in steps of 100) and the alignment of a text; none for any other kind of node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub font_weight: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub text_align: Option<TextAlign>,
     /// Opacity as painted, 0 to 1 (a bound field: what the variable resolves to, held to that range).
     pub opacity: f64,
     /// Whether a frame cuts off what is drawn outside it.

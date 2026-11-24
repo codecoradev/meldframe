@@ -1,6 +1,6 @@
 import type { Properties } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { boxAction, bindingOf, clipAction, fieldsOf, percent, propertyAction, unbindAction } from './properties';
+import { boxAction, bindingOf, clipAction, fieldsOf, FONT_WEIGHTS, fontWeightAction, percent, propertyAction, TEXT_ALIGNS, textAlignAction, unbindAction } from './properties';
 
 const p: Properties = { id: 'n', name: 'Box', kind: 'rect', x: 10, y: 20, w: 100, h: 50, fill: '#112233', fillKind: 'solid', gradientAllowed: true, imageAllowed: true, minStops: 2, maxStops: 8, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], maxShadows: 4, radius: 4, layout: 'none', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, margin: { top: 0, right: 0, bottom: 0, left: 0 }, sw: 'fixed', sh: 'fixed', align: 'start', justify: 'start', absolute: false, inLayout: false, positionLocked: false, notes: [], text: '', fontSize: 16, opacity: 1, clip: true, bound: [], bindings: [] };
 
@@ -83,6 +83,29 @@ describe('clipAction', () => {
   });
 });
 
+describe('the weight and the alignment of a text', () => {
+  const t: Properties = { ...p, kind: 'text', fontWeight: 400, textAlign: 'left' };
+  it('offers the nine weights the model takes, 100 to 900 in steps of 100, and the three alignments it takes', () => {
+    expect(FONT_WEIGHTS.map((w) => w.value)).toEqual(['100', '200', '300', '400', '500', '600', '700', '800', '900']);
+    expect(FONT_WEIGHTS.find((w) => w.value === '400')?.label).toBe('Regular');
+    expect(FONT_WEIGHTS.find((w) => w.value === '700')?.label).toBe('Bold');
+    expect(TEXT_ALIGNS.map((a) => a.value)).toEqual(['left', 'center', 'right']);
+  });
+  it('sets the weight chosen as the one setProperty the app layer turns into an updateNode patch', () => {
+    expect(fontWeightAction(t, '700')).toEqual({ type: 'setProperty', id: 'n', property: { property: 'fontWeight', value: 700 } });
+  });
+  it('sends nothing for the weight it has, for a weight the model does not take, or for a node that is no text', () => {
+    expect(fontWeightAction(t, '400')).toBeNull();
+    for (const raw of ['', 'bold', '450', '0', '1000', '-100']) expect(fontWeightAction(t, raw), raw).toBeNull();
+    expect(fontWeightAction(p, '700')).toBeNull();
+  });
+  it('sets the alignment chosen and sends nothing for the one it has or for a node that is no text', () => {
+    expect(textAlignAction(t, 'center')).toEqual({ type: 'setProperty', id: 'n', property: { property: 'textAlign', value: 'center' } });
+    expect(textAlignAction(t, 'left')).toBeNull();
+    expect(textAlignAction(p, 'center')).toBeNull();
+  });
+});
+
 describe('bindings', () => {
   const bound: Properties = { ...p, bound: ['fill'], bindings: [{ field: 'fill', variable: 'v1', name: 'color/brand', missing: false }] };
   it('finds the variable a field holds', () => {
@@ -97,9 +120,9 @@ describe('bindings', () => {
 
 describe('fieldsOf', () => {
   it('offers the fields a kind of node has', () => {
-    expect(fieldsOf('frame')).toEqual({ radius: true, clip: true, fontSize: false, layout: true });
-    expect(fieldsOf('rect')).toEqual({ radius: true, clip: false, fontSize: false, layout: false });
-    expect(fieldsOf('ellipse')).toEqual({ radius: false, clip: false, fontSize: false, layout: false });
-    expect(fieldsOf('text')).toEqual({ radius: false, clip: false, fontSize: true, layout: false });
+    expect(fieldsOf('frame')).toEqual({ radius: true, clip: true, fontSize: false, typography: false, layout: true });
+    expect(fieldsOf('rect')).toEqual({ radius: true, clip: false, fontSize: false, typography: false, layout: false });
+    expect(fieldsOf('ellipse')).toEqual({ radius: false, clip: false, fontSize: false, typography: false, layout: false });
+    expect(fieldsOf('text')).toEqual({ radius: false, clip: false, fontSize: true, typography: true, layout: false });
   });
 });
