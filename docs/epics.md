@@ -131,6 +131,7 @@ Goal: real users, tenants and agents (decisions 10 to 12; ADR-0006, ADR-0010).
 
 ### E2.2 MCP OAuth through Gatehouse (M)
 First platform slice (risk R9).
+Until it lands, `docs/quickstart-agent.md` connects an agent to a local server with a development token.
 - [ ] Claude Code connects to the MCP endpoint through an OAuth flow with Gatehouse and acts as an authorised agent of the signed-in user.
 - [ ] The client type and scopes chosen in the questionnaire are documented in an ADR.
 
