@@ -91,7 +91,7 @@
       {#if preview.total > preview.lines.length}
         <p class="m-0 text-caption text-text-muted" data-testid="export-cut">Showing the first {preview.lines.length} of {preview.total} lines. Copy and Download take all of it.</p>
       {/if}
-      <p class="m-0 text-caption text-text-muted">The HTML uses the Inter font file inter.woff2 beside it{dialog.format === 'tailwind' ? `, and links ${plain(dialog.cssFile)}, the input of the Tailwind v4 compiler` : ''}. Text sizes are estimated here, not measured in a browser, so a text can break differently there.</p>
+      <p class="m-0 text-caption text-text-muted">The HTML uses the Inter font file inter.woff2 beside it{dialog.format === 'tailwind' ? `, and links ${plain(dialog.cssFile)}, the input of the Tailwind v4 compiler` : ''}. Text sizes are measured in this browser, with the font the canvas draws, so they are the sizes the canvas lays text out with. The exported page is laid out by the browser that opens it: a text with a tab, a link or CJK characters can break differently there (Warnings names the ones it detects), and any text can if the Inter file is missing.</p>
     {/if}
     {@render report('Unsupported properties', findingRows(dialog.unsupported), 'Left out or approximated. Your file is unchanged.', 'export-unsupported')}
     {@render report('Warnings', findingRows(dialog.warnings), 'Your file is unchanged.', 'export-warnings')}
