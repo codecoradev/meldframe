@@ -10,15 +10,15 @@
 //
 // The canvas draws what it is given: no layout, no editor rules (clamping, snapping, constraints) live here.
 import { containsPoint, intersectRects, rectsEqual, unionRects, type Rect } from './geometry';
-import { borderReach, sameBorder, type SceneBorder } from './border';
-import { sameGradient, type SceneGradient } from './gradient';
-import { sameImage, type SceneImage } from './image';
-import { sameShadows, shadowBounds, type SceneShadow } from './shadow';
+import { borderReach, sameBorder, type SceneBorder } from '@meldframe/web-paint/border';
+import { sameGradient, type SceneGradient } from '@meldframe/web-paint/gradient';
+import { sameImage, type SceneImage } from '@meldframe/web-paint/image';
+import { sameShadows, shadowBounds, type SceneShadow } from '@meldframe/web-paint/shadow';
 
-export type { SceneBorder, SceneBorderPosition } from './border';
-export type { SceneGradient } from './gradient';
-export type { SceneImage, SceneImageFit } from './image';
-export type { SceneShadow } from './shadow';
+export type { SceneBorder, SceneBorderPosition } from '@meldframe/web-paint/border';
+export type { SceneGradient } from '@meldframe/web-paint/gradient';
+export type { SceneImage, SceneImageFit } from '@meldframe/web-paint/image';
+export type { SceneShadow } from '@meldframe/web-paint/shadow';
 export type NodeKind = 'frame' | 'rect' | 'text';
 export type SceneSpace = 'parent' | 'world';
 export type SceneTextAlign = 'left' | 'center' | 'right';

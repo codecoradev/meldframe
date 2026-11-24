@@ -2306,6 +2306,10 @@ name = "meldframe-web-link"
 version = "0.0.0"
 
 [[package]]
+name = "meldframe-web-paint"
+version = "0.0.0"
+
+[[package]]
 name = "meldframe-web-panels"
 version = "0.0.0"
 

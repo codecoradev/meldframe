@@ -1,8 +1,8 @@
 // The scene the canvas draws, read from the painted boxes that the Rust render step hands over (`meldframe-render`,
 // through `WasmApp.sceneJson`). A change of shape only: the canvas computes nothing of its own, so no order, no
 // colour and no radius is worked out here. The fixtures of the Rust crate (`tests/fixtures/scene.json`) fix the JSON.
-import type { SceneBorder } from '@meldframe/web-canvas/border';
-import type { SceneShadow } from '@meldframe/web-canvas/shadow';
+import type { SceneBorder } from '@meldframe/web-paint/border';
+import type { SceneShadow } from '@meldframe/web-paint/shadow';
 import type { NodeKind, Scene, SceneImage, SceneNode, SceneTextAlign } from '@meldframe/web-canvas/scene';
 
 /** One box as `meldframe_render::PaintedBox` serialises it, back to front. */

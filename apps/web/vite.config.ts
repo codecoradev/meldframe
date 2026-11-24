@@ -17,7 +17,7 @@ import { REFUSED_URL, applyAuth, guardRequest, isProxied, resolveProxy } from '.
 // does not hand the token to the network.
 const wasmGlue = existsSync(new URL('./.wasm/meldframe_wasm.js', import.meta.url)) ? './.wasm/meldframe_wasm.js' : './src/wasm-missing.ts';
 const webPackages = Object.fromEntries(
-  ['canvas', 'input', 'assets', 'link', 'transport', 'document', 'tokens', 'chrome', 'shell', 'panels', 'variables', 'variables-io', 'activity', 'feedback', 'export'].map((p) => [`@meldframe/web-${p}`, fileURLToPath(new URL(`../../packages/web-${p}/src`, import.meta.url))]),
+  ['canvas', 'paint', 'input', 'assets', 'link', 'transport', 'document', 'tokens', 'chrome', 'shell', 'panels', 'variables', 'variables-io', 'activity', 'feedback', 'export'].map((p) => [`@meldframe/web-${p}`, fileURLToPath(new URL(`../../packages/web-${p}/src`, import.meta.url))]),
 );
 const resolved = resolveProxy(process.env);
 const { target, token } = resolved;
