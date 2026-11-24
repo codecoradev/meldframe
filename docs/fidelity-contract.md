@@ -32,7 +32,7 @@ An export is faithful when, for the same document, in a Chromium-class browser w
 |---|---|---|---|
 | L1 Geometry | For every node, the DOM border box (`getBoundingClientRect`: x, y, width, height) equals the core rect | **<= 0.05 px** (observed maximum 0.034 px); the hard fail line is 1 px | oracle A |
 | L2 Text | Same line breaks (same box height), and glyph ink bounding box edges within **1 px** of the canvas text | 1 px | oracle C |
-| L3 Paint (solid) | Solid areas of fills, borders (inside/center/outside), shadows (offset, spread, hard edge), image fit (cover/contain/fill) and clipping have the same geometry as the model semantics | exact colour at probe points away from edges (tolerance 40/255 per channel to absorb anti-aliasing) | oracle B |
+| L3 Paint (solid) | Solid areas of fills, borders (inside/center/outside), shadows (offset, spread, hard edge), image fit (cover/contain/fill) and clipping have the same geometry as the model semantics, and a fill with an alpha is the colour over what is behind it | exact colour at probe points away from edges (tolerance 40/255 per channel to absorb anti-aliasing) | oracle B |
 | L3 Paint (soft) | Blurred shadow falloff | within 20/255 intensity of the canvas blur (measured today: 19/255) | oracle D (CSS model against Pixi, not through the export) |
 
 The tolerances held at every viewport width and device pixel ratio tested (1280 px and 700 px viewport, DPR 1 and 2).
@@ -57,7 +57,7 @@ Chromium, and any document that violates a rule in section 5.
 ## 4. Supported subset
 
 Status legend: **supported** = emitted by the product export (`crates/features/export/export`, E4.1) and checked by the oracle of
-`tools/fidelity-oracle` (E4.2: fixtures `f01` to `f22`, the paint probes, the ink cases); **partly** = emitted, checked, and a
+`tools/fidelity-oracle` (E4.2: fixtures `f01` to `f23`, the paint probes, the ink cases); **partly** = emitted, checked, and a
 known gap is listed in `tools/fidelity-oracle/known-gaps.mjs`; **planned (model)** = not in the model yet (concept.md W1 or
 later); **unsupported** = deliberately outside the contract, with the reason. The notes of a row keep what the spike
 experiment found; where they say "the spike emitted ..." that was the spike export, which the product export replaced.
@@ -85,10 +85,10 @@ idiomatic; token-based classes arrive with decision 17.
 | `justify` center / end | `justify-content: safe center / safe flex-end` | `[justify-content:safe_center]`, `[justify-content:safe_flex-end]` | supported | the spike emitted plain `center`/`flex-end`; the product emits `safe`. When children overflow the container, the core clamps to the start edge and plain CSS overflows on both sides (f13: 35 px for center, 70 px for end). With `safe` the error is 0.000 px |
 | `clip` (frame) | `overflow:hidden` | `overflow-hidden` | supported | boxes verified (f04 has a clipping frame); the paint of the clip is probed only where it meets a radius or an ellipse (f08: the image is clipped at a rounded corner and by an ellipse) |
 | `radius` | `border-radius:<px>` | `rounded-[..]` | supported | verified up to radius = half the height (probe). The canvas clamps to `min(radius, w/2, h/2)`; CSS clamps by its own rule, which gives the same shape for a single radius, but radius above half the size was **not** tested |
-| `fill` colour (frame/rect/ellipse) | `background-color` (omitted when transparent) | `bg-[#..]` | supported | |
+| `fill` colour (frame/rect/ellipse) | `background-color:#rrggbb`, or `#rrggbbaa` when the colour has an alpha below 1 (the stored `#rgba` and `#rrggbbaa` forms; an alpha of 1 is written `#rrggbb`, and a fully transparent fill is written, not omitted) | `bg-[color:#..]` | supported | the alpha is the colour's own, not the node's `opacity` (which fades the node and what is in it): a half-transparent red over white is pink, a fully transparent fill shows what is behind it. Probed on pixels in f23, both forms. `none` writes no `background-color` |
 | `fill` `none` (frame/rect/ellipse) | no `background-color` | no `bg-[..]` | supported | nothing is painted for the node, so what is behind shows, through a frame, an ellipse ring and the letterbox of an image; probed on pixels in f22 (both forms). A node with no `fill` at all takes the default fill `#3f3f46`, probed in the same file |
 | `fill` bound to a colour variable | `background-color:var(--collection-name)` | `bg-[color:var(--..)]` | supported | direct, alias, alias across collections, under a gradient and under an image, with the default mode (f20) and a picked mode (f21: `data-mode-<collection>` on `<html>`); a binding that does not resolve paints the default fill and the export warns `unresolved_binding` |
-| `fill` on text | `color` | `text-[color:..]` | supported | |
+| `fill` on text | `color` (`#rrggbbaa` when the colour has an alpha below 1) | `text-[color:..]` | supported | the alpha is written; it is not probed on pixels |
 | `fill` + `fill2` on shader | `background:linear-gradient(135deg, ..)` | `bg-[linear-gradient(..)]` | unsupported | GPU shader has no CSS equivalent; exported as an approximation with a warning. Not part of the fidelity promise |
 
 ### 4.2 Typography and decoration (model additions M3A, M3B)
@@ -189,7 +189,7 @@ How it works:
    - fuzz files (rule G1 applied to them) that do not fall under rule G3: every box within 0.05 px; files under G3 are
      counted and not gated; a failing seed prints its file, to be added as a fixture;
    - paint probes (border inside, center and outside, shadow offset, spread and order, image cover, contain and fill,
-     clipping, opacity, gradients, fills bound to a variable in two modes with a bound radius and opacity, no fill), text ink edges within 1 px, and the CSS blur model within 20/255 of the Pixi blur (that last check compares a hand-written CSS page with Pixi and does not go through the export: it says how close the blur the export writes would be, not that the export wrote it; the shadow probes through the export cover offset, spread and order, not blur);
+     clipping, opacity, gradients, fills bound to a variable in two modes with a bound radius and opacity, no fill, the alpha of a fill's colour), text ink edges within 1 px, and the CSS blur model within 20/255 of the Pixi blur (that last check compares a hand-written CSS page with Pixi and does not go through the export: it says how close the blur the export writes would be, not that the export wrote it; the shadow probes through the export cover offset, spread and order, not blur);
    - a fixture in `known-gaps.mjs` that starts passing fails the job, as does an entry that is no longer a fixture: the entry
      is removed and this contract updated.
 6. Pull requests run the fixtures and 50 fuzz seeds, the nightly 500. Playwright 1.63.0, Pixi 8.23.0, Tailwind 4.3.5 and

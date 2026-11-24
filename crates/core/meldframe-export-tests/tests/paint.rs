@@ -26,12 +26,40 @@ fn fill_is_the_background_colour_and_none_is_no_background() {
     assert!(s.contains("background-color:#336699"), "{s}");
     let s = rule_of(frame(json!({}), vec![r(json!({"fill": "none"}))]));
     assert!(!s.contains("background"), "{s}");
-    // The canvas drops the alpha of a fill, so the export does too: one render model.
-    let s = rule_of(frame(json!({}), vec![r(json!({"fill": "#33669980"}))]));
+}
+
+#[test]
+fn the_alpha_of_a_fill_is_written_into_the_background_colour() {
+    // The canvas paints the alpha of a fill, so the export writes it: one render model (issue 234).
+    for (fill, want) in [
+        ("#33669980", "background-color:#33669980"),
+        ("#00000000", "background-color:#00000000"),
+        ("#f008", "background-color:#ff000088"),
+        // An alpha of 1 is the opaque form, whatever way it was written.
+        ("#336699ff", "background-color:#336699"),
+        ("#369f", "background-color:#336699"),
+    ] {
+        let s = rule_of(frame(json!({}), vec![r(json!({"fill": fill}))]));
+        assert!(
+            s.contains(want) && !s.contains(&format!("{want}f")),
+            "{fill}: {s}"
+        );
+    }
+    // The Tailwind form carries it too, and the report has nothing to say about it.
+    let e = tailwind(frame(json!({}), vec![r(json!({"fill": "#33669980"}))]));
+    assert!(e.html.contains("bg-[color:#33669980]"), "{}", e.html);
     assert!(
-        s.contains("background-color:#336699;") || s.ends_with("background-color:#336699"),
-        "{s}"
+        e.report.unsupported.is_empty() && e.report.warnings.is_empty(),
+        "{:?}",
+        e.report
     );
+}
+
+#[test]
+fn the_alpha_of_a_text_colour_is_written_into_its_colour() {
+    let t = json!({"id": "t", "type": "text", "text": "x", "fill": "#ff000080"});
+    let e = css(frame(json!({}), vec![t]));
+    assert!(rule(&e, "t").unwrap().contains("color:#ff000080"));
 }
 
 #[test]

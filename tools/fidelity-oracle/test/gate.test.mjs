@@ -104,7 +104,7 @@ test('a paint probe that fails, or two forms that draw different pixels, fail', 
   assert.equal(exit(full(), { paint: { probes: sections.paint.probes, forms } }).code, 1);
 });
 test('the paint oracle must probe, in both forms, gradients, fills bound to a variable (default and picked mode) and no fill', () => {
-  for (const name of ['f19-gradient', 'f20-variable-fill', 'f21-variable-modes', 'f22-no-fill']) {
+  for (const name of ['f19-gradient', 'f20-variable-fill', 'f21-variable-modes', 'f22-no-fill', 'f23-fill-alpha']) {
     assert.ok(PAINT_FIXTURES.includes(name), `${name} is a required paint fixture`);
     const probes = sections.paint.probes.filter((p) => !p.id.startsWith(`${name} `));
     const r = exit(full(), { paint: { probes, forms: sections.paint.forms } });
