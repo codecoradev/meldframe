@@ -61,18 +61,40 @@ export function shadowShape(w: number, h: number, radius: number, s: SceneShadow
 }
 
 /**
- * How far the blur of a shadow reaches past its shape: its radius, where the fall-off has gone to 2% of the shadow's
- * strength (a Gaussian of sigma `blur / 2`, the one CSS specifies and the canvas filter is set to match).
+ * The most blur, in pixels, that the canvas draws and that a capture makes room for. Pixi clips a filter to the render
+ * target, whose side is at most the GPU's texture size (4096 is the least WebGL2 guarantees, and screens are less), so a
+ * blur wider than 1024 px is wider than any picture the canvas draws; it is also the point at which the strength and the
+ * padding of the filter (`blurFilterSettings`) and the reach of a capture box stop growing. One number for all three, so a
+ * huge blur (the model allows 100000) costs a bounded filter and a bounded image. Above it the canvas blur is narrower
+ * than the export's, which is not capped: a shadow with such a blur is faint over the whole of any picture anyway.
  */
-export const blurReach = (s: SceneShadow): number => s.blur;
+export const MAX_BLUR = 1024;
 
-/** The rectangle every shadow of `box` covers, blur included, or null when none shows. */
+/**
+ * How far the blur of a shadow reaches past its shape: its radius, where the fall-off has gone to 2% of the shadow's
+ * strength (a Gaussian of sigma `blur / 2`, the one CSS specifies and the canvas filter is set to match), at most
+ * `MAX_BLUR`.
+ */
+export const blurReach = (s: SceneShadow): number => Math.min(s.blur, MAX_BLUR);
+
+/**
+ * The strength and the padding of the blur filter of a shadow of world radius `blur` when the world is scaled by `zoom`:
+ * a filter works in screen pixels, so the blur on the screen is `blur * zoom`, held to `MAX_BLUR`; the strength is half of
+ * it (sigma) and the padding leaves room for the tail (1.5 times the blur, and a little more).
+ */
+export function blurFilterSettings(blur: number, zoom: number): { strength: number; padding: number } {
+  const px = Math.min(Math.max(0, blur * zoom), MAX_BLUR);
+  return { strength: px / 2, padding: Math.ceil(1.5 * px) + 2 };
+}
+
+/** The rectangle every shadow of `box` covers, blur included, or null when none shows (a shadow with an alpha of 0 paints nothing). */
 export function shadowBounds(box: Rect, shadows: readonly SceneShadow[] | undefined): Rect | null {
   let x0 = Infinity;
   let y0 = Infinity;
   let x1 = -Infinity;
   let y1 = -Infinity;
   for (const s of shadows ?? []) {
+    if (!(s.alpha > 0)) continue;
     const shape = shadowShape(box.w, box.h, 0, s);
     if (!shape) continue;
     const g = blurReach(s);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MAX_BLUR } from './shadow';
 import { captureBounds, captureRectOf, contentBounds, hitTest, rectsOf, resolveScene, type Scene, type SceneNode } from './scene';
 
 const node = (o: Partial<SceneNode> & Pick<SceneNode, 'id'>): SceneNode => ({
@@ -273,6 +274,39 @@ describe('capture box with shadows', () => {
     expect(b.x + b.w).toBe(940);
     // The blur of `in` reaches 50 past the clipping `frame`, which cuts it: nothing above or left of the frame is in.
     expect(b.y).toBe(94);
+  });
+});
+
+describe('capture box of the whole page', () => {
+  it('takes in a child that overflows a frame that does not clip, and not one that a clipping frame cuts', () => {
+    const free = resolveScene(parentScene(
+      node({ id: 'f', kind: 'frame', x: 0, y: 0, w: 100, h: 100 }),
+      node({ id: 'k', parent: 'f', x: 80, y: 90, w: 60, h: 50 }),
+    )).scene;
+    // The child is drawn out of its frame, so the picture has it; what the page fits to (contentBounds) is still the frame.
+    expect(captureBounds(free)).toEqual({ x: 0, y: 0, w: 140, h: 140 });
+    expect(contentBounds(free)).toEqual({ x: 0, y: 0, w: 100, h: 100 });
+    const cut = resolveScene(parentScene(
+      node({ id: 'f', kind: 'frame', x: 0, y: 0, w: 100, h: 100, clip: true }),
+      node({ id: 'k', parent: 'f', x: 80, y: 90, w: 60, h: 50 }),
+    )).scene;
+    expect(captureBounds(cut)).toEqual({ x: 0, y: 0, w: 100, h: 100 });
+    // A child that lies wholly outside a clipping frame adds nothing, not even a point.
+    const gone = resolveScene(parentScene(
+      node({ id: 'f', kind: 'frame', x: 0, y: 0, w: 100, h: 100, clip: true }),
+      node({ id: 'k', parent: 'f', x: 500, y: 500, w: 60, h: 50 }),
+    )).scene;
+    expect(captureBounds(gone)).toEqual({ x: 0, y: 0, w: 100, h: 100 });
+  });
+
+  it('a shadow with an alpha of 0 adds nothing and a huge blur adds no more than the cap', () => {
+    const sh = (o = {}) => ({ x: 0, y: 0, blur: 0, spread: 0, color: 0, alpha: 1, ...o });
+    const rs = resolveScene(parentScene(
+      node({ id: 'a', x: 0, y: 0, w: 10, h: 10, shadows: [sh({ blur: 50, alpha: 0 })] }),
+      node({ id: 'b', x: 500, y: 0, w: 10, h: 10, shadows: [sh({ blur: 1e9 })] }),
+    )).scene;
+    expect(captureRectOf(rs, 'a')).toEqual({ x: 0, y: 0, w: 10, h: 10 });
+    expect(captureRectOf(rs, 'b')).toEqual({ x: 500 - MAX_BLUR, y: -MAX_BLUR, w: 10 + 2 * MAX_BLUR, h: 10 + 2 * MAX_BLUR });
   });
 });
 

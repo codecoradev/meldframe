@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blurReach, sameShadows, shadowBounds, shadowShape, type SceneShadow } from './shadow';
+import { MAX_BLUR, blurFilterSettings, blurReach, sameShadows, shadowBounds, shadowShape, type SceneShadow } from './shadow';
 
 const shadow = (o: Partial<SceneShadow> = {}): SceneShadow => ({ x: 0, y: 0, blur: 0, spread: 0, color: 0, alpha: 1, ...o });
 
@@ -80,5 +80,36 @@ describe('shadowBounds', () => {
   it('leaves out a shadow with nothing left of it and takes the blur as its reach', () => {
     expect(shadowBounds(box, [shadow({ spread: -30, blur: 20 })])).toBeNull();
     expect(blurReach(shadow({ blur: 12 }))).toBe(12);
+  });
+});
+
+describe('shadows that paint nothing and blurs that are too big', () => {
+  const box = { x: 100, y: 50, w: 40, h: 20 };
+
+  it('a shadow with an alpha of 0 paints nothing, so it has no reach', () => {
+    expect(shadowBounds(box, [shadow({ blur: 30, spread: 5, alpha: 0 })])).toBeNull();
+    expect(shadowBounds(box, [shadow({ alpha: 0, x: 500 }), shadow({ y: 4, blur: 2 })])).toEqual({ x: 98, y: 52, w: 44, h: 24 });
+  });
+
+  it('the reach of a blur stops at MAX_BLUR, so a capture of a shadow with a huge blur is not a huge image', () => {
+    expect(blurReach(shadow({ blur: 100 }))).toBe(100);
+    expect(blurReach(shadow({ blur: 100000 }))).toBe(MAX_BLUR);
+    expect(shadowBounds(box, [shadow({ blur: 100000 })])).toEqual({ x: 100 - MAX_BLUR, y: 50 - MAX_BLUR, w: 40 + 2 * MAX_BLUR, h: 20 + 2 * MAX_BLUR });
+  });
+});
+
+describe('blurFilterSettings', () => {
+  it('is a strength of half the blur on the screen, and room for 1.5 times the blur and a little more', () => {
+    expect(blurFilterSettings(12, 1)).toEqual({ strength: 6, padding: 20 });
+    expect(blurFilterSettings(12, 2)).toEqual({ strength: 12, padding: 38 });
+    expect(blurFilterSettings(16, 0.25)).toEqual({ strength: 2, padding: 8 });
+  });
+
+  it('never asks the renderer for more than MAX_BLUR pixels of blur: a blur of 5000 at a zoom of 2 does not make a padding of 15000', () => {
+    const s = blurFilterSettings(5000, 2);
+    expect(s.strength).toBe(MAX_BLUR / 2);
+    expect(s.padding).toBe(Math.ceil(1.5 * MAX_BLUR) + 2);
+    expect(blurFilterSettings(100, 1000).padding).toBe(s.padding);
+    expect(blurFilterSettings(0, 2)).toEqual({ strength: 0, padding: 2 });
   });
 });

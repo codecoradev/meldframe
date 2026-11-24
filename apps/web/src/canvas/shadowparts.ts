@@ -4,8 +4,8 @@
 // A filter works in screen pixels, and the world is scaled by the camera (and by the scale of a capture), so the blur of a
 // world radius `b` is a strength of `b / 2 * zoom` (a Gaussian of sigma `b / 2` is what CSS specifies): measured in Chromium,
 // within 19/255 of the CSS blur at zoom 0.25, 0.5, 1 and 2 with that rule, and 26 to 58/255 off at zoom 2 and 0.5 without it.
-import { BlurFilter, Graphics } from 'pixi.js';
-import { shadowShape } from '@meldframe/web-canvas/shadow';
+import { BlurFilter, Container, Graphics, Rectangle } from 'pixi.js';
+import { blurFilterSettings, shadowShape } from '@meldframe/web-canvas/shadow';
 import type { ResolvedNode } from '@meldframe/web-canvas/scene';
 
 /** The passes of the blur filter: the oracle measures the canvas blur at this quality (contract, section 8.5). The filter keeps its default resolution (1): a blur is smooth, and on a 2x screen it is the same blur in CSS pixels, measured. */
@@ -15,15 +15,21 @@ export interface ShadowPart {
   g: Graphics;
   /** The blur radius in world units; 0 for a hard edge. */
   blur: number;
+  /** Stands for the halo of a blurred shadow in the bounds that the culling reads: an empty container with `boundsArea`; none for a hard edge. */
+  halo: Container | null;
 }
+
+/** The display objects of the parts, in the order they are drawn. */
+export const shadowObjects = (parts: readonly ShadowPart[]): Container[] => parts.flatMap((p) => (p.halo ? [p.g, p.halo] : [p.g]));
 
 /** Sets the filter of a part to the strength a camera at `zoom` needs. */
 function tune(p: ShadowPart, zoom: number): void {
   const f = p.g.filters?.[0] as BlurFilter | undefined;
   if (!f) return;
-  f.strength = (p.blur / 2) * zoom;
-  // Room for the tail of the blur, which is why the filter has to be told: it is clipped to its padded bounds.
-  f.padding = Math.ceil(1.5 * p.blur * zoom) + 2;
+  // Room for the tail of the blur, which is why the filter has to be told: it is clipped to its padded bounds. Both are held to MAX_BLUR.
+  const { strength, padding } = blurFilterSettings(p.blur, zoom);
+  f.strength = strength;
+  f.padding = padding;
 }
 
 /** Frees a part and its filter. */
@@ -31,6 +37,7 @@ export function dropShadow(p: ShadowPart): void {
   for (const f of p.g.filters ?? []) (f as BlurFilter).destroy();
   p.g.filters = null;
   p.g.destroy();
+  p.halo?.destroy();
 }
 
 /** The shadows of `n` as parts, reusing `old` where it can: the same count and order draws into the same Graphics. */
@@ -39,12 +46,13 @@ export function paintShadows(old: readonly ShadowPart[], n: ResolvedNode, zoom: 
   const shapes = n.kind === 'text' || !finite
     ? []
     : (n.shadows ?? []).flatMap((s) => {
-        const shape = shadowShape(n.w, n.h, n.radius, s);
+        // A shadow with an alpha of 0 paints nothing, so it gets neither a part nor a filter pass.
+        const shape = s.alpha > 0 ? shadowShape(n.w, n.h, n.radius, s) : null;
         return shape ? [{ s, shape }] : [];
       });
   const out: ShadowPart[] = [];
   shapes.forEach(({ s, shape }, i) => {
-    const part = old[i] ?? { g: new Graphics(), blur: 0 };
+    const part = old[i] ?? { g: new Graphics(), blur: 0, halo: null };
     const { g } = part;
     g.label = 'shadow';
     g.eventMode = 'none';
@@ -54,6 +62,19 @@ export function paintShadows(old: readonly ShadowPart[], n: ResolvedNode, zoom: 
     else if (!(s.blur > 0) && g.filters?.length) {
       for (const f of g.filters) (f as BlurFilter).destroy();
       g.filters = null;
+    }
+    // The culling reads the bounds of a node and ignores the padding of a filter, so a blurred shadow says how far its halo reaches (in world
+    // units, as the padding of the filter at zoom 1): a node that has left the view but whose halo has not is still drawn. It is said by an
+    // empty container beside the shadow, not by `boundsArea` on the Graphics (that breaks the filter, which sizes itself from it: the
+    // blur vanishes at some zooms), and not by a `cullArea` on the node, which would cull a child that overflows the node's box.
+    if (s.blur > 0) {
+      const h = blurFilterSettings(s.blur, 1).padding;
+      part.halo ??= new Container({ label: 'shadow-halo' });
+      part.halo.eventMode = 'none';
+      part.halo.boundsArea = new Rectangle(shape.x - h, shape.y - h, shape.w + 2 * h, shape.h + 2 * h);
+    } else if (part.halo) {
+      part.halo.destroy();
+      part.halo = null;
     }
     tune(part, zoom);
     out.push(part);

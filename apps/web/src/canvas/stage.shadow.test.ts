@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BlurFilter, Container, Graphics, type RoundedRectangle } from 'pixi.js';
-import type { SceneShadow } from '@meldframe/web-canvas/shadow';
+import { MAX_BLUR, type SceneShadow } from '@meldframe/web-canvas/shadow';
 import { resolveScene, type Scene, type SceneNode } from '@meldframe/web-canvas/scene';
 import { WorldView } from './stage';
 
@@ -178,5 +178,76 @@ describe('WorldView draws the shadows of a node', () => {
     world.apply(prev.scene, prev.patch);
     expect(g.destroyed).toBe(true);
     world.setCamera({ x: 0, y: 0, zoom: 2 });
+  });
+
+  it('a shadow with an alpha of 0 draws nothing and has no filter', () => {
+    const { world } = draw(node({ id: 'a', shadows: [shadow({ alpha: 0, blur: 8 }), shadow({ color: 0x00ff00 })] }));
+    const parts = shadowsOf(top(world));
+    expect(parts).toHaveLength(1);
+    expect(drawn(parts[0]!).style).toMatchObject({ color: 0x00ff00 });
+    expect(blurOf(parts[0]!)).toBeUndefined();
+  });
+
+  it('the bounds of a blurred shadow include its halo, which the culling reads (it ignores the padding of a filter); a hard one has its own', () => {
+    const { world } = draw(node({ id: 'a', shadows: [shadow({ blur: 12 }), shadow({ y: 0 })] }));
+    const [soft, hard] = shadowsOf(top(world));
+    // The padding of the filter in world units: 1.5 times the blur and 2, around the shape (0, 4, 100, 60). It is said beside the
+    // shadow, not on it: a boundsArea on the Graphics of a filter breaks the filter.
+    expect(soft!.boundsArea).toBeFalsy();
+    const halos = top(world).children.filter((c) => c.label === 'shadow-halo');
+    expect(halos).toHaveLength(1);
+    expect(halos[0]!.boundsArea).toMatchObject({ x: -20, y: 4 - 20, width: 140, height: 100 });
+    expect(hard!.boundsArea).toBeFalsy();
+    // So the node's own bounds, which the culling reads, include it.
+    const b = top(world).getLocalBounds();
+    expect([b.minX, b.minY, b.maxX, b.maxY]).toEqual([-20, -16, 120, 84]);
+  });
+
+  it('a halo with a huge blur stops at the cap, and a blur that goes takes its halo away', () => {
+    const { world } = draw(node({ id: 'a', shadows: [shadow({ blur: 100000 })] }));
+    const pad = Math.ceil(1.5 * MAX_BLUR) + 2;
+    const halo = (w: WorldView) => top(w).children.filter((c) => c.label === 'shadow-halo');
+    expect(halo(world)[0]!.boundsArea).toMatchObject({ x: -pad, width: 100 + 2 * pad });
+    const w2 = new WorldView();
+    let prev = resolveScene(scene(node({ id: 'a', shadows: [shadow({ blur: 6 })] })));
+    w2.apply(prev.scene, prev.patch);
+    expect(halo(w2)).toHaveLength(1);
+    prev = resolveScene(scene(node({ id: 'a', shadows: [shadow()] })), prev.scene);
+    w2.apply(prev.scene, prev.patch);
+    expect(halo(w2)).toHaveLength(0);
+    // And when the shadows go altogether.
+    prev = resolveScene(scene(node({ id: 'a', shadows: [shadow({ blur: 6 })] })), prev.scene);
+    w2.apply(prev.scene, prev.patch);
+    expect(halo(w2)).toHaveLength(1);
+    prev = resolveScene(scene(node({ id: 'a' })), prev.scene);
+    w2.apply(prev.scene, prev.patch);
+    expect(halo(w2)).toHaveLength(0);
+  });
+
+  it('the strength and the padding of a blur are capped: a blur of 5000 at a zoom of 2 is not a padding of 15000', () => {
+    const { world } = draw(node({ id: 'a', shadows: [shadow({ blur: 5000 })] }));
+    world.setCamera({ x: 0, y: 0, zoom: 2 });
+    const f = blurOf(shadowsOf(top(world))[0]!)!;
+    expect(f.strength).toBe(MAX_BLUR / 2);
+    expect(f.padding).toBe(Math.ceil(1.5 * MAX_BLUR) + 2);
+  });
+
+  it('only the nodes with a blurred shadow are walked when the zoom changes', () => {
+    const { world } = draw(node({ id: 'a', shadows: [shadow({ blur: 6 })] }), node({ id: 'b', shadows: [shadow()] }), node({ id: 'c' }));
+    expect((world as unknown as { blurred: Set<unknown> }).blurred.size).toBe(1);
+    const w2 = new WorldView();
+    let prev = resolveScene(scene(node({ id: 'a', shadows: [shadow({ blur: 6 })] })));
+    w2.apply(prev.scene, prev.patch);
+    const set = () => (w2 as unknown as { blurred: Set<unknown> }).blurred.size;
+    expect(set()).toBe(1);
+    prev = resolveScene(scene(node({ id: 'a', shadows: [shadow()] })), prev.scene);
+    w2.apply(prev.scene, prev.patch);
+    expect(set()).toBe(0);
+    prev = resolveScene(scene(node({ id: 'a', shadows: [shadow({ blur: 6 })] })), prev.scene);
+    w2.apply(prev.scene, prev.patch);
+    expect(set()).toBe(1);
+    prev = resolveScene(scene(), prev.scene);
+    w2.apply(prev.scene, prev.patch);
+    expect(set()).toBe(0);
   });
 });

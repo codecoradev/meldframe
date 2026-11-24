@@ -1,5 +1,5 @@
 // Browser check of the shadows the canvas draws (issue 236): pixels of a real Chromium canvas at hard shadows (blur 0: offset, spread,
-// a negative spread, the order of two, a radius, a circle, under a clip and under an opacity: exact), a blurred one against the
+// a negative spread, the order of two, a radius, a circle, under a clip and under an opacity: each probe within 4/255 of the hand-computed colour), a blurred one against the
 // blur CSS draws for the same box (close, not identical: the contract, section 8.5, allows 20/255), the same at other zooms of the
 // camera (the strength of the filter follows the zoom), and the same pixels in a capture at scale 1 and 2, which takes the reach of
 // the shadow in.
@@ -41,7 +41,7 @@ const nodes = [
   box('b1', 'rect', 'page', 280, 360, 120, 80, { fill: '#ff00ff', shadows: [shadow(0, 0, 16, 0, '#000000')] }),
 ];
 const RED = [255, 0, 0], BLUE = [0, 0, 255], GREEN = [0, 170, 0], GREY = [204, 204, 204], WHITE = [255, 255, 255], YELLOW = [255, 255, 0];
-// [what, world x, world y, expected rgb, tolerance (default 40, which absorbs anti-aliasing)]
+// [what, world x, world y, expected rgb, tolerance (default 4)]
 const probes = [
   ['offset: right of the box', 150, 70, RED], ['offset: below the box', 100, 108, RED], ['offset: beyond the shadow', 165, 70, WHITE],
   ['offset: left of where the shadow starts', 50, 108, WHITE], ['offset: the box is over its shadow', 100, 70, GREY], ['offset: below the shadow', 100, 118, WHITE],
@@ -81,8 +81,9 @@ if (!process.env.MELDFRAME_SEEDED) {
   assert.equal(res.status, 200, `apply_commands: ${res.status} ${await res.clone().text()}`);
 }
 
-// The contract (section 8.5) allows 20/255 between the canvas blur and CSS and measured 19 at 8 and 20 px; a blur of 45 px on the screen measures a little more.
-const BLUR_MAX = 25;
+// The contract (section 8.5) allows 20/255 between the canvas blur and CSS (measured 19); on a 2x screen the filter keeps a resolution of 1 and measures up to 25.
+const dpr = Number(process.env.MELDFRAME_DPR ?? 1);
+const BLUR_MAX = dpr === 1 ? 20 : 25;
 let failed = 0, checks = 0;
 const check = (ok, line) => { checks++; if (!ok) failed++; console.log(`${ok ? 'ok  ' : 'FAIL'} ${line}`); };
 const near = (px, want, tol = 40) => px.every((v, k) => Math.abs(v - want[k]) <= tol);
@@ -118,7 +119,6 @@ const sample = ({ points, row, box }) => {
 
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 try {
-  const dpr = Number(process.env.MELDFRAME_DPR ?? 1);
   const page = await browser.newPage({ viewport: { width: 1440, height: 860 }, deviceScaleFactor: dpr });
   page.on('pageerror', (e) => { failed++; console.log('[pageerror]', e.message); });
   /** Loads a PNG (base64) into `page`, then reads what `q` asks of it. */
@@ -146,7 +146,31 @@ try {
   assert.ok(s > 0.3 * dpr && s < 3 * dpr, `the page frame was not found on the canvas (scale ${s})`);
   console.log(`camera zoom ${(s / dpr).toFixed(3)} at ${dpr}x`);
   const got = await page.evaluate(`(${sample})(${JSON.stringify({ points: probes.map(([, wx, wy]) => [x0 + wx * s, y0 + wy * s]) })})`);
-  probes.forEach(([what, wx, wy, want, tol], i) => check(near(got.points[i], want, tol), `${what} (${wx}, ${wy}): ${got.points[i].join(',')} want ${want.join(',')}`));
+  probes.forEach(([what, wx, wy, want, tol], i) => check(near(got.points[i], want, tol ?? 4), `${what} (${wx}, ${wy}): ${got.points[i].join(',')} want ${want.join(',')}`));
+
+  // Culling: the canvas draws the view and half a view around it, and the culling reads the bounds of a node, which leave out the padding of a
+  // filter. A node just beyond that margin whose blur halo reaches into the view must still draw its halo: a huge white shadow (a half plane
+  // of blur 1200) whose box starts 8 px beyond the margin to the right of the page, read at the right edge of the view, 0.5 view + 11 px away.
+  const [W, H, left, top] = await page.evaluate(() => {
+    const c = [...document.querySelectorAll('canvas')].sort((a, b) => b.clientWidth * b.clientHeight - a.clientWidth * a.clientHeight)[0];
+    const r = c.getBoundingClientRect();
+    return [c.clientWidth, c.clientHeight, r.left, r.top];
+  });
+  const at = [(left + W - 3) * dpr, (top + 300) * dpr];
+  const before = (await look(page, await shotOf(page), { points: [at] })).points[0];
+  const zoomCss = s / dpr;
+  const apply = (ops) => fetch(`${server}/v1/files/${file}/tools/apply_commands`, {
+    method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ ops }),
+  });
+  const halo = box('halo', 'rect', undefined, (left + 1.5 * W + 8 - x0 / dpr) / zoomCss, (top + 300 - y0 / dpr) / zoomCss - 10000, 20000, 20000, { fill: '#00ffff', shadows: [shadow(0, 0, 1200, 0, '#ffffff')] });
+  assert.equal((await apply([{ key: 'halo-add', command: { type: 'addNode', node: halo }, deps: [] }])).status, 200);
+  await page.waitForTimeout(2500);
+  const after = (await look(page, await shotOf(page), { points: [at] })).points[0];
+  check(after[0] - before[0] >= 6, `culling: the halo of a node beyond the margin of the view is drawn (the view's right edge, ${W} x ${H}: ${before.join(',')} -> ${after.join(',')}; want at least 6 lighter)`);
+  // The policy does not let a call delete: the node is shrunk and loses its shadow instead.
+  const gone = await apply([{ key: 'halo-gone', command: { type: 'updateNode', id: 'halo', patch: { w: 1, h: 1, shadows: [] } }, deps: [] }]);
+  assert.equal(gone.status, 200, await gone.clone().text());
+  await page.waitForTimeout(1500);
 
   /** The blurred shadow of `b1` against CSS: the magenta box gives the camera, the falloff to its left is compared pixel by pixel. */
   const blurAgainstCss = async (label) => {
@@ -205,7 +229,7 @@ try {
   for (const c of [capture(1), capture(2)]) {
     const im = await look(page, await shot({ nodeId: c.id, scale: c.scale }), { points: c.probes.map(([, x, y]) => [x, y]) });
     check(im.w === c.width && im.h === c.height, `capture at ${c.scale}: the image is the node and the reach of its shadow, ${im.w} x ${im.h} (want ${c.width} x ${c.height})`);
-    c.probes.forEach(([what, x, y, want], i) => check(near(im.points[i], want ?? WHITE), `${what} (${x}, ${y}): ${im.points[i].join(',')} want ${(want ?? WHITE).join(',')}`));
+    c.probes.forEach(([what, x, y, want], i) => check(near(im.points[i], want ?? WHITE, 4), `${what} (${x}, ${y}): ${im.points[i].join(',')} want ${(want ?? WHITE).join(',')}`));
   }
   // The blurred shadow in a capture: the node and 16 units of blur around it, compared with CSS at the same scale.
   for (const sc of dpr === 1 ? [1, 2] : []) {
