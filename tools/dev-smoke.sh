@@ -6,6 +6,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# A random port from 20000 to 60000 into PORT. Not `shuf`: it is GNU coreutils and macOS does not ship it. Two draws of
+# $RANDOM (15 bits each) make 30 bits, far more than the 40,001 ports to choose from. It sets PORT in the shell that calls
+# it, not in a command substitution: an old bash may not reseed RANDOM in a subshell, and the retry would draw the same port.
+pick_port() { PORT=$((20000 + (RANDOM * 32768 + RANDOM) % 40001)); }
+
 if [ -z "${DATABASE_URL:-}" ]; then
   [ -n "${MELDFRAME_REQUIRE_PG:-}" ] && { echo "FAIL: DATABASE_URL is not set" >&2; exit 1; }
   echo "SKIP: DATABASE_URL is not set"; exit 0
@@ -14,7 +19,7 @@ ADMIN_URL=${DATABASE_URL%%\?*}; ADMIN_URL="${ADMIN_URL%/*}/postgres"
 DB="meldframe_smoke_$$"
 URL="${ADMIN_URL%/*}/$DB"
 TOKEN="smoke-$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-PORT=$(shuf -i 20000-60000 -n 1)
+pick_port
 LOG=$(mktemp)
 PID=""
 
@@ -39,7 +44,7 @@ start() { # $1 = retry on another port once when the first port is taken
     curl -sf "http://127.0.0.1:$PORT/v1/health" >/dev/null 2>&1 && return 0
     if ! kill -0 "$PID" 2>/dev/null; then
       [ "${1:-}" = retry ] || fail "the server exited at start"
-      PORT=$(shuf -i 20000-60000 -n 1); : >"$LOG"; start; return
+      pick_port; : >"$LOG"; start; return
     fi
     sleep 0.2
   done

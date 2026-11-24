@@ -103,5 +103,10 @@ printf '# c\nfmt\n' > "$tmp/.gitea/ci-pending.txt"; : > "$tmp/Cargo.toml"; : > "
 if GITHUB_OUTPUT="$tmp/out" sh "$tmp/scripts/ci/gate.sh" fmt >/dev/null 2>&1; then echo "FAIL  gate: fmt pending with a workspace should error"; fail=1; else echo "pass  gate: fmt pending with a workspace errors"; fi
 rm -rf "$tmp"
 
+# the shell scripts keep to what a stock Mac has (a scan, and the port function of tools/dev-smoke.sh)
+portable=$(mktemp)
+if bash "$here/../portable-shell-test.sh" >"$portable" 2>&1; then echo "pass  portable shell scripts"; else echo "FAIL  portable shell scripts"; sed 's/^/      /' "$portable"; fail=1; fi
+rm -f "$portable"
+
 [ "$fail" -eq 0 ] && echo "all checks behave" || echo "SELFTEST FAILED"
 exit "$fail"
