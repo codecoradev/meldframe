@@ -45,6 +45,26 @@ describe('the properties panel as the Properties and Inspector boards draw it', 
     expect(text).not.toContain('data-testid="prop-clip"');
     expect(html({ ...base, kind: 'rect' })).not.toContain('data-testid="prop-clip"');
   });
+  it('offers a weight and an alignment on a text, labelled, and on no other kind', () => {
+    const text = html({ ...base, kind: 'text', fontWeight: 700, textAlign: 'center' });
+    expect(text).toContain('data-testid="prop-fontWeight"');
+    // The caption is the label of the select (one name, no aria-label over it), and the alignment group has a caption of its own.
+    expect(text).toMatch(/<label for="prop-fontWeight"[^>]*>Font weight<\/label>/);
+    expect(text).toMatch(/<select[^>]*id="prop-fontWeight"[^>]*>/);
+    expect(text).not.toContain('aria-label="Font weight"');
+    expect(text).toMatch(/<span[^>]*>Text alignment<\/span>/);
+    expect(text).toMatch(/<option value="700" selected[^>]*>Bold<\/option>|<option[^>]*value="700"[^>]*selected[^>]*>Bold<\/option>/);
+    expect(text.match(/<option/g)).toHaveLength(9);
+    expect(text).toContain('data-testid="prop-textAlign"');
+    expect(text).toContain('aria-label="Text alignment"');
+    for (const a of ['Align left', 'Align center', 'Align right']) expect(text).toContain(`aria-label="${a}"`);
+    expect(text).toMatch(/aria-checked="true"[^>]*aria-label="Align center"|aria-label="Align center"[^>]*aria-checked="true"/);
+    for (const kind of ['frame', 'rect', 'ellipse'] as const) {
+      const out = html({ ...base, kind });
+      expect(out, kind).not.toContain('data-testid="prop-fontWeight"');
+      expect(out, kind).not.toContain('data-testid="prop-textAlign"');
+    }
+  });
   it('shows a bound fill as a chip with the variable name and a way to detach it', () => {
     const out = html({ ...base, bound: ['fill'], bindings: [b('fill', { name: 'color/brand' })] });
     expect(out).toContain('data-testid="prop-fill-bound"');

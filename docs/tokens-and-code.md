@@ -6,8 +6,9 @@ This page states only what a script in the repository runs:
 
 - [`packages/web-e2e/scripts/token-loop-demo.mjs`](../packages/web-e2e/scripts/token-loop-demo.mjs) runs the loop once and prints each step.
 - [`packages/web-e2e/scripts/token-loop-assert.mjs`](../packages/web-e2e/scripts/token-loop-assert.mjs) checks that the exported CSS variables hold the values `get_variables` reads back.
+- [`packages/web-e2e/scripts/token-loop-canvas-e2e.mjs`](../packages/web-e2e/scripts/token-loop-canvas-e2e.mjs) checks, in a real browser, that the canvas and the exported page draw the same pixels for the bound values (see "Canvas and export draw the same values" below).
 
-Both need a running server and an agent token:
+The first two need a running server and an agent token:
 
 ```sh
 MELDFRAME_LISTEN=127.0.0.1:8123 MELDFRAME_DEV_TOKENS="<token>:ws_dev:agent:claude" ./target/debug/meldframe-server
@@ -96,7 +97,29 @@ Only the variables a frame uses are exported (a variable no node binds is not in
 
 The assertion script checks, for a literal, an `rgb()` that the import converted, and an alias, that the exported declaration equals the value `get_variables` reads (an alias is exported as `var(--target)`), and that each bound node's rule uses that `var(--...)`.
 
-Binding a radius or an opacity to a `number` variable is described in the tool text (`var(--...)` in the rule). The scripts bind colours only; that is not run by the scripts. `format: "tailwind"` is also not run by the scripts.
+Binding a radius or an opacity to a `number` variable is described in the tool text (`var(--...)` in the rule). The first two scripts bind colours only; the canvas script below binds a radius and an opacity too. `format: "tailwind"` is not run by the scripts.
+
+### Canvas and export draw the same values
+
+The assertion script reads text. [`token-loop-canvas-e2e.mjs`](../packages/web-e2e/scripts/token-loop-canvas-e2e.mjs) reads pixels. It imports a copy of the CSS of the assertion script with a radius and an opacity added, and binds three nodes to the variables: a page fill, a card (fill, radius, opacity) and a bar (fill through the alias `accent`, radius). It takes a `capture` of the page from an editor open in Chromium, loads the `export_frame` page in the same browser, and reads seven pixels from each. It asserts that the two pixels are equal within 4/255 per channel, and that they are the colour the imported value gives (read from the CSS text after the import). It also checks the `var(--...)` text of the card's rule (fill, radius, opacity). Then it sets four values (`surface`, `brand`, `radius-card`, `opacity-muted`) with `setVariableValue` and asserts again, now against the new values, so the canvas and the export both follow. It starts its own in-memory server and page, so it needs no token; run it by hand from the repository root (its header lists what it needs: the server binary, the WASM bridge, `npm ci` in `apps/web` and Playwright):
+
+```sh
+node packages/web-e2e/scripts/token-loop-canvas-e2e.mjs
+```
+
+An excerpt of the output (19 ok lines, then the summary). The run used Chromium's software rasteriser (SwiftShader), and the 0/255 and the 4/255 hold for it:
+
+```text
+ok   imported: card fill at its opacity: canvas rgb(119,149,232), export rgb(119,149,232), the values give rgb(119,149,232) (canvas vs export 0/255)
+ok   imported: bar corner (44, 164), painted at radius 12 and cut at 20: canvas rgb(29,78,216), export rgb(29,78,216), the values give rgb(29,78,216) (canvas vs export 0/255)
+ok   after setVariableValue: page fill: canvas rgb(254,243,199), export rgb(254,243,199), the values give rgb(254,243,199) (canvas vs export 0/255)
+ok   after setVariableValue: card fill at its opacity: canvas rgb(202,169,214), export rgb(202,169,214), the values give rgb(202,169,214) (canvas vs export 0/255)
+ok   after setVariableValue: bar corner (44, 164), painted at radius 12 and cut at 20: canvas rgb(254,243,199), export rgb(254,243,199), the values give rgb(254,243,199) (canvas vs export 0/255)
+largest difference between a canvas pixel and an exported pixel: 0/255 per channel (tolerance 4)
+TOKEN LOOP CANVAS OK
+```
+
+It does not check the dark mode on the canvas, text, or `format: "tailwind"`.
 
 ### Where to put it
 
@@ -146,7 +169,7 @@ What the agent must report, because the two sides do not map one to one:
 - A frame whose export is over the size limit is refused as `E_EXPORT_TOO_LARGE`. Export a smaller frame.
 - Import skips what the model cannot hold (see "What is skipped"), converts colours outside sRGB by clamping, and takes one import per file.
 - Sync is on request. No script here watches a file.
-- Not run by the scripts: `dryRun` and multi-part imports, `@theme`, `[data-theme=dark]` and `prefers-color-scheme` input, bound radii and opacities, `format: "tailwind"`, and the `modes` argument of `export_frame`.
+- Not run by the scripts: `dryRun` and multi-part imports, `@theme`, `[data-theme=dark]` and `prefers-color-scheme` input, `format: "tailwind"`, and the `modes` argument of `export_frame`.
 
 ## Brand memory from Uteke (optional)
 

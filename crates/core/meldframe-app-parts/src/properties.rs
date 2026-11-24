@@ -67,6 +67,7 @@ pub fn properties(
         })
         .collect();
     let flows = parent.is_some_and(is_layout);
+    let is_text = n.kind == NodeKind::Text;
     let at = drawn.unwrap_or(Drawn {
         x: n.x,
         y: n.y,
@@ -108,6 +109,8 @@ pub fn properties(
         notes: layout_notes(n, parent),
         text: n.text.clone(),
         font_size: n.font_size,
+        font_weight: is_text.then_some(n.font_weight),
+        text_align: is_text.then_some(n.text_align),
         opacity: fields.opacity(&n.opacity),
         clip: n.clip,
         bound,

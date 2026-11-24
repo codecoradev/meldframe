@@ -2,7 +2,7 @@
 
 use crate::layout::{Axis, Side};
 use crate::state::FillKind;
-use meldframe_protocol::{Align, BorderPosition, Justify, LayoutMode, Shadow, SizeMode};
+use meldframe_protocol::{Align, BorderPosition, Justify, LayoutMode, Shadow, SizeMode, TextAlign};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -16,6 +16,10 @@ pub enum Property {
     Fill(String),
     Radius(f64),
     FontSize(f64),
+    /// The weight of a text, 100 to 900 in steps of 100 (the core refuses any other number as `invalid`; a text only).
+    FontWeight(u16),
+    /// Where the lines of a text sit in its box (a text only).
+    TextAlign(TextAlign),
     /// 0 (invisible) to 1; a value outside that range is refused. A bound opacity becomes the number.
     Opacity(f64),
     /// Whether a frame cuts off what is drawn outside it.
