@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_BLUR } from './shadow';
+import { MAX_BLUR } from '@meldframe/web-paint/shadow';
 import { captureBounds, captureRectOf, contentBounds, hitTest, rectsOf, resolveScene, type Scene, type SceneNode } from './scene';
 
 const node = (o: Partial<SceneNode> & Pick<SceneNode, 'id'>): SceneNode => ({

@@ -12,7 +12,7 @@
 // world radius `b` is a strength of `b / 2 * zoom` (a Gaussian of sigma `b / 2` is what CSS specifies). Without the factor the
 // blur is far from CSS's at any zoom but 1; the measurements are in the contract (the row `shadows`, and section 7).
 import { BlurFilter, Container, Graphics, Rectangle } from 'pixi.js';
-import { blurFilterSettings, shadowShape, type ShadowShape } from '@meldframe/web-canvas/shadow';
+import { blurFilterSettings, shadowShape, type ShadowShape } from '@meldframe/web-paint/shadow';
 import type { ResolvedNode } from '@meldframe/web-canvas/scene';
 
 /** The passes of the blur filter: the oracle measures the canvas blur at this quality (contract, section 8.5). The filter keeps its default resolution (1): a blur is smooth, and on a 2x screen it is the same blur in CSS pixels, measured. */

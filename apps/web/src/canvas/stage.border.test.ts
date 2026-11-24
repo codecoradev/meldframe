@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Container, Graphics, type RoundedRectangle } from 'pixi.js';
-import type { SceneBorder } from '@meldframe/web-canvas/border';
+import type { SceneBorder } from '@meldframe/web-paint/border';
 import { resolveScene, type Scene, type SceneNode } from '@meldframe/web-canvas/scene';
 import { WorldView } from './stage';
 
