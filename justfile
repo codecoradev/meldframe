@@ -68,5 +68,5 @@ check:
     bash scripts/dev-seed-test.sh
     bash scripts/pg-start-test.sh
     bash scripts/mutation-check-portable-test.sh
-    @for f in scripts/pg-start.sh scripts/pg-start-test.sh scripts/mutation-check-portable-test.sh tools/mutation-check-sync.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh; do bash -n "$f" || exit 1; done && echo "check (scripts): syntax ok"
+    @for f in scripts/pg-start.sh scripts/pg-start-test.sh scripts/portable-shell-test.sh scripts/mutation-check-portable-test.sh tools/mutation-check-sync.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh; do bash -n "$f" || exit 1; done && echo "check (scripts): syntax ok"
     @echo "left to CI and the nightly: 'just wasm-test', 'cargo xtask licences --check', 'bash tools/check-migrations.sh' (after 'just dev-db')"
