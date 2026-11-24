@@ -91,6 +91,22 @@ describe('shadows that paint nothing and blurs that are too big', () => {
     expect(shadowBounds(box, [shadow({ alpha: 0, x: 500 }), shadow({ y: 4, blur: 2 })])).toEqual({ x: 98, y: 52, w: 44, h: 24 });
   });
 
+  it('the reach of a blur is 0 for a blur below 0 or one that is not a number', () => {
+    expect(blurReach(shadow({ blur: -5 }))).toBe(0);
+    expect(blurReach(shadow({ blur: NaN }))).toBe(0);
+    expect(blurReach(shadow({ blur: Infinity }))).toBe(0);
+    expect(shadowBounds(box, [shadow({ blur: NaN, x: 3 })])).toEqual({ x: 103, y: 50, w: 40, h: 20 });
+  });
+
+  it('an offset and a spread count for at most MAX_BLUR in the reach, as a blur does: a far shadow does not make a huge capture', () => {
+    // Capped to 1024: the shape is the box moved by (1024, -1024) and grown by 1024; only the reach is capped, not the drawing.
+    expect(shadowBounds(box, [shadow({ x: 1e6, y: -1e6, spread: 1e6 })])).toEqual({ x: 100, y: 50 - 2048, w: 40 + 2048, h: 20 + 2048 });
+    expect(shadowBounds(box, [shadow({ x: -1e6 })])).toEqual({ x: 100 - MAX_BLUR, y: 50, w: 40, h: 20 });
+    expect(shadowShape(40, 20, 0, shadow({ x: 1e6 }))).toMatchObject({ x: 1e6 });
+    // A spread that shrinks it to nothing still leaves nothing.
+    expect(shadowBounds(box, [shadow({ spread: -1e6 })])).toBeNull();
+  });
+
   it('the reach of a blur stops at MAX_BLUR, so a capture of a shadow with a huge blur is not a huge image', () => {
     expect(blurReach(shadow({ blur: 100 }))).toBe(100);
     expect(blurReach(shadow({ blur: 100000 }))).toBe(MAX_BLUR);

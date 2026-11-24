@@ -2,8 +2,8 @@
 // shadow has a blur. Kept out of `stage.ts`, which places them. The shape is `shadowShape` (the rule of a CSS `box-shadow`).
 //
 // A filter works in screen pixels, and the world is scaled by the camera (and by the scale of a capture), so the blur of a
-// world radius `b` is a strength of `b / 2 * zoom` (a Gaussian of sigma `b / 2` is what CSS specifies): measured in Chromium,
-// within 19/255 of the CSS blur at zoom 0.25, 0.5, 1 and 2 with that rule, and 26 to 58/255 off at zoom 2 and 0.5 without it.
+// world radius `b` is a strength of `b / 2 * zoom` (a Gaussian of sigma `b / 2` is what CSS specifies). Without the factor the
+// blur is far from CSS's at any zoom but 1; the measurements are in the contract (the row `shadows`, and section 7).
 import { BlurFilter, Container, Graphics, Rectangle } from 'pixi.js';
 import { blurFilterSettings, shadowShape } from '@meldframe/web-canvas/shadow';
 import type { ResolvedNode } from '@meldframe/web-canvas/scene';
@@ -63,12 +63,13 @@ export function paintShadows(old: readonly ShadowPart[], n: ResolvedNode, zoom: 
       for (const f of g.filters) (f as BlurFilter).destroy();
       g.filters = null;
     }
-    // The culling reads the bounds of a node and ignores the padding of a filter, so a blurred shadow says how far its halo reaches (in world
-    // units, as the padding of the filter at zoom 1): a node that has left the view but whose halo has not is still drawn. It is said by an
-    // empty container beside the shadow, not by `boundsArea` on the Graphics (that breaks the filter, which sizes itself from it: the
-    // blur vanishes at some zooms), and not by a `cullArea` on the node, which would cull a child that overflows the node's box.
+    // The culling reads the bounds of a node and ignores the padding of a filter, so a blurred shadow says how far its halo reaches: 1.5 times
+    // the blur and 2, in world units, uncapped (it is only a hint for the culling, not what the filter pads). A node that has left the view but
+    // whose halo has not is still drawn. It is said by an empty container beside the shadow, not by `boundsArea` on the Graphics (that breaks
+    // the filter, which sizes itself from it: the blur vanishes at some zooms), and not by a `cullArea` on the node, which would cull a child
+    // that overflows the node's box.
     if (s.blur > 0) {
-      const h = blurFilterSettings(s.blur, 1).padding;
+      const h = Math.ceil(1.5 * s.blur) + 2;
       part.halo ??= new Container({ label: 'shadow-halo' });
       part.halo.eventMode = 'none';
       part.halo.boundsArea = new Rectangle(shape.x - h, shape.y - h, shape.w + 2 * h, shape.h + 2 * h);

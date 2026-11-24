@@ -43,8 +43,10 @@ shown to them as it lands. Work so that each step is small, safe to repeat, and 
    against what you meant; it needs an editor open on the file. Your session is bound to the first file you capture:
    capturing another file later is refused as `room_mismatch`. The image shows each node's `border` and `shadows`, so a
    capture of a node is larger than the node by the band of its outside border and the reach of its shadows. A node with
-   a translucent fill, or an opacity below 1, shows its own shadow through itself in the image, which the exported page
-   does not. Then `get_tree` again: the new `seq` and any new warnings.
+   no fill, a translucent fill, or an opacity below 1 shows its own shadow through itself in the image, which the
+   exported page does not. A whole-page capture grows to include shadows and children that lie outside the page and can
+   then be refused as `too_large`; capture the node by `nodeId` instead. Then `get_tree` again: the new `seq` and any
+   new warnings.
 
 ## Names
 

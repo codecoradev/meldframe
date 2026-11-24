@@ -203,9 +203,9 @@ describe('WorldView draws the shadows of a node', () => {
     expect([b.minX, b.minY, b.maxX, b.maxY]).toEqual([-20, -16, 120, 84]);
   });
 
-  it('a halo with a huge blur stops at the cap, and a blur that goes takes its halo away', () => {
+  it('the halo of a huge blur is as wide as the uncapped blur (it is only a culling hint), and a blur that goes takes its halo away', () => {
     const { world } = draw(node({ id: 'a', shadows: [shadow({ blur: 100000 })] }));
-    const pad = Math.ceil(1.5 * MAX_BLUR) + 2;
+    const pad = Math.ceil(1.5 * 100000) + 2;
     const halo = (w: WorldView) => top(w).children.filter((c) => c.label === 'shadow-halo');
     expect(halo(world)[0]!.boundsArea).toMatchObject({ x: -pad, width: 100 + 2 * pad });
     const w2 = new WorldView();

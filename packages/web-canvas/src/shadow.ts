@@ -73,9 +73,9 @@ export const MAX_BLUR = 1024;
 /**
  * How far the blur of a shadow reaches past its shape: its radius, where the fall-off has gone to 2% of the shadow's
  * strength (a Gaussian of sigma `blur / 2`, the one CSS specifies and the canvas filter is set to match), at most
- * `MAX_BLUR`.
+ * `MAX_BLUR`, and 0 for a blur below 0 or one that is not a number.
  */
-export const blurReach = (s: SceneShadow): number => Math.min(s.blur, MAX_BLUR);
+export const blurReach = (s: SceneShadow): number => (Number.isFinite(s.blur) ? Math.min(Math.max(0, s.blur), MAX_BLUR) : 0);
 
 /**
  * The strength and the padding of the blur filter of a shadow of world radius `blur` when the world is scaled by `zoom`:
@@ -87,7 +87,10 @@ export function blurFilterSettings(blur: number, zoom: number): { strength: numb
   return { strength: px / 2, padding: Math.ceil(1.5 * px) + 2 };
 }
 
-/** The rectangle every shadow of `box` covers, blur included, or null when none shows (a shadow with an alpha of 0 paints nothing). */
+/**
+ * The rectangle every shadow of `box` covers, blur included, or null when none shows (a shadow with an alpha of 0 paints nothing).
+ * Offset, spread and blur each count for at most `MAX_BLUR` here.
+ */
 export function shadowBounds(box: Rect, shadows: readonly SceneShadow[] | undefined): Rect | null {
   let x0 = Infinity;
   let y0 = Infinity;
@@ -95,7 +98,10 @@ export function shadowBounds(box: Rect, shadows: readonly SceneShadow[] | undefi
   let y1 = -Infinity;
   for (const s of shadows ?? []) {
     if (!(s.alpha > 0)) continue;
-    const shape = shadowShape(box.w, box.h, 0, s);
+    // The offset and the spread count for at most MAX_BLUR in the reach, as the blur does (the drawing is not capped): a far shadow
+    // does not make a huge capture.
+    const cap = (v: number) => Math.min(Math.max(v, -MAX_BLUR), MAX_BLUR);
+    const shape = shadowShape(box.w, box.h, 0, { ...s, x: cap(s.x), y: cap(s.y), spread: cap(s.spread) });
     if (!shape) continue;
     const g = blurReach(s);
     x0 = Math.min(x0, box.x + shape.x - g);

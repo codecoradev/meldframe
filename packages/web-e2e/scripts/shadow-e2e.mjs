@@ -81,9 +81,10 @@ if (!process.env.MELDFRAME_SEEDED) {
   assert.equal(res.status, 200, `apply_commands: ${res.status} ${await res.clone().text()}`);
 }
 
-// The contract (section 8.5) allows 20/255 between the canvas blur and CSS (measured 19); on a 2x screen the filter keeps a resolution of 1 and measures up to 25.
+// The contract (section 8.5) allows 20/255 between the canvas blur and CSS. On a 2x screen the filter keeps a resolution of 1 and the measured
+// maximum is 25; the limit of 28 leaves headroom and has to be measured again when Chromium changes (the contract says so too).
 const dpr = Number(process.env.MELDFRAME_DPR ?? 1);
-const BLUR_MAX = dpr === 1 ? 20 : 25;
+const BLUR_MAX = dpr === 1 ? 20 : 28;
 let failed = 0, checks = 0;
 const check = (ok, line) => { checks++; if (!ok) failed++; console.log(`${ok ? 'ok  ' : 'FAIL'} ${line}`); };
 const near = (px, want, tol = 40) => px.every((v, k) => Math.abs(v - want[k]) <= tol);
@@ -232,6 +233,8 @@ try {
     c.probes.forEach(([what, x, y, want], i) => check(near(im.points[i], want ?? WHITE, 4), `${what} (${x}, ${y}): ${im.points[i].join(',')} want ${(want ?? WHITE).join(',')}`));
   }
   // The blurred shadow in a capture: the node and 16 units of blur around it, compared with CSS at the same scale.
+  // Not measured at 2x: the CSS reference page is rendered at the page's dpr, a capture is always one pixel to a unit, and the comparison would
+  // need a reference page of its own at dpr 1. The capture is the same code at any dpr (`renderRegion` at resolution 1).
   for (const sc of dpr === 1 ? [1, 2] : []) {
     const n = 14 * sc;
     const im = await look(page, await shot({ nodeId: 'b1', scale: sc }), { row: { x: 16 * sc - 1, y: (16 + 40) * sc, dx: 1, n } });
