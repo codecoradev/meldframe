@@ -26,6 +26,7 @@ pointer events (`eventMode = 'none'`). One pointer move costs a scan of the scen
 - `node packages/web-e2e/scripts/canvas-e2e.mjs [url]`: click, drag, cancel, resize, wheel, pinch, hover, no leaked listeners over
   three mounts, device pixel ratio 2 and the 2D canvas fallback.
 - `node packages/web-e2e/scripts/canvas-perf.mjs [url] [nodes]`: build time and frame times with generated scenes.
+- `node packages/web-e2e/scripts/shadow-perf.mjs`: frame times of a canvas of 10, 100 and 500 nodes with a blurred, a hard and no shadow (idle, pan, zoom); it starts its own server and Vite (needs the server binary and the WASM bridge) and, in a container, measures a software rasteriser: read the growth with N, not the milliseconds.
 - `node packages/web-e2e/scripts/canvas-shot.mjs <out.png> [query] [url]`: a screenshot of the harness.
 
 ## Performance (measured 16 Nov 2026)
