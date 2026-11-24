@@ -20,6 +20,40 @@ struct Walk<'a> {
     report: Report,
 }
 
+/// The most ids the `text_size_estimated` message lists.
+const ESTIMATED_LISTED: usize = 8;
+
+/// One warning for the texts whose box the measurer decides (hug or fill on an axis): their pinned `min-width` and
+/// `line-height` are an estimate when the measurer is. A text of fixed size is not listed.
+fn estimated_text(order: &[&PaintedBox], by_id: &HashMap<&str, &Node>, report: &mut Report) {
+    let ids: Vec<&str> = order
+        .iter()
+        .filter_map(|b| by_id.get(b.id.as_str()))
+        .filter(|n| {
+            n.kind == NodeKind::Text && (n.sw != SizeMode::Fixed || n.sh != SizeMode::Fixed)
+        })
+        .map(|n| n.id.as_str())
+        .collect();
+    if ids.is_empty() {
+        return;
+    }
+    let more = ids.len().saturating_sub(ESTIMATED_LISTED);
+    let tail = if more > 0 {
+        format!(" and {more} more")
+    } else {
+        String::new()
+    };
+    let listed = ids[..ids.len() - more].join(", ");
+    report.warn(
+        "text_size_estimated",
+        None,
+        format!(
+            "{} text boxes take their size from an estimate of the text, not from the font the browser uses, so their min-width and line-height may differ from the canvas and the Export dialog: {listed}{tail}",
+            ids.len()
+        ),
+    );
+}
+
 pub(crate) fn export(
     nodes: &[Node],
     vars_in: &Variables,
@@ -65,6 +99,9 @@ pub(crate) fn export(
     let rects: HashMap<String, Rect> = compute_rects(&sub, options.measurer).into_iter().collect();
     for f in layout_findings(&sub, options.measurer) {
         report.warn(f.code, Some(&f.id), f.message);
+    }
+    if options.estimated_text {
+        estimated_text(&order, &by_id, &mut report);
     }
     let cx = Cx {
         names: &var_css.names,

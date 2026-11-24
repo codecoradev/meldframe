@@ -46,6 +46,10 @@ pub struct ExportOptions<'a> {
     pub modes: ModeChoice,
     /// Measures text: pinned into the CSS as `min-width` and `line-height` (rule G4).
     pub measurer: &'a dyn TextMeasurer,
+    /// The measurer is an estimate, not the font the browser uses (the stub of a server): the report then carries
+    /// `text_size_estimated` when a text box takes its size from the measurer. Off by default; a caller that
+    /// measures with the page's fonts leaves it off.
+    pub estimated_text: bool,
     /// Where the font file is, relative to the document.
     pub font_href: String,
     /// Where the stylesheet is, relative to the document ([`Format::Tailwind`] only).
@@ -62,6 +66,7 @@ impl<'a> ExportOptions<'a> {
             format,
             modes: ModeChoice::default(),
             measurer,
+            estimated_text: false,
             font_href: "inter.woff2".into(),
             css_href: "meldframe.css".into(),
             asset_base: "assets/".into(),
@@ -71,6 +76,12 @@ impl<'a> ExportOptions<'a> {
 
     pub fn modes(mut self, modes: ModeChoice) -> Self {
         self.modes = modes;
+        self
+    }
+
+    /// Say whether the measurer is an estimate (see [`ExportOptions::estimated_text`]).
+    pub fn estimated_text(mut self, on: bool) -> Self {
+        self.estimated_text = on;
         self
     }
 }
@@ -165,7 +176,7 @@ pub fn export_variables(vars: &Variables) -> Result<VariablesExport, ExportError
 }
 
 /// The tool text an agent reads (English, part of the contract; `docs/mcp-tools.json` lists it).
-pub const DESCRIPTION: &str = "Export a frame of a file, and everything inside it, as a whole HTML document with the styles of a design that matches the canvas. Pass file and frame (the id of a frame; a top-level frame sits at its own x and y, a frame inside another at the origin). format is css (the default: one rule per node in an inline stylesheet) or tailwind (Tailwind v4 utilities on each element; the css in the result is the input of the Tailwind compiler, and the html links it as meldframe.css). Variables the frame uses become CSS variables (--collection-name) on :root, one rule per extra mode, and a bound fill, radius or opacity is var(--...); pass modes, an object of collection id to mode id, to export a mode other than the default (the result says it in the html attributes). The result lists under report what the export could not carry: unsupported (a shader is approximated by a gradient, a border or image on text is dropped, a border on a frame that clips is clipped) and warnings (layout findings, bindings that do not resolve, text a browser breaks differently), and the ids of the images the html refers to under assets (the files are not included; the font is inter.woff2 next to the document). Text sizes come from the server's stub measurer, not the browser's, so text boxes are only as exact as that. A frame whose export is over the size limit is refused as E_EXPORT_TOO_LARGE: export a smaller frame; a node that is not in the file is E_NODE_NOT_FOUND and one that is not a frame E_NOT_A_FRAME. Changes nothing.";
+pub const DESCRIPTION: &str = "Export a frame of a file, and everything inside it, as a whole HTML document with the styles of a design that matches the canvas. Pass file and frame (the id of a frame; a top-level frame sits at its own x and y, a frame inside another at the origin). format is css (the default: one rule per node in an inline stylesheet) or tailwind (Tailwind v4 utilities on each element; the css in the result is the input of the Tailwind compiler, and the html links it as meldframe.css). Variables the frame uses become CSS variables (--collection-name) on :root, one rule per extra mode, and a bound fill, radius or opacity is var(--...); pass modes, an object of collection id to mode id, to export a mode other than the default (the result says it in the html attributes). The result lists under report what the export could not carry: unsupported (a shader is approximated by a gradient, a border or image on text is dropped, a border on a frame that clips is clipped) and warnings (layout findings, bindings that do not resolve, text a browser breaks differently), and the ids of the images the html refers to under assets (the files are not included; the font is inter.woff2 next to the document). Text sizes come from the server's stub measurer, not the browser's, so text boxes are only as exact as that: a text whose box takes its size from the measurer (hug or fill) is pinned at an estimated width and line height, and the warnings then hold one text_size_estimated naming those texts. Its min-width and line-height may be far from the canvas and the Export dialog, which measure with the real font: do not take them as exact. A frame whose export is over the size limit is refused as E_EXPORT_TOO_LARGE: export a smaller frame; a node that is not in the file is E_NODE_NOT_FOUND and one that is not a frame E_NOT_A_FRAME. Changes nothing.";
 
 /// The name of the agent tool.
 pub const TOOL: &str = "export_frame";

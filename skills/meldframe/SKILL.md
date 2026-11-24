@@ -122,8 +122,12 @@ Call `export_frame` with the `file`, the `frame` (the id of a frame) and, if you
 opacity comes out as a CSS variable, and `modes` (collection id to mode id) picks the mode to export. Read `report`
 before you hand the result on: `unsupported` lists what the export dropped or approximated (a shader becomes a gradient)
 and `warnings` the layout problems and the text a browser breaks differently from the canvas. The images are named under
-`assets`, not included. Text sizes come from a stub, not a browser, so text boxes are only as exact as that. A frame whose
-export is over 256 KiB is refused as `E_EXPORT_TOO_LARGE`: export a smaller frame, one section at a time.
+`assets`, not included. Text sizes come from a stub, not a browser, so text boxes are only as exact as that: a text with
+`sw` or `sh` hug (or fill) is pinned at an estimated `min-width` and `line-height`, which can be far from the canvas
+(the stub counts half an em per character and ignores the weight), and `warnings` then holds one `text_size_estimated`
+naming those texts. Do not hand those pinned sizes on as exact: tell the person that the text sizes are estimates, or
+relax the `min-width` of a hug text in the code you write from the export. A frame whose export is over 256 KiB is
+refused as `E_EXPORT_TOO_LARGE`: export a smaller frame, one section at a time.
 
 ## When a call is refused
 
