@@ -2,7 +2,9 @@
 // a negative spread, the order of two, a radius, a circle, under a clip and under an opacity: each probe within 4/255 of the hand-computed colour), a blurred one against the
 // blur CSS draws for the same box (close, not identical: the contract, section 8.5, allows 20/255), the same at other zooms of the
 // camera (the strength of the filter follows the zoom), and the same pixels in a capture at scale 1 and 2, which takes the reach of
-// the shadow in.
+// the shadow in. A shadow is cut out of the node's own box (CSS draws none inside the border box, issue 248): a node with no fill, a
+// translucent fill or an opacity below 1 shows the page, not its shadow, inside its box (exact probes for the hard shadows; for the blurred
+// ones, the pixels of a CSS page with the same boxes, within the blur limit).
 //   node packages/web-e2e/scripts/shadow-e2e.mjs <web-url> <server-url> <token>
 // Start first: the server (`MELDFRAME_DEV_TOKENS="<token>:ws_dev:agent:dev" MELDFRAME_LISTEN=127.0.0.1:<port> meldframe-server`, in memory), the
 // web client on a file that is new for each run (`MELDFRAME_SERVER=<server-url> MELDFRAME_WEB_TOKEN=<token> MELDFRAME_WEB_FILE=<file> npx vite
@@ -19,7 +21,7 @@ if (!web || !server || !token || !file) throw new Error('usage: MELDFRAME_WEB_FI
 const box = (id, type, parentId, x, y, w, h, more = {}) => ({ id, type, parentId, x, y, w, h, fill: '#cccccc', ...more });
 const shadow = (x, y, blur, spread, color) => ({ x, y, blur, spread, color });
 const nodes = [
-  box('page', 'frame', undefined, 0, 0, 900, 480, { fill: '#ffffff', name: 'page' }),
+  box('page', 'frame', undefined, 0, 0, 900, 780, { fill: '#ffffff', name: 'page' }),
   // Row 1: offset, spread, negative spread, order.
   box('h1', 'rect', 'page', 40, 40, 100, 60, { shadows: [shadow(20, 15, 0, 0, '#ff0000')] }),
   box('h2', 'rect', 'page', 220, 40, 100, 60, { shadows: [shadow(0, 0, 0, 10, '#0000ff')] }),
@@ -36,9 +38,28 @@ const nodes = [
   box('o1', 'rect', 'page', 760, 190, 100, 60, { opacity: 0.5, shadows: [shadow(20, 20, 0, 0, '#0000ff')] }),
   // Row 3: an alpha colour, and the blurred one (a magenta box, which gives the camera back to the probes).
   box('a1', 'rect', 'page', 40, 340, 100, 60, { shadows: [shadow(20, 0, 0, 0, '#0000ff80')] }),
-  // A translucent fill over its own shadow: CSS clips a shadow out of the box, the canvas draws it under the box (the contract's row `shadows`).
+  // A translucent fill over its own shadow: CSS clips a shadow out of the box, so the page shows through the fill (issue 248).
   box('g1', 'rect', 'page', 500, 340, 100, 60, { fill: '#cccccc80', shadows: [shadow(20, 0, 0, 0, '#0000ff')] }),
   box('b1', 'rect', 'page', 280, 360, 120, 80, { fill: '#ff00ff', shadows: [shadow(0, 0, 16, 0, '#000000')] }),
+  // Row 4: the shadow is cut out of the box. No fill, a fill with an alpha and a spread (the cut is the box, not the grown shape), a negative spread
+  // (nothing outside the box), a radius (the cut follows the box's corner), a circle, a border.
+  box('n1', 'rect', 'page', 40, 510, 100, 60, { fill: 'none', shadows: [shadow(20, 20, 0, 0, '#0000ff')] }),
+  box('n2', 'rect', 'page', 220, 510, 100, 60, { fill: '#ff000080', shadows: [shadow(0, 0, 0, 10, '#0000ff')] }),
+  box('n3', 'rect', 'page', 400, 510, 100, 60, { fill: 'none', shadows: [shadow(0, 0, 0, -10, '#00aa00')] }),
+  box('n5', 'rect', 'page', 580, 510, 100, 60, { fill: '#cccccc80', radius: 20, shadows: [shadow(0, 0, 0, 10, '#ff0000')] }),
+  box('n6', 'ellipse', 'page', 760, 510, 100, 100, { fill: 'none', shadows: [shadow(0, 0, 0, 10, '#0000ff')] }),
+  // Row 5: two shadows under a translucent fill; blurred shadows cut after the blur (no fill; a fill with an alpha and an offset; an opacity), against CSS; a border.
+  box('n7', 'rect', 'page', 40, 660, 100, 60, { fill: '#cccccc80', shadows: [shadow(10, 10, 0, 0, '#ff0000'), shadow(20, 20, 0, 0, '#0000ff')] }),
+  box('q2', 'rect', 'page', 250, 660, 100, 70, { fill: 'none', shadows: [shadow(0, 0, 16, 0, '#000000')] }),
+  box('q3', 'rect', 'page', 430, 660, 100, 70, { fill: '#cccccc80', shadows: [shadow(10, 10, 12, 0, '#000000')] }),
+  box('q4', 'rect', 'page', 610, 660, 100, 70, { fill: '#cccccc', opacity: 0.5, shadows: [shadow(10, 10, 12, 0, '#000000')] }),
+  box('n8', 'rect', 'page', 770, 660, 100, 60, { fill: '#cccccc80', border: { width: 6, color: '#ff0000', position: 'outside' }, shadows: [shadow(10, 10, 0, 0, '#0000ff')] }),
+];
+// The blurred cases against CSS: the same boxes as divs. [world x, y, w, h, css background, opacity, box-shadow offset x, y, blur, probes]
+const cssCases = [
+  { id: 'q2', x: 250, y: 660, w: 100, h: 70, bg: 'transparent', op: 1, sh: [0, 0, 16], probes: [[300, 695], [254, 695], [262, 668], [246, 695], [240, 695], [232, 695], [300, 654], [300, 737], [345, 695], [355, 695]] },
+  { id: 'q3', x: 430, y: 660, w: 100, h: 70, bg: '#cccccc80', op: 1, sh: [10, 10, 12], probes: [[480, 695], [524, 695], [434, 664], [537, 700], [540, 700], [480, 737], [480, 742], [425, 700], [480, 655], [500, 720]] },
+  { id: 'q4', x: 610, y: 660, w: 100, h: 70, bg: '#cccccc', op: 0.5, sh: [10, 10, 12], probes: [[660, 695], [704, 695], [614, 664], [717, 700], [720, 700], [660, 737], [660, 742], [605, 700], [660, 655], [680, 720]] },
 ];
 const RED = [255, 0, 0], BLUE = [0, 0, 255], GREEN = [0, 170, 0], GREY = [204, 204, 204], WHITE = [255, 255, 255], YELLOW = [255, 255, 0];
 // [what, world x, world y, expected rgb, tolerance (default 4)]
@@ -60,18 +81,37 @@ const probes = [
   ['opacity: the shadow is faded with the node', 870, 230, [127, 127, 255]],
   ['alpha: the colour of the shadow carries its own alpha', 150, 370, [127, 127, 255]],
   ['translucent fill: the shadow beyond the box', 610, 370, BLUE],
-  // CSS draws no shadow under the border box, the canvas does: a box with a fill of 50% shows its shadow through it on the canvas (102,102,230: the
-  // grey at half over blue) and not in the export (230,230,230: the grey at half over the page). The probes pin the canvas (tolerance 4), so a change of either side shows.
-  ['translucent fill: the canvas shows the shadow through the box', 560, 370, [102, 102, 230], 4],
-  // The same under an opacity of the node: Pixi fades each part alone (the box at half over the shadow at half over the page), CSS the node as one image with the shadow
-  // hidden under the box (the grey at half over the page).
-  ['opacity: the canvas shows the shadow through the box', 820, 230, [166, 166, 230], 4],
+  // CSS draws no shadow inside the border box (issue 248): the box is cut out of the shadow, so the page shows through a translucent fill (the grey at
+  // half over the page is 230,230,230), through no fill, and under an opacity of the node (the box and its shadow fade as one image in CSS, with the shadow
+  // outside the box only).
+  ['translucent fill: no shadow inside the box', 560, 370, [230, 230, 230]],
+  ['opacity: no shadow inside the box', 820, 230, [230, 230, 230]],
+  ['no fill: the box shows the page where its shadow would be', 100, 560, WHITE], ['no fill: the box where the shadow is not', 50, 520, WHITE],
+  ['no fill: the shadow right of the box', 150, 560, BLUE], ['no fill: the shadow below the box', 100, 580, BLUE],
+  ['alpha fill, spread: the box is the fill over the page', 270, 540, [255, 127, 127]], ['alpha fill, spread: the ring of the spread, left', 215, 540, BLUE], ['alpha fill, spread: the ring above', 270, 505, BLUE],
+  ['negative spread, no fill: nothing outside the box, nothing inside', 450, 540, WHITE],
+  ['radius: the shadow shows in the corner outside the round box', 582, 512, RED], ['radius: inside the round corner, the fill over the page', 590, 520, [230, 230, 230]],
+  ['circle, no fill: the centre shows the page', 810, 560, WHITE], ['circle, no fill: inside the edge at 45 degrees shows the page', 842, 592, WHITE], ['circle, no fill: the ring of the spread at 45 degrees', 849, 599, BLUE],
+  ['two shadows, translucent fill: the box over the page', 100, 700, [230, 230, 230]], ['two shadows: where both are outside the box, the second', 145, 710, BLUE],
+  ['two shadows: where only the first is', 55, 725, RED], ['two shadows: where only the second is', 155, 735, BLUE],
+  ['border: the box is the fill over the page', 820, 690, [230, 230, 230]], ['border: the ring is over the shadow', 873, 690, RED], ['border: the shadow beyond the ring', 878, 690, BLUE],
+  ['border: the ring below the box', 820, 723, RED], ['border: the shadow below the ring', 820, 728, BLUE],
 ];
 
 // The hard shadow that a capture of `h1` has to show: the node and the reach of its shadow, in its own pixels.
 const capture = (scale) => ({ id: 'h1', scale, width: 120 * scale, height: 75 * scale, probes: [
   ['capture: the shadow right of the box', 110, 30, RED], ['capture: the shadow below the box', 60, 68, RED], ['capture: the box', 30, 20, GREY], ['capture: above the shadow, right of the box', 118, 3, null], ['capture: below the box, left of the shadow', 3, 72, null],
 ].map(([w, x, y, c]) => [`${w} (scale ${scale})`, x * scale, y * scale, c]) });
+
+// The box is cut out of the shadow in a capture too (the capture is transparent where nothing is drawn and the probes read it over white: the grey at half
+// over white is 230). `g1`: a hard shadow under a translucent fill; `o1`: under an opacity of 0.5; `q3`: blurred, offset, translucent. Probes in the node's own units.
+const GREYHALF = [230, 230, 230];
+const captureCut = (scale) => [
+  { id: 'g1', scale, probes: [['the box over its shadow', 70, 30, GREYHALF], ['the box where the shadow is not', 10, 30, GREYHALF], ['the shadow beyond the box', 110, 30, BLUE]] },
+  { id: 'o1', scale, probes: [['the box over its shadow', 70, 40, GREYHALF], ['the shadow beyond the box', 110, 70, [127, 127, 255]]] },
+  // The capture box of q3 starts 2 units before the node (the blur reaches 12 past the shadow, which is 10 in): the node is at (2, 2).
+  { id: 'q3', scale, probes: [['the box over its blurred shadow (centre)', 52, 37, GREYHALF], ['the box over its blurred shadow (near the shadow edge)', 100, 70, GREYHALF]] },
+].map((c) => ({ ...c, probes: c.probes.map(([w, x, y, want]) => [`capture cut ${c.id}: ${w} (scale ${scale})`, x * scale, y * scale, want]) }));
 
 if (!process.env.MELDFRAME_SEEDED) {
   const res = await fetch(`${server}/v1/files/${file}/tools/apply_commands`, {
@@ -140,7 +180,7 @@ try {
   await page.waitForSelector('[data-testid=connection][data-state=live]', { timeout: 60_000 });
   await page.waitForTimeout(3000);
   // The page frame is the one pure white area of the canvas: it gives the zoom and the origin, so the probes do not depend on the camera.
-  const first = await look(page, await shotOf(page), { box: { rgb: WHITE, x0: 250, x1: 1440 * dpr - 250, y0: 100, y1: 860 * dpr - 60 } });
+  const first = await look(page, await shotOf(page), { box: { rgb: WHITE, x0: 250, x1: 1440 * dpr - 250, y0: 40, y1: 860 * dpr - 20 } });
   assert.ok(first.found, 'the page frame was not found on the canvas');
   const { x0, y0, x1 } = first.found;
   const s = (x1 - x0) / 900;
@@ -148,6 +188,23 @@ try {
   console.log(`camera zoom ${(s / dpr).toFixed(3)} at ${dpr}x`);
   const got = await page.evaluate(`(${sample})(${JSON.stringify({ points: probes.map(([, wx, wy]) => [x0 + wx * s, y0 + wy * s]) })})`);
   probes.forEach(([what, wx, wy, want, tol], i) => check(near(got.points[i], want, tol ?? 4), `${what} (${wx}, ${wy}): ${got.points[i].join(',')} want ${want.join(',')}`));
+
+  // Blurred shadows cut after the blur, against a CSS page with the same boxes (the page is the reference the export is made for).
+  {
+    const k = s / dpr; // CSS px per world unit
+    const ref = await browser.newPage({ viewport: { width: Math.ceil(900 * k) + 2, height: Math.ceil(780 * k) + 2 }, deviceScaleFactor: dpr });
+    const div = (c) => `<div style="position:absolute;left:${c.x * k}px;top:${c.y * k}px;width:${c.w * k}px;height:${c.h * k}px;background:${c.bg};opacity:${c.op};box-shadow:${c.sh[0] * k}px ${c.sh[1] * k}px ${c.sh[2] * k}px 0 #000"></div>`;
+    await ref.setContent(`<body style="margin:0;background:#fff">${cssCases.map(div).join('')}`);
+    const want = await look(ref, await shotOf(ref), { points: cssCases.flatMap((c) => c.probes.map(([wx, wy]) => [wx * s, wy * s])) });
+    await ref.close();
+    const have = await page.evaluate(`(${sample})(${JSON.stringify({ points: cssCases.flatMap((c) => c.probes.map(([wx, wy]) => [x0 + wx * s, y0 + wy * s])) })})`);
+    let i = 0;
+    for (const c of cssCases) for (const [wx, wy] of c.probes) {
+      const d = Math.max(...have.points[i].map((v, j) => Math.abs(v - want.points[i][j])));
+      check(d <= BLUR_MAX, `blurred ${c.id} at (${wx}, ${wy}): canvas ${have.points[i].join(',')} css ${want.points[i].join(',')} (${d}/255; allowed ${BLUR_MAX})`);
+      i++;
+    }
+  }
 
   // Culling: the canvas draws the view and half a view around it, and the culling reads the bounds of a node, which leave out the padding of a
   // filter. A node just beyond that margin whose blur halo reaches into the view must still draw its halo: a huge white shadow (a half plane
@@ -231,6 +288,10 @@ try {
     const im = await look(page, await shot({ nodeId: c.id, scale: c.scale }), { points: c.probes.map(([, x, y]) => [x, y]) });
     check(im.w === c.width && im.h === c.height, `capture at ${c.scale}: the image is the node and the reach of its shadow, ${im.w} x ${im.h} (want ${c.width} x ${c.height})`);
     c.probes.forEach(([what, x, y, want], i) => check(near(im.points[i], want ?? WHITE, 4), `${what} (${x}, ${y}): ${im.points[i].join(',')} want ${(want ?? WHITE).join(',')}`));
+  }
+  for (const c of [...captureCut(1), ...captureCut(2)]) {
+    const im = await look(page, await shot({ nodeId: c.id, scale: c.scale }), { points: c.probes.map(([, x, y]) => [x, y]) });
+    c.probes.forEach(([what, x, y, want], i) => check(near(im.points[i], want, 4), `${what} (${x}, ${y}): ${im.points[i].join(',')} want ${want.join(',')}`));
   }
   // The blurred shadow in a capture: the node and 16 units of blur around it, compared with CSS at the same scale.
   // Not measured at 2x: the CSS reference page is rendered at the page's dpr, a capture is always one pixel to a unit, and the comparison would
