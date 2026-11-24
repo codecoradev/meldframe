@@ -1,6 +1,6 @@
 # Grid layout: plan for an epic box
 
-Status: **plan, awaiting the owner**. Written 2026-11-24 for GitHub issue 271 (decision 40, item 1, `docs/decisions.md`), after reading the repository. Nothing in the model, the layout core, the canvas or the export changes with this note, and nothing here is built. The owner approves it by merging the pull request that carries it, or answers differently; the epic box it proposes (section 12) goes into `docs/epics.md` in a pull request of its own, after the other edits to that file.
+Status: **plan, awaiting the owner**. Written 2026-11-24 for GitHub issue 271 (decision 40, item 1, `docs/decisions.md`; the owner approved decision 40 on 24 Nov 2026 and #271 is its follow-up for grid), after reading the repository; the state of `develop` read for the order of work in 11.1 is the commit that records decision 41 (the scoped HTML importer, epic E4.4). Nothing in the model, the layout core, the canvas or the export changes with this note, and nothing here is built. The owner approves it by merging the pull request that carries it, or answers differently; the epic box it proposes (section 12) goes into `docs/epics.md` in a pull request of its own, after the other edits to that file.
 
 What was checked, and how, is in section 14. Short version: the claims about the code come from reading it (paths are cited). The CSS grid behaviour that the plan relies on was measured on 2026-11-24 in Chrome for Testing 153.0.8010.12, the same Chromium major the fidelity contract measures, with a throwaway script that is **not** in the repository (section 14 says what it did, so it can be written again). The Tailwind classes of section 7 were compiled with Tailwind 4.3.5, the version `tools/fidelity-oracle/package.json` pins. No number below is a measurement of Meldframe itself; sizes of slices are estimates by analogy to the earlier model slices (#220, #221, #222).
 
@@ -309,14 +309,15 @@ And the `get_tree` text names the new findings next to `overflow`, `fill_under_h
 
 ### 11.1 Recommendation
 
-Build it, as a model round with its own ADR, in the order below, **after Gatehouse** (decision 36 puts Gatehouse next) and in step with the HTML import of `docs/import-html.md` if the owner lifts decision 6:
+Build it, as a model round with its own ADR, in the order below. Two things are already ordered: Gatehouse is next after the canvas layout (decision 36), and the scoped HTML importer is ordered as epic E4.4 (decision 41, issue 272), which per that decision starts now, in parallel with other work and with no wait for Gatehouse (the decision marks that timing as the author's reading, reversible). Grid is not ordered yet; this note recommends:
 
-1. Gatehouse (M2) first, as ordered. Grid touches `meldframe-protocol`, `-check`, `-undo`, `-layout`, `export` and the app layer; Gatehouse touches sign-in, the gate and the server, so the two do not collide in files, but the owner's order stands.
-2. Grid slices 0 to 5 (model to agent surface), in parallel with the importer's slices 0 to 3 (parser, cascade), which touch new crates only.
-3. The importer's layout mapping (its slice 4) **after grid slice 3**, so it maps `display: grid` once instead of refusing it and then changing (section 13).
-4. Grid slices 6 to 9 (app layer, panel, track lines, per-axis gaps) after that, as the owner sees the real use.
+1. **Gatehouse keeps its priority.** Grid touches `meldframe-protocol`, `-check`, `-undo`, `-layout`, `export` and the app layer; Gatehouse touches sign-in, the gate and the server, and the importer touches new crates (`meldframe-css`, `html-import`) and, in its slice 7, the tool crate. So the three do not collide in files, and grid can start after Gatehouse is under way, not after it ends; the owner's order of priority stands.
+2. **Grid slices 0 to 3 (decision and ADR, model, layout core, export), then 4 and 5 (oracle, agent surface).** They can run in parallel with the importer's slices 1 to 3 (shared CSS readers, HTML tree builder, CSS cascade).
+3. **The importer's layout mapping (E4.4 slice 4) maps grid at once if grid slice 3 has landed by then.** If it has not, the importer lands first with the refusal of `display: grid` that its section 3.4 has today, and the rows of section 13 replace it later (slice 8). Both work; the first saves one pass over the mapping.
+4. **Grid slices 6 and 7 (app layer, panel)** after that. A person editing a grid by hand is the part with the most to decide (section 15, items 4 and 6), and an agent already has the whole of grid from slice 5.
+5. Both grid slice 4 and E4.4 slice 8 add fixtures to `tools/fidelity-oracle/fixtures.mjs` (`f24` onward and `h01` onward) and text to `docs/fidelity-contract.md`: they should not be open at once, or the second rebases over the first.
 
-The alternative, grid after the importer, is also sound: the importer's report names every `grid-*` property it refused, which is the evidence for how much real pages need it. Nothing in this repository counts grid in real pages today; this note does not claim a number.
+The alternative, grid after the importer, is also sound: the importer's report names every `grid-*` property it refused, which is evidence of how much real pages need grid. Nothing in this repository counts grid in real pages today, and this note does not claim a number.
 
 ### 11.2 The first slice, its size and its failing test
 
@@ -330,7 +331,7 @@ The alternative, grid after the importer, is also sound: the importer's report n
 
 | # | Slice | Where, kind | Estimate | Depends on |
 |---|---|---|---|---|
-| 0 | Owner text: the decision (wording in section 16), the ADR (next free number) that records the fields of section 4 and the compatibility point of 4.2, the contract rows and G6 as "proposed", the epic box, the glossary terms | `docs/`, docs only | about 300 lines | this note approved |
+| 0 | Owner text: the decision (wording in section 16), the ADR (the next free number: 0024 is the importer's) that records the fields of section 4 and the compatibility point of 4.2, the contract rows and G6 as "proposed", the epic box, the glossary terms | `docs/`, docs only | about 300 lines | this note approved |
 | 1 | Model, checks, undo, generated types, coverage rows, the guard (11.2) | Rust | 550 to 650 | 0 |
 | 2a | Layout core: cells, fixed and fill tracks, gap, padding, `justify` and `align`, margins, absolute children, fixed grid frame, the findings that need no hug (`overflow`, `zero_fill`, `grid_cell_outside`) | `meldframe-layout` and `meldframe-layout-tests` (`layout_grid.rs`) | about 650 (330 code, 320 tests) | 1 |
 | 2b | Layout core: hug tracks and hug frames, spans over hug tracks, G6 and its findings, `span_over_hug`, the shuffle test and the 5,000 child timing | same | about 600 | 2a |
@@ -399,7 +400,7 @@ Effect on the counts of its section 3.8 (111 rows: 41 supported, 34 approximated
 5. **Auto-placement: written by CSS or written by the export.** Recommendation: CSS places auto children (the HTML stays editable), the oracle's grid fuzz checks the core's cursor against it; if it finds a difference the export writes explicit lines for that case.
 6. **Names.** Recommendation: **Grid**, **Track** (one column or one row, with a kind and a size) and **Cell** (the place of a child) as glossary terms; `columns`, `rows`, `cell`, `colSpan`, `rowSpan` as field names. The glossary has no word for them today; `GLOSSARY.md` is the owner's file.
 7. **Limits.** 24 tracks an axis, shares 1 to 100, lines and spans 1 to 256 (4.3): proposed, not measured.
-8. **Order.** Recommendation in 11.1: after Gatehouse, in step with the importer, the importer's layout mapping after slice 3 of grid.
+8. **Order.** Recommendation in 11.1: Gatehouse keeps its priority, grid starts in step with the importer (E4.4), and the importer's layout mapping follows slice 3 of grid if it can.
 
 Owner sign-off on the subset: pending.
 
@@ -418,15 +419,15 @@ For the owner's text in slice 0, as drafts. None of these files is changed by th
 > - [ ] The Properties panel has Grid in the layout direction, lists of columns and rows, and the cell of a child; a drop in a grid is a reorder in cell order; checked in a browser.
 > - [ ] HTML import maps `display: grid` (when E4.4 exists).
 
-**`docs/decisions.md`**, a row after 40 (status proposed, awaiting the owner):
+**`docs/decisions.md`**, a row after 41 (the number is the next free one at the time: 42 when this was written; status proposed, awaiting the owner):
 
-> 41 | Grid layout, planned in `docs/grid-layout.md` and scheduled as E3.6 after W1. (1) A grid is `layout: grid` with `columns` and `rows` of fixed, fill (`minmax(0, <share>fr)`) and hug (`max-content`) tracks and a `cell` on a child; auto-placement is row by row. (2) Additive fields on the one `UpdateNode`: no new `Command`; a patch replaces the whole track list. (3) Named areas, `subgrid`, `masonry`, `dense`, other `minmax` forms and free-space distribution between tracks stay out. (4) The slice that adds the model refuses `layout: grid` until the core and the export lay it out. (5) Order: after Gatehouse, in step with HTML import, the importer's layout mapping after the export slice. | proposed (awaiting the owner)
+> 42 | Grid layout, planned in `docs/grid-layout.md` and scheduled as E3.6 after W1. (1) A grid is `layout: grid` with `columns` and `rows` of fixed, fill (`minmax(0, <share>fr)`) and hug (`max-content`) tracks and a `cell` on a child; auto-placement is row by row. (2) Additive fields on the one `UpdateNode`: no new `Command`; a patch replaces the whole track list. (3) Named areas, `subgrid`, `masonry`, `dense`, other `minmax` forms and free-space distribution between tracks stay out. (4) The slice that adds the model refuses `layout: grid` until the core and the export lay it out. (5) Order: Gatehouse keeps its priority; grid starts in step with the importer (decision 41), and the importer's layout mapping follows the export slice if it can. | proposed (awaiting the owner)
 
-**`docs/prd.md`**, a requirement after FR-4: "FR-4a Grid layout: columns and rows of fixed, fill and hug tracks, a cell and spans for a child, exported as CSS grid | P2, after W1 | Not started".
+**`docs/prd.md`**, a requirement after FR-4 (named FR-4a so as not to take a number that FR-31 onward may need): "FR-4a Grid layout: columns and rows of fixed, fill and hug tracks, a cell and spans for a child, exported as CSS grid | P2, after W1 | Not started".
 
-**`docs/ui-design.md`**, in 3.1a the row "Grid layout (flow "grid", columns, rows)" keeps its text and its last column becomes "E3.6, `docs/grid-layout.md`"; when slice 7 lands, 3.1 Layout reads "Direction (free, row, column, grid); for a grid: gap, padding, align and justify as the place of a child in its cell, the Columns and Rows lists (kind and size of each track), and for a child of a grid the Cell group".
+**`docs/ui-design.md`**, in 3.1a the row "Grid layout (flow "grid", columns, rows)" keeps its text, and its last column, which ends with "(#271)", gains "E3.6, `docs/grid-layout.md`"; when slice 7 lands, 3.1 Layout reads "Direction (free, row, column, grid); for a grid: gap, padding, align and justify as the place of a child in its cell, the Columns and Rows lists (kind and size of each track), and for a child of a grid the Cell group".
 
-**`docs/roadmap.md`**, a row in the frontier: "Approve `docs/grid-layout.md` and its open decisions (section 15) | decision (owner) | decision 41".
+**`docs/roadmap.md`**, a row in the frontier: "Approve `docs/grid-layout.md` and its open decisions (section 15) | decision (owner) | the grid decision above (42 when written), issue 271".
 
 **`GLOSSARY.md`**, three terms in Structure:
 
@@ -436,5 +437,5 @@ For the owner's text in slice 0, as drafts. None of these files is changed by th
 
 **`README.md`**, one line in the Docs list after the HTML import line: "Grid layout, plan for an epic box: [docs/grid-layout.md](docs/grid-layout.md)."
 
-**`docs/import-html.md`**: the rows of section 13, and the counts of its 3.8.
+**`docs/import-html.md`**: the rows of section 13, and the counts of its 3.8. Its text of 24 Nov 2026 (decision 41) keeps section 3.4's grid row as a refusal until slice 3 of grid has landed.
 
