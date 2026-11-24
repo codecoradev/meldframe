@@ -49,6 +49,18 @@ describe('sceneFromBoxes', () => {
     for (const id of ['t', 'z']) expect(nodes.find((n) => n.id === id), id).not.toHaveProperty('border');
     expect(sceneFromBoxes(byName('opacity')).nodes.every((n) => !('border' in n))).toBe(true);
   });
+  it('carries the shadows of a box as the render step painted them, in order, and none for a text or a box without any', () => {
+    const nodes = sceneFromBoxes(byName('shadows')).nodes;
+    expect(nodes.find((n) => n.id === 'f')?.shadows).toEqual([
+      { x: 0, y: 4, blur: 12, spread: 0, color: 0, alpha: 0x40 / 255 },
+      { x: 2, y: -2, blur: 0, spread: 3, color: 0xff0000, alpha: 0x80 / 255 },
+    ]);
+    // The negative blur is a hard edge and the colour that is not hex is gone.
+    expect(nodes.find((n) => n.id === 'r')?.shadows).toEqual([{ x: 0, y: 0, blur: 0, spread: 1, color: 0x0000ff, alpha: 1 }]);
+    expect(nodes.find((n) => n.id === 'e')?.shadows).toEqual([{ x: 3, y: 3, blur: 0, spread: -2, color: 0xff8800, alpha: 1 }]);
+    expect(nodes.find((n) => n.id === 't')).not.toHaveProperty('shadows');
+    expect(sceneFromBoxes(byName('border')).nodes.every((n) => !('shadows' in n))).toBe(true);
+  });
   it('a missing parent and a cycle arrive as the Rust step ordered them', () => {
     expect(sceneFromBoxes(byName('a missing parent makes a root')).nodes[0]).toMatchObject({ id: 'a', parent: null });
     expect(sceneFromBoxes(byName('a cycle stays visible after the rest')).nodes.map((n) => n.id)).toEqual(['ok', 'x', 'y', 'kid']);

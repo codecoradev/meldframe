@@ -3,13 +3,15 @@
 // their parent's space (the resolved `lx`, `ly`), so a frame's clip mask and children follow it. Nodes take no
 // pointer events (the canvas hit-tests the scene model itself), and display objects are culled by hand.
 //
-// A node is a container with, back to front: its body, its text, `content` (the child nodes, which a clip mask cuts)
-// and its border ring (over the children, and not cut by the node's own clip: the export clips the border of a clipping
-// frame, the report says `border_clipped`, and the canvas does not).
+// A node is a container with, back to front: its shadows (a part for each, with a blur filter when it has a blur; not
+// inside `content`, so the node's own clip does not cut them), its body, its text, `content` (the child nodes, which a clip
+// mask cuts) and its border ring (over the children, and not cut by the node's own clip: the export clips the border of a
+// clipping frame, the report says `border_clipped`, and the canvas does not).
 import { Container, Culler, Graphics, RenderTexture, Sprite, Text, Texture, type Rectangle, type Renderer } from 'pixi.js';
 import { borderRing, sameBorder } from '@meldframe/web-canvas/border';
 import { sameGradient } from '@meldframe/web-canvas/gradient';
 import { sameImage } from '@meldframe/web-canvas/image';
+import { sameShadows } from '@meldframe/web-canvas/shadow';
 import type { AssetCache } from '@meldframe/web-assets/assets';
 import { paintBody, type Drawable } from './bodycanvas';
 import type { Rect } from '@meldframe/web-canvas/geometry';
@@ -17,12 +19,15 @@ import type { Camera } from '@meldframe/web-canvas/camera';
 import type { ResolvedNode, ResolvedScene, ScenePatch } from '@meldframe/web-canvas/scene';
 import { alignOffset } from '@meldframe/web-canvas/textstyle';
 import { drawStyle } from './pixitext';
+import { dropShadow, paintShadows, shadowObjects, tuneShadows, type ShadowPart } from './shadowparts';
 
 type Body = Sprite | Graphics;
 
 interface NodeView {
   c: Container;
   node: ResolvedNode;
+  /** Behind the body, first = bottom; each with its own blur filter when it has a blur. */
+  shadows: ShadowPart[];
   body: Body | null;
   text: Text | null;
   /** Holds the child nodes, and the clip mask first; made when the node first needs it. */
@@ -39,6 +44,10 @@ const MAX_TEXT_RES = 4;
 export class WorldView {
   readonly root = new Container({ isRenderGroup: true, label: 'world' });
   private views = new Map<string, NodeView>();
+  /** The scale of the world as the camera has it; a blur filter works in screen pixels, so its strength follows it. */
+  private zoom = 1;
+  /** The nodes that have a blurred shadow: the only ones whose filters a change of the zoom has to touch. */
+  private blurred = new Set<NodeView>();
 
   /** Where the images of image fills come from; without it a node draws its fill and gradient only. */
   constructor(private assets: AssetCache | null = null) {
@@ -68,6 +77,14 @@ export class WorldView {
   setCamera(cam: Camera): void {
     this.root.position.set(cam.x, cam.y);
     this.root.scale.set(cam.zoom);
+    this.retune(cam.zoom);
+  }
+
+  /** Sets the blur of every shadow for a world scaled by `zoom`. */
+  private retune(zoom: number): void {
+    if (zoom === this.zoom) return;
+    this.zoom = zoom;
+    for (const v of this.blurred) tuneShadows(v.shadows, zoom);
   }
 
   apply(rs: ResolvedScene, patch: ScenePatch): void {
@@ -77,6 +94,7 @@ export class WorldView {
     for (const id of patch.removed) {
       const v = this.views.get(id);
       if (v && !v.c.destroyed) this.dropBody(v);
+      if (v) this.dropShadows(v);
     }
     for (const id of patch.removed) {
       const v = this.views.get(id);
@@ -96,7 +114,7 @@ export class WorldView {
       const c = new Container({ label: id });
       c.eventMode = 'none';
       c.cullable = true;
-      const v: NodeView = { c, node: n, body: null, text: null, content: null, mask: null, border: null, textRes: 1 };
+      const v: NodeView = { c, node: n, shadows: [], body: null, text: null, content: null, mask: null, border: null, textRes: 1 };
       this.views.set(id, v);
       this.update(v, n, true);
     }
@@ -147,18 +165,24 @@ export class WorldView {
     v.c.alpha = n.opacity;
     const geometry = first || prev.w !== n.w || prev.h !== n.h || prev.radius !== n.radius || prev.kind !== n.kind;
     const fill = first || prev.fill !== n.fill || prev.fillAlpha !== n.fillAlpha || !sameGradient(prev.gradient, n.gradient) || !sameImage(prev.image, n.image);
+    const cast = first || geometry || !sameShadows(prev.shadows, n.shadows);
     const ring = first || geometry || !sameBorder(prev.border, n.border);
     if (n.kind === 'text') this.updateText(v, n, first || geometry || fill || prev.text !== n.text || prev.fontSize !== n.fontSize || prev.fontWeight !== n.fontWeight || prev.textAlign !== n.textAlign);
     else if (geometry || fill) this.updateBody(v, n);
     if (first || prev.clip !== n.clip || (n.clip && geometry)) this.updateMask(v, n);
+    if (cast) {
+      v.shadows = paintShadows(v.shadows, n, this.zoom);
+      if (v.shadows.some((p) => p.blur > 0)) this.blurred.add(v);
+      else this.blurred.delete(v);
+    }
     if (ring) this.updateBorder(v, n);
     this.placeParts(v);
   }
 
-  /** Puts the parts in their order: body, text, content and ring in the node; the mask first in the content. */
+  /** Puts the parts in their order: shadows, body, text, content and ring in the node; the mask first in the content. */
   private placeParts(v: NodeView): void {
     let i = 0;
-    for (const part of [v.body, v.text, v.content, v.border]) if (part) v.c.addChildAt(part, i++);
+    for (const part of [...shadowObjects(v.shadows), v.body, v.text, v.content, v.border]) if (part) v.c.addChildAt(part, i++);
     if (v.content && v.mask) v.content.addChildAt(v.mask, 0);
   }
 
@@ -168,6 +192,13 @@ export class WorldView {
     if (b instanceof Sprite && b.texture !== Texture.WHITE) b.destroy({ texture: true, textureSource: true });
     else b?.destroy();
     v.body = null;
+  }
+
+  /** Removes the shadows with their filters. */
+  private dropShadows(v: NodeView): void {
+    for (const p of v.shadows) if (!p.g.destroyed) dropShadow(p);
+    v.shadows = [];
+    this.blurred.delete(v);
   }
 
   /** Draws again every node whose image is the asset `id`, now that it has arrived (or failed). */
@@ -306,8 +337,11 @@ export class WorldView {
     const rt = RenderTexture.create({ width, height, resolution: 1 });
     const { x, y } = this.root.position;
     const zoom = this.root.scale.x;
+    const was = this.zoom;
     try {
       for (const v of this.views.values()) v.c.culled = false;
+      // The blur of a shadow is in screen pixels: it takes the scale of the picture, not the camera's.
+      this.retune(scale);
       this.root.position.set(-box.x * scale, -box.y * scale);
       this.root.scale.set(scale);
       renderer.render({ container: this.root, target: rt, clear: true, clearColor: [0, 0, 0, 0] });
@@ -315,13 +349,18 @@ export class WorldView {
     } finally {
       this.root.position.set(x, y);
       this.root.scale.set(zoom);
+      this.retune(was);
       rt.destroy(true);
     }
   }
 
   destroy(): void {
-    for (const v of this.views.values()) this.dropBody(v);
+    for (const v of this.views.values()) {
+      this.dropBody(v);
+      this.dropShadows(v);
+    }
     this.root.destroy({ children: true });
     this.views.clear();
+    this.blurred.clear();
   }
 }

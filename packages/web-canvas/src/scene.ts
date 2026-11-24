@@ -9,14 +9,16 @@
 // order among siblings (first is at the back); a parent is painted before its children.
 //
 // The canvas draws what it is given: no layout, no editor rules (clamping, snapping, constraints) live here.
-import { containsPoint, intersectRects, rectsEqual, type Rect } from './geometry';
+import { containsPoint, intersectRects, rectsEqual, unionRects, type Rect } from './geometry';
 import { borderReach, sameBorder, type SceneBorder } from './border';
 import { sameGradient, type SceneGradient } from './gradient';
 import { sameImage, type SceneImage } from './image';
+import { sameShadows, shadowBounds, type SceneShadow } from './shadow';
 
 export type { SceneBorder, SceneBorderPosition } from './border';
 export type { SceneGradient } from './gradient';
 export type { SceneImage, SceneImageFit } from './image';
+export type { SceneShadow } from './shadow';
 export type NodeKind = 'frame' | 'rect' | 'text';
 export type SceneSpace = 'parent' | 'world';
 export type SceneTextAlign = 'left' | 'center' | 'right';
@@ -58,6 +60,8 @@ export interface SceneNode {
   image?: SceneImage;
   /** Drawn over the node and its children, and not clipped by the node's own `clip`; absent means none. */
   border?: SceneBorder;
+  /** Drawn behind the node, first = the bottom of the stack, and not clipped by the node's own `clip`; absent or empty means none. */
+  shadows?: readonly SceneShadow[];
 }
 
 export interface Scene {
@@ -96,6 +100,7 @@ export interface ResolvedNode {
   gradient: SceneGradient | undefined;
   image: SceneImage | undefined;
   border: SceneBorder | undefined;
+  shadows: readonly SceneShadow[] | undefined;
   /** The intersection of the clipping ancestors' rectangles; null when nothing clips it. */
   clipRect: Rect | null;
 }
@@ -122,7 +127,7 @@ function sameNode(a: ResolvedNode, b: ResolvedNode): boolean {
     a.parent === b.parent && a.kind === b.kind && a.depth === b.depth &&
     rectsEqual(a, b) && a.lx === b.lx && a.ly === b.ly &&
     a.fill === b.fill && a.fillAlpha === b.fillAlpha && a.radius === b.radius && a.text === b.text && a.fontSize === b.fontSize && a.fontWeight === b.fontWeight && a.textAlign === b.textAlign &&
-    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) && sameImage(a.image, b.image) && sameBorder(a.border, b.border) &&
+    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) && sameImage(a.image, b.image) && sameBorder(a.border, b.border) && sameShadows(a.shadows, b.shadows) &&
     (a.clipRect === b.clipRect || (!!a.clipRect && !!b.clipRect && rectsEqual(a.clipRect, b.clipRect)))
   );
 }
@@ -168,6 +173,7 @@ function resolveAll(scene: Scene): ResolvedNode[] {
         gradient: n.gradient,
         image: n.image,
         border: n.border,
+        shadows: n.shadows,
         clipRect: parentClip,
       };
       out.push(node);
@@ -241,30 +247,31 @@ export function contentBounds(rs: ResolvedScene): Rect | null {
   return out;
 }
 
-/** The rectangle of a node as a capture takes it: the node and the band of its border that lies outside it (not the inside). */
+/** The rectangle of a node as a capture takes it: the node, the band of its border that lies outside it (not the inside) and its shadows. */
 function paintedRect(n: ResolvedNode): Rect {
   const g = borderReach(n.border);
-  return { x: n.x - g, y: n.y - g, w: n.w + 2 * g, h: n.h + 2 * g };
+  const own = { x: n.x - g, y: n.y - g, w: n.w + 2 * g, h: n.h + 2 * g };
+  const shadow = shadowBounds(n, n.shadows);
+  return shadow ? unionRects([own, shadow])! : own;
 }
 
-/** The world rectangle to capture for a node, with its outside border in it; null for an unknown id. */
+/** The world rectangle to capture for a node, with its outside border and its shadows in it; null for an unknown id. */
 export function captureRectOf(rs: ResolvedScene, id: string): Rect | null {
   const n = rs.byId.get(id);
   return n ? paintedRect(n) : null;
 }
 
-/** The rectangle around every visible node on the canvas as a capture takes it (their outside borders included), or null for an empty scene. */
+/**
+ * The rectangle around every visible node on the canvas as a capture takes it (their outside borders and shadows
+ * included), or null for an empty scene. What a clipping ancestor cuts is not in it, as it is not on the canvas; a node
+ * inside a frame that does not clip counts, so a shadow that reaches out of its page is in the picture.
+ */
 export function captureBounds(rs: ResolvedScene): Rect | null {
-  let out: Rect | null = null;
+  const rects: Rect[] = [];
   for (const n of rs.items) {
-    if (n.depth !== 0 || !n.visible) continue;
-    const r = paintedRect(n);
-    if (!out) out = r;
-    else {
-      const x = Math.min(out.x, r.x);
-      const y = Math.min(out.y, r.y);
-      out = { x, y, w: Math.max(out.x + out.w, r.x + r.w) - x, h: Math.max(out.y + out.h, r.y + r.h) - y };
-    }
+    if (!n.visible) continue;
+    const r = n.clipRect ? intersectRects(paintedRect(n), n.clipRect) : paintedRect(n);
+    if (!n.clipRect || (r.w > 0 && r.h > 0)) rects.push(r);
   }
-  return out;
+  return unionRects(rects);
 }

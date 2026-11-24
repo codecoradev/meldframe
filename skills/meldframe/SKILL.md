@@ -41,10 +41,12 @@ shown to them as it lands. Work so that each step is small, safe to repeat, and 
    `batch_status` with its key (and `count`, the number of commands it had) before you send it again.
 7. **Look at the result.** Call `capture` with the `file` and the `nodeId` of the frame you changed and check the image
    against what you meant; it needs an editor open on the file. Your session is bound to the first file you capture:
-   capturing another file later is refused as `room_mismatch`. The editor canvas does not draw `shadows` yet, so a
-   capture does not show them, although they are stored, returned by `get_nodes` and written by `export_frame`: keep them
-   in the design, do not remove them because the image lacks them, and check them with `get_nodes` and `export_frame`,
-   not with a capture. Then `get_tree` again: the new `seq` and any new warnings.
+   capturing another file later is refused as `room_mismatch`. The image shows each node's `border` and `shadows`, so a
+   capture of a node is larger than the node by the band of its outside border and the reach of its shadows. A node with
+   no fill, a translucent fill, or an opacity below 1 shows its own shadow through itself in the image, which the
+   exported page does not. A whole-page capture grows to include shadows and children that lie outside the page and can
+   then be refused as `too_large`; capture the node by `nodeId` instead. Then `get_tree` again: the new `seq` and any
+   new warnings.
 
 ## Names
 

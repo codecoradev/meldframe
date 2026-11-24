@@ -48,6 +48,23 @@ pub struct PaintedBorder {
     pub position: BorderPosition,
 }
 
+/// A drop shadow of a box: the box's shape grown by `spread`, moved by `x` and `y` and blurred, drawn behind the box.
+/// `blur` is not below 0 and the colour is a valid hex colour. The canvas takes the radius of a shadow from the box (the
+/// pill of an ellipse included) and does not clip it with the box's own `clip`, as the export's `box-shadow` is not
+/// clipped by it either (contract, section 4.2).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaintedShadow {
+    pub x: f64,
+    pub y: f64,
+    pub blur: f64,
+    pub spread: f64,
+    /// `0xRRGGBB`.
+    pub color: u32,
+    /// The alpha of the colour's own form, 0 to 1 (`#rrggbbaa` and `#rgba` carry one).
+    pub alpha: f64,
+}
+
 /// One box ready to paint. `x` and `y` are the offset inside the parent, as the node stores them. It
 /// serialises as the JSON the canvas reads (camel case; a gradient is `{kind, angle, stops: [[pos,
 /// colour]]}`, and an absent gradient or image is left out).
@@ -83,6 +100,10 @@ pub struct PaintedBox {
     /// Drawn over the box and its children; absent for no border, and always on a text, which paints none.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border: Option<PaintedBorder>,
+    /// Behind the box, in the model's order (the first is the bottom of the stack; the export lists them the other way
+    /// round for CSS); left out when empty, and always empty on a text, which paints none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub shadows: Vec<PaintedShadow>,
 }
 
 impl PaintedBox {
@@ -313,7 +334,32 @@ fn paint(n: &Node, parent: Option<&str>, cx: &Fields) -> PaintedBox {
         gradient,
         image,
         border: if is_text { None } else { painted_border(n) },
+        shadows: if is_text {
+            Vec::new()
+        } else {
+            painted_shadows(n)
+        },
     }
+}
+
+/// The shadows of a box that is not text, in model order. One whose colour is not hex or whose numbers are not finite is
+/// left out; a blur below 0 is a hard edge (the check refuses it, so only a bad file has one).
+fn painted_shadows(n: &Node) -> Vec<PaintedShadow> {
+    n.shadows
+        .iter()
+        .filter(|s| [s.x, s.y, s.blur, s.spread].iter().all(|v| v.is_finite()))
+        .filter_map(|s| {
+            let (color, alpha) = parse_fill(&s.color)?;
+            Some(PaintedShadow {
+                x: s.x,
+                y: s.y,
+                blur: s.blur.max(0.0),
+                spread: s.spread,
+                color,
+                alpha: alpha_fraction(alpha),
+            })
+        })
+        .collect()
 }
 
 /// The border of a box that is not text: none for a width that is not above 0 or a colour that is not hex.
