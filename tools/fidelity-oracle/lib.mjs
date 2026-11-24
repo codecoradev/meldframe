@@ -6,6 +6,7 @@ import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { stopUnlessGatePlatform } from './platform.mjs';
 
 const require = createRequire(import.meta.url);
 export const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -47,8 +48,10 @@ export function serve() {
   return new Promise((r) => server.listen(0, '127.0.0.1', () => r({ base: `http://127.0.0.1:${server.address().port}`, close: () => server.close() })));
 }
 
-/** Chromium through the pinned Playwright. The browser build is the one Playwright 1.63.0 installs (`npx playwright install chromium`). */
+/** Chromium through the pinned Playwright. The browser build is the one Playwright 1.63.0 installs (`npx playwright install chromium`).
+ *  On a platform the gate is not defined on (`platform.mjs`) it stops the run with exit code 2 and says why. */
 export async function launch() {
+  stopUnlessGatePlatform();
   return require('playwright').chromium.launch();
 }
 
