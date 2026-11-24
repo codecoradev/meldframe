@@ -219,14 +219,14 @@ What the oracle cannot prove (the list for the product oracle; the experiment's 
   Pixi's measurer is the product's own claim, checked by those two scripts and not by the oracle. The Export dialog
   of the browser measures with the measurer the host gave the app (the same Pixi measurer, so a hug text exports the width the
   canvas draws; the stub when the host gave none), and an open dialog is built again when the host gives another. The MCP
-  export tool runs on the server, which has no fonts, and stays on the stub. Whether the boxes stored in a file equal the
+  export tool runs on the server, which has no fonts, and stays on the stub; its result warns `text_size_estimated` (one warning, naming the texts whose box the stub decides: a hug width or a height that is not fixed) until a real measurer exists there. An absent warning does not make a text exact: the `line-height` of every text is the stub's. Whether the boxes stored in a file equal the
   core's layout is not checked by the oracle.
 - **The text table is Chromium's measurer by assumption.** The core and the export agree on text because both use the one
   measurer they are given: the export pins `min-width` and `line-height` from it and the core sizes the boxes with it.
   Here that is a table recorded with Pixi in Chromium, so the boxes are right when the browser breaks lines as Pixi
   does (section 6). The MCP export tool uses `StubMeasurer` (half an em per character, breaks at spaces only) because the
   server has no browser (the Export dialog of the browser does not: it uses the app's injected measurer): its pinned widths and line heights are the stub's, and a browser that wraps real text
-  differently gives other heights. The oracle does not measure that distance.
+  differently gives other heights. The oracle does not measure that distance. The tool says so in its result: it sets `ExportOptions::estimated_text`, so a text whose box the stub decides is named in a `text_size_estimated` warning (a text of fixed size is not, and its line height is still the stub's), and the Export dialog, which measures with the page's fonts, does not set it.
 - **Text ink compares against a Pixi page that follows the contract, not the app.** The oracle draws its own Pixi text; the
   product canvas (`stage.ts`) draws weight and alignment too (coverage table: rendered) but the
   oracle does not read the canvas, so these cases test the export against the contract's canvas.
