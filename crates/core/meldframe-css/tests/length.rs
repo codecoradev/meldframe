@@ -52,3 +52,23 @@ fn text_that_is_not_a_finite_number_with_px_or_rem_is_not_a_length() {
         assert_eq!(length(s), None, "{s:?}");
     }
 }
+
+#[test]
+fn white_space_between_the_number_and_the_unit_or_before_the_number_is_read_and_a_sign_is_kept() {
+    assert_eq!(length("12 px"), px(12.0));
+    assert_eq!(length(" 12px"), px(12.0));
+    assert_eq!(length("1.5 rem"), rem(24.0));
+    assert_eq!(length(" 1.5rem"), rem(24.0));
+    assert_eq!(length("+5px"), px(5.0));
+    assert_eq!(length("-0.5rem"), rem(-8.0));
+    assert_eq!(length("12 PX"), px(12.0));
+}
+
+#[test]
+fn white_space_after_the_unit_is_not_read_so_the_caller_trims_first() {
+    // The unit has to end the text: a caller with untrimmed text trims it, as the variables import does.
+    for s in ["  2REM ", "12px ", " 12px ", "2rem\n"] {
+        assert_eq!(length(s), None, "{s:?}");
+    }
+    assert_eq!(length("  2REM ".trim()), rem(32.0));
+}

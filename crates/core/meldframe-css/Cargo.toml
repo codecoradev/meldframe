@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-css"
-description = "CSS value readers shared by the importers: a colour (hex, rgb, hsl, oklch, oklab, keyword, channel triplet) to the hex the model stores, and a custom property's value to a colour, a number, an alias or a reasoned skip. Text in, a description out; nothing is evaluated."
+description = "CSS value readers shared by the importers: a colour (hex, rgb, hsl, oklch, oklab, keyword, channel triplet) to the hex the model stores, and a length (px, rem, bare number) to pixels. Text in, a description out; nothing is evaluated."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
