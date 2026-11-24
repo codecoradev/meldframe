@@ -6,7 +6,8 @@
 //! (`export_frame`, the file, the outcome code), so the source must not log a second one.
 //!
 //! The text measurer is the stub of the layout core: the server has no browser (`docs/fidelity-contract.md`,
-//! section 6). The answer says so under `textMeasurer`.
+//! section 6). The answer says so under `textMeasurer`, and the report warns `text_size_estimated` for the text
+//! whose box that measurer decides (`ExportOptions::estimated_text`).
 
 use export::{DESCRIPTION, ExportOptions, Format, TOOL};
 use meldframe_host::Principal;
@@ -167,7 +168,9 @@ impl ExportTool {
         );
         let job = move || {
             let f = source.read(&who2, &file)?;
-            let options = ExportOptions::new(format, &StubMeasurer).modes(modes);
+            let options = ExportOptions::new(format, &StubMeasurer)
+                .modes(modes)
+                .estimated_text(true);
             Ok::<_, Failure>((
                 f.seq,
                 export::export_frame(&f.nodes, &f.vars, &frame, &options),

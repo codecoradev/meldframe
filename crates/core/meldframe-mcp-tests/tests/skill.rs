@@ -31,7 +31,8 @@ fn the_skill_has_a_name_and_a_description() {
     );
 }
 
-/// The stable codes: the first column of the tables of docs/error-codes.md, and the warning codes `get_tree` names.
+/// The stable codes: the first column of the tables of docs/error-codes.md, and the warning codes `get_tree` and
+/// `export_frame` name in their text.
 fn codes() -> Vec<String> {
     let mut out: Vec<String> = CODES
         .lines()
@@ -40,13 +41,15 @@ fn codes() -> Vec<String> {
         .collect();
     let v: serde_json::Value = serde_json::from_str(CATALOGUE).unwrap();
     let list = v.get("tools").unwrap_or(&v).as_array().unwrap().clone();
-    let tree = list.iter().find(|t| t["name"] == "get_tree").unwrap()["description"]
-        .as_str()
-        .unwrap()
-        .to_owned();
-    for w in tree.split(|c: char| !(c.is_ascii_lowercase() || c == '_')) {
-        if w.contains('_') {
-            out.push(w.to_owned());
+    for tool in ["get_tree", "export_frame"] {
+        let text = list.iter().find(|t| t["name"] == tool).unwrap()["description"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        for w in text.split(|c: char| !(c.is_ascii_lowercase() || c == '_')) {
+            if w.contains('_') {
+                out.push(w.to_owned());
+            }
         }
     }
     out
@@ -180,6 +183,26 @@ fn the_texts_name_every_property_the_canvas_does_not_draw() {
                 panic!("{place} still says `{s}`, and the table has nothing not drawn")
             }
             (None, true) => {}
+        }
+    }
+}
+
+/// The server measures text with a stub, not a browser: a caller that reads only the tool text or the skill must learn
+/// that a hug text comes back with an estimated size, and which warning says so.
+#[test]
+fn the_skill_and_the_tool_text_say_that_hug_text_sizes_are_estimates() {
+    let skill = SKILL.split_whitespace().collect::<Vec<_>>().join(" ");
+    let v: serde_json::Value = serde_json::from_str(CATALOGUE).unwrap();
+    let tool = v["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["name"] == "export_frame")
+        .expect("export_frame is listed");
+    let text = tool["description"].as_str().unwrap();
+    for (what, words) in [("the skill", skill.as_str()), ("the tool text", text)] {
+        for phrase in ["text_size_estimated", "hug", "line-height"] {
+            assert!(words.contains(phrase), "{what} says `{phrase}`");
         }
     }
 }
