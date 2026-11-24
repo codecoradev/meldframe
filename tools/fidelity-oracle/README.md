@@ -46,6 +46,18 @@ Outside the contract by rule: fuzz files where a layout frame is smaller than it
 fill resolves to under 1 px (rule G3; the contract promises nothing there). They are counted, not gated. Fuzz files
 get rule G1 applied (a fill under a hug parent is fixed) because the product has no write-time validator for it yet.
 
+## Platform
+
+The gate is verified on Linux only: the Chromium of the lockfile on a Linux machine, as in the CI job. As reported in issue 231,
+the run on macOS fails with text boxes that are whole pixels off the core (two text-ink cases 2 px off, and the known gap
+f14 reported as no longer as stated) with no change to the code, while the paint probes, the equality of the Tailwind and plain
+CSS forms and the CSS blur model held. The cause is not found: the candidates are the font file or fallback font that the
+Chromium picks, hinting and sub-pixel text positioning, and the text table recorded once per run. So `oracle.mjs` and
+`sensitivity.mjs` stop on another platform with exit code 2 and a note (`platform.mjs`), unless `MELDFRAME_ORACLE_ANY_PLATFORM=1`
+is set. The run then goes on, and a failure in the geometry or the ink of a text there cannot be told from issue 231, so it neither
+clears nor condemns a change: the Linux job decides; a failure in the paint probes or in the equality of the two forms is not that
+issue. (`MELDFRAME_ORACLE_TEST_PLATFORM` is for the test of the guard only.) The `oracle` job of a pull request runs it on Linux, which is where a contributor on a Mac gets the answer.
+
 ## Run
 
 ```bash
@@ -57,7 +69,7 @@ node oracle.mjs --seeds 50                      # what a pull request runs (npm 
 node oracle.mjs --seeds 500                     # what the nightly runs
 node oracle.mjs --seeds 50 --geometry-only      # skip the paint and ink oracles (the slow part is the browser start)
 node oracle.mjs f13-overflow fz-007 --seeds 10  # only these files (geometry only)
-npm test                                        # the gate on made-up results and the screenshot retry on a fake page (no browser)
+npm test                                        # the gate on made-up results, the platform guard and the screenshot retry on a fake page (no browser)
 npm run sensitivity                             # the gate fails on a wrong export (mutations in geometry and paint are caught; a mutation whose search string is not in an export counts as missed)
 ```
 

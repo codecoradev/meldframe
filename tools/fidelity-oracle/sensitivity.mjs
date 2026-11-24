@@ -6,6 +6,7 @@ import { serve, launch, openMeasurePage } from './lib.mjs';
 import { geometry } from './geometry.mjs';
 import { paint } from './probes.mjs';
 import { evaluate } from './gate.mjs';
+import { stopUnlessGatePlatform } from './platform.mjs';
 
 export const MUTATIONS = {
   'safe center becomes center': (form, e) => ({ ...e, html: e.html.replaceAll('safe_center', 'center'), css: e.css.replaceAll('safe center', 'center') }),
@@ -64,6 +65,7 @@ export async function check({ browser, base, mp, mutate, seeds = 10 }) {
 }
 
 if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1]).href) {
+  stopUnlessGatePlatform();
   const { base, close } = await serve();
   const browser = await launch();
   let bad = 0;
