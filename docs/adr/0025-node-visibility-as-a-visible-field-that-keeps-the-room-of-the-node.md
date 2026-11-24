@@ -1,0 +1,192 @@
+---
+status: proposed
+---
+# A node has a `visible` field: a hidden node and everything inside it paints nothing and keeps its room, and capture and export refuse a frame that is hidden
+
+Decision 40, item 6 (`docs/decisions.md`, approved by the owner on 24 Nov 2026) keeps visibility out of W1: a node has no `visible` field, and a field needs its meaning decided first. Issue 269 asks for that decision as an ADR, as a proposal, with no code. This is the proposal. Today the way to hide the paint of a node is `opacity` 0 (`docs/ui-design.md` section 3.1a, and the importer row for `visibility: hidden` in `docs/import-html.md`). Nothing in the model, the canvas, the export or the tools changes with this file; the status stays proposed until the owner accepts it.
+
+## What the code does today
+
+Each line was read in the repository on 24 Nov 2026 (nothing was built or run for this ADR; see "What was not run").
+
+- **The model has no such field.** `Node` and `NodePatch` (`crates/core/meldframe-protocol/src/node.rs`, `patch.rs`) are `deny_unknown_fields`, `clip` is a bool whose default is true (`d_true`), and the coverage table (`crates/core/meldframe-render/src/coverage.rs`) has one row per field and none for visibility.
+- **The canvas already has a flag, and nothing can set it.** `SceneNode.visible` in `packages/web-canvas/src/scene.ts` is documented as "False hides the node and its whole subtree; absent means visible"; `resolveAll` makes a node visible only when it and every ancestor are; `hitTest`, `contentBounds` and `captureBounds` skip a node that is not; `apps/web/src/canvas/stage.ts` sets `container.visible` from it, and the shadows, the body, the text, the children and the border ring are all parts of that one container, so one flag hides them together. The tests in `packages/web-canvas/src/scene.test.ts` pin this ("hides a subtree through an invisible ancestor", the bounds and hit tests). But `PaintedBox` (`meldframe-render/src/resolve.rs`) has no such member and `toSceneNode` in `packages/web-link/src/scene.ts` never sets it, so no file can reach it. The semantics the owner is asked about already exist, in the canvas, as "the whole subtree, no override by a child".
+- **The layout core knows one way for a child to leave a flow, `absolute`.** `Layout::flow_children` (`meldframe-layout/src/lib.rs`) drops the absolute children, and `place.rs`, `size.rs` (hug) and `findings.rs` all go through it. An absolute child takes no room, no gap and no share, and the hug size of its parent ignores it. Thirteen source files outside the protocol read `absolute` to decide whether a node is in a flow: the layout core, `meldframe-app-rules` (`arrow`, `drop`, `multi`, `resize`), `meldframe-app-parts` (`layout`, `properties`, `property`), `meldframe-app-model` and the export (`decl.rs`, `emit.rs`).
+- **Opacity is a fade, not a visibility.** `opacity` is 0 to 1, bindable to a number variable, drawn as `alpha` on the node container and exported as CSS `opacity`. `hitTest` and `captureBounds` do not read it, so a node at opacity 0 can still be picked by a click on the canvas, and a capture of the whole page still grows to hold its shadows.
+- **The export writes paint on the HTML element, and the border on its `::after`.** `style()` in `crates/features/export/export/src/decl.rs` writes `opacity`, `box-shadow` and, for a border, an `::after` rule; the Tailwind form is `tw.rs`, which names a utility where the contract does and writes an arbitrary property (`[prop:value]`) for every other declaration.
+- **A capture is the canvas drawn in a rectangle.** The editor draws the whole world translated to the node's box (`renderRegion` in `stage.ts`, called from `Canvas.svelte`), so the capture of a node is what the canvas shows in that rectangle, plus the band of its outside border and the reach of its shadows. `captureRectOf` returns a rectangle for any node in the scene, hidden or not.
+- **The oracle reads every `[data-node]` box.** `tools/fidelity-oracle/geometry.mjs` compares each box with the layout core's rect within 0.05 px and counts a node it cannot find as missing (`docs/fidelity-contract.md` section 7, steps 4 and 5). A box exists for `visibility: hidden` and does not for `display: none`.
+- **The importer maps the two CSS forms as follows** (`docs/import-html.md`): `display: none` and the `hidden` attribute make no node and are counted under `skipped` (supported); `visibility: hidden` makes the node with `opacity: 0` (approximated: "the model has no visibility, only opacity").
+- **Variables have no boolean.** A variable is a colour or a number; `docs/tokens-and-variables.md` says "Booleans are not needed now ... [P: skip]".
+
+## Summary of the decisions
+
+| Topic | Proposal |
+|---|---|
+| Field | `visible`, a bool on every kind of node, default true, written always (as `clip`, `absolute` and `opacity` are), in `NodePatch` as an optional bool; `SCHEMA_VERSION` stays 1 |
+| Meaning in a flow | Hidden is CSS `visibility: hidden`: the node keeps its box and its room, so the siblings do not move. To take the room away as well, a node is hidden and `absolute` |
+| Children | A hidden node hides everything inside it, and no child can show itself again |
+| Border and shadows | Painted with the node, so they go with it; no switch of their own now |
+| Opacity | Stays as it is, and is independent: it fades, `visible` hides; no file is migrated |
+| Canvas | The render step carries the flag; the canvas code that exists then works: nothing drawn, no hit, not in the fit of the view or a whole-page capture |
+| Capture | The capture of a node that is hidden, or inside a hidden node, is refused as `node_hidden`; a whole-page capture leaves hidden nodes out |
+| Export | A hidden node is written with `visibility: hidden` (Tailwind `invisible`), once, on the node; a frame that is hidden, or inside a hidden node, is refused as `E_NODE_HIDDEN` |
+| Layers panel and Properties | An eye button on each row of the layers panel and a Visible switch in Appearance, both the same `SetProperty` action; a hidden row and the rows under it are dimmed |
+| Command, undo, Activity | No new `Command`: `updateNode` with `{"visible": false}`; undo, sync, revert and restore work from the field names; the Activity panel shows one changed node |
+| Not decided here | A page-level visibility, a switch on a border or on one shadow, a boolean variable, a `display: none` mode, the importer's `display: none` row |
+
+## Decision
+
+### 1. The field
+
+- **`visible` is a bool on `Node`**, `#[serde(default = "d_true")]`, written always (no `skip_serializing_if`), like `clip`, `absolute` and `opacity`. An absent field reads as true, so every file that exists loads unchanged (the check of `old_node_without_optional_fields_is_valid_and_gets_defaults` in `meldframe-protocol/tests/wire_compat.rs` grows an assertion). `SCHEMA_VERSION` stays 1: the field is additive, as ADR-0013 sets it out.
+- **In `NodePatch` it is `Option<bool>`**, like `clip`: absent leaves it, a value sets it. There is no third state, because there is nothing to unset: true is the default.
+- **It applies to every kind of node** (frame, rectangle, ellipse, text, shader). `clip` is frame-only because the canvas draws nothing else that way; hiding is drawn for all of them.
+- **It is not bindable.** A variable has no boolean type and the variables note leaves it out. A design that must show or hide with a mode keeps binding `opacity` to a number variable that is 0 or 1; that stays the only way and is not changed here.
+- **Compatibility.** A file written before the field loads as visible. The other direction is the same as for every field since ADR-0013: the Rust types refuse unknown fields, so a Rust build from before the field refuses a node or a patch that carries it, and, because the field is written always, refuses every node of a file that a newer build wrote. Server and client therefore ship together, and a server rolled back to before the first slice of this ADR cannot read the stored files and the log written after it. This ADR does not rely on what an older TypeScript reader does with an extra property. The alternative that avoids the first half of that (leave the field out when true) is in "Considered options" with the reason it is not proposed.
+
+### 2. What hidden means for layout: the node keeps its place
+
+A hidden node is laid out exactly as a visible one: it has its box, its margins count, it takes its gap and its fill share, and a hug parent still wraps it. The layout core (`meldframe-layout`) does not change, and `resolve_laid_out` does not either (it gives a hidden node the same box). `layout_findings` (`overflow`, `fill_under_hug` and the others) count a hidden child as they do today, as a flex container's overflow counts an invisible child.
+
+To make a node leave the flow as well, which is what CSS `display: none` does, the node is hidden and `absolute` is set to true. The two fields compose with no new field, and the layout core already gives an absolute child no room, no gap, no share and no part in its parent's hug size. The Properties panel offers Absolute position for a child of an auto layout frame (`docs/ui-design.md` section 3.1, Margin).
+
+A hidden node inside a frame without auto layout has the same effect as a visible one on its siblings, none: every child of such a frame sits at its own `x` and `y`.
+
+### 3. Children, border and shadows
+
+- **The whole subtree goes.** A node is shown only when it and every ancestor are (the rule of `resolveAll` today, and of CSS `visibility` as the export writes it, because the export never writes `visibility: visible`). A child's own `visible` is kept, so showing the parent shows the child as it was, but a child cannot show itself inside a hidden parent. CSS does allow that; the model does not need it (see "Considered options") and the importer reports it (section 12).
+- **Border and shadows are painted with the node.** The border ring and the shadows of a hidden node are not drawn (they are parts of the container the canvas hides, and in the export the `::after` and the `box-shadow` belong to the hidden HTML element), and they come back unchanged when the node is shown. A node has no switch for its border or for one of its shadows. That keeps decision 40, item 3 as it is: width 0 is no border and a shadow has Remove. If a switch on them is wanted later it is additive in the same way: `visible` (default true) on `Border` and on `Shadow`, both of which have defaults and are replaced whole by a patch, so no new patch state is needed. It is not proposed now.
+
+### 4. How opacity relates
+
+`opacity` stays as it is, and the two are independent: a node is painted when it is visible, at its opacity. What differs, all read in the code above:
+
+| | `opacity` 0 | `visible` false |
+|---|---|---|
+| Paint | nothing, and on the canvas each part fades alone (the contract's note on `border`) | nothing, the whole node container is hidden |
+| Room in a flow | kept | kept (and given back with `absolute`) |
+| A click on the canvas | still hits the node | does not hit it |
+| Fit of the view, whole-page capture | counts (its shadows grow the capture) | does not count |
+| Children | fade with it, no override | hidden with it, no override |
+| Export | `opacity: 0` | `visibility: hidden` |
+| Binds to a variable | yes (a number) | no |
+| What hiding costs | the earlier opacity is lost unless it is written down | the earlier opacity stays in the node |
+
+No rule turns an existing opacity of 0 into `visible: false`, and none is proposed: a file changes only when a person or an agent changes it. The text an agent reads says to hide with `visible` and to fade with `opacity` (section 11).
+
+### 5. The render step and the canvas
+
+`PaintedBox` gets `visible: bool`, the node's own flag, left out of the JSON when true (as `gradient` and `image` are left out when absent), so the shared fixtures (`meldframe-render/tests/fixtures/scene.json`) stay as they are and gain a hidden case. `toSceneNode` passes it. The canvas then does what `scene.ts` and `stage.ts` already do: nothing is drawn, a click goes through (`hitTest`), the node is not in `contentBounds` (so "fit all" ignores a hidden top-level frame) or in `captureBounds`, and the name label above a hidden top-level frame is not drawn (`overlayview.ts`). The row `visible` of the coverage table is `Rendered` for the canvas.
+
+A hidden node that is selected (from the layers panel, since a click cannot reach it) keeps its selection ring and handles at its box: `rectsOf` does not read `visible`, and the touch rings of an agent that hid it are also drawn at its box (the ring is a hint of where work happened). That is proposed to stay: it is how a person finds what was hidden. When every frame of a page is hidden, the canvas is empty and "fit all" does nothing; the layers panel is where the person sees why.
+
+### 6. Capture
+
+- **`capture` with `nodeId` of a node that is hidden, or inside a hidden node, is refused as `node_hidden`**, not retryable, with the message "The node is hidden. Show it (visible true) or capture the node that holds it." Without it the capture would be the canvas in that rectangle with the node absent (see "What the code does today"): a picture that looks like a success and does not show the node an agent asked for. The editor decides, from the effective flag of the scene (`ResolvedNode.visible`), and answers with `CaptureFailed` and that code.
+- **A capture of the whole page leaves hidden nodes out**, as it already would once the flag reaches the canvas (`captureBounds`); a hidden top-level frame is not in the picture and not in its size.
+- The code is added where the other capture codes are: `capture::CODES` and `CaptureError::from_client_code` (`crates/features/capture/capture/src/error.rs`), the `retryable` list of the tool (not in it), and the table of `docs/error-codes.md`, which a test compares with `CODES`.
+
+### 7. Export
+
+- **A hidden node is written with `visibility: hidden` on its HTML element** and the Tailwind class `invisible` (to be confirmed by the oracle's compile of the class; where it is not exact the arbitrary property `[visibility:hidden]`, which `tw.rs` already writes for any declaration it does not name, is). It is written once, on the node that is hidden and not on the nodes below it, which inherit it in CSS; a node that is hidden under a hidden ancestor adds nothing.
+- **The subtree stays in the HTML.** Hidden elements keep their boxes, so every geometry row of the contract holds for them and the oracle reads their boxes as it reads the others; a developer can show them again with one declaration. They count towards the size limit of the export, the variables they use are still exported, and their images are still listed under `assets`.
+- **The `::after` border and the `box-shadow` of the hidden element are hidden by the same declaration** (`visibility` is inherited by the pseudo-element, and a box that is `visibility: hidden` draws no shadow). The oracle's new fixture probes both (section 12); this was not run for this ADR.
+- **No finding in the report.** A hidden node is supported, as opacity is, so nothing is listed under `unsupported` or `warnings`.
+- **A frame that is hidden, or inside a hidden node, is refused as `E_NODE_HIDDEN`** (`ExportError::NodeHidden`, the table of "Export codes" in `docs/error-codes.md`, the export tool text). An export of a hidden root would be a page with nothing visible, and the PNG of the same frame is refused for the same reason (section 6), so the two outputs agree. The export crate has the whole file, so it can read the ancestors of the frame. Question 2 asks whether the owner would rather export a hidden frame as if it were shown.
+
+### 8. The layers panel
+
+- A hidden node keeps its row, and so do its descendants. `layerRows` (`packages/web-document/src/layers.ts`, plain TypeScript today) gets two members: `visible` (the node's own flag, from the node) and `hiddenBy` (the id of the nearest hidden ancestor, or none, from the scene's effective flag).
+- Each row ends with an eye button (the icon `eye` exists in `packages/web-chrome/src/Icon.svelte`; a crossed eye is added) with `aria-pressed`, and the name "Hide <name>" or "Show <name>". It is shown on a hover or a focus of the row and always for a hidden one. It sends the one action the Properties switch sends, `Action::SetProperty { id, property: Visible(bool) }` for that row's node: one `updateNode`, one undo step, the person's own. The row of a hidden node and the rows under it are dimmed (the text colour from the tokens module, nothing literal); the eye of a row hidden only by its parent says so in its name ("Hidden by <ancestor>") and acts on the node's own flag.
+- No keyboard shortcut in the first slice, as ADR-0023 took none for its button. Dragging to reorder is not in the panel yet (decision 37), so nothing here touches it.
+
+### 9. The Properties panel
+
+- Appearance (opacity, corner radius, clip) gets a **Visible** switch for every kind of node: `Property::Visible(bool)` in `meldframe-app-model`, an arm in `property_patch` (`meldframe-app-parts/src/property.rs`) with no kind refused (it is not in `frame_only`), and `Properties.visible` (the node's own flag) and `Properties.hidden_by` (as for the row above) so the panel can say "Hidden by <ancestor>" under the switch. Every other field of a hidden node stays editable.
+- With nothing selected, or several nodes selected, the panel still shows no fields, and the line "the file holds nodes only, so there is no page background, opacity or visibility to edit" stays true: a page-level visibility is not proposed (the page has no fields of its own).
+- `docs/ui-design.md` moves the node row from 3.1a to the 3.1 table (Appearance) when the slice lands, and keeps the border, the shadow and the page rows in 3.1a.
+
+### 10. The Command, undo, Activity and the gate
+
+- **No new `Command`.** The op is `updateNode` with `{"visible": false}` (or true). A hide of many nodes is many patches in one batch (the limit of `apply_commands` is the catalogue's `batchLimit`).
+- **Undo, sync, revert and restore need the field in one list.** `patch_fields!` (`meldframe-undo/src/patch_fields.rs`) names every plain patch field, and its compile-time guard makes a missing name a compile error. The footprint of an op (`meldframe-sync/src/footprint.rs`) and the revert's patch keys (`meldframe-revert/src/revert.rs`) read the field names of the serialised patch, so they cover the new field with no change. The restore to a checkpoint (`field_patch` in `meldframe-revert/src/restore.rs`) diffs the serialised nodes by key, which works because the field is always written (see option "Leave the field out when true").
+- **The Activity panel** counts nodes changed per batch and names them (`meldframe-activity/src/summary.rs`, `UpdateNode`); it does not name fields. A hide shows as one changed node. ADR-0021 does not change. The batch note is where an agent says that it hid something.
+- **The gate.** `updateNode` is a Change-tier call, Auto by default, as setting `opacity` to 0 on a whole frame is today. A hide is not a delete: it needs no approval, it is attributed, it is one undo step and a batch of it reverts. This is stated so the owner knows an agent can hide a frame as freely as it can fade it.
+
+### 11. The text an agent reads
+
+The tool texts live in `meldframe-mcp-defs/src/lib.rs` (`apply_commands`), `crates/features/capture/capture/src/lib.rs` and `crates/features/export/export/src/lib.rs`, are listed in `docs/mcp-tools.json` (tests compare them), and the skill is `skills/meldframe/SKILL.md` (its test checks that every tool and code it names exists). Proposed sentences, each in its place:
+
+- `apply_commands`, in the `addNode` field list after `absolute`: "visible (true by default; false hides the node and everything inside it: nothing of it is painted, its border and shadows included, but it keeps its box and its room, so its siblings do not move; set absolute true as well to give the room back; hide with visible and fade with opacity)".
+- `get_tree`: a hidden node's entry carries `visible: false` (entries are built in `meldframe-mcp-defs/src/view.rs`); "A node that is hidden carries visible false."
+- `capture`: "A node that is hidden, or inside a hidden node, is refused as node_hidden: show it first or capture the node that holds it. A capture of the whole page leaves hidden nodes out."
+- `export_frame`: "A hidden node inside the frame is written with visibility hidden (the Tailwind class invisible), so its box stays; a frame that is hidden, or inside a hidden node, is refused as E_NODE_HIDDEN."
+- The skill: one habit, "Hide with `visible: false`, not with opacity 0; `get_nodes` shows it; `capture` and `export_frame` refuse a hidden node."
+
+Until the first of these lands no text names the field, so an agent is not told about it before the canvas, the capture and the export carry it (see the order of the plan).
+
+### 12. The fidelity contract, the coverage table and the oracle
+
+- **Coverage.** `NODE_FIELDS` gets `row("visible", R)`: rendered by the canvas and by the export, `bindable: None`. The tests of `meldframe-render/tests/coverage.rs` (the table lists exactly the fields of a node; a rendered field changes the painted boxes) and of `meldframe-export-tests/tests/coverage.rs` need an arm that changes it (`"visible" => n.visible = false`). The first slice marks both columns unsupported with a reason of their own (not the shared `NOT_DRAWN`, which would oblige the tool texts to say the canvas does not draw it), and the later slices turn each to rendered.
+- **Contract rows** (`docs/fidelity-contract.md`), added when the oracle probes pass: in 4.1, `visible` false: `visibility: hidden` on the HTML element, `invisible` in Tailwind, supported, with the notes of sections 3 and 7 above (the box and the room stay, the border and the shadows go, children go, `absolute` frees the room); in 4.3, the opacity row gets a sentence that `visible` is the way to hide and opacity the way to fade. Section 7's list of paint probes gains "a hidden node".
+- **Oracle.** A fixture `f24-visibility` (three boxes in a row with the middle one hidden, so the siblings keep their boxes; an absolute hidden child, so the room is given back; a hidden frame with children; a hidden node with a border and a shadow) and probes that read the page at those points; the sensitivity check (`npm run sensitivity`) gains two mutants, "a hidden node is written as `display: none`" (the geometry gate fails, because the boxes move or vanish) and "the `visibility` declaration is not written" (the pixel probe fails).
+- **The importer** (`docs/import-html.md`): the `visibility: hidden` row changes from "the node with `opacity: 0`, approximated" to "the node with `visible: false`, supported", with one exception that is reported as approximated: a descendant that CSS shows again with `visibility: visible` inside a hidden parent is hidden with it, because the model has no override. The `display: none` and `hidden` attribute row **does not change** in the first importer: the node is still not created and is counted under `skipped`. The reason is that a `display: none` subtree is often a whole menu or a dialog that would use the importer's node and depth limits for something no one sees, and that it has no box, so the node would lose the place it takes in its parent. If the owner wants hidden parts kept, the importer could later write them as `visible: false` with `absolute: true`, which is the model's form of "no room"; that is the importer's own decision and not made here. The Tailwind vocabulary the importer reads (the "Tailwind forms" paragraph of `docs/import-html.md` section 2.2) gains `invisible` if `tw.rs` names it. An export of a hidden node read back by the importer gives `visible: false`, so the round trip holds.
+
+## Considered options
+
+- **Leave the flow, as CSS `display: none` does.** Not proposed as the meaning of hidden. The layout core would give a hidden node no box and no part in the gap, the fill share, `justify`, the hug size or the findings; the thirteen source files that read `absolute` today would need the same exemption for a second reason; the canvas would need a rule for the rectangle of a node that has none (a selection ring, the Properties position, the drop slots of a flow); the oracle would have no box to read for it, so its "no node missing" gate would need an exemption list; and the contract would need a new geometry rule beside G1 to G5. The choice is also the one that is hard to change afterwards: switching it would move the siblings of every hidden node in every file that has one. The same result is available by composition (hidden and `absolute`), so a person or an agent who wants "gone" gets it without a field.
+- **Both, as a field with three values** (shown, hidden in place, hidden and removed): more surface to teach and test, and `absolute` already is the second half. Not proposed.
+- **Opacity 0 alone, as today.** Rejected as the answer: the earlier opacity is lost, the node still takes clicks, its shadows still grow a whole-page capture, the HTML export carries a fully transparent element that is still there for pointers and assistive tools, and the importer's `visibility: hidden` is stored as an approximation. It stays as the fade.
+- **`hidden: bool` with default false.** The same data under a negative name. The canvas flag is `visible`, the issue and decision 40 say `visible`, and the repository already has a bool that defaults to true (`clip`).
+- **A child may override its parent (CSS inheritance).** It would need a state for "inherit" besides shown and hidden, the canvas has no such rule (it would need a second pass in `resolveAll`, `hitTest` and `captureBounds`), and the importer and the export would need to carry it both ways. The cost is one CSS case that the importer reports. Not proposed.
+- **Leave the field out when true (`skip_serializing_if`).** It would keep every file that hides nothing byte for byte as it is and let an older build read it, and make the generated TypeScript field optional. It is not proposed because of one read of the code: `field_patch` in `meldframe-revert/src/restore.rs` builds the patch of a restore from the JSON keys of the two nodes and sets a key that is missing on the target side to JSON null, which an `Option<bool>` reads as "no change"; a restore from a hidden state to a visible one would then end in `RestoreError::Mismatch`. The fields that leave themselves out when unset (`padT`, `image`, `gradient`) have a three-state patch (`de_double_option`) for exactly this. If the owner prefers this option, that function changes in the same slice and gets a test for it.
+- **A switch on the border and on each shadow now.** Not proposed (see section 3).
+- **A page-level visibility.** Not proposed: the file holds nodes only.
+- **A boolean variable type and `Bind<bool>`.** Not proposed: the variables note skips booleans, and `opacity` serves the mode case.
+- **Capture the hidden node anyway** (force it shown while drawing). Rejected: the image would show something that the file does not show, which is the wrong thing to hand an agent that is checking its own work. **Draw what is in the rectangle** (no new code): the result of doing nothing; a hidden node would give a picture that looks like an answer. See section 6.
+- **A new `Command` such as `setVisible`.** Not needed: `updateNode` already carries every node field, and the undo, the footprint and the revert are built on it.
+- **Migrate existing opacity 0 nodes.** Rejected: no file changes unless someone changes it.
+
+## Consequences
+
+- **Model.** One field in `Node` and `NodePatch`, one name in `patch_fields!`, the generated TypeScript (`Node`, `NodePatch`, `SnapshotNode`, and `Properties` and `Property` of the app layer), and no schema version. Old files read as visible. A build from before the field cannot read files written after it (section 1).
+- **Layout core.** No change. That is the main reason for the meaning chosen: the geometry rules of the contract (G1 to G5), the oracle's box gate and every rule that reads `absolute` stay as they are.
+- **Render step and canvas.** `PaintedBox.visible`, one line in `toSceneNode`; the canvas code that exists starts to work and gets tests of its own (the stage sets the container flag; a hidden node's border and shadows are hidden with it).
+- **Export.** One declaration, one Tailwind class, one refusal code and one rule for the hidden ancestor of the frame; no change in the layout calls, the variables or the report. Hidden nodes make the HTML larger by their size; the 256 KiB limit still applies.
+- **Capture.** One new code, `node_hidden`, in three places and the table. The relay and the editor's `CaptureDeps` gain a way to ask whether a node is hidden.
+- **Layers panel and Properties.** One button and one switch, two new row members and two new `Properties` members. The Properties tests that build a `Properties` literal (nine files in `packages/web-panels` and `packages/web-document`) gain a line each.
+- **Agents.** They can hide a node with one patch and read it in `get_tree` and `get_nodes`. They are told the difference from opacity, and told what `capture` and `export_frame` do with it, in the same pull request that makes it true.
+- **Importer.** One row changes status, one gets an exception, one stays; no importer exists yet, so these are rows of the design note (`docs/import-html.md`).
+- **What stays unmeasured.** Nothing was built or run (below). The pixel behaviour of `visibility: hidden` on a node with an `::after` border and a `box-shadow` is the CSS rule as this author knows it and is what fixture `f24` probes; the Tailwind class name `invisible` is the same kind of claim; the hiding of every part of a node by the one Pixi container flag is read from `stage.ts` (the parts are added to that container), with no stage test that pins it today.
+
+## What was not run
+
+No code, test, browser or oracle was run for this ADR; it is read from the files named above on `develop` at the commit of the day it was written (`d6d8421`). In particular the oracle fixture, the pixel behaviour of the export and the capture of a hidden node in a browser are proposals, not measurements.
+
+## Open questions for the owner
+
+1. **Hidden keeps its place (proposed) or leaves the flow.** Lean: keep the place, give the room back with `absolute`. It is the choice that is hard to reverse, because it fixes where siblings sit in files that hide something.
+2. **A hidden frame: refuse its export and its capture (proposed), or export and capture it as if it were shown.** Lean: refuse, with a code that says why. The cost is that exporting a hidden variant takes a show and a hide.
+3. **May a child show itself inside a hidden parent?** Lean: no.
+4. **A switch on the border and on each shadow.** Lean: not now; it is additive later.
+5. **The importer's `display: none` row.** Lean: unchanged, the node is not created.
+6. **Written always (proposed) or left out when true.** Lean: written always, because the restore code reads it that way; the other is possible with one function changed.
+7. **The eye in the row and the switch in Appearance, with no shortcut.** Lean: yes; a shortcut can follow when the shortcut table is next opened.
+
+## Plan
+
+A stack of slices, each green alone, test first, in order. Sizes are estimates of files and changed lines without lockfiles, generated files and pure moves; each is 15 files or fewer and under 1,000 lines. None ticks a box of `docs/epics.md` before the owner accepts this ADR. The tool texts and the skill come last of the code slices, so that no agent is told about a field before the canvas, the capture and the export carry it; slices 1 to 4 merge together, because until slice 3 an export writes a hidden node as visible (the coverage row says so).
+
+1. **The field.** `visible` in `Node` and `NodePatch`, `patch_fields!`, the coverage row (both columns unsupported, with their own reasons), the arm in the coverage tests' `change`, the generated TypeScript and the sample in `packages/protocol/src/usage.ts`. Failing tests first: a node with no `visible` is visible and a node with `visible: false` round trips (`wire_compat.rs`); an `updateNode` that hides and shows applies; undo and redo of a hide for one actor and for two (`meldframe-history`, `meldframe-sync-scenarios`); a restore from a checkpoint where the node was visible back from a hidden state gives the commands and equals the target (`meldframe-revert/tests/restore.rs`); the table lists exactly the fields of a node (fails until the row exists). About 11 files, 300 lines. Seam: the protocol and the undo.
+2. **Render and canvas.** `PaintedBox.visible` (left out when true), `resolve`, the coverage row turned to rendered for the canvas, a hidden case in `scene.json`, `toSceneNode`, the stage test that the container flag follows the node and hides its border and shadows. Failing tests first: a rendered field changes the painted boxes (the Rust test for the canvas column); the shared fixture JSON for a hidden node (Rust and `packages/web-link` read the same file); `sceneFromBoxes` passes `visible: false`; the stage hides a node's border and shadows with it; the hit test, the fit and the capture bounds skip a node hidden by an ancestor (extending the existing `scene.test.ts` cases through the web-link path). About 8 files, 250 lines.
+3. **Export.** `visibility: hidden` in `decl.rs` (with the hidden-ancestor flag in `Place`), `invisible` in `tw.rs`, the export column of the table turned to rendered, `ExportError::NodeHidden` (`E_NODE_HIDDEN`) and its row in `docs/error-codes.md`. Failing tests first (`meldframe-export-tests`): a hidden node is written once with `visibility:hidden` and nothing is written below it; the Tailwind form has the class; the boxes of a hidden node and its siblings are the layout core's; hidden and `absolute` gives the room back in the layout core's rects; a frame that is hidden, and one that is inside a hidden node, is refused with the code; the coverage test for the export column. About 9 files, 450 lines.
+4. **The contract and the oracle.** `f24-visibility` in `fixtures.mjs`, the probes in `probes.mjs`, the two mutants in `sensitivity.mjs`, the contract rows (4.1, 4.3 and the probe list of section 7). Failing tests first: the gate runs the fixture and the probes fail against an export without the declaration (the sensitivity mutants fail the gate), the Tailwind page equals the CSS page for it. Run by hand with `node oracle.mjs`, as the README says. About 5 files, 350 lines; the contract text is most of it.
+5. **Capture.** `node_hidden` in `capture::CODES` and `from_client_code`, the tool's retry list, the row in `docs/error-codes.md`, `CaptureDeps` and `serveCapture` (a hidden node answers with the code), `Canvas.captureBox`, and the refusal text in the PNG export path. Failing tests first: the registration test (the table and `CODES` agree); `serveCapture` fails with `node_hidden` for a hidden node and for one under a hidden ancestor, and takes the whole page without it; a client's `node_hidden` reaches the agent as that code over the relay. About 9 files, 350 lines. Needs slice 2.
+6. **The app layer.** `Property::Visible`, the arm in `property_patch`, `Properties.visible` and `hidden_by`, the generated TypeScript. Failing tests first (`meldframe-app-inspector-tests`): `SetProperty` with `Visible(false)` writes one `updateNode` and one undo step takes it back; no kind is refused; `hidden_by` names the nearest hidden ancestor; a bound opacity is unchanged by it. About 6 files, 250 lines. Needs slice 1.
+7. **The web panels.** The Visible switch in Appearance, the eye in `LayersPanel.svelte`, `layerRows` with `visible` and `hiddenBy`, the crossed eye icon, the dimming. The `Properties` literals of the nine test files gain a line each (they count as tests). Failing tests first: a hidden node's row is dimmed and shows "Show <name>"; the eye of a row hidden by its parent says so and sends the node's own flag; the switch dispatches `SetProperty`; a landmark and name check as `landmarks.test.ts` does for the other controls. About 15 files, 400 lines (nine of them one-line fixtures). Needs slice 6.
+8. **The text and the tree.** The sentences of section 11 in `meldframe-mcp-defs`, the capture and export descriptions, `docs/mcp-tools.json`, `skills/meldframe/SKILL.md`, and `visible: false` in the tree entry (`view.rs`). Failing tests first: the catalogue test (texts and JSON agree); the skill test (every code it names exists, including `node_hidden` and `E_NODE_HIDDEN`); an `apply_commands` call hides a node and `get_tree` marks it (`meldframe-mcp-tests`, as `absolute.rs` does for its field); `capture` of that node is refused with the code and `export_frame` of its frame with the code. About 8 files, 300 lines. Needs slices 3 and 5.
+9. **Docs.** `docs/ui-design.md` (the node row from 3.1a to 3.1), `docs/decisions.md` (item 6, and a row for the owner's answer), `docs/epics.md` (a box under E3.2), `docs/prd.md` (FR-5), the importer rows of `docs/import-html.md`, and this ADR to accepted. About 6 files, 150 lines. Needs the owner's answer.
+10. **Browser check.** A new `packages/web-e2e/scripts/visibility-e2e.mjs`: hide from the eye and from Properties, undo, a click that goes through, a hidden node found from the layers panel and moved, the capture of a hidden node refused and of its parent not, a PNG export of a frame with a hidden child that shows nothing of it, two editors that see the same state. Run by hand, as the other scripts. About 3 files, 350 lines.
+
+Order: 1 first; 2 and 6 need 1; 3 needs 1 and 2; 4 needs 3; 5 needs 2; 7 needs 6; 8 needs 3 and 5; 9 closes, after the owner's answer and slice 8; 10 last. Slices 3, 5 and 6 can go beside each other once 2 is in.
