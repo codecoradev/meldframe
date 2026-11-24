@@ -117,7 +117,7 @@
       {#if has.fontSize}
         <Section title="Text">
           <Field label="Font size" suffix="px" value={round(p.fontSize)} onCommit={prop(p, 'fontSize')} testId="prop-fontSize" />
-          {#if has.typography}<TextStyle properties={p} {dispatch} />{/if}
+          <TextStyle properties={p} {dispatch} />
         </Section>
       {/if}
       <FillSection properties={p} {picker} {assets} {dispatch} {chip} />

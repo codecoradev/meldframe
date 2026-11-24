@@ -86,9 +86,11 @@ describe('clipAction', () => {
 describe('the weight and the alignment of a text', () => {
   const t: Properties = { ...p, kind: 'text', fontWeight: 400, textAlign: 'left' };
   it('offers the nine weights the model takes, 100 to 900 in steps of 100, and the three alignments it takes', () => {
-    expect(FONT_WEIGHTS.map((w) => w.value)).toEqual(['100', '200', '300', '400', '500', '600', '700', '800', '900']);
-    expect(FONT_WEIGHTS.find((w) => w.value === '400')?.label).toBe('Regular');
-    expect(FONT_WEIGHTS.find((w) => w.value === '700')?.label).toBe('Bold');
+    expect(FONT_WEIGHTS).toEqual([
+      { value: '100', label: 'Thin' }, { value: '200', label: 'Extra Light' }, { value: '300', label: 'Light' },
+      { value: '400', label: 'Regular' }, { value: '500', label: 'Medium' }, { value: '600', label: 'Semi Bold' },
+      { value: '700', label: 'Bold' }, { value: '800', label: 'Extra Bold' }, { value: '900', label: 'Black' },
+    ]);
     expect(TEXT_ALIGNS.map((a) => a.value)).toEqual(['left', 'center', 'right']);
   });
   it('sets the weight chosen as the one setProperty the app layer turns into an updateNode patch', () => {
@@ -120,9 +122,9 @@ describe('bindings', () => {
 
 describe('fieldsOf', () => {
   it('offers the fields a kind of node has', () => {
-    expect(fieldsOf('frame')).toEqual({ radius: true, clip: true, fontSize: false, typography: false, layout: true });
-    expect(fieldsOf('rect')).toEqual({ radius: true, clip: false, fontSize: false, typography: false, layout: false });
-    expect(fieldsOf('ellipse')).toEqual({ radius: false, clip: false, fontSize: false, typography: false, layout: false });
-    expect(fieldsOf('text')).toEqual({ radius: false, clip: false, fontSize: true, typography: true, layout: false });
+    expect(fieldsOf('frame')).toEqual({ radius: true, clip: true, fontSize: false, layout: true });
+    expect(fieldsOf('rect')).toEqual({ radius: true, clip: false, fontSize: false, layout: false });
+    expect(fieldsOf('ellipse')).toEqual({ radius: false, clip: false, fontSize: false, layout: false });
+    expect(fieldsOf('text')).toEqual({ radius: false, clip: false, fontSize: true, layout: false });
   });
 });

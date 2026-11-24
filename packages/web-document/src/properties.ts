@@ -74,7 +74,7 @@ export const FONT_WEIGHTS: { value: string; label: string }[] = [
   { value: '300', label: 'Light' },
   { value: '400', label: 'Regular' },
   { value: '500', label: 'Medium' },
-  { value: '600', label: 'Semibold' },
+  { value: '600', label: 'Semi Bold' },
   { value: '700', label: 'Bold' },
   { value: '800', label: 'Extra Bold' },
   { value: '900', label: 'Black' },
@@ -108,7 +108,7 @@ export function unbindAction(p: Properties, field: BindField): Action | null {
   return bindingOf(p, field) ? { type: 'bindProperty', id: p.id, field, variable: null } : null;
 }
 
-/** Which of the optional fields a kind of node has: the canvas draws no corners on text and an ellipse, a frame alone clips and lays out its children, and a text alone has a size, a weight and an alignment (`typography`: the last two). */
-export function fieldsOf(kind: NodeKind): { radius: boolean; clip: boolean; fontSize: boolean; typography: boolean; layout: boolean } {
-  return { radius: kind === 'frame' || kind === 'rect' || kind === 'shader', clip: kind === 'frame', fontSize: kind === 'text', typography: kind === 'text', layout: kind === 'frame' };
+/** Which of the optional fields a kind of node has: the canvas draws no corners on text and an ellipse, a frame alone clips and lays out its children, and a text alone has the Text section (a size, a weight and an alignment). */
+export function fieldsOf(kind: NodeKind): { radius: boolean; clip: boolean; fontSize: boolean; layout: boolean } {
+  return { radius: kind === 'frame' || kind === 'rect' || kind === 'shader', clip: kind === 'frame', fontSize: kind === 'text', layout: kind === 'frame' };
 }

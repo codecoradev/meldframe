@@ -4,7 +4,8 @@
 // right); the Appearance section of a frame has Clip content. The check selects a text and sets weight 700 and alignment center with
 // the pointer and with the keyboard, reads the node back from the server (fontWeight, textAlign), checks that the canvas draws it (a
 // bolder text has more ink; a centred and a right-aligned text start further right in the same box), that one undo each brings the
-// old value back, that a refused value does not stick, and the hit sizes and labels of the controls. Then it switches Clip content
+// old value back, that a value the document does not take (fed to the select through the page) sends nothing and the select shows the
+// document's value again, that the server refuses a weight of 450 with 422 and E_INVALID_FONT_WEIGHT, and the hit sizes and labels of the controls. Then it switches Clip content
 // off on a frame with a child that overflows and checks the server and that the canvas draws the part outside; on again hides it.
 // Start the server and the page as the header of packages/web-panels/scripts/image-fill-e2e.mjs says: a file name that is new for
 // every run (the check refuses a file that has content), the server on a free port, the development token of the page in
@@ -61,10 +62,16 @@ async function until(what, fn, ms = 15000) {
   }
 }
 
-/** The ink of one colour on the canvas (the strip between the two cards, from x 300 to 900): how many pixels are nearly `want` (a 3-number colour, tolerance `tol`) and the left and right edge of them. */
+/**
+ * The ink of one colour on the canvas: how many pixels are nearly `want` (a 3-number colour, tolerance `tol`) and the left and right
+ * edge of them. Only the canvas element is read (it sits between the layers panel and the right panel, so the panels are out of it: the Fill
+ * swatch of the right panel has the colour of the text), and its box is read from the page on every call.
+ */
 async function ink(want, tol = 60) {
+  const box = await page.locator('canvas').first().boundingBox();
+  assert.ok(box, 'the canvas has a box');
   const b64 = (await page.screenshot()).toString('base64');
-  return page.evaluate(async ({ b64, want, tol }) => {
+  return page.evaluate(async ({ b64, want, tol, box }) => {
     const img = new Image();
     img.src = `data:image/png;base64,${b64}`;
     await img.decode();
@@ -75,17 +82,17 @@ async function ink(want, tol = 60) {
     const d = g.getImageData(0, 0, c.width, c.height).data;
     let count = 0, min = Infinity, max = -Infinity;
     for (let i = 0; i < d.length; i += 4) {
-      const px = (i / 4) % c.width;
-      if (px < 300 || px >= 900) continue;
+      const x = (i / 4) % c.width;
+      const y = Math.floor(i / 4 / c.width);
+      if (x < box.x || x >= box.x + box.width || y < box.y || y >= box.y + box.height) continue;
       if (Math.abs(d[i] - want[0]) < tol && Math.abs(d[i + 1] - want[1]) < tol && Math.abs(d[i + 2] - want[2]) < tol) {
         count++;
-        const x = (i / 4) % c.width;
         if (x < min) min = x;
         if (x > max) max = x;
       }
     }
     return { count, min, max };
-  }, { b64, want, tol });
+  }, { b64, want, tol, box });
 }
 const MAGENTA = [255, 0, 255]; // the text
 const RED = [255, 0, 0]; // the child that overflows
@@ -139,7 +146,9 @@ const undo = async () => {
     assert.equal(await $('[data-testid=prop-fontWeight]').count(), 0, 'a frame has no weight');
     await select(label, `Words ${run}`);
     const sel = $('[data-testid=prop-fontWeight]');
-    assert.equal(await sel.getAttribute('aria-label'), 'Font weight');
+    assert.equal(await page.getByLabel('Font weight', { exact: true }).count(), 1, 'the select is named by its caption');
+    assert.equal(await sel.getAttribute('aria-label'), null, 'one name: the caption, no aria-label over it');
+    assert.equal(await page.getByRole('radiogroup', { name: 'Text alignment', exact: true }).count(), 1);
     assert.deepEqual(await sel.locator('option').evaluateAll((o) => o.map((x) => x.value)), ['100', '200', '300', '400', '500', '600', '700', '800', '900']);
     assert.equal(await sel.inputValue(), '400', 'the select shows the weight of the node');
     assert.deepEqual(await $('[data-testid=prop-textAlign] [role=radio]').evaluateAll((r) => r.map((x) => x.getAttribute('aria-label'))), ['Align left', 'Align center', 'Align right']);
@@ -204,11 +213,32 @@ const undo = async () => {
     await until('the canvas is as it was', async () => { const i = await ink(MAGENTA); if (process.env.MELDFRAME_E2E_DEBUG) console.log(JSON.stringify({ now: i, regular })); return Math.abs(i.min - regular.min) <= 1 && Math.abs(i.count - regular.count) <= regular.count * 0.02; }, 5000);
   });
 
-  await check('a text of another weight written by an agent (apply_commands) shows in the select, and a weight the model refuses is refused by the server', async () => {
+  await check('a text of another weight written by an agent (apply_commands) shows in the select', async () => {
     await post({ type: 'updateNode', id: label, patch: { fontWeight: 300 } });
     await until('the select shows 300', async () => (await $('[data-testid=prop-fontWeight]').inputValue()) === '300');
+  });
+
+  await check('a value the document does not take, fed to the select through the page, sends nothing and the select shows the document value again', async () => {
+    const seq = (await snapshot()).seq;
+    // The select offers nine weights; the page adds a tenth (450) and chooses it, so that the change handler runs with a weight the model refuses.
+    await $('[data-testid=prop-fontWeight]').evaluate((el) => {
+      const o = document.createElement('option');
+      o.value = '450';
+      o.textContent = 'Not a weight';
+      el.append(o);
+      el.value = '450';
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await until('the select shows 300 again', async () => (await $('[data-testid=prop-fontWeight]').inputValue()) === '300');
+    await sleep(500);
+    assert.equal((await snapshot()).seq, seq, 'nothing was sent');
+    assert.equal((await nodeOf(label)).fontWeight, 300);
+  });
+
+  await check('the server refuses a weight of 450 with 422 and E_INVALID_FONT_WEIGHT, and the node keeps its weight', async () => {
     const res = await fetch(`${server}/v1/files/${file}/tools/apply_commands`, { method: 'POST', headers: { 'content-type': 'application/json', ...auth }, body: JSON.stringify({ ops: [{ key: `ts-${run}-bad`, command: { type: 'updateNode', id: label, patch: { fontWeight: 450 } }, deps: [] }] }) });
-    assert.notEqual(res.status, 200, 'the model takes no 450');
+    assert.equal(res.status, 422);
+    assert.equal((await res.json()).error.code, 'E_INVALID_FONT_WEIGHT');
     assert.equal((await nodeOf(label)).fontWeight, 300);
   });
 
