@@ -10,7 +10,7 @@
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import Tabs from '@meldframe/web-chrome/Tabs.svelte';
   import type { ExportScale } from '@meldframe/web-document/export';
-  import { type PngPlan, pngText } from './png';
+  import { type PngPlan, SCALE_OPTIONS, pngText, scaleOf } from './png';
   import { copyText, saveText } from './save';
   import { type View, afterFormat } from './ui';
   import { errorText, fileOf, findingRows, plain, previewOf, reviewText, sizeText } from './view';
@@ -112,8 +112,8 @@
   </div>
 {:else}
   <div id="export-panel-png" role="tabpanel" aria-labelledby="export-tab-png" class="flex flex-col gap-3 px-4 pt-4 pb-4">
-    <div class="flex items-center justify-between"><span class="font-semibold text-text-strong">Scale</span><Segmented label="Scale" options={[{ value: '1', label: '1x' }, { value: '2', label: '2x' }]} value={String(scale)} onChange={(v) => onScale(v === '2' ? 2 : 1)} data-testid="export-scale" /></div>
-    <p class="m-0 font-mono text-small text-text-muted" data-testid="export-png-plan">{plan ? pngText(plan) : 'There is nothing to export.'}</p>
+    <div class="flex items-center justify-between"><span class="font-semibold text-text-strong">Scale</span><Segmented label="Scale" options={SCALE_OPTIONS} value={String(scale)} onChange={(v) => onScale(scaleOf(v))} data-testid="export-scale" /></div>
+    <p role="status" class="m-0 text-small {plan?.ok === false && plan.why === 'too_large' ? 'text-danger-text' : 'font-mono text-text-muted'}" data-testid="export-png-plan">{plan ? pngText(plan) : 'There is nothing to export.'}</p>
     <div class="flex justify-end gap-2">
       <Button onclick={onClose}>Close</Button>
       <Button variant="primary" disabled={!plan?.ok} onclick={onPng} data-testid="export-png">Export as PNG</Button>
