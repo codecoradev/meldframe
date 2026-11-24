@@ -22,6 +22,7 @@ Carousel, slides and motion are planned extensions and are on hold until the cor
 - [docs/roadmap.md](docs/roadmap.md): open decisions and order of work. [docs/epics.md](docs/epics.md): milestones, epics and acceptance criteria.
 - [docs/owner-questionnaire.md](docs/owner-questionnaire.md): questions for the owner.
 - [docs/decisions.md](docs/decisions.md): decision register. [docs/concept.md](docs/concept.md): original concept.
+- The token loop, with runnable examples: [docs/tokens-and-code.md](docs/tokens-and-code.md).
 
 ## Run locally
 
