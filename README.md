@@ -24,6 +24,7 @@ Carousel, slides and motion are planned extensions and are on hold until the cor
 - [docs/owner-questionnaire.md](docs/owner-questionnaire.md): questions for the owner.
 - [docs/decisions.md](docs/decisions.md): decision register. [docs/concept.md](docs/concept.md): original concept.
 - The token loop, with runnable examples: [docs/tokens-and-code.md](docs/tokens-and-code.md).
+- HTML import (code to design), spike note and proposed `import_html`: [docs/import-html.md](docs/import-html.md).
 
 ## Run locally
 
