@@ -97,8 +97,17 @@ describe('the tabs and the PNG tab', () => {
     const out = html({ view: png });
     expect(out).toContain('Landing Desktop.png · 1440 × 900 px');
     expect(disabled(tag(out, 'export-png'))).toBe(false);
-    expect(disabled(tag(html({ view: png, plan: { ok: false, why: 'too_large' } }), 'export-png'))).toBe(true);
+    const big = html({ view: png, scale: 4, plan: { ok: false, why: 'too_large', asked: { scale: 4, width: 5760, height: 3600 }, fits: { scale: 3, width: 4320, height: 2700 } } });
+    expect(disabled(tag(big, 'export-png'))).toBe(true);
+    expect(big).toContain('At 4x the image would be 5760 × 3600 px');
+    expect(big).toContain('The largest scale that fits is 3x (4320 × 2700 px).');
     expect(html({ view: png, plan: null })).toContain('There is nothing to export.');
+  });
+
+  it('offers 0.5x to 4x on the PNG tab', () => {
+    const out = html({ view: { ...START, tab: 'png' } });
+    const labels = [...out.matchAll(/<button[^>]*role="radio"[^>]*>[\s\S]*?<\/button>/g)].map((m) => />([\d.]+x)</.exec(m[0])?.[1]);
+    expect(labels).toEqual(['0.5x', '1x', '2x', '3x', '4x']);
   });
 
   it('does not say text sizes are estimated on the PNG tab: the canvas draws that with the real text engine', () => {
