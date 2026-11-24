@@ -12,6 +12,16 @@
 # mutant is only reported as surviving when the full suite misses it. The working tree must be clean in
 # the files a mutation touches; they are restored with `git checkout`.
 #
+# WARNING: this script edits source files in the working tree, one mutant at a time. Run it in a throwaway
+# worktree (`git worktree add ../mutation-check`), never in a checkout that holds uncommitted work. It refuses
+# to mutate a file that has local changes and restores the file on exit (a trap), but a run that is killed
+# (SIGKILL, a closed lid, a power cut) can leave a mutated file behind: `git checkout -- <file>` puts it back.
+# Do not run the full list on a laptop: it is 71 mutants, each of which rebuilds the sync and history crates and
+# runs their tests (the reporter of issue 235 saw about 10 mutants in 15 minutes, so one to two hours of full CPU,
+# one run, one machine). Use it with a few names for work on the replica and history rules
+# (`tools/mutation-check-sync.sh NAME ...`). The full list runs in the `mutation-check` job of the nightly
+# workflow: read that result, or start it with `gh workflow run nightly.yml --ref develop`.
+#
 # Every mutation is one line of tab-separated fields: name, file, sed pattern (# is the delimiter),
 # replacement, and what it switches off.
 set -uo pipefail
