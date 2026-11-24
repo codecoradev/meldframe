@@ -25,6 +25,7 @@ Carousel, slides and motion are planned extensions and are on hold until the cor
 - [docs/decisions.md](docs/decisions.md): decision register. [docs/concept.md](docs/concept.md): original concept.
 - The token loop, with runnable examples: [docs/tokens-and-code.md](docs/tokens-and-code.md).
 - HTML import (code to design), spike note and proposed `import_html`: [docs/import-html.md](docs/import-html.md).
+- Per-side border, contract and model proposal (awaiting the owner): [docs/per-side-border.md](docs/per-side-border.md).
 
 ## Run locally
 
