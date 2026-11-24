@@ -36,9 +36,12 @@ describe('the HTML tab', () => {
     expect(html({ dialog: dialog({ format: 'css', css: '' }) })).not.toContain('data-testid="export-file"');
   });
 
-  it('says the sizes of text are estimated, and names the stylesheet by what the app layer gave', () => {
+  it('says the sizes of text are measured as the canvas does and that the opening browser lays the page out, and names the stylesheet by what the app layer gave', () => {
     const out = html({ dialog: dialog({ cssFile: 'site.css' }) });
-    expect(out).toMatch(/Text sizes are estimated/);
+    expect(out).toMatch(/Text sizes are measured in this browser, with the font the canvas draws/);
+    expect(out).toMatch(/laid out by the browser that opens it/);
+    expect(out).toMatch(/tab, a link or CJK characters can break differently there \(Warnings names the ones it detects\)/);
+    expect(out).not.toMatch(/Text sizes are (estimated|not measured)/);
     expect(out).toContain('site.css');
     expect(out).not.toContain('meldframe.css');
   });
