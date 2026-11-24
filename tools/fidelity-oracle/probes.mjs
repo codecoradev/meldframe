@@ -8,7 +8,7 @@ import { screenshot } from './screenshot.mjs';
 import fixtures from './fixtures.mjs';
 
 const C = {
-  red: [255, 0, 0], green: [0, 255, 0], blue: [0, 0, 255], white: [255, 255, 255], pink: [255, 128, 128], mint: [128, 255, 128], lilac: [128, 128, 255],
+  red: [255, 0, 0], green: [0, 255, 0], blue: [0, 0, 255], white: [255, 255, 255], pink: [255, 128, 128], dkgreen: [0, 128, 0], mint: [128, 255, 128], lilac: [128, 128, 255],
   yellow: [255, 255, 0], black: [0, 0, 0], gray: [128, 128, 128], purple: [128, 0, 128], zinc: [63, 63, 70] /* DEFAULT_FILL, #3f3f46 */,
 };
 const near = (p, c, t = 40) => p.every((v, i) => Math.abs(v - c[i]) <= t);
@@ -56,6 +56,14 @@ const noFill = [
   ['fill none under an image: the letterbox shows what is behind', 250, 180, 'white'], ['fill none under an image: the image, left', 225, 220, 'red'], ['fill none under an image: the image, right', 275, 220, 'blue'],
 ];
 
+/** f23: the alpha of a fill's own colour. */
+const fillAlpha = [
+  ...at(20, 20, [['#rrggbbaa: half-transparent red over white is pink, not red', 50, 30, 'pink']]),
+  ...at(160, 20, [['a fully transparent fill shows what is behind it, not black', 50, 30, 'green']]),
+  ...at(300, 20, [['half-transparent black over green is dark green, not black', 50, 30, 'dkgreen']]),
+  ...at(440, 20, [['#rgba: the short form has its alpha too', 50, 30, 'pink']]),
+];
+
 /** [fixture, viewport, probes]; a probe is [what, x, y, colour]. */
 const CASES = [
   ['f07-decor', { width: 1000, height: 520 }, [
@@ -79,6 +87,7 @@ const CASES = [
   ['f20-variable-fill', { width: 1000, height: 400 }, bound({ v1: 'red', v2: 'green', corner: 'white', muted: 'pink' })],
   ['f21-variable-modes', { width: 1000, height: 400 }, bound({ v1: 'blue', v2: 'yellow', corner: 'green', muted: 'red' })],
   ['f22-no-fill', { width: 1000, height: 300 }, noFill],
+  ['f23-fill-alpha', { width: 600, height: 120 }, fillAlpha],
   ['f18-opacity', { width: 300, height: 100 }, [
     ['opacity 0.5 on a red rect over white', 60, 50, 'pink'], ['opacity 0.5 on a frame: the fill is half', 170, 70, 'mint'], ['opacity 0.5 on a frame: its child is half too, not opaque', 200, 40, 'lilac'],
   ]],

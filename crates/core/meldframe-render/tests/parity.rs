@@ -38,6 +38,7 @@ fn a_box_is_plain_json_with_camel_case_names() {
         boxes[1],
         json!({
             "id": "n", "parent": "p", "paint": "rect", "x": 1.0, "y": 2.0, "w": 3.0, "h": 4.0, "fill": 0x102030,
+            "fillAlpha": 1.0,
             "radius": 0.0, "text": "", "fontSize": 0.0, "fontWeight": 0, "textAlign": "left", "name": "",
             "clip": true, "opacity": 1.0,
             "gradient": {"kind": "linear", "angle": 90.0, "stops": [[0.0, "#fff"], [1.0, "#000"]]},

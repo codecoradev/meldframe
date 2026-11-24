@@ -4,7 +4,7 @@
 //! under a hug parent is a fixed size, rule G1; `safe` alignment, rule G2). Paint comes from the painted box of the
 //! render step, except where the field is bound: a bound fill, radius or opacity is `var(--...)`.
 
-use crate::names::{asset_id_ok, css_escape, escape, hex, hex_colour, num, px};
+use crate::names::{asset_id_ok, css_escape, escape, hex_alpha, hex_colour, num, px};
 use crate::report::Report;
 use meldframe_layout::{Rect, TextMeasurer};
 use meldframe_protocol::{
@@ -100,7 +100,7 @@ fn axis(n: &Node, mode: SizeMode, place: &Place, horizontal: bool) -> Axis {
 fn colour(
     cx: &Cx,
     bind: &Bind<String>,
-    painted: Option<u32>,
+    painted: Option<(u32, f64)>,
     id: &str,
     rep: &mut Report,
 ) -> Option<String> {
@@ -117,7 +117,7 @@ fn colour(
             ),
         );
     }
-    painted.map(hex)
+    painted.map(|(rgb, alpha)| hex_alpha(rgb, alpha))
 }
 
 /// A number that is a length: `calc(var(--x) * 1px)` when bound, else the painted value in px.
@@ -301,7 +301,8 @@ pub(crate) fn style(cx: &Cx, n: &Node, b: &PaintedBox, place: &Place, rep: &mut 
             TextAlign::Center => s.main.push(d("text-align", "center")),
             TextAlign::Right => s.main.push(d("text-align", "right")),
         }
-        let c = colour(cx, &n.fill, b.fill, &n.id, rep).unwrap_or_else(|| "transparent".into());
+        let c = colour(cx, &n.fill, b.painted_fill(), &n.id, rep)
+            .unwrap_or_else(|| "transparent".into());
         s.main.push(d("color", c));
         for (field, on) in [
             ("border", n.border.width > 0.0),
@@ -354,7 +355,7 @@ fn text_outside_contract(t: &str) -> bool {
 /// Fill, gradient, image, radius, shadows and opacity of a box that is not text.
 fn paint(cx: &Cx, n: &Node, b: &PaintedBox, s: &mut Style, rep: &mut Report) {
     let id = &n.id;
-    let fill = colour(cx, &n.fill, b.fill, id, rep);
+    let fill = colour(cx, &n.fill, b.painted_fill(), id, rep);
     let mut layers: Vec<(String, &str)> = Vec::new();
     let mut image = b.image.as_ref();
     if let Some(img) = image

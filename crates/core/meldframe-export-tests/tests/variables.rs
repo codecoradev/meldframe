@@ -149,8 +149,8 @@ fn a_colour_is_written_as_the_canvas_paints_it() {
     let n = nodes(frame(json!({"fill": {"var": "v"}}), vec![]));
     let e = run(&n, &v, Format::Css, ModeChoice::default());
     assert!(
-        e.css.contains("--t-c-x:#aabbcc"),
-        "the alpha is dropped: {}",
+        e.css.contains("--t-c-x:#aabbcc80"),
+        "the alpha is kept: {}",
         e.css
     );
 }

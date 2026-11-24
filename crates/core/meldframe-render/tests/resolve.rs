@@ -4,8 +4,8 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
-use meldframe_protocol::{GradientKind, ImageFit, Node};
-use meldframe_render::{Paint, PaintedBox, resolve};
+use meldframe_protocol::{GradientKind, ImageFit, Node, Variables};
+use meldframe_render::{ModeChoice, Paint, PaintedBox, resolve, resolve_with};
 use serde_json::{Value, json};
 
 fn node(v: Value) -> Node {
@@ -76,6 +76,53 @@ fn fill_is_a_number_and_none_for_no_fill_or_a_bad_colour() {
         one(json!({"id": "n", "type": "rect", "fill": "red"})).fill,
         None
     );
+}
+
+#[test]
+fn the_alpha_of_a_fill_is_kept_next_to_its_colour() {
+    // #rrggbbaa and #rgba: the colour without its alpha, and the alpha as a fraction of 255 (issue 234: it was dropped,
+    // and a `#rgba` fill was no fill at all).
+    let b = one(json!({"id": "n", "type": "rect", "fill": "#ff000080"}));
+    assert_eq!((b.fill, b.fill_alpha), (Some(0xff0000), 128.0 / 255.0));
+    let b = one(json!({"id": "n", "type": "rect", "fill": "#2563eb40"}));
+    assert_eq!((b.fill, b.fill_alpha), (Some(0x2563eb), 64.0 / 255.0));
+    let b = one(json!({"id": "n", "type": "rect", "fill": "#00000000"}));
+    assert_eq!((b.fill, b.fill_alpha), (Some(0), 0.0));
+    let b = one(json!({"id": "n", "type": "rect", "fill": "#f008"}));
+    assert_eq!(
+        (b.fill, b.fill_alpha),
+        (Some(0xff0000), 0x88 as f64 / 255.0)
+    );
+    // Opaque in every form that has no alpha, and in the forms with a full one.
+    for (css, rgb) in [
+        ("#ff8000", 0xff8000),
+        ("#f80", 0xff8800),
+        ("#ff8000ff", 0xff8000),
+        ("#f80f", 0xff8800),
+    ] {
+        let b = one(json!({"id": "n", "type": "rect", "fill": css}));
+        assert_eq!((b.fill, b.fill_alpha), (Some(rgb), 1.0), "{css}");
+    }
+    // No fill, or a bad colour: nothing is painted, and the alpha says nothing (it stays 1).
+    for css in ["none", "red", "#12", "#12345"] {
+        let b = one(json!({"id": "n", "type": "rect", "fill": css}));
+        assert_eq!((b.fill, b.fill_alpha), (None, 1.0), "{css}");
+    }
+}
+
+#[test]
+fn the_alpha_of_a_bound_fill_is_the_alpha_of_the_variable_value() {
+    let nodes = [node(
+        json!({"id": "n", "type": "rect", "fill": {"var": "v-glass"}}),
+    )];
+    let vars: Variables = serde_json::from_value(json!({
+        "collections": [{"id": "c", "name": "brand", "modes": [{"id": "m", "name": "light"}]}],
+        "variables": [{"id": "v-glass", "collection": "c", "name": "color/glass", "type": "color", "values": {"m": "#11223380"}}]
+    }))
+    .unwrap();
+    let boxes = resolve_with(&nodes, &vars, &ModeChoice::default());
+    assert_eq!(boxes[0].fill, Some(0x112233));
+    assert_eq!(boxes[0].fill_alpha, 128.0 / 255.0);
 }
 
 #[test]
