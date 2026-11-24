@@ -10,9 +10,11 @@
 //
 // The canvas draws what it is given: no layout, no editor rules (clamping, snapping, constraints) live here.
 import { containsPoint, intersectRects, rectsEqual, type Rect } from './geometry';
+import { sameBorder, type SceneBorder } from './border';
 import { sameGradient, type SceneGradient } from './gradient';
 import { sameImage, type SceneImage } from './image';
 
+export type { SceneBorder, SceneBorderPosition } from './border';
 export type { SceneGradient } from './gradient';
 export type { SceneImage, SceneImageFit } from './image';
 export type NodeKind = 'frame' | 'rect' | 'text';
@@ -54,6 +56,8 @@ export interface SceneNode {
   gradient?: SceneGradient;
   /** Painted over the fill and the gradient; absent means none. */
   image?: SceneImage;
+  /** Drawn over the node and its children, and not clipped by the node's own `clip`; absent means none. */
+  border?: SceneBorder;
 }
 
 export interface Scene {
@@ -91,6 +95,7 @@ export interface ResolvedNode {
   opacity: number;
   gradient: SceneGradient | undefined;
   image: SceneImage | undefined;
+  border: SceneBorder | undefined;
   /** The intersection of the clipping ancestors' rectangles; null when nothing clips it. */
   clipRect: Rect | null;
 }
@@ -117,7 +122,7 @@ function sameNode(a: ResolvedNode, b: ResolvedNode): boolean {
     a.parent === b.parent && a.kind === b.kind && a.depth === b.depth &&
     rectsEqual(a, b) && a.lx === b.lx && a.ly === b.ly &&
     a.fill === b.fill && a.fillAlpha === b.fillAlpha && a.radius === b.radius && a.text === b.text && a.fontSize === b.fontSize && a.fontWeight === b.fontWeight && a.textAlign === b.textAlign &&
-    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) && sameImage(a.image, b.image) &&
+    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) && sameImage(a.image, b.image) && sameBorder(a.border, b.border) &&
     (a.clipRect === b.clipRect || (!!a.clipRect && !!b.clipRect && rectsEqual(a.clipRect, b.clipRect)))
   );
 }
@@ -162,6 +167,7 @@ function resolveAll(scene: Scene): ResolvedNode[] {
         opacity: n.opacity ?? 1,
         gradient: n.gradient,
         image: n.image,
+        border: n.border,
         clipRect: parentClip,
       };
       out.push(node);

@@ -1,6 +1,7 @@
 // The scene the canvas draws, read from the painted boxes that the Rust render step hands over (`meldframe-render`,
 // through `WasmApp.sceneJson`). A change of shape only: the canvas computes nothing of its own, so no order, no
 // colour and no radius is worked out here. The fixtures of the Rust crate (`tests/fixtures/scene.json`) fix the JSON.
+import type { SceneBorder } from '@meldframe/web-canvas/border';
 import type { NodeKind, Scene, SceneImage, SceneNode, SceneTextAlign } from '@meldframe/web-canvas/scene';
 
 /** One box as `meldframe_render::PaintedBox` serialises it, back to front. */
@@ -27,15 +28,18 @@ export interface PaintedBox {
   opacity: number;
   gradient?: { kind: 'linear' | 'radial'; angle: number; stops: [pos: number, color: string][] };
   image?: SceneImage;
+  /** Absent for no border (and always on a text). */
+  border?: SceneBorder;
 }
 
 function toSceneNode(b: PaintedBox): SceneNode {
-  const { gradient: g, image: i } = b;
+  const { gradient: g, image: i, border } = b;
   return {
     id: b.id, parent: b.parent, kind: b.paint, x: b.x, y: b.y, w: b.w, h: b.h, fill: b.fill, fillAlpha: b.fillAlpha, radius: b.radius,
     text: b.text, fontSize: b.fontSize, fontWeight: b.fontWeight, textAlign: b.textAlign, name: b.name, clip: b.clip, opacity: b.opacity,
     ...(g ? { gradient: { kind: g.kind, angle: g.angle, stops: g.stops.map(([pos, color]) => ({ pos, color })) } } : {}),
     ...(i ? { image: { assetId: i.assetId, fit: i.fit } } : {}),
+    ...(border ? { border: { width: border.width, color: border.color, alpha: border.alpha, position: border.position } } : {}),
   };
 }
 

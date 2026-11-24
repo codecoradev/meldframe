@@ -2,7 +2,12 @@
 // The root is a render group and is the camera: pan and zoom are one matrix on it. Nodes are laid out in
 // their parent's space (the resolved `lx`, `ly`), so a frame's clip mask and children follow it. Nodes take no
 // pointer events (the canvas hit-tests the scene model itself), and display objects are culled by hand.
+//
+// A node is a container with, back to front: its body, its text, `content` (the child nodes, which a clip mask cuts)
+// and its border ring (over the children, and not cut by the node's own clip: the export clips the border of a clipping
+// frame, the report says `border_clipped`, and the canvas does not).
 import { Container, Culler, Graphics, RenderTexture, Sprite, Text, Texture, type Rectangle, type Renderer } from 'pixi.js';
+import { borderRing, sameBorder } from '@meldframe/web-canvas/border';
 import { sameGradient } from '@meldframe/web-canvas/gradient';
 import { sameImage } from '@meldframe/web-canvas/image';
 import type { AssetCache } from '@meldframe/web-assets/assets';
@@ -20,7 +25,10 @@ interface NodeView {
   node: ResolvedNode;
   body: Body | null;
   text: Text | null;
+  /** Holds the child nodes, and the clip mask first; made when the node first needs it. */
+  content: Container | null;
   mask: Graphics | null;
+  border: Graphics | null;
   /** The resolution the text was last rasterised at. */
   textRes: number;
 }
@@ -76,9 +84,9 @@ export class WorldView {
       if (!v || v.c.destroyed) continue;
       // A child that survives (moved to another parent in the same patch) must not die with its old parent:
       // detach it first, the later pass puts it under its new parent.
-      for (const child of [...v.c.children]) {
+      for (const child of [...(v.content?.children ?? [])]) {
         const keep = child.label !== null && this.views.get(child.label)?.c === child && !removed.has(child.label);
-        if (keep) v.c.removeChild(child);
+        if (keep) v.content!.removeChild(child);
       }
       v.c.destroy({ children: true });
     }
@@ -88,7 +96,7 @@ export class WorldView {
       const c = new Container({ label: id });
       c.eventMode = 'none';
       c.cullable = true;
-      const v: NodeView = { c, node: n, body: null, text: null, mask: null, textRes: 1 };
+      const v: NodeView = { c, node: n, body: null, text: null, content: null, mask: null, border: null, textRes: 1 };
       this.views.set(id, v);
       this.update(v, n, true);
     }
@@ -101,14 +109,21 @@ export class WorldView {
     if (patch.added.length || reparented || patch.orderChanged) this.sortChildren(rs);
   }
 
+  /** Where the child nodes of `parent` go: the canvas itself, or the content of the node. */
   private parentContainer(parent: string | null): Container {
-    return parent === null ? this.root : this.views.get(parent)!.c;
+    if (parent === null) return this.root;
+    const v = this.views.get(parent)!;
+    if (!v.content) {
+      v.content = new Container({ label: 'content' });
+      v.content.eventMode = 'none';
+      this.placeParts(v);
+    }
+    return v.content;
   }
 
+  /** The parts of a node that come before its child nodes in their container: the clip mask. */
   private fixedCount(parent: string | null): number {
-    if (parent === null) return 0;
-    const v = this.views.get(parent)!;
-    return (v.body ? 1 : 0) + (v.text ? 1 : 0) + (v.mask ? 1 : 0);
+    return parent === null ? 0 : this.views.get(parent)!.mask ? 1 : 0;
   }
 
   /** Puts every node under its parent, after the parent's own parts, in paint order. */
@@ -132,15 +147,19 @@ export class WorldView {
     v.c.alpha = n.opacity;
     const geometry = first || prev.w !== n.w || prev.h !== n.h || prev.radius !== n.radius || prev.kind !== n.kind;
     const fill = first || prev.fill !== n.fill || prev.fillAlpha !== n.fillAlpha || !sameGradient(prev.gradient, n.gradient) || !sameImage(prev.image, n.image);
+    const ring = first || geometry || !sameBorder(prev.border, n.border);
     if (n.kind === 'text') this.updateText(v, n, first || geometry || fill || prev.text !== n.text || prev.fontSize !== n.fontSize || prev.fontWeight !== n.fontWeight || prev.textAlign !== n.textAlign);
     else if (geometry || fill) this.updateBody(v, n);
     if (first || prev.clip !== n.clip || (n.clip && geometry)) this.updateMask(v, n);
+    if (ring) this.updateBorder(v, n);
     this.placeParts(v);
   }
 
+  /** Puts the parts in their order: body, text, content and ring in the node; the mask first in the content. */
   private placeParts(v: NodeView): void {
     let i = 0;
-    for (const part of [v.body, v.text, v.mask]) if (part) v.c.addChildAt(part, i++);
+    for (const part of [v.body, v.text, v.content, v.border]) if (part) v.c.addChildAt(part, i++);
+    if (v.content && v.mask) v.content.addChildAt(v.mask, 0);
   }
 
   /** Removes the body; a gradient's texture is its own and goes with it (the white texture is shared and stays). */
@@ -227,7 +246,7 @@ export class WorldView {
 
   private updateMask(v: NodeView, n: ResolvedNode): void {
     if (!n.clip) {
-      v.c.mask = null;
+      if (v.content) v.content.mask = null;
       v.mask?.destroy();
       v.mask = null;
       return;
@@ -236,7 +255,24 @@ export class WorldView {
     // Any opaque fill will do: only the shape of a mask counts.
     g.clear().rect(0, 0, n.w, n.h).fill(0);
     v.mask = g;
-    v.c.mask = g;
+    if (!v.content) this.parentContainer(n.id);
+    v.content!.mask = g;
+  }
+
+  /** The border: a ring over the node and its children, the outer shape with the inner one cut out (see `borderRing`). */
+  private updateBorder(v: NodeView, n: ResolvedNode): void {
+    const b = n.border;
+    if (!b || n.kind === 'text' || n.w <= 0 || n.h <= 0) {
+      v.border?.destroy();
+      v.border = null;
+      return;
+    }
+    const g = v.border ?? new Graphics();
+    g.eventMode = 'none';
+    const { outer, inner } = borderRing(n.w, n.h, n.radius, b);
+    g.clear().roundRect(outer.x, outer.y, outer.w, outer.h, outer.r).fill({ color: b.color, alpha: b.alpha });
+    if (inner) g.roundRect(inner.x, inner.y, inner.w, inner.h, inner.r).cut();
+    v.border = g;
   }
 
   /** Hides every node outside `view` (screen px, through the camera); call when pan or zoom settles. */

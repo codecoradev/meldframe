@@ -17,5 +17,5 @@ mod resolve;
 pub use laid_out::resolve_laid_out;
 pub use meldframe_variables::ModeChoice;
 pub use resolve::{
-    Fields, Paint, PaintedBox, PaintedGradient, PaintedImage, resolve, resolve_with,
+    Fields, Paint, PaintedBorder, PaintedBox, PaintedGradient, PaintedImage, resolve, resolve_with,
 };

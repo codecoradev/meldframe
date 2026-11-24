@@ -35,6 +35,17 @@ describe('resolveScene', () => {
     expect(resolveScene(parentScene(node({ id: 'a', fillAlpha: 0.5 })), first).patch.changed).toEqual([]);
   });
 
+  it('resolves the border of a node, none when the scene says nothing, and a change of it is a change of the node', () => {
+    const border = { width: 4, color: 0xff0000, alpha: 1, position: 'outside' as const };
+    const rs = resolveScene(parentScene(node({ id: 'a', border }), node({ id: 'b' }))).scene;
+    expect(rs.byId.get('a')?.border).toEqual(border);
+    expect(rs.byId.get('b')?.border).toBeUndefined();
+    const first = resolveScene(parentScene(node({ id: 'a', border }))).scene;
+    expect(resolveScene(parentScene(node({ id: 'a', border: { ...border, width: 5 } })), first).patch.changed).toEqual(['a']);
+    expect(resolveScene(parentScene(node({ id: 'a', border: { ...border } })), first).patch.changed).toEqual([]);
+    expect(resolveScene(parentScene(node({ id: 'a' })), first).patch.changed).toEqual(['a']);
+  });
+
   it('adds the parent offset in parent space and keeps world space as given', () => {
     const p = resolveScene(parentScene(
       node({ id: 'f', kind: 'frame', x: 100, y: 50, w: 200, h: 100 }),
