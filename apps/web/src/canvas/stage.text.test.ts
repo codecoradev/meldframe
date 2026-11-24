@@ -79,4 +79,12 @@ describe('the stage draws the alpha of a text colour', () => {
   it('a change of the alpha alone draws the text again', () => {
     expect((draw(text({ fillAlpha: 1 }), text({ fillAlpha: 0.25 })) as unknown as { alpha: number }).alpha).toBe(0.25);
   });
+
+  it('a text with shadows in its data has no container of shadows (a text casts none)', () => {
+    const world = new WorldView();
+    const shadows = [{ x: 0, y: 4, blur: 6, spread: 0, color: 0, alpha: 0.5 }];
+    const r = resolveScene(scene(text({ shadows })));
+    world.apply(r.scene, r.patch);
+    expect((world.root.children[0] as { children: { label: string }[] }).children.map((c) => c.label)).not.toContain('shadows');
+  });
 });
