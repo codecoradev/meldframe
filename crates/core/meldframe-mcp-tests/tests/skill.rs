@@ -175,6 +175,7 @@ fn the_texts_name_every_property_the_canvas_does_not_draw() {
                     assert!(s.contains(field), "{place} says `{s}` but not {field}");
                 }
                 // The sentence names no property that is drawn: a stale name would tell an agent to distrust the image.
+                // A property that once was in `NOT_DRAWN` and is drawn now must be added to this list by hand.
                 for field in ["border", "shadows"] {
                     assert!(
                         gaps.contains(&field) || !s.contains(field),
