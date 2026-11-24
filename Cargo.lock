@@ -1446,6 +1446,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-css"
+version = "0.0.0"
+dependencies = [
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-export-http-tests"
 version = "0.0.0"
 dependencies = [
@@ -3684,6 +3691,7 @@ name = "variables-import"
 version = "0.0.0"
 dependencies = [
  "meldframe-check",
+ "meldframe-css",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-variables",

@@ -1,7 +1,7 @@
 //! What one custom property's value is: a colour, a number, an alias to another property, or something the model
 //! cannot hold (and why). Text in, a description out; nothing is evaluated.
 
-use crate::color;
+use meldframe_css::{color, length::length};
 
 /// What a value says.
 #[derive(Debug, Clone, PartialEq)]
@@ -70,34 +70,12 @@ fn alias(s: &str) -> Option<Val> {
     })
 }
 
+/// `12px`, `0.5` or `1.5rem` (the reading is `meldframe_css::length`), with the conversion `rem` is.
 fn number(s: &str) -> Option<Val> {
-    let l = s.to_ascii_lowercase();
-    let (n, rem) = if let Some(n) = l.strip_suffix("rem") {
-        (n, true)
-    } else if let Some(n) = l.strip_suffix("px") {
-        (n, false)
-    } else {
-        (l.as_str(), false)
-    };
-    let digits = n.trim();
-    if digits.is_empty()
-        || !digits
-            .bytes()
-            .all(|b| b.is_ascii_digit() || matches!(b, b'.' | b'-' | b'+'))
-    {
-        return None;
-    }
-    let v = digits.parse::<f64>().ok().filter(|v| v.is_finite())?;
-    Some(if rem {
-        Val::Number {
-            value: v * 16.0,
-            how: Some(Conversion::Rem),
-        }
-    } else {
-        Val::Number {
-            value: v,
-            how: None,
-        }
+    let l = length(s)?;
+    Some(Val::Number {
+        value: l.value,
+        how: l.from_rem.then_some(Conversion::Rem),
     })
 }
 

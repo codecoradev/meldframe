@@ -15,6 +15,7 @@ workspace = true
 
 [dependencies]
 meldframe-check = { path = "../../../core/meldframe-check" }
+meldframe-css = { path = "../../../core/meldframe-css" }
 meldframe-module = { path = "../../../core/meldframe-module" }
 meldframe-protocol = { path = "../../../core/meldframe-protocol" }
 meldframe-variables = { path = "../../../core/meldframe-variables" }
