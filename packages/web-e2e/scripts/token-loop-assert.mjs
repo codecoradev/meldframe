@@ -18,7 +18,12 @@ async function tool(name, args) {
     headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${token}` },
     body: JSON.stringify({ jsonrpc: '2.0', id: ++rpc, method: 'tools/call', params: { name, arguments: { file, ...args } } }),
   });
-  return JSON.parse((await res.json()).result?.content?.[0]?.text ?? '{}');
+  const raw = await res.text();
+  if (!res.ok) throw new Error(`${name}: HTTP ${res.status}: ${raw.slice(0, 200)}`);
+  const sse = (res.headers.get('content-type') ?? '').includes('text/event-stream');
+  const body = JSON.parse(sse ? raw.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trim()).join('') : raw);
+  if (body.error) throw new Error(`${name}: JSON-RPC ${body.error.code}: ${body.error.message}`);
+  return JSON.parse(body.result?.content?.[0]?.text ?? '{}');
 }
 const ok = (what, r) => assert.ok(!r.error, `${what} failed: ${JSON.stringify(r).slice(0, 400)}`);
 

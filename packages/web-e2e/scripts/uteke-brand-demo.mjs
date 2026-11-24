@@ -49,6 +49,11 @@ const call = await fetch(`${server}/mcp`, {
   headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${token}` },
   body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'import_tokens', arguments: { file, css: cssText, dryRun: false, idempotencyKey: `uteke-${room}` } } }),
 });
-const out = JSON.parse((await call.json()).result?.content?.[0]?.text ?? '{}');
+const raw = await call.text();
+if (!call.ok) throw new Error(`import_tokens: HTTP ${call.status}: ${raw.slice(0, 200)}`);
+const sse = (call.headers.get('content-type') ?? '').includes('text/event-stream');
+const rpcBody = JSON.parse(sse ? raw.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trim()).join('') : raw);
+if (rpcBody.error) throw new Error(`import_tokens: JSON-RPC ${rpcBody.error.code}: ${rpcBody.error.message}`);
+const out = JSON.parse(rpcBody.result?.content?.[0]?.text ?? '{}');
 assert.ok(!out.error, `import_tokens failed: ${JSON.stringify(out).slice(0, 400)}`);
 console.log(`import_tokens into ${file}: ${out.report.variables} variables from ${out.report.colors} colours (${out.replayed ? 'replayed' : 'written'})`);

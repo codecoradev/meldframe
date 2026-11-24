@@ -15,15 +15,19 @@ if (!token) throw new Error('set MELDFRAME_TOKEN to an agent token (see the top 
 const run = Math.random().toString(36).slice(2, 7);
 let rpc = 0;
 
-/** One MCP tool call; the result's JSON body (or the error body). */
+/** One MCP tool call; throws on a transport, HTTP or JSON-RPC error, otherwise returns the tool result's JSON (a tool-level `error` field included). */
 async function tool(name, args) {
   const res = await fetch(`${server}/mcp`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${token}` },
     body: JSON.stringify({ jsonrpc: '2.0', id: ++rpc, method: 'tools/call', params: { name, arguments: { file, ...args } } }),
   });
-  const part = (await res.json()).result?.content?.[0];
-  return JSON.parse(part?.text ?? '{}');
+  const raw = await res.text();
+  if (!res.ok) throw new Error(`${name}: HTTP ${res.status}: ${raw.slice(0, 200)}`);
+  const sse = (res.headers.get('content-type') ?? '').includes('text/event-stream');
+  const body = JSON.parse(sse ? raw.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trim()).join('') : raw);
+  if (body.error) throw new Error(`${name}: JSON-RPC ${body.error.code}: ${body.error.message}`);
+  return JSON.parse(body.result?.content?.[0]?.text ?? '{}');
 }
 const step = (n, text) => console.log(`${n}. ${text}`);
 const ok = (what, r) => assert.ok(!r.error, `${what} failed: ${JSON.stringify(r).slice(0, 400)}`);
