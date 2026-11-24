@@ -51,7 +51,7 @@ Moved with `git mv`, tests with their sources, no edit to a line of code except 
 | From `packages/web-canvas/src` | To `packages/web-paint/src` | Tests |
 |---|---|---|
 | `border.ts` (61) | same name | `border.test.ts` (75, 9 tests) |
-| `shadow.ts` (113) | same name | `shadow.test.ts` (131, 17 tests) |
+| `shadow.ts` (113; 122 after the change below) | same name | `shadow.test.ts` (131, 17 tests) |
 | `gradient.ts` (31) | same name | `gradient.test.ts` (45, 7 tests) |
 | `image.ts` (36) | same name | `image.test.ts` (41, 6 tests) |
 
@@ -80,11 +80,11 @@ web-paint ──► (nothing)
 
 | Package | Before | After |
 |---|---|---|
-| `meldframe-web-canvas` | 2,716 | 2,184 |
-| `meldframe-web-paint` | (new) | 534 |
+| `meldframe-web-canvas` | 2,716 | 2,183 |
+| `meldframe-web-paint` | (new) | 541 |
 
-Both are under 2,500 and no file is over 500 (the largest file left in `web-canvas` is `interaction.test.ts`, 397). Moves do not count towards the pull request size ceilings; the other changes are import paths and the package lists above.
+Both are under 2,500 and no file is over 500 (the largest file left in `web-canvas` is `interaction.test.ts`, 397; the largest in `web-paint` is `shadow.test.ts`, 131). Moves do not count towards the pull request size ceilings; the other changes are import paths and the package lists above.
 
 ## Not changed
 
-No behaviour: the vitest runs of `packages/web-canvas` and the new package together hold the same tests as before (146), the whole `apps/web` run is the same, and `border-e2e.mjs` and `shadow-e2e.mjs` still pass in Chromium. The export, the render step, the protocol and `docs/decisions.md` are untouched.
+No behaviour: the vitest runs of `packages/web-canvas` and the new package together hold the same tests as before (146: 107 stay, 39 move), the whole `apps/web` run is the same, and `border-e2e.mjs` and `shadow-e2e.mjs` still pass in Chromium. The export, the render step, the protocol and `docs/decisions.md` are untouched.

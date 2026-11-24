@@ -8,10 +8,10 @@
 // mask cuts) and its border ring (over the children, and not cut by the node's own clip: the export clips the border of a
 // clipping frame, the report says `border_clipped`, and the canvas does not).
 import { Container, Culler, Graphics, RenderTexture, Sprite, Text, Texture, type Rectangle, type Renderer } from 'pixi.js';
-import { borderRing, sameBorder } from '@meldframe/web-canvas/border';
-import { sameGradient } from '@meldframe/web-canvas/gradient';
-import { sameImage } from '@meldframe/web-canvas/image';
-import { sameShadows } from '@meldframe/web-canvas/shadow';
+import { borderRing, sameBorder } from '@meldframe/web-paint/border';
+import { sameGradient } from '@meldframe/web-paint/gradient';
+import { sameImage } from '@meldframe/web-paint/image';
+import { sameShadows } from '@meldframe/web-paint/shadow';
 import type { AssetCache } from '@meldframe/web-assets/assets';
 import { paintBody, type Drawable } from './bodycanvas';
 import type { Rect } from '@meldframe/web-canvas/geometry';

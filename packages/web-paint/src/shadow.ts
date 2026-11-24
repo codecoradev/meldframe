@@ -1,6 +1,13 @@
 // Shadows on the canvas: the shape a drop shadow covers, worked out as the browser draws a CSS `box-shadow` (the export
 // writes one for each shadow), so the canvas and the export agree. Pure.
-import type { Rect } from './geometry';
+
+/** A rectangle in world units: what a shadow is measured on and what its reach is given as. The `Rect` of the canvas satisfies it as it stands. */
+export interface PaintBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 /** One drop shadow, paint only: it takes no room and lies behind the node. */
 export interface SceneShadow {
@@ -91,7 +98,7 @@ export function blurFilterSettings(blur: number, zoom: number): { strength: numb
  * The rectangle every shadow of `box` covers, blur included, or null when none shows (a shadow with an alpha of 0 paints nothing).
  * Offset, spread and blur each count for at most `MAX_BLUR` here.
  */
-export function shadowBounds(box: Rect, shadows: readonly SceneShadow[] | undefined): Rect | null {
+export function shadowBounds(box: PaintBox, shadows: readonly SceneShadow[] | undefined): PaintBox | null {
   let x0 = Infinity;
   let y0 = Infinity;
   let x1 = -Infinity;

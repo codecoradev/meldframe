@@ -1,9 +1,9 @@
 // A node with a gradient or an image is drawn from a small 2D canvas: the fill, then the gradient over it, then the image
 // over both, clipped to the rounded box. The browser's own gradient does the colours (stops, alpha), the geometry of a
-// gradient is the CSS one of `gradient.ts` and the place of an image is `fitRect` of `image.ts`, so the canvas and the
+// gradient is the CSS one of `web-paint/gradient` and the place of an image is `fitRect` of `web-paint/image`, so the canvas and the
 // export agree. Pixi's own gradient fill mirrors a horizontal gradient, which is why it is not used.
-import { gradientLine, radialRadius, type SceneGradient } from '@meldframe/web-canvas/gradient';
-import { fitRect, type SceneImageFit } from '@meldframe/web-canvas/image';
+import { gradientLine, radialRadius, type SceneGradient } from '@meldframe/web-paint/gradient';
+import { fitRect, type SceneImageFit } from '@meldframe/web-paint/image';
 
 /** Pixels per world unit of the texture, and the most pixels along an edge: a gradient is smooth, so little is needed. */
 const SCALE = 2;
