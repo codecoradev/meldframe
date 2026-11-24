@@ -64,7 +64,7 @@ This is the list QA checks the panel against: the table is what is built, and se
 | Shadow | Up to four, each with X, Y, blur, spread and colour, and a button to remove it; a button to add one |
 | Export | Below Properties, for one selected frame: PNG scale (1x or 2x) and Export as PNG, with the file name and the size in pixels shown before saving; HTML + Tailwind, which opens the dialog (Tailwind or plain CSS, preview, Copy, Download, and the PNG tab) |
 
-The fields follow the round 2 model (E3.2): margin, per-side padding, gradients, opacity and no fill. Layout changes its fields with the direction. A variable button sits at the end of the three fields that can be bound (fill colour, opacity and corner radius); border and shadow colours take a literal only. An agent can set the same fields with `apply_commands`, and a panel control and the tool share one command.
+The fields follow the round 2 model (E3.2): margin, per-side padding, gradients, opacity and no fill. Layout changes its fields with the direction. A variable button sits at the end of the Fill colour row and on the caption row of Opacity and Corner radius, the three fields that can be bound; border and shadow colours take a literal only. An agent can set the same fields with `apply_commands`, and a panel control and the tool share one command.
 
 ### 3.1a Not in W1 `[P]`
 
