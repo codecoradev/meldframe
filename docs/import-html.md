@@ -36,7 +36,7 @@ Proposed new code: `E_IMPORT_HTML_TOO_LARGE` (a code never changes meaning, so `
 |---|---|
 | Tags and attributes | A tolerant, bounded tree builder over a documented subset: void elements, the usual implied end tags (`p`, `li`, `td` and friends), character references, comments dropped. Not the full HTML parsing algorithm (open decision 5). |
 | `style="..."` | Declarations, highest priority of the author rules. |
-| `<style>` blocks and the `css` argument | Rules with simple selectors (section 3.2). Same grammar for both. |
+| `<style>` blocks and the `css` argument | Rules with simple selectors (section 3.3). Same grammar for both. |
 | `class="..."` | Matched against the rules above, and decoded as Tailwind utilities for the forms our export emits (below). |
 | `<title>` | The name of the root frame, unless the call gives one. |
 | `data-name` | The name of a node, so an export imports back with its node names. |
@@ -104,10 +104,11 @@ An `addNode` that leaves a field out gets the default of `meldframe-protocol` (`
 | `ul`, `ol` list markers (bullets, numbers) | none | **refused** | Markers are generated content. The item's text is kept. |
 | `display: none`, the `hidden` attribute | no node, counted under `skipped` | **supported** | Not painted in the source either. |
 | `visibility: hidden` | the node with `opacity: 0` | **approximated** | The box keeps its room in CSS; the model has no visibility, only opacity (contract 4.3). |
-| `::before`, `::after` with `content` (other than the export's border form, row in 3.5) | none | **refused** | Generated content has no node. Counted. |
+| `::before`, `::after` with `content` (other than the export's border form, row in 3.6) | none | **refused** | Generated content has no node. Counted. |
 | `a href`, `id`, `class`, `title`, `alt`, `data-*`, `aria-*`, `role` | used for names only | **refused** | The model has no links or attributes. One count per attribute name, not a line per node. `data-name` (else `id`, else the first class, else the element's role) is the node name, cut to 256 characters, with control and hidden characters removed as a batch note's are (GLOSSARY, Note). Semantic names matter: a default name comes back under `warnings` from `apply_commands`. |
 | `script`, `style`, `link`, `meta`, `head`, `noscript`, `template`, comments | not nodes | **supported** | `style` and `title` are read; the rest are dropped and never run. |
-| An element with no content and no authored size (only padding, border or background) | `frame` or `rect` with `hug` on both axes | **approximated** | The contract is silent on the size of an empty hug frame; the core decides it, and it is not promised. |
+| An element with no content, no authored size and no `display: flex` (only padding, border or background) | `frame` with `layout: column`, `sh: hug`, and `sw` by the block row below (`fill` under a block or column parent, else `hug`) | **approximated** | Hug is real only on a layout frame; on a rect or a frame without layout the core treats it as fixed (contract 4.1, `hug` row). The contract is silent on the size of an empty hug frame: the core gives it its padding and border, and the size is not promised. |
+| An element with no children and no text, an authored px size, no `display: flex` and no padding | `rect` | **approximated** | The export writes `div` for a rect and for a frame (contract 4.1), so a childless frame without layout is not told from a rect. A rect holds no children and ignores layout and padding. |
 | Content larger than an authored fixed `width` or `height` (overflow) | the authored size kept; the layout finding `overflow` is returned | **approximated** | Rule G3: overflow is unspecified, the oracle does not gate it (contract section 5). |
 | A wrapper with no box-affecting declaration and one in-flow child; `display: contents` | no node; the child goes to the wrapper's parent | **approximated** | Keeps the tree under the depth limit of 32 and the count under 100. The node tree differs from the source. |
 
@@ -207,7 +208,7 @@ An `addNode` that leaves a field out gets the default of `meldframe-protocol` (`
 | `radial-gradient(circle farthest-corner, ...)` | `gradient` radial | **supported** | The form the export writes (`gradient_css`). |
 | `radial-gradient` with `ellipse`, a size keyword or `at <position>`; `conic-gradient`; `repeating-*`; stops in px; colour hints | not carried | **refused** | No model field for them. The `fill` remains. |
 | More than one gradient, or more than one image, or more than 8 stops | the first gradient, the first image | **approximated** | The model holds one gradient and one image, over `fill` (contract 4.3: multiple fills planned). |
-| `background-image: url(assets/<64 hex>)`, alone or followed by a gradient (`url(..),linear-gradient(..)`), with `background-size: cover \| contain \| 100% 100%` (two values, `cover,100% 100%`, when a gradient is the second layer), `background-position: center` and `background-repeat: no-repeat` | `image {assetId, fit}` and, when present, `gradient` | **supported** | The form the export writes (`decl.rs`: the image first, then the gradient, then size, position and repeat; `asset_base`, contract 4.2). The two values of position and repeat are accepted as the export's own form. Existence of the asset is not checked at write, as for `apply_commands`; the canvas reports `asset_not_found`. |
+| `background-image: url(assets/<64 hex>)`, alone or followed by a gradient (`url(..),linear-gradient(..)`), with `background-size: cover \| contain \| 100% 100%` (two values, `cover,100% 100%`, when a gradient is the second layer), `background-position: center` and `background-repeat: no-repeat` | `image {assetId, fit}` and, when present, `gradient` | **supported** | The form the export writes (`decl.rs`: the image first, then the gradient, then size, position and repeat; `asset_base`, contract 4.2). `background-position: center` and `background-repeat: no-repeat` are the export's own single values and are written only with an image; `background-size` has two comma-separated values when a gradient is the second layer. Existence of the asset is not checked at write, as for `apply_commands`; the canvas reports `asset_not_found`. |
 | Any other `url()`, and any other value of `background-size`, `background-position` or `background-repeat` | listed under `assets`; not carried | **refused** | Not fetched; the model has the three fits only. |
 | `border` with equal `width`, `style: solid` and `color` on four sides | `border {width, color, position: inside}`, and the width added to the padding | **approximated** | A CSS border takes room; the model's border is paint only (contract 4.2, `border` row). Adding the width to the padding gives the same content box. |
 | The export's border: `[data-node="x"]::after{content:""; position:absolute; pointer-events:none; inset: 0 \| -w/2 \| -w; border: w solid c; border-radius}` | `border {width, color, position}`, no padding change | **supported** | Contract 4.2; `inset` 0, `-w/2`, `-w` are inside, center, outside. This is the round trip of the export. |
@@ -228,13 +229,13 @@ For a File the export covers (contract section 4), `import_html` of its HTML giv
 
 - the ids (fresh), the `pos` strings (recomputed from the order) and the stored `w` and `h` of a node that is `hug` or `fill` on that axis (the export does not write them and the layout core ignores them);
 - a `shader`: the export writes a gradient from `fill` to `fill2` (`shader_approximated`), so it comes back as a `rect` with a gradient;
-- a Frame with no children and no layout, padding or hug size comes back as a `rect` (the export writes `div` for both);
+- a Frame with no children and no layout comes back as a `rect` when it has a px size and no padding (the export writes `div` for both; see the row of 3.2). An empty Frame with layout is written with `display: flex` and comes back as a Frame;
 - a binding to a Variable comes back as the literal (row in 3.3);
 - an `image` whose asset is not in the workspace keeps its id and shows `asset_not_found`, as before.
 
 ### 3.8 Counts
 
-The tables of 3.2 to 3.6 hold 110 rows: 41 supported, 33 approximated and 36 refused (the 8 rows of 3.1 are defaults, not mappings). These are row counts, not a measure of coverage: several rows group many properties, and a refused row is often one property of a common kind (`line-height`, grid). The count was taken with `grep` on the Status column and is to be taken again when a row changes.
+The tables of 3.2 to 3.6 hold 111 rows: 41 supported, 34 approximated and 36 refused (the 8 rows of 3.1 are defaults, not mappings). These are row counts, not a measure of coverage: several rows group many properties, and a refused row is often one property of a common kind (`line-height`, grid). The count was taken with `grep` on the Status column and is to be taken again when a row changes.
 
 ## 4. Proposed tool: `import_html`
 
