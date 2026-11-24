@@ -321,3 +321,51 @@ async fn an_export_changes_nothing_and_a_bad_name_is_not_logged() {
         "the bad frame id is not logged: {log:?}"
     );
 }
+
+/// The probe of issue 241: two hug texts, one wide and one narrow, in a row.
+async fn seed_hug_text(c: &Client) {
+    let hug = |id: &str, text: &str| {
+        json!({"type": "addNode", "node": {"id": id, "type": "text", "parentId": "row", "text": text,
+            "fontSize": 24, "sw": "hug", "sh": "hug"}})
+    };
+    let r = call(
+        c,
+        "apply_commands",
+        json!({"file": "g", "idempotencyKey": "seed-hug", "commands": [
+            {"type": "addNode", "node": {"id": "row", "type": "frame", "w": 400, "h": 100,
+                "layout": "row", "gap": 12, "padding": 12}},
+            hug("wide", "WWWWWWWWWW MMMMMMMM"), hug("narrow", "illiiiliiil lll")]}),
+    )
+    .await;
+    assert!(!r.is_error, "{}", r.body);
+}
+
+/// The server has no fonts, so the pinned sizes are the stub's; the result must say so where an agent reads it.
+#[tokio::test]
+async fn a_hug_text_is_reported_as_an_estimate_and_a_frame_without_one_is_not() {
+    let h = start().await;
+    let c = connect(&h, AGENT).await;
+    seed(&c).await;
+    seed_hug_text(&c).await;
+    let r = call(&c, "export_frame", json!({"file": "g", "frame": "row"})).await;
+    assert!(!r.is_error, "{}", r.body);
+    let warnings = r.body["report"]["warnings"].as_array().unwrap();
+    let est: Vec<&Value> = warnings
+        .iter()
+        .filter(|w| w["code"] == "text_size_estimated")
+        .collect();
+    assert_eq!(est.len(), 1, "{warnings:?}");
+    let message = est[0]["message"].as_str().unwrap();
+    assert!(
+        message.contains("wide") && message.contains("narrow"),
+        "{message}"
+    );
+    // A frame whose only text has a size of its own has nothing to estimate.
+    let r = call(&c, "export_frame", json!({"file": "f", "frame": "card"})).await;
+    assert!(!r.is_error, "{}", r.body);
+    let warnings = r.body["report"]["warnings"].as_array().unwrap();
+    assert!(
+        warnings.iter().all(|w| w["code"] != "text_size_estimated"),
+        "{warnings:?}"
+    );
+}
