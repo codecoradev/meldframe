@@ -53,7 +53,7 @@ impl ParseError {
     pub fn code(&self) -> &'static str {
         match self {
             ParseError::TooLarge { .. } => "E_IMPORT_HTML_TOO_LARGE",
-            ParseError::TooMany { .. } => "E_IMPORT_HTML_TOO_MANY",
+            ParseError::TooMany { .. } => "E_IMPORT_HTML_TOO_MANY_ELEMENTS",
             ParseError::Empty => "E_IMPORT_HTML_EMPTY",
         }
     }
