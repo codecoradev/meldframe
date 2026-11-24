@@ -20,6 +20,7 @@ Carousel, slides and motion are planned extensions and are on hold until the cor
 - [docs/architecture.md](docs/architecture.md) and [docs/adr/](docs/adr/): structure and decisions.
 - [docs/standards/modular-thin-ui.md](docs/standards/modular-thin-ui.md): CodeCora standard for modules, thin UI, gate and events (mirror).
 - [docs/roadmap.md](docs/roadmap.md): open decisions and order of work. [docs/epics.md](docs/epics.md): milestones, epics and acceptance criteria.
+- [docs/quickstart-agent.md](docs/quickstart-agent.md): connect an agent to the local development server (`tools/connect-claude.sh` prints the Claude Code command).
 - [docs/owner-questionnaire.md](docs/owner-questionnaire.md): questions for the owner.
 - [docs/decisions.md](docs/decisions.md): decision register. [docs/concept.md](docs/concept.md): original concept.
 - The token loop, with runnable examples: [docs/tokens-and-code.md](docs/tokens-and-code.md).
