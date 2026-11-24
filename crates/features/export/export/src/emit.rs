@@ -18,6 +18,38 @@ struct Walk<'a> {
     html: String,
     css: String,
     report: Report,
+    /// The texts whose size the measurer decides (only when the options say it is an estimate).
+    measured: Vec<&'a str>,
+}
+
+/// The most ids the `text_size_estimated` message lists.
+const ESTIMATED_LISTED: usize = 8;
+
+/// One warning for the texts whose box the measurer decides, in the order of the walk: [`Style::measured`] is set by
+/// the one place that pins a text from the measurer, so this list cannot drift from the declarations. A text of fixed
+/// size is not listed.
+fn estimated_text(ids: &[&str], report: &mut Report) {
+    if ids.is_empty() {
+        return;
+    }
+    let more = ids.len().saturating_sub(ESTIMATED_LISTED);
+    let tail = if more > 0 {
+        format!(" and {more} more")
+    } else {
+        String::new()
+    };
+    let listed = ids[..ids.len() - more].join(", ");
+    let what = match ids.len() {
+        1 => "1 text box gets its size".to_owned(),
+        n => format!("{n} text boxes get their size"),
+    };
+    report.warn(
+        "text_size_estimated",
+        None,
+        format!(
+            "{what} from an estimate of the text, not from the font the browser uses, so the size may differ from the canvas and the Export dialog: {listed}{tail}"
+        ),
+    );
 }
 
 pub(crate) fn export(
@@ -80,6 +112,7 @@ pub(crate) fn export(
         html: String::new(),
         css: String::new(),
         report,
+        measured: Vec::new(),
     };
     // A top-level frame is where it is; a frame inside another is the origin of its own page.
     let top = root
@@ -88,6 +121,7 @@ pub(crate) fn export(
         .is_none_or(|p| !nodes.iter().any(|n| n.id == p));
     let origin = if top { (root.x, root.y) } else { (0.0, 0.0) };
     w.element(root_box, None, Some(origin), 2, false)?;
+    estimated_text(&w.measured, &mut w.report);
 
     let title = if root.name.is_empty() {
         &root.id
@@ -295,6 +329,9 @@ impl<'a> Walk<'a> {
             basis,
         };
         let st = style(self.cx, n, b, &place, &mut self.report);
+        if st.measured && self.options.estimated_text {
+            self.measured.push(n.id.as_str());
+        }
         let t = tag(b);
         let pad = "  ".repeat(depth);
         let mut open = format!("{pad}<{t} {}", attrs(n));
