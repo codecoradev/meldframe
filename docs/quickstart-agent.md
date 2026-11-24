@@ -26,19 +26,21 @@ just dev
 
 ### Option B: the server by hand, in memory, one token for you and one for the agent
 
-Run from the repository root, with `DATABASE_URL` unset so that files stay in memory (they are gone when the server stops):
+Run from the repository root. `env -u DATABASE_URL` keeps this one server in memory (files are gone when it stops) without changing your shell. The editor's token is the one in `.dev-token` if that file exists (from `just dev`; it is left as it is), else a new one, saved there for `just web` (the file is git-ignored):
 
 ```sh
-unset DATABASE_URL
-editor=mf_dev_$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
+if [ -s .dev-token ]; then editor=$(head -n 1 .dev-token); else
+  editor=mf_dev_$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  (umask 077; printf '%s\n' "$editor" > .dev-token)
+fi
 agent=mf_dev_$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
-(umask 077; printf '%s\n' "$editor" > .dev-token)   # the editor's token, for `just web`; .dev-token is git-ignored
-export MELDFRAME_AGENT_TOKEN="$agent"              # for tools/connect-claude.sh in step 2
+export MELDFRAME_AGENT_TOKEN="$agent"   # for tools/connect-claude.sh in step 2
 
-MELDFRAME_LISTEN=127.0.0.1:8080 \
-MELDFRAME_REVIEWERS=agent:dev \
-MELDFRAME_DEV_TOKENS="$editor:ws_dev:agent:dev,$agent:ws_dev:agent:claude" \
-cargo run -p meldframe-server
+env -u DATABASE_URL \
+  MELDFRAME_LISTEN=127.0.0.1:8080 \
+  MELDFRAME_REVIEWERS=agent:dev \
+  MELDFRAME_DEV_TOKENS="$editor:ws_dev:agent:dev,$agent:ws_dev:agent:claude" \
+  cargo run -p meldframe-server
 ```
 
 The server prints its modules and tools, then `listening on 127.0.0.1:8080`. Check it from another terminal: `curl http://127.0.0.1:8080/v1/health` (no token needed).
@@ -66,6 +68,8 @@ claude mcp add --transport http meldframe http://127.0.0.1:8080/mcp --header "Au
 ```
 
 Run that line. It puts the token on the command line, and Claude Code keeps the header in its own configuration; `claude mcp remove meldframe` takes it out again. Prefer `MELDFRAME_AGENT_TOKEN` to `--token`: an argument is visible in the process list of your machine.
+
+The printed line holds the secret. Once you run it, the token is in your shell history (start the command with a space under `HISTCONTROL=ignorespace`, or paste the line from the clipboard instead of typing it), and it stays in the terminal scrollback and in any screenshot of the terminal. Never put the line, or a file that holds its header, in any file of a repository, and do not use an option of `claude mcp add` that writes the configuration into the repository. To rotate the token, restart the server with a new one; the old token stops working at once.
 
 Any other MCP client that supports streamable HTTP with a bearer header needs the same two things: the URL above and the header `Authorization: Bearer <token>`. The server also wants `Accept: application/json, text/event-stream` on a POST, which MCP clients send. Per-client configuration syntax is not documented here because it has not been checked against those clients. The JSON that [`m1-claude-demo.mjs`](../packages/web-e2e/scripts/m1-claude-demo.mjs) writes for Claude Code's `--mcp-config` is:
 
@@ -109,10 +113,10 @@ MELDFRAME_WEB_FILE=<file> MELDFRAME_DEMO_TOKEN2="$MELDFRAME_AGENT_TOKEN" node pa
 
 - **Development tokens only.** A token is a string you made up and the server's environment maps it to a workspace and an actor. There is no sign-in, no expiry and no revocation short of restarting the server. [E2.2](epics.md) (MCP OAuth through Gatehouse) and [E2.4](epics.md) (agent grants, so that no token is copied by hand) are open; when they land, the token step of this page is replaced.
 - **Loopback only.** The server refuses to start with development tokens when `MELDFRAME_LISTEN` is not a loopback address (`check_dev_listen`, `crates/integrations/meldframe-http/src/auth.rs`). `MELDFRAME_ALLOW_DEV_PUBLIC=1` lifts that, and nothing else does. The server has no TLS, so on a public address the token crosses the network in clear text. Only the exact value `1` counts.
-- **Release builds.** A release build (`cargo build --release`, or any build without debug assertions) refuses to start with development tokens unless `MELDFRAME_ALLOW_DEV_TOKENS=1` (`check_dev_tokens_allowed`), and prints a warning when it does. A debug build, which is what `cargo run` makes, ignores the variable. The two overrides are separate: a release build on a public address needs both. E2.1 and E2.4 keep the open item "development tokens are disabled in release builds" until Gatehouse replaces the override.
+- **Release builds.** A release build (`cargo build --release`, or any build without debug assertions) refuses to start with development tokens unless `MELDFRAME_ALLOW_DEV_TOKENS=1` (`check_dev_tokens_allowed`), and prints a warning when it does. A debug build, which is what `cargo run` makes, ignores the variable. The two overrides are separate: a release build on a public address needs both. E2.1 and E2.4 keep the open item "development tokens are disabled in release builds" until Gatehouse replaces the override. [ADR-0022](adr/0022-sign-in-and-agent-grants-through-gatehouse-with-a-principal-that-has-a-kind.md) (status proposed) replaces `MELDFRAME_ALLOW_DEV_TOKENS` with a `dev-tokens` build feature; this page describes the code as it is today and must change with that slice.
 - **Host names.** The MCP route answers only to the Host names `localhost`, `127.0.0.1` and `::1`, as a guard against DNS rebinding. Another name must be listed in `MELDFRAME_MCP_HOSTS` (comma-separated), so a server on another address needs that too.
 - **Memory.** Without `DATABASE_URL` files, batches and checkpoints are lost when the server stops.
 
 ## What was and was not verified
 
-The server was built from this checkout and started in memory (option B, a free loopback port, two throwaway tokens), and these were run against it: `tools/connect-claude.sh` with and without arguments, `GET /v1/health`, `initialize`, `tools/list` and a `whoami` call on `/mcp` with the agent's token (the actor and workspace in the answer were those of the entry in `MELDFRAME_DEV_TOKENS`, and `tools/list` held 13 tools), a 401 `unauthenticated` for a missing token and for a wrong one, a 403 for a Host name outside the loopback names, and the start-up refusals for a listen address that is not loopback, a missing `MELDFRAME_DEV_TOKENS` and a token under 16 bytes. The built binary was run, not `cargo run`. The `claude mcp add` line follows the form `claude mcp add --transport http <name> <url> --header "<header>"`; it was not run with a real Claude Code, and nothing here was tried with Codex, Cursor or any other MCP client. The release-build rule is stated from `check_dev_tokens_allowed` and its tests in `crates/core/meldframe-http-tests/tests/auth.rs`; a release binary was not built for this page. `just dev` and `just web` were not run (they need Postgres and a built WASM bridge); their behaviour is stated from `justfile`, `scripts/dev.sh` and [AGENTS.md](../AGENTS.md). The hello-world of step 3 was not run either. The M1 demonstration scripts need a browser and, for `m1-claude-demo.mjs`, a real Claude Code, so they were not run.
+The server was built from this checkout and started in memory (option B, a free loopback port, two throwaway tokens), and these were run against it: `tools/connect-claude.sh` with and without arguments, `GET /v1/health`, `initialize`, `tools/list` and a `whoami` call on `/mcp` with the agent's token (the actor and workspace in the answer were those of the entry in `MELDFRAME_DEV_TOKENS`, and `tools/list` held 13 tools), a 401 `unauthenticated` for a missing token and for a wrong one, a 403 for a Host name outside the loopback names (`evil.example`), and the start-up refusals for a listen address that is not loopback, a missing `MELDFRAME_DEV_TOKENS` and a token under 16 bytes. The built binary was run, not `cargo run`. The `claude mcp add` line follows the form `claude mcp add --transport http <name> <url> --header "<header>"`; it was not run with a real Claude Code, and nothing here was tried with Codex, Cursor or any other MCP client. The Host form `[::1]` and a listen address that is not loopback together with `MELDFRAME_MCP_HOSTS` were not tried against the guard. The release-build rule is stated from `check_dev_tokens_allowed` and its tests in `crates/core/meldframe-http-tests/tests/auth.rs`; a release binary was not built for this page. `just dev` and `just web` were not run (they need Postgres and a built WASM bridge); their behaviour is stated from `justfile`, `scripts/dev.sh` and [AGENTS.md](../AGENTS.md). The hello-world of step 3 was not run either. The M1 demonstration scripts need a browser and, for `m1-claude-demo.mjs`, a real Claude Code, so they were not run.
