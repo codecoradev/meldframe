@@ -1,6 +1,6 @@
 # Editor UI design
 
-Status: **draft for owner review** (16 Nov 2026). `[D]` = decided by the owner on 16 Nov 2026, `[P]` = proposed, `[Q]` = open question. Related: `decisions.md` #27 to #32, `collab-ux.md`, `tokens-and-variables.md` section 10, ADR-0008.
+Status: **draft for owner review** (16 Nov 2026). `[D]` = decided by the owner on 16 Nov 2026, `[P]` = proposed, `[Q]` = open question. Related: `decisions.md` #27 to #32 and #40, `collab-ux.md`, `tokens-and-variables.md` section 10, ADR-0008.
 
 This is a design note, not product code. It records what the first design pass of the editor looks like and why, so the web front end (E1.6, E3.4, E5.1) and a later desktop front end build the same thing. The pictures live in the design canvas "Meldframe UI/UX" (private); this page keeps the decisions. Wonder was the reference for layout and mood, studied from the owner's screenshots and recordings. Nothing is copied: names, accent colour and several features differ.
 
@@ -44,22 +44,41 @@ Every button has a name and its shortcut in a tooltip, and a pressed state when 
 The panel has two tabs, Design and Activity (section 4). On the Design tab, sections stack from the top and scroll inside the panel; each section collapses.
 
 1. **Variables** (open by default): a count in the title, search and add buttons, a list grouped by type: Color, Dimensions, Font family. Dimensions group further by name prefix (`radius`, `space`), as slash names already imply. The list scrolls inside a fixed height so Properties stays in view. A link in the header opens the full table with modes (`tokens-and-variables.md` 10.3).  The header also has **Import variables**, a dialog with a field for pasted CSS and a file chooser (read in the browser, nothing uploaded), which shows what the import made (collections, modes, variables, aliases), what it skipped and why, or why it was refused; the import only adds, a name that exists is refused whole and named, at most 50 variables are taken at a time (a longer style sheet is refused with a pointer to the agent tool `import_tokens`), the text stays in the field when the dialog closes without an import (Escape is not a Clear; there is a Clear button), and one undo takes it all back, after which the dialog no longer says "Imported". It has **Export variables**, a dialog with every variable of the file as CSS custom properties, one per line, a preview, Copy and Download (`variables.css`), the warnings of what could not be written as stored, and a note that DTCG and `@theme` output come later (`tokens-and-variables.md` 10.3.1). The text is built by the app layer and the dialog opens and closes through it; Escape closes it and the focus goes back to the button. `[P]`
-2. **Properties**: for the selected node: Position, Layout, Size, Appearance, Fill, Border, Shadow, Export. With nothing selected it shows the page: background colour, opacity and visibility.
+2. **Properties**: for the selected node: its name, then Position, Size, Layout (frames), Margin (a node in an auto layout parent), Appearance, Text (a text), Fill, Border and Shadow. With nothing selected, or with several nodes selected, it says so and shows no fields: the file holds nodes only, so there is no page background, opacity or visibility to edit. **Export** is a section of the card below Properties, shown while exactly one frame is selected.
 
 ### 3.1 Properties fields
 
-| Section | Fields |
-|---|---|
-| Position | X, Y (shown as drawn; disabled, with the reason "Set by the auto layout of the parent.", for a node that an auto layout parent places) |
-| Layout | Flow (free, row, column, grid); gap and alignment for flex; columns, rows and gap for grid; padding (two fields, expands to four sides); margin (four sides) |
-| Size | Width and height with a unit and a sizing mode (fixed, hug, fill) |
-| Appearance | Opacity, corner radius, clip content, visibility |
-| Fill | Type (solid, linear gradient, radial gradient, image, none), value or variable |
-| Border | Width, sides, colour, visibility, remove |
-| Shadow | Up to four, each with X, Y, blur, spread, colour, visibility, remove |
-| Export | File name, scale (0.5x to 4x), format, "Export as PNG"; a button to copy HTML and Tailwind |
+This is the list QA checks the panel against: the table is what is built, and section 3.1a is what is not in W1 and will not be found in the panel. A control that appears from 3.1a, or a row of the table that is missing, is a defect or a change of scope that needs the decision named there (`decisions.md` #40, proposed).
 
-The fields follow the round 2 model (E3.2): margin, per-side padding, gradients, opacity and no fill. Layout changes its fields with the flow.
+| Section | Fields (built) |
+|---|---|
+| Name | The name of the node, in the header of the panel. |
+| Position | X, Y (shown as drawn; disabled, with the reason "Set by the auto layout of the parent.", for a node that an auto layout parent places) |
+| Size | Width and height in px, and for each a sizing mode (fixed, hug, fill) with the notes that say where a mode has no effect |
+| Layout | Frames only. Direction (free, row, column); for a row or a column: gap, padding (all sides in one field, which says Mixed when the sides differ, and each side), align (start, center, end) and justify (start, center, end, between) |
+| Margin | A node in an auto layout parent, and elsewhere only while it has a margin or is absolute: margin on each of four sides, and Absolute position |
+| Appearance | Opacity; corner radius (frame, rectangle and shader; an ellipse and a text have none); Clip content (frames only) |
+| Text | Texts only: font size, font weight (the nine weights 100 to 900, a select) and text alignment (left, center, right) |
+| Fill | Type (solid, linear gradient, radial gradient, image, none; a text offers solid and none), a colour or the stops of a gradient, or the image picker (section 3.2a) |
+| Border | One uniform border: width in px (0 is no border), colour, and position (inside, center, outside) once the width is above 0 |
+| Shadow | Up to four, each with X, Y, blur, spread and colour, and a button to remove it; a button to add one |
+| Export | Below Properties, for one selected frame: PNG scale (1x or 2x) and Export as PNG, with the file name and the size in pixels shown before saving; HTML + Tailwind, which opens the dialog (Tailwind or plain CSS, preview, Copy, Download, and the PNG tab) |
+
+The fields follow the round 2 model (E3.2): margin, per-side padding, gradients, opacity and no fill. Layout changes its fields with the direction. A variable button sits at the end of the Fill colour row and on the caption row of Opacity and Corner radius, the three fields that can be bound; border and shadow colours take a literal only. An agent can set the same fields with `apply_commands`, and a panel control and the tool share one command.
+
+### 3.1a Not in W1 `[P]`
+
+Each item is recommended in decision 40 and waits for the owner. The one-line reason is the same in every case: the model, the canvas or the export would have to change first, and the panel only dispatches what the model already holds (principle 3).
+
+| Not in the panel | Why | What it would take |
+|---|---|---|
+| Grid layout (flow "grid", columns, rows) | `layout` is free, row or column; the layout core and the export have no grid, and the fidelity contract lists CSS grid as unsupported until the core and oracle fixtures exist | Its own epic box after W1: model fields, layout core, canvas, export rows and oracle fixtures |
+| Border per side, and the "sides" field | The border is one uniform width, colour and position; per-side border is unsupported in the fidelity contract | A contract change first, then model, canvas, export and oracle |
+| A visibility switch on a node, a border or a shadow, and a page-level visibility | The model has no visible field on a node, a border or a shadow, and no page-level fields | A model field with render, layout and export meaning: an ADR first |
+| A Remove button on the border | A width of 0 is no border and the width field takes 0, with the same command an agent sends; a shadow already has Remove | A small slice if QA finds 0 hard to find (one existing command) |
+| PNG scales other than 1x and 2x (0.5x to 4x) | 1x and 2x are what the E4.3 box was checked at; the area limit of 4096 x 4096 px refuses a large frame at the higher scales (a 1440 x 900 frame is over it at 4x) | A change of one constant in `packages/web-document/src/export.ts`, a check in a browser at each scale and the E4.3 text; no export crate change |
+| A file name field in Export | The file is named from the frame's name (rename the frame), the Tailwind style sheet has the name the HTML links, and the browser may offer its own name at save | Not planned |
+| Shader presets (`shader`, `fill2`) | The canvas draws a shader as its plain box and the export writes one gradient; section 6 leaves shader fills out | Not planned |
 
 ### 3.2 Variables in fields
 
