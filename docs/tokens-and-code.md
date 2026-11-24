@@ -101,18 +101,20 @@ Binding a radius or an opacity to a `number` variable is described in the tool t
 
 ### Canvas and export draw the same values
 
-The assertion script reads text. [`token-loop-canvas-e2e.mjs`](../packages/web-e2e/scripts/token-loop-canvas-e2e.mjs) reads pixels: it imports the same CSS (with a radius and an opacity added), binds a frame's fill, radius and opacity to the variables, takes a `capture` of the frame from an editor open in Chromium, loads the `export_frame` page in the same browser, and asserts that at six points the two pixels are equal within 4/255 per channel and are the colour the CSS gives. Then it sets three values with `setVariableValue` and asserts again, so the canvas and the export both follow. It starts its own in-memory server and page, so it needs no token; run it by hand from the repository root (the header lists what it needs: the server binary, the WASM bridge, `npm ci` in `apps/web` and Playwright):
+The assertion script reads text. [`token-loop-canvas-e2e.mjs`](../packages/web-e2e/scripts/token-loop-canvas-e2e.mjs) reads pixels. It imports a copy of the CSS of the assertion script with a radius and an opacity added, and binds three nodes to the variables: a page fill, a card (fill, radius, opacity) and a bar (fill through the alias `accent`, radius). It takes a `capture` of the page from an editor open in Chromium, loads the `export_frame` page in the same browser, and reads seven pixels from each. It asserts that the two pixels are equal within 4/255 per channel, and that they are the colour the imported value gives (read from the CSS text after the import). It also checks the `var(--...)` text of the card's rule (fill, radius, opacity). Then it sets four values (`surface`, `brand`, `radius-card`, `opacity-muted`) with `setVariableValue` and asserts again, now against the new values, so the canvas and the export both follow. It starts its own in-memory server and page, so it needs no token; run it by hand from the repository root (its header lists what it needs: the server binary, the WASM bridge, `npm ci` in `apps/web` and Playwright):
 
 ```sh
 node packages/web-e2e/scripts/token-loop-canvas-e2e.mjs
 ```
 
-From a run (an excerpt of the 17 checks it prints):
+An excerpt of the output (19 ok lines, then the summary). The run used Chromium's software rasteriser (SwiftShader), and the 0/255 and the 4/255 hold for it:
 
 ```text
-ok   imported: card fill at the bound opacity: canvas rgb(119,149,232), export rgb(119,149,232), the values give rgb(119,149,232) (canvas vs export 0/255)
-ok   after setVariableValue: card fill at the bound opacity: canvas rgb(203,176,248), export rgb(203,176,248), the values give rgb(203,176,248) (canvas vs export 0/255)
-ok   after setVariableValue: bar fill (an alias of brand): canvas rgb(124,58,237), export rgb(124,58,237), the values give rgb(124,58,237) (canvas vs export 0/255)
+ok   imported: card fill at its opacity: canvas rgb(119,149,232), export rgb(119,149,232), the values give rgb(119,149,232) (canvas vs export 0/255)
+ok   imported: bar corner (44, 164), painted at radius 12 and cut at 20: canvas rgb(29,78,216), export rgb(29,78,216), the values give rgb(29,78,216) (canvas vs export 0/255)
+ok   after setVariableValue: page fill: canvas rgb(254,243,199), export rgb(254,243,199), the values give rgb(254,243,199) (canvas vs export 0/255)
+ok   after setVariableValue: card fill at its opacity: canvas rgb(202,169,214), export rgb(202,169,214), the values give rgb(202,169,214) (canvas vs export 0/255)
+ok   after setVariableValue: bar corner (44, 164), painted at radius 12 and cut at 20: canvas rgb(254,243,199), export rgb(254,243,199), the values give rgb(254,243,199) (canvas vs export 0/255)
 largest difference between a canvas pixel and an exported pixel: 0/255 per channel (tolerance 4)
 TOKEN LOOP CANVAS OK
 ```

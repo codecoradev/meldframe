@@ -1,5 +1,5 @@
 // The canvas and the exported page draw the same bound values (issue 254, docs/tokens-and-code.md). token-loop-assert.mjs reads text: it checks that
-// the exported CSS holds the values get_variables reads back. This script reads pixels: it imports the same token CSS, binds a frame to the variables
+// the exported CSS holds the values get_variables reads back. This script reads pixels: it imports a copy of the token CSS of that script (with a radius and an opacity added), binds a frame to the variables
 // (fill, radius and opacity), takes a `capture` of the frame from an editor open in Chromium (what the canvas draws), loads the exported page
 // (`export_frame`) in the same browser, and asserts that at a few points the two pixels are equal within 4/255 per channel and are the colour the
 // imported value gives. Then it changes the variables with `setVariableValue` (the loop's two-way step) and asserts again: the canvas and the export both follow.
@@ -13,11 +13,23 @@
 // Prints one line per check and exits 1 when a check fails. Not checked: the dark mode on the canvas (packages/web-panels/scripts/variables-e2e.mjs
 // switches the mode), and text (the export measures text with a stub, see docs/tokens-and-code.md).
 //
-// The tolerance is 4/255 per channel. The canvas (Pixi on WebGL) and the exported page (CSS) are two renderers; they round a blend with `opacity`
-// differently, by at most 1/255 where shadow-e2e.mjs measures it, and the probes here sit 2 px or more from an edge. docs/fidelity-contract.md allows
-// 40/255 near edges for anti-aliasing; 4 is the margin for the rounding of the blend and no more, so a wrong variable, radius or opacity (a difference of
-// tens of levels) fails. The canvas is polled until it shows the expected values (the editor receives an update over the socket, a moment after the
-// command): the poll ends after 20 s, and the check that follows then fails on what the last capture held.
+// WHAT EACH PROBE PROVES. After the import the probes agree with the CSS text, but a literal would give the same pixels; the binding shows when the values
+// change: the page fill follows `surface`, the card fill `brand`, the card's blend `opacity-muted`, the card's and the bar's corner pixel at (44, 44) and
+// (44, 164) `radius-card` (painted at radius 12, cut at 20), the bar fill `accent`, an alias of `brand`. The outer corners (41, 41) and (41, 161) are cut at
+// both radii: they only show that a radius is drawn.
+//
+// THE RASTERISER. The browser runs on SwiftShader, a software rasteriser (`--use-gl=swiftshader`, as in shadow-perf.mjs; `MELDFRAME_GL_ARGS="<flags>"`
+// replaces the flags, an empty value takes the machine's own choice), and the output names the WebGL renderer it got. The 0/255 and the 4/255 below were
+// measured on that rasteriser; a GPU may round differently, which is what the tolerance is for.
+//
+// THE TOLERANCE is 4/255 per channel. The canvas (Pixi on WebGL) and the exported page (CSS) are two renderers; they round a blend with `opacity`
+// differently, by at most 1/255 where shadow-e2e.mjs measures it. docs/fidelity-contract.md allows 40/255 near edges for anti-aliasing; 4 is the margin for
+// the rounding of the blend and no more, so a wrong variable, radius or opacity (a difference of tens of levels) fails. A probe near an edge: an
+// anti-aliased edge spreads over about 1 px, so a pixel whose centre is 1 px or more from the arc is wholly inside or outside it. The closest probe, (44, 44),
+// is 1.4 px inside the arc of radius 12 (1.9 px outside that of radius 20); the script computes each corner probe's expected colour from the radius and the
+// pixel centre, and stops with an error for a probe closer than 1 px to an arc. The canvas is polled until it shows the expected values (the editor
+// receives an update over the socket, a moment after the command): the poll ends after 20 s, and the check that follows then fails on what the last
+// capture held, or the error says what the last answer to `capture` was.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -27,7 +39,7 @@ import { fileURLToPath } from 'node:url';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const GL_ARGS = ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
+const GL_ARGS = process.env.MELDFRAME_GL_ARGS === undefined ? ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : process.env.MELDFRAME_GL_ARGS.split(' ').filter(Boolean);
 const TOL = 4;
 const run = Math.random().toString(36).slice(2, 8);
 const file = `tokenloopcanvas_${run}`;
@@ -78,20 +90,34 @@ const waitFor = async (url, what, child) => {
 
 // ---- the agent's side: MCP tool calls on /mcp with the token ----
 let server, n = 0;
+const short = (t) => String(t).replace(/\s+/g, ' ').slice(0, 300);
 const rpc = async (name, args) => {
   const res = await fetch(`${server}/mcp`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${token}` },
     body: JSON.stringify({ jsonrpc: '2.0', id: ++n, method: 'tools/call', params: { name, arguments: args } }),
   });
-  const j = await res.json();
-  if (!j.result) throw new Error(`${name}: ${JSON.stringify(j)}`);
+  const raw = await res.text();
+  if (!res.ok) throw new Error(`${name}: HTTP ${res.status}: ${short(raw)}`);
+  const sse = (res.headers.get('content-type') ?? '').includes('text/event-stream');
+  let j;
+  try { j = JSON.parse(sse ? raw.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trim()).join('') : raw); } catch { throw new Error(`${name}: the answer is not JSON: ${short(raw)}`); }
+  if (j.error) throw new Error(`${name}: JSON-RPC ${j.error.code}: ${j.error.message}`);
+  if (!j.result) throw new Error(`${name}: no result in the answer: ${short(raw)}`);
   return j.result;
 };
+const text = (r) => r.content?.find((c) => c.type === 'text')?.text;
+/** A tool that answers JSON: an `isError` answer, an `error` field, no body or a body that is not JSON all throw, with what the server said. */
 const tool = async (name, args) => {
   const r = await rpc(name, { file, ...args });
-  const body = r.structuredContent ?? JSON.parse(r.content?.[0]?.text ?? '{}');
-  assert.ok(!r.isError && !body.error && body.ok !== false, `${name} failed: ${JSON.stringify(body).slice(0, 400)}`);
+  if (r.isError) throw new Error(`${name} was refused: ${short(text(r) ?? JSON.stringify(r.structuredContent ?? r))}`);
+  let body = r.structuredContent;
+  if (!body) {
+    const t = text(r);
+    if (t === undefined) throw new Error(`${name}: the answer has no body: ${short(JSON.stringify(r))}`);
+    try { body = JSON.parse(t); } catch { throw new Error(`${name}: the answer is not JSON: ${short(t)}`); }
+  }
+  assert.ok(!body.error && body.ok !== false, `${name} failed: ${short(JSON.stringify(body))}`);
   return body;
 };
 
@@ -106,7 +132,10 @@ const pixels = (page, b64, points) => page.evaluate(async ({ b64, points }) => {
   g.drawImage(img, 0, 0);
   return { w: img.width, h: img.height, rows: points.map(([, x, y]) => Array.from(g.getImageData(x, y, 1, 1).data.slice(0, 3))) };
 }, { b64, points });
-const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
+const hex = (s) => {
+  if (!/^#[0-9a-f]{6}$/i.test(s)) throw new Error(`"${s}" is not a #rrggbb colour: this script reads nothing else`);
+  return [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
+};
 const mix = (top, under, a) => top.map((v, k) => Math.round(a * v + (1 - a) * under[k]));
 const near = (a, b) => a.every((v, k) => Math.abs(v - b[k]) <= TOL);
 const rgb = (c) => `rgb(${c.join(',')})`;
@@ -142,7 +171,7 @@ async function main() {
   await waitFor(web, 'vite', vite);
   console.log(`token loop canvas ${new Date().toISOString()}  file ${file}  server ${server}`);
 
-  // 1. CSS to canvas: import, read back, bind a page, a card and a bar (fill, radius and opacity bound, one field each).
+  // 1. CSS to canvas: import, read back, bind a page (fill), a card (fill, radius, opacity) and a bar (fill through the alias, radius), one command per field.
   await tool('import_tokens', { css, dryRun: false, idempotencyKey: `import-${run}` });
   const vars = await tool('get_variables', {});
   const id = Object.fromEntries(vars.variables.map((v) => [v.name, v.id]));
@@ -151,7 +180,7 @@ async function main() {
   const nodes = [
     { id: 'page', type: 'frame', name: 'page', x: 0, y: 0, w: 400, h: 240, fill: { var: id.surface } },
     { id: 'card', type: 'frame', name: 'card', parentId: 'page', x: 40, y: 40, w: 320, h: 100, fill: { var: id.brand }, radius: { var: id['radius-card'] }, opacity: { var: id['opacity-muted'] } },
-    { id: 'bar', type: 'rect', name: 'bar', parentId: 'page', x: 40, y: 160, w: 320, h: 24, fill: { var: id.accent }, radius: { var: id['radius-card'] } },
+    { id: 'bar', type: 'rect', name: 'bar', parentId: 'page', x: 40, y: 160, w: 320, h: 44, fill: { var: id.accent }, radius: { var: id['radius-card'] } },
   ];
   await tool('apply_commands', { idempotencyKey: `build-${run}`, commands: nodes.map((node) => ({ type: 'addNode', node })) });
 
@@ -162,30 +191,54 @@ async function main() {
   await edit.goto(web);
   await edit.waitForSelector('[data-testid=connection][data-state=live]', { timeout: 60_000 });
   await edit.waitForTimeout(2500);
+  const gl = await edit.evaluate(() => {
+    const c = document.querySelector('canvas'), g = c?.getContext('webgl2') ?? c?.getContext('webgl'), e = g?.getExtension('WEBGL_debug_renderer_info');
+    return g && e ? String(g.getParameter(e.UNMASKED_RENDERER_WEBGL)) : 'unknown';
+  });
+  console.log(`browser   Chromium ${browser.version()}, WebGL renderer "${gl}", GL flags: ${GL_ARGS.join(' ') || '(none)'}`);
+  if (/swiftshader|llvmpipe|software/i.test(gl)) console.log('NOTE      a software rasteriser: the 0/255 and the 4/255 hold for it, not measured on a GPU');
   const ref = await browser.newPage({ viewport: { width: 400, height: 240 }, deviceScaleFactor: 1 });
 
-  // [what, x, y of the pixel in the 400 x 240 frame]. (41, 41) is 2.8 px from the arc of the card's corner of radius 12 and outside it; (44, 44) is inside it
-  // (distance 10.6 from the centre of the arc) and outside the arc of radius 20; the bar's corner is outside its arc.
+  // [what, kind, role, x, y of the pixel in the 400 x 240 frame]; a `corner` is in the top left corner region of its box. The card is the box (40, 40, 320 x 100), the bar (40, 160, 320 x 44), both with the bound radius.
   const probes = [
-    ['page fill (bound colour)', 10, 10], ['card fill at the bound opacity', 200, 90], ['card corner cut by the bound radius', 41, 41],
-    ['card pixel (44, 44): painted at radius 12, cut at 20', 44, 44], ['bar fill (an alias of brand)', 200, 172], ['bar corner cut by the bound radius', 41, 161],
-  ];
+    ['page fill', 'page', 'fill', 10, 10], ['card fill at its opacity', 'card', 'fill', 200, 90], ['card outer corner (41, 41), cut at both radii', 'card', 'corner', 41, 41],
+    ['card corner (44, 44), painted at radius 12 and cut at 20', 'card', 'corner', 44, 44], ['bar fill (alias of brand)', 'bar', 'fill', 200, 182],
+    ['bar outer corner (41, 161), cut at both radii', 'bar', 'corner', 41, 161], ['bar corner (44, 164), painted at radius 12 and cut at 20', 'bar', 'corner', 44, 164],
+  ].map(([what, kind, role, x, y]) => [what, x, y, kind, role]);
+  const BOX = { card: { x: 40, y: 40, h: 100 }, bar: { x: 40, y: 160, h: 44 } };
+  /** Is the pixel (px, py) of the top left corner region of `box` painted, for a corner radius r? From the distance of its centre to the arc's centre (r, r). */
+  const painted = (px, py, box, r) => {
+    if (!Number.isFinite(r) || r < 1 || r > box.h / 2) throw new Error(`the radius ${r} is outside what the probes support (1 to ${box.h / 2})`);
+    const cx = px + 0.5 - box.x, cy = py + 0.5 - box.y;
+    if (cx >= r || cy >= r) return true;
+    const d = Math.hypot(r - cx, r - cy);
+    if (Math.abs(d - r) < 1) throw new Error(`the probe (${px}, ${py}) is ${Math.abs(d - r).toFixed(2)} px from the arc of radius ${r}: too close to an edge`);
+    return d < r;
+  };
   const want = (v) => {
+    if (!(v.opacity >= 0 && v.opacity <= 1)) throw new Error(`the opacity ${v.opacity} is outside 0 to 1`);
     const card = mix(v.brand, v.surface, v.opacity);
-    return [v.surface, card, v.surface, v.radius >= 20 ? v.surface : card, v.brand, v.surface];
+    const fill = { card, bar: v.brand };
+    return probes.map(([, x, y, kind, role]) => {
+      if (kind === 'page') return v.surface;
+      return role === 'fill' || painted(x, y, BOX[kind], v.radius) ? fill[kind] : v.surface;
+    });
   };
   const canvasOf = async (expect) => {
-    let last;
+    let last, note = 'none';
     for (let i = 0; i < 40; i++) {
-      const part = (await rpc('capture', { file, nodeId: 'page' })).content?.find((c) => c.type === 'image');
+      const r = await rpc('capture', { file, nodeId: 'page' });
+      const part = r.content?.find((c) => c.type === 'image');
       if (part) {
         last = { ...(await pixels(edit, part.data, probes)) };
         if (last.rows.every((px, k) => near(px, expect[k]))) return last;
+      } else {
+        note = `${r.isError ? 'error' : 'no image'}: ${short(text(r) ?? JSON.stringify(r))}`;
       }
       await sleep(500);
     }
     if (last) return last;
-    throw new Error('the editor answered no capture');
+    throw new Error(`the editor answered no capture in 20 s; the last answer was ${note}`);
   };
   const pageOf = async (html) => { await ref.setContent(html); return pixels(ref, (await ref.screenshot()).toString('base64'), probes); };
   let worst = 0;
@@ -203,22 +256,29 @@ async function main() {
     return ex;
   };
 
-  // 2. Canvas to code: the export writes the bound fields as var(...), and its pixels are the canvas's.
-  const v1 = { surface: hex(sheet.surface), brand: hex(sheet.brand.toLowerCase()), opacity: Number(sheet['opacity-muted']), radius: parseInt(sheet['radius-card'], 10) };
+  // 2. Canvas to code: the pixels are the canvas's and the CSS text's, and the export writes the card's fill, radius and opacity as var(...).
+  const px = /^(\d+)px$/.exec(sheet['radius-card'] ?? '');
+  if (!px) throw new Error(`--radius-card is "${sheet['radius-card']}": this script reads a whole number of px`);
+  const v1 = { surface: hex(sheet.surface), brand: hex(sheet.brand), opacity: Number(sheet['opacity-muted']), radius: Number(px[1]) };
   const ex1 = await compare('imported', v1);
-  const rule = (html, node) => new RegExp(`\\[data-node="${node}"\\]\\{([^}]*)\\}`).exec(html)?.[1] ?? '';
-  const card = rule(ex1.html, 'card');
-  check(/background-color:var\(--root-brand\)/.test(card) && /border-radius:calc\(var\(--root-radius-card\) \* 1px\)/.test(card) && /opacity:var\(--root-opacity-muted\)/.test(card), 'the export writes the card as var(...) for fill, radius and opacity', card);
+  const decls = (body) => Object.fromEntries(body.split(';').filter(Boolean).map((d) => [d.slice(0, d.indexOf(':')), d.slice(d.indexOf(':') + 1)]));
+  const rule = (html, sel) => decls(new RegExp(`${sel}\\{([^}]*)\\}`).exec(html)?.[1] ?? '');
+  const card = rule(ex1.html, '\\[data-node="card"\\]');
+  check(card['background-color'] === 'var(--root-brand)' && card['border-radius'] === 'calc(var(--root-radius-card) * 1px)' && card.opacity === 'var(--root-opacity-muted)', 'the export writes the card as var(...) for fill, radius and opacity', JSON.stringify(card));
 
   // 3. Two-way: the values change on the file (what an agent does when the stylesheet changed); the canvas and the export both follow.
-  const next = { brand: '#7c3aed', radius: 20, opacity: 0.4 };
+  const next = { surface: '#fef3c7', brand: '#7c3aed', radius: 20, opacity: 0.4 };
   await tool('apply_commands', { idempotencyKey: `change-${run}`, commands: [
+    { type: 'setVariableValue', id: id.surface, mode: modeOf('surface'), value: next.surface },
     { type: 'setVariableValue', id: id.brand, mode: modeOf('brand'), value: next.brand },
     { type: 'setVariableValue', id: id['radius-card'], mode: modeOf('radius-card'), value: next.radius },
     { type: 'setVariableValue', id: id['opacity-muted'], mode: modeOf('opacity-muted'), value: next.opacity },
   ] });
-  const ex2 = await compare('after setVariableValue', { surface: v1.surface, brand: hex(next.brand), opacity: next.opacity, radius: next.radius });
-  check(ex2.html.includes('--root-brand:#7c3aed') && ex2.html.includes('--root-radius-card:20') && ex2.html.includes('--root-opacity-muted:0.4'), 'the second export carries the new values', (/:root\{[^}]*\}/.exec(ex2.html) ?? [''])[0]);
+  const ex2 = await compare('after setVariableValue', { surface: hex(next.surface), brand: hex(next.brand), opacity: next.opacity, radius: next.radius });
+  const root2 = rule(ex2.html, ':root');
+  const wantRoot = { '--root-surface': next.surface, '--root-brand': next.brand, '--root-radius-card': String(next.radius), '--root-opacity-muted': String(next.opacity) };
+  const wrong = Object.entries(wantRoot).filter(([k, v]) => root2[k] !== v).map(([k, v]) => `${k} is ${root2[k]}, want ${v}`);
+  check(wrong.length === 0, 'the second export carries the new values in its :root rule', wrong.join('; ') || JSON.stringify(root2));
   console.log(`largest difference between a canvas pixel and an exported pixel: ${worst}/255 per channel (tolerance ${TOL})`);
 }
 
