@@ -40,15 +40,15 @@ die() { echo "connect-claude: $1" >&2; exit 1; }
 
 listen=""; token=""; name="meldframe"; from_file=0
 while [ $# -gt 0 ]; do
+  # --option=value is read as --option value, so each option is parsed in one place
+  case "$1" in
+    --*=*) opt=${1%%=*}; val=${1#*=}; shift; set -- "$opt" "$val" "$@" ;;
+  esac
   case "$1" in
     -h | --help) usage; exit 0 ;;
-    --port=*) listen="127.0.0.1:${1#--port=}"; shift ;;
-    --listen=*) listen="${1#--listen=}"; shift ;;
-    --token=*) token="${1#--token=}"; shift ;;
-    --name=*) name="${1#--name=}"; shift ;;
     --port) [ $# -ge 2 ] || die "--port needs a number"; listen="127.0.0.1:$2"; shift 2 ;;
     --listen) [ $# -ge 2 ] || die "--listen needs HOST:PORT"; listen="$2"; shift 2 ;;
-    --token) [ $# -ge 2 ] || die "--token needs a value"; token="$2"; shift 2 ;;
+    --token) [ $# -ge 2 ] || die "--token needs a value"; token=$2; shift 2 ;;
     --name) [ $# -ge 2 ] || die "--name needs a value"; name="$2"; shift 2 ;;
     *) die "unknown argument (see --help)" ;;
   esac
@@ -82,7 +82,7 @@ case "$name" in
   '' | *[!A-Za-z0-9_-]*) die "the name must be letters, digits, _ and - only" ;;
 esac
 
-if [ -z "$token" ]; then token="${MELDFRAME_AGENT_TOKEN:-}"; fi
+if [ -z "$token" ]; then token=${MELDFRAME_AGENT_TOKEN:-}; fi
 if [ -z "$token" ]; then
   root=$(cd "$(dirname "$0")/.." && pwd)
   if [ -s "$root/.dev-token" ]; then
