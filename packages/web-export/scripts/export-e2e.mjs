@@ -53,7 +53,7 @@ await check('the Export section appears for a selected frame only', async () => 
   await page.waitForSelector('[data-testid=export-section]');
   assert.match(await page.locator('[data-testid=export-section-plan]').innerText(), new RegExp(`${frame}.png · 600 × 400 px`));
 });
-const scaleRadio = (scope, text) => page.locator(`${scope} [role=radio]`, { hasText: new RegExp(`^${text}$`) });
+const scaleRadio = (scope, text) => page.locator(`${scope} [role=radio]`, { hasText: new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) });
 const savedPng = async (button) => {
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click(button)]);
   return { name: dl.suggestedFilename(), size: pngSize(readFileSync(await dl.path())) };
@@ -70,13 +70,14 @@ await check('Export as PNG saves the frame at 2x, 1200 x 800', async () => {
 await check('0.5x saves 300 x 200 as @0.5x, 3x saves 1800 x 1200 as @3x, 4x saves 2400 x 1600 as @4x', async () => {
   for (const [text, name, size] of [['0.5x', `${frame}@0.5x.png`, [300, 200]], ['3x', `${frame}@3x.png`, [1800, 1200]], ['4x', `${frame}@4x.png`, [2400, 1600]]]) {
     await scaleRadio('[data-testid=export-section]', text).click();
-    assert.match(await page.locator('[data-testid=export-section-plan]').innerText(), new RegExp(`${name.replace('.', '\\.')} · ${size[0]} × ${size[1]} px`));
+    assert.equal((await page.locator('[data-testid=export-section-plan]').innerText()).trim(), `${name} · ${size[0]} × ${size[1]} px`);
     const got = await savedPng('[data-testid=export-section-png]');
     assert.equal(got.name, name);
     assert.deepEqual(got.size, size, text);
   }
 });
 await check('a scale over the area limit is refused before saving, with the largest scale that fits (1440 x 900 at 4x)', async () => {
+  await scaleRadio('[data-testid=export-section]', '4x').click();
   await post({ type: 'updateNode', id: f, patch: { w: 1440, h: 900 } });
   await page.waitForFunction(() => document.querySelector('[data-testid=export-section-plan]')?.textContent?.includes('5760 × 3600'));
   const text = await page.locator('[data-testid=export-section-plan]').innerText();

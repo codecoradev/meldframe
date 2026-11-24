@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXPORT_MAX_PIXELS, EXPORT_SCALES, exportFileName, exportScaleLabel, largestFittingScale, planExport } from './export';
+import { EXPORT_MAX_PIXELS, EXPORT_SCALES, exportFileName, exportScaleLabel, exportSize, largestFittingScale, planExport } from './export';
 
 describe('exportFileName', () => {
   it('uses the layer name, with `@<scale>x` for every scale but 1x', () => {
@@ -83,6 +83,29 @@ describe('planExport', () => {
     const box = { x: 0, y: 0, w: 1440, h: 900 };
     expect(planExport(box, 3)).toEqual({ ok: true, scale: 3, width: 4320, height: 2700 });
     expect(planExport(box, 4)).toEqual({ ok: false, code: 'too_large' });
+  });
+});
+
+describe('exportSize', () => {
+  it('is the size planExport (and so planCapture, and the canvas drawing) gives, at every scale', () => {
+    const boxes = [
+      { x: 0, y: 0, w: 101, h: 33 },
+      { x: 0, y: 0, w: 100.34, h: 10.01 },
+      { x: 0, y: 0, w: 1440, h: 900 },
+      { x: 5, y: 7, w: 1, h: 1 },
+      { x: 0, y: 0, w: 390.5, h: 844.25 },
+    ];
+    for (const box of boxes) {
+      for (const scale of EXPORT_SCALES) {
+        const plan = planExport(box, scale);
+        const size = exportSize(box, scale);
+        if (plan.ok) expect({ width: plan.width, height: plan.height }, `${box.w} x ${box.h} at ${scale}x`).toEqual(size);
+        else expect(size.width * size.height).toBeGreaterThan(EXPORT_MAX_PIXELS); // refused only for area
+      }
+    }
+    expect(exportSize({ x: 0, y: 0, w: 101, h: 33 }, 0.5)).toEqual({ width: 51, height: 17 });
+    expect(exportSize({ x: 0, y: 0, w: 100.34, h: 10 }, 3)).toEqual({ width: 302, height: 30 });
+    expect(exportSize({ x: 0, y: 0, w: 1440, h: 900 }, 4)).toEqual({ width: 5760, height: 3600 });
   });
 });
 
