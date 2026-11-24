@@ -17,8 +17,11 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export CARGO_INCREMENTAL=0
+LOGS=${TMPDIR:-/tmp}  # where the logs of a mutant go
 
-MUTATIONS=$(cat <<'TABLE'
+# The table is read with `read -d ''`, not `$(cat <<...)`: bash 3.2 (the one macOS ships) looks for the closing parenthesis inside
+# a here-document in `$( )` even when the delimiter is quoted, and this table has unbalanced parentheses and quotes.
+IFS= read -r -d '' MUTATIONS <<'TABLE' || true
 deps-client	crates/core/meldframe-sync/src/replica.rs	if kind == OpKind::Edit {	if true {	the replica never names dependencies on an undo or redo
 deps-server	crates/core/meldframe-sync-props/tests/sim/server.rs	.any(|d| !self\.idem\.contains_key(&(actor\.to_string(), d\.clone())))	.any(|_| false)	the server accepts an op although a dependency was not applied
 cascade	crates/core/meldframe-sync/src/replica/rebuild.rs	let alive = !p\.out\.deps\.iter()\.any(|d| dead\.contains(d))	let alive = true	a refused op does not take its dependents with it
@@ -91,7 +94,7 @@ rename-readd-var	crates/core/meldframe-undo/src/remote_vars.rs	^        Command:
 rename-readd-col	crates/core/meldframe-undo/src/remote_vars.rs	Command::AddCollection { collection: c } => c\.id == collection,	Command::AddCollection { .. } => false,	my rename of a mode stays after another actor made its collection again
 rename-readd-mode	crates/core/meldframe-undo/src/remote_vars.rs	} => rc == collection && rm\.id == mode,	} => false,	my rename of a mode stays after another actor made a mode of that id again
 TABLE
-)
+MUTATIONS=${MUTATIONS%$'\n'}
 
 if [ "${1:-}" = "--list" ]; then
   cut -f1 <<<"$MUTATIONS"
@@ -100,39 +103,49 @@ fi
 
 want=("$@")
 current=""
-trap '[ -n "$current" ] && git checkout -- "$current"' EXIT
+trap '[ -n "$current" ] && { rm -f "$current.mutation"; git checkout -- "$current"; }' EXIT
 killed=0; survived=0
 crates=(-p meldframe-history -p meldframe-sync -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-app -p meldframe-app-tests -p meldframe-variables-rename-tests)
 while IFS=$'\t' read -r name file from to what; do
   if [ ${#want[@]} -gt 0 ] && [[ ! " ${want[*]} " == *" $name "* ]]; then continue; fi
   if ! git diff --quiet -- "$file"; then echo "FAIL: $file has local changes; commit or stash them first"; exit 2; fi
   current=$file
-  sed -i "s#$from#$to#" "$file"
+  # No `sed -i`: BSD sed (macOS) takes the next word as the backup suffix. The file is written back by hand (`cat >` keeps its
+  # mode and inode); git restores it later, and the trap removes the scratch copy.
+  if ! sed "s#$from#$to#" "$file" > "$file.mutation"; then
+    rm -f "$file.mutation"
+    echo "FAIL: $name: sed failed on $file"; exit 2
+  fi
+  if ! cat "$file.mutation" > "$file"; then
+    rm -f "$file.mutation"
+    echo "FAIL: $name: could not write $file"; exit 2
+  fi
+  rm -f "$file.mutation"
   if git diff --quiet -- "$file"; then echo "FAIL: $name: the pattern was not found in $file"; exit 2; fi
   # A mutant that does not compile, or a cargo failure unrelated to it, is not a kill: build first.
-  if ! cargo test "${crates[@]}" --no-run >"/tmp/mutation-$name.build.log" 2>&1; then
+  if ! cargo test "${crates[@]}" --no-run >"$LOGS/mutation-$name.build.log" 2>&1; then
     git checkout -- "$file"
     current=""
-    echo "BROKEN:   $name does not build (see /tmp/mutation-$name.build.log)"
+    echo "BROKEN:   $name does not build (see $LOGS/mutation-$name.build.log)"
     exit 2
   fi
-  MELDFRAME_SEEDS=${MELDFRAME_MUTATION_SEEDS:-100} cargo test "${crates[@]}" >"/tmp/mutation-$name.log" 2>&1
+  MELDFRAME_SEEDS=${MELDFRAME_MUTATION_SEEDS:-100} cargo test "${crates[@]}" >"$LOGS/mutation-$name.log" 2>&1
   status=$?
   # The full pass runs when the quick pass found nothing, and also when it stopped without a failing test (a test
   # binary that crashed hides the binaries after it), so BROKEN is only decided on the full suite.
-  if [ $status -eq 0 ] || ! grep -qE '^test [A-Za-z0-9_:]+ \.\.\. FAILED$' "/tmp/mutation-$name.log"; then
-    cargo test "${crates[@]}" --no-fail-fast >"/tmp/mutation-$name.log" 2>&1
+  if [ $status -eq 0 ] || ! grep -qE '^test [A-Za-z0-9_:]+ \.\.\. FAILED$' "$LOGS/mutation-$name.log"; then
+    cargo test "${crates[@]}" --no-fail-fast >"$LOGS/mutation-$name.log" 2>&1
     status=$?
   fi
   git checkout -- "$file"
   current=""
   # Killed means at least one test really failed, not just a non-zero exit.
-  if [ $status -ne 0 ] && grep -qE '^test [A-Za-z0-9_:]+ \.\.\. FAILED$' "/tmp/mutation-$name.log"; then
+  if [ $status -ne 0 ] && grep -qE '^test [A-Za-z0-9_:]+ \.\.\. FAILED$' "$LOGS/mutation-$name.log"; then
     killed=$((killed + 1))
     echo "killed:   $name ($what)"
-    grep -E '^test [A-Za-z0-9_:]+ \.\.\. FAILED$' "/tmp/mutation-$name.log" | sed 's/^test /            /; s/ \.\.\. FAILED//' | head -3
+    grep -E '^test [A-Za-z0-9_:]+ \.\.\. FAILED$' "$LOGS/mutation-$name.log" | sed 's/^test /            /; s/ \.\.\. FAILED//' | head -3
   elif [ $status -ne 0 ]; then
-    echo "BROKEN:   $name: the tests failed without a failing test (see /tmp/mutation-$name.log)"
+    echo "BROKEN:   $name: the tests failed without a failing test (see $LOGS/mutation-$name.log)"
     exit 2
   else
     survived=$((survived + 1))
