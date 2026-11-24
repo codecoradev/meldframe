@@ -14,13 +14,15 @@
 //! A colour that is not hex is converted to hex and the report says so; one that sRGB cannot show is clamped and the
 //! report says that too. Nothing is changed without a line in the report.
 
-pub mod color;
 mod log;
 mod names;
 mod plan;
 pub mod scan;
 mod text;
 pub mod value;
+
+/// The colour reader lives in `meldframe-css` (shared with the HTML importer); its path here stays what it was.
+pub use meldframe_css::color;
 
 use meldframe_check::Limits;
 use meldframe_module::{Module, Registrar, RiskTier};

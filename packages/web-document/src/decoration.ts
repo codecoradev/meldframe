@@ -32,6 +32,9 @@ export function borderWidthAction(p: Properties, raw: string): Action | null {
   return v === null || v < 0 || v === p.border.width ? null : set(p, { property: 'borderWidth', value: v });
 }
 
+/** Remove the border: the one command of the width field and of an agent, width 0 (colour and position stay, so one undo brings all three back). Nothing when there is no border. */
+export const removeBorderAction = (p: Properties): Action | null => (p.border.width > 0 ? borderWidthAction(p, '0') : null);
+
 export function borderColorAction(p: Properties, raw: string): Action | null {
   const v = raw.trim();
   // Whether it is a colour is the core's to say; an empty field sends nothing.
