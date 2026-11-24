@@ -134,7 +134,7 @@ Operations and trust
 | FR-27 | Feature modules register commands, settings, jobs, agent tools (with risk tiers) and panels in one registry read by editor, MCP and REST | P0 | New |
 | FR-28 | Risk tiers (Read, Change, Delete) with policy per tier and per agent; agents connect through an OAuth grant, revocable at once (decision 31, ADR-0012) | P0 | Partly proven (session tokens, quotas) |
 | FR-29 | Durable and ephemeral live frames with replay from a cursor and a resync marker | P0 | Partly proven (ops with sequence numbers; ephemeral frames New) |
-| FR-30 | Import HTML and CSS text, which an agent has read, as editable nodes (`import_html`): one atomic batch of at most 100 commands through the one command path, a list of what each node could not carry, no URL fetched and no browser (decision 41, ADR-0024, `docs/import-html.md`) | P1 | New (E4.4, in progress) |
+| FR-30 | Import HTML and CSS text, which an agent has read, as editable nodes (`import_html`): one atomic batch of at most 100 commands through the one command path, a list of what each node could not carry, no URL fetched and no browser (decision 41, ADR-0024, `docs/import-html.md`) | not set (owner) | New (E4.4, ordered, not built yet; the priority is for the owner to set) |
 
 ## 6. Non-functional requirements
 

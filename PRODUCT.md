@@ -39,7 +39,7 @@ The design surface agents can use without breaking things (idempotent, atomic, s
 
 - Open source, public repository until the MVP; closed source afterwards, because CI needs infrastructure of its own. The repository has no licence yet: `NOTICE` applies, all rights are reserved and the code is readable, not licensed (decided).
 - Output is HTML/Tailwind and CSS variables, PNG, PDF. No Flutter or Dart. PPTX last, only if ordered.
-- Import is variables from a Tailwind config or CSS variables, and, in progress, a scoped HTML importer (decision 41, `docs/import-html.md`): HTML and CSS text that an agent has read, no URL fetched and no browser. Importing a web page by URL (`import_webpage`), Figma and PSD stay out (decided).
+- Import is variables from a Tailwind config or CSS variables, and a scoped HTML importer, ordered and not built yet (decision 41, `docs/import-html.md`): HTML and CSS text that an agent has read, no URL fetched and no browser. Importing a web page by URL (`import_webpage`), Figma and PSD stay out.
 - Auth through Gatehouse; workspace is the tenant; quotas per workspace; assets on local disk first (decided).
 - Pricing and hosting are out of scope until the product exists for personal use (decided).
 - UI and agent-facing text are English (decided).

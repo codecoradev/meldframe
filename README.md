@@ -9,7 +9,7 @@ Status: pre-alpha. This repository starts from a set of validated spikes (Rust c
 - Web editor plus an MCP server so external agents (Claude Code, Cursor, Codex) can design on the canvas.
 - One `Command` model shared by UI, WebSocket ops, MCP tools and undo.
 - Design tokens (variables) rendered on the canvas and exported as CSS variables.
-- Export first (HTML/Tailwind, PNG). Import is variables, plus a scoped HTML importer that is in progress (decision 41).
+- Export first (HTML/Tailwind, PNG). Import is variables, plus a scoped HTML importer that is ordered and not built yet (decision 41).
 
 Carousel, slides and motion are planned extensions and are on hold until the core above is solid.
 
