@@ -31,7 +31,7 @@ The canvas does not run under the open panels. Principle 1 says the canvas is th
 
 ### 2.1 Tool bar
 
-Move (V), Frame (F), Hand (H), Rectangle (R), Text (T), Comment (C, hidden until comments exist, section 7), then the view controls:
+Move (V), Frame (F), Hand (H), Rectangle (R), Ellipse (E), Text (T), Comment (C, hidden until comments exist, section 7), then the view controls:
 
 - **Layers** (Option+1) shows or hides the left panel.
 - **Inspector** (Option+2) shows or hides the right panel.

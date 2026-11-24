@@ -80,6 +80,7 @@ pub enum Tool {
     Select,
     Frame,
     Rectangle,
+    Ellipse,
     Text,
 }
 

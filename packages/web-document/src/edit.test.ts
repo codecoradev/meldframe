@@ -51,6 +51,12 @@ describe('createActionFor', () => {
     expect(createActionFor(rubber({ tool: 'frame', at: 'f', x: 50, y: 60 }), nodes)).toEqual({ type: 'createNode', kind: 'frame', x: 40, y: 40, parent: 'f' });
     expect(createActionFor(rubber({ tool: 'rect', x: 5, y: 6 }), nodes)).toEqual({ type: 'createNode', kind: 'rectangle', x: 5, y: 6, parent: null });
   });
+  it('the ellipse tool makes a node of the ellipse kind, a click or a dragged box, as the rectangle tool does', () => {
+    expect(createActionFor(rubber({ tool: 'ellipse', x: 5, y: 6 }), nodes)).toEqual({ type: 'createNode', kind: 'ellipse', x: 5, y: 6, parent: null });
+    expect(createActionFor(rubber({ tool: 'ellipse', at: 'f', x: 30, y: 40, w: 60, h: 40 }), nodes)).toEqual({
+      type: 'createNode', kind: 'ellipse', x: 20, y: 20, parent: 'f', w: 60, h: 40,
+    });
+  });
   it('a dragged box carries its size in the same action', () => {
     expect(createActionFor(rubber({ tool: 'text', at: 'f', x: 30, y: 40, w: 200, h: 80 }), nodes)).toEqual({
       type: 'createNode', kind: 'text', x: 20, y: 20, parent: 'f', w: 200, h: 80,
@@ -287,8 +293,12 @@ describe('keyAction and toolMode', () => {
     expect(keyAction(k('v'), [])).toEqual({ type: 'setTool', tool: 'select' });
     expect(keyAction(k('F'), [])).toEqual({ type: 'setTool', tool: 'frame' });
     expect(keyAction(k('r'), [])).toEqual({ type: 'setTool', tool: 'rectangle' });
+    expect(keyAction(k('e'), [])).toEqual({ type: 'setTool', tool: 'ellipse' });
+    expect(keyAction(k('E'), [])).toEqual({ type: 'setTool', tool: 'ellipse' });
     expect(keyAction(k('t'), [])).toEqual({ type: 'setTool', tool: 'text' });
     expect(keyAction(k('r', { metaKey: true }), [])).toBeNull(); // the browser's reload
+    expect(keyAction(k('e', { metaKey: true }), [])).toBeNull();
+    expect(keyAction(k('e', { altKey: true }), [])).toBeNull();
   });
   it('deletes the selection, and does nothing when there is none', () => {
     expect(keyAction(k('Delete'), ['a', 'b'])).toEqual({ type: 'delete', ids: ['a', 'b'] });
@@ -314,7 +324,7 @@ describe('keyAction and toolMode', () => {
     for (const over of [{ shiftKey: true }, { altKey: true }, { ctrlKey: true }, { metaKey: true }]) expect(keyAction(k('ArrowUp', over), ['a'])).toBeNull();
   });
   it('maps the tool of the app to the mode of the canvas', () => {
-    expect([toolMode('select'), toolMode('frame'), toolMode('rectangle'), toolMode('text')]).toEqual(['move', 'frame', 'rect', 'text']);
+    expect([toolMode('select'), toolMode('frame'), toolMode('rectangle'), toolMode('ellipse'), toolMode('text')]).toEqual(['move', 'frame', 'rect', 'ellipse', 'text']);
   });
 });
 

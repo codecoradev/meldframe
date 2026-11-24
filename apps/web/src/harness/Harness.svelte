@@ -2,7 +2,7 @@
   Development harness for the canvas: not part of the product. It stands in for the editor: it holds a scene,
   applies the move and resize intents to it the way an editor would, and exposes `window.__harness` for the
   scripts in packages/web-e2e/scripts. Open /harness/canvas.html on the dev server.
-  Query: scene=design|many, n=<count>, select=<id,id>, touch=1, rm=1 (reduced motion), tool=move|hand|frame|rect|text.
+  Query: scene=design|many, n=<count>, select=<id,id>, touch=1, rm=1 (reduced motion), tool=move|hand|frame|rect|ellipse|text.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';

@@ -51,7 +51,8 @@ for (const theme of ['dark', 'light']) {
   assert.equal(await palette.getAttribute('aria-modal'), 'true', `${at}: modal`);
   assert.match(await palette.getAttribute('aria-labelledby') ?? '', /./, `${at}: the dialog has a name`);
   assert.equal(await active(), 'palette-input', `${at}: the focus is in the field`);
-  assert.ok((await options.count()) === 24, `${at}: entries listed`);
+  // 25 entries: 5 tools, 3 edit, 7 frame presets, 5 zoom, 2 panels, 3 more (export, variant, shortcuts).
+  assert.equal(await options.count(), 25, `${at}: entries listed`);
   assert.equal(await page.getAttribute('[data-testid=palette-input]', 'aria-activedescendant'), 'palette-option-tool-select', `${at}: the first entry is highlighted`);
   // the focus is trapped
   for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');

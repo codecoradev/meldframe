@@ -11,7 +11,7 @@
   import { presetSize } from './presets';
   import { zoomCamera } from './zoom';
 
-  let tool = $state<'select' | 'frame' | 'rectangle' | 'text'>('select');
+  let tool = $state<'select' | 'frame' | 'rectangle' | 'ellipse' | 'text'>('select');
   let layersOpen = $state(true);
   let inspectorOpen = $state(true);
   let helpOpen = $state(false);

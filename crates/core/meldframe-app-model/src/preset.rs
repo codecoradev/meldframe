@@ -66,5 +66,6 @@ impl FramePreset {
 pub enum CreateKind {
     Frame,
     Rectangle,
+    Ellipse,
     Text,
 }

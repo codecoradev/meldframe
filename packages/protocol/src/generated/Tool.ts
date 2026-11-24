@@ -3,4 +3,4 @@
 /**
  * The tool that decides what a press on the canvas does.
  */
-export type Tool = "select" | "frame" | "rectangle" | "text";
+export type Tool = "select" | "frame" | "rectangle" | "ellipse" | "text";
