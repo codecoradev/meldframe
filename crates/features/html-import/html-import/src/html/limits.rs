@@ -11,9 +11,10 @@ pub struct Limits {
     /// [`ParseError::TooMany`]. 5,000, a starting guess with nothing behind it.
     pub max_elements: usize,
     /// The deepest nesting of elements. An element that would be deeper is not made: its content goes into the
-    /// deepest element that was. 64, the `MAX_DEPTH` of the export.
+    /// deepest element that was (that of a style, title or textarea is dropped). 64, the `MAX_DEPTH` of the export.
     pub max_depth: usize,
-    /// The most attributes an element keeps; later ones are left out. 64, a starting guess.
+    /// The most attribute names of an element that are looked at, kept or cut for their length; later ones are left
+    /// out. 64, a starting guess.
     pub max_attributes: usize,
     /// The most bytes of an attribute value, as written. A longer one is left out with its name. 1,000, the
     /// `MAX_VALUE` of the variables import.

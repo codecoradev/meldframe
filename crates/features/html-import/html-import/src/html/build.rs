@@ -214,7 +214,10 @@ impl Builder<'_> {
             return Ok(end);
         }
         self.open(name, attrs, at, false)?;
-        self.text(&self.html[from..content_end], raw == Raw::Text, from);
+        // An element the depth limit did not make has no place for its text: it is dropped with it.
+        if self.stack.last().is_some_and(|f| f.id.is_some()) {
+            self.text(&self.html[from..content_end], raw == Raw::Text, from);
+        }
         self.close_to(self.stack.len() - 1);
         Ok(end)
     }
@@ -229,7 +232,7 @@ impl Builder<'_> {
     ) -> Result<(), ParseError> {
         if self.depth >= self.l.max_depth {
             let msg = format!(
-                "the element is deeper than {}; its content goes into the element it is in",
+                "the element is deeper than {}; it is not made and its content goes into the element it is in (that of a style, title or textarea is dropped)",
                 self.l.max_depth
             );
             self.report
@@ -270,20 +273,19 @@ impl Builder<'_> {
 
     /// The open elements a start tag of `name` ends, by the rules.
     fn close_implied(&mut self, name: &str) {
-        let Some(rule) = rules::implied(name) else {
-            return;
-        };
-        let n = self.stack.len();
-        let lo = n.saturating_sub(if rule.top_only { 1 } else { self.l.max_depth });
-        for k in (lo..n).rev() {
-            self.report.work += 1;
-            let tag = self.stack[k].tag.as_str();
-            if rule.closes.contains(&tag) {
-                self.close_to(k);
-                return;
-            }
-            if rule.stops.contains(&tag) {
-                return;
+        for rule in rules::implied(name).into_iter().flatten() {
+            let n = self.stack.len();
+            let lo = n.saturating_sub(if rule.top_only { 1 } else { self.l.max_depth });
+            for k in (lo..n).rev() {
+                self.report.work += 1;
+                let tag = self.stack[k].tag.as_str();
+                if rule.closes.contains(&tag) {
+                    self.close_to(k);
+                    break;
+                }
+                if rule.stops.contains(&tag) {
+                    break;
+                }
             }
         }
     }

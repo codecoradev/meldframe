@@ -1,7 +1,9 @@
 //! Text as the tree keeps it: line ends made line feeds, NUL made the replacement character, and the character
 //! references of a small subset read. A reference is looked for in a window of a few bytes after its `&` and never
 //! read again after it is replaced, and what it stands for is never longer than it is written, so the result is
-//! never longer than the text and nothing grows by repeating a reference.
+//! never longer than the text and nothing grows by repeating a reference. The one exception is NUL: a byte becomes
+//! the three bytes of U+FFFD, so what is stored is at most three times the text. A limit on a size (a value, a
+//! text) counts the bytes as written.
 
 /// The most digits of a numeric reference; one with more is left as written.
 const MAX_DIGITS: usize = 8;
