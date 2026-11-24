@@ -63,6 +63,22 @@ describe('WorldView draws the border of a node', () => {
     expect(ring(last(top(world)))).toMatchObject({ outer: { w: 56, h: 56, r: 28 }, inner: { w: 44, h: 44, r: 22 } });
   });
 
+  it('a box with no height or no width gets its ring as the export draws it: the border alone, with no hole', () => {
+    // A divider: 200 x 0 with a 2 px border inside. The export's ::after has a content height of 0 and its two borders: 4 px from the top.
+    const g = last(top(draw(node({ id: 'd', w: 200, h: 0, border: border({ width: 2 }) })).world));
+    expect(g).toBeInstanceOf(Graphics);
+    expect(ring(g)).toMatchObject({ outer: { x: 0, y: 0, w: 200, h: 4 }, inner: null });
+    const outside = last(top(draw(node({ id: 'e', w: 0, h: 0, border: border({ width: 2, position: 'outside' }) })).world));
+    expect(ring(outside)).toMatchObject({ outer: { x: -2, y: -2, w: 4, h: 4 }, inner: null });
+  });
+
+  it('a size that is not a number draws no ring', () => {
+    for (const o of [{ w: NaN }, { h: NaN }, { w: Infinity }]) {
+      const c = top(draw(node({ id: 'n', ...o, border: border() })).world);
+      expect(c.children.every((k) => !(k instanceof Graphics)), JSON.stringify(o)).toBe(true);
+    }
+  });
+
   it('a border as wide as half the box paints the whole box: no hole', () => {
     const { world } = draw(node({ id: 'a', border: border({ width: 40 }) }));
     expect(ring(last(top(world))).inner).toBeNull();

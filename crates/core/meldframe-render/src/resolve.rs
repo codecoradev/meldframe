@@ -34,6 +34,8 @@ pub struct PaintedImage {
 }
 
 /// A border over the box and its children: paint only, it takes no room. `width` is above 0 and the colour is a valid hex colour.
+/// The canvas draws its ring on the shape of the box, so the ring of an ellipse follows the pill the fill is drawn as (see [`Paint`]); the export's
+/// is a true ellipse, which differs when the ellipse is not a circle (contract, section 4.2).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaintedBorder {

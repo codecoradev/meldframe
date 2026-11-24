@@ -262,7 +262,8 @@ export class WorldView {
   /** The border: a ring over the node and its children, the outer shape with the inner one cut out (see `borderRing`). */
   private updateBorder(v: NodeView, n: ResolvedNode): void {
     const b = n.border;
-    if (!b || n.kind === 'text' || n.w <= 0 || n.h <= 0) {
+    // A box with no width or height still has its ring (a divider); a size that is not a number has none.
+    if (!b || n.kind === 'text' || !Number.isFinite(n.w) || !Number.isFinite(n.h) || n.w < 0 || n.h < 0) {
       v.border?.destroy();
       v.border = null;
       return;

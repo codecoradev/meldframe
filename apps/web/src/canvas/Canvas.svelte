@@ -15,7 +15,7 @@
   import { attachInput } from '@meldframe/web-input/hostinput';
   import { OverlayView, type Touch } from './overlayview';
   import { selectionBox } from '@meldframe/web-canvas/overlay';
-  import { EMPTY_SCENE, contentBounds, hitTest, rectsOf, resolveScene, type Scene } from '@meldframe/web-canvas/scene';
+  import { EMPTY_SCENE, captureBounds, captureRectOf, contentBounds, hitTest, rectsOf, resolveScene, type Scene } from '@meldframe/web-canvas/scene';
   import { WorldView } from './stage';
   import { AssetCache } from '@meldframe/web-assets/assets';
   import { duration, pixiColors, type Theme } from '@meldframe/web-tokens/tokens';
@@ -251,9 +251,9 @@
     host?.focus({ preventScroll: true });
   }
 
-  /** The box in world units of a node, or of all the content when no id is given; null when the node is not here. */
+  /** The box in world units of a node, or of all the content when no id is given, with the band of a border that lies outside; null when the node is not here. */
   export function captureBox(id?: string): Rect | null {
-    return id === undefined ? contentBounds(resolved) : (rectsOf(resolved, [id])[0] ?? null);
+    return id === undefined ? captureBounds(resolved) : captureRectOf(resolved, id);
   }
 
   /** The world in `box` at `scale` as a PNG, without the overlay; the view is drawn again afterwards. */

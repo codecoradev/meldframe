@@ -10,7 +10,7 @@
 //
 // The canvas draws what it is given: no layout, no editor rules (clamping, snapping, constraints) live here.
 import { containsPoint, intersectRects, rectsEqual, type Rect } from './geometry';
-import { sameBorder, type SceneBorder } from './border';
+import { borderReach, sameBorder, type SceneBorder } from './border';
 import { sameGradient, type SceneGradient } from './gradient';
 import { sameImage, type SceneImage } from './image';
 
@@ -231,6 +231,34 @@ export function contentBounds(rs: ResolvedScene): Rect | null {
   for (const n of rs.items) {
     if (n.depth !== 0 || !n.visible) continue;
     const r = { x: n.x, y: n.y, w: n.w, h: n.h };
+    if (!out) out = r;
+    else {
+      const x = Math.min(out.x, r.x);
+      const y = Math.min(out.y, r.y);
+      out = { x, y, w: Math.max(out.x + out.w, r.x + r.w) - x, h: Math.max(out.y + out.h, r.y + r.h) - y };
+    }
+  }
+  return out;
+}
+
+/** The rectangle of a node as a capture takes it: the node and the band of its border that lies outside it (not the inside). */
+function paintedRect(n: ResolvedNode): Rect {
+  const g = borderReach(n.border);
+  return { x: n.x - g, y: n.y - g, w: n.w + 2 * g, h: n.h + 2 * g };
+}
+
+/** The world rectangle to capture for a node, with its outside border in it; null for an unknown id. */
+export function captureRectOf(rs: ResolvedScene, id: string): Rect | null {
+  const n = rs.byId.get(id);
+  return n ? paintedRect(n) : null;
+}
+
+/** The rectangle around every visible node on the canvas as a capture takes it (their outside borders included), or null for an empty scene. */
+export function captureBounds(rs: ResolvedScene): Rect | null {
+  let out: Rect | null = null;
+  for (const n of rs.items) {
+    if (n.depth !== 0 || !n.visible) continue;
+    const r = paintedRect(n);
     if (!out) out = r;
     else {
       const x = Math.min(out.x, r.x);

@@ -1,5 +1,6 @@
 // Browser check of the borders the canvas draws (issue 236): pixels of a real Chromium canvas at the bands of an inside, a centred
-// and an outside border, on a rounded box and an ellipse, over a child, under a clip and under an opacity.
+// and an outside border, on a rounded box and an ellipse, over a child, under a clip and under an opacity (an outside border is exact;
+// an inside one differs from the export, see the probe), and the same pixels in a capture, which takes the outside band in.
 //   node packages/web-e2e/scripts/border-e2e.mjs <web-url> <server-url> <token>
 // Start first: the server (`MELDFRAME_DEV_TOKENS="<token>:ws_dev:agent:dev" MELDFRAME_LISTEN=127.0.0.1:<port> meldframe-server`, in memory), the
 // web client on a file that is new for each run (`MELDFRAME_SERVER=<server-url> MELDFRAME_WEB_TOKEN=<token> MELDFRAME_WEB_FILE=<file> npx vite
@@ -26,6 +27,7 @@ const nodes = [
   box('r2', 'rect', 'page', 190, 170, 140, 100, { radius: 24, border: border(10, '#0000ff80', 'center') }),
   box('r3', 'rect', 'page', 360, 170, 140, 100, { radius: 20, border: border(10, '#000000', 'inside') }),
   box('r4', 'rect', 'page', 520, 170, 140, 100, { opacity: 0.5, border: border(6, '#ff0000', 'outside') }),
+  box('r5', 'rect', 'page', 680, 170, 100, 100, { opacity: 0.5, border: border(6, '#ff0000', 'inside') }),
 ];
 // [what, world x, world y, expected rgb]
 const RED = [255, 0, 0], BLUE = [0, 0, 255], GREEN = [0, 170, 0], GREY = [204, 204, 204], WHITE = [255, 255, 255], YELLOW = [255, 255, 0];
@@ -44,7 +46,17 @@ const probes = [
   ['inside, radius 20: the ring', 365, 220, [0, 0, 0]], ['inside, radius 20: the fill', 375, 220, GREY], ['inside, radius 20: the outer corner is round', 361, 171, WHITE],
   ['inside, radius 20: the inner corner is round', 371.5, 181.5, [0, 0, 0]],
   ['opacity: the border', 517, 220, [255, 128, 128]], ['opacity: the fill', 530, 220, [230, 230, 230]],
+  // Pixi fades each part on its own, CSS fades the node as one image: where an inside border lies over the fill, the canvas shows the border
+  // at half over the fill at half over the page (242,115,115), the export the border alone at half over the page (255,128,128). The
+  // difference is 13/255 here; the probe pins the canvas colour (tolerance 4) so a change of either side shows.
+  ['opacity: an inside border over the fill is Pixi per part, not the isolated node', 683, 220, [242, 115, 115], 4],
 ];
+// What a capture of a node with an outside border has to show: the node and the band around it, in its own pixels (scale 1).
+// [what, x in the image, y in the image, expected rgb]
+const capture = { id: 'r1', width: 152, height: 112, probes: [
+  ['capture: the outside band on the left', 3, 56, BLUE], ['capture: the outside band above', 76, 3, BLUE], ['capture: the outside band below', 76, 108, BLUE],
+  ['capture: the outside band on the right', 148, 56, BLUE], ['capture: the box', 76, 56, GREY], ['capture: just inside the band', 8, 56, GREY],
+] };
 
 const res = await fetch(`${server}/v1/files/${file}/tools/apply_commands`, {
   method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
@@ -80,14 +92,46 @@ try {
     return { s, rows: probes.map(([, wx, wy]) => { const i = (Math.round(y0 + wy * s) * c.width + Math.round(x0 + wx * s)) * 4; return [d[i], d[i + 1], d[i + 2]]; }) };
   }, { b64, probes });
   assert.ok(got.s > 0.3 && got.s < 3, `the page frame was not found on the canvas (scale ${got.s})`);
-  probes.forEach(([what, wx, wy, want], i) => {
+  probes.forEach(([what, wx, wy, want, tol], i) => {
     const px = got.rows[i];
-    const ok = px.every((v, k) => Math.abs(v - want[k]) <= 40);
+    const ok = px.every((v, k) => Math.abs(v - want[k]) <= (tol ?? 40));
     if (!ok) failed++;
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${what} (${wx}, ${wy}): ${px.join(',')} want ${want.join(',')}`);
+  });
+  // The capture the agent gets, through the MCP endpoint, from the editor that is open on the file.
+  let shot;
+  for (let i = 0; i < 20 && !shot; i++) {
+    const r = await fetch(`${server}/mcp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ jsonrpc: '2.0', id: i + 1, method: 'tools/call', params: { name: 'capture', arguments: { file, nodeId: capture.id, scale: 1 } } }),
+    });
+    const part = (await r.json()).result?.content?.[0];
+    if (part?.type === 'image') shot = part.data;
+    else await page.waitForTimeout(1000);
+  }
+  assert.ok(shot, 'the editor answered no capture');
+  const cap = await page.evaluate(async ({ shot, probes }) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${shot}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    return { w: img.width, h: img.height, rows: probes.map(([, x, y]) => Array.from(g.getImageData(x, y, 1, 1).data.slice(0, 3))) };
+  }, { shot, probes: capture.probes });
+  const sized = cap.w === capture.width && cap.h === capture.height;
+  if (!sized) failed++;
+  console.log(`${sized ? 'ok  ' : 'FAIL'} capture: the image is the node and its outside band, ${cap.w} x ${cap.h} (want ${capture.width} x ${capture.height})`);
+  capture.probes.forEach(([what, x, y, want], i) => {
+    const px = cap.rows[i];
+    const ok = px.every((v, k) => Math.abs(v - want[k]) <= 40);
+    if (!ok) failed++;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${what} (${x}, ${y}): ${px.join(',')} want ${want.join(',')}`);
   });
 } finally {
   await browser.close();
 }
 if (failed) process.exit(1);
-console.log(`${probes.length} probes pass`);
+console.log(`${probes.length + capture.probes.length + 1} checks pass`);

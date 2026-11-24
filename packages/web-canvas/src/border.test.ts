@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { borderRing, sameBorder, type SceneBorder } from './border';
+import { borderReach, borderRing, sameBorder, type SceneBorder } from './border';
 
 const border = (o: Partial<SceneBorder> = {}): SceneBorder => ({ width: 6, color: 0xff0000, alpha: 1, position: 'inside', ...o });
 
@@ -42,8 +42,17 @@ describe('borderRing', () => {
   it('an inside border as wide as half the box or more fills the box: there is no inner edge', () => {
     expect(borderRing(100, 60, 0, border({ width: 30 })).inner).toBeNull();
     expect(borderRing(100, 60, 0, border({ width: 40 })).inner).toBeNull();
+    // As in CSS, the border box is then not smaller than twice the width: the ring is taller than the box, from its top.
+    expect(borderRing(100, 60, 0, border({ width: 40 })).outer).toEqual({ x: 0, y: 0, w: 100, h: 80, r: 0 });
     expect(borderRing(100, 60, 0, border({ width: 29 })).inner).not.toBeNull();
     expect(borderRing(100, 60, 0, border({ width: 70, position: 'center' })).inner).toBeNull();
+  });
+});
+
+describe('borderRing of a box with no size', () => {
+  it('a box with no height has a ring as high as both of its borders, from its top; an outside one is centred on the box', () => {
+    expect(borderRing(200, 0, 0, border({ width: 2 }))).toEqual({ outer: { x: 0, y: 0, w: 200, h: 4, r: 0 }, inner: null });
+    expect(borderRing(0, 0, 0, border({ width: 2, position: 'outside' }))).toEqual({ outer: { x: -2, y: -2, w: 4, h: 4, r: 0 }, inner: null });
   });
 });
 
@@ -53,5 +62,14 @@ describe('sameBorder', () => {
     expect(sameBorder(undefined, undefined)).toBe(true);
     expect(sameBorder(border(), undefined)).toBe(false);
     for (const o of [{ width: 7 }, { color: 1 }, { alpha: 0.5 }, { position: 'outside' as const }]) expect(sameBorder(border(), border(o))).toBe(false);
+  });
+});
+
+describe('borderReach', () => {
+  it('is how far the border lies outside the box: all of the width outside, half of it centred, none inside', () => {
+    expect(borderReach(border({ position: 'outside' }))).toBe(6);
+    expect(borderReach(border({ position: 'center' }))).toBe(3);
+    expect(borderReach(border({ position: 'inside' }))).toBe(0);
+    expect(borderReach(undefined)).toBe(0);
   });
 });

@@ -29,19 +29,31 @@ export interface RingShape {
   r: number;
 }
 
+/** How far a border lies outside its box: all of the width for an outside border, half of it for a centred one, none inside. */
+export function borderReach(b: SceneBorder | undefined): number {
+  if (!b) return 0;
+  return b.position === 'outside' ? b.width : b.position === 'center' ? b.width / 2 : 0;
+}
+
 /**
  * The two edges of the border of a `w` x `h` box with corner radius `radius`: the ring is the outer shape less the inner one.
- * `inner` is null when the border covers the whole of the outer shape (an inside border as wide as half of the box).
+ * `inner` is null when nothing is left inside the border (an inside border as wide as half of the box).
  * An inside border has the box for its outer edge, an outside border for its inner edge, and a centred one straddles it.
  * The radius is held to half the smaller side first, as the box is; the outer radius grows by the share of the width that
  * lies outside the box (not when the radius is 0: a square corner stays square) and the inner one is the outer less the
  * width, never below 0.
+ *
+ * The outer shape is the border box of the export's `::after`, so a border wider than half its box makes it bigger than
+ * the box, as CSS does: the content of a box is not below 0, so the border box is at least twice the width on each axis (a
+ * box with no height gets a ring as high as both of its borders, from its top). A radius is the ring of a pill for an ellipse
+ * too: the export draws a non-square ellipse with `border-radius: 50%`, a true ellipse, and the canvas draws its fill as a
+ * pill, so the ring follows the fill and the two differ for an ellipse that is not a circle.
  */
 export function borderRing(w: number, h: number, radius: number, b: SceneBorder): { outer: RingShape; inner: RingShape | null } {
   const grow = b.position === 'inside' ? 0 : b.position === 'center' ? b.width / 2 : b.width;
   const own = Math.min(radius, w / 2, h / 2);
   const r = own > 0 ? own + grow : 0;
-  const outer: RingShape = { x: 0 - grow, y: 0 - grow, w: w + 2 * grow, h: h + 2 * grow, r };
+  const outer: RingShape = { x: 0 - grow, y: 0 - grow, w: Math.max(w + 2 * grow, 2 * b.width), h: Math.max(h + 2 * grow, 2 * b.width), r };
   const iw = outer.w - 2 * b.width;
   const ih = outer.h - 2 * b.width;
   if (iw <= 0 || ih <= 0) return { outer, inner: null };
