@@ -48,6 +48,9 @@ pub struct PaintedBox {
     pub h: f64,
     /// `0xRRGGBB`; `None` for no fill.
     pub fill: Option<u32>,
+    /// The alpha of the fill's own colour, 0 to 1 (`#rrggbbaa` and `#rgba` carry one; every other form is 1). It is not
+    /// the node's `opacity`, which fades the whole node, children included. 1 when there is no fill.
+    pub fill_alpha: f64,
     pub radius: f64,
     pub text: String,
     pub font_size: f64,
@@ -62,6 +65,13 @@ pub struct PaintedBox {
     pub gradient: Option<PaintedGradient>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<PaintedImage>,
+}
+
+impl PaintedBox {
+    /// The fill with its own alpha, `(0xRRGGBB, 0..=1)`; `None` for no fill.
+    pub fn painted_fill(&self) -> Option<(u32, f64)> {
+        self.fill.map(|rgb| (rgb, self.fill_alpha))
+    }
 }
 
 /// The painted boxes of a file's nodes, back to front: a parent before its children, siblings in
@@ -154,6 +164,12 @@ impl<'a> Fields<'a> {
 
     /// The fill: `0xRRGGBB`, or `None` for no fill. An unresolved binding paints the default fill.
     pub fn fill(&self, b: &Bind<String>) -> Option<u32> {
+        self.fill_rgba(b).map(|(rgb, _)| rgb)
+    }
+
+    /// The fill with its own alpha: `(0xRRGGBB, alpha)` with the alpha as the byte the colour carries (255 for a form with
+    /// none), or `None` for no fill. An unresolved binding paints the default fill.
+    pub fn fill_rgba(&self, b: &Bind<String>) -> Option<(u32, u8)> {
         match b {
             Bind::Lit(css) => parse_fill(css),
             Bind::Var(r) => match self.value(&r.var) {
@@ -191,22 +207,31 @@ fn sibling_order(a: &Node, b: &Node) -> Ordering {
     })
 }
 
-/// `#rgb`, `#rrggbb` or `#rrggbbaa` as `0xRRGGBB` (the alpha is dropped); anything else is no fill.
-fn parse_fill(css: &str) -> Option<u32> {
+/// `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa` as `(0xRRGGBB, alpha byte)`; a form with no alpha has 255. Anything else is no
+/// fill.
+fn parse_fill(css: &str) -> Option<(u32, u8)> {
     let hex = css.strip_prefix('#')?;
     if !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
         return None;
     }
+    let v = u32::from_str_radix(hex, 16).ok()?;
+    let short = |v: u32| {
+        // One digit each, doubled: `#f80` is `#ff8800`.
+        let (r, g, b) = ((v >> 8) & 15, (v >> 4) & 15, v & 15);
+        ((r * 17) << 16) | ((g * 17) << 8) | (b * 17)
+    };
     match hex.len() {
-        3 => {
-            let v = u32::from_str_radix(hex, 16).ok()?;
-            let (r, g, b) = ((v >> 8) & 15, (v >> 4) & 15, v & 15);
-            Some(((r * 17) << 16) | ((g * 17) << 8) | (b * 17))
-        }
-        6 => u32::from_str_radix(hex, 16).ok(),
-        8 => u32::from_str_radix(&hex[..6], 16).ok(),
+        3 => Some((short(v), 255)),
+        4 => Some((short(v >> 4), ((v & 15) * 17) as u8)),
+        6 => Some((v, 255)),
+        8 => Some((v >> 8, (v & 255) as u8)),
         _ => None,
     }
+}
+
+/// The alpha byte of a colour as the fraction the canvas and the export use, 0 to 1.
+fn alpha_fraction(byte: u8) -> f64 {
+    f64::from(byte) / 255.0
 }
 
 /// Any hex colour a stop may carry: `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`.
@@ -233,6 +258,7 @@ fn paint(n: &Node, parent: Option<&str>, cx: &Fields) -> PaintedBox {
     });
     let radius = cx.radius(&n.radius);
     let opacity = cx.opacity(&n.opacity);
+    let fill = cx.fill_rgba(&n.fill);
     let (paint, radius) = match n.kind {
         NodeKind::Frame => (Paint::Frame, radius),
         NodeKind::Text => (Paint::Text, 0.0),
@@ -247,7 +273,8 @@ fn paint(n: &Node, parent: Option<&str>, cx: &Fields) -> PaintedBox {
         y: n.y,
         w: n.w,
         h: n.h,
-        fill: cx.fill(&n.fill),
+        fill: fill.map(|(rgb, _)| rgb),
+        fill_alpha: fill.map_or(1.0, |(_, a)| alpha_fraction(a)),
         radius,
         text: if is_text {
             n.text.clone()

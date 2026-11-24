@@ -4,11 +4,12 @@
 //! of the name as a hyphen. The default mode of each collection is in one `:root` rule; every other mode is a rule
 //! `:root[data-mode-<collection>="<mode>"]`, and the mode picked in the options is the attribute on `<html>`. An
 //! alias is `var(--other)`. All of it sits on the one element, so an alias follows the mode picked for the collection
-//! it points at, as `meldframe_variables::resolve` does. A colour is written as the render model paints it
-//! (`#rrggbb`, the alpha dropped); a number is unitless, and the field that reads it adds the unit. [`file`] writes the
-//! same names and blocks for every variable of the file, a line each, with the colour as its stored hex, lowercased.
+//! it points at, as `meldframe_variables::resolve` does. A colour is written as the render model paints it (`#rrggbb`, or
+//! `#rrggbbaa` when the colour has an alpha below 1); a number is unitless, and the field that reads it adds the unit. [`file`]
+//! writes the same names and blocks for every variable of the file, a line each, with the colour as its stored hex,
+//! lowercased.
 
-use crate::names::{hex, hex_colour, num, slug, unique};
+use crate::names::{hex_colour, hex_rgba, num, slug, unique};
 use crate::report::Report;
 use meldframe_protocol::{Bind, Value, Variable, Variables};
 use meldframe_render::{Fields, ModeChoice};
@@ -53,8 +54,9 @@ pub(crate) struct Block {
     pub decls: Vec<String>,
 }
 
-/// How a colour is written. A frame is painted by the render model, which drops the alpha, so its variables are
-/// `#rrggbb`; a file of variables written for a person keeps the stored hex, alpha included, and lowercases it.
+/// How a colour is written. A frame is painted by the render model, so its variables are the colour it paints (`#rrggbb`,
+/// or `#rrggbbaa` with an alpha, in the canonical form); a file of variables written for a person keeps the stored hex as
+/// it is, and lowercases it.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Colours {
     Painted,
@@ -213,8 +215,8 @@ fn value_css(
             {
                 return Some(text.to_ascii_lowercase());
             }
-            Some(match fields.fill(&Bind::Lit(css.clone())) {
-                Some(rgb) => hex(rgb),
+            Some(match fields.fill_rgba(&Bind::Lit(css.clone())) {
+                Some((rgb, alpha)) => hex_rgba(rgb, alpha),
                 None => {
                     report.warn(
                     "invalid_colour",

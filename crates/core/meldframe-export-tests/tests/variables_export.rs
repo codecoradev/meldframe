@@ -136,7 +136,7 @@ fn the_names_are_those_of_a_frame_export_and_a_variable_the_frame_does_not_use_i
 }
 
 #[test]
-fn a_colour_keeps_its_alpha_where_a_frame_export_drops_it() {
+fn export_variables_keeps_the_stored_hex_with_its_alpha() {
     let all = export_variables(&fixture()).unwrap().css;
     assert!(
         all.contains("--appearance-color-unused: #ffffff80;"),

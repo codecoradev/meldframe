@@ -314,4 +314,16 @@ add('f22-no-fill', 'fill none on a rect, a frame over a coloured box (with a bor
   rect('n10', 'stage', { x: 200, y: 170, w: 100, h: 100, fill: 'none', image: img('contain') }),
 ]);
 
+// 23. the alpha of a fill's own colour (`#rrggbbaa`, `#rgba`): the export writes it into the colour and the page paints it over what
+// is behind (issue 234; the canvas draws the same: opacity is separate and fades the node and what is in it)
+add('f23-fill-alpha', 'a half-transparent red over white, a fully transparent fill over a green box, half-transparent black over green, and the short #rgba form', [
+  frame('stage', null, { w: 600, h: 120, layout: 'none', fill: '#ffffff', clip: false }),
+  rect('a1', 'stage', { x: 20, y: 20, w: 100, h: 60, fill: '#ff000080' }),
+  rect('g1', 'stage', { x: 160, y: 20, w: 100, h: 60, fill: G }),
+  rect('a2', 'stage', { x: 160, y: 20, w: 100, h: 60, fill: '#00000000' }),
+  rect('g2', 'stage', { x: 300, y: 20, w: 100, h: 60, fill: G }),
+  rect('a3', 'stage', { x: 300, y: 20, w: 100, h: 60, fill: '#00000080' }),
+  rect('a4', 'stage', { x: 440, y: 20, w: 100, h: 60, fill: '#f008' }),
+]);
+
 export default fixtures;

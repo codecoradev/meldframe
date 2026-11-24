@@ -58,6 +58,20 @@ pub(crate) fn hex(rgb: u32) -> String {
     format!("#{rgb:06x}")
 }
 
+/// The colour the render model painted, with its own alpha (0 to 1): `#rrggbb` when it is opaque, else `#rrggbbaa`.
+pub(crate) fn hex_alpha(rgb: u32, alpha: f64) -> String {
+    hex_rgba(rgb, (alpha.clamp(0.0, 1.0) * 255.0).round() as u8)
+}
+
+/// A colour with its alpha as the byte it is stored in: `#rrggbb` when the byte is 255, else `#rrggbbaa`.
+pub(crate) fn hex_rgba(rgb: u32, alpha: u8) -> String {
+    if alpha == 255 {
+        hex(rgb)
+    } else {
+        format!("#{rgb:06x}{alpha:02x}")
+    }
+}
+
 /// `s` for CSS: ASCII letters, digits and the characters of `keep` as they are, every other character as a hex
 /// escape (`\3c ` for `<`, with the space that ends it), so that nothing a user wrote can end a string, a rule, a
 /// `url(...)` or the `<style>` element that holds the stylesheet.
