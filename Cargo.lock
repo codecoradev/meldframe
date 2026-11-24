@@ -1827,6 +1827,7 @@ dependencies = [
  "meldframe-http-capture",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-render",
  "meldframe-server",
  "reqwest",
  "rmcp",
