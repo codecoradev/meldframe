@@ -219,7 +219,7 @@ What the oracle cannot prove (the list for the product oracle; the experiment's 
   Pixi's measurer is the product's own claim, checked by those two scripts and not by the oracle. The Export dialog
   of the browser measures with the measurer the host gave the app (the same Pixi measurer, so a hug text exports the width the
   canvas draws; the stub when the host gave none), and an open dialog is built again when the host gives another. The MCP
-  export tool runs on the server, which has no fonts, and stays on the stub; its result warns `text_size_estimated` (one warning, naming the texts whose box the stub decides: a hug width or a height that is not fixed) until a real measurer exists there. An absent warning does not make a text exact: the `line-height` of every text is the stub's. Whether the boxes stored in a file equal the
+  export tool runs on the server, which has no fonts, and stays on the stub; its result warns `text_size_estimated` (one warning, naming the texts whose box the stub decides: a hug width or a hug height) until a real measurer exists there. An absent warning does not make a text exact: the `line-height` of every text is the stub's. Whether the boxes stored in a file equal the
   core's layout is not checked by the oracle.
 - **The text table is Chromium's measurer by assumption.** The core and the export agree on text because both use the one
   measurer they are given: the export pins `min-width` and `line-height` from it and the core sizes the boxes with it.

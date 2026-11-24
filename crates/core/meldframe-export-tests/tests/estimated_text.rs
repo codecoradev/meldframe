@@ -1,6 +1,6 @@
 //! E4.1: an export whose text sizes are an estimate says so. A caller that measures with the stub (the MCP tool: the
 //! server has no fonts) sets `ExportOptions::estimated_text`; the report then names, in one warning, the texts whose
-//! box the measurer decides (a hug width, or a height that is not fixed in the export). A caller with the page's
+//! box the measurer decides (a hug width, or a hug height). A caller with the page's
 //! measurer leaves it off and gets no warning. The line height of every text is the measurer's either way.
 
 #[cfg(target_arch = "wasm32")]
@@ -101,11 +101,25 @@ fn a_hug_text_in_a_nested_frame_is_named() {
 }
 
 #[test]
-fn a_fill_text_is_named_when_the_export_leaves_its_height_to_the_wrap() {
+fn a_fill_width_with_a_hug_height_is_named_because_the_height_is_the_wrapped_one() {
     // Fill width in a column of fixed width is `align-self:stretch`, hug height is the wrapped height.
     let t = json!({"id": "t", "type": "text", "text": "Hello", "sw": "fill", "sh": "hug"});
     let e = run_with(frame(json!({"layout": "column"}), vec![t]), true);
     assert!(named(&e).is_some(), "{:?}", e.report);
+}
+
+#[test]
+fn a_fill_height_is_the_layouts_and_is_not_named() {
+    // Under a layout parent of fixed size the export writes flex or stretch: the layout sets the height, not the stub.
+    for t in [
+        json!({"id": "t", "type": "text", "text": "Hello", "w": 80, "sh": "fill"}),
+        json!({"id": "t", "type": "text", "text": "Hello", "sw": "fill", "sh": "fill"}),
+    ] {
+        for layout in ["column", "row"] {
+            let e = run_with(frame(json!({"layout": layout}), vec![t.clone()]), true);
+            assert_eq!(named(&e), None, "{layout}: {:?}", e.report);
+        }
+    }
 }
 
 #[test]

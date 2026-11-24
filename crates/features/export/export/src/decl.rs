@@ -25,8 +25,9 @@ pub(crate) struct Decl {
 pub(crate) struct Style {
     pub main: Vec<Decl>,
     pub after: Vec<Decl>,
-    /// A text whose box the measurer decides: a hug width (`min-width` is pinned from it) or a height that is not
-    /// fixed (the wrapped height). `line-height` comes from the measurer for every text, so this is not all of them.
+    /// A text whose box the measurer decides: a hug width (`min-width` is pinned from it) or a hug height (the
+    /// wrapped height). A fill height is set by the layout (flex or stretch) and is not counted. `line-height` comes
+    /// from the measurer for every text, so this is not all of them.
     pub measured: bool,
 }
 
@@ -289,7 +290,7 @@ pub(crate) fn style(cx: &Cx, n: &Node, b: &PaintedBox, place: &Place, rep: &mut 
         let mut one = n.clone();
         one.text = "M".into();
         let line = cx.measurer.measure(&one, None).1;
-        s.measured = aw == Axis::Hug || ah != Axis::Fixed;
+        s.measured = aw == Axis::Hug || ah == Axis::Hug;
         s.main.extend([
             d("font-size", px(n.font_size)),
             d("font-weight", n.font_weight.to_string()),

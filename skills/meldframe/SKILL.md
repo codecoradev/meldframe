@@ -124,7 +124,7 @@ before you hand the result on: `unsupported` lists what the export dropped or ap
 and `warnings` the layout problems and the text a browser breaks differently from the canvas. The images are named under
 `assets`, not included. Text sizes come from a stub, not a browser (half an em per character, no weight), so text boxes
 are only as exact as that. The `line-height` of every text is the stub's, with or without a warning. A text whose box
-the stub decides (a hug width, pinned as `min-width`, or a height that is not fixed) is also named in one
+the stub decides (a hug width, pinned as `min-width`, or a hug height) is also named in one
 `text_size_estimated` warning in `warnings`. No warning does not make any `line-height` exact. Do not hand the pinned
 sizes on as exact: tell the person that the text sizes are estimates, or relax the `min-width` of a hug text in the code
 you write from the export. A frame whose export is over 256 KiB is refused as `E_EXPORT_TOO_LARGE`: export a smaller
