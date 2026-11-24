@@ -69,3 +69,14 @@ describe('the stage draws the weight and the alignment of a text', () => {
     }
   });
 });
+
+describe('the stage draws the alpha of a text colour', () => {
+  it('a text with a fill alpha is drawn with it, and one without is opaque (issue 234)', () => {
+    expect((draw(text({ fillAlpha: 0.5 })) as unknown as { alpha: number }).alpha).toBe(0.5);
+    expect((draw(text()) as unknown as { alpha: number }).alpha).toBe(1);
+  });
+
+  it('a change of the alpha alone draws the text again', () => {
+    expect((draw(text({ fillAlpha: 1 }), text({ fillAlpha: 0.25 })) as unknown as { alpha: number }).alpha).toBe(0.25);
+  });
+});

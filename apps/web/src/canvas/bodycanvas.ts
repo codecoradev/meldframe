@@ -18,6 +18,8 @@ export interface BodyPaint {
   radius: number;
   /** The node's `fill` as a CSS colour under the gradient; null for none. */
   fill: string | null;
+  /** The alpha of that colour, 0 to 1; absent means 1. The gradient and the image over it have their own. */
+  fillAlpha?: number;
   gradient?: SceneGradient;
   image?: { bitmap: Drawable; fit: SceneImageFit };
 }
@@ -34,8 +36,10 @@ export function paintBody(p: BodyPaint): { canvas: HTMLCanvasElement; k: number 
   ctx.roundRect(0, 0, p.w, p.h, Math.min(p.radius, p.w / 2, p.h / 2));
   ctx.clip();
   if (p.fill) {
+    ctx.globalAlpha = p.fillAlpha ?? 1;
     ctx.fillStyle = p.fill;
     ctx.fillRect(0, 0, p.w, p.h);
+    ctx.globalAlpha = 1;
   }
   const g = p.gradient;
   if (g) {

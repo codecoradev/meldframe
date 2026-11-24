@@ -34,6 +34,12 @@ describe('sceneFromBoxes', () => {
     expect(paint.find((n) => n.id === 't')).not.toHaveProperty('gradient');
     expect(paint.find((n) => n.id === 'bad')?.gradient).toBeUndefined();
   });
+  it('carries the alpha of a fill next to its colour (issue 234)', () => {
+    const fills = sceneFromBoxes(byName('fill colours')).nodes;
+    expect(fills.find((n) => n.id === 'c')).toMatchObject({ fill: 0x112233, fillAlpha: 0x44 / 255 });
+    expect(fills.find((n) => n.id === 'k')).toMatchObject({ fill: 0xff8800, fillAlpha: 0xcc / 255 });
+    expect(fills.find((n) => n.id === 'a')).toMatchObject({ fill: 0xff8000, fillAlpha: 1 });
+  });
   it('a missing parent and a cycle arrive as the Rust step ordered them', () => {
     expect(sceneFromBoxes(byName('a missing parent makes a root')).nodes[0]).toMatchObject({ id: 'a', parent: null });
     expect(sceneFromBoxes(byName('a cycle stays visible after the rest')).nodes.map((n) => n.id)).toEqual(['ok', 'x', 'y', 'kid']);
