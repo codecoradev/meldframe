@@ -9,7 +9,7 @@ import type { FramePreset } from '@meldframe/protocol';
 import { shortcutLabels } from './shortcuts';
 import { zoomItems, type ZoomCommand } from './zoom';
 
-type Tool = 'select' | 'frame' | 'rectangle' | 'text';
+type Tool = 'select' | 'frame' | 'rectangle' | 'ellipse' | 'text';
 
 export interface PaletteEntry {
   id: string;
@@ -58,7 +58,7 @@ export interface PaletteInput {
 }
 
 const tools: { tool: Tool; label: string }[] = [
-  { tool: 'select', label: 'Select tool' }, { tool: 'frame', label: 'Frame tool' }, { tool: 'rectangle', label: 'Rectangle tool' }, { tool: 'text', label: 'Text tool' },
+  { tool: 'select', label: 'Select tool' }, { tool: 'frame', label: 'Frame tool' }, { tool: 'rectangle', label: 'Rectangle tool' }, { tool: 'ellipse', label: 'Ellipse tool' }, { tool: 'text', label: 'Text tool' },
 ];
 // Words besides the label, for the zoom rows (their labels come from the zoom menu).
 const zoomWords: Record<ZoomCommand, string[]> = { in: ['closer'], out: ['further'], reset: ['reset', 'actual size'], fit: ['fit', 'everything'], 'fit-selection': ['fit', 'focus'] };

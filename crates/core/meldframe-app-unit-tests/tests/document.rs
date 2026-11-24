@@ -62,6 +62,47 @@ fn a_frame_a_rectangle_and_a_text_node_can_be_created() {
 }
 
 #[test]
+fn an_ellipse_is_made_like_a_rectangle_and_is_of_the_ellipse_type() {
+    let mut l = Loopback::live();
+    l.app.dispatch(Action::SetTool {
+        tool: Tool::Ellipse,
+    });
+    assert_eq!(l.app.state().tool, Tool::Ellipse);
+    l.send(create(CreateKind::Rectangle, 10.0, 20.0));
+    let rect = get(&l.app, &l.app.state().selection[0].clone());
+    let eff = l.send(Action::CreateNode {
+        kind: CreateKind::Ellipse,
+        x: 10.0,
+        y: 20.0,
+        parent: Some("root".into()),
+        w: Some(60.0),
+        h: Some(40.0),
+    });
+    let id = l.app.state().selection[0].clone();
+    let n = get(&l.app, &id);
+    assert_eq!(
+        (n.kind, n.x, n.y, n.w, n.h),
+        (NodeKind::Ellipse, 10.0, 20.0, 60.0, 40.0)
+    );
+    assert_eq!(n.parent_id.as_deref(), Some("root"));
+    // Every other field is the default a rectangle gets.
+    let (mut a, mut b) = (
+        serde_json::to_value(&n).unwrap(),
+        serde_json::to_value(&rect).unwrap(),
+    );
+    for v in [&mut a, &mut b] {
+        for key in ["id", "type", "pos", "w", "h"] {
+            v.as_object_mut().unwrap().remove(key);
+        }
+    }
+    assert_eq!(a, b);
+    assert_eq!(l.app.state().tool, Tool::Select);
+    assert!(matches!(sent(&eff).as_slice(), [Command::AddNode { .. }]));
+    l.send(Action::Undo {});
+    assert!(l.app.nodes().iter().all(|n| n.kind != NodeKind::Ellipse));
+}
+
+#[test]
 fn move_resize_text_and_properties_update_the_node_and_the_panel() {
     let mut l = Loopback::live();
     l.send(Action::Select { ids: ids(&["r1"]) });

@@ -92,7 +92,7 @@ const editor = () => readFileSync(new URL('../../../apps/web/src/TextEditor.svel
 const textNode = { id: 't', type: 'text' } as unknown as Node;
 
 const checks: Record<string, (c: Combo) => void> = {
-  ...Object.fromEntries((['select', 'frame', 'rectangle', 'text'] as const).map((tool) => [`tool-${tool}`, (c: Combo) => expect(keyAction(eventOf(c), [])).toEqual({ type: 'setTool', tool })])),
+  ...Object.fromEntries((['select', 'frame', 'rectangle', 'ellipse', 'text'] as const).map((tool) => [`tool-${tool}`, (c: Combo) => expect(keyAction(eventOf(c), [])).toEqual({ type: 'setTool', tool })])),
   undo: (c) => expect(keyAction(eventOf(c), [])).toEqual({ type: 'undo' }),
   redo: (c) => expect(keyAction(eventOf(c), [])).toEqual({ type: 'redo' }),
   delete: (c) => expect(keyAction(eventOf(c), ['a'])).toEqual({ type: 'delete', ids: ['a'] }),

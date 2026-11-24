@@ -18,7 +18,7 @@ describe('the entries of the palette', () => {
   it('lists what the editor has, each id once, each with a name and a group', () => {
     const { entries } = setup();
     expect(entries.map((e) => e.id)).toEqual([
-      'tool-select', 'tool-frame', 'tool-rectangle', 'tool-text',
+      'tool-select', 'tool-frame', 'tool-rectangle', 'tool-ellipse', 'tool-text',
       'undo', 'redo', 'delete',
       ...PRESET_ORDER.map((p) => `preset-${p}`),
       'zoom-in', 'zoom-out', 'zoom-reset', 'zoom-fit', 'zoom-fit-selection',
@@ -40,6 +40,8 @@ describe('the entries of the palette', () => {
       expect(byId(entries, 'undo').shortcut).toBe(mac ? '⌘Z' : 'Ctrl+Z');
       expect(byId(entries, 'redo').shortcut).toBe(mac ? '⇧⌘Z' : 'Ctrl+Shift+Z');
       expect(byId(entries, 'tool-frame').shortcut).toBe('F');
+      expect(byId(entries, 'tool-ellipse').shortcut).toBe('E');
+      expect(byId(entries, 'tool-ellipse').label).toBe('Ellipse tool');
       expect(byId(entries, 'zoom-fit').shortcut).toBe(mac ? '⇧1' : 'Shift+1');
       expect(byId(entries, 'toggle-layers').shortcut).toBe(mac ? '⌥1' : 'Alt+1');
       expect(byId(entries, 'shortcuts').shortcut).toBe('?');

@@ -8,7 +8,7 @@ import {
 import type { Point, Rect, Size } from './geometry';
 import { handleAt, resizeCursor, type HandleId } from './overlay';
 
-export type ToolMode = 'move' | 'hand' | 'frame' | 'rect' | 'text';
+export type ToolMode = 'move' | 'hand' | 'frame' | 'rect' | 'ellipse' | 'text';
 export type CreateTool = Exclude<ToolMode, 'move' | 'hand'>;
 
 /** Pointer travel (screen px) before a press becomes a drag. */
