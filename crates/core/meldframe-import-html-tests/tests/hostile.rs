@@ -266,3 +266,21 @@ fn tag_soup_that_never_closes_anything_is_read_to_the_end() {
         assert!(matches!(&p, Ok(_) | Err(ParseError::Empty)), "{html:?}");
     }
 }
+
+#[test]
+fn nul_bytes_are_stored_as_three_bytes_each_so_a_text_is_at_most_three_times_the_input() {
+    let n = 1_000;
+    let nuls = "\0".repeat(n);
+    // The limits count the bytes as written: a value of 1,000 NULs is within `max_value_bytes` and stored as 3,000.
+    let p = parse(&format!("<a b=\"{nuls}\">{nuls}</a>"), &roomy()).unwrap();
+    let Child::Element(a) = p.tree.root().children[0] else {
+        panic!()
+    };
+    let el = p.tree.element(a);
+    assert_eq!(el.attrs[0].value.len(), 3 * n);
+    assert_eq!(el.children, vec![Child::Text("\u{fffd}".repeat(n))]);
+    // A style keeps its NULs the same way, and no stored text is over three times the input.
+    let p = parse(&format!("<style>{nuls}</style>"), &roomy()).unwrap();
+    let styles: Vec<&str> = p.tree.style_texts().collect();
+    assert_eq!(styles, vec!["\u{fffd}".repeat(n).as_str()]);
+}
