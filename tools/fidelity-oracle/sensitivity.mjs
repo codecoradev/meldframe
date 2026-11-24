@@ -40,6 +40,7 @@ export const PAINT_MUTATIONS = {
   'a bound radius is left out': (form, e) => both(e, (t) => t.replace(';border-radius:calc(var(--brand-radius-round) * 1px)', '').replace(' rounded-[calc(var(--brand-radius-round)_*_1px)]', '')),
   'a bound opacity is left out': (form, e) => both(e, (t) => t.replace(';opacity:var(--brand-opacity-muted)', '').replace(' opacity-[var(--brand-opacity-muted)]', '')),
   'a fill of none paints the default fill': (form, e) => both(e, (t) => t.replace('[data-node="n1"]{', '[data-node="n1"]{background-color:#3f3f46;').replace('data-node="n1" data-name="n1" class="', 'data-node="n1" data-name="n1" class="bg-[color:#3f3f46] ')),
+  'the alpha of a fill is dropped': (form, e) => both(e, (t) => t.replace(/(background-color:|bg-\[color:)(#[0-9a-f]{6})[0-9a-f]{2}/g, '$1$2')),
   'a hard shadow moves 10 px': (form, e) => both(e, (t) => t.replace(/20px[ _]0px[ _]0px[ _]0px[ _]#ff0000ff/g, (m) => m.replace('20px', '30px'))),
 };
 

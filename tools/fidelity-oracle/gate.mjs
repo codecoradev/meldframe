@@ -7,11 +7,11 @@ import { OUT } from './lib.mjs';
 
 export const LIMITS = { geometry: 0.05, tailwind: 0.001, ink: 1, blur: 20 };
 /** A run that checks less than this is not a run of the oracle: the hand-written fixtures, and the share of the seeds the gate must hold. */
-export const FLOORS = { fixtures: 21, gatedShare: 0.3 };
+export const FLOORS = { fixtures: 22, gatedShare: 0.3 };
 /** The fixtures the paint oracle must probe (probes.mjs): a run without a probe in each form for one, or without the pixel comparison of its two
  *  forms, is not a run of the oracle. The fills of the contract: solid and image (f07, f08), opacity (f18), gradients (f19), a fill
- *  bound to a variable in the default mode and in a picked one (f20, f21) and no fill (f22). */
-export const PAINT_FIXTURES = ['f07-decor', 'f08-image', 'f18-opacity', 'f19-gradient', 'f20-variable-fill', 'f21-variable-modes', 'f22-no-fill'];
+ *  bound to a variable in the default mode and in a picked one (f20, f21), no fill (f22) and the alpha of a fill's colour (f23). */
+export const PAINT_FIXTURES = ['f07-decor', 'f08-image', 'f18-opacity', 'f19-gradient', 'f20-variable-fill', 'f21-variable-modes', 'f22-no-fill', 'f23-fill-alpha'];
 
 /** The violations in a results object, as lines of text. */
 export function evaluate(results) {
