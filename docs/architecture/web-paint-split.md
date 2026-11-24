@@ -51,7 +51,7 @@ Moved with `git mv`, tests with their sources, no edit to a line of code except 
 | From `packages/web-canvas/src` | To `packages/web-paint/src` | Tests |
 |---|---|---|
 | `border.ts` (61) | same name | `border.test.ts` (75, 9 tests) |
-| `shadow.ts` (113; 122 after the change below) | same name | `shadow.test.ts` (131, 17 tests) |
+| `shadow.ts` (113; 120 after the change below) | same name | `shadow.test.ts` (131, 17 tests) |
 | `gradient.ts` (31) | same name | `gradient.test.ts` (45, 7 tests) |
 | `image.ts` (36) | same name | `image.test.ts` (41, 6 tests) |
 
