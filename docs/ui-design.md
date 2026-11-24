@@ -60,7 +60,7 @@ This is the list QA checks the panel against: the table is what is built, and se
 | Appearance | Opacity; corner radius (frame, rectangle and shader; an ellipse and a text have none); Clip content (frames only) |
 | Text | Texts only: font size, font weight (the nine weights 100 to 900, a select) and text alignment (left, center, right) |
 | Fill | Type (solid, linear gradient, radial gradient, image, none; a text offers solid and none), a colour or the stops of a gradient, or the image picker (section 3.2a) |
-| Border | One uniform border: width in px (0 is no border), colour, and position (inside, center, outside) and a Remove button (the minus after the position control) once the width is above 0; Remove sends the width command with 0, the same as typing 0 in the field and the same an agent sends, is one undo step (width, colour and position come back), and moves focus to the width field |
+| Border | One uniform border: width in px (0 is no border) and colour. Once the width is above 0 it also has the position (inside, center, outside) and a Remove button (the minus after the position control). Remove sends the width command with 0, the same as typing 0 in the field and the same an agent sends, is one undo step (width, colour and position come back), and moves focus to the width field |
 | Shadow | Up to four, each with X, Y, blur, spread and colour, and a button to remove it; a button to add one |
 | Export | Below Properties, for one selected frame: PNG scale (1x or 2x) and Export as PNG, with the file name and the size in pixels shown before saving; HTML + Tailwind, which opens the dialog (Tailwind or plain CSS, preview, Copy, Download, and the PNG tab) |
 
@@ -79,7 +79,7 @@ Each item is recommended in decision 40 and waits for the owner. The one-line re
 | A file name field in Export | The file is named from the frame's name (rename the frame), the Tailwind style sheet has the name the HTML links, and the browser may offer its own name at save | Not planned |
 | Shader presets (`shader`, `fill2`) | The canvas draws a shader as its plain box and the export writes one gradient; section 6 leaves shader fills out | Not planned |
 
-Built from this list: the Remove button on the border (decision 40, item 3). It sends the width command with 0, so it needed no model field. The visibility switch of a border stays in the table.
+Built after the owner approved decision 40 on 24 Nov 2026, as the small later slice of item 3 (issue #267): the Remove button on the border. It sends the width command with 0, so it needed no model field. The visibility switch of a border stays in the table.
 
 ### 3.2 Variables in fields
 

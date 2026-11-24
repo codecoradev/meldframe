@@ -6,8 +6,8 @@
 // goes out to the server, that it is the command the width field and an agent send (updateNode with the border at width 0,
 // colour and position as they were), that the server holds it, that the canvas draws no border and that focus is on the width
 // field, which stays; that one undo brings width, colour and position back (server, panel and canvas); that Enter on the focused
-// button removes the border too and focus lands on the width field again; and, last, that an agent's apply_commands with the
-// same command on a twin node gives the same node as the button gave, and that typing 0 in the width field sends the same op.
+// button removes the border too and focus lands on the width field again; that typing 0 in the width field sends the same op; and,
+// last, that an agent's apply_commands with the command of the button, aimed at a twin node, gives the same node as typing 0.
 // Start the server and the page as the header of packages/web-panels/scripts/image-fill-e2e.mjs says: a file name that is new for
 // every run (the check refuses a file that has content), the server on a free port, the development token of the page in
 // .dev-token at the root and in the server's token list, the page's URL and the server's URL as the two arguments, no defaults.
@@ -157,6 +157,7 @@ const commandsSent = () => sent.flatMap((m) => (Array.isArray(m.ops) ? m.ops.map
   await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
   await until('the nodes are listed', async () => (await $(`[data-testid=layer][data-id="${typed}"]`).count()) === 1);
   let drawn;
+  let buttonCommand; // the command the click sent, for the agent's check at the end
 
   await check('a node with no border has no Remove button and no position control', async () => {
     await select(plain, `Plain ${run}`);
@@ -186,6 +187,7 @@ const commandsSent = () => sent.flatMap((m) => (Array.isArray(m.ops) ? m.ops.map
     await until('width 0 on the server', async () => (await nodeOf(boxed))?.border?.width === 0);
     const went = commandsSent().slice(from);
     assert.deepEqual(went, [{ type: 'updateNode', id: boxed, patch: { border: { width: 0, color: '#ff00ff', position: 'outside' } } }], 'exactly one op, and only the width changed');
+    buttonCommand = went[0];
     assert.deepEqual((await nodeOf(boxed)).border, { width: 0, color: '#ff00ff', position: 'outside' }, 'colour and position stay');
     await until('the button and the position control are gone', async () => (await remove.count()) === 0 && (await $('[data-testid=prop-border-position]').count()) === 0);
     assert.equal(await width.inputValue(), '0');
@@ -226,13 +228,18 @@ const commandsSent = () => sent.flatMap((m) => (Array.isArray(m.ops) ? m.ops.map
     assert.equal(await remove.count(), 0, 'the button follows the width field to 0');
   });
 
-  await check('an agent that sends that command with apply_commands gets the node the button gave', async () => {
-    const before = await nodeOf(twin);
-    assert.equal(before.border.width, 4);
-    await post({ type: 'updateNode', id: twin, patch: { border: { width: 0, color: '#ff8000', position: 'center' } } });
-    const [agent, panel] = [await nodeOf(twin), await nodeOf(typed)];
-    assert.deepEqual(agent.border, panel.border);
-    assert.deepEqual(agent.border, { width: 0, color: '#ff8000', position: 'center' });
+  await check('an agent that applies the command of the button to another node with apply_commands gets the same node as typing 0 in the width field', async () => {
+    assert.ok(buttonCommand, 'the command of the button was captured');
+    assert.equal((await nodeOf(twin)).border.width, 4);
+    // The agent's command is the button's own (same type, same keys, width 0), aimed at the twin and keeping the twin's colour and position.
+    const agent = { ...buttonCommand, id: twin, patch: { border: { ...buttonCommand.patch.border, color: OTHER.color, position: OTHER.position } } };
+    assert.deepEqual(Object.keys(agent.patch.border).sort(), ['color', 'position', 'width'], 'the button sends the border and nothing more');
+    assert.deepEqual(Object.keys(agent.patch), ['border']);
+    assert.equal(agent.patch.border.width, 0);
+    await post(agent);
+    const [byAgent, byTyping] = [await nodeOf(twin), await nodeOf(typed)];
+    assert.deepEqual(byAgent.border, byTyping.border, 'the agent and the width field leave the same border');
+    assert.deepEqual(byAgent.border, { width: 0, color: OTHER.color, position: OTHER.position });
     await until('the panel of the twin has no button', async () => { await select(twin, `Twin ${run}`); return (await remove.count()) === 0; });
   });
 
