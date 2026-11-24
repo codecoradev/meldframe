@@ -151,5 +151,22 @@
     "boxes": [
       {"id":"t","parent":null,"paint":"text","x":0.0,"y":0.0,"w":100.0,"h":100.0,"fill":4144966,"fillAlpha":1.0,"radius":0.0,"text":"Hello","fontSize":20.0,"fontWeight":700,"textAlign":"center","name":"","clip":true,"opacity":1.0}
     ]
+  },
+  {
+    "name": "border",
+    "nodes": [
+      {"id":"f","name":"","type":"frame","parentId":null,"x":0.0,"y":0.0,"w":200.0,"h":120.0,"sw":"fixed","sh":"fixed","fill":"#3f3f46","fill2":"#22d3ee","radius":8.0,"layout":"none","gap":8.0,"padding":16.0,"align":"start","justify":"start","clip":true,"text":"","fontSize":16.0,"shader":"aurora","fontWeight":400,"textAlign":"left","border":{"width":6.0,"color":"#ff0000","position":"inside"},"shadows":[],"marT":0.0,"marR":0.0,"marB":0.0,"marL":0.0,"absolute":false,"opacity":1.0,"pos":"a"},
+      {"id":"r","name":"","type":"rect","parentId":"f","x":20.0,"y":20.0,"w":60.0,"h":40.0,"sw":"fixed","sh":"fixed","fill":"#3f3f46","fill2":"#22d3ee","radius":0.0,"layout":"none","gap":8.0,"padding":16.0,"align":"start","justify":"start","clip":true,"text":"","fontSize":16.0,"shader":"aurora","fontWeight":400,"textAlign":"left","border":{"width":6.0,"color":"#0000ff","position":"outside"},"shadows":[],"marT":0.0,"marR":0.0,"marB":0.0,"marL":0.0,"absolute":false,"opacity":1.0,"pos":"a"},
+      {"id":"e","name":"","type":"ellipse","parentId":"f","x":100.0,"y":20.0,"w":50.0,"h":50.0,"sw":"fixed","sh":"fixed","fill":"#3f3f46","fill2":"#22d3ee","radius":0.0,"layout":"none","gap":8.0,"padding":16.0,"align":"start","justify":"start","clip":true,"text":"","fontSize":16.0,"shader":"aurora","fontWeight":400,"textAlign":"left","border":{"width":6.0,"color":"#00ff0080","position":"center"},"shadows":[],"marT":0.0,"marR":0.0,"marB":0.0,"marL":0.0,"absolute":false,"opacity":1.0,"pos":"b"},
+      {"id":"t","name":"","type":"text","parentId":"f","x":10.0,"y":90.0,"w":80.0,"h":20.0,"sw":"fixed","sh":"fixed","fill":"#3f3f46","fill2":"#22d3ee","radius":0.0,"layout":"none","gap":8.0,"padding":16.0,"align":"start","justify":"start","clip":true,"text":"Hi","fontSize":16.0,"shader":"aurora","fontWeight":400,"textAlign":"left","border":{"width":4.0,"color":"#000000","position":"inside"},"shadows":[],"marT":0.0,"marR":0.0,"marB":0.0,"marL":0.0,"absolute":false,"opacity":1.0,"pos":"c"},
+      {"id":"z","name":"","type":"rect","parentId":"f","x":150.0,"y":90.0,"w":30.0,"h":20.0,"sw":"fixed","sh":"fixed","fill":"#3f3f46","fill2":"#22d3ee","radius":0.0,"layout":"none","gap":8.0,"padding":16.0,"align":"start","justify":"start","clip":true,"text":"","fontSize":16.0,"shader":"aurora","fontWeight":400,"textAlign":"left","border":{"width":0.0,"color":"#ff0000","position":"inside"},"shadows":[],"marT":0.0,"marR":0.0,"marB":0.0,"marL":0.0,"absolute":false,"opacity":1.0,"pos":"d"}
+    ],
+    "boxes": [
+      {"id":"f","parent":null,"paint":"frame","x":0.0,"y":0.0,"w":200.0,"h":120.0,"fill":4144966,"fillAlpha":1.0,"radius":8.0,"text":"","fontSize":0.0,"fontWeight":0,"textAlign":"left","name":"","clip":true,"opacity":1.0,"border":{"width":6.0,"color":16711680,"alpha":1.0,"position":"inside"}},
+      {"id":"r","parent":"f","paint":"rect","x":20.0,"y":20.0,"w":60.0,"h":40.0,"fill":4144966,"fillAlpha":1.0,"radius":0.0,"text":"","fontSize":0.0,"fontWeight":0,"textAlign":"left","name":"","clip":true,"opacity":1.0,"border":{"width":6.0,"color":255,"alpha":1.0,"position":"outside"}},
+      {"id":"e","parent":"f","paint":"rect","x":100.0,"y":20.0,"w":50.0,"h":50.0,"fill":4144966,"fillAlpha":1.0,"radius":25.0,"text":"","fontSize":0.0,"fontWeight":0,"textAlign":"left","name":"","clip":true,"opacity":1.0,"border":{"width":6.0,"color":65280,"alpha":0.5019607843137255,"position":"center"}},
+      {"id":"t","parent":"f","paint":"text","x":10.0,"y":90.0,"w":80.0,"h":20.0,"fill":4144966,"fillAlpha":1.0,"radius":0.0,"text":"Hi","fontSize":16.0,"fontWeight":400,"textAlign":"left","name":"","clip":true,"opacity":1.0},
+      {"id":"z","parent":"f","paint":"rect","x":150.0,"y":90.0,"w":30.0,"h":20.0,"fill":4144966,"fillAlpha":1.0,"radius":0.0,"text":"","fontSize":0.0,"fontWeight":0,"textAlign":"left","name":"","clip":true,"opacity":1.0}
+    ]
   }
 ]

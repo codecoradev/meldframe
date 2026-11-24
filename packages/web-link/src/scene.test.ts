@@ -40,6 +40,15 @@ describe('sceneFromBoxes', () => {
     expect(fills.find((n) => n.id === 'k')).toMatchObject({ fill: 0xff8800, fillAlpha: 0xcc / 255 });
     expect(fills.find((n) => n.id === 'a')).toMatchObject({ fill: 0xff8000, fillAlpha: 1 });
   });
+  it('carries the border of a box as the render step painted it, and none for a box without one', () => {
+    const nodes = sceneFromBoxes(byName('border')).nodes;
+    expect(nodes.find((n) => n.id === 'f')?.border).toEqual({ width: 6, color: 0xff0000, alpha: 1, position: 'inside' });
+    expect(nodes.find((n) => n.id === 'r')?.border).toEqual({ width: 6, color: 0x0000ff, alpha: 1, position: 'outside' });
+    expect(nodes.find((n) => n.id === 'e')?.border).toEqual({ width: 6, color: 0x00ff00, alpha: 0x80 / 255, position: 'center' });
+    // A text, a zero width and a box with no border arrive without one.
+    for (const id of ['t', 'z']) expect(nodes.find((n) => n.id === id), id).not.toHaveProperty('border');
+    expect(sceneFromBoxes(byName('opacity')).nodes.every((n) => !('border' in n))).toBe(true);
+  });
   it('a missing parent and a cycle arrive as the Rust step ordered them', () => {
     expect(sceneFromBoxes(byName('a missing parent makes a root')).nodes[0]).toMatchObject({ id: 'a', parent: null });
     expect(sceneFromBoxes(byName('a cycle stays visible after the rest')).nodes.map((n) => n.id)).toEqual(['ok', 'x', 'y', 'kid']);

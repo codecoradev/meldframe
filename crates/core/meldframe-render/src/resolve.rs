@@ -1,6 +1,6 @@
 use meldframe_protocol::{
-    Bind, DEFAULT_FILL, DEFAULT_OPACITY, DEFAULT_RADIUS, GradientKind, ImageFit, Node, NodeKind,
-    TextAlign, Value, Variables,
+    Bind, BorderPosition, DEFAULT_FILL, DEFAULT_OPACITY, DEFAULT_RADIUS, GradientKind, ImageFit,
+    Node, NodeKind, TextAlign, Value, Variables,
 };
 use meldframe_variables::{ModeChoice, Resolver};
 use serde::Serialize;
@@ -31,6 +31,21 @@ pub struct PaintedGradient {
 pub struct PaintedImage {
     pub asset_id: String,
     pub fit: ImageFit,
+}
+
+/// A border over the box and its children: paint only, it takes no room. `width` is above 0 and the colour is a valid hex colour.
+/// The canvas draws its ring on the shape of the box, so the ring of an ellipse follows the pill the fill is drawn as (see [`Paint`]); the export's
+/// is a true ellipse, which differs when the ellipse is not a circle (contract, section 4.2).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaintedBorder {
+    pub width: f64,
+    /// `0xRRGGBB`.
+    pub color: u32,
+    /// The alpha of the colour's own form, 0 to 1 (`#rrggbbaa` and `#rgba` carry one).
+    pub alpha: f64,
+    /// Which side of the box's edge the stroke lies on.
+    pub position: BorderPosition,
 }
 
 /// One box ready to paint. `x` and `y` are the offset inside the parent, as the node stores them. It
@@ -65,6 +80,9 @@ pub struct PaintedBox {
     pub gradient: Option<PaintedGradient>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<PaintedImage>,
+    /// Drawn over the box and its children; absent for no border, and always on a text, which paints none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border: Option<PaintedBorder>,
 }
 
 impl PaintedBox {
@@ -294,5 +312,21 @@ fn paint(n: &Node, parent: Option<&str>, cx: &Fields) -> PaintedBox {
         opacity: if opacity < 1.0 { opacity } else { 1.0 },
         gradient,
         image,
+        border: if is_text { None } else { painted_border(n) },
     }
+}
+
+/// The border of a box that is not text: none for a width that is not above 0 or a colour that is not hex.
+fn painted_border(n: &Node) -> Option<PaintedBorder> {
+    let b = &n.border;
+    if !(b.width > 0.0 && b.width.is_finite()) {
+        return None;
+    }
+    let (color, alpha) = parse_fill(&b.color)?;
+    Some(PaintedBorder {
+        width: b.width,
+        color,
+        alpha: alpha_fraction(alpha),
+        position: b.position,
+    })
 }

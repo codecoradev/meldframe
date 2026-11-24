@@ -10,9 +10,11 @@
 //
 // The canvas draws what it is given: no layout, no editor rules (clamping, snapping, constraints) live here.
 import { containsPoint, intersectRects, rectsEqual, type Rect } from './geometry';
+import { borderReach, sameBorder, type SceneBorder } from './border';
 import { sameGradient, type SceneGradient } from './gradient';
 import { sameImage, type SceneImage } from './image';
 
+export type { SceneBorder, SceneBorderPosition } from './border';
 export type { SceneGradient } from './gradient';
 export type { SceneImage, SceneImageFit } from './image';
 export type NodeKind = 'frame' | 'rect' | 'text';
@@ -54,6 +56,8 @@ export interface SceneNode {
   gradient?: SceneGradient;
   /** Painted over the fill and the gradient; absent means none. */
   image?: SceneImage;
+  /** Drawn over the node and its children, and not clipped by the node's own `clip`; absent means none. */
+  border?: SceneBorder;
 }
 
 export interface Scene {
@@ -91,6 +95,7 @@ export interface ResolvedNode {
   opacity: number;
   gradient: SceneGradient | undefined;
   image: SceneImage | undefined;
+  border: SceneBorder | undefined;
   /** The intersection of the clipping ancestors' rectangles; null when nothing clips it. */
   clipRect: Rect | null;
 }
@@ -117,7 +122,7 @@ function sameNode(a: ResolvedNode, b: ResolvedNode): boolean {
     a.parent === b.parent && a.kind === b.kind && a.depth === b.depth &&
     rectsEqual(a, b) && a.lx === b.lx && a.ly === b.ly &&
     a.fill === b.fill && a.fillAlpha === b.fillAlpha && a.radius === b.radius && a.text === b.text && a.fontSize === b.fontSize && a.fontWeight === b.fontWeight && a.textAlign === b.textAlign &&
-    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) && sameImage(a.image, b.image) &&
+    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) && sameImage(a.image, b.image) && sameBorder(a.border, b.border) &&
     (a.clipRect === b.clipRect || (!!a.clipRect && !!b.clipRect && rectsEqual(a.clipRect, b.clipRect)))
   );
 }
@@ -162,6 +167,7 @@ function resolveAll(scene: Scene): ResolvedNode[] {
         opacity: n.opacity ?? 1,
         gradient: n.gradient,
         image: n.image,
+        border: n.border,
         clipRect: parentClip,
       };
       out.push(node);
@@ -225,6 +231,34 @@ export function contentBounds(rs: ResolvedScene): Rect | null {
   for (const n of rs.items) {
     if (n.depth !== 0 || !n.visible) continue;
     const r = { x: n.x, y: n.y, w: n.w, h: n.h };
+    if (!out) out = r;
+    else {
+      const x = Math.min(out.x, r.x);
+      const y = Math.min(out.y, r.y);
+      out = { x, y, w: Math.max(out.x + out.w, r.x + r.w) - x, h: Math.max(out.y + out.h, r.y + r.h) - y };
+    }
+  }
+  return out;
+}
+
+/** The rectangle of a node as a capture takes it: the node and the band of its border that lies outside it (not the inside). */
+function paintedRect(n: ResolvedNode): Rect {
+  const g = borderReach(n.border);
+  return { x: n.x - g, y: n.y - g, w: n.w + 2 * g, h: n.h + 2 * g };
+}
+
+/** The world rectangle to capture for a node, with its outside border in it; null for an unknown id. */
+export function captureRectOf(rs: ResolvedScene, id: string): Rect | null {
+  const n = rs.byId.get(id);
+  return n ? paintedRect(n) : null;
+}
+
+/** The rectangle around every visible node on the canvas as a capture takes it (their outside borders included), or null for an empty scene. */
+export function captureBounds(rs: ResolvedScene): Rect | null {
+  let out: Rect | null = null;
+  for (const n of rs.items) {
+    if (n.depth !== 0 || !n.visible) continue;
+    const r = paintedRect(n);
     if (!out) out = r;
     else {
       const x = Math.min(out.x, r.x);

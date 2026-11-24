@@ -4,7 +4,7 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
-use meldframe_protocol::{GradientKind, ImageFit, Node, Variables};
+use meldframe_protocol::{BorderPosition, GradientKind, ImageFit, Node, Variables};
 use meldframe_render::{ModeChoice, Paint, PaintedBox, resolve, resolve_with};
 use serde_json::{Value, json};
 
@@ -184,4 +184,50 @@ fn gradient_and_image_are_painted_except_on_text_or_with_a_bad_stop() {
             .gradient
             .is_none()
     );
+}
+
+#[test]
+fn a_border_is_painted_with_its_width_colour_alpha_and_position() {
+    let b = one(
+        json!({"id": "n", "type": "rect", "border": {"width": 6, "color": "#ff000080", "position": "outside"}}),
+    );
+    let border = b.border.expect("a border with a width is painted");
+    assert_eq!(
+        (border.width, border.color, border.position),
+        (6.0, 0xff0000, BorderPosition::Outside)
+    );
+    assert_eq!(border.alpha, f64::from(0x80u8) / 255.0);
+    // The default position is inside and the default colour opaque black.
+    let d = one(json!({"id": "n", "type": "frame", "border": {"width": 2}}))
+        .border
+        .unwrap();
+    assert_eq!(
+        (d.color, d.alpha, d.position),
+        (0, 1.0, BorderPosition::Inside)
+    );
+    let short = one(json!({"id": "n", "type": "rect", "border": {"width": 1, "color": "#f80"}}))
+        .border
+        .unwrap();
+    assert_eq!(short.color, 0xff8800);
+}
+
+#[test]
+fn no_border_is_painted_for_no_width_a_text_or_a_colour_that_is_not_hex() {
+    for v in [
+        json!({"id": "n", "type": "rect"}),
+        json!({"id": "n", "type": "rect", "border": {"width": 0, "color": "#ff0000"}}),
+        json!({"id": "n", "type": "text", "text": "hi", "border": {"width": 4}}),
+        json!({"id": "n", "type": "rect", "border": {"width": 4, "color": "red"}}),
+    ] {
+        assert!(one(v.clone()).border.is_none(), "{v}");
+    }
+    // An ellipse and a shader take a border like a rectangle: the canvas draws them as rounded boxes.
+    for kind in ["ellipse", "shader", "frame"] {
+        assert!(
+            one(json!({"id": "n", "type": kind, "border": {"width": 3}}))
+                .border
+                .is_some(),
+            "{kind}"
+        );
+    }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contentBounds, hitTest, rectsOf, resolveScene, type Scene, type SceneNode } from './scene';
+import { captureBounds, captureRectOf, contentBounds, hitTest, rectsOf, resolveScene, type Scene, type SceneNode } from './scene';
 
 const node = (o: Partial<SceneNode> & Pick<SceneNode, 'id'>): SceneNode => ({
   parent: null, kind: 'rect', x: 0, y: 0, w: 10, h: 10, fill: 1, ...o,
@@ -33,6 +33,17 @@ describe('resolveScene', () => {
     const first = resolveScene(parentScene(node({ id: 'a', fillAlpha: 0.5 }))).scene;
     expect(resolveScene(parentScene(node({ id: 'a', fillAlpha: 0.25 })), first).patch.changed).toEqual(['a']);
     expect(resolveScene(parentScene(node({ id: 'a', fillAlpha: 0.5 })), first).patch.changed).toEqual([]);
+  });
+
+  it('resolves the border of a node, none when the scene says nothing, and a change of it is a change of the node', () => {
+    const border = { width: 4, color: 0xff0000, alpha: 1, position: 'outside' as const };
+    const rs = resolveScene(parentScene(node({ id: 'a', border }), node({ id: 'b' }))).scene;
+    expect(rs.byId.get('a')?.border).toEqual(border);
+    expect(rs.byId.get('b')?.border).toBeUndefined();
+    const first = resolveScene(parentScene(node({ id: 'a', border }))).scene;
+    expect(resolveScene(parentScene(node({ id: 'a', border: { ...border, width: 5 } })), first).patch.changed).toEqual(['a']);
+    expect(resolveScene(parentScene(node({ id: 'a', border: { ...border } })), first).patch.changed).toEqual([]);
+    expect(resolveScene(parentScene(node({ id: 'a' })), first).patch.changed).toEqual(['a']);
   });
 
   it('adds the parent offset in parent space and keeps world space as given', () => {
@@ -189,6 +200,38 @@ describe('bounds', () => {
   });
   it('rectsOf skips unknown ids', () => {
     expect(rectsOf(rs, ['b', 'nope'])).toEqual([{ x: 100, y: 50, w: 20, h: 20 }]);
+  });
+});
+
+describe('capture box', () => {
+  const border = (position: 'inside' | 'center' | 'outside', width = 6) => ({ width, color: 1, alpha: 1, position });
+  const rs = resolveScene(parentScene(
+    node({ id: 'in', x: 100, y: 100, w: 50, h: 40, border: border('inside') }),
+    node({ id: 'mid', x: 200, y: 100, w: 50, h: 40, border: border('center') }),
+    node({ id: 'out', x: 300, y: 100, w: 50, h: 40, border: border('outside') }),
+    node({ id: 'plain', x: 400, y: 100, w: 50, h: 40 }),
+    node({ id: 'kid', parent: 'out', x: 5, y: 5, w: 10, h: 10, border: border('outside') }),
+  )).scene;
+
+  it('a node is captured with the band of its border that lies outside it, and the rectangle used to select it is not grown', () => {
+    expect(captureRectOf(rs, 'in')).toEqual({ x: 100, y: 100, w: 50, h: 40 });
+    expect(captureRectOf(rs, 'mid')).toEqual({ x: 197, y: 97, w: 56, h: 46 });
+    expect(captureRectOf(rs, 'out')).toEqual({ x: 294, y: 94, w: 62, h: 52 });
+    expect(captureRectOf(rs, 'plain')).toEqual({ x: 400, y: 100, w: 50, h: 40 });
+    expect(captureRectOf(rs, 'nope')).toBeNull();
+    expect(rectsOf(rs, ['out'])[0]).toEqual({ x: 300, y: 100, w: 50, h: 40 });
+  });
+
+  it('the whole page is captured with the band of the borders of the nodes on the canvas', () => {
+    expect(captureBounds(rs)).toEqual({ x: 100, y: 94, w: 350, h: 52 });
+    // The bounds of the content itself (what fit shows) are unchanged.
+    expect(contentBounds(rs)).toEqual({ x: 100, y: 100, w: 350, h: 40 });
+    expect(captureBounds(resolveScene(parentScene()).scene)).toBeNull();
+  });
+
+  it('a hidden node adds nothing to the page', () => {
+    const hidden = resolveScene(parentScene(node({ id: 'a', w: 10, h: 10 }), node({ id: 'b', x: 500, visible: false, border: border('outside', 20) }))).scene;
+    expect(captureBounds(hidden)).toEqual({ x: 0, y: 0, w: 10, h: 10 });
   });
 });
 
