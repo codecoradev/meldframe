@@ -62,14 +62,12 @@ fn a_frame_a_rectangle_and_a_text_node_can_be_created() {
 }
 
 #[test]
-fn an_ellipse_is_made_like_a_rectangle_and_is_of_the_ellipse_type() {
+fn an_ellipse_is_drawn_with_its_box_selected_and_the_tool_returns_to_select() {
     let mut l = Loopback::live();
     l.app.dispatch(Action::SetTool {
         tool: Tool::Ellipse,
     });
     assert_eq!(l.app.state().tool, Tool::Ellipse);
-    l.send(create(CreateKind::Rectangle, 10.0, 20.0));
-    let rect = get(&l.app, &l.app.state().selection[0].clone());
     let eff = l.send(Action::CreateNode {
         kind: CreateKind::Ellipse,
         x: 10.0,
@@ -85,21 +83,35 @@ fn an_ellipse_is_made_like_a_rectangle_and_is_of_the_ellipse_type() {
         (NodeKind::Ellipse, 10.0, 20.0, 60.0, 40.0)
     );
     assert_eq!(n.parent_id.as_deref(), Some("root"));
-    // Every other field is the default a rectangle gets.
+    assert_eq!(l.app.state().tool, Tool::Select);
+    assert!(matches!(sent(&eff).as_slice(), [Command::AddNode { .. }]));
+    assert!(l.app.state().history.can_undo);
+    l.send(Action::Undo {});
+    assert!(l.app.nodes().iter().all(|n| n.kind != NodeKind::Ellipse));
+}
+
+#[test]
+fn an_ellipse_without_a_size_gets_the_defaults_of_a_rectangle() {
+    let mut l = Loopback::live();
+    l.send(create(CreateKind::Rectangle, 10.0, 20.0));
+    let rect = get(&l.app, &l.app.state().selection[0].clone());
+    l.send(create(CreateKind::Ellipse, 10.0, 20.0));
+    let n = get(&l.app, &l.app.state().selection[0].clone());
+    assert_eq!((n.kind, n.w, n.h), (NodeKind::Ellipse, 100.0, 100.0));
+    assert_eq!(n.fill.lit().map(String::as_str), Some("#3f3f46"));
+    assert_eq!(n.radius.lit().copied(), Some(0.0));
+    assert_eq!(n.opacity.lit().copied(), Some(1.0));
+    // Every other field is the same as the rectangle's (the ids and the place among siblings differ).
     let (mut a, mut b) = (
         serde_json::to_value(&n).unwrap(),
         serde_json::to_value(&rect).unwrap(),
     );
     for v in [&mut a, &mut b] {
-        for key in ["id", "type", "pos", "w", "h"] {
+        for key in ["id", "type", "pos"] {
             v.as_object_mut().unwrap().remove(key);
         }
     }
     assert_eq!(a, b);
-    assert_eq!(l.app.state().tool, Tool::Select);
-    assert!(matches!(sent(&eff).as_slice(), [Command::AddNode { .. }]));
-    l.send(Action::Undo {});
-    assert!(l.app.nodes().iter().all(|n| n.kind != NodeKind::Ellipse));
 }
 
 #[test]

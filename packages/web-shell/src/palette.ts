@@ -57,8 +57,8 @@ export interface PaletteInput {
   };
 }
 
-const tools: { tool: Tool; label: string }[] = [
-  { tool: 'select', label: 'Select tool' }, { tool: 'frame', label: 'Frame tool' }, { tool: 'rectangle', label: 'Rectangle tool' }, { tool: 'ellipse', label: 'Ellipse tool' }, { tool: 'text', label: 'Text tool' },
+const tools: { tool: Tool; label: string; words?: string[] }[] = [
+  { tool: 'select', label: 'Select tool' }, { tool: 'frame', label: 'Frame tool' }, { tool: 'rectangle', label: 'Rectangle tool' }, { tool: 'ellipse', label: 'Ellipse tool', words: ['circle', 'oval'] }, { tool: 'text', label: 'Text tool' },
 ];
 // Words besides the label, for the zoom rows (their labels come from the zoom menu).
 const zoomWords: Record<ZoomCommand, string[]> = { in: ['closer'], out: ['further'], reset: ['reset', 'actual size'], fit: ['fit', 'everything'], 'fit-selection': ['fit', 'focus'] };
@@ -69,7 +69,7 @@ export function paletteEntries(i: PaletteInput): PaletteEntry[] {
   const { on } = i;
   const entry = (group: string, id: string, label: string, enabled: boolean, run: () => void, more: Partial<PaletteEntry> = {}): PaletteEntry => ({ id, label, group, enabled, keywords: [], run, ...more });
   return [
-    ...tools.map((t) => entry('Tools', `tool-${t.tool}`, t.label, true, () => on.tool(t.tool), { shortcut: key(`tool-${t.tool}`) })),
+    ...tools.map((t) => entry('Tools', `tool-${t.tool}`, t.label, true, () => on.tool(t.tool), { shortcut: key(`tool-${t.tool}`), keywords: t.words ?? [] })),
     entry('Edit', 'undo', 'Undo', i.canUndo, on.undo, { shortcut: key('undo') }),
     entry('Edit', 'redo', 'Redo', i.canRedo, on.redo, { shortcut: key('redo') }),
     entry('Edit', 'delete', 'Delete the selection', i.canDelete, on.remove, { shortcut: key('delete'), keywords: ['remove'] }),

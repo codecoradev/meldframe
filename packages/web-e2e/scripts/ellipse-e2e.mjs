@@ -41,6 +41,7 @@ const drag = async (page, from, to) => {
   await page.mouse.up();
 };
 const toolOf = (page) => page.getAttribute('[data-testid=tool]', 'data-tool');
+let made;
 const ellipses = async () => (await nodesOnServer()).filter((n) => n.type === 'ellipse');
 
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -75,11 +76,13 @@ try {
         if (d[i] === 255 && d[i + 1] === 255 && d[i + 2] === 255) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + 1); y1 = Math.max(y1, y + 1); }
       }
       const s = (x1 - x0) / 800;
-      return { s, x0, y0, rows: points.map(([wx, wy]) => { const i = (Math.round(y0 + wy * s) * c.width + Math.round(x0 + wx * s)) * 4; return [d[i], d[i + 1], d[i + 2]]; }) };
+      return { s, x0, y0, w: x1 - x0, h: y1 - y0, rows: points.map(([wx, wy]) => { const i = (Math.round(y0 + wy * s) * c.width + Math.round(x0 + wx * s)) * 4; return [d[i], d[i + 1], d[i + 2]]; }) };
     }, { b64, points });
   }
   const frame = await probe([]);
   assert.ok(frame.s > 0.3 && frame.s < 3, `the page frame was not found on the canvas (scale ${frame.s})`);
+  // The frame is 800 x 500 in the file: a white area of another shape is not the frame (a panel, a dialog), and every probe would be wrong.
+  assert.ok(Math.abs(frame.h / frame.w - 500 / 800) < 0.01, `the white area found is ${frame.w} x ${frame.h}, not the shape of the 800 x 500 page frame`);
   const at = (wx, wy) => ({ x: frame.x0 + wx * frame.s, y: frame.y0 + wy * frame.s });
 
   await check('the tool bar lists Select, Frame, Rectangle, Ellipse, Text in that order, each a named button', async () => {
@@ -97,7 +100,7 @@ try {
     assert.equal(await page.getAttribute('[data-testid=tool-ellipse]', 'aria-pressed'), 'false');
   });
 
-  await check('hovering and focusing the button shows its name and key, as the Rectangle button does', async () => {
+  await check('hovering the button shows its name and key in a tooltip', async () => {
     await page.hover('[data-testid=tool-ellipse]');
     const tip = await until('the tooltip', async () => { const t = page.locator('[role=tooltip]'); return (await t.count()) ? (await t.first().innerText()) : null; });
     assert.match(tip, /Ellipse/);
@@ -114,7 +117,7 @@ try {
     assert.equal(await page.getAttribute('[data-testid=tool-rectangle]', 'aria-pressed'), 'false');
     await drag(page, at(100, 100), at(300, 220));
     const all = await until('the new node', async () => { const a = await nodesOnServer(); return a.length === before + 1 ? a : null; });
-    const made = all.find((n) => n.type === 'ellipse');
+    made = all.find((n) => n.type === 'ellipse');
     assert.ok(made, `no node of type ellipse: ${JSON.stringify(all.map((n) => n.type))}`);
     assert.equal(made.parentId, 'page');
     for (const [k, want] of [['x', 100], ['y', 100], ['w', 200], ['h', 120]]) assert.ok(Math.abs(made[k] - want) <= 3, `${k} is ${made[k]}, want ${want}`);
@@ -122,11 +125,11 @@ try {
     const row = page.locator(`[data-testid=layer][data-id="${made.id}"]`);
     await row.waitFor();
     assert.equal(await row.getAttribute('data-selected'), 'true', 'the new ellipse is selected in the layers panel');
-    globalThis.made = made;
   });
 
   await check('the canvas draws a pill: the middle of the edge and the centre are the fill, the corner of the box is the page', async () => {
-    const m = globalThis.made;
+    const m = made;
+    assert.ok(m, 'the earlier check made no ellipse');
     // Deselect (a click on the canvas outside every node) and move the pointer away, so no handle or outline covers the probes.
     await page.mouse.click(frame.x0 - 8, frame.y0 + 100);
     await page.mouse.move(5, 5);
@@ -179,7 +182,7 @@ try {
     await until('removed', async () => (await ellipses()).length === 0);
   });
 
-  await check('the button works from the keyboard: Enter and Space on the focused button choose the tool', async () => {
+  await check('the Ellipse button from the keyboard: Enter and Space choose the tool, Tab reaches it between Rectangle and Text with a 2 px focus ring', async () => {
     await page.locator('[data-testid=tool-ellipse]').focus();
     await page.keyboard.press('Enter');
     assert.equal(await toolOf(page), 'ellipse');
@@ -192,17 +195,32 @@ try {
     await page.locator('[data-testid=tool-rectangle]').focus();
     await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'Ellipse');
+    assert.equal(await page.evaluate(() => { const o = getComputedStyle(document.activeElement); return [o.outlineStyle, o.outlineWidth].join(' '); }), 'solid 2px', 'the focus ring');
     await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'Text');
     await page.evaluate(() => document.activeElement?.blur());
   });
 
-  await check('E typed into a menu or a field does not change the tool', async () => {
+  await check('E typed into an open menu does not change the tool', async () => {
     await page.click('[data-testid=frame-presets]');
     await page.locator('[role=menu]').waitFor();
     await page.keyboard.press('e');
     assert.equal(await toolOf(page), 'select');
     await page.keyboard.press('Escape');
+    await page.evaluate(() => document.activeElement?.blur());
+  });
+
+  await check('E typed into the Name field of the properties panel goes into the field and does not change the tool', async () => {
+    await page.locator('[data-testid=layer][data-id=page] button').last().click();
+    const field = page.locator('[data-testid=prop-name]');
+    await field.waitFor();
+    await field.focus();
+    await page.keyboard.press('End');
+    await page.keyboard.press('e');
+    assert.equal(await field.inputValue(), 'pagee');
+    assert.equal(await toolOf(page), 'select');
+    await page.keyboard.press('Backspace');
+    assert.equal(await field.inputValue(), 'page');
     await page.evaluate(() => document.activeElement?.blur());
   });
 

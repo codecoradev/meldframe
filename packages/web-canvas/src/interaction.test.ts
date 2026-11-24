@@ -348,6 +348,7 @@ describe('create tools', () => {
     ]);
   });
 
+  // Vitest does not typecheck: this test also guards the `ToolMode` union, which `tsc` (`npm run typecheck`) checks it against.
   it('the ellipse tool draws like the rectangle tool and names itself in the intent', () => {
     const r = rig({ tool: 'ellipse' });
     r.it.down(p(10, 20));

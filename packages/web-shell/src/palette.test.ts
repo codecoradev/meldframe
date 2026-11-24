@@ -113,6 +113,8 @@ describe('filtering by what is typed', () => {
     expect(ids('1920')).toEqual(['preset-desktopHd']);
     expect(ids('png')).toEqual(['export']);
     expect(ids('keyboard')).toEqual(['shortcuts']);
+    expect(ids('circle')).toEqual(['tool-ellipse']);
+    expect(ids('oval')).toEqual(['tool-ellipse']);
     expect(ids('panels')).toEqual(['toggle-layers', 'toggle-inspector']);
   });
   it('puts an entry that cannot run after those that can, and keeps it in the list', () => {
