@@ -62,7 +62,7 @@ This is the list QA checks the panel against: the table is what is built, and se
 | Fill | Type (solid, linear gradient, radial gradient, image, none; a text offers solid and none), a colour or the stops of a gradient, or the image picker (section 3.2a) |
 | Border | One uniform border: width in px (0 is no border), colour, and position (inside, center, outside) once the width is above 0 |
 | Shadow | Up to four, each with X, Y, blur, spread and colour, and a button to remove it; a button to add one |
-| Export | Below Properties, for one selected frame: PNG scale (1x or 2x) and Export as PNG, with the file name and the size in pixels shown before saving; HTML + Tailwind, which opens the dialog (Tailwind or plain CSS, preview, Copy, Download, and the PNG tab) |
+| Export | Below Properties, for one selected frame: PNG scale (0.5x, 1x, 2x, 3x or 4x) and Export as PNG, with the file name and the size in pixels shown before saving (a scale whose image would pass the 4096 x 4096 px area limit cannot be exported: the section says the size it would have and the largest scale that fits); HTML + Tailwind, which opens the dialog (Tailwind or plain CSS, preview, Copy, Download, and the PNG tab) |
 
 The fields follow the round 2 model (E3.2): margin, per-side padding, gradients, opacity and no fill. Layout changes its fields with the direction. A variable button sits at the end of the Fill colour row and on the caption row of Opacity and Corner radius, the three fields that can be bound; border and shadow colours take a literal only. An agent can set the same fields with `apply_commands`, and a panel control and the tool share one command.
 
@@ -76,7 +76,6 @@ Each item is recommended in decision 40 and waits for the owner. The one-line re
 | Border per side, and the "sides" field | The border is one uniform width, colour and position; per-side border is unsupported in the fidelity contract | A contract change first, then model, canvas, export and oracle |
 | A visibility switch on a node, a border or a shadow, and a page-level visibility | The model has no visible field on a node, a border or a shadow, and no page-level fields | A model field with render, layout and export meaning: an ADR first |
 | A Remove button on the border | A width of 0 is no border and the width field takes 0, with the same command an agent sends; a shadow already has Remove | A small slice if QA finds 0 hard to find (one existing command) |
-| PNG scales other than 1x and 2x (0.5x to 4x) | 1x and 2x are what the E4.3 box was checked at; the area limit of 4096 x 4096 px refuses a large frame at the higher scales (a 1440 x 900 frame is over it at 4x) | A change of one constant in `packages/web-document/src/export.ts`, a check in a browser at each scale and the E4.3 text; no export crate change |
 | A file name field in Export | The file is named from the frame's name (rename the frame), the Tailwind style sheet has the name the HTML links, and the browser may offer its own name at save | Not planned |
 | Shader presets (`shader`, `fill2`) | The canvas draws a shader as its plain box and the export writes one gradient; section 6 leaves shader fills out | Not planned |
 
