@@ -7,6 +7,9 @@ import { geometry } from './geometry.mjs';
 import { blur, paint } from './probes.mjs';
 import { textInk } from './ink.mjs';
 import { evaluate, report } from './gate.mjs';
+import { stopUnlessGatePlatform } from './platform.mjs';
+
+stopUnlessGatePlatform();
 
 const args = process.argv.slice(2);
 const at = args.indexOf('--seeds');

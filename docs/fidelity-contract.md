@@ -168,6 +168,8 @@ The oracle is `tools/fidelity-oracle/` (README there), run by the `oracle` job o
 `fidelity-oracle` in `nightly.yml`. The `oracle` job is not a required context yet; the owner decides when it becomes one
 (E4.2 is ticked on the owner's order of 21 Nov 2026; the exit line 'required on `develop`' of M4 stays open).
 
+The gate is verified on Linux only. On macOS the same code gives text boxes that are whole pixels off the core (issue 231, cause not found), so the oracle stops there with a note unless `MELDFRAME_ORACLE_ANY_PLATFORM=1` (the README of the oracle has the details; a text failure on a Mac cannot be told from that issue); the `oracle` job of a pull request is the check for a contributor on a Mac.
+
 How it works:
 
 1. `oracle-runner` (`crates/core/meldframe-oracle-runner`, kind tool) reads fixture files as JSON, lays the file out with
