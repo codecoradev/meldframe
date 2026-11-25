@@ -1,10 +1,12 @@
-//! HTML import feature module (E4.4, ADR-0024, `docs/import-html.md`). It reads HTML text that an agent sends and
-//! turns it into Nodes; this slice holds the first stage, the tree builder in [`html`].
+//! HTML import feature module (E4.4, ADR-0024, `docs/import-html.md`): it reads HTML text that an agent sends and
+//! turns it into Nodes. This crate is the facade: it names the stages under the paths the callers use and will hold
+//! the mapping to Commands. The stages are crates of their own so that none passes the size ceiling:
 //!
-//! The reader is a tolerant, bounded one over a documented subset of HTML, written for this crate: there is no
-//! parser crate in the tree and no full HTML parsing algorithm. It is a function of the text. It opens nothing,
-//! follows no URL (`src`, `href` and `<link>` are only kept as text), and runs nothing (`<script>` is dropped
-//! unread, event attributes are dropped). Its work is counted so that a test can show it is bounded by the size
-//! of the text. Nothing in it reads a file, a clock or a thread, so it builds for `wasm32-unknown-unknown` (L5).
+//! - [`html`] is `html-import-tree`, the tolerant, bounded tree builder.
+//!
+//! The readers are written for this tree: there is no parser crate in it and no full parsing algorithm. They are
+//! functions of the text. They open nothing, follow no URL (`src`, `href`, `url()`, `@import` and `<link>` are only
+//! kept as text or listed), and run nothing. Their work is counted so that a test can show it is bounded by the size
+//! of the text. Nothing in them reads a file, a clock or a thread, so they build for `wasm32-unknown-unknown` (L5).
 
-pub mod html;
+pub use html_import_tree as html;
