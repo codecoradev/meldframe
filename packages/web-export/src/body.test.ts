@@ -6,7 +6,7 @@ import ExportBody from './ExportBody.svelte';
 import { START } from './ui';
 
 const dialog = (over: Partial<ExportDialog> = {}): ExportDialog => ({
-  frame: 'f1', name: 'Landing Desktop', format: 'tailwind', html: '<p>hi</p>\n<p>there</p>', css: ':root{}', cssFile: 'meldframe.css',
+  frame: 'f1', name: 'Landing Desktop', format: 'tailwind', html: '<p>hi</p>\n<p>there</p>', css: ':root{}', fileStem: 'Landing Desktop', htmlFile: 'Landing Desktop.html', cssFile: 'meldframe.css',
   htmlBytes: 21, cssBytes: 7, countedBytes: 28, limit: 262144, unsupported: [], warnings: [], assets: [], ...over,
 });
 const ok = { ok: true as const, file: 'Landing Desktop.png', width: 1440, height: 900 };
@@ -87,11 +87,10 @@ describe('the HTML tab', () => {
     expect(html({})).not.toContain('data-testid="export-unsupported"');
   });
 
-  it('draws a node name with markup and with characters that reorder text as plain text', () => {
-    const out = html({ dialog: dialog({ unsupported: [{ code: 'c', node: 'n', nodeName: '<img src=x>gnp‮.exe', message: 'm⁦x' }] }) });
+  it('draws a node name with markup as text, and the characters of the report as the app layer gave them', () => {
+    const out = html({ dialog: dialog({ unsupported: [{ code: 'c', node: 'n', nodeName: '<img src=x>gnp.exe', message: 'm x' }] }) });
     expect(out).not.toContain('<img');
     expect(out).toContain('&lt;img src=x>gnp.exe');
-    expect(out).not.toMatch(/[‪-‮⁦-⁩]/);
   });
 });
 

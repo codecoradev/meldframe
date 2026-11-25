@@ -3,10 +3,11 @@
 import type { Rect } from '@meldframe/web-canvas/geometry';
 import { type ExportScale, EXPORT_MAX_PIXELS, EXPORT_SCALES, exportFileName, exportScaleLabel, exportSize, largestFittingScale, planExport } from '@meldframe/web-document/export';
 
-/** The frame an export acts on (`state.export.target`). */
+/** The frame an export acts on (`state.export.target`): `fileStem` is the name of its files, worked out by the app layer. */
 export interface Frame {
   id: string;
   name: string;
+  fileStem: string;
 }
 
 /** The size of an image at a scale. */
@@ -28,7 +29,7 @@ export type PngPlan =
 /** The file and the size of the image of `frame` at `scale`, or why there is none. `box` is what the canvas draws for the frame. */
 export function pngPlan(box: Rect | null, frame: Frame, scale: ExportScale): PngPlan {
   const plan = planExport(box, scale);
-  if (plan.ok) return { ok: true, file: exportFileName(frame.name, frame.id, scale), width: plan.width, height: plan.height };
+  if (plan.ok) return { ok: true, file: exportFileName(frame.fileStem, scale), width: plan.width, height: plan.height };
   if (plan.code !== 'too_large' || !box) return { ok: false, why: 'nothing' };
   const best = largestFittingScale(box);
   return { ok: false, why: 'too_large', asked: { scale, ...exportSize(box, scale) }, fits: best === null ? null : { scale: best, ...exportSize(box, best) } };

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { ExportDialog, ExportFinding } from '@meldframe/protocol';
-import { PREVIEW_LINES, errorText, fileOf, findingRows, plain, previewOf, reviewText, sizeText } from './view';
+import { PREVIEW_LINES, errorText, fileOf, findingRows, previewOf, reviewText, sizeText } from './view';
 
 const dialog = (over: Partial<ExportDialog> = {}): ExportDialog => ({
-  frame: 'f1', name: 'Landing Desktop', format: 'tailwind', html: '<p>hi</p>', css: ':root{}', cssFile: 'site.css', htmlBytes: 9, cssBytes: 7, countedBytes: 16, limit: 262144,
+  frame: 'f1', name: 'Landing Desktop', format: 'tailwind', html: '<p>hi</p>', css: ':root{}', fileStem: 'Landing Desktop', htmlFile: 'Landing Desktop.html', cssFile: 'site.css', htmlBytes: 9, cssBytes: 7, countedBytes: 16, limit: 262144,
   unsupported: [], warnings: [], assets: [], ...over,
 });
 
@@ -27,8 +27,9 @@ describe('what a file of the dialog is', () => {
     // The name comes from the app layer, which knows what the document links: nothing here repeats it.
     expect(fileOf(dialog(), 'css')).toEqual({ name: 'site.css', text: ':root{}', mime: 'text/css', bytes: 7 });
   });
-  it('cleans the name as a PNG name is cleaned', () => {
-    expect(fileOf(dialog({ name: 'a/b' }), 'html').name).toBe('a-b.html');
+  it('saves the HTML under the file name the app layer worked out, and cleans nothing', () => {
+    expect(fileOf(dialog({ name: 'a/b', htmlFile: 'a-b.html' }), 'html').name).toBe('a-b.html');
+    expect(fileOf(dialog({ htmlFile: 'x/y.html' }), 'html').name).toBe('x/y.html');
   });
 });
 
@@ -87,11 +88,10 @@ describe('sizes and words', () => {
       { key: 'unknown_mode::1', node: 'This file', code: 'unknown_mode', message: 'a mode that does not exist' },
     ]);
   });
-  it('keeps text from the file to what a person can read: no control characters, no characters that reorder text', () => {
-    expect(plain('a\u202eb\u2066c\u200fd\u0007e\u200bf')).toBe('abcdef');
-    expect(plain('<b>Hero</b> Title')).toBe('<b>Hero</b> Title'); // markup is not removed here: the view draws it as text
-    expect(findingRows([{ code: 'x\u202e', node: 'n', nodeName: 'a\u202eb', message: 'm\u2067' }])[0]).toMatchObject({ node: 'ab', code: 'x', message: 'm' });
-    expect(findingRows([{ code: 'x', node: 'n', nodeName: '\u202e', message: 'm' }])[0]!.node).toBe('n');
+  it('draws the texts of the report as the app layer gave them, and cleans nothing', () => {
+    // The app layer made them safe to show (meldframe-app-export-tests); a front end that cleaned again would hide a gap there.
+    expect(findingRows([{ code: 'x', node: 'n', nodeName: 'a b', message: 'm' }])[0]).toMatchObject({ node: 'a b', code: 'x', message: 'm' });
+    expect(findingRows([{ code: 'x', node: 'n', nodeName: '<b>Hero</b>', message: 'm' }])[0]!.node).toBe('<b>Hero</b>'); // markup is drawn as text by the view
   });
   it('falls back to the node id when the name is empty', () => {
     expect(findingRows([{ code: 'x', node: 'n9', nodeName: '', message: 'm' }])[0]!.node).toBe('n9');

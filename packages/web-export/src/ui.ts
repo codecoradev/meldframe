@@ -26,8 +26,8 @@ export function viewFor(prev: { frame: string | null; view: View }, frame: strin
 export const afterFormat = (v: View): View => ({ ...v, shown: 'html', said: null });
 
 /** The frame the dialog acts on, for its PNG: its own, not whatever is selected now. */
-export function dialogFrame(d: { frame: string; name: string } | null): Frame | null {
-  return d ? { id: d.frame, name: d.name } : null;
+export function dialogFrame(d: { frame: string; name: string; fileStem: string } | null): Frame | null {
+  return d ? { id: d.frame, name: d.name, fileStem: d.fileStem } : null;
 }
 
 /** Review: the dialog closes and the right panel opens (the page then selects its Activity tab). */

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { pngPlan, pngText, savePng, type PngDeps } from './png';
 
-const frame = { id: 'f1', name: 'Landing Desktop' };
+const frame = { id: 'f1', name: 'Landing Desktop', fileStem: 'Landing Desktop' };
 const box = { x: 0, y: 0, w: 1440, h: 2200 };
 
 describe('the plan of a PNG', () => {
@@ -10,7 +10,7 @@ describe('the plan of a PNG', () => {
     expect(pngPlan(box, frame, 2)).toEqual({ ok: true, file: 'Landing Desktop@2x.png', width: 2880, height: 4400 });
     // 6000 x 4000 is over 4096 x 4096 in area; 3000 x 2000 at 1x is the largest scale that fits
     expect(pngPlan({ x: 0, y: 0, w: 3000, h: 2000 }, frame, 2)).toEqual({ ok: false, why: 'too_large', asked: { scale: 2, width: 6000, height: 4000 }, fits: { scale: 1, width: 3000, height: 2000 } });
-    expect(pngPlan({ x: 0, y: 0, w: 390, h: 844 }, { id: 'm', name: 'Mobile' }, 2)).toEqual({ ok: true, file: 'Mobile@2x.png', width: 780, height: 1688 });
+    expect(pngPlan({ x: 0, y: 0, w: 390, h: 844 }, { id: 'm', name: 'Mobile', fileStem: 'Mobile' }, 2)).toEqual({ ok: true, file: 'Mobile@2x.png', width: 780, height: 1688 });
   });
   it('names the file and sizes of the new scales: @0.5x, @3x, @4x', () => {
     const w = { x: 0, y: 0, w: 600, h: 400 };
@@ -31,13 +31,13 @@ describe('the plan of a PNG', () => {
   });
   it('says it in words: the file and its size, or why not', () => {
     expect(pngText(pngPlan(box, frame, 1))).toBe('Landing Desktop.png · 1440 × 2200 px');
-    expect(pngText(pngPlan({ x: 0, y: 0, w: 1440, h: 900 }, { id: 'd', name: 'Desk' }, 4))).toBe(
+    expect(pngText(pngPlan({ x: 0, y: 0, w: 1440, h: 900 }, { id: 'd', name: 'Desk', fileStem: 'Desk' }, 4))).toBe(
       'At 4x the image would be 5760 × 3600 px, more than the limit of 4096 × 4096 px in area. The largest scale that fits is 3x (4320 × 2700 px).',
     );
     expect(pngText(pngPlan({ x: 0, y: 0, w: 9000, h: 9000 }, frame, 1))).toBe(
       'At 1x the image would be 9000 × 9000 px, more than the limit of 4096 × 4096 px in area. No scale from 0.5x to 4x fits this frame.',
     );
-    expect(pngText(pngPlan({ x: 0, y: 0, w: 600, h: 400 }, { id: 'h', name: 'Half' }, 0.5))).toBe('Half@0.5x.png · 300 × 200 px');
+    expect(pngText(pngPlan({ x: 0, y: 0, w: 600, h: 400 }, { id: 'h', name: 'Half', fileStem: 'Half' }, 0.5))).toBe('Half@0.5x.png · 300 × 200 px');
     expect(pngText(pngPlan(null, frame, 1))).toBe('There is nothing to export.');
   });
 });
@@ -60,14 +60,14 @@ describe('saving a PNG', () => {
   it('draws the frame at the scale and saves it under its file name', async () => {
     const draw = vi.fn(async () => new Blob(['png']));
     const d = deps({ box: () => ({ x: 0, y: 0, w: 390, h: 844 }), draw });
-    await savePng(d, { id: 'm', name: 'Mobile' }, 2);
+    await savePng(d, { id: 'm', name: 'Mobile', fileStem: 'Mobile' }, 2);
     expect(draw).toHaveBeenCalledWith({ x: 0, y: 0, w: 390, h: 844 }, 2);
     expect(d.saved.map(([, n]) => n)).toEqual(['Mobile@2x.png']);
     expect(d.said).toEqual([]);
   });
   it('saves a half-size image under @0.5x', async () => {
     const d = deps({ box: () => ({ x: 0, y: 0, w: 390, h: 844 }) });
-    await savePng(d, { id: 'm', name: 'Mobile' }, 0.5);
+    await savePng(d, { id: 'm', name: 'Mobile', fileStem: 'Mobile' }, 0.5);
     expect(d.saved.map(([, n]) => n)).toEqual(['Mobile@0.5x.png']);
   });
   it('says why when there is nothing to draw or the image is too large, and saves nothing', async () => {

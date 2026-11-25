@@ -2,46 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { EXPORT_MAX_PIXELS, EXPORT_SCALES, exportFileName, exportScaleLabel, exportSize, largestFittingScale, planExport } from './export';
 
 describe('exportFileName', () => {
-  it('uses the layer name, with `@<scale>x` for every scale but 1x', () => {
-    expect(exportFileName('Hero', 'n1', 1)).toBe('Hero.png');
-    expect(exportFileName('Hero', 'n1', 2)).toBe('Hero@2x.png');
-    expect(exportFileName('Hero', 'n1', 3)).toBe('Hero@3x.png');
-    expect(exportFileName('Hero', 'n1', 4)).toBe('Hero@4x.png');
+  it('adds `@<scale>x` to the stem the app layer gave, for every scale but 1x', () => {
+    expect(exportFileName('Hero', 1)).toBe('Hero.png');
+    expect(exportFileName('Hero', 2)).toBe('Hero@2x.png');
+    expect(exportFileName('Hero', 3)).toBe('Hero@3x.png');
+    expect(exportFileName('Hero', 4)).toBe('Hero@4x.png');
     // Below 1x the suffix is there too, so a half-size file is never mistaken for the 1x file.
-    expect(exportFileName('Hero', 'n1', 0.5)).toBe('Hero@0.5x.png');
+    expect(exportFileName('Hero', 0.5)).toBe('Hero@0.5x.png');
   });
   it('has one suffix rule for every scale the editor offers', () => {
-    for (const s of EXPORT_SCALES) expect(exportFileName('A', 'n1', s)).toBe(s === 1 ? 'A.png' : `A@${s}x.png`);
+    for (const s of EXPORT_SCALES) expect(exportFileName('A', s)).toBe(s === 1 ? 'A.png' : `A@${s}x.png`);
   });
   it('takes the extension of the HTML of a frame', () => {
-    expect(exportFileName('Landing Desktop', 'n1', 1, 'html')).toBe('Landing Desktop.html');
-    expect(exportFileName('a/b', 'n1', 1, 'html')).toBe('a-b.html');
+    expect(exportFileName('Landing Desktop', 1, 'html')).toBe('Landing Desktop.html');
   });
-  it('drops the characters that turn a name around: an agent-chosen name cannot disguise the extension', () => {
-    expect(exportFileName('photo\u202Egnp.exe', 'n1', 1, 'html')).toBe('photognp.exe.html');
-    for (const c of ['\u200e', '\u200f', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e', '\u2066', '\u2067', '\u2068', '\u2069']) {
-      expect(exportFileName(`a${c}b`, 'n1', 1)).toBe('ab.png');
-    }
-    expect(exportFileName('\u202e', 'frame-7', 1)).toBe('frame-7.png');
-  });
-  it('replaces what a file system refuses and keeps no leading dot', () => {
-    expect(exportFileName('a/b\\c:d*e?f"g<h>i|j', 'n1', 1)).toBe('a-b-c-d-e-f-g-h-i-j.png');
-    expect(exportFileName('..hidden', 'n1', 1)).toBe('hidden.png');
-    expect(exportFileName('tab\there', 'n1', 1)).toBe('tab-here.png');
-  });
-  it('falls back to the id, then to a fixed name', () => {
-    expect(exportFileName('   ', 'frame-7', 1)).toBe('frame-7.png');
-    expect(exportFileName('', '', 2)).toBe('export@2x.png');
-  });
-  it('keeps clear of the names Windows reserves', () => {
-    expect(exportFileName('CON', 'n1', 1)).toBe('CON-.png');
-    expect(exportFileName('nul', 'n1', 2)).toBe('nul-@2x.png');
-    expect(exportFileName('Console', 'n1', 1)).toBe('Console.png');
-    expect(exportFileName('NUL.tar', 'n1', 1)).toBe('NUL-.tar.png');
-    expect(exportFileName('con.backup.v2', 'n1', 2)).toBe('con-.backup.v2@2x.png');
-  });
-  it('cuts a long name to 80 characters', () => {
-    expect(exportFileName('x'.repeat(200), 'n1', 1)).toBe(`${'x'.repeat(80)}.png`);
+  it('cleans nothing: the stem is the app layer\'s (its rules are tested in meldframe-app-export-tests, file_names.rs)', () => {
+    expect(exportFileName('a/b', 1)).toBe('a/b.png');
   });
 });
 

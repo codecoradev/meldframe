@@ -1,7 +1,6 @@
-// The words and the display rules of the Export dialog. Pure. The document, the report and the limit are the app layer's
-// (`state.export.dialog`); this only words them and decides what a file is called.
+// The words and the display rules of the Export dialog. Pure. The document, the report, the limit and the names of the
+// files are the app layer's (`state.export.dialog`); this only words them. Nothing here cleans a text.
 import type { ExportDialog, ExportFinding } from '@meldframe/protocol';
-import { exportFileName } from '@meldframe/web-document/export';
 
 /** How many lines of the document the preview draws; copy and download take all of it. */
 export const PREVIEW_LINES = 400;
@@ -19,7 +18,7 @@ export function previewOf(text: string, max = PREVIEW_LINES): { lines: string[];
 export function fileOf(d: ExportDialog, shown: 'html' | 'css'): { name: string; text: string; mime: string; bytes: number | null } {
   return shown === 'css'
     ? { name: d.cssFile, text: d.css, mime: 'text/css', bytes: d.cssBytes }
-    : { name: exportFileName(d.name, d.frame, 1, 'html'), text: d.html, mime: 'text/html', bytes: d.htmlBytes };
+    : { name: d.htmlFile, text: d.html, mime: 'text/html', bytes: d.htmlBytes };
 }
 
 /** A size in words; `null` (the app layer does not know it: there is no file) is said, never drawn as 0 bytes. */
@@ -47,9 +46,6 @@ export function reviewText(unreviewed: number | null): string | null {
   return `${unreviewed} ${unreviewed === 1 ? 'batch is' : 'batches are'} not reviewed yet. Export anyway or review first.`;
 }
 
-/** Text from the file for the screen: no control characters and no format characters (bidi overrides and isolates, zero-width marks). */
-export const plain = (s: string): string => s.replace(/[\p{Cc}\p{Cf}]/gu, '');
-
 export interface FindingRow {
   key: string;
   node: string;
@@ -57,7 +53,7 @@ export interface FindingRow {
   message: string;
 }
 
-/** The rows of the report: the node (its name, else its id, else "This file"), the stable code and the explanation. */
+/** The rows of the report: the node (its name, else its id, else "This file"), the stable code and the explanation. The app layer made every text safe to show. */
 export function findingRows(list: readonly ExportFinding[]): FindingRow[] {
-  return list.map((f, i) => ({ key: `${f.code}:${f.node ?? ''}:${i}`, node: plain(f.nodeName ?? '') || plain(f.node ?? '') || 'This file', code: plain(f.code), message: plain(f.message) }));
+  return list.map((f, i) => ({ key: `${f.code}:${f.node ?? ''}:${i}`, node: f.nodeName || f.node || 'This file', code: f.code, message: f.message }));
 }

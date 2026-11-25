@@ -2,7 +2,7 @@
   What is inside the Export dialog (D9): the tabs, the HTML tab (style, file, the preview with line numbers, the report,
   Copy and Download) and the PNG tab. It is a function of what it is given: the dialog of the app layer, the view
   (tab, file shown, what the last Copy said) that the shell of the dialog keeps, and the PNG plan of the dialog's frame.
-  Every text from the file (names, the report) is drawn as plain text, without the characters that reorder it.
+  Every text from the file (names, the report) was made safe by the app layer and is drawn as text.
 -->
 <script lang="ts">
   import type { Action, ExportDialog as Model } from '@meldframe/protocol';
@@ -13,7 +13,7 @@
   import { type PngPlan, SCALE_OPTIONS, pngText, scaleOf } from './png';
   import { copyText, saveText } from './save';
   import { type View, afterFormat } from './ui';
-  import { errorText, fileOf, findingRows, plain, previewOf, reviewText, sizeText } from './view';
+  import { errorText, fileOf, findingRows, previewOf, reviewText, sizeText } from './view';
 
   interface Props {
     dialog: Model;
@@ -74,7 +74,7 @@
     <div class="flex items-center gap-3">
       <Segmented label="Style" options={[{ value: 'tailwind', label: 'Tailwind' }, { value: 'css', label: 'Plain CSS' }]} value={dialog.format} onChange={(v) => { onView(afterFormat(view)); dispatch({ type: 'setExportFormat', format: v === 'css' ? 'css' : 'tailwind' }); }} data-testid="export-format" />
       {#if dialog.format === 'tailwind' && !problem}
-        <Segmented label="File" options={[{ value: 'html', label: 'HTML' }, { value: 'css', label: plain(dialog.cssFile) }]} value={view.shown} onChange={(v) => onView({ ...view, shown: v === 'css' ? 'css' : 'html', said: null })} data-testid="export-file" />
+        <Segmented label="File" options={[{ value: 'html', label: 'HTML' }, { value: 'css', label: dialog.cssFile }]} value={view.shown} onChange={(v) => onView({ ...view, shown: v === 'css' ? 'css' : 'html', said: null })} data-testid="export-file" />
       {/if}
       {#if !problem}<span class="ml-auto font-mono text-small text-text-muted">{sizeText(file.bytes)}</span>{/if}
     </div>
@@ -83,7 +83,7 @@
     {:else}
       <!-- A scrollable region must be reachable by keyboard. -->
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-      <div class="h-72 shrink-0 overflow-auto rounded-md border border-border bg-sidebar py-2 font-mono text-small leading-relaxed" data-testid="export-code" tabindex="0" role="region" aria-label="{plain(file.name)} preview">
+      <div class="h-72 shrink-0 overflow-auto rounded-md border border-border bg-sidebar py-2 font-mono text-small leading-relaxed" data-testid="export-code" tabindex="0" role="region" aria-label="{file.name} preview">
         {#each preview.lines as line, i (i)}
           <div class="flex w-max min-w-full whitespace-pre"><span aria-hidden="true" class="sticky left-0 w-12 shrink-0 bg-sidebar pr-3 text-right text-text-muted select-none">{i + 1}</span><span class="pr-4">{line}</span></div>
         {/each}
@@ -91,7 +91,7 @@
       {#if preview.total > preview.lines.length}
         <p class="m-0 text-caption text-text-muted" data-testid="export-cut">Showing the first {preview.lines.length} of {preview.total} lines. Copy and Download take all of it.</p>
       {/if}
-      <p class="m-0 text-caption text-text-muted">The HTML uses the Inter font file inter.woff2 beside it{dialog.format === 'tailwind' ? `, and links ${plain(dialog.cssFile)}, the input of the Tailwind v4 compiler` : ''}. Text sizes are measured in this browser, with the font the canvas draws, so they are the sizes the canvas lays text out with. The exported page is laid out by the browser that opens it: a text with a tab, a link or CJK characters can break differently there (Warnings names the ones it detects), and any text can if the Inter file is missing.</p>
+      <p class="m-0 text-caption text-text-muted">The HTML uses the Inter font file inter.woff2 beside it{dialog.format === 'tailwind' ? `, and links ${dialog.cssFile}, the input of the Tailwind v4 compiler` : ''}. Text sizes are measured in this browser, with the font the canvas draws, so they are the sizes the canvas lays text out with. The exported page is laid out by the browser that opens it: a text with a tab, a link or CJK characters can break differently there (Warnings names the ones it detects), and any text can if the Inter file is missing.</p>
     {/if}
     {@render report('Unsupported properties', findingRows(dialog.unsupported), 'Left out or approximated. Your file is unchanged.', 'export-unsupported')}
     {@render report('Warnings', findingRows(dialog.warnings), 'Your file is unchanged.', 'export-warnings')}
