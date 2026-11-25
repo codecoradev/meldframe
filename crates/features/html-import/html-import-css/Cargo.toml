@@ -15,3 +15,4 @@ workspace = true
 
 [dependencies]
 html-import-tree = { path = "../html-import-tree" }
+meldframe-css = { path = "../../../core/meldframe-css" }
