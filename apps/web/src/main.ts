@@ -11,6 +11,7 @@ import { createLayoutSwitch, layoutChoice } from '@meldframe/web-link/layoutswit
 import { loadFile, reloadOnDivergence } from '@meldframe/web-document/file';
 import { applyTheme, loadTheme } from '@meldframe/web-tokens/theme';
 import { mountPilot, pilotPage } from './react-pilot/pilot';
+import { mountReactErrorPage, reactFeedback } from './react-pilot/feedback';
 
 applyTheme(loadTheme());
 const root = document.getElementById('app')!;
@@ -66,5 +67,8 @@ start().catch((e: unknown) => {
   shell?.stop(); // a page that failed half way keeps no socket, timer or canvas
   if (editor) void unmount(editor);
   root.replaceChildren();
-  mount(ErrorPage, { target: root, props: { page: pageFor(e, { dev: import.meta.env.DEV }), onAction: () => location.reload() } });
+  const page = pageFor(e, { dev: import.meta.env.DEV });
+  const again = () => location.reload();
+  if (reactFeedback(location.search)) void mountReactErrorPage(root, page, again); // /?react=feedback (E7.3, S3)
+  else mount(ErrorPage, { target: root, props: { page, onAction: again } });
 });
