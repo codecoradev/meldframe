@@ -1,7 +1,7 @@
 //! Helpers of the paint tests: read an element's paint from HTML and CSS, and look at the report.
 #![allow(dead_code)]
 
-use html_import::css::{EntryKind, Limits, Report, Style, style_tree};
+use html_import::css::{EntryKind, Limits, Prop, Props, Report, Source, Style, style_tree};
 use html_import::html::parse;
 use html_import::paint::{self, Ctx, Paint};
 use meldframe_protocol::{Bind, Gradient, GradientKind, GradientStop};
@@ -97,4 +97,44 @@ pub fn linear(angle: f64, list: &[(f64, &str)]) -> Gradient {
 
 pub fn near(a: f64, b: f64) -> bool {
     (a - b).abs() < 1e-9
+}
+
+/// A style with these declared properties, as they would be after the cascade, with no reader in between: the value
+/// is whatever the text is, of any length and with any characters.
+pub fn style_of(decls: &[(&str, &str)]) -> Style {
+    let mut s = Style::root();
+    for (name, value) in decls {
+        s.props.insert(
+            (*name).into(),
+            Prop {
+                value: (*value).into(),
+                source: Source::Author,
+            },
+        );
+    }
+    s
+}
+
+/// The same with the `::after` box too.
+pub fn style_with_after(decls: &[(&str, &str)], after: &[(&str, &str)]) -> Style {
+    let mut s = style_of(decls);
+    let mut p = Props::new();
+    for (name, value) in after {
+        p.insert(
+            (*name).into(),
+            Prop {
+                value: (*value).into(),
+                source: Source::Author,
+            },
+        );
+    }
+    s.after = Some(p);
+    s
+}
+
+/// Read the paint of `s` with a fresh report.
+pub fn paint_of(s: &Style, ctx: &Ctx) -> (Paint, Report) {
+    let mut report = Report::default();
+    let p = paint::read(s, ctx, 0, &mut report);
+    (p, report)
 }
