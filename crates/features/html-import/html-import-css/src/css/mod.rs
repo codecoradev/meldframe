@@ -9,7 +9,8 @@
 //!   includes a string that ends at its line, as CSS says (the declaration is left out). A rule inside a block is
 //!   skipped (`nested_rule_skipped`). `url()` in a value is kept as text and never followed.
 //! - **Cut, and listed** with [`EntryKind::Cut`]: more than [`Limits::max_decls`] declarations
-//!   (`declaration_limit`), a value over [`Limits::max_value_bytes`] (`value_too_long`). Bytes are counted without
+//!   (`declaration_limit`), a value over [`Limits::max_value_bytes`] (`value_too_long`; the name, the colon, the value
+//!   and `!important` together are cut at the limit plus 256 bytes). Bytes are counted without
 //!   the white space before a piece, and a run of white space and comments inside one is one byte: only text is
 //!   too long.
 //! - **Recovered**: text that ends inside a string, a comment, a bracket or a block (`unterminated`).
@@ -37,7 +38,9 @@ pub struct Limits {
     /// The most declarations kept in one read (a style sheet, or one `style` attribute). Later ones are left out.
     /// 50,000.
     pub max_decls: usize,
-    /// The most bytes of a value. A declaration with a longer one is left out. 1,000.
+    /// The most bytes of a value. A declaration with a longer one is left out. 1,000. The reader keeps a declaration
+    /// only up to this plus 256 bytes in all (the name, the colon, the value and `!important`), so a name of 256 bytes
+    /// or more makes a value of the limit too long: the 256 is the room for the name.
     pub max_value_bytes: usize,
     /// The most bytes of the selector text of a rule; a rule with more is left out. 4,096.
     pub max_selector_bytes: usize,
@@ -119,7 +122,7 @@ impl Reader<'_> {
             match p.end {
                 End::Open => {
                     c.consume();
-                    let name = p.text.trim();
+                    let name = p.text.trim_ascii();
                     self.refused(
                         "nested_rule_skipped",
                         name,
@@ -133,10 +136,10 @@ impl Reader<'_> {
                     // A `}` with nothing open: what is before it is not a declaration.
                     c.consume();
                     let t = p.text.replace('\0', " ");
-                    if !t.trim().is_empty() {
+                    if !t.trim_ascii().is_empty() {
                         self.refused(
                             "invalid_declaration",
-                            t.trim(),
+                            t.trim_ascii(),
                             "text before a stray }",
                             p.at,
                         );
@@ -169,7 +172,7 @@ impl Reader<'_> {
     fn declaration(&mut self, p: &Piece, out: &mut Vec<Decl>) {
         // A comment is a space in a declaration.
         let text = p.text.replace('\0', " ");
-        let t = text.trim();
+        let t = text.trim_ascii();
         if t.is_empty() {
             return;
         }

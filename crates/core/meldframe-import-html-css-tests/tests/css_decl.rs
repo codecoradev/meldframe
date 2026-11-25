@@ -155,3 +155,49 @@ fn the_byte_of_an_entry_is_the_one_given_plus_the_byte_in_the_value() {
     // The byte is where the piece starts, past the white space before it.
     assert_eq!(r.entries[0].at, 100 + 5);
 }
+
+#[test]
+fn only_ascii_white_space_is_trimmed_around_a_declaration_a_value_and_a_name() {
+    // A no-break space is a character of the value, not space.
+    assert_eq!(decls("a:\u{a0}1\u{a0}").0, ["a:\u{a0}1\u{a0}"]);
+    assert_eq!(decls("a\u{a0}:1").1.entries.len(), 1);
+    let (d, r) = decls("\u{a0}x:1;y:2");
+    assert_eq!(d, ["y:2"]);
+    assert_eq!(names(&r, "invalid_declaration"), ["\u{a0}x:1"]);
+    assert_eq!(decls("\t\n\u{c}\r a:1 \r\n").0, ["a:1"]);
+}
+
+#[test]
+fn the_piece_cap_counts_the_name_the_colon_and_the_value_together_plus_256() {
+    // The cap is the value limit plus 256 for the whole piece: a name of 255 and a value of 1,000 fit exactly (255 + 1
+    // + 1,000 = 1,256), a name of 256 does not, and the value is no longer the limit then.
+    let at = |n: usize, v: usize| decls(&format!("{}:{};b:2", "n".repeat(n), "v".repeat(v)));
+    let (d, r) = at(255, 1_000);
+    assert_eq!((d.len(), r.entries.len()), (2, 0));
+    let (d, r) = at(256, 1_000);
+    assert_eq!(d, ["b:2"]);
+    assert_eq!(names(&r, "value_too_long").len(), 1);
+    // A custom property name counts the same, and a short value does not make room for a long name.
+    let (d, _) = decls(&format!("--{}:{}", "n".repeat(253), "v".repeat(1_000)));
+    assert_eq!(d.len(), 1);
+    let (d, _) = decls(&format!("--{}:{}", "n".repeat(254), "v".repeat(1_000)));
+    assert_eq!(d.len(), 0);
+    // `!important` is part of the piece too.
+    let (d, _) = decls(&format!("a:{} !important", "v".repeat(1_000)));
+    assert_eq!(d, [format!("a:{}!", "v".repeat(1_000))]);
+}
+
+#[test]
+fn a_backslash_before_any_line_end_joins_the_lines_of_a_string() {
+    for end in ["\n", "\r", "\r\n", "\u{c}"] {
+        let (d, r) = decls(&format!("a:\"x\\{end}y\";b:2"));
+        assert_eq!(d, [format!("a:\"x\\{end}y\""), "b:2".to_owned()], "{end:?}");
+        assert!(r.entries.is_empty(), "{end:?}");
+    }
+    // The line end alone ends the string, and with it the declaration.
+    for end in ["\r\n", "\u{c}"] {
+        let (d, r) = decls(&format!("a:\"x{end};b:2"));
+        assert_eq!(d, ["b:2"], "{end:?}");
+        assert_eq!(count(&r, "invalid_declaration"), 1);
+    }
+}
