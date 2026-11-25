@@ -1785,6 +1785,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-import-html-style-tests"
+version = "0.0.0"
+dependencies = [
+ "html-import",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-import-html-tests"
 version = "0.0.0"
 dependencies = [

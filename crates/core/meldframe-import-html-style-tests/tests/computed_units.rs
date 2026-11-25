@@ -135,6 +135,26 @@ fn rem_is_the_font_size_of_the_root_and_sixteen_for_the_root_itself() {
 #[test]
 fn every_inherited_property_passes_to_a_child_that_declares_nothing() {
     use html_import::css::defaults::INHERITED;
+    // The list itself is pinned, so that dropping a name from it does not drop its check.
+    assert_eq!(
+        INHERITED,
+        [
+            "color",
+            "cursor",
+            "font-family",
+            "font-size",
+            "font-style",
+            "font-weight",
+            "letter-spacing",
+            "line-height",
+            "text-align",
+            "text-indent",
+            "text-transform",
+            "visibility",
+            "white-space",
+            "word-break"
+        ]
+    );
     let sample = |p: &str| match p {
         "color" => "#123456",
         "cursor" => "pointer",

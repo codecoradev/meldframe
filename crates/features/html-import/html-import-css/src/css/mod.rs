@@ -15,7 +15,7 @@
 //!   rule nested in a rule (`nested_rule_skipped`); a piece that is not a declaration (`invalid_declaration`,
 //!   `empty_value`), which includes a string that ends at its line, as CSS says (the declaration, or the whole rule
 //!   when it is in the selector, is left out); text that is not a rule or an at-rule (`invalid_statement`), also
-//!   when it comes before a `}` with nothing open. `url()` in a value is kept as text and never followed. A close
+//!   when it comes before a `}`, also the one that closes a `@layer` block. `url()` in a value is kept as text and never followed. A close
 //!   brace with nothing open is counted (`stray_close_brace`).
 //! - **A selector list is read selector by selector.** A selector that is refused or invalid is left out alone and
 //!   the others of its list stay. CSS drops the whole rule for an invalid selector, so this is more tolerant, on
@@ -24,7 +24,8 @@
 //! - **Cut, and listed** with [`EntryKind::Cut`]: more than [`Limits::max_rules`] rules (the read stops there,
 //!   `rule_limit`), more than [`Limits::max_selectors`] selectors (`selector_limit`, once), more than
 //!   [`Limits::max_decls`] declarations (`declaration_limit`), a value over [`Limits::max_value_bytes`]
-//!   (`value_too_long`), a selector list over [`Limits::max_selector_bytes`] (`selector_too_long`), layers nested
+//!   (`value_too_long`; the name, the colon, the value and `!important` together are cut at the limit plus 256
+//!   bytes), a selector list over [`Limits::max_selector_bytes`] (`selector_too_long`), layers nested
 //!   deeper than [`Limits::max_depth`] (`depth_cut`). Bytes are counted without the white space before a piece, and
 //!   a long run of white space inside one is one space: only text is too long.
 //! - **Recovered**: text that ends inside a string, a comment, a bracket, a block or a `@layer` block, or after
@@ -58,7 +59,9 @@ pub struct Limits {
     /// The most declarations kept in one read (a style sheet, or one `style` attribute). Later ones are left out.
     /// 50,000.
     pub max_decls: usize,
-    /// The most bytes of a value. A declaration with a longer one is left out. 1,000.
+    /// The most bytes of a value. A declaration with a longer one is left out. 1,000. The reader keeps a declaration
+    /// only up to this plus 256 bytes in all (the name, the colon, the value and `!important`), so a name of 256 bytes
+    /// or more makes a value of the limit too long: the 256 is the room for the name.
     pub max_value_bytes: usize,
     /// The most bytes of the selector text of a rule; a rule with more is left out. 4,096.
     pub max_selector_bytes: usize,
@@ -184,7 +187,7 @@ impl Reader<'_> {
                     p.text = t.to_owned();
                 }
             }
-            let blank = p.text.trim().is_empty();
+            let blank = p.text.trim_ascii().is_empty();
             let cut_off = p.end == End::Eof && (!blank || depth > 0);
             if p.unterminated || cut_off {
                 let msg =
@@ -195,11 +198,12 @@ impl Reader<'_> {
                 End::Eof => return,
                 End::Close => {
                     c.consume();
-                    if depth > 0 {
-                        return;
-                    }
+                    // Text before a `}` is not a rule: it is listed, whether the `}` closes a layer or is stray.
                     if !blank {
                         self.statement(&p);
+                    }
+                    if depth > 0 {
+                        return;
                     }
                     self.report.count("stray_close_brace", 1);
                 }
@@ -227,7 +231,7 @@ impl Reader<'_> {
 
     fn statement(&mut self, p: &Piece) {
         let text = p.text.replace('\0', " ");
-        let t = text.trim();
+        let t = text.trim_ascii();
         if t.is_empty() {
             return;
         }
@@ -250,9 +254,9 @@ impl Reader<'_> {
     /// A block opens after the prelude `p`.
     fn open(&mut self, c: &mut Cursor, p: &Piece, depth: usize) {
         let at_text = p.text.replace('\0', " ");
-        let pre = p.text.trim();
+        let pre = p.text.trim_ascii();
         if pre.starts_with('@') {
-            let pre = at_text.trim();
+            let pre = at_text.trim_ascii();
             let name = Self::at_name(pre);
             if name == "layer" && depth < self.l.max_depth {
                 return self.rules(c, depth + 1);
@@ -291,7 +295,7 @@ impl Reader<'_> {
                 }
                 break;
             }
-            if text.trim().is_empty() {
+            if text.trim_ascii().is_empty() {
                 self.refused(
                     "selector_invalid",
                     "",
@@ -305,7 +309,7 @@ impl Reader<'_> {
                     self.selectors += 1;
                     selectors.push(s);
                 }
-                Err(e) => self.refused(e.code, text.trim(), e.why, p.at),
+                Err(e) => self.refused(e.code, text.trim_ascii(), e.why, p.at),
             }
         }
         if selectors.is_empty() {
@@ -352,7 +356,7 @@ impl Reader<'_> {
             match p.end {
                 End::Open => {
                     c.consume();
-                    let name = p.text.trim();
+                    let name = p.text.trim_ascii();
                     self.refused(
                         "nested_rule_skipped",
                         name,
@@ -366,10 +370,10 @@ impl Reader<'_> {
                     // A `}` with nothing open: what is before it is not a declaration.
                     c.consume();
                     let t = p.text.replace('\0', " ");
-                    if !t.trim().is_empty() {
+                    if !t.trim_ascii().is_empty() {
                         self.refused(
                             "invalid_declaration",
-                            t.trim(),
+                            t.trim_ascii(),
                             "text before a stray }",
                             p.at,
                         );
@@ -402,7 +406,7 @@ impl Reader<'_> {
     fn declaration(&mut self, p: &Piece, out: &mut Vec<Decl>) {
         // A comment is a space in a declaration.
         let text = p.text.replace('\0', " ");
-        let t = text.trim();
+        let t = text.trim_ascii();
         if t.is_empty() {
             return;
         }
