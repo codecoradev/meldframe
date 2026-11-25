@@ -216,7 +216,7 @@ Notes on reading values (the CSS stage; they decide results, so they are written
 |---|---|---|---|
 | `background-color` | `fill` | **supported** | Contract 4.1 (`fill` colour). |
 | No background, `transparent` | `fill: none` | **supported** | Contract 4.1 (`fill: none`, probed in f22); the node default would paint `#3f3f46`. |
-| `linear-gradient()` with 2 to 8 stops, angle in `deg` or `to <side>`, stop positions in `%` (else evenly spaced) | `gradient` linear | **supported** | Contract 4.3 (angle probed at 0, 45, 90 and 180 only). Positions must not go back (`E_INVALID_GRADIENT`). |
+| `linear-gradient()` with 2 to 8 stops, angle in `deg` or `to <side>`, stop positions in `%` (else evenly spaced) | `gradient` linear | **supported** | Contract 4.3 (angle probed at 0, 45, 90 and 180 only). A position that goes back is raised to the largest one before it, as CSS does, and listed, so `E_INVALID_GRADIENT` is never written. A corner (`to top right`) is an angle only when the box has a size in pixels. |
 | `radial-gradient(circle farthest-corner, ...)` | `gradient` radial | **supported** | The form the export writes (`gradient_css`). |
 | `radial-gradient` with `ellipse`, a size keyword or `at <position>`; `conic-gradient`; `repeating-*`; stops in px; colour hints | not carried | **refused** | No model field for them. The `fill` remains. |
 | More than one gradient, or more than one image, or more than 8 stops | the first gradient, the first image | **approximated** | The model holds one gradient and one image, over `fill` (contract 4.3: multiple fills planned). |
@@ -244,7 +244,7 @@ For a File the export covers (contract section 4), `import_html` of its HTML giv
 - a Frame with no children and no layout comes back as a `rect` when it has a px size and no padding (the export writes `div` for both; see the row of 3.2). An empty Frame with layout is written with `display: flex` and comes back as a Frame;
 - a binding to a Variable comes back as the literal (row in 3.3);
 - an `image` whose asset is not in the workspace keeps its id and shows `asset_not_found`, as before.
-- the radius of a border on a node whose radius is bound: the export writes `calc(min(var(--r) * 1px, Wpx, Hpx) + Npx)` on the `::after` box, which the CSS stage does not read (only `calc(<number> * <length>)`), so that border comes back with no radius. A known loss, to be read by the paint slice (row 5 of section 6); the radius of the node itself is read, as `calc(var(--r) * 1px)`.
+- the radius of a border on a node whose radius is bound: the export writes `calc(min(var(--r) * 1px, Wpx, Hpx) + Npx)` on the `::after` box, which the CSS stage does not read (only `calc(<number> * <length>)`). The paint stage (`html_import::paint`, slice 5) reads it: the radius of the node itself comes from its own `border-radius` (`calc(var(--r) * 1px)`), and the radius of the `::after` box, less how far the box grows, is checked against it, or is the radius when the node says none. With the size of the box not authored in pixels, a smaller radius on the box is accepted, because the clamp to half the box cannot be seen.
 
 ### 3.8 Counts
 
