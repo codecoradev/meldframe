@@ -84,7 +84,7 @@ node oracle.mjs --seeds 500                     # what the nightly runs
 node oracle.mjs --seeds 50 --geometry-only      # skip the paint and ink oracles (the slow part is the browser start)
 node oracle.mjs f13-overflow fz-007 --seeds 10  # only these files (geometry only; no import checks)
 npm test                                        # the gate on made-up results, the platform guard and the screenshot retry on a fake page (no browser)
-npm run sensitivity                             # the gate fails on a wrong export (mutations in geometry and paint are caught; a mutation whose search string is not in an export counts as missed)
+npm run sensitivity                             # the gate fails on a wrong export and on a wrong import (mutations in geometry and paint are caught; a mutation whose search string is not in the output counts as missed)
 ```
 
 The gate also fails when the run checks too little: fewer than 22 fixtures, a paint fixture (`PAINT_FIXTURES` in `gate.mjs`) with no probe in either form or no comparison of its two forms, fewer fuzz files than seeds, fewer than 30% of the

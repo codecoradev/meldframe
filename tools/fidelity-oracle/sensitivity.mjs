@@ -4,8 +4,10 @@
 // height that is a pixel off.
 import { serve, launch, openMeasurePage } from './lib.mjs';
 import { geometry } from './geometry.mjs';
+import { pagesOracle } from './import.mjs';
 import { paint } from './probes.mjs';
 import { evaluate } from './gate.mjs';
+import { evaluateImport } from './gate-import.mjs';
 import { stopUnlessGatePlatform } from './platform.mjs';
 
 export const MUTATIONS = {
@@ -45,6 +47,20 @@ export const PAINT_MUTATIONS = {
   'a hard shadow moves 10 px': (form, e) => both(e, (t) => t.replace(/20px[ _]0px[ _]0px[ _]0px[ _]#ff0000ff/g, (m) => m.replace('20px', '30px'))),
 };
 
+/** Mistakes of the importer the gate must catch (import.mjs): `mutate(answer)` changes what the importer returned for a page, before the page's
+ *  boxes and pixels are compared with the browser's. Geometry: boxes that are a fraction of a pixel off. Paint: a radius, a border colour, a
+ *  shadow and a gradient stop that the import got wrong (the pixels of the page against the export of its import). The `touched` lists say
+ *  which page the mistake is made on, so that a mutation whose search string is not in the page is not counted as caught. */
+export const IMPORT_MUTATIONS = {
+  'the import puts every box 0.2 px to the right': { page: 'h01-row', mutate: (a) => ({ ...a, rects: Object.fromEntries(Object.entries(a.rects).map(([id, r], i) => [id, i ? { ...r, x: r.x + 0.2 } : r])) }) },
+  'the import makes every box 1 px narrower': { page: 'h03-spacing', mutate: (a) => ({ ...a, rects: Object.fromEntries(Object.entries(a.rects).map(([id, r]) => [id, { ...r, w: r.w - 1 }])) }) },
+  'the import reads a radius 4 px smaller': { page: 'h06-paint', mutate: (a) => ({ ...a, exported: a.exported.replace('border-radius:16px', 'border-radius:12px') }) },
+  'the import loses the colour of a border': { page: 'h06-paint', mutate: (a) => ({ ...a, exported: a.exported.replaceAll('#b45309', '#b45308') }) },
+  'the import drops a shadow': { page: 'h06-paint', mutate: (a) => ({ ...a, exported: a.exported.replace(/box-shadow:[^;]*;/, '') }) },
+  'the import reads the last stop of a gradient as another colour (the stop is 1/255 off)': { page: 'h06-paint', mutate: (a) => ({ ...a, exported: a.exported.replace('#0000ff 100%', '#0000fe 100%') }) },
+  'the import reads the fill of a box as another colour': { page: 'h01-row', mutate: (a) => ({ ...a, exported: a.exported.replace('background-color:#f87171', 'background-color:#f87172') }) },
+};
+
 /** A mutation that changed nothing in a form is not a test of the gate: its search string was not in that export. `tracked` wraps a
  *  mutation and `missed()` names the forms in which no export of the run was changed by it. */
 export function tracked(mutate) {
@@ -82,6 +98,13 @@ if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1]
       const nothing = t.missed();
       console.log(`${failures.length && !nothing.length ? 'caught ' : 'MISSED '} "${name}": ${failures.length} violation(s)${nothing.length ? `, but its search string is not in the ${nothing.join(' and ')} export` : ''}${failures[0] ? `, first: ${failures[0]}` : ''}`);
       if (!failures.length || nothing.length) bad++;
+    }
+    for (const [name, { page, mutate }] of Object.entries(IMPORT_MUTATIONS)) {
+      let changed = false;
+      const results = { seeds: 1, only: true, import: { roundTrips: [], pages: (await pagesOracle({ browser, base, mp, only: [page], mutate: (a) => { const m = mutate(a); changed ||= JSON.stringify(m) !== JSON.stringify(a); return m; } })).pages } };
+      const failures = evaluateImport(results);
+      console.log(`${failures.length && changed ? 'caught ' : 'MISSED '} "${name}": ${failures.length} violation(s)${changed ? '' : ', but nothing in the page was changed by it'}${failures[0] ? `, first: ${failures[0].slice(0, 160)}` : ''}`);
+      if (!failures.length || !changed) bad++;
     }
     for (const [name, mutate] of Object.entries(MUTATIONS)) {
       const t = tracked(mutate);
