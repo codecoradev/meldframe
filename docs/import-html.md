@@ -137,6 +137,11 @@ An `addNode` that leaves a field out gets the default of `meldframe-protocol` (`
 | Tailwind classes in the export's vocabulary (section 2.2) | the declarations they stand for | **supported** | Inverse of `tw.rs`. |
 | Other Tailwind utilities and variants | class listed as unresolved | **refused** | The scale and palette come from a theme the importer does not have; send the compiled CSS in `css`. |
 
+Notes on reading values (the CSS stage; they decide results, so they are written down):
+
+- The `css` argument is read after all `<style>` blocks, so at equal specificity it wins.
+- Shorthands are expanded to the longhands the mapping reads, so a later `margin-top` beats an earlier `margin`: `margin`, `padding`, `inset`, their `-inline` and `-block` forms (left to right, top to bottom; compiled Tailwind writes `px-4` as `padding-inline`), `gap`, `overflow`, `border` and its parts, `border-radius`, `flex`, `font` and `background` (one colour and one image). A value of one of them that is not read is refused as a whole and listed on the element. `all` is not expanded: it stays a property that the mapping lists as refused.
+
 ### 3.4 Structure, layout and sizing
 
 | Source | Maps to | Status | Reason and pointer |
