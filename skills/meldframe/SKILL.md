@@ -132,6 +132,28 @@ sizes on as exact: tell the person that the text sizes are estimates, or relax t
 you write from the export. A frame whose export is over 256 KiB is refused as `E_EXPORT_TOO_LARGE`: export a smaller
 frame, one section at a time.
 
+## Pulling a page of code onto the canvas
+
+To design from a page a project already has, read its HTML and the style sheets it links yourself and send them to
+`import_html` with the `file`, the `html`, the `css` and an `idempotencyKey` (1 to 87 characters here). Nothing is run or
+fetched on the server: a `<link>`, an `@import`, a `url()` or a `src` is never followed, so put the rules of every linked
+style sheet in `css`. The tool reads the CSS the author wrote; it does not compute the page as a browser does. If you
+have a browser, send HTML whose styles are inline and already computed (px sizes, no percentages), which it reads best;
+that recipe has not been measured. A Tailwind export of this server (`export_frame` with `format` tailwind) comes back
+faithfully only together with the `css` it returned, so send both; any other Tailwind class needs the compiled style
+sheet in `css`.
+
+Send it once with `dryRun` true first: it writes nothing, checks the commands against the file and answers as the write
+will. Read `unsupported` on each node (what was not read, and why: `line-height`, grid, `@media`, other fonts),
+`approximated`, `skipped`, `warnings` and `report`; the sizes of text that hugs are estimates. Add `strict` true to have
+a refusal fail the call as `E_IMPORT_HTML_UNSUPPORTED` instead of being listed. Then send it for real: the same call
+with the same key after a timeout writes nothing twice (`replayed` is true). The page is one atomic batch of at most 100
+nodes, a new top-level frame to the right of the others, or inside a frame you name with `parentId`. A page that makes
+more is refused as `E_IMPORT_HTML_TOO_MANY`: send one section at a time, each into a frame with `parentId`. Images are
+listed under `assets` and nothing is fetched: call `upload_asset` and put the image on that node with `updateNode`. A
+node is named by its `data-name`, its `id` or its first class: rename what the page called badly. You cannot undo an
+import yourself, because removing a frame needs the owner's approval: if it is wrong, ask the person to revert the batch.
+
 ## When a call is refused
 
 Read the error code; it says what to fix (`docs/error-codes.md` lists them all):
