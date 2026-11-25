@@ -3,8 +3,12 @@ import { LoadFailure } from '@meldframe/web-document/file';
 import { pageFor } from './failure';
 
 const refused = (status: number, body = '') => new LoadFailure(status, body);
-const product = { dev: false };
-const dev = { dev: true };
+// The helper of the app layer is Rust (`displayText`, tested in crates/app/meldframe-wasm/tests/display_text.rs); here a stand-in
+// that records how it was called and shows its answer, so the test says what this file passes and what it draws.
+const calls: [string, number][] = [];
+const safe = (text: string, max: number) => (calls.push([text, max]), text.slice(0, max));
+const product = { dev: false, safe };
+const dev = { dev: true, safe };
 
 describe('the page for a file that did not open', () => {
   it('403 says there is no access and that nothing changed, with what the server answered as detail', () => {
@@ -55,11 +59,29 @@ describe('the page for a file that did not open', () => {
     expect(pageFor('plain string', product).detail).toBe('plain string');
   });
 
-  it('cuts what the server says to 200 characters and drops control and bidi characters', () => {
-    const p = pageFor(refused(500, `${'x'.repeat(300)}`), product);
-    expect(p.detail).toBe(`The server answered 500: ${'x'.repeat(200)}`);
-    expect(pageFor(refused(500, 'a\u202eb\u0007c\u2066d'), product).detail).toBe('The server answered 500: abcd');
-    expect(pageFor(new Error('x\u202ey'), product).detail).toBe('xy');
+  it('draws the text of the server and of the browser as the helper of the app layer answers, cut at 200 and 500 characters', () => {
+    calls.length = 0;
+    const out = pageFor(refused(500, 'x'.repeat(300)), product);
+    expect(calls).toEqual([['x'.repeat(300), 200]]);
+    expect(out.detail).toBe(`The server answered 500: ${'x'.repeat(200)}`);
+    calls.length = 0;
+    pageFor(new Error('y'.repeat(900)), product);
+    expect(calls).toEqual([['y'.repeat(900), 500]]);
+  });
+
+  it('cleans nothing itself: whatever the helper hands back is what is shown', () => {
+    const marked = { dev: false, safe: () => 'MARKED' };
+    expect(pageFor(refused(500, 'a\u202eb'), marked).detail).toBe('The server answered 500: MARKED');
+    expect(pageFor(new Error('x\u202ey'), marked).detail).toBe('MARKED');
+  });
+
+  it('shows no text of the server or of the browser when the helper is not there (the WASM module did not load)', () => {
+    const none = { dev: false, safe: null };
+    expect(pageFor(refused(500, 'a\u202eb secret body'), none).detail).toBe('The server answered 500.');
+    expect(pageFor(refused(403, 'no'), none).detail).toBe('The server answered 403.');
+    const start = pageFor(new Error('x\u202ey'), none);
+    expect(start).toMatchObject({ kind: 'start', title: 'The editor could not start' });
+    expect(start.detail).toBeUndefined();
   });
 
   it('uses the words of GLOSSARY.md in the text and the detail: no account, no token, no team', () => {

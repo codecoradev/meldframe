@@ -8,6 +8,9 @@ export default async function init(): Promise<never> {
 export function initSync(): never {
   throw new Error(MESSAGE);
 }
+export function displayText(): never {
+  throw new Error(MESSAGE);
+}
 export class WasmApp {
   constructor() {
     throw new Error(MESSAGE);

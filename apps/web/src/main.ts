@@ -1,6 +1,6 @@
 import { mount, unmount } from 'svelte';
 import './app.css';
-import { Engine, loadWasm } from '@meldframe/web-link/engine';
+import { Engine, displayText, loadWasm } from '@meldframe/web-link/engine';
 import { Shell, browserEnv, type CaptureRequest } from '@meldframe/web-transport/shell';
 import App from './App.svelte';
 import Editor from './Editor.svelte';
@@ -20,6 +20,8 @@ const root = document.getElementById('app')!;
 const [file, actor] = [__FILE__, __ACTOR__];
 
 let shell: Shell | undefined;
+// Whether the WASM module loaded: only then can the error page make what a server said safe to show (it shows none otherwise).
+let wasmReady = false;
 let editor: ReturnType<typeof mount> | undefined;
 
 async function start() {
@@ -30,6 +32,7 @@ async function start() {
   if (page.has('states')) return mount((await import('@meldframe/web-chrome/StateMatrix.svelte')).default, { target: root });
   if (page.has('layout')) return mount((await import('@meldframe/web-shell/LayoutDemo.svelte')).default, { target: root, props: shellParts }); // /?states and /?layout load on demand: the editor's bundle does not carry them
   await loadWasm();
+  wasmReady = true;
   const { seq, nodes, variables, attribution } = await loadFile(fetch, file);
   // A fresh nonce per page load: the app never reuses an idempotency key (see `App::new`).
   const session = crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
@@ -70,7 +73,7 @@ start().catch((e: unknown) => {
   shell?.stop(); // a page that failed half way keeps no socket, timer or canvas
   if (editor) void unmount(editor);
   root.replaceChildren();
-  const page = pageFor(e, { dev: import.meta.env.DEV });
+  const page = pageFor(e, { dev: import.meta.env.DEV, safe: wasmReady ? displayText : null });
   const again = () => location.reload();
   const svelte = () => mount(ErrorPage, { target: root, props: { page, onAction: again } });
   // /?react=feedback (E7.3, S3): the React copy loads on demand, and a chunk that does not load (the server or the network is

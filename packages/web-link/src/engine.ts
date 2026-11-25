@@ -4,7 +4,7 @@
 import type { Action, AppState, Effect, Event, Node, Variables } from '@meldframe/protocol';
 import type { DropPreview } from '@meldframe/web-canvas/overlay';
 import type { Scene } from '@meldframe/web-canvas/scene';
-import init, { initSync, WasmApp } from '@meldframe/wasm';
+import init, { displayText as wasmDisplayText, initSync, WasmApp } from '@meldframe/wasm';
 import type { MeasureFn } from './measurer';
 import { type PaintedBox, sceneFromBoxes } from './scene';
 
@@ -34,6 +34,13 @@ export async function loadWasm(bytes?: BufferSource): Promise<void> {
   if (bytes) initSync({ module: bytes });
   else await init();
 }
+
+/**
+ * Text from outside (what the server or the browser said) made safe to show and cut to `maxChars` characters, by the same
+ * helper of the app layer that makes every name of `AppState` safe (rule U9). For a screen that has no app state to carry
+ * the text, such as the page that says the file did not open. Needs the WASM module loaded (`loadWasm`).
+ */
+export const displayText = (raw: string, maxChars: number): string => wasmDisplayText(raw, maxChars);
 
 export class Engine {
   private listeners = new Set<(s: Snapshot) => void>();
