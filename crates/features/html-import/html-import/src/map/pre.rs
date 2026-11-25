@@ -18,6 +18,26 @@ const OWN_BOX: &[&str] = &[
     "textarea", "select", "option", "table",
 ];
 
+/// The attributes the mapping reads: the names, the style and the content of an element, what an image or a control
+/// shows, and what makes a cell or a dialog what it is. The model has no place for the others (`href`, `title`, `aria-*`).
+const USED: &[&str] = &[
+    "id",
+    "class",
+    "style",
+    "data-name",
+    "data-node",
+    "src",
+    "value",
+    "placeholder",
+    "type",
+    "width",
+    "height",
+    "hidden",
+    "open",
+    "colspan",
+    "rowspan",
+];
+
 pub(crate) struct Pre {
     /// Not shown: `display: none`, or inside something that is not.
     pub hidden: Vec<bool>,
@@ -86,6 +106,12 @@ pub(crate) fn pre(tree: &Tree, styles: &Styles, report: &mut Report) -> Pre {
             Child::Text(t) => t.chars().any(|c| !is_space(c)),
             Child::Element(e) => !p.hidden[e.index()],
         });
+        let ignored = el
+            .attrs
+            .iter()
+            .filter(|a| !USED.contains(&a.name.as_str()))
+            .count();
+        report.count("attribute_ignored", ignored);
         p.paint[id.index()] = match el.tag.as_str() {
             // What the model cannot hold paints nothing of its own; an image keeps its `src` for the agent.
             "img" => Paint::placeholder(el.attr("src").filter(|s| !s.is_empty())),

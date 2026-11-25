@@ -16,6 +16,7 @@ mod page;
 mod parts;
 mod plain;
 mod pre;
+mod refuse;
 mod size;
 mod text;
 

@@ -22,6 +22,8 @@ pub(crate) enum Piece<'a> {
 pub(crate) struct Run<'a> {
     pub pieces: Vec<Piece<'a>>,
     pub diff: Option<Approx>,
+    /// What the inline elements joined into the line declare and the text cannot hold.
+    pub lost: Notes,
 }
 
 impl<'a> Run<'a> {
@@ -29,6 +31,7 @@ impl<'a> Run<'a> {
         Run {
             pieces: vec![Piece::Text(text)],
             diff: None,
+            lost: Notes::default(),
         }
     }
 }

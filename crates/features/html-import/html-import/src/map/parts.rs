@@ -97,6 +97,7 @@ impl Builder<'_> {
             sh: SizeMode::Hug,
             px: (None, None),
         };
+        let mut notes = std::mem::take(&mut self.pending);
         let mut kids = Vec::new();
         if matches!(el.tag.as_str(), "button" | "textarea") {
             self.content(e, &inner, &mut kids);
@@ -110,7 +111,6 @@ impl Builder<'_> {
             self.flush(e, &inner, &mut run, &mut kids);
         }
         let mut node = blank(NodeKind::Frame);
-        let mut notes = Notes::default();
         notes.approximate("element", &el.tag, "a frame with the text it shows");
         node.layout = LayoutMode::Row;
         node.align = meldframe_protocol::Align::Center;

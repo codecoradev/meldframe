@@ -69,6 +69,13 @@ impl Notes {
     }
 }
 
+impl Notes {
+    pub fn append(&mut self, other: Notes) {
+        self.approx.extend(other.approx);
+        self.unsupported.extend(other.unsupported);
+    }
+}
+
 /// A node of the plan under construction.
 #[derive(Debug)]
 pub(crate) struct Item {

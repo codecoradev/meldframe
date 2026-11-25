@@ -6,6 +6,7 @@ use super::layout::{self, Ctx};
 use super::names::{name_of, source_of};
 use super::plain::plain;
 use super::pre::{NON_VISUAL, Pre, display, hides, is_space, zero};
+use super::refuse::{Role, sweep};
 use super::size::{self, Subject};
 use super::text::{
     Piece, Run, collapse, first_difference, outside_contract, space, transform, typography,
@@ -106,9 +107,11 @@ impl<'a> Builder<'a> {
 
     /// The first way an inline element joined into the text of `owner` differs from it is listed once for the node.
     fn compare(&self, owner: ElementId, e: ElementId, run: &mut Run<'a>) {
+        let st = self.styles.get(e);
         if run.diff.is_none() {
-            run.diff = first_difference(self.styles.get(owner), self.styles.get(e));
+            run.diff = first_difference(self.styles.get(owner), st);
         }
+        sweep(self.tree.element(e), st, Role::Joined, &mut run.lost);
     }
 
     /// An element that makes no node because it is not shown. What the browser's defaults hide (`head`, `script`)
@@ -138,9 +141,8 @@ impl<'a> Builder<'a> {
         let mut node = blank(NodeKind::Text);
         node.text = transform(text, st, notes);
         typography(&mut node, st, notes);
-        if let Some(d) = run.diff {
-            notes.approx.push(d);
-        }
+        notes.approx.extend(run.diff);
+        notes.append(run.lost);
         Some(node)
     }
 
@@ -245,8 +247,22 @@ impl<'a> Builder<'a> {
                 all.approximate("visibility", "hidden", "opacity 0");
             }
         }
-        all.approx.extend(notes.approx);
-        all.unsupported.extend(notes.unsupported);
+        all.append(notes);
+        let role = match (anon, node.kind) {
+            (true, _) => Role::Anon,
+            (false, NodeKind::Text) => Role::Text,
+            _ => Role::Frame,
+        };
+        sweep(el, self.styles.get(e), role, &mut all);
+        for u in &all.unsupported {
+            let msg = format!(
+                "<{}> {}: {}: not read ({})",
+                el.tag, u.property, u.value, u.code
+            );
+            self.report
+                .note(EntryKind::Refused, u.code, &u.property, msg, el.at);
+        }
+        self.report.count("approximated", all.approx.len());
         Item {
             node,
             kids,
@@ -325,10 +341,13 @@ impl<'a> Builder<'a> {
             );
             self.report
                 .note(EntryKind::Listed, "wrapper_collapsed", &el.tag, msg, el.at);
+            // What the wrapper declared and nobody reads goes on to the node that takes its place.
+            sweep(el, st, Role::Frame, &mut self.pending);
             self.content(e, ctx, out);
             return;
         }
-        let mut notes = Notes::default();
+        // The children are built first and each takes what is pending: this node must take it before them.
+        let mut notes = std::mem::take(&mut self.pending);
         if shape.boxes == 0 && shape.line && self.as_text(e, st) {
             let mut run = Run::default();
             self.gather(e, e, &mut run);
