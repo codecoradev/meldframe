@@ -5,7 +5,8 @@
 //! compared by what it comes to and not by how it is stored: the losses of `docs/import-html.md` section 3.7 (the
 //! ids, the `pos` strings, the stored size of a node that hugs or fills, a frame that is only a box coming back as a
 //! rect) are not differences, and neither is what the core ignores (`hug` on a rect, `fill` where the parent
-//! gives nothing to fill, `x` and `y` in a flow, `gap` and `padding` of a frame without layout).
+//! gives nothing to fill, `x` and `y` in a flow, `gap` and `padding` of a frame without layout), nor is a fill of
+//! `transparent` that comes back as `none` (both paint nothing).
 
 use meldframe_protocol::{LayoutMode, Node, NodeKind, SizeMode};
 use serde_json::{Value, json};
@@ -108,6 +109,14 @@ fn field(n: &Node, name: &str) -> Value {
         .unwrap_or(Value::Null)
 }
 
+/// The fill, where `transparent` and `none` are the one fill that paints nothing (the import writes `none`).
+fn fill(n: &Node) -> Value {
+    match field(n, "fill") {
+        Value::String(s) if s == "transparent" => json!("none"),
+        v => v,
+    }
+}
+
 fn border(n: &Node) -> Value {
     if n.border.width == 0.0 {
         json!({"width": 0})
@@ -163,7 +172,7 @@ pub fn fields(original: &[Node], imported: &[Node]) -> Vec<String> {
             );
             cmp("absolute", json!(o.absolute), json!(n.absolute));
         }
-        cmp("fill", field(o, "fill"), field(n, "fill"));
+        cmp("fill", fill(o), fill(n));
         cmp("opacity", field(o, "opacity"), field(n, "opacity"));
         if ko == NodeKind::Text {
             cmp("text", json!(o.text), json!(n.text));

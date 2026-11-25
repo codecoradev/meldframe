@@ -155,3 +155,42 @@ fn the_text_a_page_needs_is_asked_of_the_table_once_and_answered_on_the_next_run
             .any(|q| q.text == "Hello" && q.font_size == 20.0)
     );
 }
+
+#[test]
+fn a_page_comes_with_the_css_export_of_what_was_imported() {
+    let page = json!({"name": "e", "html": r#"<div data-name="box" style="width:100px;height:50px;background:#ff0000"></div>"#, "css": "body{margin:0}"});
+    let out = run(&input(vec![], vec![page]));
+    let html = out.pages[0]
+        .exported
+        .as_deref()
+        .expect("the export of the imported file");
+    assert!(html.starts_with("<!doctype html>"), "{html}");
+    assert!(html.contains("data-name=\"box\""), "{html}");
+    assert!(html.contains("background-color:#ff0000"), "{html}");
+}
+
+#[test]
+fn a_page_the_importer_refused_has_no_export() {
+    let out = run(&input(
+        vec![],
+        vec![json!({"name": "x", "html": "no markup"})],
+    ));
+    assert_eq!(out.pages[0].exported, None);
+}
+
+#[test]
+fn a_fill_of_transparent_and_a_fill_of_none_paint_the_same_and_are_not_a_difference() {
+    use meldframe_oracle_runner::compare;
+    let nodes: Vec<meldframe_protocol::Node> = serde_json::from_value(json!([
+        {"id": "f", "type": "frame", "w": 50, "h": 50, "fill": "transparent"}
+    ]))
+    .unwrap();
+    let mut other = nodes.clone();
+    other[0].fill = meldframe_protocol::Bind::Lit("none".into());
+    assert!(compare::fields(&nodes, &other).is_empty());
+    other[0].fill = meldframe_protocol::Bind::Lit("#3f3f46".into());
+    assert!(
+        !compare::fields(&nodes, &other).is_empty(),
+        "a fill that paints is a difference"
+    );
+}

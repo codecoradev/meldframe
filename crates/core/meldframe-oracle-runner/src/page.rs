@@ -3,9 +3,10 @@
 //! these rects, node by node, through the node's name (`data-name`).
 
 use crate::table::{Entry, Query, TableMeasurer};
+use export::{ExportOptions, Format};
 use html_import::map::{Options, Plan, plan_with};
 use meldframe_layout::{Rect, compute_rects};
-use meldframe_protocol::{Command, Node};
+use meldframe_protocol::{Command, Node, Variables};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -38,6 +39,8 @@ pub struct PageAnswer {
     pub approximated: Vec<String>,
     /// How often each code of the report happened.
     pub report: BTreeMap<String, usize>,
+    /// The css form of the export of the imported file (the page as the export writes it), for a comparison of pixels.
+    pub exported: Option<String>,
     /// What the table lacked in this run, as for a fixture.
     pub misses: Vec<Query>,
 }
@@ -91,6 +94,7 @@ pub fn answer(p: &Page, table: &[Entry]) -> PageAnswer {
         unsupported: Vec::new(),
         approximated: Vec::new(),
         report: BTreeMap::new(),
+        exported: None,
         misses: Vec::new(),
     };
     match plan_with(&p.html, &p.css, &options, &measurer) {
@@ -104,6 +108,13 @@ pub fn answer(p: &Page, table: &[Entry]) -> PageAnswer {
                 .map(|n| (n.id.clone(), n.source.clone()))
                 .collect();
             (a.unsupported, a.approximated) = findings(&plan);
+            if let Some(root) = a.nodes.first() {
+                let options = ExportOptions::new(Format::Css, &measurer);
+                a.exported =
+                    export::export_frame(&a.nodes, &Variables::default(), &root.id, &options)
+                        .ok()
+                        .map(|e| e.html);
+            }
             a.report = plan
                 .report
                 .counts
