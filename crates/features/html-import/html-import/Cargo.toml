@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[dependencies]
+meldframe-css = { path = "../../../core/meldframe-css" }
+
 [package.metadata.meldframe]
 kind = "feature"
 group = "html-import"

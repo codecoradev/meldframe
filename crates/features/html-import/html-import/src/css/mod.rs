@@ -28,6 +28,8 @@ mod decl;
 mod matching;
 mod scan;
 pub mod selector;
+pub mod value;
+pub mod vars;
 
 pub use crate::html::{Entry, EntryKind, MAX_ENTRIES, MAX_REPORT_BYTES, Report};
 pub use cascade::{Candidate, Cascade, Matched, Origin, cascade};
