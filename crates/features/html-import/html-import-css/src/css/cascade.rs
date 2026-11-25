@@ -1,0 +1,274 @@
+//! The cascade: for each element, the declarations that apply to it, in the order the cascade gives them, lowest
+//! first. A later one wins over an earlier one of the same property, so the next stage folds the list in order.
+//!
+//! The order is the one of CSS for the origins this importer has: author rules and the `style` attribute (the
+//! browser's own defaults are a table of the next stage, below both). From lowest: normal author declarations, by
+//! specificity and then source order; normal inline declarations; `!important` author declarations, by the same;
+//! `!important` inline declarations. Within a rule, declarations keep their order, and a list of selectors counts
+//! once with the specificity of the most specific selector that matches.
+//!
+//! Rules are looked up by the id, class or type of the last compound of each selector, so an element is tested
+//! only against the selectors that could pick it. The whole cascade has a budget of steps ([`Limits::max_work`]):
+//! a text that would cost more (thousands of `*` rules over thousands of elements) is cut there, in the order of
+//! the elements, and the report says so; the elements left get no declarations at all.
+
+use super::matching::{Matcher, Node};
+use super::selector::{Pseudo, Simple};
+use super::{Decl, EntryKind, Limits, Report, Stylesheet, read_declarations};
+use html_import_tree::Tree;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+/// Where a declaration came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Origin {
+    /// A rule of a `<style>` or of the extra css.
+    Author,
+    /// The `style` attribute of the element.
+    Inline,
+}
+
+/// A declaration that applies to an element.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Candidate {
+    pub name: Arc<str>,
+    pub value: Arc<str>,
+    pub important: bool,
+    pub origin: Origin,
+}
+
+/// What applies to one element, lowest first: to the element itself, and to its generated `::before` and `::after`
+/// (only the declarations of rules that name them; the `style` attribute never reaches them).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Matched {
+    pub main: Vec<Candidate>,
+    pub before: Vec<Candidate>,
+    pub after: Vec<Candidate>,
+}
+
+/// The result: one [`Matched`] for each element of the tree.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cascade {
+    /// Indexed by [`html_import_tree::ElementId::index`]; the root, at 0, has nothing.
+    pub elements: Vec<Matched>,
+    /// For the `html` and `body` that a fragment has no element for: what applies to them (the next stage takes
+    /// the custom properties and the inherited values from them). `None` when the tree has the element itself.
+    pub html: Option<Matched>,
+    pub body: Option<Matched>,
+    /// False when the budget ran out: the elements from the one the report names on have nothing.
+    pub complete: bool,
+}
+
+#[derive(Default)]
+struct Index {
+    by_id: HashMap<String, Vec<(u32, u32)>>,
+    by_class: HashMap<String, Vec<(u32, u32)>>,
+    by_tag: HashMap<String, Vec<(u32, u32)>>,
+    any: Vec<(u32, u32)>,
+}
+
+fn index(sheet: &Stylesheet) -> Index {
+    let mut ix = Index::default();
+    for (r, rule) in sheet.rules.iter().enumerate() {
+        for (s, sel) in rule.selectors.iter().enumerate() {
+            let at = (r as u32, s as u32);
+            let last = &sel.compounds[sel.compounds.len() - 1].simples;
+            if let Some(id) = last.iter().find_map(|s| match s {
+                Simple::Id(i) => Some(i),
+                _ => None,
+            }) {
+                ix.by_id.entry(id.clone()).or_default().push(at);
+            } else if let Some(c) = last.iter().find_map(|s| match s {
+                Simple::Class(c) => Some(c),
+                _ => None,
+            }) {
+                ix.by_class.entry(c.clone()).or_default().push(at);
+            } else if let Some(t) = last.iter().find_map(|s| match s {
+                Simple::Tag(t) => Some(t),
+                _ => None,
+            }) {
+                ix.by_tag.entry(t.clone()).or_default().push(at);
+            } else {
+                ix.any.push(at);
+            }
+        }
+    }
+    ix
+}
+
+/// One declaration with what orders it: important, origin, specificity, rule, place in the rule.
+type Key = (bool, u8, u32, u32, u32);
+
+fn fold(mut v: Vec<(Key, Candidate)>) -> Vec<Candidate> {
+    v.sort_by_key(|(k, _)| *k);
+    v.into_iter().map(|(_, c)| c).collect()
+}
+
+fn candidate(d: &Decl, origin: Origin) -> Candidate {
+    Candidate {
+        name: d.name.clone(),
+        value: d.value.clone(),
+        important: d.important,
+        origin,
+    }
+}
+
+struct Run<'a> {
+    tree: &'a Tree,
+    sheet: &'a Stylesheet,
+    ix: Index,
+    m: Matcher<'a>,
+    limits: &'a Limits,
+    report: &'a mut Report,
+}
+
+impl Run<'_> {
+    /// The selectors that could pick `n`, by what the last compound asks for.
+    fn possible(&mut self, n: Node) -> Vec<(u32, u32)> {
+        let (ix, m) = (&self.ix, &mut self.m);
+        let mut out = Vec::new();
+        // A list is charged before it is copied, and not copied once the budget is gone, so that a hostile text cannot
+        // make a list of millions first and be charged after.
+        let mut add = |extra: usize, l: Option<&Vec<(u32, u32)>>| {
+            m.steps += extra;
+            if let Some(l) = l {
+                m.steps += l.len();
+                if !m.exhausted() {
+                    out.extend(l.iter().copied());
+                }
+            }
+        };
+        add(0, Some(&ix.any));
+        match n {
+            Node::Html | Node::Body => {
+                let t = if n == Node::Html { "html" } else { "body" };
+                add(0, ix.by_tag.get(t));
+            }
+            Node::El(e) => {
+                let el = self.tree.element(e);
+                add(0, ix.by_tag.get(&el.tag));
+                if let Some(id) = el.attr("id") {
+                    add(0, ix.by_id.get(id));
+                }
+                // Each distinct class adds its list once, however often the attribute repeats it; each word of the
+                // attribute costs a step.
+                let mut seen = std::collections::HashSet::new();
+                for c in el.attr("class").unwrap_or("").split_ascii_whitespace() {
+                    add(1, None);
+                    if seen.insert(c) {
+                        add(0, ix.by_class.get(c));
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    fn matched(&mut self, n: Node) -> Matched {
+        // The rules that pick `n`, for the element and for each generated box, with their best specificity.
+        let mut hits: Vec<(u32, u8, u32)> = Vec::new();
+        for (r, s) in self.possible(n) {
+            if self.m.exhausted() {
+                break;
+            }
+            let sel = &self.sheet.rules[r as usize].selectors[s as usize];
+            if self.m.matches(sel, n) {
+                let ps = match sel.pseudo {
+                    None => 0,
+                    Some(Pseudo::Before) => 1,
+                    Some(Pseudo::After) => 2,
+                };
+                hits.push((r, ps, sel.specificity));
+            }
+        }
+        hits.sort_unstable();
+        let (mut main, mut before, mut after) = (Vec::new(), Vec::new(), Vec::new());
+        let mut i = 0;
+        while i < hits.len() {
+            // The last of a run of the same rule and box has the highest specificity.
+            let (r, ps, _) = hits[i];
+            while i + 1 < hits.len() && hits[i + 1].0 == r && hits[i + 1].1 == ps {
+                i += 1;
+            }
+            let spec = hits[i].2;
+            let out = match ps {
+                0 => &mut main,
+                1 => &mut before,
+                _ => &mut after,
+            };
+            let rule = &self.sheet.rules[r as usize];
+            self.m.steps += rule.decls.len();
+            for (k, d) in rule.decls.iter().enumerate() {
+                let key = (d.important, 0, spec, r, k as u32);
+                out.push((key, candidate(d, Origin::Author)));
+            }
+            i += 1;
+        }
+        if let Node::El(e) = n
+            && let Some(text) = self.tree.element(e).attr("style")
+        {
+            let decls = read_declarations(text, self.tree.element(e).at, self.limits, self.report);
+            self.m.steps += decls.len();
+            for (k, d) in decls.iter().enumerate() {
+                let key = (d.important, 1, 0, 0, k as u32);
+                main.push((key, candidate(d, Origin::Inline)));
+            }
+        }
+        Matched {
+            main: fold(main),
+            before: fold(before),
+            after: fold(after),
+        }
+    }
+}
+
+/// Work out what applies to every element of `tree`. Never fails; what it could not do is in `report`.
+pub fn cascade(tree: &Tree, sheet: &Stylesheet, limits: &Limits, report: &mut Report) -> Cascade {
+    let mut run = Run {
+        tree,
+        sheet,
+        ix: index(sheet),
+        m: Matcher::new(tree, limits.max_work),
+        limits,
+        report,
+    };
+    let mut out = Cascade {
+        elements: vec![Matched::default(); tree.len() + 1],
+        html: None,
+        body: None,
+        complete: true,
+    };
+    let mut order = Vec::new();
+    if run.m.virtual_html() {
+        order.push(Node::Html);
+    }
+    if run.m.virtual_body() {
+        order.push(Node::Body);
+    }
+    order.extend(tree.ids().map(Node::El));
+    for n in order {
+        let m = run.matched(n);
+        if run.m.exhausted() {
+            let at = if let Node::El(e) = n {
+                tree.element(e).at
+            } else {
+                0
+            };
+            let msg = format!(
+                "the cascade took more than {} steps and stops at byte {at}: the elements from there on get no styles",
+                limits.max_work
+            );
+            run.report
+                .note(EntryKind::Cut, "cascade_work_limit", "", msg, at);
+            out.complete = false;
+            break;
+        }
+        match n {
+            Node::Html => out.html = Some(m),
+            Node::Body => out.body = Some(m),
+            Node::El(e) => out.elements[e.index()] = m,
+        }
+    }
+    run.report.work += run.m.steps;
+    out
+}

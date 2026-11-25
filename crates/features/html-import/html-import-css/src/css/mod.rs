@@ -36,10 +36,13 @@
 //! recursion on the input (a `@layer` nests at most [`Limits::max_depth`]), no look back, and a piece longer than
 //! its cap is read and not stored. The work is counted in [`Report::work`].
 
+mod cascade;
 mod decl;
+mod matching;
 mod scan;
 pub mod selector;
 
+pub use cascade::{Candidate, Cascade, Matched, Origin, cascade};
 pub use decl::{Bad, Decl};
 pub use html_import_tree::{Entry, EntryKind, MAX_ENTRIES, MAX_REPORT_BYTES, Report};
 pub use selector::{Combinator, Compound, Pseudo, Refusal, Selector, Simple};
@@ -67,6 +70,9 @@ pub struct Limits {
     /// The most selectors kept, over all the rules: `a,a,a,...` makes a selector for each two bytes. Later ones are
     /// left out. 10,000 (two for each of the most rules, so that the rule limit can be reached).
     pub max_selectors: usize,
+    /// The most steps the cascade takes in all (a step is a selector looked at, a compound tested or a declaration
+    /// made a candidate); the elements past it get no styles and the report says so. 2,000,000.
+    pub max_work: usize,
 }
 
 impl Default for Limits {
@@ -78,6 +84,7 @@ impl Default for Limits {
             max_selector_bytes: 4_096,
             max_depth: 16,
             max_selectors: 10_000,
+            max_work: 2_000_000,
         }
     }
 }

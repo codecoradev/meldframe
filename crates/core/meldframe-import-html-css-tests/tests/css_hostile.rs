@@ -23,6 +23,7 @@ fn tight() -> Limits {
         max_selector_bytes: 16,
         max_depth: 2,
         max_selectors: 4,
+        max_work: 50,
     }
 }
 
@@ -34,6 +35,7 @@ fn zero() -> Limits {
         max_selector_bytes: 0,
         max_depth: 0,
         max_selectors: 0,
+        max_work: 0,
     }
 }
 
