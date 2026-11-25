@@ -45,6 +45,8 @@ Proposed new code: `E_IMPORT_HTML_TOO_LARGE` (a code never changes meaning, so `
 
 **Tailwind forms.** The export in `format: "tailwind"` writes a fixed vocabulary (`crates/features/export/export/src/tw.rs`): named utilities (`flex`, `flex-row`, `flex-col`, `shrink-0`, `overflow-hidden`, `self-stretch`, `items-start|center|end`, `justify-start|between`, `text-center|right`, `whitespace-pre|pre-wrap`, `w-fit`, `w-auto`, `h-auto`, `absolute`, `relative`, `pointer-events-none`, `content-['']`), arbitrary-value utilities (`left-[..]`, `top-[..]`, `inset-[..]`, `w-[..]`, `h-[..]`, `min-w-[..]`, `min-h-[..]`, `gap-[..]`, `p-[..]`, `m-[..]`, `flex-[..]`, `text-[length:..]`, `font-[..]`, `leading-[..]`, `text-[color:..]`, `bg-[color:..]`, `rounded-[..]`, `opacity-[..]`, `shadow-[..]`), arbitrary properties (`[prop:value]`, `_` for a space, `\_` for an underscore) and the `after:` variant for the border. The importer decodes exactly that vocabulary back into declarations and then runs the one mapping of section 3. That is what makes `export_frame` then `import_html` a round trip in both formats. Utilities from Tailwind's own scale and palette (`p-4`, `text-lg`, `bg-blue-500`, `rounded-lg`) and any other variant (`hover:`, `md:`, `dark:`) are not decoded: the class is listed as unresolved. An agent that has the project's compiled CSS sends it in `css`, where those classes are ordinary rules.
 
+The decoded classes enter the cascade as author declarations with the specificity of one class, after every rule of the sheet and below the `style` attribute, in the order of the `class` attribute; a class that any selector of the sheet names belongs to the sheet and is not decoded. A Tailwind export imports back faithfully only together with the `css` it returns: the reset (`*{box-sizing:border-box}`, `body{margin:0}`, `p{margin:0}`) and the rules of the variables live there, and the HTML alone has the browser's defaults under it (a paragraph keeps its margin). The tool text must say so. A `value` with a `!` is not read.
+
 **No browser, so the agent resolves what a browser would.** Like `import_tokens` ("resolve a `tailwind.config.js`, an `@import` or a `url()` yourself first"), the agent inlines linked style sheets into `css`. An agent that has a browser can go one step further and send HTML whose styles are inline and already computed (px sizes, no percentages), which this importer reads best. That recipe is a suggestion for the tool text; no script in the repository does it, and its fidelity has not been measured.
 
 ### 2.3 Errors
@@ -135,7 +137,7 @@ An `addNode` that leaves a field out gets the default of `meldframe-protocol` (`
 | `oklch()`, `oklab()` | hex, clamped to sRGB | **approximated** | Compiled Tailwind v4 CSS commonly carries oklch values. ADR-0020 sets the clamp rule and reports it. |
 | `lab()`, `lch()`, `hwb()`, `color()`, `color-mix()`, `light-dark()`, system colours | refused | **refused** | No exact hex. |
 | Tailwind classes in the export's vocabulary (section 2.2) | the declarations they stand for | **supported** | Inverse of `tw.rs`. |
-| Other Tailwind utilities and variants | class listed as unresolved | **refused** | The scale and palette come from a theme the importer does not have; send the compiled CSS in `css`. |
+| Other Tailwind utilities and variants | class listed as unresolved | **refused** | The scale and palette come from a theme the importer does not have; send the compiled CSS in `css`. Any class that no rule names and that the vocabulary does not read is listed (a name like `hero` as much as `p-4`), once for each distinct class, as an entry of kind `listed`: it tells the agent what was not read and is not a lost property, so it does not count toward `strict`. |
 
 Notes on reading values (the CSS stage; they decide results, so they are written down):
 
@@ -242,6 +244,7 @@ For a File the export covers (contract section 4), `import_html` of its HTML giv
 - a Frame with no children and no layout comes back as a `rect` when it has a px size and no padding (the export writes `div` for both; see the row of 3.2). An empty Frame with layout is written with `display: flex` and comes back as a Frame;
 - a binding to a Variable comes back as the literal (row in 3.3);
 - an `image` whose asset is not in the workspace keeps its id and shows `asset_not_found`, as before.
+- the radius of a border on a node whose radius is bound: the export writes `calc(min(var(--r) * 1px, Wpx, Hpx) + Npx)` on the `::after` box, which the CSS stage does not read (only `calc(<number> * <length>)`), so that border comes back with no radius. A known loss, to be read by the paint slice (row 5 of section 6); the radius of the node itself is read, as `calc(var(--r) * 1px)`.
 
 ### 3.8 Counts
 
@@ -331,7 +334,7 @@ Each is one kind of content and under 1,000 changed lines (AGENTS.md; lines move
 | 2 | Tolerant HTML tree builder with bounds and hostile tests | new `html-import-tree` (kind feature, group `html-import`, portable), the tree builder; `html-import` is the facade over it (a pure move, `refactor/html-import-split`) | about 800 |
 | 3 | CSS rules, selectors, cascade, inheritance, defaults table, Tailwind decoder | new `html-import-css` (kind feature, group `html-import`, portable): the reader, the selectors, the cascade and `tw.rs`; and new `html-import-style` (same kind and group): `var()`, shorthands, defaults, value readers and the computed style; the facade re-exports both as `css` and `tw`; their tests are in `meldframe-import-html-css-tests`. About 900 was the first estimate; it came to about 4,000 lines of code in several pull requests | about 4,000 with tests |
 | 4 | Mapping: structure, layout, sizing, text, to Commands, with the report | `html-import` (the facade), `map/*` | about 900 |
-| 5 | Mapping: paint (fill, gradient, border, radius, shadow, opacity, image placeholders) | `html-import`, `paint/*` | about 700 |
+| 5 | Mapping: paint (fill, gradient, border, radius, shadow, opacity, image placeholders) | `html-import`, `paint/*`; it also reads the `::after` radius `calc(min(var(--r) * 1px, Wpx, Hpx) + Npx)` of a bound border (section 3.7) | about 700 |
 | 6 | The tests of slices 2 to 5, split by layer so each slice lands with its own (a test first per slice, not a slice of its own); the crate `meldframe-import-html-tests` is created in slice 2 | tool crate | counted with each slice |
 | 7 | The MCP tool: arguments, plan, `submit_ops`, answer, error codes, `docs/mcp-tools.json`, `docs/error-codes.md`, `skills/meldframe/SKILL.md`, the `html-import` cargo feature of `apps/server` | new `meldframe-http-html-import` (kind bin, as `meldframe-http-variables-import`) | about 600, plus tests |
 | 8 | The oracle extensions and the fixtures `h01` onward; the contract gets a section on import and the known gaps | `crates/core/meldframe-oracle-runner`, `tools/fidelity-oracle`, `docs/fidelity-contract.md` | about 800 |

@@ -4,7 +4,8 @@
 //!
 //! - [`html`] is `html-import-tree`, the tolerant, bounded tree builder;
 //! - [`css`] is `html-import-css`, the reader and the cascade, with `html-import-style`, what is done with the
-//!   declarations (and `tw`, the Tailwind decoder, when it lands).
+//!   declarations;
+//! - [`tw`] is the Tailwind decoder of `html-import-css`.
 //!
 //! The readers are written for this tree: there is no parser crate in it and no full parsing algorithm. They are
 //! functions of the text. They open nothing, follow no URL (`src`, `href`, `url()`, `@import` and `<link>` are only
@@ -17,4 +18,5 @@ pub mod css {
     pub use html_import_css::css::*;
     pub use html_import_style::*;
 }
+pub use html_import_css::tw;
 pub use html_import_tree as html;

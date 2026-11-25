@@ -23,6 +23,9 @@ pub enum EntryKind {
     /// The CSS reader left something out because the importer does not read it: a selector, an at-rule, a
     /// declaration (`html-import-css`).
     Refused,
+    /// Something the importer lists for the agent that is not a lost property: a class that no rule names and
+    /// that is not a utility the importer reads. It is not counted as a refusal.
+    Listed,
 }
 
 impl EntryKind {
@@ -31,6 +34,7 @@ impl EntryKind {
             EntryKind::Recovered => "recovered",
             EntryKind::Cut => "cut",
             EntryKind::Refused => "refused",
+            EntryKind::Listed => "listed",
         }
     }
 }

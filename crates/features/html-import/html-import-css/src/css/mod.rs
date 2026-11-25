@@ -42,7 +42,7 @@ mod matching;
 mod scan;
 pub mod selector;
 
-pub use cascade::{Candidate, Cascade, Matched, Origin, cascade};
+pub use cascade::{Candidate, Cascade, MAX_UNRESOLVED, Matched, Origin, cascade};
 pub use decl::{Bad, Decl};
 pub use html_import_tree::{Entry, EntryKind, MAX_ENTRIES, MAX_REPORT_BYTES, Report};
 pub use selector::{Combinator, Compound, Pseudo, Refusal, Selector, Simple};
