@@ -4,49 +4,9 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
+mod css_common;
+use css_common::*;
 use html_import::css::selector::{MAX_COMPOUNDS, MAX_SIMPLES, parse, split_list};
-use html_import::css::{Combinator, Pseudo, Selector, Simple};
-
-/// A selector as text: `div>.a #b[x=y]::after`. Specificity is written by [`spec`].
-pub fn sel(s: &Selector) -> String {
-    let mut out = String::new();
-    for (i, c) in s.compounds.iter().enumerate() {
-        if i > 0 {
-            out.push(match s.combinators[i - 1] {
-                Combinator::Descendant => ' ',
-                Combinator::Child => '>',
-            });
-        }
-        if c.simples.is_empty() {
-            out.push('*');
-        }
-        for simple in &c.simples {
-            match simple {
-                Simple::Tag(t) => out.push_str(t),
-                Simple::Class(c) => out.push_str(&format!(".{c}")),
-                Simple::Id(i) => out.push_str(&format!("#{i}")),
-                Simple::Attr(n, None) => out.push_str(&format!("[{n}]")),
-                Simple::Attr(n, Some(v)) => out.push_str(&format!("[{n}={v}]")),
-                Simple::Root => out.push_str(":root"),
-            }
-        }
-    }
-    match s.pseudo {
-        Some(Pseudo::Before) => out.push_str("::before"),
-        Some(Pseudo::After) => out.push_str("::after"),
-        None => {}
-    }
-    out
-}
-
-/// The specificity as `(ids, classes, types)`.
-pub fn spec(s: &Selector) -> (u32, u32, u32) {
-    (
-        s.specificity >> 16,
-        (s.specificity >> 8) & 255,
-        s.specificity & 255,
-    )
-}
 
 /// The selector in `text`, as [`sel`] writes it.
 fn read(text: &str) -> String {
@@ -239,6 +199,17 @@ fn a_name_must_be_a_name() {
     assert_eq!(read("[a=\"\"]"), "[a=]");
     assert_eq!(refused("::root"), "selector_pseudo_element");
     assert_eq!(refused("a:root:hover"), "selector_pseudo_class");
+}
+
+#[test]
+fn a_comment_is_nothing_between_the_parts_of_a_compound_and_not_a_space() {
+    // The reader marks a comment with a NUL; it joins the parts of a compound and splits nothing else.
+    assert_eq!(read(".a\0.b"), ".a.b");
+    assert_eq!(read("a\0 b"), "a b");
+    assert_eq!(read("a >\0b"), "a>b");
+    assert_eq!(read("[a\0=\0b]"), "[a=b]");
+    assert_eq!(refused("a\0b"), "selector_invalid");
+    assert_eq!(refused("a\0b\0"), "selector_invalid");
 }
 
 #[test]
