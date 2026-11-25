@@ -37,13 +37,9 @@
 
 mod cascade;
 mod decl;
-pub mod defaults;
 mod matching;
 mod scan;
 pub mod selector;
-pub mod shorthand;
-pub mod value;
-pub mod vars;
 
 pub use cascade::{Candidate, Cascade, Matched, Origin, cascade};
 pub use decl::{Bad, Decl};

@@ -1,0 +1,19 @@
+[package]
+name = "html-import-style"
+description = "HTML import, style stage: var() resolution, the shorthands, the browser's defaults and the readers of values (lengths, colours), and, from the next stage, the computed style of every element of the tree. Functions of the text; open nothing, follow nothing, run nothing."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "feature"
+group = "html-import"
+
+[lints]
+workspace = true
+
+[dependencies]
+html-import-css = { path = "../html-import-css" }
+html-import-tree = { path = "../html-import-tree" }
+meldframe-css = { path = "../../../core/meldframe-css" }
