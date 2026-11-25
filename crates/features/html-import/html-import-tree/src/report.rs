@@ -104,8 +104,8 @@ impl Report {
 }
 
 /// `s` with the characters a reader should not be shown removed (controls, bidi and other format characters), cut
-/// to `max` characters.
-fn clean(s: &str, max: usize) -> String {
+/// to `max` characters. The mapping uses it for the names it gives nodes, so a name never carries a hidden character.
+pub fn clean(s: &str, max: usize) -> String {
     s.chars().filter(|c| !hidden(*c)).take(max).collect()
 }
 

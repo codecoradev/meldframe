@@ -38,7 +38,7 @@ mod tag;
 mod text;
 
 pub use limits::{Limits, ParseError};
-pub use report::{Entry, EntryKind, MAX_ENTRIES, MAX_REPORT_BYTES, Report};
+pub use report::{Entry, EntryKind, MAX_ENTRIES, MAX_REPORT_BYTES, Report, clean};
 
 /// The most bytes of a tag or attribute name; a longer one is cut.
 pub const MAX_NAME_BYTES: usize = 64;
