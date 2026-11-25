@@ -3,7 +3,7 @@
 
 use crate::answer::describe;
 use crate::args::Args;
-use crate::file::place;
+use crate::file::{dry_run, place};
 use crate::plan::{Planned, make};
 use crate::schema::{DESCRIPTION, TOOL, input_schema};
 use crate::{failed, invalid, refuse};
@@ -12,6 +12,7 @@ use meldframe_host::{Op, Principal};
 use meldframe_http::mcp::{Extra, ExtraCall, FileView, Reader};
 use meldframe_http::{Failure, Reply, Shared};
 use meldframe_module::Policy;
+use meldframe_protocol::Doc;
 use rmcp::model::{CallToolResult, Tool, ToolAnnotations};
 use serde_json::{Map, Value, json};
 use std::sync::Arc;
@@ -118,63 +119,100 @@ impl HtmlImport {
         if args.note.is_some() && self.shared.batches.get().is_none() {
             return Err(invalid("this server keeps no notes: leave note out"));
         }
-        if args.dry_run {
-            return Err(invalid("dryRun is not supported yet"));
-        }
         let (job, actor) = (args.clone(), who.actor.clone());
         let planned = self
             .shared
             .blocking(who, move || make(&job, &actor))
             .await
             .map_err(|r| failed(&r))??;
-        let (file, name) = (args.file.clone(), args.file.clone());
-        let (FileView { nodes, .. }, _) = self
+        let (file, count) = (args.file.clone(), planned.plan.commands.len());
+        // A call sent again after a timeout finds its commands in the log: every key is there, so nothing is sent to
+        // the room. The root may have been moved or renamed since, so the commands built now would differ from the
+        // ones written: a retry is answered from the log and not tried again.
+        if !args.dry_run {
+            let keys: Vec<String> = (0..count)
+                .map(|i| format!("{}:{i}", planned.prefix))
+                .collect();
+            let name = file.clone();
+            let seqs = self
+                .read(who, move |r, w| r.written(w, &name, &keys))
+                .await?;
+            if seqs.len() == count {
+                let done = seqs.iter().map(|s| (*s, false)).collect();
+                return Ok(self.finish(who, &args, &planned, done).await);
+            }
+        }
+        let name = file.clone();
+        let (FileView { nodes, seq }, vars) = self
             .read(who, move |r, w| r.view_with_variables(w, &name))
             .await?;
         let mut planned = planned;
         place(&mut planned, args.parent_id.as_deref(), &nodes);
+        if args.dry_run {
+            // The checks of a write on a copy of the file, in the order of the commands.
+            let (doc, commands) = (Doc { nodes, vars }, planned.plan.commands.clone());
+            let checked = (self.shared)
+                .blocking(who, move || dry_run(doc, &commands))
+                .await;
+            checked
+                .map_err(|r| failed(&r))?
+                .map_err(|r| with_source(failed(&r), &planned))?;
+            let call = json!({"file": file, "idempotencyKey": args.key, "dryRun": true,
+                "replayed": false, "seq": seq, "batch": null});
+            return Ok(answer(&planned, call));
+        }
         let ops: Vec<Op> = (planned.plan.commands.iter().enumerate())
             .map(|(i, c)| Op::new(format!("{}:{i}", planned.prefix), c.clone()))
             .collect();
-        let count = ops.len();
         let reply = self
             .shared
-            .submit_ops(who.clone(), TOOL.into(), file.clone(), ops, Some(vec![]))
+            .submit_ops(who.clone(), TOOL.into(), file, ops, Some(vec![]))
             .await;
         if !reply.status.is_success() {
             return Err(with_source(failed(&reply), &planned));
         }
-        let done = reply.body["accepted"]
+        let accepted = reply.body["accepted"]
             .as_array()
             .cloned()
             .unwrap_or_default();
-        let seq = done
-            .iter()
-            .filter_map(|d| d["seq"].as_u64())
-            .max()
-            .unwrap_or(0);
-        let replayed = !done.is_empty() && done.iter().all(|d| d["written"] == json!(false));
         // An answer with no seq for a command gets no header, never one built on a made-up number.
-        let seen: Option<Vec<(u64, bool)>> = (done.iter())
+        let done = (accepted.iter())
             .map(|d| Some((d["seq"].as_u64()?, d["written"] == json!(true))))
-            .collect();
+            .collect::<Option<Vec<(u64, bool)>>>();
+        Ok(self
+            .finish(who, &args, &planned, done.unwrap_or_default())
+            .await)
+    }
+
+    /// The answer of a call that wrote (or found written) its commands: `done` is the `(seq, written)` of each. It
+    /// keeps the batch header and says whether every command was there already.
+    async fn finish(
+        &self,
+        who: &Principal,
+        args: &Args,
+        planned: &Planned,
+        done: Vec<(u64, bool)>,
+    ) -> Value {
+        let seq = done.iter().map(|d| d.0).max().unwrap_or(0);
+        let replayed = !done.is_empty() && done.iter().all(|d| !d.1);
         let call = BatchCall {
-            file: file.clone(),
+            file: args.file.clone(),
             key: planned.prefix.clone(),
-            commands: count,
+            commands: planned.plan.commands.len(),
             atomic: true,
             note: args.note.clone(),
         };
-        let marked = match seen {
-            Some(seen) => self.mark(who, call, seen).await,
-            None => None,
+        let marked = if done.is_empty() {
+            None
+        } else {
+            self.mark(who, call, done).await
         };
         let batch = marked.map(|m| json!({"n": m.n, "note": m.note}));
-        Ok(answer(
-            &planned,
-            json!({"file": file, "idempotencyKey": args.key, "dryRun": false, "replayed": replayed,
-                "seq": seq, "batch": batch}),
-        ))
+        answer(
+            planned,
+            json!({"file": args.file, "idempotencyKey": args.key, "dryRun": false,
+                "replayed": replayed, "seq": seq, "batch": batch}),
+        )
     }
 }
 

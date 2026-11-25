@@ -8,17 +8,77 @@ mod common;
 #[allow(unused_imports, reason = "each test binary uses a part of these")]
 pub use activity_store::{BatchStore, MemoryBatches, Query};
 pub use common::*;
+use meldframe_host::{Accepted, Op, Principal};
 use meldframe_http::mcp::McpConfig;
-use meldframe_http::{DevTokens, Shared};
+use meldframe_http::{Config, DevTokens, Failure, Guard, Shared, Submitter};
 use meldframe_http_activity::Activity;
 pub use meldframe_module::Policy;
 use meldframe_server::{Server, SharedServer};
 use serde_json::{Value, json};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::time::Duration;
+
+/// The submitter of the shared handler: the spy, with two faults a test switches on. `cut`: an atomic call writes its
+/// first `cut` ops and then fails, as a store that fails part way does. `slow`: the call writes and then outlasts the
+/// time limit, so the caller gets `timeout` while the ops are written all the same; `finished` counts the end of such a job.
+pub struct Faulty {
+    pub inner: Arc<Spy>,
+    pub cut: AtomicUsize,
+    pub slow: AtomicBool,
+    pub finished: AtomicUsize,
+}
+
+impl Submitter for Faulty {
+    fn submit(
+        &self,
+        t: &str,
+        f: &str,
+        w: &Principal,
+        o: Vec<Op>,
+    ) -> Result<Vec<Accepted>, Failure> {
+        self.inner.submit(t, f, w, o)
+    }
+
+    fn submit_atomic(
+        &self,
+        t: &str,
+        f: &str,
+        w: &Principal,
+        o: Vec<Op>,
+        g: Vec<Guard>,
+    ) -> Result<Vec<Accepted>, Failure> {
+        let cut = self.cut.load(Ordering::SeqCst);
+        if cut > 0 {
+            self.inner
+                .submit(t, f, w, o.into_iter().take(cut).collect())?;
+            return Err(Failure::Unavailable("the store failed part way".into()));
+        }
+        let done = self.inner.submit_atomic(t, f, w, o, g);
+        if self.slow.load(Ordering::SeqCst) {
+            std::thread::sleep(Duration::from_millis(700));
+            self.finished.fetch_add(1, Ordering::SeqCst);
+        }
+        done
+    }
+}
+
+impl Faulty {
+    /// Wait until a slow job has ended (at most 10 seconds).
+    pub async fn ended_after(&self, before: usize) {
+        for _ in 0..1000 {
+            if self.finished.load(Ordering::SeqCst) > before {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        panic!("the slow job did not end");
+    }
+}
 
 pub struct World {
+    pub faulty: Arc<Faulty>,
     pub h: Harness,
     pub store: Arc<MemoryBatches>,
     pub shared: Arc<Shared>,
@@ -30,6 +90,8 @@ pub struct Setup {
     pub policy: Option<Policy>,
     pub notes: bool,
     pub quota: Option<u64>,
+    /// The time limit of a call in milliseconds (10,000 when `None`).
+    pub timeout_ms: Option<u64>,
 }
 
 impl Default for Setup {
@@ -38,6 +100,7 @@ impl Default for Setup {
             policy: Some(Policy::Auto),
             notes: true,
             quota: None,
+            timeout_ms: None,
         }
     }
 }
@@ -61,7 +124,18 @@ pub async fn start_with(setup: Setup) -> World {
         "{AGENT}:ws_1:agent:alpha,{PERSON}:ws_1:user:bea,{OTHER}:ws_2:agent:gamma"
     ))
     .unwrap();
-    let shared: Arc<Shared> = meldframe_http::shared(Arc::new(tokens), spy.clone(), config());
+    let faulty = Arc::new(Faulty {
+        inner: spy.clone(),
+        cut: AtomicUsize::new(0),
+        slow: AtomicBool::new(false),
+        finished: AtomicUsize::new(0),
+    });
+    let timeout = Duration::from_millis(setup.timeout_ms.unwrap_or(10_000));
+    let config = Config {
+        timeout,
+        ..config()
+    };
+    let shared: Arc<Shared> = meldframe_http::shared(Arc::new(tokens), faulty.clone(), config);
     let store = Arc::new(MemoryBatches::default());
     if setup.notes {
         let sink = Activity::new(store.clone(), spy.clone()).sink();
@@ -88,6 +162,7 @@ pub async fn start_with(setup: Setup) -> World {
         .unwrap();
     });
     World {
+        faulty,
         h: Harness { addr, spy },
         store,
         shared,

@@ -14,6 +14,7 @@ kind = "bin"
 html-import = { path = "../../features/html-import/html-import" }
 meldframe-activity = { path = "../../core/meldframe-activity" }
 meldframe-check = { path = "../../core/meldframe-check" }
+meldframe-core = { path = "../../core/meldframe-core" }
 meldframe-host = { path = "../../core/meldframe-host" }
 meldframe-http = { path = "../meldframe-http", features = ["mcp"] }
 meldframe-layout = { path = "../../core/meldframe-layout" }

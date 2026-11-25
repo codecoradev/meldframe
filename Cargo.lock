@@ -1687,6 +1687,7 @@ dependencies = [
  "html-import",
  "meldframe-activity",
  "meldframe-check",
+ "meldframe-core",
  "meldframe-host",
  "meldframe-http",
  "meldframe-layout",
