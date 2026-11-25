@@ -43,12 +43,13 @@ export const KINDS = {
  * `kinds` where a non-test file may import it; `viewFiles` the extensions of its view files (a file with
  * one of them may sit only in a package of those kinds); `plainFileKinds` the kinds where a plain .ts file may also
  * import it (the composition root mounts the app). With no `viewFiles` any file of those kinds may import it.
- * To add a framework, add a row (React is the example: it joined the view kinds with the toolchain of E7.3, S0).
+ * To add a framework, add a row (React is the example: it joined the view kinds with the toolchain of E7.3, S0; Base UI followed with the pilot, S1).
  */
 export const FRAMEWORKS = [
   { name: 'svelte', imports: ['svelte'], kinds: ['kit', 'view', 'bin'], viewFiles: ['.svelte'], plainFileKinds: ['bin'] },
   { name: 'bits-ui', imports: ['bits-ui'], kinds: ['kit', 'view', 'bin'], viewFiles: ['.svelte'], plainFileKinds: ['bin'] },
   { name: 'react', imports: ['react', 'react-dom'], kinds: ['kit', 'view', 'bin'], viewFiles: ['.tsx'], plainFileKinds: ['bin'] },
+  { name: '@base-ui/react', imports: ['@base-ui/react'], kinds: ['kit', 'view', 'bin'], viewFiles: ['.tsx'], plainFileKinds: ['bin'] },
   { name: 'pixi.js', imports: ['pixi.js'], kinds: ['render', 'bin'] },
 ];
 

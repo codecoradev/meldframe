@@ -18,6 +18,7 @@
     "check": "npm run typecheck && npm run lint && npm run boundaries && npm test && npm run build && npm run ui-literals && npm run licences"
   },
   "dependencies": {
+    "@base-ui/react": "1.9.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "bits-ui": "^2.21.0",
