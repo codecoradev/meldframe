@@ -25,6 +25,7 @@
 
 mod cascade;
 mod decl;
+pub mod defaults;
 mod matching;
 mod scan;
 pub mod selector;
