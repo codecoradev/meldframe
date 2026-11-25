@@ -67,7 +67,7 @@ Details in `docs/ui-design.md`.
 
 | # | Decision | Status |
 |---|---|---|
-| 35 | The size of a crate (or package) is an ideal band of 1,500 to 2,500 lines with a hard ceiling of 4,000, in place of the flat ceiling of 2,000 (D1 of `docs/standards/modular-thin-ui.md`, version 1.2). The file limit of 500 lines is unchanged. Allow-list entries still only go down, now measured against the 4,000 ceiling. Above 2,500 a crate is a candidate for a planned split, not an emergency; at 4,000 the split comes before the next addition. | decided |
+| 35 | The size of a crate (or package) is an ideal band of 1,500 to 2,500 lines with a hard ceiling of 4,000, in place of the flat ceiling of 2,000 (D1 of `docs/standards/modular-thin-ui.md`, version 1.2). The file limit of 500 lines is unchanged. Allow-list entries still only go down, now measured against the 4,000 ceiling. Above 2,500 a crate is a candidate for a planned split, not an emergency; at 4,000 the split comes before the next addition. | decided (the ceiling of 4,000 is superseded by decision 42: 50,000) |
 
 ## Owner orders of 21 Nov 2026
 

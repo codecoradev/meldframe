@@ -3,6 +3,8 @@ status: proposed
 ---
 # The activity panel reads numbered batches, notes and review states kept beside the log, and every other fact it shows is derived from the log
 
+> Status note, 25 Nov 2026: the crate ceilings named below were written for the ceiling of the time. Since decision 42 (standard v1.3, ADR-0026) the hard ceiling of a crate is 50,000 lines; the ideal band of 1,500 to 2,500 lines and the file limit of 500 lines are unchanged. The decision below stands; a split it made stays, and a size figure is history.
+
 E5.1 asks for one lane per agent session with batches, notes and a status, rules in the app layer, and touch hints. The M5 exit is a real Claude Code run in which the person sees each batch with its note, reverts one batch, and the rest of the agent's work stays intact. ADR-0005 and ADR-0016 fixed what a batch is for and how a revert is worked out; the server still does not number batches, has no note, and the app layer shows none of it. This records the choices that are hard to reverse once files, tables and agents depend on them. Where code and docs disagree, the code was read and the docs are listed under Consequences. The owner's answers to the first draft are folded in and marked (live-only revert, notes of 500 characters, agents may read notes, review state in E5.1); an independent review then corrected several premises that were wrong in the code, and each correction is stated where it matters.
 
 ## Decision

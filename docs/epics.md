@@ -44,7 +44,7 @@ Crates under `crates/{core,engines,integrations,features,app,ui}`, apps under `a
 
 ### E0.2 CI and review gates (S)
 - [x] CI runs format, lint (warnings as errors), tests, `deps-check`, `build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences --check`. (The fast set runs on every pull request; `build-matrix`, `portable-check`, `size-check`, `ui-literals` and `licences --check` run nightly and on demand; `just check` runs all of them except `licences --check`, which is run as `cargo xtask licences --check`.)
-- [x] `size-check` enforces 500 lines per file and 2,000 per crate with an allow-list that only shrinks.
+- [x] `size-check` enforces 500 lines per file and a ceiling per crate (2,000 when this was ticked, 4,000 from decision 35, 50,000 from decision 42) with an allow-list that only shrinks.
 - [x] A local Cora agent review is run and recorded for every pull request (CI Cora is disabled); branch-name and message-standard checks reject AI attribution and wrong prefixes.
 - [x] `develop` requires CI to pass before merge; `main` exists and receives release tags only.
 
@@ -261,6 +261,8 @@ Status note (not ticked: the owner decides after a review and the real Claude Co
 Cross-cutting work ordered by the owner, recorded in ADR-0026 and tracked as epic #305. Goal: a thin UI first, enforced by tools; the web client in React instead of Svelte; the desktop client on GPUIX + React after the web client is fixed (this replaces the Tauri 2 plan of decision 5). Order: E7.1 and E7.2, then E7.3, then E7.4. The boxes below are copied from the issues and none is ticked: a box is ticked only when its whole text is proven.
 
 **Exit criteria of E7:** the decisions are recorded; standard v1.3 is mirrored and enforced; the TypeScript front end is audited against U1 to U9, what is more than rendering is in the app layer, and the web packages have enforced boundaries; the web client is React with no Svelte left; the desktop spike has a written result against its written exit criteria.
+
+**Audits of 25 Nov 2026 and their findings.** `docs/audits/2026-11-25-rust-modular-monolith.md` (Rust workspace against D1 and U9) and `docs/audits/2026-11-25-ts-thin-ui.md` (TypeScript front end against U1 to U9). Findings are tracked as issues under #305: Rust #311 to #317 (one text helper for U9, `touches` copied, one home per duplicated helper, `mm-check`, merging the crates split for the old ceiling, the 44 test-only crates, the crate kinds decision for the owner), TypeScript #319 to #324 (U9 in the front end, one actor view, limits copied from Rust, typed text and variables rules, answer validators, the lower priorities).
 
 ### E7.1 Adopt standard v1.3 (S, #306)
 - [ ] `docs/standards/modular-thin-ui.md` is v1.3 (the text of D1, U9, D8, the checklist, the anti-patterns and the adoption row), in the repository's public wording (no internal room names).
