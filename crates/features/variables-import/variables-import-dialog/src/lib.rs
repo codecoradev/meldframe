@@ -13,6 +13,7 @@ use meldframe_app_model::{
 };
 use meldframe_app_rules::modes::{EditRefusal, check_edit_at};
 use meldframe_protocol::{Command, Node, Variables};
+use meldframe_text::{MAX_LABEL, label};
 use variables_import::{
     EntryKind, Import, ImportError, ImportOptions, MAX_INPUT_BYTES, import_css,
 };
@@ -130,9 +131,10 @@ fn subject(c: &Command) -> Option<ImportAt> {
         Command::AddVariable { variable } => (VariableEntity::Variable, &variable.name),
         _ => return None,
     };
+    // The names an import makes are ASCII paths today; the name is made safe all the same, where it enters the state (rule U9).
     Some(ImportAt {
         entity,
-        name: name.clone(),
+        name: label(name, MAX_LABEL),
     })
 }
 

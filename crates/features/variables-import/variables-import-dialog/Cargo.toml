@@ -17,4 +17,5 @@ workspace = true
 meldframe-app-model = { path = "../../../core/meldframe-app-model" }
 meldframe-app-rules = { path = "../../../core/meldframe-app-rules" }
 meldframe-protocol = { path = "../../../core/meldframe-protocol" }
+meldframe-text = { path = "../../../core/meldframe-text" }
 variables-import = { path = "../variables-import" }
