@@ -48,3 +48,16 @@ describe('the overlay fixture rows', () => {
     expect(picked).toEqual(['charlie']);
   });
 });
+
+describe('the switch of the palette and the shortcut sheet (S4)', () => {
+  it('is the value `palette`, alone or in a list, and leaves the layout page and the editor Svelte without it', () => {
+    expect(reactFor('palette', '?layout&react=palette')).toBe(true);
+    expect(reactFor('palette', '?react=export,palette')).toBe(true);
+    expect(reactFor('palette', '?layout')).toBe(false);
+    expect(reactFor('palette', '?react=export')).toBe(false);
+    expect(reactFor('palette', '?react=palettes')).toBe(false);
+  });
+  it('does not turn the layout page into the state matrix page', () => {
+    expect(pilotPage('?layout&react=palette', false)).toBeNull();
+  });
+});

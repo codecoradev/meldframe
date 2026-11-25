@@ -4,12 +4,15 @@
 // themes, it asserts on the computed boxes: the Layers card (inset 12, 260 wide, radius 12, 1 px border, header 52), the
 // one right card (inset 12, 288, header 52, tabs Design and Activity), the tool bar (36 px buttons, padding 8, gap 4,
 // bottom 20) and that no two pieces of chrome overlap; then Option+1, Option+2 and ? . With a shots-dir it saves screenshots (DPR 2).
+// The React copy of the shortcut sheet (E7.3 slice S4) is checked by the same script with MELDFRAME_UI=react: it opens /?layout&react=palette,
+// and a check asks that React really drew the sheet.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const web = process.argv[2] ?? 'http://localhost:5173';
 const shots = process.argv[3];
+const react = process.env.MELDFRAME_UI === 'react';
 const browser = await chromium.launch();
 const errors = [];
 const box = (page, sel) => page.locator(sel).first().evaluate((e) => { const r = e.getBoundingClientRect(); const s = getComputedStyle(e); return { x: r.x, y: r.y, w: r.width, h: r.height, r: r.right, b: r.bottom, radius: s.borderTopLeftRadius, border: s.borderTopWidth, pad: s.paddingTop, gap: s.columnGap }; });
@@ -20,7 +23,7 @@ for (const [vw, vh] of [[1440, 900], [1280, 800]]) {
     const page = await (await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 2, reducedMotion: 'reduce' })).newPage();
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.addInitScript((t) => localStorage.setItem('meldframe.theme', t), theme);
-    await page.goto(`${web}/?layout`);
+    await page.goto(`${web}/?layout${react ? '&react=palette' : ''}`);
     await page.waitForSelector('[data-testid=toolbar]');
     await page.evaluate(() => document.fonts.ready);
     const at = `${vw}x${vh} ${theme}`;
@@ -98,6 +101,7 @@ for (const [vw, vh] of [[1440, 900], [1280, 800]]) {
       await page.waitForSelector('[data-testid=layers-card]');
       await page.keyboard.press('Shift+Slash');
       await page.waitForSelector('[data-testid=shortcut-hint]');
+      assert.equal(await page.evaluate(() => Object.keys(document.querySelector('[data-testid=shortcut-hint]')).some((k) => k.startsWith('__reactFiber$'))), react, `${at}: the sheet is drawn by ${react ? 'React (a fallback to Svelte?)' : 'Svelte'}`);
       await page.keyboard.press('Escape');
       assert.equal(await page.locator('[data-testid=shortcut-hint]').count(), 0);
       // focus follows a toggle: the header button of a card is swapped for the one of its folded form, and back
