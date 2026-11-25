@@ -133,7 +133,8 @@ impl P<'_> {
     /// An escape after its `\`: one to six hex digits and the space that may end them, else the next character.
     fn escape(&mut self) -> Option<char> {
         let first = self.peek()?;
-        if first == '\n' {
+        // A backslash before a line end (CR, LF, FF) is not an escape.
+        if matches!(first, '\n' | '\r' | '\u{c}') {
             return None;
         }
         if !first.is_ascii_hexdigit() {
@@ -217,13 +218,23 @@ impl P<'_> {
                 Some('\n' | '\r' | '\u{c}') => {
                     return Err(no("selector_invalid", "a string ends at its line"));
                 }
-                Some('\\') => {
-                    if self.peek() == Some('\n') {
+                Some('\\') => match self.peek() {
+                    // A backslash and a line end (CRLF is one) join the lines.
+                    Some('\r') => {
                         self.bump();
-                    } else if let Some(e) = self.escape() {
-                        out.push(e);
+                        if self.peek() == Some('\n') {
+                            self.bump();
+                        }
                     }
-                }
+                    Some('\n' | '\u{c}') => {
+                        self.bump();
+                    }
+                    _ => {
+                        if let Some(e) = self.escape() {
+                            out.push(e);
+                        }
+                    }
+                },
                 Some(c) => out.push(c),
             }
         }
