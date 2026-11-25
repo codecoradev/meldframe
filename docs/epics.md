@@ -256,6 +256,40 @@ Status note (not ticked: the owner decides after a review and the real Claude Co
 
 **W1 gate:** owner score 4/5 or better on 3 of 4 screens (decision 9).
 
+## Front end direction (E7, owner decision 42 of 25 Nov 2026)
+
+Cross-cutting work ordered by the owner, recorded in ADR-0026 and tracked as epic #305. Goal: a thin UI first, enforced by tools; the web client in React instead of Svelte; the desktop client on GPUIX + React after the web client is fixed (this replaces the Tauri 2 plan of decision 5). Order: E7.1 and E7.2, then E7.3, then E7.4. The boxes below are copied from the issues and none is ticked: a box is ticked only when its whole text is proven.
+
+**Exit criteria of E7:** the decisions are recorded; standard v1.3 is mirrored and enforced; the TypeScript front end is audited against U1 to U9, what is more than rendering is in the app layer, and the web packages have enforced boundaries; the web client is React with no Svelte left; the desktop spike has a written result against its written exit criteria.
+
+### E7.1 Adopt standard v1.3 (S, #306)
+- [ ] `docs/standards/modular-thin-ui.md` is v1.3 (the text of D1, U9, D8, the checklist, the anti-patterns and the adoption row), in the repository's public wording (no internal room names).
+- [ ] `cargo xtask size-check` enforces 50,000 lines a crate and 500 a file, with its tests first, and the allow-list semantics (entries only go down) are unchanged; the note that names crates above 2,500 lines stays.
+- [ ] `AGENTS.md` and the docs that quote the 4,000 ceiling say v1.3 (`docs/architecture.md`; the ADRs that mention it get a status note, not a rewrite).
+- [ ] The modular monolith rule has a stated, checkable form in the tools or in the review checklist, chosen from the audit of the current crates (a follow-up issue holds the design if it needs one).
+- [ ] No behaviour of any product crate changes.
+
+### E7.2 Thin UI audit and boundaries for the web packages (M, #307)
+- [ ] An audit note (in `docs/`) lists, for every web package and for `apps/web`, what it holds (rendering, gesture handling, transport, business rule) with line counts, and names each rule that should live in the app layer, checked against the code. Findings are numbered.
+- [ ] A follow-up issue for each finding that moves a rule into `meldframe-app` (failing test first at the app layer; the front end then only dispatches), sized under 1,000 lines each.
+- [ ] A boundary check for the web packages in CI, equivalent to `deps-check` for TypeScript (kinds of package, allowed imports, no framework import in a package that is not a view), with its own tests; its design may be a follow-up issue.
+- [ ] The audit also lists the Svelte-specific surface (runes, stores, snippets, transitions, Bits UI, tests that need a Svelte runtime) so that E7.3 can size its work.
+- [ ] Nothing in the product changes in this issue except the boundary check and its configuration.
+
+### E7.3 React web client (L, split into panels, #308; blocked by the audit for its plan)
+- [ ] A plan note (in `docs/` or an ADR) with the options (a branch rewrite, a strangler by panel with React islands inside the Svelte shell or the reverse, a new app directory with a parity list), the choice and why, the component library that replaces Bits UI, how the Pixi canvas is mounted, the test strategy, and the order of panels with sizes under 1,000 lines each.
+- [ ] A pilot: one new or small screen in React (the Import HTML dialog, which does not exist yet, or the smallest panel) behind the same bridge, with its browser script passing, to prove the toolchain (Vite, Tailwind, `ui-literals` for `.tsx`, lint, type check, tests) before the rest moves.
+- [ ] Every browser script that exists today passes on the React client before its Svelte version is deleted; no panel is removed without that.
+- [ ] No Svelte is left in the repository at the end, and `npm run check` covers the React client.
+- [ ] The order of this epic against the thin UI audit is decided in the plan (proposed: after the audit names the renderer surface, so that logic is not rewritten twice).
+
+### E7.4 Desktop spike on GPUIX + React (M, #309; blocked by E7.3 for any build)
+- [ ] Written exit criteria before any code: for the layout golden fixtures and the oracle fixtures, boxes within 0.05 px and line breaks identical to the core, text ink within 1 px, rounded clip and shadows within the contract's pixel limits, pan and zoom within a frame budget at a stated node count.
+- [ ] A spike result in `docs/` with the engine, the OS, the GPU path and the date, against those criteria; the desktop canvas paints from the core's own text measure and line breaks (the `TextMeasurer` seam) rather than from GPUI's text layout, or the result says why not.
+- [ ] A plan for what the desktop client shares with the web client (the Rust app layer and WASM or native link, the React components that can be reused across the DOM and GPUIX tags, the tokens), and what it does not (Bits UI or DOM-only components, Pixi).
+- [ ] Which forks, pins and runtime (bun or Node) the desktop build needs, with licences on the allow list of `deny.toml` and how they are pinned and updated.
+- [ ] Decision 5 is marked superseded in `docs/decisions.md` and the roadmap names the order: web client first. (Both are done by the pull request that records decision 42; the box waits for the owner.)
+
 ## After W1 (not planned in detail)
 
-Carousel and slides (C1), motion (Mo1), headless capture (decision 18), components and instances (decision 19), desktop with a local agent over ACP (phase D), brand memory through Uteke, PDF export, responsive export.
+Carousel and slides (C1), motion (Mo1), headless capture (decision 18), components and instances (decision 19), desktop with a local agent over ACP (phase D; GPUIX + React after the web client is fixed, decision 42 and E7.4), brand memory through Uteke, PDF export, responsive export.
