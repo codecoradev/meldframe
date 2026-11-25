@@ -177,6 +177,24 @@ fn a_node_name_gets_the_combining_run_cap_of_a_note() {
 }
 
 #[test]
+fn a_summary_name_is_a_label_of_meldframe_text_cut_to_40_characters() {
+    let family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}";
+    let names = |name: &str| {
+        let mut a = activity();
+        a.observe_op(&op(1, "agent:a", "k:0", add("x", name, None)), 1);
+        a.rows()[0].summary.clone().unwrap().names
+    };
+    // The display profile: a family emoji stays whole, as a layer name does; every other hidden character goes.
+    assert_eq!(names(&format!("Team {family}")), [format!("Team {family}")]);
+    assert_eq!(names("a\u{202E}b\u{2800}c"), ["abc"]);
+    // A run of white space is one space, whatever kind it is.
+    assert_eq!(names("a\u{00A0}\u{00A0}b"), ["a b"]);
+    // 40 characters of 4 bytes are 160 bytes: cut in characters, never inside one.
+    let long = "\u{1F600}".repeat(60);
+    assert_eq!(names(&long), ["\u{1F600}".repeat(40)]);
+}
+
+#[test]
 fn the_jump_fetch_is_asked_for_once_in_the_fetch_window() {
     let mut a = activity();
     a.observe_header(header(1, 1, "agent:a", "k1", 1, 1), 1);

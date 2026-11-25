@@ -41,6 +41,15 @@
 //! layer that must show whatever arrived cleans it ([`sanitize`], then [`clip`]), once, where the text enters the app
 //! layer.
 //!
+//! # What the app layer calls
+//!
+//! [`label`] is the display profile as a value: a name or a label a person reads (a layer, a collection, a mode, a
+//! variable, a checkpoint label, the names of a batch summary). It also caps stacked marks, folds every run of white
+//! space to one space, trims and cuts at [`MAX_LABEL`]. [`identifier`] is the strict profile as a value: an actor, a
+//! key and a refusal code, which the app layer uses as keys and shows as they are. It does not touch white space, so
+//! every text that [`actor`] or [`key`] accepts comes back unchanged. The stored text is never changed by either call:
+//! the document keeps what was written, and the state carries what is safe to draw.
+//!
 //! # Caps
 //!
 //! A cap is checked in characters and in bytes together ([`plain`] takes both), because the two counts differ for
@@ -58,11 +67,13 @@ mod charset;
 mod number;
 mod plain;
 mod sanitize;
+mod shown;
 
 pub use charset::{first_hidden, is_combining_mark, is_hidden_text, mark_run_exceeds};
 pub use number::canonical_u32;
 pub use plain::{TextError, actor, file_name, key, plain, workspace_name};
 pub use sanitize::{Profile, clip, sanitize, sanitize_clip};
+pub use shown::{identifier, label};
 
 /// The longest actor string, in bytes (and so in characters): the column of a batch header and of a checkpoint holds
 /// no more.
@@ -78,3 +89,6 @@ pub const MAX_KEY_BYTES: usize = 4 * MAX_KEY;
 pub const MAX_NODE_REF: usize = 128;
 /// The longest run of combining marks in a text: more would let stacked marks smear a line.
 pub const MAX_COMBINING_RUN: usize = 4;
+/// The longest name or label shown, in characters: the longest name a node, a collection or a mode may have in the file
+/// (`max_name` of the document's limits, 256 characters).
+pub const MAX_LABEL: usize = 256;
