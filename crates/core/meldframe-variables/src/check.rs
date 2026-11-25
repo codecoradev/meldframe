@@ -81,9 +81,9 @@ fn valid_id(id: &str, l: &VarLimits) -> Result<(), VarError> {
     }
 }
 
-/// A variable or collection name: lowercase segments of letters, digits and single hyphens, joined by `/`.
-fn valid_name(name: &str, l: &VarLimits) -> Result<(), VarError> {
-    strlen("name", name, l.max_name)?;
+/// The rule of the characters of a variable or collection name: lowercase segments of letters, digits and single
+/// hyphens, joined by `/`. The length is the limit's (`valid_name`). A front end asks the app layer, which calls this.
+pub fn is_name_path(name: &str) -> bool {
     let segment = |s: &str| {
         !s.is_empty()
             && !s.starts_with('-')
@@ -92,7 +92,13 @@ fn valid_name(name: &str, l: &VarLimits) -> Result<(), VarError> {
             && s.bytes()
                 .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
     };
-    if name.split('/').all(segment) {
+    name.split('/').all(segment)
+}
+
+/// A variable or collection name: lowercase segments of letters, digits and single hyphens, joined by `/`.
+fn valid_name(name: &str, l: &VarLimits) -> Result<(), VarError> {
+    strlen("name", name, l.max_name)?;
+    if is_name_path(name) {
         Ok(())
     } else {
         Err(VarError::InvalidName(name.to_string()))

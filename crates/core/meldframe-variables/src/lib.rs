@@ -16,7 +16,7 @@ pub use apply::{apply, invert, is_variable_command, touched};
 pub use bindings::{Binding, node_bindings, patch_bindings, users};
 pub use check::{
     check_file_bindings, check_node_bindings, check_patch_bindings, check_variable_command,
-    check_variables,
+    check_variables, is_name_path,
 };
 pub use error::{VAR_ERROR_CODES, VarError};
 pub use footprint::{Pairs, footprint};
