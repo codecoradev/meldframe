@@ -399,3 +399,18 @@ fn a_name_cut_for_its_length_counts_toward_the_attribute_cap() {
     assert_eq!(count(&p, "attribute_too_long"), 1);
     assert_eq!(count(&p, "attribute_dropped"), 2);
 }
+
+#[test]
+fn a_heading_ends_a_heading_only_when_it_is_the_open_element_on_top() {
+    // `top_only`: the span is on top, so the second heading does not close the first through it.
+    assert_eq!(shape("<h1><span><h2>x"), r#"h1{span{h2{"x"}}}"#);
+    // A paragraph is looked for further down.
+    assert_eq!(shape("<p><span><h2>x"), r#"p{span} h2{"x"}"#);
+}
+
+#[test]
+fn an_attribute_of_on_and_one_letter_is_an_event_attribute_and_on_alone_is_not() {
+    let p = run("<a onx=1 ony=2 on=3 o=4>");
+    assert_eq!(dump(&p.tree), "a(on=3 o=4)");
+    assert_eq!(count(&p, "event_attribute"), 2);
+}

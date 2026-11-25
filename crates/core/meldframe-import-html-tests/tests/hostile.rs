@@ -96,9 +96,26 @@ fn text_that_stops_in_the_middle_of_a_construct_ends_there_and_is_reported() {
             .unwrap_or_else(|e| panic!("{tail:?}: {e}"));
         assert!(count(&p, code) >= 1, "{tail:?}: {:?}", p.report.counts);
     }
-    // A lone `<`, `</` or `<!` at the end is text or a comment, never a panic.
-    for tail in ["<", "</", "<!", "<a", "&", "&#", "&#x"] {
-        parse(&format!("<p>a{tail}"), &Limits::default()).unwrap();
+    // A lone `<`, `</`, `<!`, `<a`, `&`, `&#` or `&#x` at the end: what it is, and what is recorded.
+    for (tail, shape, code) in [
+        ("<", r#"p{"a<"}"#, None),
+        ("&", r#"p{"a&"}"#, None),
+        ("&#", r#"p{"a&#"}"#, None),
+        ("&#x", r#"p{"a&#x"}"#, None),
+        ("</", r#"p{"a"}"#, Some("unterminated_comment")),
+        ("<!", r#"p{"a"}"#, Some("unterminated_comment")),
+        ("<a", r#"p{"a"}"#, Some("unterminated_tag")),
+    ] {
+        let p = run(&format!("<p>a{tail}"));
+        assert_eq!(dump(&p.tree), shape, "{tail:?}");
+        assert_eq!(
+            p.report.entries.len(),
+            usize::from(code.is_some()) + 1,
+            "{tail:?}"
+        );
+        if let Some(code) = code {
+            assert_eq!(count(&p, code), 1, "{tail:?}: {:?}", p.report.counts);
+        }
     }
 }
 
@@ -120,7 +137,15 @@ fn every_prefix_of_a_document_is_read_without_a_panic_and_inside_the_bounds() {
             continue;
         }
         match parse(&doc[..end], &l) {
-            Ok(p) => assert!(p.tree.len() <= l.max_elements),
+            Ok(p) => {
+                assert!(p.tree.len() <= l.max_elements);
+                assert!(p.report.entries.iter().all(|e| e.at <= end), "prefix {end}");
+                assert!(
+                    p.report.work <= (WINDOW + 4) * end,
+                    "prefix {end}: {}",
+                    p.report.work
+                );
+            }
             Err(ParseError::Empty) => {}
             Err(e) => panic!("prefix {end}: {e}"),
         }
@@ -240,6 +265,14 @@ fn a_numeric_reference_with_a_run_of_digits_is_read_in_a_bounded_window() {
     );
     let p = parse(&html, &roomy()).unwrap();
     assert_eq!(p.tree.len(), 3);
+    // None of the three is a reference, so each text stays as written.
+    let want = format!(
+        "p{{\"&#{}\"}} p{{\"&#x{};\"}} p{{\"&{}\"}}",
+        "9".repeat(100_000),
+        "f".repeat(100_000),
+        "a".repeat(100_000)
+    );
+    assert_eq!(dump(&p.tree), want);
     // Linear: the window of a reference is a few bytes, so the work does not grow with the run.
     assert!(p.report.work <= 8 * html.len(), "{}", p.report.work);
 }
@@ -283,4 +316,20 @@ fn nul_bytes_are_stored_as_three_bytes_each_so_a_text_is_at_most_three_times_the
     let p = parse(&format!("<style>{nuls}</style>"), &roomy()).unwrap();
     let styles: Vec<&str> = p.tree.style_texts().collect();
     assert_eq!(styles, vec!["\u{fffd}".repeat(n).as_str()]);
+}
+
+#[test]
+fn a_numeric_reference_has_at_most_eight_digits() {
+    for (html, want) in [
+        ("&#00000065;", "A"),
+        ("&#000000065;", "&#000000065;"),
+        ("&#x00000041;", "A"),
+        ("&#x000000041;", "&#x000000041;"),
+    ] {
+        assert_eq!(
+            shape(&format!("<p>{html}")),
+            format!("p{{{}}}", q(want)),
+            "{html}"
+        );
+    }
 }

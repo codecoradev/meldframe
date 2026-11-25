@@ -58,7 +58,7 @@ impl Rng {
     }
 }
 
-const PIECES: [&str; 64] = [
+const PIECES: [&str; 67] = [
     "<div>",
     "</div>",
     "<p>",
@@ -121,6 +121,9 @@ const PIECES: [&str; 64] = [
     "=",
     "/>",
     "\0",
+    "\r\n",
+    "\r",
+    "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
     "é",
     "text ",
 ];
@@ -164,7 +167,11 @@ fn limits_for(seed: u64) -> Limits {
 }
 
 fn check(seed: u64, html: &str, l: &Limits, p: &Parsed) {
-    let ctx = |what: &str| format!("seed {seed}: {what}\n{html:?}");
+    let ctx = |what: &str| {
+        format!(
+            "seed {seed}: {what}\n{html:?}\nreplay: MELDFRAME_SEED={seed} cargo test -p meldframe-import-html-tests --test props"
+        )
+    };
     let t = &p.tree;
     assert!(t.len() <= l.max_elements, "{}", ctx("elements"));
     // Shape: walk from the root, each element once.

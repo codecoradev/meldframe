@@ -95,10 +95,27 @@ fn the_element_limit_is_met_at_its_number_and_refused_one_past_it_at_the_tag_tha
         e.to_string().contains('5') && e.to_string().contains("20"),
         "{e}"
     );
-    // A script is dropped and an element past the depth limit is flattened: neither is counted.
+    // A script is dropped and is not counted.
     let mixed = "<p><script>x</script></p>".repeat(2) + "<i><s><u>";
     assert!(parse(&mixed, &l).is_ok(), "5 elements and 2 scripts");
     assert!(parse(&format!("{ok}<i>"), &l).is_err());
+}
+
+#[test]
+fn an_element_the_depth_limit_flattens_is_not_counted_against_the_element_limit() {
+    let l = Limits {
+        max_depth: 2,
+        max_elements: 2,
+        ..Limits::default()
+    };
+    let p = parse("<a><b><c><d>", &l).unwrap();
+    assert_eq!(p.tree.len(), 2);
+    assert_eq!(count(&p, "depth_cut"), 2);
+    // A third element that is made does count.
+    assert_eq!(
+        refused("<a><b></b><i>", &l),
+        ParseError::TooMany { max: 2, at: 10 }
+    );
 }
 
 #[test]
@@ -134,9 +151,16 @@ fn an_element_with_more_attributes_than_the_limit_keeps_the_first_ones() {
         dump(&parse("<a a=1 b=2 c=3>", &l).unwrap().tree),
         "a(a=1 b=2 c=3)"
     );
-    let p = parse("<a a=1 b=2 c=3 d=4 e=5>", &l).unwrap();
-    assert_eq!(dump(&p.tree), "a(a=1 b=2 c=3)");
+    let p = parse("<p><a a=1 b=2 c=3 d=4 e=5>", &l).unwrap();
+    assert_eq!(dump(&p.tree), "p{a(a=1 b=2 c=3)}");
     assert_eq!(count(&p, "attribute_dropped"), 2);
+    let e = p
+        .report
+        .entries
+        .iter()
+        .find(|e| e.code == "attribute_dropped");
+    // The byte of the `<` of the tag.
+    assert_eq!((e.unwrap().kind, e.unwrap().at), (EntryKind::Cut, 3));
     // A repeated name and an event attribute are not counted against the limit.
     let p = parse("<a a=1 a=2 onclick=x b=2 c=3>", &l).unwrap();
     assert_eq!(dump(&p.tree), "a(a=1 b=2 c=3)");
@@ -150,8 +174,8 @@ fn an_attribute_value_of_the_limit_is_kept_and_one_byte_more_is_left_out_with_it
         p.tree.element(first_element(&p.tree)).attr("title"),
         Some(ok.as_str())
     );
-    let p = run(&format!("<a title=\"{}\" id=i>", "x".repeat(1_001)));
-    assert_eq!(dump(&p.tree), "a(id=i)");
+    let p = run(&format!("<p><a title=\"{}\" id=i>", "x".repeat(1_001)));
+    assert_eq!(dump(&p.tree), "p{a(id=i)}");
     assert_eq!(count(&p, "attribute_too_long"), 1);
     let e = p
         .report
@@ -159,7 +183,10 @@ fn an_attribute_value_of_the_limit_is_kept_and_one_byte_more_is_left_out_with_it
         .iter()
         .find(|e| e.code == "attribute_too_long")
         .unwrap();
-    assert_eq!(e.name, "title");
+    assert_eq!(
+        (e.name.as_str(), e.kind, e.at),
+        ("title", EntryKind::Cut, 3)
+    );
     assert!(
         e.message.contains("1001") && e.message.contains("1000"),
         "{}",
@@ -180,6 +207,8 @@ fn a_text_of_the_limit_is_kept_and_a_longer_one_is_cut_on_a_character_boundary()
     let p = parse("<p>0123456789X</p>", &l).unwrap();
     assert_eq!(dump(&p.tree), r#"p{"0123456789"}"#);
     assert_eq!(count(&p, "text_cut"), 1);
+    let e = p.report.entries.iter().find(|e| e.code == "text_cut");
+    assert_eq!((e.unwrap().kind, e.unwrap().at), (EntryKind::Cut, 3));
     let l9 = Limits {
         max_text_bytes: 9,
         ..Limits::default()
@@ -199,6 +228,15 @@ fn a_text_of_the_limit_is_kept_and_a_longer_one_is_cut_on_a_character_boundary()
 
 #[test]
 fn a_name_is_cut_to_64_bytes() {
+    let at = "a".repeat(64);
+    let p = run(&format!("<{at} {at}=1>"));
+    assert_eq!(p.tree.element(first_element(&p.tree)).tag, at);
+    let p = run(&format!("<{at}b {at}b=1>"));
+    let el = p.tree.element(first_element(&p.tree));
+    assert_eq!(
+        (el.tag.as_str(), el.attrs[0].name.as_str()),
+        (at.as_str(), at.as_str())
+    );
     let long = "a".repeat(500);
     let p = run(&format!("<{long} {long}=1>"));
     let el = p.tree.element(first_element(&p.tree));
@@ -207,35 +245,42 @@ fn a_name_is_cut_to_64_bytes() {
 }
 
 #[test]
-fn the_report_lists_at_most_200_entries_and_32_kib_and_counts_the_rest() {
-    let p = run(&format!("<p></p>{}", "</x>".repeat(10_000)));
+fn the_report_lists_at_most_200_entries_and_counts_the_rest() {
+    let strays = |n: usize| run(&format!("<p></p>{}", "</x>".repeat(n)));
+    let p = strays(200);
+    assert_eq!((p.report.entries.len(), p.report.omitted), (MAX_ENTRIES, 0));
+    let p = strays(10_000);
     assert_eq!(count(&p, "stray_end_tag"), 10_000);
     assert_eq!(p.report.entries.len(), MAX_ENTRIES);
     assert_eq!(p.report.omitted, 10_000 - MAX_ENTRIES);
-    // Names that are as long as the text allows do not make the entries long.
-    let html: String = (0..100)
-        .map(|k| format!("</{}{k}>", "n".repeat(2_000)))
-        .collect();
-    let p = run(&format!("<p>{html}"));
-    let bytes: usize = p
-        .report
-        .entries
-        .iter()
-        .map(|e| e.name.len() + e.message.len() + e.code.len())
-        .sum();
+}
+
+#[test]
+fn the_report_holds_at_most_32_kib_of_entries_and_counts_the_rest() {
+    // 64 open elements, then 300 elements past the depth limit with names of 60 bytes: each entry is about 210
+    // bytes, so the byte cap is reached before the cap of 200 entries.
+    let name = "n".repeat(60);
+    let p = run(&format!(
+        "{}{}",
+        "<b>".repeat(64),
+        format!("<{name}>").repeat(300)
+    ));
+    let r = &p.report;
+    let size = |e: &html_import::html::Entry| e.name.len() + e.message.len() + e.code.len();
+    let bytes: usize = r.entries.iter().map(size).sum();
+    let biggest = r.entries.iter().map(size).max().unwrap();
+    assert_eq!(count(&p, "depth_cut"), 300);
+    assert!(r.entries.len() < MAX_ENTRIES && r.omitted > 0);
+    // The 300 cuts and the one entry for what is still open at the end.
+    assert_eq!(r.entries.len() + r.omitted, 301);
     assert!(bytes <= MAX_REPORT_BYTES, "{bytes} bytes");
     assert!(
-        p.report
-            .entries
-            .iter()
-            .all(|e| e.name.chars().count() <= 80)
+        bytes + biggest > MAX_REPORT_BYTES,
+        "{bytes} bytes is not at the cap"
     );
-    assert!(
-        p.report
-            .entries
-            .iter()
-            .all(|e| e.message.chars().count() <= 240)
-    );
+    // A message is cut to 240 characters. The name cut of 80 is a second line of defence: `fold` cuts a name to 64
+    // bytes first, so no text can reach it.
+    assert!(r.entries.iter().all(|e| e.message.chars().count() <= 240));
 }
 
 #[test]
