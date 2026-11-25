@@ -3,9 +3,9 @@
 
 use super::item::Notes;
 use super::layout::sides;
-use super::paint::{Paint, is_blank, paint_of};
 use super::pre::Pre;
 use crate::css::{Style, Styles};
+use crate::paint::{self, Paint};
 use html_import_tree::{Child, ElementId, Report, Tree};
 
 pub(crate) struct Page {
@@ -30,7 +30,7 @@ impl Page {
         self.pad == [0.0; 4]
             && self.width.is_none()
             && self.height.is_none()
-            && is_blank(&self.paint)
+            && self.paint == Paint::default()
     }
 }
 
@@ -51,7 +51,7 @@ pub(crate) fn find(tree: &Tree, styles: &Styles, pre: &Pre, report: &mut Report)
     for (el, virt) in [(html, &styles.html), (body, &styles.body)] {
         match (el, virt) {
             (Some(e), _) => boxes.push((styles.get(e), pre.paint[e.index()].clone())),
-            (None, Some(v)) => boxes.push((v, paint_of(v, report))),
+            (None, Some(v)) => boxes.push((v, paint::read(v, &paint::Ctx::default(), 0, report))),
             (None, None) => {}
         }
     }
@@ -80,7 +80,7 @@ pub(crate) fn find(tree: &Tree, styles: &Styles, pre: &Pre, report: &mut Report)
         .iter()
         .rev()
         .map(|(_, p)| p)
-        .find(|p| !is_blank(p))
+        .find(|p| **p != Paint::default())
         .cloned()
         .unwrap_or_default();
     let title = tree

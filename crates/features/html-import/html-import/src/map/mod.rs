@@ -13,7 +13,6 @@ mod item;
 mod layout;
 mod names;
 mod page;
-mod paint;
 mod parts;
 mod plain;
 mod pre;
@@ -25,11 +24,11 @@ pub use item::{Approx, Asset, PlannedNode, Unsupported};
 use crate::css::{self, style_tree};
 use crate::html::{self, ParseError, Report, parse};
 use build::Builder;
+use build::put;
 use item::{Item, Notes, blank, flatten};
 use layout::{Ctx, Flow, set_padding};
 use meldframe_protocol::{Command, LayoutMode, NodeKind, SizeMode};
 use names::name_of;
-use paint::put;
 
 /// What the call may set.
 #[derive(Debug, Clone, PartialEq)]

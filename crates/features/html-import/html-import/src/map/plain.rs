@@ -1,9 +1,9 @@
 //! Is an element a plain wrapper: one that adds nothing to the layout, so that it can go and its single child take
 //! its place (`docs/import-html.md` section 3.2, the wrapper row).
 
-use super::paint::{Paint, is_blank};
 use super::pre::display;
 use crate::css::Style;
+use crate::paint::Paint;
 use html_import_tree::Element;
 
 /// The properties that change a box. A wrapper that has one of them set to something other than its initial value
@@ -54,7 +54,7 @@ fn initial(v: &str) -> bool {
 /// A `display: block` element with no box property, nothing painted, no name of its own and no `data-name`.
 pub(crate) fn plain(el: &Element, st: &Style, paint: &Paint) -> bool {
     display(st) == "block"
-        && is_blank(paint)
+        && *paint == Paint::default()
         && el.attr("data-name").is_none()
         && st.get("position").is_none_or(initial)
         && BOX_PROPS

@@ -4,9 +4,8 @@
 use super::build::Builder;
 use super::item::{Item, Notes, blank};
 use super::layout::{self, Ctx, Flow};
-use super::names::MAX_SOURCE;
 use super::text::Run;
-use html_import_tree::{ElementId, EntryKind, clean};
+use html_import_tree::{ElementId, EntryKind};
 use meldframe_protocol::{LayoutMode, NodeKind, SizeMode};
 
 /// An input that has no node: the browser draws it as a control with no text.
@@ -75,10 +74,10 @@ impl Builder<'_> {
         }
         let mut item = self.make(e, node, Vec::new(), notes, false);
         if el.tag == "img" {
-            item.src = el
-                .attr("src")
-                .filter(|s| !s.is_empty())
-                .map(|s| clean(s, MAX_SOURCE));
+            item.src = self.pre.paint[e.index()]
+                .assets
+                .first()
+                .map(|a| a.src.clone());
             self.report
                 .count("image_src", usize::from(item.src.is_some()));
         } else {

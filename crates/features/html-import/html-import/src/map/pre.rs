@@ -2,8 +2,8 @@
 //! is part of a line of text, and whether any text is under it. Computed once for the whole tree, in two passes over
 //! the elements (a parent comes before its children), so no element is looked at again and again by its ancestors.
 
-use super::paint::{Paint, decorates, paint_of};
 use crate::css::{Source, Style, Styles};
+use crate::paint::{self, Paint};
 use html_import_tree::{Child, ElementId, Report, Tree};
 
 /// Elements that are not content: the browser's defaults hide them, and they are skipped without a word.
@@ -78,9 +78,31 @@ pub(crate) fn pre(tree: &Tree, styles: &Styles, report: &mut Report) -> Pre {
         let i = id.index();
         p.hidden[i] = p.hidden[el.parent.index()] || display(st) == "none";
         report.work += 1;
-        if !p.hidden[i] {
-            p.paint[i] = paint_of(st, report);
-        }
+    }
+    for id in tree.ids().filter(|i| !p.hidden[i.index()]) {
+        let el = tree.element(id);
+        let st = styles.get(id);
+        let has_children = el.children.iter().any(|c| match c {
+            Child::Text(t) => t.chars().any(|c| !is_space(c)),
+            Child::Element(e) => !p.hidden[e.index()],
+        });
+        p.paint[id.index()] = match el.tag.as_str() {
+            // What the model cannot hold paints nothing of its own; an image keeps its `src` for the agent.
+            "img" => Paint::placeholder(el.attr("src").filter(|s| !s.is_empty())),
+            "svg" | "canvas" | "video" | "audio" | "iframe" | "object" | "embed" => {
+                Paint::placeholder(None)
+            }
+            _ => paint::read(
+                st,
+                &paint::Ctx {
+                    width: border_box(st, true),
+                    height: border_box(st, false),
+                    has_children,
+                },
+                el.at,
+                report,
+            ),
+        };
     }
     let ids: Vec<ElementId> = tree.ids().collect();
     for id in ids.into_iter().rev() {
@@ -103,7 +125,7 @@ pub(crate) fn pre(tree: &Tree, styles: &Styles, report: &mut Report) -> Pre {
         p.inline[i] = inline
             && display(st) == "inline"
             && !OWN_BOX.contains(&el.tag.as_str())
-            && !decorates(&p.paint[i])
+            && !p.paint[i].decorates()
             && box_free(st)
             && !positioned(st)
             && !hides(st);
@@ -114,4 +136,25 @@ pub(crate) fn pre(tree: &Tree, styles: &Styles, report: &mut Report) -> Pre {
 /// The white space that collapses: not the no-break space.
 pub(crate) fn is_space(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\n' | '\r' | '\u{c}')
+}
+
+/// The authored `width` or `height` as the size of the border box (the model's size): under `content-box` the padding is
+/// added to it. `None` when it is not a length.
+fn border_box(st: &Style, horizontal: bool) -> Option<f64> {
+    let (prop, sides) = if horizontal {
+        ("width", ["padding-left", "padding-right"])
+    } else {
+        ("height", ["padding-top", "padding-bottom"])
+    };
+    let size = st.len(prop)?.px;
+    if st.get("box-sizing").map(str::trim) == Some("border-box") {
+        return Some(size);
+    }
+    Some(
+        size + sides
+            .iter()
+            .filter_map(|s| st.len(s))
+            .map(|l| l.px)
+            .sum::<f64>(),
+    )
 }

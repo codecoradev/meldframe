@@ -4,7 +4,6 @@
 use super::item::{Item, Notes, blank};
 use super::layout::{self, Ctx};
 use super::names::{name_of, source_of};
-use super::paint::{decorates, put};
 use super::plain::plain;
 use super::pre::{NON_VISUAL, Pre, display, hides, is_space, zero};
 use super::size::{self, Subject};
@@ -12,6 +11,7 @@ use super::text::{
     Piece, Run, collapse, first_difference, outside_contract, space, transform, typography,
 };
 use crate::css::{Style, Styles};
+use crate::paint::Paint;
 use html_import_tree::{Child, ElementId, EntryKind, Report, Tree, clean};
 use meldframe_protocol::{Bind, LayoutMode, Node, NodeKind, SizeMode};
 
@@ -403,12 +403,13 @@ impl<'a> Builder<'a> {
     }
 
     /// Does an element that holds only a line of text become that text (and not a frame around it)? Not when it
-    /// paints a box or has padding or its own layout.
+    /// paints a box or a radius, or has padding or its own layout: a text has none of them.
     fn as_text(&self, e: ElementId, st: &Style) -> bool {
         matches!(
             display(st).as_str(),
             "block" | "inline" | "inline-block" | "list-item" | "flow-root"
-        ) && !decorates(&self.pre.paint[e.index()])
+        ) && !self.pre.paint[e.index()].decorates()
+            && self.pre.paint[e.index()].radius == Bind::Lit(0.0)
             && ["top", "right", "bottom", "left"]
                 .iter()
                 .all(|s| zero(st, &format!("padding-{s}")))
@@ -428,4 +429,13 @@ fn positioned_clip(st: &Style) -> bool {
             Some("hidden" | "clip" | "auto" | "scroll")
         )
     })
+}
+
+/// Put the paint of an element on its node. A text paints no box: it takes only the opacity.
+pub(crate) fn put(node: &mut Node, p: &Paint) {
+    if node.kind == NodeKind::Text {
+        node.opacity = p.opacity.clone();
+    } else {
+        p.apply(node);
+    }
 }
