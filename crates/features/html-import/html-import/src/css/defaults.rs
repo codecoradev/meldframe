@@ -10,22 +10,8 @@ use crate::html::Element;
 
 /// The properties that pass to children: the five of the note, `font-family` and `line-height` (read, then refused
 /// where they land), and the other inherited ones the mapping refuses by name.
-pub const INHERITED: [&str; 14] = [
-    "color",
-    "cursor",
-    "font-family",
-    "font-size",
-    "font-style",
-    "font-weight",
-    "letter-spacing",
-    "line-height",
-    "text-align",
-    "text-indent",
-    "text-transform",
-    "visibility",
-    "white-space",
-    "word-break",
-];
+#[rustfmt::skip]
+pub const INHERITED: [&str; 14] = ["color", "cursor", "font-family", "font-size", "font-style", "font-weight", "letter-spacing", "line-height", "text-align", "text-indent", "text-transform", "visibility", "white-space", "word-break"];
 
 pub fn inherits(prop: &str) -> bool {
     INHERITED.contains(&prop)

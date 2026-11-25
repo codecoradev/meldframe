@@ -36,7 +36,7 @@ pub mod value;
 pub mod vars;
 
 pub use crate::html::{Entry, EntryKind, MAX_ENTRIES, MAX_REPORT_BYTES, Report};
-pub use cascade::{Candidate, Cascade, Matched, Origin, cascade};
+pub use cascade::{Candidate, Cascade, MAX_UNRESOLVED, Matched, Origin, cascade};
 pub use computed::{Custom, MAX_NOTES, Note, Prop, Props, Source, Style};
 pub use decl::{Bad, Decl};
 pub use selector::{Combinator, Compound, Pseudo, Refusal, Selector, Simple};

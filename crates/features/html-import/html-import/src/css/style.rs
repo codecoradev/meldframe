@@ -244,6 +244,7 @@ fn style_of(cx: &mut Cx, parent: &Style, el: Option<&Element>, m: &Matched) -> S
         })
         .collect();
     s.custom = parent.custom.clone();
+    s.unresolved = m.unresolved.clone();
     let over = cx.steps > cx.l.max_work;
     let defaults: Vec<Candidate> = match el {
         Some(e) if !over => ua(e)

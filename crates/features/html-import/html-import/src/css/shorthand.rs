@@ -14,48 +14,29 @@ pub struct Refused(pub &'static str);
 type Out = Result<Vec<(&'static str, String)>, Refused>;
 
 const SIDES: [&str; 4] = ["top", "right", "bottom", "left"];
+#[rustfmt::skip]
 const MARGIN: [&str; 4] = ["margin-top", "margin-right", "margin-bottom", "margin-left"];
-const PADDING: [&str; 4] = [
-    "padding-top",
-    "padding-right",
-    "padding-bottom",
-    "padding-left",
-];
+#[rustfmt::skip]
+const PADDING: [&str; 4] = ["padding-top", "padding-right", "padding-bottom", "padding-left"];
+#[rustfmt::skip]
 const INSET: [&str; 4] = ["top", "right", "bottom", "left"];
-const RADIUS: [&str; 4] = [
-    "border-top-left-radius",
-    "border-top-right-radius",
-    "border-bottom-right-radius",
-    "border-bottom-left-radius",
-];
-const WIDTH: [&str; 4] = [
-    "border-top-width",
-    "border-right-width",
-    "border-bottom-width",
-    "border-left-width",
-];
-const STYLE: [&str; 4] = [
-    "border-top-style",
-    "border-right-style",
-    "border-bottom-style",
-    "border-left-style",
-];
-const COLOR: [&str; 4] = [
-    "border-top-color",
-    "border-right-color",
-    "border-bottom-color",
-    "border-left-color",
-];
+#[rustfmt::skip]
+const RADIUS: [&str; 4] = ["border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius"];
+#[rustfmt::skip]
+const WIDTH: [&str; 4] = ["border-top-width", "border-right-width", "border-bottom-width", "border-left-width"];
+#[rustfmt::skip]
+const STYLE: [&str; 4] = ["border-top-style", "border-right-style", "border-bottom-style", "border-left-style"];
+#[rustfmt::skip]
+const COLOR: [&str; 4] = ["border-top-color", "border-right-color", "border-bottom-color", "border-left-color"];
+#[rustfmt::skip]
 const FLEX: [&str; 3] = ["flex-grow", "flex-shrink", "flex-basis"];
+#[rustfmt::skip]
 const BG: [&str; 2] = ["background-color", "background-image"];
-const FONT: [&str; 5] = [
-    "font-style",
-    "font-weight",
-    "font-size",
-    "line-height",
-    "font-family",
-];
+#[rustfmt::skip]
+const FONT: [&str; 5] = ["font-style", "font-weight", "font-size", "line-height", "font-family"];
+#[rustfmt::skip]
 const GAP: [&str; 2] = ["row-gap", "column-gap"];
+#[rustfmt::skip]
 const OVERFLOW: [&str; 2] = ["overflow-x", "overflow-y"];
 
 /// The longhands of `name`, in a fixed order, when it is a shorthand this reads.
