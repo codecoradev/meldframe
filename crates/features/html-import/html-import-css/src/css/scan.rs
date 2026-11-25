@@ -70,6 +70,10 @@ pub(super) struct Cursor<'a> {
 }
 
 impl<'a> Cursor<'a> {
+    pub fn len(&self) -> usize {
+        self.text.len()
+    }
+
     pub fn new(text: &'a str) -> Self {
         Cursor {
             text,

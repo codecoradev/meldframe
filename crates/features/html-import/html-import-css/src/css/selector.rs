@@ -117,12 +117,17 @@ impl P<'_> {
         Some(c)
     }
 
+    /// Past white space and comments (the reader leaves a comment as a NUL). True when some of it was white space.
     fn space(&mut self) -> bool {
-        let from = self.i;
-        while self.peek().is_some_and(|c| c.is_ascii_whitespace()) {
+        let mut seen = false;
+        while let Some(c) = self
+            .peek()
+            .filter(|c| c.is_ascii_whitespace() || *c == '\0')
+        {
+            seen |= c != '\0';
             self.bump();
         }
-        self.i > from
+        seen
     }
 
     /// An escape after its `\`: one to six hex digits and the space that may end them, else the next character.
@@ -304,6 +309,11 @@ impl P<'_> {
         let mut pseudo = None;
         let mut first = true;
         loop {
+            // A comment between the parts of a compound is nothing: `.a/**/.b` is `.a.b`. Two names with one
+            // between them are still two names in a row.
+            while self.peek() == Some('\0') {
+                self.bump();
+            }
             if pseudo.is_some()
                 && self
                     .peek()
