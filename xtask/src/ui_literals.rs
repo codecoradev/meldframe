@@ -51,13 +51,20 @@ pub fn is_tokens_file(path: &str) -> bool {
 
 /// The code of one line with `/* ... */` comments blanked out. `depth` carries an open block
 /// comment from line to line (Rust nests them, the other languages do not). A comment marker inside
-/// a double-quoted string is not a comment. A line that starts with `//` is a comment as a whole.
+/// a string is not a comment (double-quoted; in `.tsx` also single-quoted and template strings). A line
+/// that starts with `//` is a comment as a whole, and in `.tsx` so is the rest of a line after a `//`
+/// that is not the one of a URL. JSX comments are block comments (`{/* */}`).
 fn code_of(ext: &str, line: &str, depth: &mut usize) -> String {
     if *depth == 0 && line.trim_start().starts_with("//") {
         return String::new();
     }
+    let quotes: &[char] = if ext == "tsx" {
+        &['"', '\'', '`']
+    } else {
+        &['"']
+    };
     let mut out = String::new();
-    let mut in_string = false;
+    let mut quote: Option<char> = None;
     let mut chars = line.chars().peekable();
     while let Some(c) = chars.next() {
         let next = chars.peek().copied();
@@ -70,18 +77,20 @@ fn code_of(ext: &str, line: &str, depth: &mut usize) -> String {
                 chars.next();
                 *depth += 1;
             }
-        } else if in_string {
+        } else if let Some(q) = quote {
             out.push(c);
             if c == '\\' {
                 out.extend(chars.next());
-            } else if c == '"' {
-                in_string = false;
+            } else if c == q {
+                quote = None;
             }
         } else if c == '/' && next == Some('*') {
             chars.next();
             *depth = 1;
+        } else if ext == "tsx" && c == '/' && next == Some('/') && !out.ends_with(':') {
+            break;
         } else {
-            in_string = c == '"';
+            quote = quotes.contains(&c).then_some(c);
             out.push(c);
         }
     }
@@ -112,7 +121,7 @@ fn finds<'a>(line: &'a str, needle: &'a str) -> impl Iterator<Item = usize> + 'a
 
 /// True when `rest`, after separators, starts a numeric literal.
 fn starts_number(rest: &str) -> bool {
-    let v = rest.trim_start_matches([' ', ':', '=', '(']);
+    let v = rest.trim_start_matches([' ', ':', '=', '(', '\'', '"']);
     v.starts_with(|c: char| c.is_ascii_digit() || c == '.')
 }
 
@@ -122,6 +131,35 @@ fn has_hex_colour(line: &str) -> bool {
         let n = rest.chars().take_while(char::is_ascii_hexdigit).count();
         let after = rest[n..].chars().next();
         matches!(n, 3 | 4 | 6 | 8) && after.is_none_or(|c| !c.is_alphanumeric())
+    })
+}
+
+/// The Tailwind arbitrary values of a line (`[...]`, no spaces inside) joined by spaces, with `_` read as the space it
+/// stands for, so that `transition-[opacity_200ms]` shows its `200ms` to `has_css_time`.
+fn arbitrary_values(line: &str) -> String {
+    let mut out = String::new();
+    let mut rest = line;
+    while let Some(open) = rest.find('[') {
+        let Some(len) = rest[open..].find(']') else {
+            break;
+        };
+        let inner = &rest[open + 1..open + len];
+        if !inner.contains(' ') {
+            out.push_str(&inner.replace('_', " "));
+            out.push(' ');
+        }
+        rest = &rest[open + len..];
+    }
+    out
+}
+
+/// `text-[13px]`, `md:text-[0.8rem]`, `text-[length:13px]`: a Tailwind font size written as a number.
+fn has_text_arbitrary_size(line: &str) -> bool {
+    finds(line, "text-[").any(|i| {
+        let v = &line[i + "text-[".len()..];
+        v.strip_prefix("length:")
+            .unwrap_or(v)
+            .starts_with(|c: char| c.is_ascii_digit() || c == '.')
     })
 }
 
@@ -163,10 +201,10 @@ pub fn scan_line(ext: &str, line: &str) -> Vec<Literal> {
     if colour {
         out.push(Literal::Colour);
     }
-    let size = ["font-size", "font_size"].iter().any(|n| {
+    let size = ["font-size", "font_size", "fontSize"].iter().any(|n| {
         line.match_indices(n)
             .any(|(i, _)| starts_number(&line[i + n.len()..]))
-    });
+    }) || (ext != "rs" && has_text_arbitrary_size(line));
     if size {
         out.push(Literal::FontSize);
     }
@@ -181,7 +219,13 @@ pub fn scan_line(ext: &str, line: &str) -> Vec<Literal> {
         ["transition", "animation", "duration", "delay"]
             .iter()
             .any(|w| l.contains(w))
-            && has_css_time(line)
+            && (has_css_time(line) || has_css_time(&arbitrary_values(line)))
+            // A React style object takes milliseconds as a bare number: `transitionDuration: 200`.
+            || ["Duration", "Delay"].iter().any(|n| {
+                line.match_indices(n).any(|(i, _)| {
+                    line[i + n.len()..].trim_start().strip_prefix(':').is_some_and(starts_number)
+                })
+            })
     };
     if time {
         out.push(Literal::Duration);
@@ -218,11 +262,12 @@ pub fn check_file(path: &str, content: &str) -> Vec<Finding> {
 }
 
 /// File extensions to lint for a package (for the web app this is the fast baseline; `npm run ui-literals` is the strict check): UI crates (kind `ui`, `feature-ui`) in Rust and CSS,
-/// and the web app's styles and components (`apps/web`: CSS, SCSS and Svelte). Anything else is out of scope.
+/// plus the React files of the web packages (they are kind `ui`), and the web app's styles and components
+/// (`apps/web`: CSS, SCSS, Svelte and React). Anything else is out of scope.
 pub fn scope(p: &Package) -> &'static [&'static str] {
     match (p.kind.as_deref(), p.dir.as_str()) {
-        (Some("ui" | "feature-ui"), _) => &["rs", "css"],
-        (_, "apps/web") => &["css", "scss", "svelte"],
+        (Some("ui" | "feature-ui"), _) => &["rs", "css", "tsx"],
+        (_, "apps/web") => &["css", "scss", "svelte", "tsx"],
         _ => &[],
     }
 }
@@ -238,6 +283,9 @@ pub fn collect(root: &Path, packages: &[Package]) -> Vec<Finding> {
     out.sort();
     out
 }
+
+#[cfg(test)]
+mod tsx_tests;
 
 #[cfg(test)]
 mod tests {
@@ -382,12 +430,15 @@ mod tests {
             dir: dir.into(),
             ..Package::default()
         };
-        assert_eq!(scope(&p("ui", "crates/ui/a")), ["rs", "css"]);
+        assert_eq!(scope(&p("ui", "crates/ui/a")), ["rs", "css", "tsx"]);
         assert_eq!(
             scope(&p("feature-ui", "crates/features/g/g-ui")),
-            ["rs", "css"]
+            ["rs", "css", "tsx"]
         );
-        assert_eq!(scope(&p("bin", "apps/web")), ["css", "scss", "svelte"]);
+        assert_eq!(
+            scope(&p("bin", "apps/web")),
+            ["css", "scss", "svelte", "tsx"]
+        );
         assert!(scope(&p("bin", "apps/server")).is_empty());
         assert!(scope(&p("feature", "crates/features/g/g")).is_empty());
     }
