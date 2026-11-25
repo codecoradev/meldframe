@@ -1,5 +1,6 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
 import type { IncomingMessage } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
@@ -76,7 +77,8 @@ export default defineConfig(({ command }) => {
     if (resolved.warning) console.warn(`warning: ${resolved.warning}`);
   }
   return {
-    plugins: [svelte(), tailwindcss(), guard()],
+    // svelte() takes .svelte and react() takes .tsx only, so the two never see the same file.
+    plugins: [svelte(), react({ include: /\.tsx$/ }), tailwindcss(), guard()],
     // The file to open and the actor of this client's ops (development: the dev token's file and actor).
     define: {
       __FILE__: JSON.stringify(process.env.MELDFRAME_WEB_FILE ?? 'file_dev'),
@@ -84,6 +86,8 @@ export default defineConfig(({ command }) => {
     },
     resolve: {
       conditions: ['browser'],
+      // The packages sit outside apps/web and have no node_modules: React is resolved from here, as one copy.
+      dedupe: ['react', 'react-dom'],
       // The web packages (packages/web-*, each its own unit of the size check) are used as source.
       alias: {
         ...webPackages,
@@ -96,7 +100,7 @@ export default defineConfig(({ command }) => {
     server: { proxy },
     preview: { proxy },
     test: {
-      include: ['src/**/*.test.ts', '../../packages/web-*/src/**/*.test.ts', '../../packages/web-*/scripts/**/*.test.mjs'],
+      include: ['src/**/*.test.{ts,tsx}', '../../packages/web-*/src/**/*.test.{ts,tsx}', '../../packages/web-*/scripts/**/*.test.mjs'],
       environment: 'node',
     },
   };

@@ -170,14 +170,15 @@ describe('frameworks', () => {
     expect(rules(check([file('web-host', 'A.svelte', '<script></script>')]))).toEqual(['file-type:web-host->.svelte']);
     expect(check([file('web-view', 'A.svelte', '<script></script>'), file('web-kit', 'B.svelte', '<script></script>')])).toEqual([]);
   });
-  it('is a table: a framework added for a kind, with its view files, is accepted there and nowhere else', () => {
-    const frameworks = [...FRAMEWORKS, { name: 'react', imports: ['react', 'react-dom'], kinds: ['kit', 'view', 'bin'], viewFiles: ['.tsx'], plainFileKinds: ['bin'] }];
+  it('is a table: React, with its .tsx view files, is accepted in the view kinds and nowhere else', () => {
+    const frameworks = FRAMEWORKS; // React is a row of the table since S0
     expect(check([file('web-view', 'A.tsx', "import { useState } from 'react'; import { createRoot } from 'react-dom/client';")], packages, { frameworks })).toEqual([]);
     expect(rules(check([file('web-model', 'a.ts', "import { useState } from 'react';")], packages, { frameworks }))).toEqual(['framework:web-model->react']);
     expect(rules(check([file('web-view', 'a.ts', "import { useState } from 'react';")], packages, { frameworks }))).toEqual(['framework-file:web-view->react']);
     expect(rules(check([file('web-model', 'A.tsx', 'export const a = 1;')], packages, { frameworks }))).toEqual(['file-type:web-model->.tsx']);
     // without the row, react is just another module
-    expect(check([file('web-model', 'a.ts', "import { useState } from 'react';")])).toEqual([]);
+    const without = FRAMEWORKS.filter((f) => f.name !== 'react');
+    expect(check([file('web-model', 'a.ts', "import { useState } from 'react';")], packages, { frameworks: without })).toEqual([]);
   });
 });
 

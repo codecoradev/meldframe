@@ -115,6 +115,78 @@ describe('ui literals: wider coverage', () => {
   });
 });
 
+describe('ui literals: .tsx files', () => {
+  const tsx = (text) => kinds(text, 'src/A.tsx');
+  it('flags colours in a JSX style object, in every notation', () => {
+    expect(tsx("<p style={{ color: '#fff' }}>x</p>")).toEqual(['1:colour']);
+    expect(tsx("<p style={{ background: 'red' }}>x</p>")).toEqual(['1:colour']);
+    expect(tsx('<p style={{ backgroundColor: "rgb(0 0 0)" }}>x</p>')).toEqual(['1:colour']);
+    expect(tsx('<p style={{ boxShadow: `0 0 0 ${c}, 0 0 tan` }}>x</p>')).toEqual(['1:colour']);
+    expect(tsx('<rect fill="red" />')).toEqual(['1:colour']);
+  });
+  it('flags font sizes, durations and lengths of a JSX style object, also as bare numbers (React reads them as px)', () => {
+    expect(tsx('<p style={{ fontSize: 13 }}>x</p>')).toEqual(['1:font']);
+    expect(tsx("<p style={{ fontSize: '13px' }}>x</p>")).toEqual(['1:font']);
+    expect(tsx("<p style={{ fontFamily: 'Inter' }}>x</p>")).toEqual(['1:font']);
+    expect(tsx("<p style={{ transition: 'opacity 200ms' }}>x</p>")).toEqual(['1:duration']);
+    expect(tsx('<p style={{ transitionDuration: 200 }}>x</p>')).toEqual(['1:duration']);
+    expect(tsx('<p style={{ animationDelay: .5 }}>x</p>')).toEqual(['1:duration']);
+    expect(tsx("<p style={{ width: '240px' }}>x</p>")).toEqual(['1:size']);
+    expect(tsx('<p style={{ width: 240 }}>x</p>')).toEqual(['1:size']);
+    expect(tsx('<p style={{ marginLeft: -12, padding: 1.5 }}>x</p>')).toEqual(['1:size']);
+  });
+  it('reads a style object over several lines and reports the line of each literal', () => {
+    const text = '<p\n  style={{\n    ...base,\n    color: "red",\n    height: 18,\n    opacity: 0.5,\n  }}\n>x</p>';
+    expect(tsx(text)).toEqual(['4:colour', '5:size']);
+  });
+  it('passes token reads, zero, unitless numbers and values that are not lengths', () => {
+    expect(tsx("<p style={{ color: 'var(--mf-text)', width: 'var(--mf-space-16)', margin: 0 }}>x</p>")).toEqual([]);
+    expect(tsx('<p style={{ width, height: size.h, left: x }}>x</p>')).toEqual([]);
+    expect(tsx('<p style={{ opacity: 0.5, zIndex: 3, flexGrow: 1, lineHeight: 1.2, flex: 2 }}>x</p>')).toEqual([]);
+    expect(tsx('<p style={style} />')).toEqual([]);
+    expect(tsx('<p style={{ transitionDuration: tokens.fast }}>x</p>')).toEqual([]);
+  });
+  it('does not read a number as a length outside a style attribute (a geometry object is not CSS)', () => {
+    expect(tsx('const box = { width: 240, height: 18, top: 4 };')).toEqual([]);
+    expect(tsx('<Box size={{ width: 240 }} />')).toEqual([]);
+  });
+  it('flags arbitrary values in class strings of any quoting', () => {
+    expect(tsx('<p className="text-[13px]">x</p>')).toEqual(['1:size']);
+    expect(tsx("<p className={'w-[240px] h-10'}>x</p>")).toEqual(['1:size']);
+    expect(tsx('<p className={`bg-[#fff] ${on ? "p-2" : ""}`}>x</p>')).toEqual(['1:colour']);
+    expect(tsx('<p className={cx("bg-[red]", on && "text-[#abc]")}>x</p>')).toEqual(['1:colour']);
+    expect(tsx('<p className="transition-[opacity_200ms]">x</p>')).toEqual(['1:duration']);
+  });
+  it('reads the underscore of an arbitrary value as a space, so a unit after it is seen', () => {
+    expect(tsx('<p className="w-[calc(100%_-_12px)]">x</p>')).toEqual(['1:size']);
+    expect(tsx('<p className="w-[calc(100%_-_var(--mf-space-4))]">x</p>')).toEqual([]);
+    expect(kinds('<p class="w-[calc(100%_-_12px)]">x</p>')).toEqual(['1:size']);
+  });
+  it('passes class strings that read tokens', () => {
+    expect(tsx('<p className="bg-panel text-text-muted p-8 h-10 w-[var(--mf-space-16)] hov:bg-hover">x</p>')).toEqual([]);
+  });
+  it('ignores comments in JSX, whole-line, trailing and in a block', () => {
+    expect(tsx("{/* style={{ color: '#fff', width: 12 }} */}")).toEqual([]);
+    expect(tsx('<p>x</p> {/* text-[13px] */}')).toEqual([]);
+    expect(tsx("// <p style={{ color: '#fff' }} />")).toEqual([]);
+    expect(tsx("const a = 1; // <p style={{ color: '#fff' }} />")).toEqual([]);
+    expect(tsx('{/*\n  color: #fff;\n  width: 12px;\n*/}\n<p>x</p>')).toEqual([]);
+    expect(tsx("{/* note */}<p style={{ color: '#fff' }}>x</p>")).toEqual(['1:colour']);
+  });
+  it('keeps a literal that follows a URL in a string', () => {
+    expect(tsx('<a href="https://x.dev/a" style={{ color: "#fff" }}>docs</a>')).toEqual(['1:colour']);
+    expect(tsx('<a href="https://x.dev/a">docs</a>')).toEqual([]);
+  });
+  it('leaves .ts and .svelte as they were', () => {
+    expect(kinds('const s = { width: 240 };', 'src/a.ts')).toEqual([]);
+    expect(kinds('<p style:width="240px">x</p>')).toEqual(['1:size']);
+  });
+  it('exempts the tests of .tsx and nothing else', () => {
+    expect(isExempt('src/react/Panel.tsx')).toBe(false);
+    expect(isExempt('src/react/Panel.test.tsx')).toBe(true);
+  });
+});
+
 describe('document data and packages', () => {
   it('exempts the sample document colours by name, not the rest of the harness', () => {
     expect(isExempt('src/harness/sample.ts')).toBe(true);
@@ -140,6 +212,13 @@ describe('ui-literals command', () => {
     const r = run('A.svelte', '<p style="color: #ff0000">x</p>\n');
     expect(r.status).toBe(1);
     expect(r.stderr).toContain('src/A.svelte:1: colour literal');
+  });
+  it('fails on literals in a .tsx file: a style object, a class string, and not on a comment', () => {
+    const r = run('A.tsx', "export const A = () => <p style={{ color: '#ff0000' }} className=\"text-[13px]\">x</p>;\n{/* #00ff00 */}\n");
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('src/A.tsx:1: colour literal');
+    expect(r.stderr).toContain('src/A.tsx:1: size literal');
+    expect(r.stderr).not.toContain('src/A.tsx:2');
   });
   it.each(['a.js', 'a.svg', 'a.tsx', 'a.mts', 'a.json'])('scans %s too', (file) => {
     const r = run(file, '{"x": "#ff0000"}\n');

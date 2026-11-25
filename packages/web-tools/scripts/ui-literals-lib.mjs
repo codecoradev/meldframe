@@ -103,18 +103,66 @@ function hasNamedColour(line) {
   return false;
 }
 
+/**
+ * In a Tailwind arbitrary value `_` stands for a space (`transition-[opacity_200ms]`, `w-[calc(100%_-_12px)]`), which
+ * hides a unit from the patterns above (a `_` is a word character): read each value with its spaces back.
+ */
+function arbitraryValues(line) {
+  return [...line.matchAll(TW_ARBITRARY)].map((m) => ({ utility: m[0], value: m[1].replace(/_/g, ' ') }));
+}
+
+// A number in a React style object is a length in px, and a key that ends in Duration or Delay takes milliseconds.
+const NUMBER = '-?(?:0*[1-9]\\d*(?:\\.\\d+)?|\\d*\\.\\d*[1-9]\\d*)';
+const JSX_LENGTH = new RegExp(
+  `(?<![\\w-])(?:width|height|(?:min|max)(?:Width|Height)|top|left|right|bottom|inset|gap|rowGap|columnGap|margin(?:Top|Right|Bottom|Left)?|padding(?:Top|Right|Bottom|Left)?|border(?:Top|Right|Bottom|Left)?(?:Width|Radius)|outlineWidth|outlineOffset|letterSpacing|flexBasis)\\s*:\\s*${NUMBER}(?=\\s*(?:[,}]|$))`,
+);
+const JSX_TIME = /(?<![\w-])\w*(?:Duration|Delay)\s*:\s*-?\.?\d/;
+
+/** The 0-based lines of `text` that lie inside a `style={{ ... }}` attribute (comments already blanked). */
+function jsxStyleLines(text) {
+  const lines = new Set();
+  const open = /style=\{\{/g;
+  for (let m = open.exec(text); m; m = open.exec(text)) {
+    let depth = 2;
+    let quote = '';
+    let i = m.index + m[0].length;
+    for (; i < text.length && depth > 0; i++) {
+      const c = text[i];
+      if (quote) {
+        if (c === '\\') i++;
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') quote = c;
+      else if (c === '{') depth++;
+      else if (c === '}') depth--;
+    }
+    const first = text.slice(0, m.index).split('\n').length - 1;
+    const last = first + text.slice(m.index, i).split('\n').length - 1;
+    for (let l = first; l <= last; l++) lines.add(l);
+    open.lastIndex = i;
+  }
+  return lines;
+}
+
 /** Every literal in `text` (a file at `path`) as `{ path, line, kind }`; kind is colour, font, duration or size. */
 export function findLiterals(path, text) {
   const out = [];
-  stripComments(text, path)
-    .split('\n')
-    .forEach((line, i) => {
-      const add = (kind) => out.push({ path, line: i + 1, kind });
-      if (HEX.test(line) || HEX_NUMBER.test(line) || COLOUR_FN.test(line) || hasNamedColour(line)) add('colour');
-      const font = FONT_CSS.test(line) || FONT_TS.test(line);
-      if (font) add('font');
-      if ((DURATION_CONTEXT.test(line) && DURATION.test(line)) || BARE_DURATION.test(line)) add('duration');
-      if (!font && PIXELS.test(line)) add('size');
-    });
+  const code = stripComments(text, path);
+  const style = path.endsWith('.tsx') ? jsxStyleLines(code) : new Set();
+  code.split('\n').forEach((line, i) => {
+    const kinds = new Set();
+    const add = (kind) => kinds.add(kind);
+    const values = arbitraryValues(line);
+    if (HEX.test(line) || HEX_NUMBER.test(line) || COLOUR_FN.test(line) || hasNamedColour(line)) add('colour');
+    const font = FONT_CSS.test(line) || FONT_TS.test(line);
+    if (font) add('font');
+    if ((DURATION_CONTEXT.test(line) && DURATION.test(line)) || BARE_DURATION.test(line)) add('duration');
+    if (values.some((v) => DURATION_CONTEXT.test(v.utility) && DURATION.test(v.value))) add('duration');
+    if (!font && (PIXELS.test(line) || values.some((v) => PIXELS.test(v.value)))) add('size');
+    if (style.has(i)) {
+      if (JSX_TIME.test(line)) add('duration');
+      if (!font && JSX_LENGTH.test(line)) add('size');
+    }
+    for (const kind of ['colour', 'font', 'duration', 'size']) if (kinds.has(kind)) out.push({ path, line: i + 1, kind });
+  });
   return out;
 }
