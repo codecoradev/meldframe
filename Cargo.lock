@@ -2413,6 +2413,7 @@ dependencies = [
  "meldframe-app",
  "meldframe-layout",
  "meldframe-protocol",
+ "meldframe-text",
  "serde",
  "serde_json",
  "wasm-bindgen",

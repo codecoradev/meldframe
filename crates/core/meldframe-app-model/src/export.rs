@@ -23,6 +23,9 @@ pub struct ExportState {
 pub struct ExportTarget {
     pub id: String,
     pub name: String,
+    /// The stem of the file an export of this frame is saved under, safe to use as it is: a front end adds the scale
+    /// (`@2x`) and the extension (`.png`). The same decision as `ExportDialog::html_file`.
+    pub file_stem: String,
 }
 
 /// How the styles of the HTML are written.
@@ -51,6 +54,8 @@ pub struct ExportDialog {
     /// carries its styles inline). Both are empty when `error` is set.
     pub html: String,
     pub css: String,
+    /// The name to save the document under (`{file_stem}.html`), safe to use as it is.
+    pub html_file: String,
     /// The name the document links the stylesheet by, and so the name to save it under (Tailwind form).
     pub css_file: String,
     /// What each file is in bytes: the document, and the stylesheet that is saved beside it in the Tailwind form (0 for

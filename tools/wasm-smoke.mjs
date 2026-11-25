@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 
 const dir = resolve(process.argv[2] ?? '');
-const { WasmApp } = createRequire(import.meta.url)(`${dir}/meldframe_wasm.js`);
+const { WasmApp, displayText } = createRequire(import.meta.url)(`${dir}/meldframe_wasm.js`);
 
 const app = new WasmApp('usr_me', 'web', 7, '[]', 0);
 const run = (action) => JSON.parse(app.dispatch(JSON.stringify(action)));
@@ -31,6 +31,10 @@ assert.equal(state.history.canUndo, true);
 assert.ok(JSON.parse(app.takeEventsJson()).some((e) => e.type === 'documentChanged'));
 assert.equal(app.takeEventsJson(), '[]', 'taking the events drains them');
 
+// The one text helper of rule U9 for a screen with no app state (the page that says the file did not open).
+assert.equal(displayText('a\u202eb\u200b\u00a0\u00a0c', 200), 'ab c');
+assert.equal(displayText('x'.repeat(300), 200), 'x'.repeat(200));
+
 // The Activity panel (E5.1): actions and frames in as JSON, effects and state out, through the real wasm.
 const T = 1_700_000_000_000;
 const header = (n, rev, prefix, extra = {}) => ({
@@ -45,6 +49,7 @@ assert.equal(activity.rows[0].n, 1);
 assert.equal(activity.rows[0].note, 'Hero', 'the note is checked again: the bidi override is stripped');
 assert.equal(activity.unreviewedCount, 1);
 assert.equal(activity.lanes[0].actor, 'agent:x');
+assert.deepEqual([activity.lanes[0].view.kind, activity.lanes[0].view.name, activity.lanes[0].view.tone], ['agent', 'x', 'agent2'], 'the lane carries the actor view');
 assert.ok(JSON.parse(app.takeEventsJson()).some((e) => e.type === 'activityChanged'));
 run({ type: 'batchesLoaded', page: { batches: [header(1, 1, 'b1')], hasMore: false, unreviewedCount: 1, canReview: true } });
 assert.deepEqual(
@@ -69,7 +74,7 @@ assert.throws(() => run({ type: 'setBatchReview', batch: { actor: 'a', keyPrefix
 const exp = new WasmApp('usr_me', 'web', 8, JSON.stringify([{ id: 'f', type: 'frame', pos: 'a0', name: 'Landing', w: 300, h: 200 }]), 0);
 const runExp = (action) => JSON.parse(exp.dispatch(JSON.stringify(action)));
 runExp({ type: 'select', ids: ['f'] });
-assert.deepEqual(JSON.parse(exp.stateJson()).export.target, { id: 'f', name: 'Landing' });
+assert.deepEqual(JSON.parse(exp.stateJson()).export.target, { id: 'f', name: 'Landing', fileStem: 'Landing' });
 runExp({ type: 'openExport' });
 const dialog = JSON.parse(exp.stateJson()).export.dialog;
 assert.equal(dialog.format, 'tailwind');

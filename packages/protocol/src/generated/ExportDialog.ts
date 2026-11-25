@@ -17,6 +17,10 @@ frame: string, name: string, format: ExportFormat,
  */
 html: string, css: string, 
 /**
+ * The name to save the document under (`{file_stem}.html`), safe to use as it is.
+ */
+htmlFile: string, 
+/**
  * The name the document links the stylesheet by, and so the name to save it under (Tailwind form).
  */
 cssFile: string, 

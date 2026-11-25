@@ -115,6 +115,13 @@ fn to_json<T: serde::Serialize + ?Sized>(value: &T) -> String {
     serde_json::to_string(value).expect("plain data serialises")
 }
 
+/// A text from outside (what a server or the browser said) made safe to show and cut to `max_chars` characters, for a
+/// screen that has no app state to carry it, such as the page that says the file did not open (rule U9). It is
+/// `meldframe_text::label`: the display profile and the cut of every name in `AppState`, so a front end cleans nothing.
+pub fn display_text(raw: &str, max_chars: usize) -> String {
+    meldframe_text::label(raw, max_chars)
+}
+
 /// The text of a panic for the browser console.
 pub fn describe_panic(message: &str, at: Option<(&str, u32)>) -> String {
     match at {
@@ -150,6 +157,12 @@ fn install_panic_hook() {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn install_panic_hook() {}
+
+/// [`display_text`] for the browser. `max_chars` is a JS number, read as a whole number of characters.
+#[wasm_bindgen(js_name = displayText)]
+pub fn display_text_js(raw: &str, max_chars: u32) -> String {
+    display_text(raw, max_chars as usize)
+}
 
 /// The app for the browser: the same calls as [`Bridge`].
 #[wasm_bindgen]

@@ -4,6 +4,9 @@
 use export::{ExportError, Finding, MAX_OUTPUT_BYTES, export_variables};
 use meldframe_app_model::{ExportFinding, VariablesExportDialog};
 use meldframe_protocol::Variables;
+use meldframe_text::label;
+
+use crate::MAX_MESSAGE;
 
 /// The dialog for the variables of the file.
 pub fn variables_dialog(vars: &Variables) -> VariablesExportDialog {
@@ -41,6 +44,6 @@ fn finding(f: &Finding) -> ExportFinding {
         code: f.code.to_string(),
         node: None,
         node_name: None,
-        message: f.message.clone(),
+        message: label(&f.message, MAX_MESSAGE),
     }
 }
