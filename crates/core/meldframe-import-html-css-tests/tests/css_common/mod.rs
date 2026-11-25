@@ -184,3 +184,15 @@ pub fn props(s: &Style) -> Vec<String> {
         })
         .collect()
 }
+
+/// The steps and bytes the style stage took apart from reading and the cascade: it is run on its own.
+pub fn style_cost(html: &str, css: &str, limits: &Limits) -> (Styles, usize, Report) {
+    let parsed = parse(html, &Default::default()).expect("html");
+    let mut report = Report::default();
+    let sheet = read(parsed.tree.style_texts().chain([css]), limits, &mut report);
+    let cascaded = cascade(&parsed.tree, &sheet, limits, &mut report);
+    let mut own = Report::default();
+    let styles = html_import::css::compute(&parsed.tree, &cascaded, limits, &mut own);
+    let work = own.work;
+    (styles, work, own)
+}

@@ -181,6 +181,7 @@ pub(crate) fn customs(
     }
     let mut map = (**parent).clone();
     cx.steps += map.len();
+    cx.bytes += map.len() * crate::style::ENTRY_BYTES;
     for (name, entry) in r.done.take() {
         match entry {
             Entry::Value(v) => map.insert(name, Some(v)),
