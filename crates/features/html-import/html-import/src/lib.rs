@@ -1,6 +1,6 @@
 //! HTML import feature module (E4.4, ADR-0024, `docs/import-html.md`): it reads HTML text that an agent sends and
-//! turns it into Nodes. This crate is the facade: it names the stages under the paths the callers use and will hold
-//! the mapping to Commands. The stages are crates of their own so that none passes the size ceiling:
+//! turns it into Nodes. This crate is the facade: it names the stages under the paths the callers use and holds nothing
+//! else yet (the mapping to Commands comes with slice 4). The stages are crates of their own so that none passes the size ceiling:
 //!
 //! - [`html`] is `html-import-tree`, the tolerant, bounded tree builder;
 //! - [`css`] is `html-import-css`, the reader and the cascade, with `html-import-style`, what is done with the
