@@ -41,12 +41,12 @@ pub const MAX_NOTE_CHARS: usize = 500;
 /// The most line breaks a note holds.
 pub const MAX_NOTE_BREAKS: usize = 3;
 /// The longest run of combining marks in a note: more would let stacked marks smear a line.
-pub const MAX_COMBINING_RUN: usize = 4;
+pub const MAX_COMBINING_RUN: usize = meldframe_text::MAX_COMBINING_RUN;
 
 /// The longest key prefix of a batch: the longest idempotency key (`meldframe-mcp-defs`, a test compares them).
-pub const MAX_KEY_PREFIX: usize = 100;
+pub const MAX_KEY_PREFIX: usize = meldframe_text::MAX_KEY;
 /// The longest actor string, in bytes.
-pub const MAX_ACTOR: usize = 128;
+pub const MAX_ACTOR: usize = meldframe_text::MAX_ACTOR;
 /// The longest tool name, in bytes.
 pub const MAX_TOOL: usize = 64;
 /// The largest `commands` and `written` of a header: an import's ceiling is 20,000 commands, a call takes 100.

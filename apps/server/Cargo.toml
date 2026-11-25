@@ -71,6 +71,7 @@ checkpoint-store = { path = "../../crates/features/activity/checkpoint-store", o
 meldframe-http-checkpoints = { path = "../../crates/integrations/meldframe-http-checkpoints", optional = true }
 meldframe-protocol = { path = "../../crates/core/meldframe-protocol" }
 meldframe-stream = { path = "../../crates/core/meldframe-stream" }
+meldframe-text = { path = "../../crates/core/meldframe-text" }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 meldframe-store-pg = { path = "../../crates/integrations/meldframe-store-pg" }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }

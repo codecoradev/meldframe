@@ -12,7 +12,7 @@ pub const MAX_ROOMS_PER_WORKSPACE: usize = 32;
 
 /// The longest workspace or file name in bytes. With the length prefix of the room key this keeps a key
 /// far under the Postgres index row limit.
-pub const MAX_NAME_BYTES: usize = 128;
+pub const MAX_NAME_BYTES: usize = meldframe_text::MAX_FILE_NAME;
 
 /// Ops in one `submit_tool` call. The same number as the MCP `batchLimit`; a larger call is refused before
 /// anything is looked up (the duplicate-key check reads the store twice per op).
@@ -25,39 +25,19 @@ pub const MAX_OPS_PER_MINUTE: u64 = 6_000;
 /// Bytes of ops one workspace may write (the JSON size of each command, see `Server::with_quotas`).
 pub const MAX_STORAGE_BYTES: u64 = 256 * 1024 * 1024;
 
-/// Characters that change how a name reads without showing: bidi controls, zero-width marks, line and
-/// paragraph separators, the byte order mark.
-fn is_invisible(c: char) -> bool {
-    matches!(c, '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2028}' | '\u{2029}'
-        | '\u{2066}'..='\u{2069}' | '\u{FEFF}')
+fn refused(what: &str, e: meldframe_text::TextError) -> RegistryError {
+    RegistryError::InvalidName {
+        reason: format!("{what} name {e}"),
+    }
 }
 
-fn check(what: &str, name: &str, dots: bool) -> Result<(), RegistryError> {
-    let reason = if name.is_empty() {
-        "is empty"
-    } else if name.len() > MAX_NAME_BYTES {
-        "is longer than 128 bytes"
-    } else if name.trim().is_empty() {
-        "is only whitespace"
-    } else if dots && (name == "." || name == "..") {
-        "is a dot name"
-    } else if name.chars().any(|c| c.is_control() || is_invisible(c)) {
-        "has a control or invisible formatting character"
-    } else {
-        return Ok(());
-    };
-    Err(RegistryError::InvalidName {
-        reason: format!("{what} name {reason}"),
-    })
-}
-
-/// The one place workspace and file names are checked, by one rule: not empty, at most [`MAX_NAME_BYTES`],
-/// not only whitespace, no control character (NUL included) and no invisible formatting character; a file
-/// is also not `.` or `..`. The REST and WebSocket adapters check file names further (no slash); this stays
-/// the floor for every caller of the server.
+/// The one place workspace and file names are checked, by the rule of `meldframe_text` (`workspace_name`,
+/// `file_name`): not empty, at most [`MAX_NAME_BYTES`], not only whitespace, no control character (NUL included) and
+/// no hidden character; a file is also not `.` or `..`. The REST and WebSocket adapters check file names further (no
+/// slash, `meldframe_http::valid_file`, over the same rule); this stays the floor for every caller of the server.
 pub(crate) fn valid_names(workspace: &str, file: &str) -> Result<(), RegistryError> {
-    check("workspace", workspace, false)?;
-    check("file", file, true)
+    meldframe_text::workspace_name(workspace).map_err(|e| refused("workspace", e))?;
+    meldframe_text::file_name(file).map_err(|e| refused("file", e))
 }
 
 /// Refusals that need no room: a batch over the cap, and a Read tool with an op that is a write whatever the

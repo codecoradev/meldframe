@@ -8,7 +8,7 @@
 mod tools;
 mod variables;
 
-pub use meldframe_mcp_defs::{MAX_BATCH, MAX_KEY, TOOLS, ToolDef};
+pub use meldframe_mcp_defs::{MAX_BATCH, MAX_KEY, TOOLS, ToolDef, check_key};
 
 use crate::{Failure, Shared, rest};
 use axum::{

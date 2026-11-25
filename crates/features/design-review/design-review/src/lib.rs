@@ -142,15 +142,9 @@ impl std::fmt::Display for ReviewError {
     }
 }
 
-/// Whether a character may not be in a text: a control character other than a line break, or one that changes how
-/// text reads without showing (bidi controls, zero-width marks, line and paragraph separators, the byte order
-/// mark), the same set a file name refuses.
-fn bad_char(c: char) -> bool {
-    (c.is_control() && c != '\n') || meldframe_mcp_defs::is_invisible(c)
-}
-
 /// The texts of an `add`, checked and trimmed: 1 to [`MAX_ADD`] of them, each 1 to [`MAX_TEXT`] characters once
-/// trimmed, with no control or invisible formatting character but a line break.
+/// trimmed, with no control or hidden character (the one set of `meldframe_text`, as a file name and a note are held
+/// to) but a line break.
 pub fn check_texts(texts: &[String]) -> Result<Vec<String>, ReviewError> {
     if texts.is_empty() || texts.len() > MAX_ADD {
         return Err(ReviewError::Invalid(format!(
@@ -168,7 +162,7 @@ pub fn check_texts(texts: &[String]) -> Result<Vec<String>, ReviewError> {
                 Err(bad("the text is empty"))
             } else if t.chars().count() > MAX_TEXT {
                 Err(bad(&format!("the text is over {MAX_TEXT} characters")))
-            } else if t.chars().any(bad_char) {
+            } else if meldframe_text::first_hidden(t, true).is_some() {
                 Err(bad(
                     "the text holds a control or invisible formatting character",
                 ))
@@ -187,19 +181,14 @@ pub fn check_item(n: u32) -> Result<(), ReviewError> {
     Ok(())
 }
 
-/// A batch key prefix: 1 to [`MAX_BATCH_KEY`] characters, no control character.
+/// A batch key prefix: the rule of an idempotency key, 1 to [`MAX_BATCH_KEY`] characters with no control or hidden
+/// character.
 pub fn check_batch(batch: &str) -> Result<(), ReviewError> {
-    if batch.is_empty()
-        || batch.chars().count() > MAX_BATCH_KEY
-        || batch
-            .chars()
-            .any(|c| c.is_control() || meldframe_mcp_defs::is_invisible(c))
-    {
-        return Err(ReviewError::Invalid(format!(
-            "a batch is the idempotencyKey of an apply_commands call: 1 to {MAX_BATCH_KEY} characters, no control character"
-        )));
-    }
-    Ok(())
+    meldframe_mcp_defs::check_key(batch).map_err(|_| {
+        ReviewError::Invalid(format!(
+            "a batch is the idempotencyKey of an apply_commands call: 1 to {MAX_BATCH_KEY} characters, no control or hidden character"
+        ))
+    })
 }
 
 /// The seam: keep the critique lists. Methods take `&self` and a store is `Sync`: calls run at once. A list is
