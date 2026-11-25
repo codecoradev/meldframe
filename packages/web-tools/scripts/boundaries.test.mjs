@@ -176,6 +176,11 @@ describe('frameworks', () => {
     expect(rules(check([file('web-model', 'a.ts', "import { useState } from 'react';")], packages, { frameworks }))).toEqual(['framework:web-model->react']);
     expect(rules(check([file('web-view', 'a.ts', "import { useState } from 'react';")], packages, { frameworks }))).toEqual(['framework-file:web-view->react']);
     expect(rules(check([file('web-model', 'A.tsx', 'export const a = 1;')], packages, { frameworks }))).toEqual(['file-type:web-model->.tsx']);
+    // Base UI, the component library of the React views, stays where React stays
+    const baseUi = "import { Menu } from '@base-ui/react/menu';";
+    expect(check([file('web-kit', 'A.tsx', baseUi)], packages, { frameworks })).toEqual([]);
+    expect(rules(check([file('web-model', 'a.ts', baseUi)], packages, { frameworks }))).toEqual(['framework:web-model->@base-ui/react']);
+    expect(rules(check([file('web-kit', 'a.ts', baseUi)], packages, { frameworks }))).toEqual(['framework-file:web-kit->@base-ui/react']);
     // without the row, react is just another module
     const without = FRAMEWORKS.filter((f) => f.name !== 'react');
     expect(check([file('web-model', 'a.ts', "import { useState } from 'react';")], packages, { frameworks: without })).toEqual([]);

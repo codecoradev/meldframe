@@ -86,8 +86,8 @@ export default defineConfig(({ command }) => {
     },
     resolve: {
       conditions: ['browser'],
-      // The packages sit outside apps/web and have no node_modules: React is resolved from here, as one copy.
-      dedupe: ['react', 'react-dom'],
+      // The packages sit outside apps/web and have no node_modules: React and Base UI are resolved from here, as one copy.
+      dedupe: ['react', 'react-dom', '@base-ui/react'],
       // The web packages (packages/web-*, each its own unit of the size check) are used as source.
       alias: {
         ...webPackages,
