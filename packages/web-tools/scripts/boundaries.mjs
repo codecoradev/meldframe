@@ -37,6 +37,11 @@ const readAllow = (text) => JSON.parse(text).entries;
 
 const args = process.argv.slice(2);
 const baseAt = args.findIndex((a) => a === '--base' || a.startsWith('--base='));
+const unknown = args.filter((a, i) => !(a === '--base' || a.startsWith('--base=') || (i > 0 && args[i - 1] === '--base')));
+if (unknown.length) {
+  console.error(`boundaries: unknown argument ${unknown.join(' ')} (the only option is --base <ref>)`);
+  process.exit(2);
+}
 const base = baseAt < 0 ? null : args[baseAt].includes('=') ? args[baseAt].slice(7) : args[baseAt + 1];
 if (baseAt >= 0 && !base) {
   console.error('boundaries: --base needs a git ref');

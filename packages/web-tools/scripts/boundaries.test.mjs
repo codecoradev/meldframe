@@ -55,6 +55,11 @@ describe('parseImports', () => {
     const text = ["// import a from 'one';", "/* import b from 'two'; */", "const s = \"import c from 'three'\";", "import d from 'four';"].join('\n');
     expect(parseImports('a.ts', text)).toEqual([{ line: 4, specifier: 'four' }]);
   });
+  it('sees every import when several share a line, and checks each of them', () => {
+    expect(parseImports('a.ts', "import a from 'x'; import b from 'y'; export { c } from 'z';").map((i) => i.specifier)).toEqual(['x', 'y', 'z']);
+    // the second import is the one that breaks the matrix: a model package may not import a host package
+    expect(rules(check([file('web-model', 'a.ts', "import a from '@meldframe/protocol'; import b from '@meldframe/web-host/b';")]))).toEqual(['matrix:web-model->web-host']);
+  });
   it('reads only the script blocks of a Svelte file and keeps the line numbers', () => {
     const text = ['<script lang="ts">', "  import { x } from 'svelte';", '</script>', "<p>import y from 'markup'</p>", "<script module>import z from 'bits-ui';</script>"].join('\n');
     expect(parseImports('A.svelte', text)).toEqual([

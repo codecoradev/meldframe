@@ -69,12 +69,12 @@ function codeOf(path, text) {
   return stripComments(out + blank(text.slice(last)), 'a.ts');
 }
 
-const STATEMENT = /^[ \t]*(?:import|export)\b(?:[^'"`;]*?\bfrom\b)?\s*(['"])([^'"\n]+)\1/gm;
+const STATEMENT = /(?:^|;)[ \t]*(?:import|export)\b(?:[^'"`;]*?\bfrom\b)?\s*(['"])([^'"\n]+)\1/gm;
 const DYNAMIC = /\bimport\(\s*(['"])([^'"\n]+)\1\s*\)/g;
 
 /**
  * The module specifiers a file imports, as `{ line, specifier }` in file order: `import`, `import type`, a side-effect
- * `import 'x'`, `export ... from` and a dynamic `import('x')`. Comments are skipped; a statement must start its line.
+ * `import 'x'`, `export ... from` and a dynamic `import('x')`. Comments are skipped; a statement must start its line or follow a `;` (two imports on one line are both seen).
  * Not seen: `require`, `new URL(..., import.meta.url)` and `vi.mock`.
  */
 export function parseImports(path, text) {
