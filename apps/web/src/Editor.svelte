@@ -25,6 +25,7 @@
   import NoFrames from '@meldframe/web-feedback/NoFrames.svelte';
   import { Toaster, type ToastView } from '@meldframe/web-feedback/toaster';
   import { layoutKey, paletteBlocked, readOverlays } from '@meldframe/web-shell/keys';
+  import { shellParts } from './react-pilot/shell'; // the palette and the shortcut sheet, Svelte or React with /?react=palette (E7.3, S4)
   import { zoomCamera } from '@meldframe/web-shell/zoom';
   import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
@@ -329,6 +330,7 @@
   {autoLayout} onAutoLayout={layout ? () => (autoLayout = toggleWithNotice(layout, showNotice)) : undefined}
   tab={rightTab} activityBadge={snap.state.activity.unreviewedCount}
   onTab={goTab}
+  {...shellParts}
 >
   {#snippet canvasLayer()}
     <Canvas

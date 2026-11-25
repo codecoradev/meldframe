@@ -5,7 +5,9 @@
 // the palette make boxes of the preset's size, so the sizes are read from the page. With an editor-url (the editor
 // page of Vite with a development server behind it, `just dev` and `just web`, or a server in memory mode) it also checks
 // the real editor: the Export entry and its focus, and Ctrl+K over the Export dialog, in a field and in the text editor.
-// Not covered: a Mac (Command+K and the key labels are unit tests only), a screen reader, a touch screen.
+// The React copies of the palette and the shortcut sheet (Base UI, E7.3 slice S4) are checked by the same script with MELDFRAME_UI=react: it
+// opens the pages with react=palette, and a first check asks that React really drew the palette (a silent fallback to Svelte would pass
+// every other check). Not covered: a Mac (Command+K and the key labels are unit tests only), a screen reader, a touch screen.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
@@ -13,6 +15,9 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 const web = process.argv[2] ?? 'http://localhost:5173';
 const shots = process.argv[3];
 const editor = process.argv[4];
+const react = process.env.MELDFRAME_UI === 'react';
+// Whether React drew the element: React puts a fibre on every DOM node it makes; a Svelte page has none.
+const drawnByReact = (page, sel) => page.evaluate((s) => Object.keys(document.querySelector(s) ?? {}).some((k) => k.startsWith('__reactFiber$')), sel);
 const browser = await chromium.launch();
 const errors = [];
 const sizes = { a4: [595, 842], mobile: [390, 844], desktopHd: [1920, 1080], letter: [612, 792] };
@@ -21,7 +26,7 @@ for (const theme of ['dark', 'light']) {
   const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })).newPage();
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.addInitScript((t) => localStorage.setItem('meldframe.theme', t), theme);
-  await page.goto(`${web}/?layout`);
+  await page.goto(`${web}/?layout${react ? '&react=palette' : ''}`);
   await page.waitForSelector('[data-testid=toolbar]');
   await page.evaluate(() => document.fonts.ready);
   const at = theme;
@@ -47,6 +52,7 @@ for (const theme of ['dark', 'light']) {
   // Ctrl+K opens the palette: a modal dialog with the focus in its field and every entry listed
   await page.focus('[data-testid=tool-text]');
   await open();
+  assert.equal(await drawnByReact(page, '[data-testid=palette]'), react, `${at}: the palette is drawn by ${react ? 'React (a fallback to Svelte?)' : 'Svelte'}`);
   assert.equal(await palette.getAttribute('role'), 'dialog', `${at}: role`);
   assert.equal(await palette.getAttribute('aria-modal'), 'true', `${at}: modal`);
   assert.match(await palette.getAttribute('aria-labelledby') ?? '', /./, `${at}: the dialog has a name`);
@@ -56,6 +62,7 @@ for (const theme of ['dark', 'light']) {
   assert.equal(await page.getAttribute('[data-testid=palette-input]', 'aria-activedescendant'), 'palette-option-tool-select', `${at}: the first entry is highlighted`);
   // the focus is trapped
   for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
+  await page.waitForTimeout(250); // Base UI parks a focus guard at each end of the dialog: the focus rests on it for one tick before it is sent inside
   assert.equal(await page.evaluate(() => !!document.activeElement?.closest('[data-testid=palette]')), true, `${at}: Tab leaves the palette`);
   await page.focus('[data-testid=palette-input]');
   // typing narrows the list; the best match is first and highlighted
@@ -131,6 +138,7 @@ for (const theme of ['dark', 'light']) {
   await page.keyboard.type('keyboard');
   await page.keyboard.press('Enter');
   await page.locator('[data-testid=shortcut-hint]').waitFor();
+  assert.equal(await drawnByReact(page, '[data-testid=shortcut-hint]'), react, `${at}: the sheet is drawn by ${react ? 'React (a fallback to Svelte?)' : 'Svelte'}`);
   assert.match(await page.locator('[data-testid=shortcut-hint]').innerText(), /Command palette[\s\S]*Ctrl\+K/, `${at}: the sheet lists the palette key`);
   await page.keyboard.press('Escape');
   await page.locator('[data-testid=shortcut-hint]').waitFor({ state: 'detached' });
@@ -169,7 +177,7 @@ for (const theme of ['dark', 'light']) {
 if (editor) {
   const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })).newPage();
   page.on('pageerror', (e) => errors.push(String(e)));
-  await page.goto(editor);
+  await page.goto(react ? Object.assign(new URL(editor), { search: `${new URL(editor).search}${new URL(editor).search ? '&' : ''}react=palette` }).href : editor);
   await page.waitForFunction(() => document.querySelector('[data-testid=connection]')?.getAttribute('data-state') === 'live', null, { timeout: 20000 });
   const palette = page.locator('[data-testid=palette]');
   const dialog = page.locator('[data-testid=export-dialog]');
@@ -183,6 +191,7 @@ if (editor) {
   // the Export entry opens the dialog with the focus inside it, and Escape gives the focus back to where it was
   await page.focus('[data-testid=tool-select]');
   await open();
+  assert.equal(await drawnByReact(page, '[data-testid=palette]'), react, `editor: the palette is drawn by ${react ? 'React (a fallback to Svelte?)' : 'Svelte'}`);
   await page.keyboard.type('export');
   await page.keyboard.press('Enter');
   await dialog.waitFor();
@@ -204,6 +213,21 @@ if (editor) {
   await page.keyboard.type('f');
   assert.equal(await tool(), was, 'editor: a letter typed in a field chose a tool');
   await page.keyboard.press('Escape');
+  // opened with the focus on the page (after a click on the canvas), the palette takes the focus, the tool letters typed in it are
+  // text and not tools, and Escape gives the focus back to the element that had it
+  await page.click('[data-testid=tool-select]');
+  const canvasBox = await page.locator('canvas').first().boundingBox();
+  await page.mouse.click(canvasBox.x + 5, canvasBox.y + canvasBox.height - 5);
+  const where = () => page.evaluate(() => { const a = document.activeElement; return `${a?.tagName}#${a?.id}.${a?.getAttribute('data-testid')}`; });
+  const focused = await where();
+  const chosen = await tool();
+  await open();
+  await page.keyboard.type('vfret');
+  assert.equal(await page.inputValue('[data-testid=palette-input]'), 'vfret', 'editor: typing in the palette is text');
+  assert.equal(await tool(), chosen, 'editor: a tool letter typed in the palette chose a tool');
+  await page.keyboard.press('Escape');
+  await palette.waitFor({ state: 'detached' });
+  assert.equal(await where(), focused, 'editor: the focus did not return to where the palette was opened from');
   // the inline text editor: a text made with the Text tool, edited with Enter
   await page.click('[data-testid=tool-text]');
   const frame = await page.locator('canvas').first().boundingBox();
