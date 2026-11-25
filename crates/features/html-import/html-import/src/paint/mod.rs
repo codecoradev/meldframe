@@ -20,9 +20,11 @@
 //! shorthand that was not read, a `var()` that did not resolve) are not repeated here. [`handles`] says which
 //! property names this stage has an answer for, so that another stage does not list them again.
 
+mod border;
 mod fill;
 mod gradient;
 mod lex;
+mod radius;
 
 use crate::css::{EntryKind, Report, Style};
 use meldframe_protocol::{Bind, Border, Gradient, ImageFill, Node, Shadow};
@@ -182,6 +184,8 @@ pub fn read(style: &Style, ctx: &Ctx, at: usize, report: &mut Report) -> Paint {
         steps: 0,
     };
     fill::read(style, ctx, &mut paint, &mut k);
+    border::read(style, &mut paint, &mut k);
+    radius::read(style, ctx, &mut paint, &mut k);
     k.report.work += k.steps;
     paint
 }
