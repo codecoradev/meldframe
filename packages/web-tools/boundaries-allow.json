@@ -1,0 +1,9 @@
+{
+  "comment": "Imports that break a rule of boundaries-lib.mjs today. An entry must equal the number of imports it covers, so entries only go down; delete one when its imports are gone. Do not add entries to make a check pass: fix the import.",
+  "entries": [
+    { "rule": "matrix", "from": "web-panels", "to": "web-assets", "count": 2, "reason": "assetUrl and isAssetId are pure helpers that live in the host package; audit T3 and T17 move them to a model package" },
+    { "rule": "matrix", "from": "web-shell", "to": "web-input", "count": 1, "reason": "shortcuts.test.ts drives attachInput to check the shortcut sheet against the real key handlers" },
+    { "rule": "group", "from": "web-variables-io", "to": "web-export", "count": 3, "reason": "sizeText and the blob save are formatting helpers of the export view; audit T1 moves them to a shared module" },
+    { "rule": "group", "from": "web-variables-io", "to": "web-variables", "count": 1, "reason": "plain and the MAX_* limits are copied rules; audit T1 and T3 move them to the app layer and a shared module" }
+  ]
+}

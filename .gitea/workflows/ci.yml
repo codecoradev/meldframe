@@ -111,6 +111,8 @@ jobs:
         run: npm run typecheck --prefix apps/web
       - name: Web lint
         run: npm run lint --prefix apps/web
+      - name: Web boundaries (kinds of package, allowed imports, frameworks)
+        run: npm run boundaries --prefix apps/web
       - name: Web unit tests
         run: npm test --prefix apps/web
       - name: Web UI literals (colours, fonts and sizes come from the tokens)

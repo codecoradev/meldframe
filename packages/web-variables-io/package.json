@@ -3,5 +3,6 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "The Import variables and Export variables dialogs of the web client: CSS text in and out of the Variables of a file. They draw `state.variablesIo` of the app layer and dispatch actions; the text of the export, the import, its report and its refusals are the app layer's. Used as source by apps/web."
+  "description": "The Import variables and Export variables dialogs of the web client: CSS text in and out of the Variables of a file. They draw `state.variablesIo` of the app layer and dispatch actions; the text of the export, the import, its report and its refusals are the app layer's. Used as source by apps/web.",
+  "meldframe": { "kind": "view", "group": "variables-io" }
 }

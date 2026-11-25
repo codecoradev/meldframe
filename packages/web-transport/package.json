@@ -4,5 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "description": "The transport of the web client: carries out the effects of the app layer over REST and the live socket. Pure TypeScript; the platform (sockets, requests, timers) is injected; tested by the apps/web test run.",
+  "meldframe": { "kind": "host" },
   "types": "src/shell.ts"
 }

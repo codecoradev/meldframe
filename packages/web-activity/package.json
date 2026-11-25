@@ -4,5 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "description": "The Activity panel of the web client: lanes, batches with their notes and review states, Revert and the checkpoints. It draws `state.activity` of the app layer and dispatches actions; every rule (lanes, counts, order, who may review) is the app layer's. Used as source by apps/web.",
+  "meldframe": { "kind": "view", "group": "activity" },
   "types": "src/view.ts"
 }
