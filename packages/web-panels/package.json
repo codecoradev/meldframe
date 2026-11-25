@@ -4,5 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "description": "The side panels of the web client: layers, properties and variables. They draw app state and report input; the rules are in the app layer. Used as source by apps/web.",
+  "meldframe": { "kind": "view", "group": "panels", "composite": ["variables", "variables-io"] },
   "types": "src/variables.ts"
 }

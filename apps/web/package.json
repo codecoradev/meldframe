@@ -4,16 +4,18 @@
   "version": "0.0.0",
   "type": "module",
   "description": "Web client: renders the app layer state and carries out its effects.",
+  "meldframe": { "kind": "bin" },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
-    "lint": "eslint . && for p in web-panels web-variables web-variables-io web-activity web-canvas web-paint web-input web-e2e web-tools web-tokens web-chrome web-shell web-feedback web-export web-transport; do (cd ../../packages/$p && eslint -c ../../apps/web/eslint.config.js .) || exit 1; done",
+    "lint": "eslint . && for p in ../../packages/web-*; do (cd $p && eslint -c ../../apps/web/eslint.config.js .) || exit 1; done",
+    "boundaries": "node ../../packages/web-tools/scripts/boundaries.mjs",
     "test": "vitest run",
     "ui-literals": "node ../../packages/web-tools/scripts/ui-literals.mjs",
     "licences": "node ../../packages/web-tools/scripts/licences.mjs",
-    "check": "npm run typecheck && npm run lint && npm test && npm run build && npm run ui-literals && npm run licences"
+    "check": "npm run typecheck && npm run lint && npm run boundaries && npm test && npm run build && npm run ui-literals && npm run licences"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
