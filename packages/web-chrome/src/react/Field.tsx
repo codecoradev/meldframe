@@ -45,9 +45,12 @@ export function Field({ label, value, onInput, onCommit, prefix, suffix, size = 
   const latest = useRef({ value, onCommit });
   useLayoutEffect(() => {
     latest.current = { value, onCommit };
-    // The caller's value wins whenever it changes (Svelte sets the property the same way).
-    if (input.current && input.current.value !== value) input.current.value = value;
   });
+  useLayoutEffect(() => {
+    // The caller's value wins when it changes, and only then (Svelte sets the property the same way): a parent that
+    // draws again while the person types, because `onInput` set a flag, must not put the old value back mid-keystroke.
+    if (input.current && input.current.value !== value) input.current.value = value;
+  }, [value]);
   useEffect(() => {
     const el = input.current;
     if (!el) return;
