@@ -293,3 +293,72 @@ fn hostile_selectors_never_panic_and_cost_work_in_line_with_their_length() {
         assert!(split_list(&text).len() <= text.len() + 1);
     }
 }
+
+#[test]
+fn a_backslash_before_any_line_end_is_a_line_continuation_in_a_string_and_no_escape_outside() {
+    for end in ["\n", "\r", "\r\n", "\u{c}"] {
+        assert_eq!(read(&format!("[a=\"x\\{end}y\"]")), "[a=xy]", "{end:?}");
+        // Outside a string the backslash and the line end are not an escape: the selector is invalid.
+        assert_eq!(
+            refused(&format!(".a\\{end}b")),
+            "selector_invalid",
+            "{end:?}"
+        );
+    }
+    // A line end that is not escaped ends the string, which makes the selector invalid.
+    for end in ["\n", "\r", "\r\n", "\u{c}"] {
+        assert_eq!(
+            refused(&format!("[a=\"x{end}y\"]")),
+            "selector_invalid",
+            "{end:?}"
+        );
+    }
+}
+
+#[test]
+fn only_ascii_white_space_is_trimmed_around_a_selector() {
+    for (text, want) in [
+        ("\u{a0}b", "\u{a0}b"),
+        ("b\u{a0}", "b\u{a0}"),
+        ("\u{a0}b\u{a0}", "\u{a0}b\u{a0}"),
+        ("\u{2003}b", "\u{2003}b"),
+    ] {
+        assert_eq!(read(text), want, "{text:?}");
+    }
+    assert_eq!(read("\t\n\u{c}\rb \r\n"), "b");
+}
+
+#[test]
+fn the_work_of_a_selector_is_one_step_for_each_character_it_read() {
+    for text in [
+        "a",
+        "div.a#b[c=d] > e .f::after",
+        "[a=\"x y\"]",
+        ".\\31 a",
+        "\u{e9}.\u{1f600}",
+        "a, b".split(',').next().unwrap(),
+    ] {
+        let mut work = 0;
+        let _ = parse(text, &mut work);
+        assert_eq!(work, text.chars().count(), "{text:?}");
+    }
+    // An invalid one costs what it read before it stopped, and nothing is free.
+    let mut work = 0;
+    let _ = parse("a:hover b", &mut work);
+    assert!(work >= 7, "{work}");
+}
+
+#[test]
+fn a_count_of_ids_or_classes_over_255_stays_255_in_its_byte() {
+    let compound = |part: &str| part.repeat(MAX_SIMPLES);
+    let many = |part: &str| vec![compound(part); MAX_COMPOUNDS].join(" ");
+    assert_eq!(spec(&parse(&many(".a"), &mut 0).unwrap()), (0, 255, 0));
+    assert_eq!(spec(&parse(&many("#a"), &mut 0).unwrap()), (255, 0, 0));
+    // 255 is not clamped away: fifteen compounds of sixteen and one of fifteen is 255 exactly.
+    let mut parts = vec![compound(".a"); MAX_COMPOUNDS - 1];
+    parts.push(".a".repeat(MAX_SIMPLES - 1));
+    assert_eq!(spec(&parse(&parts.join(" "), &mut 0).unwrap()), (0, 255, 0));
+    parts.pop();
+    parts.push(".a".repeat(MAX_SIMPLES - 2));
+    assert_eq!(spec(&parse(&parts.join(" "), &mut 0).unwrap()), (0, 254, 0));
+}
