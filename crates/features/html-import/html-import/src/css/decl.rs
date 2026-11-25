@@ -7,7 +7,7 @@ use std::sync::Arc;
 /// A declaration of a rule or of a `style` attribute.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Decl {
-    pub name: String,
+    pub name: Arc<str>,
     pub value: Arc<str>,
     pub important: bool,
 }
@@ -64,9 +64,9 @@ pub fn parse(piece: &str, too_long: bool, max_value: usize) -> Result<Decl, Bad>
     }
     Ok(Decl {
         name: if custom {
-            name.to_owned()
+            name.into()
         } else {
-            name.to_ascii_lowercase()
+            name.to_ascii_lowercase().into()
         },
         value: value.into(),
         important,

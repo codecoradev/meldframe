@@ -121,6 +121,11 @@ impl Tree {
         self.len() == 0
     }
 
+    /// Every element, the root not counted, in the order of the start tags.
+    pub fn ids(&self) -> impl Iterator<Item = ElementId> {
+        (1..self.elements.len()).map(ElementId)
+    }
+
     /// The content of every `<style>`, in the order of the text, as written: the CSS for the next stage.
     pub fn style_texts(&self) -> impl Iterator<Item = &str> {
         self.elements

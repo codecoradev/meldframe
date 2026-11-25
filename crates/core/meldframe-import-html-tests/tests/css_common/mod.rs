@@ -114,3 +114,57 @@ pub fn names<'a>(r: &'a Report, code: &str) -> Vec<&'a str> {
         .map(|e| e.name.as_str())
         .collect()
 }
+
+use html_import::css::{Candidate, Cascade, Origin, cascade};
+use html_import::html::{Child, ElementId, Parsed, parse};
+
+/// Read `html` and `css` and cascade them with `limits`.
+pub fn cascaded_with(html: &str, css: &str, limits: &Limits) -> (Parsed, Cascade, Report) {
+    let parsed = parse(html, &Default::default()).expect("html");
+    let mut report = Report::default();
+    let sheet = read(parsed.tree.style_texts().chain([css]), limits, &mut report);
+    let c = cascade(&parsed.tree, &sheet, limits, &mut report);
+    (parsed, c, report)
+}
+
+pub fn cascaded(html: &str, css: &str) -> (Parsed, Cascade, Report) {
+    cascaded_with(html, css, &Limits::default())
+}
+
+/// The first element with this tag, in the order of the text.
+pub fn el(p: &Parsed, tag: &str) -> ElementId {
+    p.tree
+        .ids()
+        .find(|i| p.tree.element(*i).tag == tag)
+        .unwrap_or_else(|| panic!("no <{tag}>"))
+}
+
+/// The candidates as `name:value`, lowest first, with `!` for important and `@` for inline.
+pub fn list(c: &[Candidate]) -> Vec<String> {
+    c.iter()
+        .map(|c| {
+            format!(
+                "{}:{}{}{}",
+                c.name,
+                c.value,
+                if c.important { "!" } else { "" },
+                if c.origin == Origin::Inline { "@" } else { "" }
+            )
+        })
+        .collect()
+}
+
+/// What applies to the first `<tag>`.
+pub fn main(html: &str, css: &str, tag: &str) -> Vec<String> {
+    let (p, c, _) = cascaded(html, css);
+    list(&c.elements[el(&p, tag).index()].main)
+}
+
+pub fn text_children(p: &Parsed, id: ElementId) -> usize {
+    p.tree
+        .element(id)
+        .children
+        .iter()
+        .filter(|c| matches!(c, Child::Text(_)))
+        .count()
+}
