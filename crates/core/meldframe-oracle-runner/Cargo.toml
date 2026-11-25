@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 export = { path = "../../features/export/export" }
+html-import = { path = "../../features/html-import/html-import" }
 meldframe-layout = { path = "../meldframe-layout" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-variables = { path = "../meldframe-variables" }

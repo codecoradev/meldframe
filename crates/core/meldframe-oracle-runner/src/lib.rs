@@ -11,8 +11,13 @@
 //! in the browser, add it to the table and run again until a run has no misses. The core asks for wrap widths that
 //! depend on earlier answers, which is why one pass cannot know every query.
 
+pub mod compare;
+mod page;
+mod roundtrip;
 mod table;
 
+pub use page::{Page, PageAnswer};
+pub use roundtrip::RoundTrip;
 pub use table::{Entry, Query, TableMeasurer};
 
 use export::{ExportOptions, Format};
@@ -38,6 +43,9 @@ pub struct Fixture {
 #[derive(Debug, Deserialize)]
 pub struct Input {
     pub fixtures: Vec<Fixture>,
+    /// Hand-written pages to import (E4.4, slice 8).
+    #[serde(default)]
+    pub pages: Vec<Page>,
     /// The text measurements recorded in the browser so far.
     #[serde(default)]
     pub table: Vec<Entry>,
@@ -51,6 +59,8 @@ pub struct Exported {
     pub css: String,
     pub unsupported: Vec<String>,
     pub warnings: Vec<String>,
+    /// The export read back by the importer and compared with the original (E4.4, slice 8).
+    pub imported: Option<RoundTrip>,
 }
 
 /// A top-level frame and its two exports.
@@ -78,6 +88,7 @@ pub struct Answer {
 #[derive(Debug, Serialize)]
 pub struct Output {
     pub fixtures: Vec<Answer>,
+    pub pages: Vec<PageAnswer>,
 }
 
 fn codes(list: &[export::Finding]) -> Vec<String> {
@@ -103,6 +114,7 @@ fn one(
         css: e.css,
         unsupported: codes(&e.report.unsupported),
         warnings: codes(&e.report.warnings),
+        imported: None,
     })
 }
 
@@ -126,7 +138,10 @@ fn answer(f: &Fixture, table: &[Entry]) -> Answer {
             (Format::Tailwind, &mut fe.tailwind),
         ] {
             match one(f, &root.id, format, &measurer) {
-                Ok(e) => *slot = Some(e),
+                Ok(mut e) => {
+                    e.imported = Some(roundtrip::run(f, &root.id, format, &e, &rects, &measurer));
+                    *slot = Some(e);
+                }
                 Err(e) => errors.push(format!("{}:{}", e.code(), root.id)),
             }
         }
@@ -148,6 +163,11 @@ pub fn run(input: &Input) -> Output {
             .fixtures
             .iter()
             .map(|f| answer(f, &input.table))
+            .collect(),
+        pages: input
+            .pages
+            .iter()
+            .map(|p| page::answer(p, &input.table))
             .collect(),
     }
 }
