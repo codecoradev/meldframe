@@ -65,12 +65,17 @@ pub(crate) struct Cx<'a> {
 /// source, in a tree of properties): a number, not a measure.
 pub(crate) const ENTRY_BYTES: usize = 64;
 
+/// What a note of an element is charged, besides its property and its value (each cut to 80 characters).
+pub(crate) const NOTE_BYTES: usize = 128;
+
 impl Cx<'_> {
     pub fn note(&mut self, notes: &mut Vec<Note>, property: &str, value: &str, code: &'static str) {
         if notes.len() >= MAX_NOTES {
             self.omitted += 1;
             return;
         }
+        self.bytes +=
+            NOTE_BYTES + property.chars().take(80).count() + value.chars().take(80).count();
         notes.push(Note {
             property: property.chars().take(80).collect(),
             value: value.chars().take(80).collect(),

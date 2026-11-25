@@ -28,7 +28,8 @@ fn var_is_replaced_from_the_custom_properties_the_element_sees() {
     assert_eq!(pp.color, "#123456");
     assert_eq!(get(pp, "padding-top"), "4px");
     assert_eq!(get(pp, "padding-right"), "8px");
-    // The refused shorthand changes nothing: the default margin of a paragraph is still there.
+    // The `var()` that cannot be resolved makes `margin` invalid when computed: the longhands are unset, the default
+    // margin of a paragraph (which the declaration replaced) does not come back.
     assert_eq!(get(pp, "margin-top"), "<none>");
     assert_eq!(get(pp, "border-top-color"), "#123456");
     assert_eq!(
@@ -59,12 +60,12 @@ fn var_is_replaced_from_the_custom_properties_the_element_sees() {
         .iter()
         .map(|n| (n.property.as_str(), n.code))
         .collect();
-    // `--a` and `--long` are each other's: the first one met is the cycle, the other finds the first invalid.
+    // `--a` and `--long` are each other's: both are in the cycle, and both are invalid.
     assert_eq!(
         cyc,
         [
             ("--a", "var_too_deep"),
-            ("--long", "var_undefined"),
+            ("--long", "var_too_deep"),
             ("--loop", "var_too_deep")
         ]
     );
@@ -221,4 +222,105 @@ fn revert_gives_the_value_of_the_defaults_table_or_inherits() {
         "span",
     );
     assert_eq!(s.color, "#f00");
+}
+
+#[test]
+fn a_custom_property_that_falls_back_from_a_cycle_uses_its_fallback_whatever_the_names() {
+    let width = |css: &str| on("<p>t</p>", css, "p", "width");
+    // `--a` is resolved before `--z`, which is the cycle: the fallback of `--a` is used.
+    assert_eq!(
+        width(":root{--z:var(--z);--a:var(--z,1px)} p{width:var(--a)}"),
+        "1px"
+    );
+    // The names swapped: the cycle is resolved first.
+    assert_eq!(
+        width(":root{--a:var(--a);--z:var(--a,1px)} p{width:var(--z)}"),
+        "1px"
+    );
+    // A cycle of two, with the one that falls back before it and after it in the order of the names.
+    assert_eq!(
+        width(":root{--c:var(--d);--d:var(--c);--a:var(--c,2px)} p{width:var(--a)}"),
+        "2px"
+    );
+    assert_eq!(
+        width(":root{--c:var(--d);--d:var(--c);--x:var(--d,2px)} p{width:var(--x)}"),
+        "2px"
+    );
+    // A cycle in the middle of a chain, and the fallback is of the one that names it.
+    assert_eq!(
+        width(":root{--a:var(--b,3px);--b:var(--c);--c:var(--b)} p{width:var(--a)}"),
+        "3px"
+    );
+    // The cycle itself is invalid, with no fallback of its own to use.
+    assert_eq!(width(":root{--z:var(--z)} p{width:var(--z)}"), "<none>");
+    assert_eq!(width(":root{--z:var(--z)} p{width:var(--z, 6px)}"), "6px");
+    // A property that depends on one that is invalid (and has no fallback) is invalid, not the text of the other.
+    assert_eq!(
+        width(":root{--z:var(--z);--a:var(--z)} p{width:var(--a, 7px)}"),
+        "7px"
+    );
+}
+
+#[test]
+fn a_custom_property_is_resolved_against_the_declarations_of_its_own_element_before_the_parents() {
+    // The dark element sets the base and what is built from it: its own base wins over the parent's.
+    let css = ":root{--z:1px} .dark{--z:2px; --a:var(--z)} p{width:var(--a)}";
+    let html = "<div class=dark><p>t</p></div>";
+    assert_eq!(on(html, css, "p", "width"), "2px");
+    // And when the element sets only what is built from the base, the parent's base is used.
+    let css = ":root{--z:1px} .dark{--a:var(--z)} p{width:var(--a)}";
+    assert_eq!(on(html, css, "p", "width"), "1px");
+    // The order of the declarations on the element does not matter.
+    let css = ":root{--z:1px} .dark{--a:var(--z); --z:2px} p{width:var(--a)}";
+    assert_eq!(on(html, css, "p", "width"), "2px");
+}
+
+#[test]
+fn initial_makes_a_custom_property_invalid_and_not_absent() {
+    let css = ":root{--x:1px} div{--x:initial} p{width:var(--x); height:var(--x, 9px)}";
+    let (p, st, _) = styled("<div><p>t</p></div>", css);
+    let (d, pp) = (st.get(el(&p, "div")), st.get(el(&p, "p")));
+    assert_eq!(
+        (get(pp, "width"), get(pp, "height")),
+        ("<none>".into(), "9px".into())
+    );
+    // `None` is the guaranteed-invalid value, which hides the root's `--x`; an absent one would show it again.
+    assert_eq!(d.custom.get("--x"), Some(&None));
+    assert_eq!(pp.custom.get("--x"), Some(&None));
+    let (p, st, _) = styled("<p>t</p>", css);
+    assert_eq!(
+        st.get(el(&p, "p"))
+            .custom
+            .get("--x")
+            .cloned()
+            .flatten()
+            .as_deref(),
+        Some("1px")
+    );
+}
+
+#[test]
+fn custom_properties_of_a_generated_box_belong_to_the_box() {
+    let css = ".a{--q:3px} .a::after{--r:5px; width:var(--r); height:var(--q)} .a::before{width:var(--r, 7px)}";
+    let (p, st, _) = styled("<div class=a>t</div>", css);
+    let d = st.get(el(&p, "div"));
+    let (after, before) = (d.after.as_ref().unwrap(), d.before.as_ref().unwrap());
+    // `--r` is resolved on the box, `--q` comes from the element, and no custom property is a property of the box.
+    assert_eq!(
+        (&*after["width"].value, &*after["height"].value),
+        ("5px", "3px")
+    );
+    assert!(
+        after.keys().all(|k| !k.starts_with("--")),
+        "{:?}",
+        after.keys().collect::<Vec<_>>()
+    );
+    // The other box does not see it, and nor does the element.
+    assert_eq!(&*before["width"].value, "7px");
+    assert!(!d.custom.contains_key("--r"));
+    assert!(d.props.keys().all(|k| !k.starts_with("--")));
+    // A `var()` that names nothing is unset on the box, with a note on the element.
+    let (p, st, _) = styled("<div>t</div>", "div::after{width:var(--nope)}");
+    assert!(st.get(el(&p, "div")).after.as_ref().unwrap().is_empty());
+    assert_eq!(st.get(el(&p, "div")).notes[0].code, "var_undefined");
 }
