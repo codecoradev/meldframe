@@ -1681,6 +1681,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-http-html-import"
+version = "0.0.0"
+dependencies = [
+ "html-import",
+ "meldframe-activity",
+ "meldframe-check",
+ "meldframe-http",
+ "meldframe-module",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-http-live"
 version = "0.0.0"
 dependencies = [
@@ -1772,6 +1785,15 @@ version = "0.0.0"
 dependencies = [
  "html-import",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "meldframe-import-html-http-tests"
+version = "0.0.0"
+dependencies = [
+ "meldframe-http-html-import",
+ "meldframe-protocol",
+ "serde_json",
 ]
 
 [[package]]

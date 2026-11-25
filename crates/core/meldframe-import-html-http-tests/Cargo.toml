@@ -1,0 +1,18 @@
+[package]
+name = "meldframe-import-html-http-tests"
+description = "The tests of the MCP tool import_html (E4.4): its arguments, the plan and its limits, and the call against the real server. Split from the other tests crates so that each stays under the size ceiling. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-http-html-import = { path = "../../integrations/meldframe-http-html-import" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+serde_json = "1"
+
+[lints]
+workspace = true
