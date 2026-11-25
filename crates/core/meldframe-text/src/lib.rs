@@ -53,7 +53,7 @@ mod sanitize;
 
 pub use charset::{first_hidden, is_combining_mark, is_hidden_text, mark_run_exceeds};
 pub use plain::{TextError, actor, file_name, key, plain, workspace_name};
-pub use sanitize::{Profile, clip, sanitize};
+pub use sanitize::{Profile, clip, sanitize, sanitize_clip};
 
 /// The longest actor string, in bytes (and so in characters): the column of a batch header and of a checkpoint holds
 /// no more.

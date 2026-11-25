@@ -171,6 +171,27 @@ fn a_long_src_is_cut_and_cleaned() {
 }
 
 #[test]
+fn a_src_is_an_identifier_to_the_strict_profile_and_is_cut_between_characters() {
+    // The old set kept these (U+2028, U+061C, U+2800, U+3164); a joiner has no emoji to protect in an address.
+    let r =
+        read("background-image:url('a\u{2028}b\u{61c}c\u{2800}d\u{3164}e\u{200d}f\u{fe0f}.png')");
+    assert_eq!(r.paint.assets[0].src, "abcdef.png");
+    let r = read("background-image:url('\u{1F468}\u{200D}\u{1F469}.png')");
+    assert_eq!(r.paint.assets[0].src, "\u{1F468}\u{1F469}.png");
+    // Four-byte characters at the cap: 200 characters, none cut in the middle.
+    let r = read(&format!(
+        "background-image:url('{}')",
+        "\u{1F600}".repeat(220)
+    ));
+    let src = &r.paint.assets[0].src;
+    assert_eq!(src.chars().count(), 200);
+    assert_eq!(src.len(), 800);
+    // A `data:` URL keeps its media type and nothing hidden in it.
+    let r = read("background-image:url('data:image/\u{202e}png;base64,AAAA')");
+    assert_eq!(r.paint.assets[0].src, "data:image/png;base64");
+}
+
+#[test]
 fn a_second_image_is_refused_and_a_gradient_over_an_image_is_listed() {
     let r = read(&format!(
         "background-image:url(assets/{ID}),url(other.png);background-size:cover;background-position:center;background-repeat:no-repeat"
