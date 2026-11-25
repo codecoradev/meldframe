@@ -17,9 +17,10 @@ frame: string, name: string, format: ExportFormat,
  */
 html: string, css: string, 
 /**
- * The name to save the document under (`{file_stem}.html`), safe to use as it is.
+ * The stem of the files of this frame (as `ExportTarget::file_stem`: the dialog keeps its own frame when the selection
+ * moves on), and the name to save the document under, `{file_stem}.html`, both safe to use as they are.
  */
-htmlFile: string, 
+fileStem: string, htmlFile: string, 
 /**
  * The name the document links the stylesheet by, and so the name to save it under (Tailwind form).
  */

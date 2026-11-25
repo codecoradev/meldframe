@@ -22,8 +22,13 @@ fn names(name: &str, id: &str) -> (String, String) {
     });
     let stem = app.state().export.target.clone().unwrap().file_stem;
     app.dispatch(Action::OpenExport {});
-    let html = app.state().export.dialog.clone().unwrap().html_file;
-    (stem, html)
+    let d = app.state().export.dialog.clone().unwrap();
+    assert_eq!(
+        d.file_stem, stem,
+        "the dialog and the target name the file alike"
+    );
+    assert_eq!(d.html_file, format!("{stem}.html"));
+    (stem, d.html_file)
 }
 
 fn stem(name: &str) -> String {

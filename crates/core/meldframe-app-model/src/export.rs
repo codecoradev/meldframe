@@ -54,7 +54,9 @@ pub struct ExportDialog {
     /// carries its styles inline). Both are empty when `error` is set.
     pub html: String,
     pub css: String,
-    /// The name to save the document under (`{file_stem}.html`), safe to use as it is.
+    /// The stem of the files of this frame (as `ExportTarget::file_stem`: the dialog keeps its own frame when the selection
+    /// moves on), and the name to save the document under, `{file_stem}.html`, both safe to use as they are.
+    pub file_stem: String,
     pub html_file: String,
     /// The name the document links the stylesheet by, and so the name to save it under (Tailwind form).
     pub css_file: String,

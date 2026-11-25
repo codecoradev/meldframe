@@ -50,13 +50,15 @@ pub fn dialog(
         .iter()
         .find(|n| n.id == id && n.kind == NodeKind::Frame)?;
     let name = label(&frame.name, MAX_LABEL);
+    let stem = file_stem(&frame.name, &frame.id);
     let mut d = ExportDialog {
         frame: id.to_string(),
         name,
         format,
         html: String::new(),
         css: String::new(),
-        html_file: format!("{}.html", file_stem(&frame.name, &frame.id)),
+        html_file: format!("{stem}.html"),
+        file_stem: stem,
         css_file: String::new(),
         html_bytes: None,
         css_bytes: None,
