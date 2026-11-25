@@ -10,9 +10,18 @@ publish.workspace = true
 kind = "tool"
 
 [dev-dependencies]
+activity-store = { path = "../../features/activity/activity-store" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-http = { path = "../../integrations/meldframe-http", features = ["mcp"] }
+meldframe-http-activity = { path = "../../integrations/meldframe-http-activity" }
 meldframe-http-html-import = { path = "../../integrations/meldframe-http-html-import" }
+meldframe-module = { path = "../meldframe-module" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-server = { path = "../../../apps/server" }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
+rmcp = { version = "3.10", default-features = false, features = ["client", "server", "transport-streamable-http-client-reqwest"] }
 serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
 
 [lints]
 workspace = true

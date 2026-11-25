@@ -8,12 +8,15 @@
 
 mod answer;
 mod args;
+mod file;
 mod plan;
 mod schema;
+mod tool;
 
 pub use args::Args;
 pub use plan::{Planned, make};
 pub use schema::{DESCRIPTION, MAX_IMPORT_KEY, TOOL, input_schema};
+pub use tool::tool;
 
 use meldframe_module::{Module, Registrar, RiskTier};
 use serde_json::{Value, json};
@@ -40,4 +43,9 @@ pub(crate) fn refuse(code: &str, message: impl Into<String>) -> Value {
 
 pub(crate) fn invalid(message: impl Into<String>) -> Value {
     refuse("invalid", message)
+}
+
+/// A refused call, as the one handler words it: the same code, message and extras as REST.
+pub(crate) fn failed(reply: &meldframe_http::Reply) -> Value {
+    json!({"ok": false, "error": reply.body["error"]})
 }

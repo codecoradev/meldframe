@@ -45,6 +45,8 @@ mod feature_on {
         expected.extend(["export"].into_iter().filter(|_| cfg!(feature = "export")));
         let import = cfg!(feature = "variables-import");
         expected.extend(["variables-import"].into_iter().filter(|_| import));
+        let html_import = cfg!(feature = "html-import");
+        expected.extend(["html-import"].into_iter().filter(|_| html_import));
         expected.extend(
             ["variant"]
                 .into_iter()
@@ -61,6 +63,18 @@ mod feature_on {
         assert_eq!(server.registry().module_names(), expected);
         let tool = server.registry().agent_tool("example_ping").unwrap();
         assert_eq!(tool.tier, RiskTier::Read);
+    }
+
+    #[test]
+    fn import_html_is_a_change_tool_of_its_own_module() {
+        let server = Server::assemble();
+        let tool = server.registry().agent_tool("import_html");
+        if cfg!(feature = "html-import") {
+            let tool = tool.expect("the html-import feature registers import_html");
+            assert_eq!((tool.module, tool.tier), ("html-import", RiskTier::Change));
+        } else {
+            assert!(tool.is_none(), "a build without the feature has no tool");
+        }
     }
 
     #[test]
@@ -93,6 +107,24 @@ mod feature_off {
         assert!(!tool_names(&server).contains(&"example_ping"));
         assert!(!server.registry().module_names().contains(&"example"));
         assert!(server.registry().agent_tool("example_ping").is_none());
+    }
+
+    #[test]
+    #[cfg(not(feature = "html-import"))]
+    fn a_build_without_the_html_import_feature_has_no_import_html() {
+        let mut server = Server::assemble();
+        assert!(!server.registry().module_names().contains(&"html-import"));
+        assert!(server.registry().agent_tool("import_html").is_none());
+        let err = server
+            .submit_tool("import_html", "file_dev", &who(), vec![add("k1")])
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            SubmitError::Refused(Refusal::Forbidden {
+                policy: Policy::Deny,
+                ..
+            })
+        ));
     }
 
     #[test]
