@@ -320,3 +320,36 @@ fn all_is_not_expanded() {
     assert!(expand("all", "initial").is_none());
     assert!(longhands("all").is_none());
 }
+
+#[test]
+fn a_word_that_is_not_a_colour_is_refused_and_never_put_in_the_colour_slot() {
+    // `no-repeat` and `foo` are not colours: the whole value is refused, not read as `background-color:no-repeat`.
+    assert_eq!(
+        no("background", "url(a.png) no-repeat"),
+        "background_shorthand"
+    );
+    assert_eq!(no("background", "red center"), "background_shorthand");
+    assert_eq!(no("border", "1px solid foo"), "border_shorthand");
+    assert_eq!(no("border-top", "1px solid no-repeat"), "border_shorthand");
+    // What is a colour is still read: hex, a name, a function, `transparent` and `currentcolor` in any case.
+    assert_eq!(
+        ex("background", "url(a.png) #FFF")[0],
+        "background-color:#FFF"
+    );
+    assert_eq!(
+        ex("background", "currentColor")[0],
+        "background-color:currentColor"
+    );
+    assert_eq!(
+        ex("background", "TRANSPARENT")[0],
+        "background-color:TRANSPARENT"
+    );
+    assert_eq!(
+        ex("border", "1px solid hsl(0 0% 0%)")[8],
+        "border-top-color:hsl(0 0% 0%)"
+    );
+    assert_eq!(
+        ex("border-left", "dotted CurrentColor")[2],
+        "border-left-color:CurrentColor"
+    );
+}
