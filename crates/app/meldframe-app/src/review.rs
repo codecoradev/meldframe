@@ -17,7 +17,9 @@ use meldframe_revert::LoggedOp;
 use meldframe_sync::SubmitError;
 
 impl App {
-    /// A confirmed op, in the server's order.
+    /// A confirmed op, in the server's order. `actor` is the lane key (`crate::text::actor`, empty for an actor with no
+    /// name) and the key is made safe here, so the log, the reducer and the batch rows agree on both. An op with no
+    /// actor stays in the log, whose order a revert reads, and feeds no lane.
     pub(crate) fn record_op(
         &mut self,
         seq: u64,
@@ -29,11 +31,13 @@ impl App {
         let op = LoggedOp {
             seq,
             actor: actor.to_string(),
-            key: key.unwrap_or_default().to_string(),
+            key: key.map(crate::text::op_key).unwrap_or_default(),
             command: command.clone(),
         };
         self.review.log.push(op.clone());
-        self.feed.red.observe_op(&op, now_ms);
+        if !actor.is_empty() {
+            self.feed.red.observe_op(&op, now_ms);
+        }
     }
 
     /// The revert of a batch on the file as it is now, or the code of the refusal.

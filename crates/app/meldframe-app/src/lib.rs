@@ -28,6 +28,7 @@ mod picker;
 mod props;
 mod retry;
 mod review;
+mod text;
 mod variables;
 mod variables_io;
 mod view;

@@ -5,6 +5,7 @@ use crate::app::App;
 use crate::effect::Effect;
 use crate::event::Event;
 use crate::state::Connection;
+use crate::text;
 use meldframe_app_parts::touched::{render_set, touched};
 use meldframe_app_rules::level::Level;
 use meldframe_protocol::Command;
@@ -22,7 +23,13 @@ impl App {
                 self.checkpoints_connected(fx);
             }
             Frame::Checkpoint { checkpoint } => self.checkpoint_frame(checkpoint, fx),
-            Frame::Batch { .. } | Frame::Touch { .. } => self.activity_frame(now_ms, frame, fx),
+            Frame::Batch { .. } => self.activity_frame(now_ms, frame, fx),
+            // The actor of a touch is a lane key, so it is made safe here; an actor with nothing left draws nothing.
+            Frame::Touch { actor, ids, seq } => {
+                if let Some(actor) = text::actor(&actor) {
+                    self.activity_frame(now_ms, Frame::Touch { actor, ids, seq }, fx);
+                }
+            }
             Frame::Rejected {
                 key,
                 code,
@@ -56,22 +63,26 @@ impl App {
         command: &Command,
         fx: &mut Vec<Effect>,
     ) {
+        // The replica takes the op as the server sent it; everything the app keys and shows by gets the actor and the
+        // key made safe once, here (`crate::text`).
+        let who = text::actor(actor);
+        let shown = who.as_deref().unwrap_or_default();
         match self.replica.on_event_keyed(seq, actor, key, command) {
             Ok(EventOutcome::Confirmed) => {
                 self.gap_closed();
-                self.record_op(seq, actor, key, command, now_ms);
-                self.stamp(actor, command);
+                self.record_op(seq, shown, key, command, now_ms);
+                self.stamp(who.as_deref(), command);
             }
             Ok(EventOutcome::Rebased { dropped }) => {
                 self.gap_closed();
-                self.record_op(seq, actor, key, command, now_ms);
-                self.stamp(actor, command);
+                self.record_op(seq, shown, key, command, now_ms);
+                self.stamp(who.as_deref(), command);
                 let nodes = if dropped > 0 {
                     Vec::new()
                 } else {
                     render_set(std::slice::from_ref(command))
                 };
-                self.changed(actor.to_string(), false, nodes, fx);
+                self.changed(shown.to_string(), false, nodes, fx);
             }
             Ok(EventOutcome::Duplicate) => self.level = Level::Nothing,
             Err(ReplicaError::Gap { .. }) => {
@@ -91,8 +102,9 @@ impl App {
         }
     }
 
-    /// Remember who changed the nodes a command touches.
-    fn stamp(&mut self, actor: &str, command: &Command) {
+    /// Remember who changed the nodes a command touches. An op by an actor with no name is attributed to nobody.
+    fn stamp(&mut self, actor: Option<&str>, command: &Command) {
+        let Some(actor) = actor else { return };
         if !matches!(command, Command::RemoveNode { .. }) {
             for id in touched(command) {
                 self.state.last_actor.insert(id, actor.to_string());

@@ -36,7 +36,7 @@ impl App {
             Action::BatchesLoaded { page } => self.fetched(|f, _| f.page(page.into()), fx),
             Action::BatchReviewed { batch } => self.feed.red.observe_row(batch),
             Action::BatchRequestFailed { code } => {
-                drop(refuse(&mut self.events, &code));
+                drop(refuse(&mut self.events, &crate::text::code(&code)));
                 self.fetched(|f, _| f.failed(), fx);
             }
             Action::SelectBatch { batch } => {
