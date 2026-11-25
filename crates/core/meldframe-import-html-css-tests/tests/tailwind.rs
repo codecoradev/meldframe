@@ -484,3 +484,34 @@ fn hostile_classes_never_panic_and_cost_work_in_line_with_their_length() {
     assert!(st.complete);
     assert!(r.work < 400_000, "{}", r.work);
 }
+
+#[test]
+fn a_custom_property_in_an_after_utility_is_the_boxs_own_and_is_no_property() {
+    let html = r#"<div class="[--q:3px] after:[--r:5px] after:w-[var(--r)] after:[height:var(--q)] after:content-['']">t</div>"#;
+    let (p, st, r) = styled(html, "");
+    let d = st.get(el(&p, "div"));
+    let after = d.after.as_ref().expect("the ::after box");
+    // `--r` is resolved on the box, `--q` is the element's, and no custom property is a property of the box.
+    assert_eq!(
+        (&*after["width"].value, &*after["height"].value),
+        ("5px", "3px")
+    );
+    assert!(
+        after.keys().all(|k| !k.starts_with("--")),
+        "{:?}",
+        after.keys().collect::<Vec<_>>()
+    );
+    // The element has its own and not the box's.
+    assert_eq!(
+        d.custom.get("--q").cloned().flatten().as_deref(),
+        Some("3px")
+    );
+    assert!(!d.custom.contains_key("--r") && d.props.keys().all(|k| !k.starts_with("--")));
+    assert_eq!(count(&r, "class_unresolved"), 0);
+    // The same rules written as css read the same.
+    let (p, st2, _) = styled(
+        r#"<div class="x">t</div>"#,
+        ".x{--q:3px} .x::after{--r:5px;width:var(--r);height:var(--q);content:\"\"}",
+    );
+    assert_eq!(st2.get(el(&p, "div")).after, st.get(el(&p, "div")).after);
+}
