@@ -1779,6 +1779,7 @@ version = "0.0.0"
 dependencies = [
  "html-import",
  "meldframe-protocol",
+ "serde_json",
  "wasm-bindgen-test",
 ]
 
