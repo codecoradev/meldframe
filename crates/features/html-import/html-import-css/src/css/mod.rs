@@ -15,7 +15,7 @@
 //!   rule nested in a rule (`nested_rule_skipped`); a piece that is not a declaration (`invalid_declaration`,
 //!   `empty_value`), which includes a string that ends at its line, as CSS says (the declaration, or the whole rule
 //!   when it is in the selector, is left out); text that is not a rule or an at-rule (`invalid_statement`), also
-//!   when it comes before a `}` with nothing open. `url()` in a value is kept as text and never followed. A close
+//!   when it comes before a `}`, also the one that closes a `@layer` block. `url()` in a value is kept as text and never followed. A close
 //!   brace with nothing open is counted (`stray_close_brace`).
 //! - **A selector list is read selector by selector.** A selector that is refused or invalid is left out alone and
 //!   the others of its list stay. CSS drops the whole rule for an invalid selector, so this is more tolerant, on
@@ -175,7 +175,7 @@ impl Reader<'_> {
                     p.text = t.to_owned();
                 }
             }
-            let blank = p.text.trim().is_empty();
+            let blank = p.text.trim_ascii().is_empty();
             let cut_off = p.end == End::Eof && (!blank || depth > 0);
             if p.unterminated || cut_off {
                 let msg =
@@ -186,11 +186,12 @@ impl Reader<'_> {
                 End::Eof => return,
                 End::Close => {
                     c.consume();
-                    if depth > 0 {
-                        return;
-                    }
+                    // Text before a `}` is not a rule: it is listed, whether the `}` closes a layer or is stray.
                     if !blank {
                         self.statement(&p);
+                    }
+                    if depth > 0 {
+                        return;
                     }
                     self.report.count("stray_close_brace", 1);
                 }
@@ -218,7 +219,7 @@ impl Reader<'_> {
 
     fn statement(&mut self, p: &Piece) {
         let text = p.text.replace('\0', " ");
-        let t = text.trim();
+        let t = text.trim_ascii();
         if t.is_empty() {
             return;
         }
@@ -241,9 +242,9 @@ impl Reader<'_> {
     /// A block opens after the prelude `p`.
     fn open(&mut self, c: &mut Cursor, p: &Piece, depth: usize) {
         let at_text = p.text.replace('\0', " ");
-        let pre = p.text.trim();
+        let pre = p.text.trim_ascii();
         if pre.starts_with('@') {
-            let pre = at_text.trim();
+            let pre = at_text.trim_ascii();
             let name = Self::at_name(pre);
             if name == "layer" && depth < self.l.max_depth {
                 return self.rules(c, depth + 1);
@@ -282,7 +283,7 @@ impl Reader<'_> {
                 }
                 break;
             }
-            if text.trim().is_empty() {
+            if text.trim_ascii().is_empty() {
                 self.refused(
                     "selector_invalid",
                     "",
@@ -296,7 +297,7 @@ impl Reader<'_> {
                     self.selectors += 1;
                     selectors.push(s);
                 }
-                Err(e) => self.refused(e.code, text.trim(), e.why, p.at),
+                Err(e) => self.refused(e.code, text.trim_ascii(), e.why, p.at),
             }
         }
         if selectors.is_empty() {
