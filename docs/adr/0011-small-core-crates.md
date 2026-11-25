@@ -3,6 +3,8 @@ status: accepted
 ---
 # The core is several small crates
 
+> Status note, 25 Nov 2026: the crate ceilings named below were written for the ceiling of the time. Since decision 42 (standard v1.3, ADR-0026) the hard ceiling of a crate is 50,000 lines; the ideal band of 1,500 to 2,500 lines and the file limit of 500 lines are unchanged. The decision below stands; a split it made stays, and a size figure is history.
+
 The file model, its checks, its layout and its sibling order live in separate core crates: `meldframe-order`, `meldframe-check`, `meldframe-layout` and `meldframe-core`, with `meldframe-history` and `meldframe-sync` built on them (and two tool crates that hold their property tests). Each has one reason to change and stays under the 2,000-line crate ceiling with its tests counted. `meldframe-core` re-exports the check API, so callers keep one import path.
 
 ## Why

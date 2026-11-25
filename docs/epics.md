@@ -44,7 +44,7 @@ Crates under `crates/{core,engines,integrations,features,app,ui}`, apps under `a
 
 ### E0.2 CI and review gates (S)
 - [x] CI runs format, lint (warnings as errors), tests, `deps-check`, `build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences --check`. (The fast set runs on every pull request; `build-matrix`, `portable-check`, `size-check`, `ui-literals` and `licences --check` run nightly and on demand; `just check` runs all of them except `licences --check`, which is run as `cargo xtask licences --check`.)
-- [x] `size-check` enforces 500 lines per file and 2,000 per crate with an allow-list that only shrinks.
+- [x] `size-check` enforces 500 lines per file and a ceiling per crate (2,000 when this was ticked, 4,000 from decision 35, 50,000 from decision 42) with an allow-list that only shrinks.
 - [x] A local Cora agent review is run and recorded for every pull request (CI Cora is disabled); branch-name and message-standard checks reject AI attribution and wrong prefixes.
 - [x] `develop` requires CI to pass before merge; `main` exists and receives release tags only.
 

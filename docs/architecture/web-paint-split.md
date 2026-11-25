@@ -1,6 +1,6 @@
 # Split of `packages/web-canvas`: the new package `web-paint`
 
-Plan for issue #251 (E3.1, the render model and the canvas). The owner has agreed to carry it out: this page is the plan, and the move follows in the next commit of the same pull request. `AGENTS.md` and `docs/standards/modular-thin-ui.md` (D1) set the size rule it answers: a crate or package aims for 1,500 to 2,500 lines, may pass 2,500 only as a candidate for a planned split, and never passes 4,000.
+Plan for issue #251 (E3.1, the render model and the canvas). The owner has agreed to carry it out: this page is the plan, and the move follows in the next commit of the same pull request. `AGENTS.md` and `docs/standards/modular-thin-ui.md` (D1) set the size rule it answers: a crate or package aims for 1,500 to 2,500 lines, may pass 2,500 only as a candidate for a planned split, and never passed 4,000 (the ceiling of the time; it is 50,000 since decision 42).
 
 ## Why now
 
