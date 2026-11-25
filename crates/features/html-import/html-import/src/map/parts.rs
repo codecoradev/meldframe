@@ -5,7 +5,7 @@ use super::build::Builder;
 use super::item::{Item, Notes, blank};
 use super::layout::{self, Ctx, Flow};
 use super::names::MAX_SOURCE;
-use super::text::Piece;
+use super::text::Run;
 use html_import_tree::{ElementId, EntryKind, clean};
 use meldframe_protocol::{LayoutMode, NodeKind, SizeMode};
 
@@ -107,7 +107,7 @@ impl Builder<'_> {
                 .filter(|v| !v.is_empty())
                 .or_else(|| el.attr("placeholder"))
                 .unwrap_or("");
-            let mut run = vec![Piece::Text(shown)];
+            let mut run = Run::of(shown);
             self.flush(e, &inner, &mut run, &mut kids);
         }
         let mut node = blank(NodeKind::Frame);

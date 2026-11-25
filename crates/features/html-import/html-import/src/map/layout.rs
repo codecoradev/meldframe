@@ -44,7 +44,14 @@ pub(crate) fn px(st: &Style, prop: &str, notes: &mut Notes) -> Option<f64> {
             None
         }
         Some(l) => {
-            if l.unit != Unit::Px {
+            // The browser's own `1em` margin of a paragraph is not something the page wrote: not listed.
+            let written = st.props.get(prop).is_some_and(|p| {
+                matches!(
+                    p.source,
+                    crate::css::Source::Author | crate::css::Source::Inline
+                )
+            });
+            if l.unit != Unit::Px && written {
                 notes.approximate(prop, raw, &fmt(l.px));
             }
             Some(l.px)

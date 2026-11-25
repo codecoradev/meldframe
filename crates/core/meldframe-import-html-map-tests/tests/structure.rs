@@ -5,6 +5,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod common;
 use common::*;
+use html_import::html::ParseError;
 use html_import::map::{Options, plan};
 use meldframe_protocol::{Command, NodeKind};
 
@@ -152,4 +153,35 @@ fn what_is_not_shown_makes_no_node_and_is_listed() {
     assert_eq!(listed, [("div", "listed"), ("p", "listed")]);
     // What the browser's defaults hide is not content: counted, not listed.
     assert_eq!(count(&p, "non_visual"), 1, "{:?}", p.report.counts);
+}
+
+#[test]
+fn a_text_with_no_element_is_refused_as_empty_and_too_much_is_refused() {
+    let e = |html: &str| plan(html, "", &Options::default()).unwrap_err();
+    assert_eq!(e("just text"), ParseError::Empty);
+    assert_eq!(e("<div style='display:none'>x</div>"), ParseError::Empty);
+    assert_eq!(e("<script>x</script><!-- c -->"), ParseError::Empty);
+    let big = "a".repeat(200 * 1024);
+    let r = plan("<p>x</p>", &big, &Options::default()).map(|_| ());
+    assert!(r.is_ok(), "256 KiB is for both together: {r:?}");
+    let r = plan(&format!("<p>{big}</p>"), &big, &Options::default());
+    assert_eq!(r.unwrap_err().code(), "E_IMPORT_HTML_TOO_LARGE");
+}
+
+#[test]
+fn a_whole_document_is_read_from_its_body() {
+    let html = "<!doctype html><html><head><title>T</title><style>body{margin:0}</style></head>\
+                <body><div data-name=Page><p>x</p></div></body></html>";
+    let list = nodes(&planned(html, ""));
+    assert_eq!(names(&list), ["Page", "p"]);
+}
+
+#[test]
+fn the_ids_take_the_prefix_of_the_options() {
+    let o = Options {
+        id_prefix: "imp-abc".into(),
+        ..Options::default()
+    };
+    let p = plan("<div><p>a</p><p>b</p></div>", "", &o).unwrap();
+    assert_eq!(p.nodes[2].id, "imp-abc-2");
 }

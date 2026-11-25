@@ -8,7 +8,9 @@ use super::paint::{decorates, put};
 use super::plain::plain;
 use super::pre::{NON_VISUAL, Pre, display, hides, is_space, zero};
 use super::size::{self, Subject};
-use super::text::{Piece, collapse};
+use super::text::{
+    Piece, Run, collapse, first_difference, outside_contract, space, transform, typography,
+};
 use crate::css::{Style, Styles};
 use html_import_tree::{Child, ElementId, EntryKind, Report, Tree, clean};
 use meldframe_protocol::{Bind, LayoutMode, Node, NodeKind, SizeMode};
@@ -37,7 +39,7 @@ fn white_space_nowrap(st: &Style) -> bool {
 impl<'a> Builder<'a> {
     /// The items for the content of `el`, in the order of the text, for a frame that gives its children `ctx`.
     pub fn content(&mut self, el: ElementId, ctx: &Ctx, out: &mut Vec<Item>) {
-        let mut run = Vec::new();
+        let mut run = Run::default();
         self.walk(el, el, ctx, &mut run, out);
         self.flush(el, ctx, &mut run, out);
     }
@@ -47,14 +49,14 @@ impl<'a> Builder<'a> {
         owner: ElementId,
         el: ElementId,
         ctx: &Ctx,
-        run: &mut Vec<Piece<'a>>,
+        run: &mut Run<'a>,
         out: &mut Vec<Item>,
     ) {
         let tree = self.tree;
         for c in &tree.element(el).children {
             self.report.work += 1;
             match c {
-                Child::Text(t) => run.push(Piece::Text(t)),
+                Child::Text(t) => run.pieces.push(Piece::Text(t)),
                 Child::Element(e) => self.child(owner, *e, ctx, run, out),
             }
         }
@@ -65,19 +67,20 @@ impl<'a> Builder<'a> {
         owner: ElementId,
         e: ElementId,
         ctx: &Ctx,
-        run: &mut Vec<Piece<'a>>,
+        run: &mut Run<'a>,
         out: &mut Vec<Item>,
     ) {
         let el = self.tree.element(e);
         if self.pre.hidden[e.index()] {
             self.skipped(e);
         } else if el.tag == "br" {
-            run.push(Piece::Br);
+            run.pieces.push(Piece::Br);
         } else if display(self.styles.get(e)) == "contents" {
             self.report.count("display_contents", 1);
             self.walk(owner, e, ctx, run, out);
         } else if self.pre.inline[e.index()] {
-            self.gather(e, run);
+            self.compare(owner, e, run);
+            self.gather(owner, e, run);
         } else {
             self.flush(owner, ctx, run, out);
             self.element(e, ctx, out);
@@ -85,16 +88,26 @@ impl<'a> Builder<'a> {
     }
 
     /// The text of an inline element goes into the line it is in.
-    fn gather(&mut self, e: ElementId, run: &mut Vec<Piece<'a>>) {
+    fn gather(&mut self, owner: ElementId, e: ElementId, run: &mut Run<'a>) {
         let tree = self.tree;
         for c in &tree.element(e).children {
             self.report.work += 1;
             match c {
-                Child::Text(t) => run.push(Piece::Text(t)),
+                Child::Text(t) => run.pieces.push(Piece::Text(t)),
                 Child::Element(k) if self.pre.hidden[k.index()] => self.skipped(*k),
-                Child::Element(k) if tree.element(*k).tag == "br" => run.push(Piece::Br),
-                Child::Element(k) => self.gather(*k, run),
+                Child::Element(k) if tree.element(*k).tag == "br" => run.pieces.push(Piece::Br),
+                Child::Element(k) => {
+                    self.compare(owner, *k, run);
+                    self.gather(owner, *k, run);
+                }
             }
+        }
+    }
+
+    /// The first way an inline element joined into the text of `owner` differs from it is listed once for the node.
+    fn compare(&self, owner: ElementId, e: ElementId, run: &mut Run<'a>) {
+        if run.diff.is_none() {
+            run.diff = first_difference(self.styles.get(owner), self.styles.get(e));
         }
     }
 
@@ -114,26 +127,39 @@ impl<'a> Builder<'a> {
         }
     }
 
+    /// A text node for a run of pieces in the style `st`: its content, typography and what inline elements changed. No
+    /// node for a run with no text in it.
+    fn text_node(&mut self, st: &Style, run: Run<'a>, notes: &mut Notes) -> Option<Node> {
+        let how = space(st, notes);
+        let text = collapse(&run.pieces, how);
+        if text.is_empty() {
+            return None;
+        }
+        let mut node = blank(NodeKind::Text);
+        node.text = transform(text, st, notes);
+        typography(&mut node, st, notes);
+        if let Some(d) = run.diff {
+            notes.approx.push(d);
+        }
+        Some(node)
+    }
+
     /// The anonymous text a line of text makes in `owner`.
     pub(super) fn flush(
         &mut self,
         owner: ElementId,
         ctx: &Ctx,
-        run: &mut Vec<Piece<'a>>,
+        run: &mut Run<'a>,
         out: &mut Vec<Item>,
     ) {
-        let text = collapse(run);
-        run.clear();
-        if text.is_empty() {
-            return;
-        }
-        let el = self.tree.element(owner);
-        let mut node = blank(NodeKind::Text);
-        node.name = clean(&format!("{} text", name_of(el)), 256);
-        node.text = text;
+        let run = std::mem::take(run);
         let st = self.styles.get(owner);
-        node.fill = Bind::Lit(st.color.clone());
         let mut notes = Notes::default();
+        let Some(mut node) = self.text_node(st, run, &mut notes) else {
+            return;
+        };
+        let el = self.tree.element(owner);
+        node.name = clean(&format!("{} text", name_of(el)), 256);
         // The run has no size of its own: it is auto, in the way of the frame it is in.
         let subject = Subject {
             text: true,
@@ -201,6 +227,16 @@ impl<'a> Builder<'a> {
             node.name = name_of(el);
         }
         let mut all = std::mem::take(&mut self.pending);
+        if node.kind == NodeKind::Text && outside_contract(&node.text) {
+            let msg = "the text has a tab, a URL or CJK that the browser breaks differently from the canvas".to_owned();
+            self.report.note(
+                EntryKind::Listed,
+                "text_outside_contract",
+                &node.name,
+                msg,
+                el.at,
+            );
+        }
         if !anon {
             put(&mut node, &self.pre.paint[e.index()]);
             // The box keeps its room in CSS; the model has no visibility, only opacity.
@@ -294,11 +330,11 @@ impl<'a> Builder<'a> {
         }
         let mut notes = Notes::default();
         if shape.boxes == 0 && shape.line && self.as_text(e, st) {
-            let mut pieces = Vec::new();
-            self.gather(e, &mut pieces);
-            let mut node = blank(NodeKind::Text);
-            node.text = collapse(&pieces);
-            node.fill = Bind::Lit(st.color.clone());
+            let mut run = Run::default();
+            self.gather(e, e, &mut run);
+            let Some(mut node) = self.text_node(st, run, &mut notes) else {
+                return;
+            };
             self.boxed(&mut node, st, ctx, &mut notes);
             self.sizes(&mut node, st, ctx, true, (0.0, 0.0), &mut notes);
             out.push(self.make(e, node, Vec::new(), notes, false));
