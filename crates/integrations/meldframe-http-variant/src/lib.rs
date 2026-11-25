@@ -104,12 +104,11 @@ fn one_of<T>(camel: Option<T>, snake: Option<T>, name: &str) -> Result<Option<T>
 }
 
 fn check_key(key: &str) -> Result<(), Value> {
-    if key.is_empty() || key.chars().count() > MAX_KEY || key.chars().any(char::is_control) {
-        return Err(invalid(format!(
-            "the idempotency key is 1 to {MAX_KEY} characters without control characters"
-        )));
-    }
-    Ok(())
+    meldframe_http::mcp::check_key(key).map_err(|_| {
+        invalid(format!(
+            "the idempotency key is 1 to {MAX_KEY} characters without control or hidden characters"
+        ))
+    })
 }
 
 /// The id of node `n` of the copy of `frame` made under `key` by `actor` in `file`.

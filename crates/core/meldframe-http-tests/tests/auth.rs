@@ -40,6 +40,77 @@ fn a_bad_spec_is_an_error_that_does_not_echo_the_secret() {
     }
 }
 
+/// U9: the actor of a token is held to the rule of an actor (1 to 128 bytes, no control or hidden character), because
+/// it reaches the log, the lanes and every row that names a writer.
+#[test]
+fn the_actor_of_a_token_is_plain_text_within_128_bytes() {
+    let tok = "tok-one-1-abcdefgh";
+    for c in [
+        '\u{202E}',
+        '\u{200B}',
+        '\u{2028}',
+        '\u{200D}',
+        '\u{034F}',
+        '\n',
+        '\u{E0041}',
+    ] {
+        let err = DevTokens::parse(&format!("{tok}:ws_1:agent:a{c}b")).unwrap_err();
+        assert!(!err.to_string().contains(tok), "U+{:04X}", c as u32);
+    }
+    // 128 bytes are the longest, in any script: 128 ASCII characters and 64 two-byte ones fit; 65 two-byte ones do not.
+    for ok in [
+        "a".repeat(128),
+        "\u{e9}".repeat(64),
+        "agent:\u{4E2D}".to_owned(),
+    ] {
+        assert!(
+            DevTokens::parse(&format!("{tok}:ws_1:{ok}")).is_ok(),
+            "{ok}"
+        );
+    }
+    for bad in ["a".repeat(129), "\u{e9}".repeat(65), "\u{e9}".repeat(128)] {
+        assert!(DevTokens::parse(&format!("{tok}:ws_1:{bad}")).is_err());
+    }
+}
+
+/// U9: one rule of a file name for every transport: 1 to 128 bytes, not `.` or `..`, not blank, no slash, no control or
+/// hidden character.
+#[test]
+fn a_file_name_is_plain_text_within_128_bytes_without_a_slash() {
+    use meldframe_http::valid_file;
+    for ok in [
+        "file_dev",
+        "Landing page",
+        "\u{4E2D}\u{6587}",
+        "\u{1F468}x",
+        "...",
+    ] {
+        assert!(valid_file(ok), "{ok}");
+    }
+    assert!(valid_file(&"a".repeat(128)));
+    assert!(valid_file(&"\u{e9}".repeat(64)));
+    for bad in ["", " ", ".", "..", "a/b", "a\\b"] {
+        assert!(!valid_file(bad), "{bad:?}");
+    }
+    assert!(!valid_file(&"a".repeat(129)));
+    assert!(!valid_file(&"\u{e9}".repeat(65)));
+    for c in [
+        '\u{202E}',
+        '\u{2028}',
+        '\u{2029}',
+        '\u{200B}',
+        '\u{200D}',
+        '\u{FE0F}',
+        '\u{0}',
+        '\u{034F}',
+        '\u{3164}',
+        '\u{E0041}',
+        '\u{600}',
+    ] {
+        assert!(!valid_file(&format!("a{c}b")), "U+{:04X}", c as u32);
+    }
+}
+
 #[test]
 fn release_builds_refuse_dev_tokens_unless_explicitly_allowed() {
     assert!(check_dev_tokens_allowed(false, None).is_ok());

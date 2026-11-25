@@ -49,6 +49,11 @@ impl DevTokens {
             if token.len() < MIN_TOKEN_LEN {
                 return Err(SpecError("a token is shorter than 16 bytes"));
             }
+            if meldframe_text::actor(actor).is_err() {
+                return Err(SpecError(
+                    "an actor is not 1 to 128 bytes of text without control or hidden characters",
+                ));
+            }
             if table
                 .insert(token.to_owned(), Principal::new(workspace, actor))
                 .is_some()

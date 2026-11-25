@@ -150,3 +150,33 @@ async fn a_capture_with_bad_arguments_is_logged_as_malformed() {
         ("capture", "invalid", None)
     );
 }
+
+/// U9: the `nodeId` of a capture is held to the rule of an identifier (1 to 128 bytes, no control or hidden
+/// character), as a file name is, and a file name with a hidden character is refused the same way.
+#[tokio::test]
+async fn a_node_id_or_file_with_a_hidden_character_is_refused_before_any_editor_is_asked() {
+    let h = start().await;
+    let a = agent(&h, AGENT).await;
+    for c in [
+        '\u{202E}',
+        '\u{2028}',
+        '\u{200B}',
+        '\u{200D}',
+        '\u{034F}',
+        '\u{E0041}',
+    ] {
+        let bad = call(
+            &a,
+            "capture",
+            json!({"file": "f1", "nodeId": format!("n{c}1")}),
+        )
+        .await;
+        assert_eq!(code(&bad), "invalid", "nodeId U+{:04X}", c as u32);
+        let bad = call(&a, "capture", json!({"file": format!("f{c}1")})).await;
+        assert_eq!(code(&bad), "invalid", "file U+{:04X}", c as u32);
+    }
+    // 128 bytes are the longest, in any script: 65 two-byte characters are 130 bytes.
+    let wide = "\u{e9}".repeat(65);
+    let bad = call(&a, "capture", json!({"file": "f1", "nodeId": wide})).await;
+    assert_eq!(code(&bad), "invalid");
+}

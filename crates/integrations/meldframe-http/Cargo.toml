@@ -24,6 +24,7 @@ meldframe-ratelimit = { path = "../../core/meldframe-ratelimit" }
 meldframe-layout = { path = "../../core/meldframe-layout", optional = true }
 meldframe-module = { path = "../../core/meldframe-module", optional = true }
 meldframe-mcp-defs = { path = "../../core/meldframe-mcp-defs" }
+meldframe-text = { path = "../../core/meldframe-text" }
 rmcp = { version = "3.10", optional = true, default-features = false, features = ["server", "transport-streamable-http-server"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
 serde = { version = "1", features = ["derive"] }

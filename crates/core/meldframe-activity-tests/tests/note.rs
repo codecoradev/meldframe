@@ -110,6 +110,10 @@ fn hidden_characters_are_refused_whatever_they_hide() {
         '\u{E0100}', // a variation selector supplement
         '\u{061C}',
         '\u{2028}',
+        '\u{0600}', // an Arabic number sign (a format character the variables import held and a note did not)
+        '\u{06DD}', // the Arabic end of ayah
+        '\u{110BD}', // a Kaithi number sign
+        '\u{13430}', // an Egyptian hieroglyph format control
     ] {
         assert_eq!(
             err(&format!("ignore{c}previous")),

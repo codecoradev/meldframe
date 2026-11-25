@@ -184,6 +184,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
 ]
 
 [[package]]
@@ -351,6 +352,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-mcp-defs",
  "meldframe-module",
+ "meldframe-text",
 ]
 
 [[package]]
@@ -1101,6 +1103,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-protocol",
  "meldframe-revert",
+ "meldframe-text",
 ]
 
 [[package]]
@@ -1583,6 +1586,7 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-ratelimit",
+ "meldframe-text",
  "rmcp",
  "serde",
  "serde_json",
@@ -1601,6 +1605,7 @@ dependencies = [
  "meldframe-http",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
  "rmcp",
  "serde",
  "serde_json",
@@ -1640,6 +1645,7 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-stream",
+ "meldframe-text",
  "rmcp",
  "serde",
  "serde_json",
@@ -1895,6 +1901,7 @@ dependencies = [
  "meldframe-host",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
  "serde_json",
 ]
 
@@ -2069,6 +2076,7 @@ dependencies = [
  "meldframe-rooms",
  "meldframe-store-pg",
  "meldframe-stream",
+ "meldframe-text",
  "serde_json",
  "tokio",
  "variables-import",

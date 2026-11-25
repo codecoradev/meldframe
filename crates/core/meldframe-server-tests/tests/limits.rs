@@ -121,6 +121,7 @@ fn an_oversize_batch_is_refused_before_the_room_opens_or_a_key_is_looked_up() {
 #[test]
 fn names_are_held_to_the_strict_rule_for_workspace_and_file_alike() {
     let mut s = server(8);
+    let wide = "\u{e9}".repeat(65);
     let bad = [
         "a\u{202E}b",
         "a\u{200B}b",
@@ -131,6 +132,18 @@ fn names_are_held_to_the_strict_rule_for_workspace_and_file_alike() {
         "a\u{85}b",
         "   ",
         "\t",
+        // U9: the one set of `meldframe-text`, which the old rule of this check did not hold whole: the combining
+        // grapheme joiner, the Hangul filler, the variation selector, a tag character, the word joiner, the soft
+        // hyphen, an Arabic format character.
+        "a\u{34F}b",
+        "a\u{3164}b",
+        "a\u{FE0F}b",
+        "a\u{E0041}b",
+        "a\u{2060}b",
+        "a\u{AD}b",
+        "a\u{600}b",
+        // 65 two-byte characters are 130 bytes, over the limit of 128 bytes.
+        wide.as_str(),
     ];
     for name in bad {
         assert!(
@@ -151,6 +164,8 @@ fn names_are_held_to_the_strict_rule_for_workspace_and_file_alike() {
     // A dot is a fine workspace name, and ordinary Unicode is fine.
     s.open(".", "f").unwrap();
     s.open("ws_é", "fichier ü").unwrap();
+    // 128 bytes are the longest, in any script: 64 two-byte characters fit.
+    s.open("ws_1", &"\u{e9}".repeat(64)).unwrap();
 }
 
 #[test]

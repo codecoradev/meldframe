@@ -127,17 +127,11 @@ impl ImportTool {
         };
         let dry = args.dry_run.unwrap_or(false);
         let key = match (key, dry) {
-            (Some(k), _)
-                if !k.is_empty()
-                    && k.chars().count() <= MAX_KEY
-                    && !k.chars().any(char::is_control) =>
-            {
-                Some(k)
-            }
+            (Some(k), _) if meldframe_http::mcp::check_key(&k).is_ok() => Some(k),
             (None, true) => None,
             _ => {
                 let m = format!(
-                    "every call needs an idempotencyKey of 1 to {MAX_KEY} characters without control characters: it makes a retry safe"
+                    "every call needs an idempotencyKey of 1 to {MAX_KEY} characters without control or hidden characters: it makes a retry safe"
                 );
                 return failure("invalid", &m, false);
             }
