@@ -16,15 +16,23 @@ fn kind_of(kind: CheckpointKind) -> Kind {
     }
 }
 
-/// The shape the server would have made the row in; `None` for one it never makes. The label is the person's text:
-/// one that is not fit to show (a hidden character, too long) is left off, and the row stays, because it exists.
+/// The label of a row as it is shown: the person's text made safe by `meldframe_text::label` (hidden and control
+/// characters gone, white space folded, cut at the server's limit), then held to the rule of a label. Nothing left is no
+/// label. The server refuses a text that needs this; the app layer cleans what it is given, once, where it enters.
+fn shown(text: Option<&str>) -> Option<Label> {
+    let text = meldframe_text::label(text?, rules::MAX_LABEL_CHARS);
+    Label::parse(&text).ok().flatten()
+}
+
+/// The shape the server would have made the row in; `None` for one it never makes. The label is the person's text,
+/// shown as [`shown`] says, and the row stays whatever is left of it, because it exists.
 fn shaped(row: &CheckpointRow) -> Option<(NewCheckpoint, Option<Label>)> {
     let kind = kind_of(row.kind);
     // Only a manual row has a label, and a run start is by nobody: the server makes no other.
     if row.label.is_some() && kind != Kind::Manual {
         return None;
     }
-    let label = Label::parse_arg(row.label.as_deref()).ok().flatten();
+    let label = shown(row.label.as_deref());
     let new = match (kind, row.by.as_deref(), row.about.as_deref()) {
         (Kind::RunStart, None, Some(about)) => NewCheckpoint::run_start(about, row.seq),
         (Kind::RunStart, _, _) | (_, None, _) => return None,

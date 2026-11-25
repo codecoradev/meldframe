@@ -18,4 +18,5 @@ export = { path = "../export" }
 meldframe-app-model = { path = "../../../core/meldframe-app-model" }
 meldframe-layout = { path = "../../../core/meldframe-layout" }
 meldframe-protocol = { path = "../../../core/meldframe-protocol" }
+meldframe-text = { path = "../../../core/meldframe-text" }
 meldframe-variables = { path = "../../../core/meldframe-variables" }

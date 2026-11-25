@@ -477,6 +477,7 @@ dependencies = [
  "meldframe-app-model",
  "meldframe-layout",
  "meldframe-protocol",
+ "meldframe-text",
  "meldframe-variables",
 ]
 
@@ -1321,6 +1322,7 @@ dependencies = [
  "meldframe-protocol",
  "meldframe-revert",
  "meldframe-sync",
+ "meldframe-text",
  "meldframe-variables",
  "serde",
 ]

@@ -115,3 +115,57 @@ pub fn refused(l: &mut Loopback) -> Vec<String> {
         })
         .collect()
 }
+
+/// What a table row feeds in, what every name field must show, and what a lane (an identifier, so white space is left
+/// as the server sent it) must show.
+pub struct Case {
+    pub what: &'static str,
+    pub given: &'static str,
+    pub name: &'static str,
+    pub actor: &'static str,
+}
+
+pub const CASES: [Case; 7] = [
+    Case {
+        what: "U+2800 braille blank",
+        given: "a\u{2800}b",
+        name: "ab",
+        actor: "agent:ab",
+    },
+    Case {
+        what: "U+3164 Hangul filler",
+        given: "a\u{3164}b",
+        name: "ab",
+        actor: "agent:ab",
+    },
+    Case {
+        what: "U+17B4 Khmer vowel",
+        given: "a\u{17B4}b",
+        name: "ab",
+        actor: "agent:ab",
+    },
+    Case {
+        what: "U+200B zero width space",
+        given: "a\u{200B}b",
+        name: "ab",
+        actor: "agent:ab",
+    },
+    Case {
+        what: "U+00AD soft hyphen",
+        given: "a\u{00AD}b",
+        name: "ab",
+        actor: "agent:ab",
+    },
+    Case {
+        what: "two U+00A0",
+        given: "a\u{00A0}\u{00A0}b",
+        name: "a b",
+        actor: "agent:a\u{00A0}\u{00A0}b",
+    },
+    Case {
+        what: "U+202E override",
+        given: "a\u{202E}b",
+        name: "ab",
+        actor: "agent:ab",
+    },
+];

@@ -5,7 +5,10 @@
 use meldframe_app_model::{
     BindField, BindOption, CollectionRow, ModeValue, TypeHeading, VariableRow, VariablesPanel,
 };
-use meldframe_protocol::{Bind, Collection, Node, NodeKind, Value, VarType, Variable, Variables};
+use meldframe_protocol::{
+    Bind, Collection, Mode, Node, NodeKind, Value, VarType, Variable, Variables,
+};
+use meldframe_text::{MAX_LABEL, label};
 use meldframe_variables::{ModeChoice, Resolver, node_bindings};
 use std::collections::HashMap;
 
@@ -118,7 +121,7 @@ pub fn variables_view(
                 .collect();
             rows.push(VariableRow {
                 id: v.id.clone(),
-                name: v.name.clone(),
+                name: label(&v.name, MAX_LABEL),
                 kind: v.kind,
                 values,
                 used_by: uses.get(v.id.as_str()).copied().unwrap_or(0),
@@ -135,8 +138,8 @@ pub fn variables_view(
                 .unwrap_or_default();
             collections.push(CollectionRow {
                 id: col.id.clone(),
-                name: col.name.clone(),
-                modes: col.modes.clone(),
+                name: label(&col.name, MAX_LABEL),
+                modes: col.modes.iter().map(shown_mode).collect(),
                 active: active.to_string(),
                 matched: in_col,
                 variables: rows,
@@ -148,6 +151,14 @@ pub fn variables_view(
         total: vars.variables.len(),
         matched,
         collections,
+    }
+}
+
+/// A mode as the panel lists it: its name made safe to show; the id is never cleaned.
+fn shown_mode(m: &Mode) -> Mode {
+    Mode {
+        id: m.id.clone(),
+        name: label(&m.name, MAX_LABEL),
     }
 }
 
@@ -176,9 +187,12 @@ fn texts_of(
         .map(|m| match v.values.get(&m.id) {
             Some(Bind::Lit(x)) => (value_text(x), None),
             Some(Bind::Var(r)) => (
-                by_id
-                    .get(r.var.as_str())
-                    .map_or_else(|| r.var.clone(), |t| t.name.clone()),
+                label(
+                    by_id
+                        .get(r.var.as_str())
+                        .map_or(r.var.as_str(), |t| &t.name),
+                    MAX_LABEL,
+                ),
                 Some(r.var.clone()),
             ),
             None => (String::new(), None),

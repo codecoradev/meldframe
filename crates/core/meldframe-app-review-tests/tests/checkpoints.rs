@@ -103,7 +103,7 @@ fn the_list_is_what_the_server_said_newest_first_with_the_text_of_n_as_the_id() 
 }
 
 #[test]
-fn a_row_the_server_never_makes_is_left_out_and_a_label_not_fit_to_show_is_left_off() {
+fn a_row_the_server_never_makes_is_left_out_and_a_label_not_fit_to_show_is_made_safe() {
     let mut l = Loopback::live();
     let with = |f: &dyn Fn(&mut CheckpointRow)| {
         let mut r = row(7, Kind::Manual);
@@ -128,9 +128,13 @@ fn a_row_the_server_never_makes_is_left_out_and_a_label_not_fit_to_show_is_left_
         [rows, vec![bad_label, restore_label]].concat(),
         true,
     );
-    // Row 1 once (the first of the two with that number), and row 9 without its label.
+    // Row 1 once (the first of the two with that number), and row 9 with its label made safe (rule U9: the app layer
+    // cleans what it shows, where it used to leave the label off; a row stays whatever is left of its label).
     assert_eq!(ids(&l), ["9", "1"]);
-    assert_eq!(l.app.state().checkpoints[0].label, None);
+    assert_eq!(
+        l.app.state().checkpoints[0].label.as_deref(),
+        Some("paynow")
+    );
 }
 
 #[test]
