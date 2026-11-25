@@ -73,6 +73,9 @@ pub struct Style {
     pub before: Option<Props>,
     pub after: Option<Props>,
     pub notes: Vec<Note>,
+    /// The classes that no rule names and that are not Tailwind utilities of the export's vocabulary
+    /// (`Matched::unresolved`), for the mapping to list on the node.
+    pub unresolved: Vec<Arc<str>>,
 }
 
 impl Style {
@@ -88,6 +91,7 @@ impl Style {
             before: None,
             after: None,
             notes: Vec::new(),
+            unresolved: Vec::new(),
         }
     }
 

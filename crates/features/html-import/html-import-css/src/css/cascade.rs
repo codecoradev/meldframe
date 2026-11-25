@@ -15,8 +15,9 @@
 use super::matching::{Matcher, Node};
 use super::selector::{Pseudo, Simple};
 use super::{Decl, EntryKind, Limits, Report, Stylesheet, read_declarations};
-use html_import_tree::Tree;
-use std::collections::HashMap;
+use crate::tw;
+use html_import_tree::{ElementId, MAX_ENTRIES, Tree};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// Where a declaration came from.
@@ -47,7 +48,13 @@ pub struct Matched {
     pub main: Vec<Candidate>,
     pub before: Vec<Candidate>,
     pub after: Vec<Candidate>,
+    /// The classes of the element that no rule names and that [`crate::tw`] does not read, in the order written,
+    /// each once, at most [`MAX_UNRESOLVED`].
+    pub unresolved: Vec<Arc<str>>,
 }
+
+/// The most unresolved classes one element lists.
+pub const MAX_UNRESOLVED: usize = 32;
 
 /// The result: one [`Matched`] for each element of the tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,10 +77,17 @@ struct Index {
     any: Vec<(u32, u32)>,
 }
 
-fn index(sheet: &Stylesheet) -> Index {
+/// The index of the rules, and every class a selector names.
+fn index(sheet: &Stylesheet) -> (Index, HashSet<String>) {
     let mut ix = Index::default();
+    let mut named = HashSet::new();
     for (r, rule) in sheet.rules.iter().enumerate() {
         for (s, sel) in rule.selectors.iter().enumerate() {
+            for simple in sel.compounds.iter().flat_map(|c| &c.simples) {
+                if let Simple::Class(c) = simple {
+                    named.insert(c.clone());
+                }
+            }
             let at = (r as u32, s as u32);
             let last = &sel.compounds[sel.compounds.len() - 1].simples;
             if let Some(id) = last.iter().find_map(|s| match s {
@@ -96,7 +110,7 @@ fn index(sheet: &Stylesheet) -> Index {
             }
         }
     }
-    ix
+    (ix, named)
 }
 
 /// One declaration with what orders it: important, origin, specificity, rule, place in the rule.
@@ -116,7 +130,15 @@ fn candidate(d: &Decl, origin: Origin) -> Candidate {
     }
 }
 
+/// A Tailwind class counts as a class selector of the last rule: more specific than a type, below an id, and after
+/// every rule of the sheet when they are equal.
+const CLASS_SPECIFICITY: u32 = 1 << 8;
+
 struct Run<'a> {
+    /// Every class that a selector of the sheet names: a class that is one of them belongs to the sheet.
+    named: HashSet<String>,
+    /// The classes already in the report.
+    seen: HashSet<String>,
     tree: &'a Tree,
     sheet: &'a Stylesheet,
     ix: Index,
@@ -190,6 +212,10 @@ impl Run<'_> {
             }
             i += 1;
         }
+        let unresolved = match n {
+            Node::El(e) => self.classes(e, &mut main, &mut after),
+            _ => Vec::new(),
+        };
         if let Node::El(e) = n
             && let Some(text) = self.tree.element(e).attr("style")
         {
@@ -204,16 +230,78 @@ impl Run<'_> {
             main: fold(main),
             before: fold(before),
             after: fold(after),
+            unresolved,
         }
+    }
+
+    /// The classes of `e` that no rule names, read as Tailwind utilities: what they say goes on the lists as
+    /// author declarations with the specificity of a class, after every rule, in the order of the classes. The ones
+    /// that are not read are returned, and counted in the report once for each distinct class.
+    fn classes(
+        &mut self,
+        e: ElementId,
+        main: &mut Vec<(Key, Candidate)>,
+        after: &mut Vec<(Key, Candidate)>,
+    ) -> Vec<Arc<str>> {
+        let mut unresolved: Vec<Arc<str>> = Vec::new();
+        let el = self.tree.element(e);
+        let mut place = 0u32;
+        for class in el.attr("class").unwrap_or("").split_ascii_whitespace() {
+            self.m.steps += 1;
+            if self.named.contains(class) {
+                continue;
+            }
+            match tw::decode(class, self.limits.max_value_bytes) {
+                Ok(d) => {
+                    let (list, spec) = match d.pseudo {
+                        Some(_) => (&mut *after, CLASS_SPECIFICITY | 1),
+                        None => (&mut *main, CLASS_SPECIFICITY),
+                    };
+                    for (name, value) in d.decls {
+                        let key = (false, 0, spec, u32::MAX, place);
+                        place += 1;
+                        let c = Candidate {
+                            name: name.into(),
+                            value: value.into(),
+                            important: false,
+                            origin: Origin::Author,
+                        };
+                        list.push((key, c));
+                    }
+                }
+                Err(why) => {
+                    if !unresolved.iter().any(|u| &**u == class)
+                        && unresolved.len() < MAX_UNRESOLVED
+                    {
+                        unresolved.push(class.into());
+                    }
+                    // The first of a class is an entry (which counts it); the others are counted.
+                    if self.seen.len() < MAX_ENTRIES && self.seen.insert(class.to_owned()) {
+                        let msg = format!(
+                            "not read as a Tailwind utility of the export ({}) and no rule names it",
+                            why.0
+                        );
+                        self.report
+                            .note(EntryKind::Listed, "class_unresolved", class, msg, el.at);
+                    } else {
+                        self.report.count("class_unresolved", 1);
+                    }
+                }
+            }
+        }
+        unresolved
     }
 }
 
 /// Work out what applies to every element of `tree`. Never fails; what it could not do is in `report`.
 pub fn cascade(tree: &Tree, sheet: &Stylesheet, limits: &Limits, report: &mut Report) -> Cascade {
+    let (ix, named) = index(sheet);
     let mut run = Run {
+        named,
+        seen: HashSet::new(),
         tree,
         sheet,
-        ix: index(sheet),
+        ix,
         m: Matcher::new(tree, limits.max_work),
         limits,
         report,

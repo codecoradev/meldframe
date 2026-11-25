@@ -283,6 +283,7 @@ enum Place<'a> {
 fn style_of(cx: &mut Cx, parent: &Style, place: Place, rem: f64, m: &Matched) -> Style {
     let mut s = Style::root();
     s.rem = rem;
+    s.unresolved = m.unresolved.clone();
     s.props = parent
         .props
         .iter()

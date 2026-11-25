@@ -230,8 +230,13 @@ fn each_charge_of_the_budget_is_pinned_alone() {
     // A selector looked at: the html and body of a fragment and the paragraph each look at three, test three
     // (a compound with no part costs 1) and make three declarations candidates: 3 * (3 + 3 + 3).
     assert_eq!(steps("<p>", "*{x:1} *{x:1} *{x:1}"), 27);
-    // A compound costs 1 and one for each part: `p.a.b#c[d]` is 6, found through its id (1), with 1 declaration.
-    assert_eq!(steps("<p class=\"a b\" id=c d>", "p.a.b#c[d]{x:1}"), 8);
+    // A compound costs 1 and one for each part: `p.a.b#c[d]` is 6, found through its id (1), with 1 declaration,
+    // and each of the two classes of the element costs 1 (they are named by the rule, so they are not decoded).
+    assert_eq!(steps("<p class=\"a b\" id=c d>", "p.a.b#c[d]{x:1}"), 8 + 2);
+    // A class that no rule names costs 1 and is read as a utility: three classes, three steps, and one utility is a
+    // declaration made a candidate, which costs nothing more here.
+    assert_eq!(steps("<p class=\"x y z\">", ""), 3);
+    assert_eq!(steps("<p class=\"flex w-[2px] x\">", ""), 3);
     // A declaration of a rule that picks the element costs 1: 20,000 of them, for the two virtual elements and three
     // paragraphs, each with its one selector looked at and one compound.
     let wide = format!("*{{{}}}", "x:1;".repeat(20_000));
