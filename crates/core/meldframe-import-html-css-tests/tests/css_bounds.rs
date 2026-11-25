@@ -136,46 +136,85 @@ fn work(css: &str) -> (usize, usize) {
     (r.work, css.len())
 }
 
+/// A text that stresses one thing, and the least work for each byte of it that the counter must count there. Where the
+/// reader looks at a byte once (or skips a string or a comment it counts whole) the floor is 1: a step is a byte. A
+/// piece of a selector is parsed again by the selector reader, which counts a step for each character, so the floors
+/// are what each shape measured, less a tenth: a counter that is removed, halved or dropped on one path fails the
+/// shape that reads through it.
+type Shape = (&'static str, String, f64);
+
 /// Texts that stress one thing each, scaled by `n`.
-fn shapes(n: usize) -> Vec<(&'static str, String)> {
+fn shapes(n: usize) -> Vec<Shape> {
     vec![
-        ("rules", "a.b>c d{x:y;z:w}".repeat(n)),
-        ("open braces", "{".repeat(n)),
-        ("close braces", "}".repeat(n)),
-        ("brackets", "a[".repeat(n)),
-        ("parens", format!("a{{b:{}", "(".repeat(n))),
-        ("strings", format!("a{{b:{}", "\"x".repeat(n))),
-        ("comments", "/*".repeat(n)),
-        ("escapes", "\\".repeat(n)),
-        ("at-rules", "@media{".repeat(n)),
-        ("layers", "@layer a{".repeat(n)),
-        ("nested", format!("a{{{}", "b{".repeat(n))),
-        ("commas", format!("{}{{x:1}}", "a,".repeat(n))),
-        ("combinators", format!("{}{{x:1}}", "a>".repeat(n))),
-        ("long selector", format!("{}{{x:1}}", "a ".repeat(n))),
-        ("long value", format!("a{{b:{}}}", "v".repeat(n))),
-        ("many decls", format!("a{{{}}}", "b:c;".repeat(n))),
-        ("non-ascii", "\u{e9}\u{1f600}{x:\u{e9}}".repeat(n)),
-        ("important", format!("a{{b:{}!important}}", " ".repeat(n))),
+        ("rules", "a.b>c d{x:y;z:w}".repeat(n), 0.32),
+        ("open braces", "{".repeat(n), 1.0),
+        ("close braces", "}".repeat(n), 1.0),
+        ("brackets", "a[".repeat(n), 1.0),
+        ("parens", format!("a{{b:{}", "(".repeat(n)), 1.0),
+        ("strings", format!("a{{b:{}", "\"x".repeat(n)), 1.2),
+        ("comments", "/*".repeat(n), 1.1),
+        ("escapes", "\\".repeat(n), 0.5),
+        ("at-rules", "@media{".repeat(n), 1.0),
+        ("layers", "@layer a{".repeat(n), 1.0),
+        ("nested", format!("a{{{}", "b{".repeat(n)), 1.0),
+        ("commas", format!("{}{{x:1}}", "a,".repeat(n)), 1.0),
+        ("combinators", format!("{}{{x:1}}", "a>".repeat(n)), 1.0),
+        ("long selector", format!("{}{{x:1}}", "a ".repeat(n)), 1.0),
+        ("long value", format!("a{{b:{}}}", "v".repeat(n)), 1.0),
+        ("many decls", format!("a{{{}}}", "b:c;".repeat(n)), 1.0),
+        ("non-ascii", "\u{e9}\u{1f600}{x:\u{e9}}".repeat(n), 0.17),
+        (
+            "important",
+            format!("a{{b:{}!important}}", " ".repeat(n)),
+            1.0,
+        ),
+        // One string, and one comment, of the length of the text: the counter of the string arm and of the two comment
+        // paths is exact here, so a counter that is gone or halved fails them.
+        (
+            "one long string",
+            format!("a{{b:\"{}\"}}", "x".repeat(n)),
+            1.0,
+        ),
+        (
+            "one long string with escapes",
+            format!("a{{b:\"{}\"}}", "\\x".repeat(n)),
+            1.0,
+        ),
+        (
+            "one long comment",
+            format!("/*{}*/a{{b:c}}", "x".repeat(n)),
+            1.0,
+        ),
+        (
+            "one long unterminated comment",
+            format!("a{{b:c}}/*{}", "x".repeat(n)),
+            1.0,
+        ),
+        (
+            "comments inside a value",
+            format!("a{{b:c{}}}", "/**/".repeat(n)),
+            1.2,
+        ),
     ]
 }
 
-/// Shapes of text that read every byte: the work is between an eighth of the text (a step is a character, and a character is up to four bytes) and six times it. The upper
-/// bound says the reader does not go over the text twice or more; the lower bound says the counter counts, so a
-/// reader that stopped counting (or read nothing) fails here and not only a reader that counts too much.
+/// The work stays within six times the text and at least the floor of each shape, and doubles with the text.
 #[test]
 fn the_work_is_linear_in_the_text_for_every_shape() {
-    for (name, css) in shapes(20_000) {
+    for (name, css, floor) in shapes(20_000) {
         let (w, len) = work(&css);
         assert!(w <= 6 * len + 64, "{name}: {w} steps for {len} bytes");
-        assert!(8 * w >= len, "{name}: only {w} steps for {len} bytes");
+        assert!(
+            w as f64 >= floor * len as f64,
+            "{name}: only {w} steps for {len} bytes (floor {floor})"
+        );
     }
     for text in ["a", "{", ";", " ", "/*", "\\"] {
         assert!(work(text).0 > 0, "{text:?}");
     }
     assert_eq!(work("").0, 0);
     // Doubling the text at most doubles the work, up to a constant, and at least grows it by half.
-    for ((name, a), (_, b)) in shapes(1_000).into_iter().zip(shapes(2_000)) {
+    for ((name, a, _), (_, b, _)) in shapes(1_000).into_iter().zip(shapes(2_000)) {
         let (wa, _) = work(&a);
         let (wb, _) = work(&b);
         assert!(wb <= 2 * wa + 256, "{name}: {wa} then {wb}");
@@ -192,7 +231,7 @@ fn every_shape_is_read_at_a_size_where_a_quadratic_path_would_not_end() {
     } else {
         120_000
     };
-    for (name, css) in shapes(n) {
+    for (name, css, _) in shapes(n) {
         let (s, r) = sheet(&css);
         assert!(r.work > 0 && s.rules.len() <= 5_000, "{name}");
     }
