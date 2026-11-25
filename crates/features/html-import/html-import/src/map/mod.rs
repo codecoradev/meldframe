@@ -17,6 +17,7 @@ mod paint;
 mod parts;
 mod plain;
 mod pre;
+mod size;
 mod text;
 
 pub use item::{Approx, Asset, PlannedNode, Unsupported};

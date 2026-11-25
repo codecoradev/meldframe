@@ -16,7 +16,6 @@ pub(crate) enum Flow {
 }
 
 /// What a frame gives its children: the flow, whether an auto cross size stretches, and its own size.
-#[allow(dead_code)] // the sizing step reads the rest
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Ctx {
     pub flow: Flow,

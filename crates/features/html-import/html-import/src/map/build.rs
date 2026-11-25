@@ -7,6 +7,7 @@ use super::names::{name_of, source_of};
 use super::paint::{decorates, put};
 use super::plain::plain;
 use super::pre::{NON_VISUAL, Pre, display, hides, is_space, zero};
+use super::size::{self, Subject};
 use super::text::{Piece, collapse};
 use crate::css::{Style, Styles};
 use html_import_tree::{Child, ElementId, EntryKind, Report, Tree, clean};
@@ -27,6 +28,10 @@ struct Shape {
     boxes: usize,
     line: bool,
     absolute: usize,
+}
+
+fn white_space_nowrap(st: &Style) -> bool {
+    matches!(st.get("white-space").map(str::trim), Some("nowrap" | "pre"))
 }
 
 impl<'a> Builder<'a> {
@@ -128,9 +133,26 @@ impl<'a> Builder<'a> {
         node.text = text;
         let st = self.styles.get(owner);
         node.fill = Bind::Lit(st.color.clone());
-        let notes = Notes::default();
-        let _ = ctx;
-        (node.sw, node.sh) = (SizeMode::Hug, SizeMode::Hug);
+        let mut notes = Notes::default();
+        // The run has no size of its own: it is auto, in the way of the frame it is in.
+        let subject = Subject {
+            text: true,
+            horizontal: true,
+            nowrap: white_space_nowrap(st),
+            absolute: false,
+            pinned: false,
+        };
+        let w = size::axis(&Style::root(), subject, ctx, &mut notes);
+        let h = size::axis(
+            &Style::root(),
+            Subject {
+                horizontal: false,
+                ..subject
+            },
+            ctx,
+            &mut notes,
+        );
+        (node.sw, node.sh) = (w.mode, h.mode);
         out.push(self.make(owner, node, Vec::new(), notes, true));
     }
 
@@ -211,24 +233,48 @@ impl<'a> Builder<'a> {
         layout::align_self(st, notes);
     }
 
-    /// The sizes of a node. A size in pixels is fixed and anything else hugs; the next step reads the rest.
+    /// The sizes of a node: `grow` is what padding adds to a fixed size under `content-box`.
     pub(super) fn sizes(
         &self,
         node: &mut Node,
         st: &Style,
-        _ctx: &Ctx,
-        _text: bool,
-        _grow: (f64, f64),
+        ctx: &Ctx,
+        text: bool,
+        grow: (f64, f64),
         notes: &mut Notes,
     ) {
-        for (prop, size, mode) in [
-            ("width", &mut node.w, &mut node.sw),
-            ("height", &mut node.h, &mut node.sh),
+        let pinned = size::limits(st, text, notes);
+        let subject = Subject {
+            text,
+            horizontal: true,
+            nowrap: white_space_nowrap(st),
+            absolute: node.absolute,
+            pinned,
+        };
+        let w = size::axis(st, subject, ctx, notes);
+        let h = size::axis(
+            st,
+            Subject {
+                horizontal: false,
+                ..subject
+            },
+            ctx,
+            notes,
+        );
+        let border_box = st.get("box-sizing").map(str::trim) == Some("border-box");
+        let mut grown = false;
+        for (a, g, size, mode) in [
+            (w, grow.0, &mut node.w, &mut node.sw),
+            (h, grow.1, &mut node.h, &mut node.sh),
         ] {
-            match layout::size_px(st, prop, notes) {
-                Some(v) => (*size, *mode) = (v, SizeMode::Fixed),
-                None => *mode = SizeMode::Hug,
+            *mode = a.mode;
+            if let Some(px) = a.px {
+                *size = px + if border_box { 0.0 } else { g };
+                grown |= !border_box && g > 0.0;
             }
+        }
+        if grown {
+            notes.approximate("box-sizing", "content-box", "border-box");
         }
     }
 
