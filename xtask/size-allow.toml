@@ -1,5 +1,5 @@
 # Files and crates allowed to exceed the ceilings: 500 lines per file; per crate a hard ceiling of
-# 4,000 lines (the ideal band is 1,500 to 2,500, and above 2,500 `cargo xtask size-check` prints a
+# 50,000 lines (the ideal band is 1,500 to 2,500, and above 2,500 `cargo xtask size-check` prints a
 # note naming the crate as a candidate for a planned split; the note is not a failure).
 # An entry must equal the current line count, so it can only go down; delete it once the file
 # or crate is back under its ceiling (an entry for something within the ceiling fails the check as

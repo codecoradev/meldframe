@@ -1,6 +1,6 @@
 //! `size-check` (D1): 500 lines per file; per crate an ideal band of 1,500 to 2,500 lines and a
-//! hard ceiling of 4,000 (owner decision, 20 Nov 2026). Only the ceiling fails the check; a crate
-//! above 2,500 is reported as a candidate for a planned split. An allow-list records what is over
+//! hard ceiling of 50,000 (owner decisions, 20 and 25 Nov 2026; standard v1.3). Only the ceiling
+//! fails the check; a crate above 2,500 is reported as a candidate for a planned split. An allow-list records what is over
 //! a ceiling today and an entry must equal the current size, so it can only go down.
 
 use std::collections::BTreeMap;
@@ -11,9 +11,9 @@ use crate::rules::Package;
 use crate::scan;
 
 pub const FILE_LIMIT: usize = 500;
-/// Hard ceiling of a crate: above it the check fails, and at it the split comes before the next
-/// addition.
-pub const CRATE_LIMIT: usize = 4000;
+/// Hard ceiling of a crate: above it the check fails. The ceiling is a backstop: the discipline
+/// is one small module per capability (D1 of the standard), not filling a crate up to this value.
+pub const CRATE_LIMIT: usize = 50_000;
 /// Bottom of the ideal band of a crate; only the note's text uses it.
 pub const CRATE_IDEAL_LOW: usize = 1500;
 /// Top of the ideal band (1,500 to 2,500): above it a crate is a candidate for a planned split.
@@ -270,9 +270,15 @@ mod tests {
         (name.into(), files)
     }
 
-    /// 11 files of 400 lines: 4,400 lines, over the 4,000 crate ceiling only.
-    fn big() -> Sized {
-        crate_of("a", 11)
+    /// A crate of `total` lines in files of 500 lines at most, so only the crate total can be over.
+    fn crate_lines(name: &str, total: usize) -> Sized {
+        let mut files: Vec<(String, usize)> = (0..total / 500)
+            .map(|i| (format!("{name}/{i}.rs"), 500))
+            .collect();
+        if total % 500 > 0 {
+            files.push((format!("{name}/last.rs"), total % 500));
+        }
+        (name.into(), files)
     }
 
     #[test]
@@ -291,19 +297,20 @@ mod tests {
     }
 
     #[test]
-    fn crate_over_4000_without_entry_fails() {
+    fn crate_over_50000_without_entry_fails() {
         assert_eq!(
-            check(&[big()], &Allow::default()),
-            vec![OverLimit("a".into(), 4400, 4000)]
+            check(&[crate_lines("a", 50_001)], &Allow::default()),
+            vec![OverLimit("a".into(), 50_001, 50_000)]
         );
     }
 
     #[test]
     fn crate_between_the_ideal_band_and_the_ceiling_passes() {
-        // 2,800 lines: above the 2,500 soft value, under the 4,000 hard ceiling.
-        assert_eq!(check(&[crate_of("a", 7)], &Allow::default()), vec![]);
-        // 4,000 lines exactly is within the ceiling.
-        assert_eq!(check(&[crate_of("a", 10)], &Allow::default()), vec![]);
+        // 2,800 lines: above the 2,500 soft value. 4,001 passed under the old 4,000 ceiling only
+        // with an entry. 50,000 lines exactly is within the ceiling.
+        for total in [2_800, 4_001, 20_000, 50_000] {
+            assert_eq!(check(&[crate_lines("a", total)], &Allow::default()), vec![]);
+        }
     }
 
     #[test]
@@ -315,10 +322,10 @@ mod tests {
     }
 
     #[test]
-    fn limits_are_the_owner_decision_of_20_nov_2026() {
+    fn limits_are_the_owner_decisions_of_20_and_25_nov_2026() {
         assert_eq!(
             (FILE_LIMIT, CRATE_IDEAL_LOW, CRATE_SOFT, CRATE_LIMIT),
-            (500, 1500, 2500, 4000)
+            (500, 1500, 2500, 50_000)
         );
     }
 
@@ -344,30 +351,14 @@ mod tests {
         assert_eq!(split_candidates(&[edge]), vec![]);
     }
 
-    /// A crate of 500-line files plus one line, so its total is `500 * full + 1`.
-    fn one_over(name: &str, full: usize) -> Sized {
-        let mut files: Vec<(String, usize)> =
-            (0..full).map(|i| (format!("{name}/{i}.rs"), 500)).collect();
-        files.push((format!("{name}/last.rs"), 1));
-        (name.into(), files)
-    }
-
     #[test]
     fn a_crate_of_2501_lines_is_a_split_candidate_but_not_a_violation() {
-        let c = one_over("a", 5);
+        let c = crate_lines("a", 2501);
         assert_eq!(
             split_candidates(std::slice::from_ref(&c)),
             vec![("a".to_string(), 2501)]
         );
         assert_eq!(check(&[c], &Allow::default()), vec![]);
-    }
-
-    #[test]
-    fn a_crate_of_4001_lines_fails_without_an_entry() {
-        assert_eq!(
-            check(&[one_over("a", 8)], &Allow::default()),
-            vec![OverLimit("a".into(), 4001, 4000)]
-        );
     }
 
     #[test]
@@ -379,7 +370,7 @@ mod tests {
     fn split_note_names_each_candidate_and_is_not_a_violation() {
         let note = split_note(&[("c".into(), 4000), ("b".into(), 2800)]).unwrap();
         assert!(note.starts_with("size-check: note: 2 crates above 2,500 lines"));
-        assert!(note.contains("ideal band 1,500 to 2,500; hard ceiling 4,000"));
+        assert!(note.contains("ideal band 1,500 to 2,500; hard ceiling 50,000"));
         assert!(note.contains("  c: 4000 lines"));
         assert!(note.contains("  b: 2800 lines"));
         assert!(note.contains("planned split"));
@@ -422,18 +413,20 @@ mod tests {
 
     #[test]
     fn crate_entries_follow_the_same_rules() {
-        // An entry only makes sense above the 4,000 ceiling: it equals the size, or it is wrong.
-        assert_eq!(check(&[big()], &allow(&[], &[("a", 4400)])), vec![]);
-        assert_eq!(check(&[big()], &allow(&[], &[("a", 4500)])).len(), 1);
+        // An entry only makes sense above the 50,000 ceiling: it equals the size, or it is wrong.
+        let big = || crate_lines("a", 50_400);
+        assert_eq!(check(&[big()], &allow(&[], &[("a", 50_400)])), vec![]);
+        assert_eq!(check(&[big()], &allow(&[], &[("a", 50_500)])).len(), 1);
+        assert_eq!(check(&[big()], &allow(&[], &[("a", 50_300)])).len(), 1);
     }
 
     #[test]
     fn a_crate_entry_for_a_crate_under_the_ceiling_is_stale() {
-        // meldframe-web was 2,089 under the old 2,000 ceiling; it is within 4,000 now.
-        let c = crate_of("a", 6);
+        // An entry written for the old 4,000 ceiling is not needed under 50,000.
+        let c = crate_lines("a", 4_400);
         assert_eq!(
-            check(&[c], &allow(&[], &[("a", 2400)])),
-            vec![Stale("a".into(), 2400)]
+            check(&[c], &allow(&[], &[("a", 4_400)])),
+            vec![Stale("a".into(), 4_400)]
         );
     }
 
