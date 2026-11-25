@@ -276,3 +276,39 @@ async fn a_tool_that_is_not_under_the_auto_policy_serves_nothing() {
         assert_eq!(head(&c).await.1, 0);
     }
 }
+
+#[tokio::test]
+async fn the_gate_counts_every_command_against_the_quota_and_a_refused_call_writes_nothing() {
+    // Room for one import of three commands, not for two.
+    let w = start_with(Setup {
+        quota: Some(4),
+        ..Setup::default()
+    })
+    .await;
+    let c = connect(&w.h, AGENT).await;
+    assert!(!import(&c, "k1", HERO, json!({})).await.is_error);
+    let r = import(&c, "k2", HERO, json!({})).await;
+    assert!(r.is_error, "{}", r.body);
+    assert_eq!(
+        r.body["error"]["code"],
+        json!("quota_ops_per_minute"),
+        "{}",
+        r.body
+    );
+    assert_eq!(head(&c).await.1, 1, "the refused call wrote nothing");
+}
+
+#[tokio::test]
+async fn a_workspace_sees_only_its_own_file() {
+    let w = start().await;
+    let (a, o) = (connect(&w.h, AGENT).await, connect(&w.h, OTHER).await);
+    assert!(!import(&a, "k1", HERO, json!({})).await.is_error);
+    assert_eq!(
+        head(&o).await.1,
+        0,
+        "the same file name in another workspace is another file"
+    );
+    let r = import(&o, "k1", HERO, json!({})).await;
+    assert!(!r.is_error, "{}", r.body);
+    assert_eq!(r.body["batch"]["n"], json!(1));
+}

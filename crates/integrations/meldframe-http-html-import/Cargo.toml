@@ -16,6 +16,7 @@ meldframe-activity = { path = "../../core/meldframe-activity" }
 meldframe-check = { path = "../../core/meldframe-check" }
 meldframe-host = { path = "../../core/meldframe-host" }
 meldframe-http = { path = "../meldframe-http", features = ["mcp"] }
+meldframe-layout = { path = "../../core/meldframe-layout" }
 meldframe-module = { path = "../../core/meldframe-module" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
 meldframe-variant = { path = "../../core/meldframe-variant" }

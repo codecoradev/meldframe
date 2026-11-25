@@ -86,6 +86,35 @@ async fn what_makes_no_node_and_what_no_rule_names_are_listed() {
 }
 
 #[tokio::test]
+async fn the_warnings_say_what_apply_commands_and_export_frame_say() {
+    let w = start().await;
+    let c = connect(&w.h, AGENT).await;
+    let html = "<body style='margin:0'><div class=frame style='background:#eee'><p>some text</p></div></body>";
+    let r = import(&c, "k1", html, json!({})).await;
+    let codes: Vec<&str> = r.body["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x["code"].as_str().unwrap())
+        .collect();
+    assert!(
+        codes.contains(&"default_layer_name"),
+        "a box named by its class `frame` has a default name: {codes:?}"
+    );
+    assert!(codes.contains(&"text_size_estimated"), "{codes:?}");
+    let est = r.body["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|x| x["code"] == "text_size_estimated")
+        .unwrap();
+    assert!(
+        est["message"].as_str().unwrap().contains("estimate"),
+        "{est}"
+    );
+}
+
+#[tokio::test]
 async fn strict_fails_on_a_refusal_and_writes_nothing() {
     let w = start().await;
     let c = connect(&w.h, AGENT).await;
@@ -171,4 +200,79 @@ async fn a_call_with_bad_arguments_is_refused_with_the_code_of_its_kind() {
         assert_eq!(r.body["error"]["code"], json!(want), "{args}: {}", r.body);
     }
     assert_eq!(head(&c).await, (0, 0));
+}
+
+#[tokio::test]
+async fn a_layout_finding_of_the_contract_comes_back_as_a_warning() {
+    let w = start().await;
+    let c = connect(&w.h, AGENT).await;
+    // Two boxes of 20 px in a column of 30 px: the finding `overflow` of `get_tree`.
+    let html = "<body style='margin:0'><div data-name='Narrow' style='width:100px;height:30px;background:#eee'>\
+        <div style='height:20px;background:#ddd'></div><div style='height:20px;background:#ccc'></div></div></body>";
+    let r = import(&c, "k1", html, json!({})).await;
+    assert!(!r.is_error, "{}", r.body);
+    let list = r.body["warnings"].as_array().unwrap();
+    let f = list
+        .iter()
+        .find(|x| x["code"] == "overflow")
+        .unwrap_or_else(|| panic!("{list:?}"));
+    assert!(
+        ids(&r).contains(&f["nodeId"].as_str().unwrap().to_owned()),
+        "{f}"
+    );
+    // The same finding as get_tree reads in the file.
+    let tree = call(&c, "get_tree", json!({"file": "f"})).await;
+    let there = tree.body["warnings"].as_array().unwrap();
+    assert!(
+        there
+            .iter()
+            .any(|x| x["code"] == "overflow" && x["nodeId"] == f["nodeId"]),
+        "{there:?}"
+    );
+}
+
+#[tokio::test]
+async fn only_a_text_the_measurer_sizes_is_named_as_an_estimate() {
+    let w = start().await;
+    let c = connect(&w.h, AGENT).await;
+    let html = "<body style='margin:0'><div data-name='Box' style='background:#eee'>\
+        <p id=fixed style='width:100px;height:20px;margin:0'>fixed</p>\
+        <p id=hug style='margin:0;white-space:nowrap'>hug</p></div></body>";
+    let r = import(&c, "k1", html, json!({})).await;
+    assert!(!r.is_error, "{}", r.body);
+    let id_of = |name: &str| {
+        let list = r.body["nodes"].as_array().unwrap();
+        list.iter()
+            .find(|n| n["source"] == name)
+            .unwrap_or_else(|| panic!("{name}: {}", r.body["nodes"]))["id"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let list = r.body["warnings"].as_array().unwrap();
+    let est = list
+        .iter()
+        .find(|x| x["code"] == "text_size_estimated")
+        .unwrap();
+    let message = est["message"].as_str().unwrap();
+    assert!(
+        message.contains(&id_of("p#hug")) && !message.contains(&id_of("p#fixed")),
+        "{message}"
+    );
+    assert!(message.starts_with("1 text boxes"), "{message}");
+    // A page with no text at all has nothing to estimate.
+    let rect = import(
+        &c,
+        "k2",
+        "<body style='margin:0'><div style='width:50px;height:50px;background:#eee'></div></body>",
+        json!({}),
+    )
+    .await;
+    assert!(
+        rect.body["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|x| x["code"] != "text_size_estimated")
+    );
 }

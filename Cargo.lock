@@ -1689,6 +1689,7 @@ dependencies = [
  "meldframe-check",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-layout",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-variant",
