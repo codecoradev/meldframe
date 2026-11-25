@@ -21,6 +21,7 @@
 //! property names this stage has an answer for, so that another stage does not list them again.
 
 mod fill;
+mod gradient;
 mod lex;
 
 use crate::css::{EntryKind, Report, Style};
@@ -158,6 +159,11 @@ impl Sink<'_> {
     /// A value that was changed to the nearest the model holds (not a lost property).
     pub fn list(&mut self, code: &'static str, prop: &str, value: &str, why: &str) {
         self.note(EntryKind::Listed, code, prop, value, why);
+    }
+
+    /// A bound stopped the reading.
+    pub fn cut(&mut self, code: &'static str, prop: &str, value: &str, why: &str) {
+        self.note(EntryKind::Cut, code, prop, value, why);
     }
 }
 
