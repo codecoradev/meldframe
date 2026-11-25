@@ -3,8 +3,8 @@
 #![allow(dead_code)]
 
 use html_import::css::{
-    Candidate, Cascade, Combinator, Decl, Limits, Origin, Pseudo, Report, Selector, Simple,
-    Stylesheet, cascade, read, read_declarations,
+    Candidate, Cascade, Combinator, Decl, Limits, Origin, Pseudo, Report, Selector, Simple, Source,
+    Style, Styles, Stylesheet, cascade, read, read_declarations, style_tree,
 };
 use html_import::html::{ElementId, Parsed, parse};
 
@@ -150,4 +150,37 @@ pub fn list(c: &[Candidate]) -> Vec<String> {
 pub fn main(html: &str, css: &str, tag: &str) -> Vec<String> {
     let (p, c, _) = cascaded(html, css);
     list(&c.elements[el(&p, tag).index()].main)
+}
+
+/// Read `html` and `css`, cascade and compute with `limits`.
+pub fn styled_with(html: &str, css: &str, limits: &Limits) -> (Parsed, Styles, Report) {
+    let parsed = parse(html, &Default::default()).expect("html");
+    let mut report = Report::default();
+    let s = style_tree(&parsed.tree, css, limits, &mut report);
+    (parsed, s, report)
+}
+
+pub fn styled(html: &str, css: &str) -> (Parsed, Styles, Report) {
+    styled_with(html, css, &Limits::default())
+}
+
+/// The style of the first `<tag>`.
+pub fn style_of(html: &str, css: &str, tag: &str) -> Style {
+    let (p, s, _) = styled(html, css);
+    s.get(el(&p, tag)).clone()
+}
+
+/// The properties of a style as `name:value`, declared ones with `^` for inherited, sorted by name.
+pub fn props(s: &Style) -> Vec<String> {
+    s.props
+        .iter()
+        .map(|(k, p)| {
+            let mark = if p.source == Source::Inherited {
+                "^"
+            } else {
+                ""
+            };
+            format!("{k}:{}{mark}", p.value)
+        })
+        .collect()
 }

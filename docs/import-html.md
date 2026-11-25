@@ -141,6 +141,10 @@ Notes on reading values (the CSS stage; they decide results, so they are written
 
 - The `css` argument is read after all `<style>` blocks, so at equal specificity it wins.
 - Shorthands are expanded to the longhands the mapping reads, so a later `margin-top` beats an earlier `margin`: `margin`, `padding`, `inset`, their `-inline` and `-block` forms (left to right, top to bottom; compiled Tailwind writes `px-4` as `padding-inline`), `gap`, `overflow`, `border` and its parts, `border-radius`, `flex`, `font` and `background` (one colour and one image). A value of one of them that is not read is refused as a whole and listed on the element. `all` is not expanded: it stays a property that the mapping lists as refused.
+- A custom property is resolved on the element that declares it, against what that element and its ancestors declare, so `:root{--b:1px;--a:var(--b)}` gives every element `--a: 1px` even where a child sets `--b`. One that cannot be resolved (a cycle, a name nobody declares and no fallback, a value over 1,000 bytes) is invalid: it hides the value it would inherit and `var(--a, fallback)` uses the fallback. `initial` makes it invalid, `inherit` and `unset` take the parent's.
+- A declaration whose `var()` cannot be resolved is invalid when computed, as in CSS: the property is unset, whatever an earlier declaration or the browser's defaults gave it (so `p{margin-top:5px} .a{margin-top:var(--missing)}` leaves `.a` with no margin). The element lists it with the reason (`var_undefined`, `var_too_deep`, `var_too_long`, `var_invalid`).
+- `revert` gives a property the value of the browser's defaults table (or inherits it when the table has none); there is no user origin.
+- `rem` is the computed font size of the root (`html`, or the one a fragment does not have), 16 for the root itself and where the root's size is not readable (the root then lists `font_size_unreadable`); `em` is the element's own size, and a length that an element inherits in `em` is not read again against the child.
 
 ### 3.4 Structure, layout and sizing
 

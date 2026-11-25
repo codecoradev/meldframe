@@ -5,9 +5,16 @@
 //! - [`value`]: a length in pixels, a colour as hex, a value cut into words;
 //! - [`vars`]: `var()` replaced by the literal, with what it cost;
 //! - [`shorthand`]: shorthands expanded to the longhands the mapping reads;
-//! - [`defaults`]: the browser's defaults table and the inherited properties.
+//! - [`defaults`]: the browser's defaults table and the inherited properties;
+//! - [`style_tree`], [`compute`] and [`Style`]: the computed style of every element of the tree (`style.rs`).
 
+mod computed;
+mod custom;
 pub mod defaults;
 pub mod shorthand;
+mod style;
 pub mod value;
 pub mod vars;
+
+pub use computed::{Custom, MAX_NOTES, Note, Prop, Props, Source, Style};
+pub use style::{Styles, compute, style_tree};
