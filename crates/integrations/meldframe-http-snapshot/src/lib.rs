@@ -235,7 +235,7 @@ async fn snapshot(
         Err(reply) => return reply.into_response(),
     };
     if !valid_file(&file) {
-        let reason = "a file name is 1 to 128 bytes without slashes or control characters".into();
+        let reason = "a file name is 1 to 128 bytes without slashes, control or invisible formatting characters".into();
         return Reply::failure(&Failure::Refused(Refusal::Invalid { reason })).into_response();
     }
     let (routed, who2) = (s.clone(), who.clone());

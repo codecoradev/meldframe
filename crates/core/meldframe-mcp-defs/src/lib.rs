@@ -78,7 +78,7 @@ pub const TOOLS: [ToolDef; 6] = [
     },
 ];
 
-const FILE: &str = "The name of the file: 1 to 128 characters, no slashes or control characters. A file belongs to the workspace of your token; a name that does not exist yet is a new, empty file.";
+const FILE: &str = "The name of the file: 1 to 128 characters, no slashes, control or invisible formatting characters. A file belongs to the workspace of your token; a name that does not exist yet is a new, empty file.";
 
 fn file() -> Value {
     json!({"type": "string", "minLength": 1, "maxLength": 128, "description": FILE})

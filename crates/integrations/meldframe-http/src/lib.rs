@@ -372,7 +372,7 @@ impl Shared {
     }
 }
 
-pub(crate) const BAD_NAME: &str = "a file name is 1 to 128 bytes without slashes or control characters, and a tool name is 1 to 64 letters, digits, _ - or .";
+pub(crate) const BAD_NAME: &str = "a file name is 1 to 128 bytes without slashes, control or invisible formatting characters, and a tool name is 1 to 64 letters, digits, _ - or .";
 
 /// The state of a router: build it once, then give it to [`routes`] and to any other transport's routes.
 pub fn shared(

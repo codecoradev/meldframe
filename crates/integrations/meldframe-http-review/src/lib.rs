@@ -25,7 +25,7 @@ use std::sync::Arc;
 pub fn input_schema() -> Value {
     json!({"type": "object", "required": ["file", "action"], "additionalProperties": false, "properties": {
         "file": {"type": "string", "minLength": 1, "maxLength": 128,
-            "description": "The name of the file whose list this is: 1 to 128 bytes (UTF-8), no slashes or control characters. The list belongs to the workspace of your token."},
+            "description": "The name of the file whose list this is: 1 to 128 bytes (UTF-8), no slashes, control or invisible formatting characters. The list belongs to the workspace of your token."},
         "action": {"enum": ["add", "list", "link", "mark"],
             "description": "add: add items; list: read them; link: tie an item to a batch; mark: set an item's status."},
         "items": {"type": "array", "minItems": 1, "maxItems": MAX_ADD,
