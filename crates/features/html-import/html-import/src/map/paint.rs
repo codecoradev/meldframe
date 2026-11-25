@@ -75,3 +75,8 @@ pub(crate) fn decorates(p: &Paint) -> bool {
     };
     *p != plain
 }
+
+/// Nothing painted at all, opacity included.
+pub(crate) fn is_blank(p: &Paint) -> bool {
+    *p == Paint::default()
+}

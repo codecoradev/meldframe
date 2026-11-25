@@ -114,6 +114,7 @@ fn the_root_is_named_by_the_option_then_the_title_then_imported_html() {
     let none = nodes(&planned("<div><p>a</p></div><div><p>b</p></div>", RESET));
     assert_eq!(none[0].name, "Imported HTML");
     assert_eq!(none[0].kind, NodeKind::Frame);
+    assert_eq!(none.len(), 3, "the plain wrappers go");
 }
 
 #[test]

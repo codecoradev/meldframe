@@ -51,6 +51,24 @@ pub(crate) struct Notes {
     pub unsupported: Vec<Unsupported>,
 }
 
+impl Notes {
+    pub fn refuse(&mut self, property: &str, value: &str, code: &'static str) {
+        self.unsupported.push(Unsupported {
+            property: property.chars().take(80).collect(),
+            value: value.chars().take(80).collect(),
+            code,
+        });
+    }
+
+    pub fn approximate(&mut self, property: &str, from: &str, to: &str) {
+        self.approx.push(Approx {
+            property: property.chars().take(80).collect(),
+            from: from.chars().take(80).collect(),
+            to: to.chars().take(80).collect(),
+        });
+    }
+}
+
 /// A node of the plan under construction.
 #[derive(Debug)]
 pub(crate) struct Item {

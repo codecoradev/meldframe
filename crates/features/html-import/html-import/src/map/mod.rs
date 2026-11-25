@@ -13,6 +13,7 @@ mod item;
 mod names;
 mod page;
 mod paint;
+mod plain;
 mod pre;
 mod text;
 
