@@ -197,7 +197,7 @@ How it works:
 6. Pull requests run the fixtures and 50 fuzz seeds, the nightly 500. Playwright 1.63.0, Pixi 8.23.0, Tailwind 4.3.5 and
    Inter 5.3.0 are exact in `package.json` and the lockfile; a browser upgrade is its own change that must pass the gates.
 
-Known gaps today: `f14-text-edge` (break opportunities outside section 6.7) and `f17-fill-under-hug` (rule G1).
+Known gaps today: `f14-text-edge` (break opportunities outside section 6.7) and `f17-fill-under-hug` (rule G1). The same gate also runs the checks of the importer (E4.4, section 14: the round trip of every export, the hand-written pages `h01` onward, and `IMPORT_GAPS`).
 
 Measured on the development machine (software rendering): the fixtures and 50 seeds take about 10 to 17 s in the browser,
 500 seeds about 40 s, plus the build of the runner and `npm ci`; the CI time is measured on the first runs of the job and is not known yet.
@@ -470,3 +470,106 @@ Decisions made after this draft (`docs/decisions.md` items 20 to 24; ADR-0003, A
 - **Headless Chromium.** CI may depend on it (open question 2 stays with the owner). Runtime verification by a headless browser is part of decision 18, which is decided in the repository when a real agent workflow needs it; no separate spike.
 - **Generated results.** The per-node oracle output is not committed (`tools/fidelity-oracle/out/`, git-ignored). The numbers quoted in section 8 are the recorded results of the spike run on 13 Nov 2026.
 
+
+## 14. Import (E4.4, slice 8)
+
+The importer (`html_import::map::plan`, `docs/import-html.md`) reads HTML and CSS text back into Nodes. This section says what the oracle of
+`tools/fidelity-oracle` checks of it, what that shows, and what it does not. Every number is from runs on one Linux machine (software
+rendering, the Chromium that Playwright launched there reported 157.0.8103.78, which is not the revision the lockfile names, 153) on 25 Nov
+2026; the numbers of section 8 are the spike's and are not repeated here. Nothing in this section is a promise about web pages in general.
+
+### 14.1 What is checked
+
+1. **The round trip** (`crates/core/meldframe-oracle-runner`, `compare.rs`, `roundtrip.rs`). Every exported frame of every fixture and fuzz
+   file is imported back in both forms (the css form from its own style block, the Tailwind form with the `css` the export returns, as the
+   note says it must be). The imported file is laid out by the core with the measurer the original had. The gate wants: every box within
+   0.05 px of the original's; no field that differs (kind, name, sizes, the position of a root and of a child outside a flow, margins,
+   fill, opacity, and by kind the text style, radius, border, shadows, gradient, image, layout, clip, gap, padding, alignment); no refused
+   property beyond the five an export always carries (below); and export, import, export giving the same HTML once the ids are renamed
+   in order (not asked of a file with variables). The file that the css form comes back as is then exported again and loaded in Chromium like
+   any other file: its boxes within 0.05 px of the core's rects of the imported file.
+2. **The pages** (`pages.mjs`, `pages-gaps.mjs`; fixtures `h01` onward). Hand-written HTML is loaded as written in Chromium, and the box of
+   every element with a `data-name` is compared with the core's rect of the imported node of that name, within 0.05 px. For the pages marked
+   `pixels` (the ones with no text) a screenshot of the root box of the page is compared with one of the export of its import: no pixel may
+   differ. The browser gets the page as written plus a doctype where it has none, Inter, and the extra `css` as a style block read after the
+   others, which is where the importer reads it. A text is pinned the way the export pins it (`line-height` in the px that Pixi measures
+   for the size, and `min-width` of the measured width for a text that hugs), because the importer drops `line-height` and the core
+   rounds a measured width up (rule G4); a page without the pins is a known gap (below).
+
+### 14.2 What a round trip is measured to keep
+
+On the 50-seed run: 156 round trips (a frame in a form) of 1,260 nodes outside the known gap, 0.0000 px as the largest box distance, no field
+that differs, and a fixed point everywhere it is asked. On the 500-seed run: 1,056 round trips of 7,936 nodes, the same. The files are the
+fixtures `f01` to `f12`, `f15`, `f16` and `f18` to `f23` (borders, shadows, radii, image fills, gradients, opacity, fills with an alpha,
+no fill, fills, radii and opacities bound to a variable in two modes, margins, per-side padding, absolute children, fractional sizes,
+weights and alignment) and the fuzz files. `f13` and `f14` are not run as round trips (as the note says: rule G3 and the text break
+rules), and `f17` is a known gap.
+
+What does not come back, and is not counted as a difference: the ids and the `pos` strings (the oracle gives the imported file its own
+`pos`); the stored size of a node that hugs or fills; a frame with no children, no layout and a size in px, which comes back as a rect; `hug` on
+a rect or an ellipse and `fill` where the parent gives nothing to fill, which the core treats as fixed; `x`, `y` in a flow and `gap`,
+`padding`, `align` and `justify` of a frame with no layout, which the core ignores; a binding to a Variable, which comes back as the
+value it has in the picked mode (so the export of the import is not the export that was imported, and the fixed point is not asked of `f20`
+and `f21`); a fill of `transparent`, which comes back as `none` (f06). The fields of a `shader` node are not covered: no fixture has one.
+
+What it does not show: that a file outside these fixtures comes back (the fuzz generator makes no borders, shadows, images, weights,
+alignment, margins, variables or gradients, section 7, so their interactions are covered by the hand-written fixtures only); anything about
+the text of the MCP tool, which measures with the stub (the stored sizes of what hugs are estimates there, as for the export); the
+files of rule G3 are compared core to core like the others and show no difference, which says nothing about what a browser does with
+them.
+
+What an export always carries that the importer does not read, as it says on every import of one: `::before` and `::after` (the selectors
+of the reset), `font-family`, `line-height` and `word-break`. They are refused properties in the report. By the rule of the note (a refused property fails a call with
+`strict`) an export sent with `strict` would be refused for them; the tool of slice 7 was not run here, so that is a reading, not a measurement.
+
+### 14.3 What the pages are measured to keep
+
+Twelve pages outside the known gaps (`h01` to `h12`): rows and columns with gap, padding, per-side padding, margins, `align-items`,
+`justify-content` and `align-self`; `flex: 1` with equal padding; text of several sizes, weights and alignments, hug and wrapping;
+borders, radii, shadows, linear and radial gradients, opacity, clipping and an ellipse; the cascade (type, class, id and descendant
+selectors, `!important`, the `css` argument); a Tailwind export written by hand with its `css`; a page with no reset (the body margin,
+content-box sizing with padding and border, the default margins of `p`); absolute children; block flow; `rem`, `em`, `pt` and colour
+functions. 81 named boxes were compared with the browser's, the largest distance was 0.0000 px; for the nine pages with pixels,
+1,698,600 pixels were compared and none differed.
+
+These pages were written by the author of the oracle, who had read the importer's note: they are the kinds of page it says it reads, not a
+sample of the web. The browser is one Chromium, the font is Inter, and the text is pinned. What this shows is that, for these pages, the
+importer's reading of the CSS and the core's layout agree with a browser's.
+
+### 14.4 Known gaps of the importer
+
+`IMPORT_GAPS` in `tools/fidelity-oracle/known-gaps.mjs` lists them, each with its cause and the only nodes allowed to be off, and the gate
+fails when a gap passes or fails in another way, as for `KNOWN_GAPS`. Sixteen pages (`h13` to `h28`) and one round trip:
+
+| Fixture | What is not read | The importer reports it |
+|---|---|---|
+| `f17-fill-under-hug` (round trip) | rule G1: the export keeps a fill under a hug parent at its own size, the core gives it the hug size | no |
+| `h13-gap-percent` | a width in percent other than 100% | yes, `width` |
+| `h14-gap-grid` | `display: grid` | yes |
+| `h15-gap-margin-collapse` | margins between block siblings do not collapse | no |
+| `h16-gap-before` | `::before` with `content` | yes |
+| `h17-gap-wrap` | `flex-wrap` | yes |
+| `h18-gap-max-width` | `max-width` | yes |
+| `h19-gap-space-around` | `justify-content: space-around` | yes |
+| `h20-gap-margin-auto` | `margin: auto` | yes |
+| `h21-gap-inline-flow` | `inline-block` siblings of a block (inline formatting) | no |
+| `h22-gap-line-height-normal` | a text with no `line-height` in px: the browser's line is fractional, the core's whole pixels | no |
+| `h23-gap-text-width` | a hug text with no `min-width` pin: the browser's width is fractional, the core's rounded up | no |
+| `h24-gap-fill-padding` | `flex: 1` siblings that differ in padding: the model shares equally, the browser adds each padding to an equal share of the free space | no |
+| `h25-gap-tailwind-scale` | utilities of Tailwind's own scale (`p-4`, `w-64`, `gap-2`) | yes, as unresolved classes |
+| `h26-gap-reverse-and-order` | `row-reverse` | yes |
+| `h27-gap-media` | `@media` | yes, as a skipped block |
+| `h28-gap-named-colour` | a named colour outside the importer's table (`rebeccapurple`): the fill is none (pixels, not boxes) | yes, as a refused `background` |
+
+The five that the importer does not report (`h15`, `h21`, `h22`, `h23`, `h24`) are the ones to read twice. The note lists the first two as
+approximated (3.4: block flow and margin collapse), and the importer writes no `approximated` entry for them; this is a finding, not a
+decision, and it is for the owner to route. Each gap is one page that shows the cause and is not a measure of how often the cause happens.
+
+### 14.5 What it cannot show
+
+Other browsers, other fonts, other viewports (the pages run at the root width the importer chooses, 1440 px, or the one the page names; the
+browser's viewport is made the same), responsive CSS, real web pages, a page whose text is not pinned (see `h22`, `h23`), the standard
+Tailwind scale, and anything the note marks refused that has no page here. The round trip compares the importer with the layout core and
+not with a browser; the pages compare it with a browser only for the pages listed. `npm run sensitivity` shows that the gate fails on a wrong
+import in the boxes and in the pixels of a page (seven mistakes made on what the importer returned for a page); the comparison of the
+round trip is covered by the tests of the runner and by importer mutants made by hand, not by that script.

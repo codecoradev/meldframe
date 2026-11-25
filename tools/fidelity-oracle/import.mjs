@@ -1,4 +1,4 @@
-// Oracle E, the importer (E4.4, docs/fidelity-contract.md section 10). Two checks, both against the real thing:
+// Oracle E, the importer (E4.4, docs/fidelity-contract.md section 14). Two checks, both against the real thing:
 //  - the round trip: the runner imports every exported frame back (both forms) and compares the imported file with the original (boxes
 //    within 0.05 px by the layout core, the fields the export writes, the refused properties, the fixed point of export, import and
 //    export); the export of the imported file is then loaded in Chromium like any other file (geometry.mjs, `imported` files);

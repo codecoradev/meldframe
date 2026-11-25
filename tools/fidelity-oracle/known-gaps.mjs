@@ -17,7 +17,7 @@ export const KNOWN_GAPS = {
   },
 };
 
-/** Gaps of the importer (docs/fidelity-contract.md section 10), checked in both directions like KNOWN_GAPS. `kind` is 'page' (a hand-written page of
+/** Gaps of the importer (docs/fidelity-contract.md section 14), checked in both directions like KNOWN_GAPS. `kind` is 'page' (a hand-written page of
  *  pages.mjs: the importer's rects against the browser's boxes) or 'roundtrip' (a fixture imported back from its export).
  *    reason   what the importer does not read, with the row of docs/import-html.md section 3 that says so
  *    warning  a finding the import must still report (`property:code` of a refused property, or `report:<code>`; it starts with this)
