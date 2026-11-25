@@ -1,6 +1,6 @@
 [package]
 name = "html-import-css"
-description = "HTML import, CSS side: the bounded reader of style text, the selectors, the cascade over the element tree, the computed style of each element, and the Tailwind class decoder that is the inverse of the export's. Functions of the text; open nothing, follow nothing, run nothing."
+description = "HTML import, CSS side: the bounded reader of style text and style attributes, the selectors, the cascade over the element tree, and the Tailwind class decoder that is the inverse of the export's. Functions of the text; open nothing, follow nothing, run nothing."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
