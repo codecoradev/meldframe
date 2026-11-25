@@ -176,7 +176,9 @@ fn apply(
     parent: Option<&Style>,
     c: &Candidate,
 ) {
-    cx.steps += 1;
+    // A declaration is a step, and a step for each 64 bytes of its text, which `var()`, a shorthand and the keywords
+    // all read.
+    cx.steps += 1 + c.value.len() / 64;
     let source = match c.origin {
         Origin::UserAgent => Source::UserAgent,
         Origin::Author => Source::Author,
@@ -264,9 +266,12 @@ fn pseudo(
     if list.is_empty() {
         return None;
     }
+    // The custom properties of a generated box are its own, over the element's; they are not properties of the box.
+    let refs: Vec<&Candidate> = list.iter().collect();
+    let own = customs(cx, notes, custom, &refs);
     let mut props = Props::new();
-    for c in list {
-        apply(cx, &mut props, &Props::new(), notes, custom, None, c);
+    for c in list.iter().filter(|c| !c.name.starts_with("--")) {
+        apply(cx, &mut props, &Props::new(), notes, &own, None, c);
     }
     Some(props)
 }
@@ -320,7 +325,7 @@ fn style_of(cx: &mut Cx, parent: &Style, place: Place, rem: f64, m: &Matched) ->
     } else {
         defaults.iter().chain(&m.main).collect()
     };
-    s.custom = customs(cx, &mut s.notes, parent, &all);
+    s.custom = customs(cx, &mut s.notes, &parent.custom, &all);
     // What the defaults table gave the element alone, for `revert`.
     let mut ua_props = Props::new();
     let custom = s.custom.clone();
