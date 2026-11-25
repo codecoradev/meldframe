@@ -1,0 +1,14 @@
+[package]
+name = "html-import-tree"
+description = "HTML import, first stage: the tolerant, bounded tree builder that turns HTML text into an element tree and a report of what it had to recover. A function of the text; opens nothing, follows nothing, runs nothing."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "feature"
+group = "html-import"
+
+[lints]
+workspace = true

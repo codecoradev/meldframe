@@ -318,10 +318,10 @@ Each is one kind of content and under 1,000 changed lines (AGENTS.md; lines move
 |---|---|---|---|
 | 0 | The owner's decision and the ADR: lift decision 6 for a scoped importer, the subset of section 3, the numbers of section 4 | `docs/decisions.md`, a new `docs/adr/00NN-*.md`, edits to PRD and roadmap (owner text) | 200 lines of docs |
 | 1 | Shared CSS values: the colour and length readers move out of `variables-import` (`color.rs`, `value.rs`) into one crate both importers use, and `export`'s `hex_colour` follows if it fits | new `meldframe-css` (kind core, portable); `variables-import` depends on it. A pure move for `color.rs`; of `value.rs` only the number and length reading moves (see ADR-0024) | below 460 moved, about 150 changed |
-| 2 | Tolerant HTML tree builder with bounds and hostile tests | new `html-import` (kind feature, group `html-import`, portable), modules `html/*` | about 800 |
-| 3 | CSS rules, selectors, cascade, inheritance, defaults table, Tailwind decoder | same crate, modules `css/*`, `tw.rs` | about 900 |
-| 4 | Mapping: structure, layout, sizing, text, to Commands, with the report | same crate, `map/*` | about 900 |
-| 5 | Mapping: paint (fill, gradient, border, radius, shadow, opacity, image placeholders) | same crate, `paint/*` | about 700 |
+| 2 | Tolerant HTML tree builder with bounds and hostile tests | new `html-import-tree` (kind feature, group `html-import`, portable), the tree builder; `html-import` is the facade over it (a pure move, `refactor/html-import-split`) | about 800 |
+| 3 | CSS rules, selectors, cascade, inheritance, defaults table, Tailwind decoder | new `html-import-css` (kind feature, group `html-import`, portable): `css/*` and `tw.rs`; the facade re-exports it; its tests are in `meldframe-import-html-css-tests`. About 900 was the first estimate; it came to about 2,900 lines of code in several pull requests | about 4,000 with tests |
+| 4 | Mapping: structure, layout, sizing, text, to Commands, with the report | `html-import` (the facade), `map/*` | about 900 |
+| 5 | Mapping: paint (fill, gradient, border, radius, shadow, opacity, image placeholders) | `html-import`, `paint/*` | about 700 |
 | 6 | The tests of slices 2 to 5, split by layer so each slice lands with its own (a test first per slice, not a slice of its own); the crate `meldframe-import-html-tests` is created in slice 2 | tool crate | counted with each slice |
 | 7 | The MCP tool: arguments, plan, `submit_ops`, answer, error codes, `docs/mcp-tools.json`, `docs/error-codes.md`, `skills/meldframe/SKILL.md`, the `html-import` cargo feature of `apps/server` | new `meldframe-http-html-import` (kind bin, as `meldframe-http-variables-import`) | about 600, plus tests |
 | 8 | The oracle extensions and the fixtures `h01` onward; the contract gets a section on import and the known gaps | `crates/core/meldframe-oracle-runner`, `tools/fidelity-oracle`, `docs/fidelity-contract.md` | about 800 |
@@ -333,7 +333,7 @@ Layers and kinds, checked against `docs/architecture.md` section 3b and `docs/st
 - **It must stay portable to `wasm32-unknown-unknown`** (L5, `portable-check`): no file or network access, no threads, no clock, no browser or DOM dependency, and any third-party crate must build for wasm32 and carry a licence on the allow list of `deny.toml` (MIT, Apache-2.0, Unicode-3.0, Zlib, BSD-3-Clause). Portability is not a nicety here: it is what lets the app layer reuse the importer in the browser later (section 4.3).
 - Shared colour and length code goes to a **core** crate and not into a feature, because a feature crate may not import another feature of another group unless it is `composite` (L4), and a composite dependence would tie `html-import` to `variables-import` in every build (open decision 6).
 - The tool adapter is a **bin** crate over `meldframe-http`, as the other tools are, because axum and rmcp are not portable.
-- Sizes: the crate is planned at about 3,300 lines, inside the band above 2,500 where D1 calls it a candidate for a split; split `html-import` into a tree builder and a mapper at the point the second passes 1,500 lines, as `meldframe-app-parts` and others were.
+- Sizes: one crate of about 3,300 lines was the first plan, and it did not hold (the CSS side alone is about 2,900 lines). The importer is four crates of one group: `html-import-tree` (the tree builder, lowest, no dependency), `html-import-css` (reads the tree's types), `html-import` (the facade and the mapping, depends on both) and later `meldframe-http-html-import` (the tool). Crates of one group may depend on each other (the xtask rule; `export-dialog` depends on `export`); a feature of another group still may not be imported.
 
 ## 7. Open decisions for the owner
 
