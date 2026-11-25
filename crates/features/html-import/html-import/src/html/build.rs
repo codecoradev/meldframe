@@ -232,7 +232,8 @@ impl Builder<'_> {
     ) -> Result<(), ParseError> {
         if self.depth >= self.l.max_depth {
             let msg = format!(
-                "the element is deeper than {}; it is not made and its content goes into the element it is in (that of a style, title or textarea is dropped)",
+                "the element is deeper than {}; it is not made and its content goes into the element it is in \
+                 (that of a style, title or textarea is dropped)",
                 self.l.max_depth
             );
             self.report

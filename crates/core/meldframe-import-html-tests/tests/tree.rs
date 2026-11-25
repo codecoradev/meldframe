@@ -277,6 +277,10 @@ fn the_same_text_gives_the_same_tree_and_report() {
     assert_eq!(a.report, b.report);
 }
 
+// The tests from here on: regression tests of fixes are the heading, list item and definition ending a paragraph, the
+// first of an attribute name deciding, the depth cut of a raw text element and the attribute cap counting cut names; the
+// others (NUL, ASCII folding, `</scriptx>`, unfinished input, Empty, TooLarge, TooMany) are coverage and pass on the old code.
+
 #[test]
 fn a_heading_a_list_item_or_a_definition_also_ends_a_paragraph() {
     for (html, want) in [
@@ -380,4 +384,18 @@ fn an_element_past_the_depth_is_flattened_and_a_raw_text_one_loses_its_content()
     assert_eq!(dump(&p.tree), r#"div{"x"}"#);
     assert_eq!(p.tree.style_texts().count(), 0);
     assert_eq!(count(&p, "depth_cut"), 3);
+}
+
+#[test]
+fn a_name_cut_for_its_length_counts_toward_the_attribute_cap() {
+    let l = Limits {
+        max_attributes: 3,
+        max_value_bytes: 3,
+        ..roomy()
+    };
+    let p = parse("<a x=toolong a=1 b=2 c=3 d=4>", &l).unwrap();
+    // `x` is cut and counts as one of the three names looked at, so two are kept and the next two are left out.
+    assert_eq!(dump(&p.tree), "a(a=1 b=2)");
+    assert_eq!(count(&p, "attribute_too_long"), 1);
+    assert_eq!(count(&p, "attribute_dropped"), 2);
 }
