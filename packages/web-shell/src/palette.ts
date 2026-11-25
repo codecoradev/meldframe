@@ -125,3 +125,12 @@ export function paletteKey(key: string, active: number, entries: readonly { enab
   const to = nextIndex(key, active, entries.length, entries.map((e) => !e.enabled));
   return to === undefined ? null : { kind: 'move', index: to };
 }
+
+/** The row that is highlighted: the one the pointer chose while it is listed and can run, else the first that can run (-1 when none can). */
+export function highlightAt(shown: readonly { id: string; enabled: boolean }[], picked: string | null): number {
+  const p = picked === null ? -1 : shown.findIndex((e) => e.id === picked && e.enabled);
+  return p >= 0 ? p : firstEnabled(shown);
+}
+
+/** What the status line of the palette says about the rows listed. */
+export const resultsText = (n: number): string => (n === 0 ? 'No results' : n === 1 ? '1 result' : `${n} results`);
