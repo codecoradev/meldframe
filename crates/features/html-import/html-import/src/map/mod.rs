@@ -10,9 +10,11 @@
 
 mod build;
 mod item;
+mod layout;
 mod names;
 mod page;
 mod paint;
+mod parts;
 mod plain;
 mod pre;
 mod text;
@@ -23,8 +25,10 @@ use crate::css::{self, style_tree};
 use crate::html::{self, ParseError, Report, parse};
 use build::Builder;
 use item::{Item, Notes, blank, flatten};
-use meldframe_protocol::{Command, LayoutMode, NodeKind};
+use layout::{Ctx, Flow, set_padding};
+use meldframe_protocol::{Command, LayoutMode, NodeKind, SizeMode};
 use names::name_of;
+use paint::put;
 
 /// What the call may set.
 #[derive(Debug, Clone, PartialEq)]
@@ -92,7 +96,7 @@ pub fn plan(html: &str, css: &str, options: &Options) -> Result<Plan, ParseError
     let (tree, mut report) = (parsed.tree, parsed.report);
     let styles = style_tree(&tree, css, &css::Limits::default(), &mut report);
     let pre = pre::pre(&tree, &styles, &mut report);
-    let page = page::find(&tree);
+    let page = page::find(&tree, &styles, &pre, &mut report);
     let mut b = Builder {
         tree: &tree,
         styles: &styles,
@@ -100,12 +104,25 @@ pub fn plan(html: &str, css: &str, options: &Options) -> Result<Plan, ParseError
         report: &mut report,
         pending: Notes::default(),
     };
+    // The width of the root: the page's, else the call's. A page with no height hugs, as a page does.
+    let width = page.width.unwrap_or(options.width);
+    let ctx = Ctx {
+        flow: Flow::Column,
+        stretch: true,
+        sw: SizeMode::Fixed,
+        sh: if page.height.is_some() {
+            SizeMode::Fixed
+        } else {
+            SizeMode::Hug
+        },
+        px: (Some(width), page.height),
+    };
     let mut kids = Vec::new();
-    b.content(page.container, &mut kids);
+    b.content(page.container, &ctx, &mut kids);
     if kids.is_empty() {
         return Err(ParseError::Empty);
     }
-    let root = if kids.len() == 1 && kids[0].node.kind == NodeKind::Frame {
+    let root = if page.is_plain() && kids.len() == 1 && kids[0].node.kind == NodeKind::Frame {
         let mut only = kids.remove(0);
         // The call's name wins; then the root's own `data-name` (an export imports back with its name); then the
         // title; then what the element is called.
@@ -116,6 +133,15 @@ pub fn plan(html: &str, css: &str, options: &Options) -> Result<Plan, ParseError
         {
             only.node.name = n;
         }
+        // The root has no parent: it is as wide as it says, else as the call says, and it never fills.
+        let n = &mut only.node;
+        n.absolute = false;
+        if n.sw == SizeMode::Fill {
+            (n.sw, n.w) = (SizeMode::Fixed, width);
+        }
+        if n.sh == SizeMode::Fill {
+            n.sh = SizeMode::Hug;
+        }
         only
     } else {
         let mut node = blank(NodeKind::Frame);
@@ -125,13 +151,21 @@ pub fn plan(html: &str, css: &str, options: &Options) -> Result<Plan, ParseError
             .clone()
             .or(page.title)
             .unwrap_or_else(|| "Imported HTML".into());
+        set_padding(&mut node, page.pad);
+        put(&mut node, &page.paint);
+        node.w = width;
+        if let Some(h) = page.height {
+            node.h = h;
+        } else {
+            node.sh = SizeMode::Hug;
+        }
         let el = tree.root();
         Item {
             node,
             kids,
             source: name_of(el),
             at: 0,
-            notes: Notes::default(),
+            notes: page.notes,
             src: None,
             named: false,
         }

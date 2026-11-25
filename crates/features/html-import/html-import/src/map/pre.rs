@@ -3,7 +3,7 @@
 //! the elements (a parent comes before its children), so no element is looked at again and again by its ancestors.
 
 use super::paint::{Paint, decorates, paint_of};
-use crate::css::{Style, Styles};
+use crate::css::{Source, Style, Styles};
 use html_import_tree::{Child, ElementId, Report, Tree};
 
 /// Elements that are not content: the browser's defaults hide them, and they are skipped without a word.
@@ -49,6 +49,13 @@ pub(crate) fn box_free(st: &Style) -> bool {
     ["top", "right", "bottom", "left"]
         .iter()
         .all(|s| zero(st, &format!("padding-{s}")) && zero(st, &format!("margin-{s}")))
+}
+
+/// Is the element itself `visibility: hidden` (not only inheriting it)?
+pub(crate) fn hides(st: &Style) -> bool {
+    st.props
+        .get("visibility")
+        .is_some_and(|p| p.source != Source::Inherited && p.value.trim() == "hidden")
 }
 
 /// Is `value` of `prop` positioned out of the flow (or the offsets of a positioned box).
@@ -99,7 +106,7 @@ pub(crate) fn pre(tree: &Tree, styles: &Styles, report: &mut Report) -> Pre {
             && !decorates(&p.paint[i])
             && box_free(st)
             && !positioned(st)
-            && st.get("visibility").is_none_or(|v| v.trim() != "hidden");
+            && !hides(st);
     }
     p
 }

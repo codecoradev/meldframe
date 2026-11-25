@@ -1,15 +1,16 @@
-//! The structure: which elements make nodes, of which kind, and in what order. Every element is looked at once, in
-//! the order of the text. The rules are the rows of `docs/import-html.md` section 3.2.
+//! The structure: which elements make nodes, of which kind, and in what order, each with its box. Every element is
+//! looked at once, in the order of the text. The rules are the rows of `docs/import-html.md` section 3.2 and 3.4.
 
 use super::item::{Item, Notes, blank};
-use super::names::{MAX_SOURCE, name_of, source_of};
+use super::layout::{self, Ctx};
+use super::names::{name_of, source_of};
 use super::paint::{decorates, put};
 use super::plain::plain;
-use super::pre::{NON_VISUAL, Pre, display, is_space, zero};
+use super::pre::{NON_VISUAL, Pre, display, hides, is_space, zero};
 use super::text::{Piece, collapse};
 use crate::css::{Style, Styles};
 use html_import_tree::{Child, ElementId, EntryKind, Report, Tree, clean};
-use meldframe_protocol::{LayoutMode, Node, NodeKind};
+use meldframe_protocol::{Bind, LayoutMode, Node, NodeKind, SizeMode};
 
 pub(crate) struct Builder<'a> {
     pub tree: &'a Tree,
@@ -20,28 +21,27 @@ pub(crate) struct Builder<'a> {
     pub pending: Notes,
 }
 
-/// An input that has no node: the browser draws it as a control with no text.
-fn no_node(tag: &str, kind: &str) -> bool {
-    tag == "option"
-        || (tag == "input"
-            && matches!(
-                kind,
-                "checkbox" | "radio" | "range" | "file" | "color" | "image"
-            ))
+/// What the content of an element will make: boxes, whether there is a line of text, and how many boxes sit at
+/// their own place.
+struct Shape {
+    boxes: usize,
+    line: bool,
+    absolute: usize,
 }
 
 impl<'a> Builder<'a> {
-    /// The items for the content of `el`, in the order of the text.
-    pub fn content(&mut self, el: ElementId, out: &mut Vec<Item>) {
+    /// The items for the content of `el`, in the order of the text, for a frame that gives its children `ctx`.
+    pub fn content(&mut self, el: ElementId, ctx: &Ctx, out: &mut Vec<Item>) {
         let mut run = Vec::new();
-        self.walk(el, el, &mut run, out);
-        self.flush(el, &mut run, out);
+        self.walk(el, el, ctx, &mut run, out);
+        self.flush(el, ctx, &mut run, out);
     }
 
     fn walk(
         &mut self,
         owner: ElementId,
         el: ElementId,
+        ctx: &Ctx,
         run: &mut Vec<Piece<'a>>,
         out: &mut Vec<Item>,
     ) {
@@ -50,7 +50,7 @@ impl<'a> Builder<'a> {
             self.report.work += 1;
             match c {
                 Child::Text(t) => run.push(Piece::Text(t)),
-                Child::Element(e) => self.child(owner, *e, run, out),
+                Child::Element(e) => self.child(owner, *e, ctx, run, out),
             }
         }
     }
@@ -59,6 +59,7 @@ impl<'a> Builder<'a> {
         &mut self,
         owner: ElementId,
         e: ElementId,
+        ctx: &Ctx,
         run: &mut Vec<Piece<'a>>,
         out: &mut Vec<Item>,
     ) {
@@ -69,12 +70,12 @@ impl<'a> Builder<'a> {
             run.push(Piece::Br);
         } else if display(self.styles.get(e)) == "contents" {
             self.report.count("display_contents", 1);
-            self.walk(owner, e, run, out);
+            self.walk(owner, e, ctx, run, out);
         } else if self.pre.inline[e.index()] {
             self.gather(e, run);
         } else {
-            self.flush(owner, run, out);
-            self.element(e, out);
+            self.flush(owner, ctx, run, out);
+            self.element(e, ctx, out);
         }
     }
 
@@ -94,7 +95,7 @@ impl<'a> Builder<'a> {
 
     /// An element that makes no node because it is not shown. What the browser's defaults hide (`head`, `script`)
     /// is not content and is only counted.
-    fn skipped(&mut self, e: ElementId) {
+    pub(super) fn skipped(&mut self, e: ElementId) {
         let el = self.tree.element(e);
         if NON_VISUAL.contains(&el.tag.as_str()) {
             self.report.count("non_visual", 1);
@@ -109,7 +110,13 @@ impl<'a> Builder<'a> {
     }
 
     /// The anonymous text a line of text makes in `owner`.
-    fn flush(&mut self, owner: ElementId, run: &mut Vec<Piece<'a>>, out: &mut Vec<Item>) {
+    pub(super) fn flush(
+        &mut self,
+        owner: ElementId,
+        ctx: &Ctx,
+        run: &mut Vec<Piece<'a>>,
+        out: &mut Vec<Item>,
+    ) {
         let text = collapse(run);
         run.clear();
         if text.is_empty() {
@@ -120,151 +127,180 @@ impl<'a> Builder<'a> {
         node.name = clean(&format!("{} text", name_of(el)), 256);
         node.text = text;
         let st = self.styles.get(owner);
-        node.fill = meldframe_protocol::Bind::Lit(st.color.clone());
-        out.push(Item {
-            node,
-            kids: Vec::new(),
-            source: source_of(el),
-            at: el.at,
-            notes: Notes::default(),
-            src: None,
-            named: false,
-        });
+        node.fill = Bind::Lit(st.color.clone());
+        let notes = Notes::default();
+        let _ = ctx;
+        (node.sw, node.sh) = (SizeMode::Hug, SizeMode::Hug);
+        out.push(self.make(owner, node, Vec::new(), notes, true));
     }
 
-    /// How many nodes the content of `e` will make: boxes, and whether there is a line of text.
-    fn shape(&self, e: ElementId) -> (usize, bool) {
-        let (mut boxes, mut line) = (0, false);
+    /// How many nodes the content of `e` will make.
+    fn shape(&self, e: ElementId) -> Shape {
+        let mut s = Shape {
+            boxes: 0,
+            line: false,
+            absolute: 0,
+        };
         for c in &self.tree.element(e).children {
             match c {
-                Child::Text(t) => line |= t.chars().any(|c| !is_space(c)),
+                Child::Text(t) => s.line |= t.chars().any(|c| !is_space(c)),
                 Child::Element(k) => {
                     let i = k.index();
                     if self.pre.hidden[i] || self.tree.element(*k).tag == "br" {
                     } else if display(self.styles.get(*k)) == "contents" {
-                        let (b, l) = self.shape(*k);
-                        (boxes, line) = (boxes + b, line | l);
+                        let inner = self.shape(*k);
+                        s.boxes += inner.boxes;
+                        s.line |= inner.line;
+                        s.absolute += inner.absolute;
                     } else if self.pre.inline[i] {
-                        line |= self.pre.text[i];
+                        s.line |= self.pre.text[i];
                     } else {
-                        boxes += 1;
+                        s.boxes += 1;
+                        s.absolute += usize::from(positioned_absolute(self.styles.get(*k)));
                     }
                 }
             }
         }
-        (boxes, line)
+        s
     }
 
-    fn item(&mut self, e: ElementId, mut node: Node, kids: Vec<Item>) -> Item {
+    /// An item for element `e`, with the notes of a wrapper that went before it and its own.
+    pub(super) fn make(
+        &mut self,
+        e: ElementId,
+        node: Node,
+        kids: Vec<Item>,
+        notes: Notes,
+        anon: bool,
+    ) -> Item {
+        let mut node = node;
         let el = self.tree.element(e);
-        node.name = name_of(el);
-        put(&mut node, &self.pre.paint[e.index()]);
+        if node.name.is_empty() {
+            node.name = name_of(el);
+        }
+        let mut all = std::mem::take(&mut self.pending);
+        if !anon {
+            put(&mut node, &self.pre.paint[e.index()]);
+            // The box keeps its room in CSS; the model has no visibility, only opacity.
+            if hides(self.styles.get(e)) {
+                node.opacity = Bind::Lit(0.0);
+                all.approximate("visibility", "hidden", "opacity 0");
+            }
+        }
+        all.approx.extend(notes.approx);
+        all.unsupported.extend(notes.unsupported);
         Item {
             node,
             kids,
             source: source_of(el),
             at: el.at,
-            notes: std::mem::take(&mut self.pending),
+            notes: all,
             src: None,
-            named: el
-                .attr("data-name")
-                .is_some_and(|n| !clean(n, 256).trim().is_empty()),
+            named: !anon
+                && el
+                    .attr("data-name")
+                    .is_some_and(|n| !clean(n, 256).trim().is_empty()),
         }
     }
 
-    /// The element `e`, which is a box (not part of a line of text), as items: none, one, or what a plain wrapper
-    /// holds.
-    pub fn element(&mut self, e: ElementId, out: &mut Vec<Item>) {
-        let el = self.tree.element(e);
-        let st = self.styles.get(e);
-        let kind = el.attr("type").unwrap_or("text").to_ascii_lowercase();
-        match el.tag.as_str() {
-            _ if no_node(&el.tag, &kind) => {
-                let msg = format!("<{}> has no equivalent in the model: no node", el.tag);
-                self.report
-                    .note(EntryKind::Refused, "element_skipped", &el.tag, msg, el.at);
+    /// The box every node has: its margin, and where it sits.
+    pub(super) fn boxed(&self, node: &mut Node, st: &Style, ctx: &Ctx, notes: &mut Notes) {
+        let m = layout::sides(st, "margin", notes);
+        [node.mar_t, node.mar_r, node.mar_b, node.mar_l] = m;
+        (node.x, node.y, node.absolute) = layout::place(st, ctx, notes);
+        layout::align_self(st, notes);
+    }
+
+    /// The sizes of a node. A size in pixels is fixed and anything else hugs; the next step reads the rest.
+    pub(super) fn sizes(
+        &self,
+        node: &mut Node,
+        st: &Style,
+        _ctx: &Ctx,
+        _text: bool,
+        _grow: (f64, f64),
+        notes: &mut Notes,
+    ) {
+        for (prop, size, mode) in [
+            ("width", &mut node.w, &mut node.sw),
+            ("height", &mut node.h, &mut node.sh),
+        ] {
+            match layout::size_px(st, prop, notes) {
+                Some(v) => (*size, *mode) = (v, SizeMode::Fixed),
+                None => *mode = SizeMode::Hug,
             }
-            "img" | "svg" | "canvas" | "video" | "audio" | "iframe" | "object" | "embed" => {
-                let item = self.media(e);
-                out.push(item);
-            }
-            "input" | "textarea" | "select" | "button" => {
-                let item = self.field(e);
-                out.push(item);
-            }
-            _ => self.generic(e, st, out),
         }
     }
 
-    /// A placeholder `rect` for what the model cannot hold: the element keeps the room it took. Nothing is fetched.
-    fn media(&mut self, e: ElementId) -> Item {
-        let el = self.tree.element(e);
-        let mut item = self.item(e, blank(NodeKind::Rect), Vec::new());
-        if el.tag == "img" {
-            item.src = el
-                .attr("src")
-                .filter(|s| !s.is_empty())
-                .map(|s| clean(s, MAX_SOURCE));
-            self.report.count("image_src", item.src.is_some() as usize);
-        } else {
-            item.notes.refuse("element", &el.tag, "refused_content");
-        }
-        item
-    }
-
-    /// A control: a frame with the text it shows, as its `value` or its `placeholder`, or what is inside a button.
-    fn field(&mut self, e: ElementId) -> Item {
-        let el = self.tree.element(e);
-        let mut kids = Vec::new();
-        if matches!(el.tag.as_str(), "button" | "textarea") {
-            self.content(e, &mut kids);
-        } else if el.tag == "input" {
-            let shown = el
-                .attr("value")
-                .filter(|v| !v.is_empty())
-                .or_else(|| el.attr("placeholder"))
-                .unwrap_or("");
-            let mut run = vec![Piece::Text(shown)];
-            self.flush(e, &mut run, &mut kids);
-        }
-        let mut node = blank(NodeKind::Frame);
-        node.layout = LayoutMode::Column;
-        // The browser draws these itself; what is kept is the box and the text it shows.
-        self.pending
-            .approximate("element", &el.tag, "a frame with the text it shows");
-        self.item(e, node, kids)
-    }
-
-    fn generic(&mut self, e: ElementId, st: &Style, out: &mut Vec<Item>) {
+    pub(super) fn generic(&mut self, e: ElementId, st: &Style, ctx: &Ctx, out: &mut Vec<Item>) {
         let el = self.tree.element(e);
         let paint = &self.pre.paint[e.index()];
-        let (boxes, line) = self.shape(e);
-        if plain(el, st, paint) && boxes + usize::from(line) == 1 {
+        let shape = self.shape(e);
+        if plain(el, st, paint) && shape.boxes + usize::from(shape.line) == 1 {
             let msg = format!(
                 "<{}> adds nothing to the layout: no node, its content takes its place",
                 el.tag
             );
             self.report
                 .note(EntryKind::Listed, "wrapper_collapsed", &el.tag, msg, el.at);
-            self.content(e, out);
+            self.content(e, ctx, out);
             return;
         }
-        if boxes == 0 && line && self.as_text(e, st) {
+        let mut notes = Notes::default();
+        if shape.boxes == 0 && shape.line && self.as_text(e, st) {
             let mut pieces = Vec::new();
             self.gather(e, &mut pieces);
             let mut node = blank(NodeKind::Text);
             node.text = collapse(&pieces);
-            node.fill = meldframe_protocol::Bind::Lit(st.color.clone());
-            let item = self.item(e, node, Vec::new());
-            out.push(item);
+            node.fill = Bind::Lit(st.color.clone());
+            self.boxed(&mut node, st, ctx, &mut notes);
+            self.sizes(&mut node, st, ctx, true, (0.0, 0.0), &mut notes);
+            out.push(self.make(e, node, Vec::new(), notes, false));
             return;
         }
+        let free = !matches!(
+            display(st).as_str(),
+            "flex" | "inline-flex" | "grid" | "inline-grid"
+        ) && shape.boxes > 0
+            && shape.absolute == shape.boxes
+            && !shape.line;
+        let mut node = blank(NodeKind::Frame);
+        self.boxed(&mut node, st, ctx, &mut notes);
+        let c = layout::container(st, free, &mut notes);
+        node.layout = c.layout;
+        (node.gap, node.align, node.justify) = (c.gap, c.align, c.justify);
+        node.clip = layout::clip(st, &mut notes);
+        let mut pad = layout::sides(st, "padding", &mut notes);
+        let room = self.pre.paint[e.index()].border_room;
+        pad.iter_mut().for_each(|p| *p += room);
+        layout::set_padding(&mut node, pad);
+        self.sizes(
+            &mut node,
+            st,
+            ctx,
+            false,
+            (pad[1] + pad[3], pad[0] + pad[2]),
+            &mut notes,
+        );
+        let inner = Ctx {
+            flow: c.flow,
+            stretch: c.stretch,
+            sw: node.sw,
+            sh: node.sh,
+            px: (
+                (node.sw == SizeMode::Fixed).then_some(node.w),
+                (node.sh == SizeMode::Fixed).then_some(node.h),
+            ),
+        };
         let mut kids = Vec::new();
-        self.content(e, &mut kids);
+        self.content(e, &inner, &mut kids);
+        let sized = node.sw == SizeMode::Fixed
+            && node.sh == SizeMode::Fixed
+            && st.len("width").is_some()
+            && st.len("height").is_some();
         let childless = kids.is_empty();
-        let sized = st.len("width").is_some() && st.len("height").is_some();
-        let kind = if childless && self.pre.paint[e.index()].ellipse && sized {
-            NodeKind::Ellipse
+        if childless && self.pre.paint[e.index()].ellipse && sized {
+            node.kind = NodeKind::Ellipse;
         } else if childless
             && sized
             && display(st) != "flex"
@@ -272,16 +308,16 @@ impl<'a> Builder<'a> {
                 .iter()
                 .all(|s| zero(st, &format!("padding-{s}")))
         {
-            NodeKind::Rect
-        } else {
-            NodeKind::Frame
-        };
-        let mut node = blank(kind);
-        if kind == NodeKind::Frame {
-            node.layout = LayoutMode::Column;
+            node.kind = NodeKind::Rect;
         }
-        let item = self.item(e, node, kids);
-        out.push(item);
+        if node.kind != NodeKind::Frame {
+            // A rect holds no children and ignores layout and padding.
+            node.layout = LayoutMode::None;
+            node.clip = false;
+            node.padding = 0.0;
+            [node.pad_t, node.pad_r, node.pad_b, node.pad_l] = [None; 4];
+        }
+        out.push(self.make(e, node, kids, notes, false));
     }
 
     /// Does an element that holds only a line of text become that text (and not a frame around it)? Not when it
@@ -294,5 +330,20 @@ impl<'a> Builder<'a> {
             && ["top", "right", "bottom", "left"]
                 .iter()
                 .all(|s| zero(st, &format!("padding-{s}")))
+            && !positioned_clip(st)
     }
+}
+
+fn positioned_absolute(st: &Style) -> bool {
+    st.get("position").map(str::trim) == Some("absolute")
+}
+
+/// A text with `overflow` that clips is a frame around a text: the model's text has no clip.
+fn positioned_clip(st: &Style) -> bool {
+    ["overflow-x", "overflow-y"].iter().any(|p| {
+        matches!(
+            st.get(p).map(str::trim),
+            Some("hidden" | "clip" | "auto" | "scroll")
+        )
+    })
 }
