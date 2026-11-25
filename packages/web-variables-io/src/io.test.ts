@@ -85,10 +85,10 @@ describe('the Import variables words', () => {
     expect(refused({ code: 'outbox_full' }).lines[0]).toMatch(/Too many changes are waiting/);
     expect(refused({ code: 'E_WHATEVER' }).lines[0]).toContain('E_WHATEVER');
   });
-  it('draw the name of a duplicate as plain text', () => {
-    const w = importWords(result({ status: 'refused', code: 'E_DUPLICATE_ID', at: { entity: 'variable', name: 'br‮and' } }));
+  it('draw the name of a duplicate as the app layer gave it, and a name that is nothing in words', () => {
+    const w = importWords(result({ status: 'refused', code: 'E_DUPLICATE_ID', at: { entity: 'variable', name: 'brand' } }));
     expect(w.lines[0]).toContain('brand');
-    expect(w.lines[0]).not.toMatch(/‮/);
+    expect(importWords(result({ status: 'refused', code: 'E_DUPLICATE_ID', at: { entity: 'variable', name: '' } })).lines[0]).toContain('(no name)');
   });
   it('use the words of the glossary, never token or theme value', () => {
     const all = [result(), result({ status: 'nothing' }), result({ status: 'refused', code: 'E_DUPLICATE_ID', at: { entity: 'mode', name: 'x' } })].flatMap((r) => [importWords(r).title, ...importWords(r).lines]).concat(IMPORT_HELP, EXPORT_HELP).join(' ');
@@ -97,8 +97,8 @@ describe('the Import variables words', () => {
 });
 
 describe('the lines of the report', () => {
-  it('are plain text with their kind, name and message', () => {
-    const rows = entryRows([{ kind: 'converted', code: 'rem', name: '--sp‮ace', message: '1rem is 16px' }, { kind: 'skipped', code: 'computed_value', name: '--w', message: 'calc()' }]);
+  it('are the lines of the app layer with their kind, name and message, cleaned by nothing here', () => {
+    const rows = entryRows([{ kind: 'converted', code: 'rem', name: '--space', message: '1rem is 16px' }, { kind: 'skipped', code: 'computed_value', name: '--w', message: 'calc()' }]);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({ kind: 'converted', name: '--space', code: 'rem', message: '1rem is 16px' });
     expect(new Set(rows.map((r) => r.key)).size).toBe(2);

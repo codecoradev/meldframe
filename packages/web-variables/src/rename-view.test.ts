@@ -38,11 +38,10 @@ describe('the Rename buttons', () => {
   it('carry a key for the focus to come back to', () => {
     for (const key of ['collection:c1', 'mode:m1', 'mode:m2', 'variable:v1', 'variable:v2']) expect(out).toContain(`data-rename="${key}"`);
   });
-  it('are drawn from the display name: markup and direction characters in a name do not reach the label', () => {
-    const o = detail(col({ name: 'br‮and', variables: [row({ name: '<img src=x onerror=alert(1)>' })], matched: 1 }), null);
+  it('are drawn from the display name of the app layer: markup in a name does not reach the label', () => {
+    const o = detail(col({ name: 'brand', variables: [row({ name: '<img src=x onerror=alert(1)>' })], matched: 1 }), null);
     expect(o).toContain('aria-label="Rename collection brand"');
     expect(o).not.toContain('<img src=x');
-    expect(o).not.toMatch(/[‮]/);
   });
 });
 

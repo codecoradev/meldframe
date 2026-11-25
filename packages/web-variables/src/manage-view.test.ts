@@ -48,13 +48,12 @@ describe('the manage view', () => {
     expect(out).toContain('aria-label="Copy the values of the new mode from"');
     expect(out).toMatch(/<option[^>]*value="m1"[^>]*>light/);
   });
-  it('draws names as text: markup in a name is escaped and direction characters are left out', () => {
-    const out = body(panel([col({ name: 'br‮and', variables: [row({ name: '<img src=x onerror=alert(1)>' })], matched: 1, modes: [{ id: 'm1', name: 'li⁦ght' }, { id: 'm2', name: '<b>dark</b>' }] })]));
+  it('draws names as text: markup in a name is escaped (the app layer made them safe to show, and nothing here cleans them)', () => {
+    const out = body(panel([col({ name: 'brand', variables: [row({ name: '<img src=x onerror=alert(1)>' })], matched: 1, modes: [{ id: 'm1', name: 'light' }, { id: 'm2', name: '<b>dark</b>' }] })]));
     expect(out).not.toContain('<img src=x');
     expect(out).toContain('&lt;img src=x');
     expect(out).not.toContain('<b>dark');
     expect(out).toContain('&lt;b>dark');
-    expect(out).not.toMatch(/[‮⁦]/);
     expect(out).toContain('brand');
   });
   it('says when the list is cut or narrowed by a search, so the counts are known to be partial', () => {

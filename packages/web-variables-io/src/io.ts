@@ -5,9 +5,9 @@
 import type { ImportEntry, VariablesExportDialog, VariablesImportResult } from '@meldframe/protocol';
 import { noticeFor } from '@meldframe/web-document/notices';
 import { sizeText } from '@meldframe/web-export/view';
-import { MAX_COLLECTIONS, MAX_MODES, MAX_VARIABLES, plain } from '@meldframe/web-variables/manage';
+import { MAX_COLLECTIONS, MAX_MODES, MAX_VARIABLES } from '@meldframe/web-variables/manage';
 
-export { plain, sizeText };
+export { sizeText };
 
 /** The name the exported text is saved under. */
 export const EXPORT_FILE = 'variables.css';
@@ -78,7 +78,7 @@ function refusal(r: VariablesImportResult): string {
   if (code === 'empty_text') return 'There is no text to import. Paste CSS into the field or choose a file.';
   if (code === 'E_IMPORT_TOO_LARGE') return `This text is ${sizeText(r.bytes)} and an import reads at most ${sizeText(r.limit)}. Send the style sheet in parts.`;
   if (code === 'E_DUPLICATE_ID' || code === 'E_DUPLICATE_NAME') {
-    const what = r.at ? `The ${ENTITY[r.at.entity] ?? 'item'} ${plain(r.at.name) || '(no name)'}` : 'Something in this text';
+    const what = r.at ? `The ${ENTITY[r.at.entity] ?? 'item'} ${r.at.name || '(no name)'}` : 'Something in this text';
     return `${what} is already in this file. An import only adds: it does not change what the file holds, and a second import of the same names is refused. Edit the existing variables in Manage variables.`;
   }
   // The count of the report stops at the 5,000 of a file, so the text is only said to be over the cap.
@@ -95,9 +95,9 @@ export interface EntryRow {
   message: string;
 }
 
-/** The lines of the report, as text without the characters that reorder or hide it. */
+/** The lines of the report. The app layer made every text of it safe to show (the importers clean it once, ADR-0020); nothing here cleans it again. */
 export function entryRows(list: readonly ImportEntry[]): EntryRow[] {
-  return list.map((e, i) => ({ key: `${e.code}:${e.name}:${i}`, kind: e.kind, name: plain(e.name), code: plain(e.code), message: plain(e.message) }));
+  return list.map((e, i) => ({ key: `${e.code}:${e.name}:${i}`, kind: e.kind, name: e.name, code: e.code, message: e.message }));
 }
 
 /** The count line under the report when it was cut at its cap. */

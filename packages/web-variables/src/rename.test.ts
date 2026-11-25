@@ -111,7 +111,7 @@ describe('a name that changed while the field was open', () => {
   });
   it('says so in words, with the name as it is drawn, and says nothing while the name is the one it opened with', () => {
     expect(movedWords('color/bg', now)).toBe('This name changed to “color/surface” while you were editing.');
-    expect(movedWords('da\u202erk', { current: 'Night\u200b', others: [] })).toBe('This name changed to “Night” while you were editing.');
+    expect(movedWords('dark', { current: 'Night', others: [] })).toBe('This name changed to “Night” while you were editing.');
     expect(movedWords('color/surface', now)).toBeNull();
   });
 });
@@ -151,8 +151,8 @@ describe('the words of a rename', () => {
   it('say what was renamed to what, the names as they are drawn', () => {
     expect(renamedWords('variable', 'color/bg', 'color/surface')).toBe('Renamed “color/bg” to “color/surface”.');
     expect(renamedWords('collection', 'theme', 'brand')).toBe('Renamed the collection “theme” to “brand”.');
-    expect(renamedWords('mode', 'da‮rk', 'Night')).toBe('Renamed the mode “dark” to “Night”.');
-    expect(renamedWords('mode', 'ㅤ', 'x')).toBe('Renamed the mode “(no name)” to “x”.');
+    expect(renamedWords('mode', 'dark', 'Night')).toBe('Renamed the mode “dark” to “Night”.');
+    expect(renamedWords('mode', '', 'x')).toBe('Renamed the mode “(no name)” to “x”.');
   });
   it('say once what a rename does to the export, and what stays (docs/tokens-and-variables.md 9.6)', () => {
     expect(RENAME_HINT).toMatch(/next export uses the new name/i);

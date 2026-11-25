@@ -6,7 +6,7 @@
   import type { CollectionRow } from '@meldframe/protocol';
   import { ring } from '@meldframe/web-chrome/focus';
   import NameForm from './NameForm.svelte';
-  import { count, label } from './manage';
+  import { count, nameOf } from './manage';
 
   interface Props {
     collections: CollectionRow[];
@@ -38,7 +38,7 @@
           data-entity-id={c.id}
           class="{ring} flex w-full flex-col rounded-md px-2 py-1 text-left hov:bg-control {on ? 'bg-chip-bg text-chip-text' : 'text-text'}"
         >
-          <span class="truncate text-small font-medium" title={label(c.name)}><bdi>{label(c.name)}</bdi></span>
+          <span class="truncate text-small font-medium" title={nameOf(c.name)}><bdi>{nameOf(c.name)}</bdi></span>
           <span class="text-caption {on ? '' : 'text-text-muted'}">{count(c.matched, 'variable', 'variables')} · {count(c.modes.length, 'mode', 'modes')}</span>
         </button>
       </li>
