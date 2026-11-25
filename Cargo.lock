@@ -731,6 +731,7 @@ dependencies = [
  "html-import-css",
  "html-import-style",
  "html-import-tree",
+ "meldframe-protocol",
 ]
 
 [[package]]
@@ -1769,6 +1770,15 @@ name = "meldframe-import-html-css-tests"
 version = "0.0.0"
 dependencies = [
  "html-import",
+ "wasm-bindgen-test",
+]
+
+[[package]]
+name = "meldframe-import-html-paint-tests"
+version = "0.0.0"
+dependencies = [
+ "html-import",
+ "meldframe-protocol",
  "wasm-bindgen-test",
 ]
 
