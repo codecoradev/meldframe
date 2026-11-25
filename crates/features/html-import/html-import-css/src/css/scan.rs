@@ -239,3 +239,29 @@ impl<'a> Cursor<'a> {
         true
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A megabyte of one piece is read to its end and keeps at most the cap, whatever it is made of.
+    #[test]
+    fn a_piece_keeps_at_most_its_cap() {
+        let cap = 64;
+        for unit in [
+            "x", " ", "/**/", "\\a", "\"x\"", "(x)", "\u{e9}", "x ", " x",
+        ] {
+            let text = unit.repeat(1 << 20);
+            let mut c = Cursor::new(&text);
+            let p = c.piece(cap);
+            assert!(p.text.len() <= cap, "{unit:?}: {}", p.text.len());
+            assert_eq!(p.end, End::Eof);
+            assert!(c.work >= text.len() / 8, "{unit:?}");
+        }
+        // The cap is on the text, so a piece of exactly the cap is whole and one byte more is too long.
+        let text = format!("{};", "x".repeat(cap));
+        assert!(!Cursor::new(&text).piece(cap).too_long);
+        let text = format!("{};", "x".repeat(cap + 1));
+        assert!(Cursor::new(&text).piece(cap).too_long);
+    }
+}
