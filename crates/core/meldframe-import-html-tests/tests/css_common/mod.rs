@@ -168,3 +168,38 @@ pub fn text_children(p: &Parsed, id: ElementId) -> usize {
         .filter(|c| matches!(c, Child::Text(_)))
         .count()
 }
+
+use html_import::css::{Style, Styles, style_tree};
+
+/// Read `html` and `css`, cascade and compute with `limits`.
+pub fn styled_with(html: &str, css: &str, limits: &Limits) -> (Parsed, Styles, Report) {
+    let parsed = parse(html, &Default::default()).expect("html");
+    let mut report = Report::default();
+    let s = style_tree(&parsed.tree, css, limits, &mut report);
+    (parsed, s, report)
+}
+
+pub fn styled(html: &str, css: &str) -> (Parsed, Styles, Report) {
+    styled_with(html, css, &Limits::default())
+}
+
+/// The style of the first `<tag>`.
+pub fn style_of(html: &str, css: &str, tag: &str) -> Style {
+    let (p, s, _) = styled(html, css);
+    s.get(el(&p, tag)).clone()
+}
+
+/// The properties of a style as `name:value`, declared ones with `^` for inherited, sorted by name.
+pub fn props(s: &Style) -> Vec<String> {
+    s.props
+        .iter()
+        .map(|(k, p)| {
+            let mark = if p.source == html_import::css::Source::Inherited {
+                "^"
+            } else {
+                ""
+            };
+            format!("{k}:{}{mark}", p.value)
+        })
+        .collect()
+}

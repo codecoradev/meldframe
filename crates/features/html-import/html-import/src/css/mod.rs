@@ -24,19 +24,23 @@
 //! its cap is read and not stored. The work is counted in [`Report::work`].
 
 mod cascade;
+mod computed;
 mod decl;
 pub mod defaults;
 mod matching;
 mod scan;
 pub mod selector;
 pub mod shorthand;
+mod style;
 pub mod value;
 pub mod vars;
 
 pub use crate::html::{Entry, EntryKind, MAX_ENTRIES, MAX_REPORT_BYTES, Report};
 pub use cascade::{Candidate, Cascade, Matched, Origin, cascade};
+pub use computed::{Custom, MAX_NOTES, Note, Prop, Props, Source, Style};
 pub use decl::{Bad, Decl};
 pub use selector::{Combinator, Compound, Pseudo, Refusal, Selector, Simple};
+pub use style::{Styles, compute, style_tree};
 
 use scan::{Cursor, End, Piece};
 

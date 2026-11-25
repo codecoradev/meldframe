@@ -26,6 +26,9 @@ pub enum Origin {
     Author,
     /// The `style` attribute of the element.
     Inline,
+    /// The browser's defaults (`css::defaults`): the cascade never makes one; the computed style puts them
+    /// under everything else.
+    UserAgent,
 }
 
 /// A declaration that applies to an element.
