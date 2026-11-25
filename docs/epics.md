@@ -278,6 +278,8 @@ Cross-cutting work ordered by the owner, recorded in ADR-0026 and tracked as epi
 - [ ] The audit also lists the Svelte-specific surface (runes, stores, snippets, transitions, Bits UI, tests that need a Svelte runtime) so that E7.3 can size its work.
 - [ ] Nothing in the product changes in this issue except the boundary check and its configuration.
 
+Status, 25 Nov 2026: the boundary check is in (`npm run boundaries`, `packages/web-tools/scripts/boundaries.mjs`). The kind of every web package is declared in its `package.json`, the framework table is data, and `packages/web-tools/boundaries-allow.json` lists the 7 imports that break a rule today, each with a reason and a count that only goes down. It runs in `npm run check` and in pull request CI. `npm run lint` now covers every web package. No box is ticked: the audit's findings are still to be moved into the app layer.
+
 ### E7.3 React web client (L, split into panels, #308; blocked by the audit for its plan)
 - [ ] A plan note (in `docs/` or an ADR) with the options (a branch rewrite, a strangler by panel with React islands inside the Svelte shell or the reverse, a new app directory with a parity list), the choice and why, the component library that replaces Bits UI, how the Pixi canvas is mounted, the test strategy, and the order of panels with sizes under 1,000 lines each.
 - [ ] A pilot: one new or small screen in React (the Import HTML dialog, which does not exist yet, or the smallest panel) behind the same bridge, with its browser script passing, to prove the toolchain (Vite, Tailwind, `ui-literals` for `.tsx`, lint, type check, tests) before the rest moves.

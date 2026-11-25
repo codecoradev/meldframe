@@ -4,5 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "description": "The link of the web client to the app layer: the Engine over the WASM bridge, the scene and the text measurer. Pure TypeScript; the platform is injected; tested by the apps/web test run.",
+  "meldframe": { "kind": "host" },
   "types": "src/engine.ts"
 }

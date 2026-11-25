@@ -4,5 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "description": "The images of image fills for the web client: fetched once, decoded, retried when they failed. Pure TypeScript with an injected transport; tested by the apps/web test run.",
+  "meldframe": { "kind": "host" },
   "types": "src/assets.ts"
 }
