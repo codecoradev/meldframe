@@ -31,7 +31,7 @@ pub enum RegistryError {
     /// its files first. Other workspaces are not affected. Opening a file that is already open never hits
     /// this.
     WorkspaceFull { limit: usize },
-    /// A workspace or file name the server does not accept (empty, too long, a control character). Raised
+    /// A workspace or file name the server does not accept (empty, too long, a control or hidden character). Raised
     /// by the server before the registry is asked, so a store never sees the name.
     InvalidName { reason: String },
     /// The file is not open.

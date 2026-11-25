@@ -39,7 +39,7 @@ const SCAN: usize = 1_000;
 pub fn input_schema() -> Value {
     json!({"type": "object", "required": ["file"], "additionalProperties": false, "properties": {
         "file": {"type": "string", "minLength": 1, "maxLength": 128,
-            "description": "The name of the file: 1 to 128 bytes (UTF-8), no slashes or control characters. A file belongs to the workspace of your token."},
+            "description": "The name of the file: 1 to 128 bytes (UTF-8), no slashes, control or invisible formatting characters. A file belongs to the workspace of your token."},
         "before": {"type": "integer", "minimum": 0,
             "description": "Only batches with a number below this one. Send next of the last answer to read on."},
         "after": {"type": "integer", "minimum": 0,
