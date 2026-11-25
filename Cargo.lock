@@ -737,6 +737,7 @@ name = "html-import-css"
 version = "0.0.0"
 dependencies = [
  "html-import-tree",
+ "meldframe-css",
 ]
 
 [[package]]
