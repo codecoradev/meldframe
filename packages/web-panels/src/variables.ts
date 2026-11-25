@@ -3,15 +3,8 @@
 import type { Action, BindField, CollectionRow, ModeValue, VariableRow, VariablesPanel } from '@meldframe/protocol';
 import { nameOf } from '@meldframe/web-document/names';
 
-/** The text typed in a value field of one mode. Nothing to send for empty text or the text the value already shows. */
-export function valueAction(row: VariableRow, mode: string, raw: string): Action | null {
-  const current = row.values.find((v) => v.mode === mode);
-  const text = raw.trim();
-  if (!current || text === '') return null;
-  // An alias shows the name of its target: typing that name is still a literal and replaces the alias.
-  if (!current.alias && text === current.text) return null;
-  return { type: 'setVariableValue', variable: row.id, mode, value: { type: 'literal', text } };
-}
+/** The text typed in a value field of one mode, as typed: the app layer sends nothing for empty text or a value the variable has already, and reads the rest by the type of the variable. */
+export const valueAction = (row: VariableRow, mode: string, raw: string): Action => ({ type: 'typed', entry: { type: 'variableValue', variable: row.id, mode, text: raw } });
 
 /** The button of a field: bind the variable to it, or let it go when it is bound already. */
 export function bindAction(target: string, row: VariableRow, field: BindField, bound: boolean): Action {
@@ -23,7 +16,8 @@ export function modeAction(c: CollectionRow, mode: string): Action {
   return { type: 'setMode', collection: c.id, mode };
 }
 
-const HEX = /^#[0-9a-f]{3,8}$/i;
+/** A colour the swatch can draw: three, four, six or eight hex digits, the lengths the core reads (not five or seven). */
+const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
 /** The colour of the swatch of a value (what it comes to in its mode), or null for a number or a value that does not resolve. */
 export function swatch(row: VariableRow, mode: string): string | null {

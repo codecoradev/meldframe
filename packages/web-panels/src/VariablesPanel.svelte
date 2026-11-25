@@ -44,10 +44,7 @@
   let importButton = $state<HTMLElement | null>(null);
   let exportButton = $state<HTMLElement | null>(null);
 
-  const commit = (row: VariableRow, mode: string) => (raw: string) => {
-    const a = valueAction(row, mode, raw);
-    if (a) dispatch(a);
-  };
+  const commit = (row: VariableRow, mode: string) => (raw: string) => dispatch(valueAction(row, mode, raw));
 </script>
 
 <div class="flex flex-col gap-2 text-small text-text" data-testid="variables">

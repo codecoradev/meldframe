@@ -29,10 +29,7 @@ export interface VariablesPanelProps {
 }
 
 export function VariablesPanel({ panel, target, dispatch, onManage, onImport }: VariablesPanelProps) {
-  const commit = (row: VariableRow, mode: string) => (raw: string) => {
-    const a = valueAction(row, mode, raw);
-    if (a) dispatch(a);
-  };
+  const commit = (row: VariableRow, mode: string) => (raw: string) => dispatch(valueAction(row, mode, raw));
   const manage = () => {
     // The manage view reads the whole list: it starts with the search cleared (the counts of a removal are of what is listed).
     const clear = beforeManage(panel);
