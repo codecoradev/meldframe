@@ -290,14 +290,14 @@ fn selectors_are_counted_over_the_whole_import() {
     assert_eq!(dump(&s), ["a, b, c{x:1}", "d, e{y:2}"]);
     assert_eq!(count(&r, "selector_limit"), 1);
     assert_eq!(r.entries[0].kind, EntryKind::Cut);
-    // `a,a,a,...` is a selector for each two bytes: ten rules of a thousand are stopped at 5,000.
-    let css = format!("{}{{x:1}}", "a,".repeat(1_000)).repeat(10);
+    // `a,a,a,...` is a selector for each two bytes: twenty-five rules of a thousand are stopped at 10,000.
+    let css = format!("{}{{x:1}}", "a,".repeat(1_000)).repeat(25);
     let (s, r) = sheet(&css);
     assert_eq!(
         s.rules.iter().map(|r| r.selectors.len()).sum::<usize>(),
-        5_000
+        10_000
     );
-    assert_eq!(s.rules.len(), 5);
+    assert_eq!(s.rules.len(), 10);
     assert_eq!(count(&r, "selector_limit"), 1);
 }
 

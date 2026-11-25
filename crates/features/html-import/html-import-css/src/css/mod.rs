@@ -65,7 +65,7 @@ pub struct Limits {
     /// How deep `@layer` blocks may nest; a deeper one is skipped. 16, as `variables-import`.
     pub max_depth: usize,
     /// The most selectors kept, over all the rules: `a,a,a,...` makes a selector for each two bytes. Later ones are
-    /// left out. 5,000.
+    /// left out. 10,000 (two for each of the most rules, so that the rule limit can be reached).
     pub max_selectors: usize,
 }
 
@@ -77,7 +77,7 @@ impl Default for Limits {
             max_value_bytes: 1_000,
             max_selector_bytes: 4_096,
             max_depth: 16,
-            max_selectors: 5_000,
+            max_selectors: 10_000,
         }
     }
 }
