@@ -6,7 +6,7 @@
 //! a `url()` or a gradient). Anything else of a shorthand that this does not read is refused as a whole, never
 //! guessed. A CSS-wide keyword (`inherit`, `initial`, `unset`, `revert`) goes to every longhand.
 
-use crate::value::{has_top_level_comma, is_wide, length, words};
+use crate::value::{colour, has_top_level_comma, is_wide, length, words};
 
 /// Why a shorthand is not read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,6 +138,14 @@ fn is_style(w: &str) -> bool {
     )
 }
 
+/// A word that may fill a colour slot: a colour `meldframe-css` reads, `transparent` or `currentcolor`. Any other word
+/// (`no-repeat`, `center`, a misspelt name) makes the shorthand refused, never a guessed colour.
+fn is_colour(w: &str) -> bool {
+    w.eq_ignore_ascii_case("transparent")
+        || w.eq_ignore_ascii_case("currentcolor")
+        || colour(w).is_some()
+}
+
 fn is_width(w: &str) -> bool {
     matches!(w.to_ascii_lowercase().as_str(), "thin" | "medium" | "thick")
         || length(w, 16.0, 16.0).is_some()
@@ -155,8 +163,10 @@ fn border_parts(value: &str) -> Result<[String; 3], Refused> {
             &mut s
         } else if is_width(word) {
             &mut w
-        } else {
+        } else if is_colour(word) {
             &mut c
+        } else {
+            return Err(Refused("border_shorthand"));
         };
         if slot.replace(word.to_owned()).is_some() {
             return Err(Refused("border_shorthand"));
@@ -235,6 +245,9 @@ fn background(value: &str) -> Out {
     for word in list {
         let l = word.to_ascii_lowercase();
         let is_image = l == "none" || l.starts_with("url(") || l.contains("-gradient(");
+        if !is_image && !is_colour(word) {
+            return Err(Refused("background_shorthand"));
+        }
         let slot = if is_image { &mut image } else { &mut color };
         if slot.replace(word.to_owned()).is_some() {
             return Err(Refused("background_shorthand"));
