@@ -1,4 +1,5 @@
 // Browser check of the state matrix: node packages/web-chrome/scripts/states-e2e.mjs [web-url]
+// The React copy of the page is checked by the same script with MELDFRAME_UI=react (it opens /?states&react); without it the Svelte page.
 // Needs the Vite dev server (`just web`, or `npx vite` in apps/web with MELDFRAME_WEB_TOKEN set to any 16 or more
 // characters: this page needs no server) and Playwright from the global module path. Hand-run, not in CI.
 // It Tabs through /?states in both themes and asserts, on the computed styles: the focus ring (2 px, offset 2 px,
@@ -9,6 +10,7 @@ import { createRequire } from 'node:module';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const web = process.argv[2] ?? 'http://localhost:5173';
+const react = process.env.MELDFRAME_UI === 'react';
 const browser = await chromium.launch();
 const errors = [];
 
@@ -16,7 +18,7 @@ for (const theme of ['dark', 'light']) {
   const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })).newPage();
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.addInitScript((t) => localStorage.setItem('meldframe.theme', t), theme);
-  await page.goto(`${web}/?states`);
+  await page.goto(`${web}/?states${react ? '&react' : ''}`);
   await page.waitForSelector(`section[data-theme="${theme}"] button`);
 
   // Computed facts about every control of this theme's matrix.
@@ -66,4 +68,4 @@ for (const theme of ['dark', 'light']) {
 }
 assert.deepEqual(errors, [], 'page errors');
 await browser.close();
-console.log('states-e2e: ok');
+console.log(react ? 'states-e2e: ok (react)' : 'states-e2e: ok');

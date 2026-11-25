@@ -10,6 +10,7 @@ import { installPixiMeasurer } from './canvas/pixitext';
 import { createLayoutSwitch, layoutChoice } from '@meldframe/web-link/layoutswitch';
 import { loadFile, reloadOnDivergence } from '@meldframe/web-document/file';
 import { applyTheme, loadTheme } from '@meldframe/web-tokens/theme';
+import { mountPilot, pilotPage } from './react-pilot/pilot';
 
 applyTheme(loadTheme());
 const root = document.getElementById('app')!;
@@ -21,6 +22,8 @@ let editor: ReturnType<typeof mount> | undefined;
 
 async function start() {
   const page = new URLSearchParams(location.search);
+  const pilot = pilotPage(location.search); // the React pilot (E7.3, S1): /?states&react; removed with the last Svelte page
+  if (pilot) return mountPilot(pilot, root);
   if (page.has('tokens')) return mount(App, { target: root });
   if (page.has('states')) return mount((await import('@meldframe/web-chrome/StateMatrix.svelte')).default, { target: root });
   if (page.has('layout')) return mount((await import('@meldframe/web-shell/LayoutDemo.svelte')).default, { target: root }); // /?states and /?layout load on demand: the editor's bundle does not carry them
