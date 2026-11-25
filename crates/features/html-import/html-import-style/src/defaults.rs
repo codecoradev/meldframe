@@ -130,6 +130,15 @@ pub fn ua(tree: &Tree, id: ElementId) -> Vec<(&'static str, &'static str)> {
     out
 }
 
+/// The defaults of the `html` and the `body` that a fragment has no element for.
+pub fn ua_page(body: bool) -> Vec<(&'static str, &'static str)> {
+    if body {
+        vec![("display", "block"), ("margin", "8px")]
+    } else {
+        BLOCK.to_vec()
+    }
+}
+
 fn is_list(tag: &str) -> bool {
     matches!(tag, "ul" | "ol" | "dl" | "menu" | "dir")
 }
