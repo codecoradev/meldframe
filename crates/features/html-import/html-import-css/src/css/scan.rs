@@ -164,8 +164,16 @@ impl<'a> Cursor<'a> {
                             }
                             Some(b'\\') => {
                                 self.at += 1;
-                                if self.peek().is_some() {
-                                    self.at += self.ch().len_utf8();
+                                match self.peek() {
+                                    // A backslash and a line end (CRLF is one) join the lines of a string.
+                                    Some(b'\r') => {
+                                        self.at += 1;
+                                        if self.peek() == Some(b'\n') {
+                                            self.at += 1;
+                                        }
+                                    }
+                                    Some(_) => self.at += self.ch().len_utf8(),
+                                    None => {}
                                 }
                             }
                             Some(q) if q == c => {

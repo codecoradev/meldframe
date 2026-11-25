@@ -145,11 +145,12 @@ fn a_sheet_that_makes_var_cost_a_lot_stops_far_under_the_budget_in_declarations(
 #[test]
 fn a_value_shared_with_its_rule_is_kept_once_and_the_bytes_retained_stay_bounded() {
     use std::collections::HashSet;
-    // 200 rules of 900 bytes each, 1,000 paragraphs that every rule picks: 180 MB if each element copied each value.
+    // 200 rules of 900 bytes each, 400 paragraphs that every rule picks: 72 MB if each element copied each value (a
+    // declaration of 900 bytes is 15 steps, so more paragraphs would reach the budget of steps).
     let css: String = (0..200)
         .map(|i| format!("p{{a{i}:{}{i}}}", "v".repeat(897)))
         .collect();
-    let html = "<p>x</p>".repeat(1_000);
+    let html = "<p>x</p>".repeat(400);
     let (st, _, _) = style_cost(&html, &css, &Limits::default());
     assert!(st.complete);
     let mut seen = HashSet::new();
@@ -164,7 +165,7 @@ fn a_value_shared_with_its_rule_is_kept_once_and_the_bytes_retained_stay_bounded
             }
         }
     }
-    assert!(entries >= 200 * 1_000, "{entries}");
+    assert!(entries >= 200 * 400, "{entries}");
     assert!(
         distinct <= css.len(),
         "{distinct} bytes held for {} of css",
@@ -209,4 +210,114 @@ fn the_bytes_a_style_stage_keeps_are_bounded_and_the_elements_past_them_only_inh
     assert!(held > l.max_style_bytes / 2, "{held}");
     // The message says which bound it was.
     assert!(r.entries[0].message.contains("200000 bytes"));
+}
+
+#[test]
+fn a_declaration_is_charged_a_step_and_a_step_for_each_64_bytes_of_its_value() {
+    let at = |len: usize| steps("<div>x</div>", &format!("div{{width:{}}}", "1".repeat(len)));
+    assert_eq!((at(1), at(63)), (9, 9));
+    assert_eq!((at(64), at(127)), (10, 10));
+    assert_eq!((at(128), at(200), at(990)), (11, 12, 8 + 1 + 15));
+    // A shorthand is charged for the text it cuts up: a font of 990 bytes is 16 steps, not 1.
+    let font = format!("div{{font:12px {}}}", "a".repeat(980));
+    assert_eq!(steps("<div>x</div>", &font), 8 + 1 + 990 / 64);
+}
+
+#[test]
+fn many_long_shorthands_over_many_elements_are_cut_with_the_work_bounded() {
+    // 255 rules of a font of 990 bytes, over 5,000 paragraphs: 250 KB of css. Each declaration is 16 steps and its
+    // pieces are allocated for each element (about 1.4 KB), so the byte budget of 64 MiB ends it first, after about
+    // 180 paragraphs, and the steps stay under their own budget; the time is not asserted, the work is.
+    let css = format!("p{{font:12px {}}}", "a".repeat(980)).repeat(255);
+    let (st, work, r) = style_cost(&"<p>x</p>".repeat(5_000), &css, &Limits::default());
+    assert!(!st.complete);
+    assert_eq!(count(&r, "style_work_limit"), 1);
+    let done = st
+        .elements
+        .iter()
+        .filter(|s| s.props.contains_key("font-size"))
+        .count();
+    assert!((100..700).contains(&done), "{done}");
+    assert!(work <= Limits::default().max_work, "{work}");
+}
+
+/// The bytes the style stage kept before its last element: the smallest `max_style_bytes` that cuts nothing. The last
+/// element of `html` is the one that is not counted, so it is an `<i>` that makes nothing.
+fn bytes(html: &str, css: &str) -> usize {
+    let (mut lo, mut hi) = (0usize, 1usize << 22);
+    while lo < hi {
+        let mid = (lo + hi) / 2;
+        let l = Limits {
+            max_style_bytes: mid,
+            ..Limits::default()
+        };
+        if style_cost(html, css, &l).0.complete {
+            hi = mid;
+        } else {
+            lo = mid + 1;
+        }
+    }
+    lo
+}
+
+#[test]
+fn each_charge_of_the_byte_budget_is_pinned_alone() {
+    // 64 bytes for each property put, and the text that was made. The defaults are applied twice: the html has one
+    // property (display), the body two (display and a margin of four longhands), the div one: 2 * 64, 2 * (64 +
+    // 4 * 64 + 46 + 12) + 2 * 64, 2 * 64.
+    let page = "<div></div><i></i>";
+    let base = bytes(page, "");
+    assert_eq!(base, 128 + (128 + 2 * (64 + 4 * 64 + 46 + 12)) + 128);
+    // A declaration of a rule: one entry.
+    assert_eq!(bytes(page, "div{width:1px}"), base + 64);
+    // A shorthand: one entry, and for each longhand an entry and its name and value, which were made.
+    assert_eq!(
+        bytes(page, "div{padding:1px}"),
+        base + 64 + 4 * 64 + 50 + 4 * 3
+    );
+    // A value that is made by var(): its bytes.
+    assert_eq!(
+        bytes(page, ":root{--a:12345} div{width:var(--a)}"),
+        base + 64 + 5
+    );
+    // What an element inherits: an entry for each property, in the child.
+    let nested = "<div><span></span></div><i></i>";
+    let plain = bytes(nested, "");
+    assert_eq!(bytes(nested, "div{color:#f00}"), plain + 64 + 64);
+    // The custom properties an element copies from its parent: an entry for each one it copies, and none for the root.
+    assert_eq!(bytes(page, ":root{--a:1px}"), base);
+    assert_eq!(bytes(page, ":root{--a:1px} div{--b:2px}"), base + 64);
+    assert_eq!(
+        bytes(page, ":root{--a:1px;--c:3px} div{--b:2px}"),
+        base + 2 * 64
+    );
+    // A note: 128 bytes, its property and its value.
+    let note = |color: &str| bytes(&format!("<div style=\"color:{color}\"></div><i></i>"), "");
+    assert_eq!(note("lab(0 0 0)"), note("currentcolor") + 128 + 5 + 10);
+}
+
+#[test]
+fn many_short_properties_over_many_elements_are_cut_by_the_byte_budget_before_the_step_budget() {
+    // 300 properties of a paragraph make 19 KB of entries for each of 200 paragraphs: 60,000 steps, 3.8 MB. With a
+    // budget of 1 MB of bytes the stage stops after about 52 paragraphs, with the steps far under theirs.
+    let css: String = (0..300).map(|i| format!("p{{a{i}:1}}")).collect();
+    let l = Limits {
+        max_style_bytes: 1_000_000,
+        ..Limits::default()
+    };
+    let (st, work, r) = style_cost(&"<p>x</p>".repeat(200), &css, &l);
+    assert!(!st.complete);
+    assert_eq!(count(&r, "style_work_limit"), 1);
+    assert!(work < 100_000, "{work}");
+    assert!(
+        r.entries[0].message.contains("1000000 bytes"),
+        "{}",
+        r.entries[0].message
+    );
+    let done = st
+        .elements
+        .iter()
+        .filter(|s| s.props.contains_key("a0"))
+        .count();
+    assert!((45..60).contains(&done), "{done}");
 }
