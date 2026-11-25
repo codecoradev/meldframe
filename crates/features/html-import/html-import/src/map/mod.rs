@@ -28,6 +28,7 @@ use build::Builder;
 use build::put;
 use item::{Item, Notes, blank, flatten};
 use layout::{Ctx, Flow, set_padding};
+use meldframe_layout::{StubMeasurer, TextMeasurer};
 use meldframe_protocol::{Command, LayoutMode, NodeKind, SizeMode};
 use names::name_of;
 
@@ -82,6 +83,16 @@ impl Plan {
 /// Refused as [`ParseError`]: more than 256 KiB of `html` and `css` together, more than the limit of elements, or no
 /// element that makes a node. Anything else the source holds is mapped or listed in the report, never an error.
 pub fn plan(html: &str, css: &str, options: &Options) -> Result<Plan, ParseError> {
+    plan_with(html, css, options, &StubMeasurer)
+}
+
+/// Like [`plan`], measuring text with `measurer` (the stored sizes of what hugs).
+pub fn plan_with(
+    html: &str,
+    css: &str,
+    options: &Options,
+    measurer: &dyn TextMeasurer,
+) -> Result<Plan, ParseError> {
     let total = html.len() + css.len();
     if total > MAX_INPUT_BYTES {
         return Err(ParseError::TooLarge {
@@ -171,11 +182,40 @@ pub fn plan(html: &str, css: &str, options: &Options) -> Result<Plan, ParseError
             named: false,
         }
     };
-    let flat = flatten(root, &options.id_prefix);
+    let mut flat = flatten(root, &options.id_prefix);
+    store_sizes(&mut flat.commands, measurer);
     Ok(Plan {
         commands: flat.commands,
         nodes: flat.nodes,
         assets: flat.assets,
         report,
     })
+}
+
+/// The most a stored size may be (`meldframe_check::Limits::max_size`).
+const MAX_STORED: f64 = 100_000.0;
+
+/// The size of a node that hugs or fills is the layout's, not the stylesheet's: the layout core works it out over the
+/// nodes the Commands add, with `measurer` for the text, and it is stored in `w` and `h` (a fixed size is left as the page
+/// said). The layout orders siblings by `pos`, which the Commands do not carry (the server places each node after the
+/// last one); with none it falls back on the id, which changes no size, only the place of a node.
+fn store_sizes(commands: &mut [Command], measurer: &dyn TextMeasurer) {
+    let nodes: Vec<meldframe_protocol::Node> = commands
+        .iter()
+        .filter_map(|c| match c {
+            Command::AddNode { node, .. } => Some(node.clone()),
+            _ => None,
+        })
+        .collect();
+    let rects = meldframe_layout::compute_rects_indexed(&nodes, measurer);
+    for (i, r) in rects {
+        if let Some(Command::AddNode { node, .. }) = commands.get_mut(i) {
+            if node.sw != SizeMode::Fixed {
+                node.w = r.w.clamp(0.0, MAX_STORED);
+            }
+            if node.sh != SizeMode::Fixed {
+                node.h = r.h.clamp(0.0, MAX_STORED);
+            }
+        }
+    }
 }
