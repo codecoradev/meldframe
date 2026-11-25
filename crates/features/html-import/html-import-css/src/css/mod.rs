@@ -70,6 +70,10 @@ pub struct Limits {
     /// The most steps the cascade takes in all (a step is a selector looked at, a compound tested or a declaration
     /// made a candidate); the elements past it get no styles and the report says so. 2,000,000.
     pub max_work: usize,
+    /// The most bytes the style stage may keep for the properties of all the elements, apart from the text it shares
+    /// with the rules: 64 bytes for each property of an element and the text of what it made (a `var()` replaced, a
+    /// shorthand cut into longhands). The elements past it only inherit and the report says so. 64 MiB.
+    pub max_style_bytes: usize,
 }
 
 impl Default for Limits {
@@ -82,6 +86,7 @@ impl Default for Limits {
             max_depth: 16,
             max_selectors: 10_000,
             max_work: 2_000_000,
+            max_style_bytes: 64 * 1024 * 1024,
         }
     }
 }

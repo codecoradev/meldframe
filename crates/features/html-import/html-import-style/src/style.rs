@@ -56,8 +56,14 @@ impl Styles {
 pub(crate) struct Cx<'a> {
     pub l: &'a Limits,
     pub steps: usize,
+    /// Bytes kept: [`ENTRY_BYTES`] for each property put, and the text that was made.
+    pub bytes: usize,
     pub omitted: usize,
 }
+
+/// What a property of an element is charged for the entry itself (the name's pointer, the value's pointer and the
+/// source, in a tree of properties): a number, not a measure.
+pub(crate) const ENTRY_BYTES: usize = 64;
 
 impl Cx<'_> {
     pub fn note(&mut self, notes: &mut Vec<Note>, property: &str, value: &str, code: &'static str) {
@@ -78,7 +84,7 @@ impl Cx<'_> {
     }
 
     fn over(&self) -> bool {
-        self.steps > self.l.max_work
+        self.steps > self.l.max_work || self.bytes > self.l.max_style_bytes
     }
 }
 
@@ -176,6 +182,7 @@ fn apply(
         Origin::Author => Source::Author,
         Origin::Inline => Source::Inline,
     };
+    cx.bytes += ENTRY_BYTES;
     let value: Arc<str> = if has_var(&c.value) {
         let (r, cost) = resolve(
             &c.value,
@@ -184,7 +191,10 @@ fn apply(
         );
         cx.charge(cost);
         match r {
-            Ok(v) => v.into(),
+            Ok(v) => {
+                cx.bytes += v.len();
+                v.into()
+            }
             Err(e) => {
                 cx.note(notes, &c.name, &c.value, e.code());
                 return unset(props, ua, parent, &c.name, source);
@@ -197,6 +207,7 @@ fn apply(
         None => put(props, ua, parent, &c.name, value, source),
         Some(Ok(list)) => {
             for (n, v) in list {
+                cx.bytes += ENTRY_BYTES + n.len() + v.len();
                 put(props, ua, parent, &Arc::from(n), v.into(), source);
             }
         }
@@ -286,6 +297,7 @@ fn style_of(cx: &mut Cx, parent: &Style, place: Place, rem: f64, m: &Matched) ->
             )
         })
         .collect();
+    cx.bytes += s.props.len() * ENTRY_BYTES;
     s.custom = parent.custom.clone();
     let over = cx.over();
     let table = match place {
@@ -347,6 +359,7 @@ pub fn compute(tree: &Tree, c: &Cascade, limits: &Limits, report: &mut Report) -
     let mut cx = Cx {
         l: limits,
         steps: 0,
+        bytes: 0,
         omitted: 0,
     };
     let top = Style::root();
@@ -378,8 +391,8 @@ pub fn compute(tree: &Tree, c: &Cascade, limits: &Limits, report: &mut Report) -
         if cx.over() && !cut {
             cut = true;
             let msg = format!(
-                "computing styles took more than {} steps and stops at byte {}: the elements from there on only inherit",
-                limits.max_work, el.at
+                "computing styles took more than {} steps or {} bytes and stops at byte {}: the elements from there on only inherit",
+                limits.max_work, limits.max_style_bytes, el.at
             );
             report.note(EntryKind::Cut, "style_work_limit", "", msg, el.at);
         }
