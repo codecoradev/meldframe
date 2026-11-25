@@ -56,13 +56,14 @@ pub fn sanitize(s: &str, profile: Profile) -> Cow<'_, str> {
 }
 
 /// The longest start of `s` with at most `max_chars` characters (Unicode scalar values) and at most `max_bytes`
-/// bytes, cut between characters. Pass `usize::MAX` for a bound that does not apply.
+/// bytes, cut between characters. Pass `usize::MAX` for a bound that does not apply. A cut right after a zero-width
+/// joiner takes the joiner too, because it would join nothing and the display profile keeps it nowhere else.
 pub fn clip(s: &str, max_chars: usize, max_bytes: usize) -> &str {
     let mut end = 0;
     for (n, (i, c)) in s.char_indices().enumerate() {
         let next = i + c.len_utf8();
         if n >= max_chars || next > max_bytes {
-            return &s[..end];
+            return s[..end].trim_end_matches(ZWJ);
         }
         end = next;
     }

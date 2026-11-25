@@ -50,7 +50,8 @@ impl std::error::Error for TextError {}
 /// characters and at most `max_bytes` bytes (both are checked, because the two counts differ for a text that is not
 /// ASCII, and a caller that passes only one of them leaves the other open: pass `usize::MAX` for a bound that does
 /// not apply), no control or hidden character ([`crate::is_hidden_text`]) and no run of more than
-/// [`MAX_COMBINING_RUN`] combining marks. The first failing rule is the one reported, in that order.
+/// [`MAX_COMBINING_RUN`] combining marks. The first failing rule is the one reported, in that order: empty, bytes,
+/// characters (the byte count is a length read, so a huge text is refused before it is walked), hidden, marks.
 pub fn plain(s: &str, max_chars: usize, max_bytes: usize) -> Result<(), TextError> {
     if s.is_empty() {
         return Err(TextError::Empty);

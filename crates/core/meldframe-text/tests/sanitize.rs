@@ -126,3 +126,15 @@ fn clip_cuts_between_characters_in_both_counts() {
     // A two-byte character is not split.
     assert_eq!(clip("\u{e9}\u{e9}", usize::MAX, 3), "\u{e9}");
 }
+
+#[test]
+fn clip_does_not_leave_a_joiner_that_joins_nothing() {
+    // A woman technologist is woman, joiner, laptop: a cut after the joiner takes the joiner with it.
+    let tech = "\u{1F469}\u{200D}\u{1F4BB}";
+    assert_eq!(clip(tech, 2, usize::MAX), "\u{1F469}");
+    assert_eq!(clip(tech, usize::MAX, 7), "\u{1F469}");
+    assert_eq!(clip(tech, 3, usize::MAX), tech);
+    // The display profile keeps the whole sequence, and a cut after the clean text is still clean.
+    let shown = sanitize(tech, Profile::Display);
+    assert_eq!(clip(&shown, 2, usize::MAX), "\u{1F469}");
+}

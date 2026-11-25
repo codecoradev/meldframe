@@ -29,6 +29,9 @@ fn plain_refuses_empty_long_hidden_and_smeared_text_in_that_order() {
     let smeared = "a".to_owned() + &"\u{0301}".repeat(5);
     assert_eq!(plain(&smeared, 20, 20), Err(TextError::TooManyMarks));
     assert_eq!(plain("abcde", 5, 5), Ok(()));
+    // Over both caps, the byte count is the one reported (it is checked first, and read without walking the text).
+    let both = "\u{1F600}".repeat(101);
+    assert_eq!(plain(&both, 100, 100), Err(TextError::TooManyBytes(100)));
 }
 
 #[test]
