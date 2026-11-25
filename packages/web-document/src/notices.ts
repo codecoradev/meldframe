@@ -37,7 +37,7 @@ const WORDS: Record<string, string> = {
 
 // Refusals made on this page, before anything is sent: the Variables panel and the checks of the document.
 const LOCAL: Record<string, string> = {
-  invalid_value: 'That is not a number.',
+  invalid_value: 'That is not a valid value for this field.',
   not_bindable: 'That field cannot take a variable here.',
   invalid: 'That value is not allowed here.',
   limit: 'That is the most there can be.',

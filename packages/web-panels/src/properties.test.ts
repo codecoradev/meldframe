@@ -4,7 +4,10 @@ import type { Properties } from '@meldframe/protocol';
 import TestHost from '@meldframe/web-chrome/TestHost.svelte';
 import PropertiesPanel from './PropertiesPanel.svelte';
 
-const base: Properties = { id: 'n', name: 'Hero', kind: 'frame', x: 10, y: 20, w: 300, h: 120, fill: '#112233', fillKind: 'solid', gradientAllowed: true, imageAllowed: true, minStops: 2, maxStops: 8, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], maxShadows: 4, radius: 8, layout: 'none', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, margin: { top: 0, right: 0, bottom: 0, left: 0 }, sw: 'fixed', sh: 'fixed', align: 'start', justify: 'start', absolute: false, inLayout: false, positionLocked: false, notes: [], sections: { radius: true, clip: false, fontSize: false, layout: false, placement: false }, text: '', fontSize: 16, opacity: 0.5, clip: true, bound: [], bindings: [] };
+const FRAME = { radius: true, clip: true, fontSize: false, layout: true, placement: false };
+const RECT = { radius: true, clip: false, fontSize: false, layout: false, placement: false };
+const TEXT = { radius: false, clip: false, fontSize: true, layout: false, placement: false };
+const base: Properties = { id: 'n', name: 'Hero', kind: 'frame', x: 10, y: 20, w: 300, h: 120, fill: '#112233', fillKind: 'solid', gradientAllowed: true, imageAllowed: true, minStops: 2, maxStops: 8, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], maxShadows: 4, radius: 8, layout: 'none', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, margin: { top: 0, right: 0, bottom: 0, left: 0 }, sw: 'fixed', sh: 'fixed', align: 'start', justify: 'start', absolute: false, inLayout: false, positionLocked: false, notes: [], sections: FRAME, text: '', fontSize: 16, opacity: 0.5, clip: true, bound: [], bindings: [] };
 const b = (field: 'fill' | 'opacity' | 'radius', over = {}) => ({ field, variable: 'v1', name: 'space/md', missing: false, ...over });
 const html = (properties: Properties | null, selected = properties ? 1 : 0) =>
   render(TestHost as never, { props: { of: PropertiesPanel, props: { properties, selected, dispatch: () => {} } } as never }).body;
@@ -39,14 +42,14 @@ describe('the properties panel as the Properties and Inspector boards draw it', 
     for (const id of ['prop-w', 'prop-h']) expect(out.match(new RegExp(`<input[^>]*data-testid="${id}"[^>]*>`))![0]).not.toContain('disabled');
   });
   it('offers the fields of the kind: no corners on text, a font size instead, and only a frame clips', () => {
-    const text = html({ ...base, kind: 'text' });
+    const text = html({ ...base, kind: 'text', sections: TEXT });
     expect(text).toContain('data-testid="prop-fontSize"');
     expect(text).not.toContain('data-testid="prop-radius"');
     expect(text).not.toContain('data-testid="prop-clip"');
-    expect(html({ ...base, kind: 'rect' })).not.toContain('data-testid="prop-clip"');
+    expect(html({ ...base, kind: 'rect', sections: RECT })).not.toContain('data-testid="prop-clip"');
   });
   it('offers a weight and an alignment on a text, labelled, and on no other kind', () => {
-    const text = html({ ...base, kind: 'text', fontWeight: 700, textAlign: 'center' });
+    const text = html({ ...base, kind: 'text', sections: TEXT, fontWeight: 700, textAlign: 'center' });
     expect(text).toContain('data-testid="prop-fontWeight"');
     // The caption is the label of the select (one name, no aria-label over it), and the alignment group has a caption of its own.
     expect(text).toMatch(/<label for="prop-fontWeight"[^>]*>Font weight<\/label>/);
@@ -94,8 +97,8 @@ describe('the properties panel as the Properties and Inspector boards draw it', 
       expect(bound, f).not.toContain(`data-testid="prop-${f}-bind"`);
       for (const other of ['fill', 'opacity', 'radius'].filter((x) => x !== f)) expect(bound, `${f} bound, ${other}`).toContain(`data-testid="prop-${other}-bind"`);
     }
-    expect(html({ ...base, kind: 'text' })).not.toContain('data-testid="prop-radius-bind"');
-    expect(html({ ...base, kind: 'text' })).toContain('data-testid="prop-opacity-bind"');
+    expect(html({ ...base, kind: 'text', sections: TEXT })).not.toContain('data-testid="prop-radius-bind"');
+    expect(html({ ...base, kind: 'text', sections: TEXT })).toContain('data-testid="prop-opacity-bind"');
   });
   it('is one group named Properties with a rule above it, and its sections are the landmarks inside', () => {
     const out = html(base);

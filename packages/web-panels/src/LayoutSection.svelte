@@ -8,7 +8,8 @@
   import Field from '@meldframe/web-chrome/Field.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
-  import { ALIGNS, alignAction, gapAction, JUSTIFIES, justifyAction, LAYOUT_MODES, layoutAction, paddingAllAction, paddingSideAction, SIDES } from '@meldframe/web-document/layout';
+  import { ALIGNS, alignAction, JUSTIFIES, justifyAction, LAYOUT_MODES, layoutAction, SIDES } from '@meldframe/web-document/layout';
+  import { textAction } from '@meldframe/web-document/properties';
 
   interface Props {
     properties: Properties;
@@ -26,12 +27,12 @@
   <Segmented label="Layout direction" options={LAYOUT_MODES} value={p.layout} onChange={(v) => send(layoutAction(p, v as typeof p.layout))} data-testid="prop-layout" />
   {#if p.layout !== 'none'}
     <div class="grid grid-cols-2 gap-2">
-      <Field label="Gap" prefix="Gap" suffix="px" mono value={String(p.gap)} onCommit={(raw) => send(gapAction(p, raw))} testId="prop-gap" />
-      <Field label="Padding, all sides" prefix="Pad" suffix="px" mono value={all === undefined ? '' : String(all)} placeholder={all === undefined ? 'Mixed' : undefined} onCommit={(raw) => send(paddingAllAction(p, raw))} testId="prop-padding" />
+      <Field label="Gap" prefix="Gap" suffix="px" mono value={String(p.gap)} onCommit={(raw) => send(textAction(p, { type: 'gap' }, raw))} testId="prop-gap" />
+      <Field label="Padding, all sides" prefix="Pad" suffix="px" mono value={all === undefined ? '' : String(all)} placeholder={all === undefined ? 'Mixed' : undefined} onCommit={(raw) => send(textAction(p, { type: 'paddingAll' }, raw))} testId="prop-padding" />
     </div>
     <div class="grid grid-cols-2 gap-2">
       {#each SIDES as s (s.side)}
-        <Field label="Padding {s.label.toLowerCase()}" prefix={s.label[0]} mono value={String(p.padding[s.side])} onCommit={(raw) => send(paddingSideAction(p, s.side, raw))} testId="prop-padding-{s.side}" />
+        <Field label="Padding {s.label.toLowerCase()}" prefix={s.label[0]} mono value={String(p.padding[s.side])} onCommit={(raw) => send(textAction(p, { type: 'padding', side: s.side }, raw))} testId="prop-padding-{s.side}" />
       {/each}
     </div>
     <span class="text-text-muted">Align</span>
