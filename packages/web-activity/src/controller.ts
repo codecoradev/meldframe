@@ -60,7 +60,7 @@ export const createStep = (ui: Ui, canCreate: boolean, text: string): Step =>
 export function madeByRequest(asked: { label: string } | null, before: readonly Checkpoint[], now: readonly Checkpoint[], self: string): boolean {
   if (asked === null) return false;
   const had = new Set(before.map((c) => c.id));
-  return now.some((c) => !had.has(c.id) && c.kind === 'manual' && c.by === self && (c.label ?? '') === asked.label);
+  return now.some((c) => !had.has(c.id) && c.kind === 'manual' && c.by?.actor === self && (c.label ?? '') === asked.label);
 }
 
 /** Enter in the field makes the checkpoint; Enter that confirms an input method's text, or Shift+Enter, does not. */

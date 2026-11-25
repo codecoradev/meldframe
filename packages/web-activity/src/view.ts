@@ -1,19 +1,18 @@
 // The Activity panel as words and rows: what to call things and which rows go under which lane. Pure. The app layer
 // has already decided the lanes, their order, the counts and which row may be reverted; nothing here decides, it joins
 // and words what `state.activity` says (ADR-0021).
-import type { ActivityLane, ActivityState, BatchRow, BatchSummary, Checkpoint, CheckpointsStatus, Event, LaneKind, LaneState, ReviewState } from '@meldframe/protocol';
-import { actorLabel, actorTone } from '@meldframe/web-document/layers';
+import type { ActivityLane, ActivityState, ActorTone, BatchRow, BatchSummary, Checkpoint, CheckpointsStatus, Event, LaneKind, LaneState, ReviewState } from '@meldframe/protocol';
 
 export interface LaneView {
   actor: string;
-  /** What the lane is called: the actor's name, or You for the actor of this page. */
+  /** What the lane is called: the actor's name (safe to draw, from the actor view of the app layer), or You for the actor of this page. */
   name: string;
   kind: LaneKind;
   /** Always drawn beside the name: a bare name can look like another lane's (an agent called You, or `person:claude` and `agent:claude`). */
   kindWords: 'Agent' | 'Person';
   self: boolean;
-  /** One of the three agent colours, from the actor; null for a person (the person has its own colour). */
-  tone: 1 | 2 | 3 | null;
+  /** The colour the actor wears: the same tone as its layer rows, its touch rings and its checkpoints (the app layer's `ActorView`). */
+  tone: ActorTone;
   stateWords: string;
   ops: number;
   /** How many batches the lane has, as the app layer counts them (not the rows that could be joined). */
@@ -33,11 +32,11 @@ export function laneViews(a: ActivityState, self: string): LaneView[] {
   const byId = new Map(a.rows.map((r) => [id(r.actor, r.keyPrefix), r]));
   return a.lanes.map((l) => ({
     actor: l.actor,
-    name: l.actor === self ? 'You' : actorLabel(l.actor).name,
-    kind: l.kind,
-    kindWords: l.kind === 'agent' ? 'Agent' : 'Person',
+    name: l.actor === self ? 'You' : l.view.name,
+    kind: l.view.kind,
+    kindWords: l.view.kind === 'agent' ? 'Agent' : 'Person',
     self: l.actor === self,
-    tone: l.kind === 'agent' ? actorTone(l.actor) : null,
+    tone: l.view.tone,
     stateWords: STATE[l.state],
     ops: l.ops,
     batches: l.batches.length,
@@ -89,7 +88,7 @@ const CHECKPOINT_REFUSALS: Record<string, string> = {
 
 /** What a checkpoint is called: the person's label, or words for the ones the server took on its own. */
 export function checkpointWords(c: Checkpoint): string {
-  const who = c.about ? actorLabel(c.about).name : 'an actor';
+  const who = c.about ? c.about.name : 'an actor';
   switch (c.kind) {
     case 'manual': return c.label?.trim() || 'Checkpoint';
     case 'runStart': return `Before ${who}'s run`;
@@ -100,7 +99,7 @@ export function checkpointWords(c: Checkpoint): string {
 
 /** Who made a manual checkpoint, for a second line: the others are the server's own or say it in their words. */
 export function checkpointBy(c: Checkpoint): string | null {
-  return c.kind === 'manual' && c.by ? `Made by ${actorLabel(c.by).name}` : null;
+  return c.kind === 'manual' && c.by ? `Made by ${c.by.name}` : null;
 }
 
 /** Why Create checkpoint cannot be used, by what the app knows: nothing is blamed on the person for a list that is not there. */

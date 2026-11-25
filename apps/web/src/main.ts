@@ -34,6 +34,8 @@ async function start() {
   // A fresh nonce per page load: the app never reuses an idempotency key (see `App::new`).
   const session = crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
   const engine = Engine.create({ actor, session, nodes, seq, variables });
+  // Who changed each node before this page loaded: the app layer takes it in (made safe like any actor) and the Layers panel draws it.
+  engine.dispatch({ type: 'attribute', actors: Object.fromEntries(Object.entries(attribution).map(([id, a]) => [id, a.actor])) });
   // "Auto layout on canvas" (the palette entry; on by default): the canvas draws the laid-out boxes, with Pixi's text metrics on the
   // page's fonts. /?canvaslayout=0 and =1 force it for this page; the person's choice is remembered in this browser (AGENTS.md).
   const storage = () => { try { return localStorage; } catch { return null; } };
@@ -51,7 +53,7 @@ async function start() {
   });
   const sh = shell;
   editor = mount(Editor, { target: root, props: {
-      engine, file, actor, attribution, layout,
+      engine, file, actor, layout,
       captures: {
         subscribe: (fn: (r: CaptureRequest) => void) => {
           captureHandlers.add(fn);

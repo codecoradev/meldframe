@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Checkpoint } from '@meldframe/protocol';
 import { activity, lane, row } from './fixtures';
 import { askRestore, askRevert, cancel, confirmRestore, confirmRevert, createStep, isSubmitKey, laneOpen, madeByRequest, settle, show, start, toggleLane } from './controller';
+import { actorView } from '@meldframe/web-document/fixtures';
 
 const a = row({ actor: 'agent:a', keyPrefix: 'ka', n: 1 });
 const b = row({ actor: 'agent:b', keyPrefix: 'kb', n: 2 });
@@ -142,16 +143,16 @@ describe('Create checkpoint', () => {
 });
 
 describe('which new checkpoint is the one that was asked for', () => {
-  const made = (id: string, over: Partial<Checkpoint> = {}): Checkpoint => ({ id, n: Number(id), seq: 4, kind: 'manual', atMs: 1, by: 'person:ana', label: 'v1', ...over });
+  const made = (id: string, over: Partial<Checkpoint> = {}): Checkpoint => ({ id, n: Number(id), seq: 4, kind: 'manual', atMs: 1, by: actorView('person:ana'), label: 'v1', ...over });
   const before = [made('1', { label: 'old' })];
   const asked = { label: 'v1' };
   it('is the new manual row of this actor with the label that was asked for', () => {
     expect(madeByRequest(asked, before, [made('2'), ...before], 'person:ana')).toBe(true);
   });
   it('is not an agent run start, nor another person row, so text being corrected stays', () => {
-    const run = made('2', { kind: 'runStart', by: undefined, about: 'agent:x', label: undefined });
+    const run = made('2', { kind: 'runStart', by: undefined, about: actorView('agent:x'), label: undefined });
     expect(madeByRequest(asked, before, [run, ...before], 'person:ana')).toBe(false);
-    expect(madeByRequest(asked, before, [made('2', { by: 'person:bea' }), ...before], 'person:ana')).toBe(false);
+    expect(madeByRequest(asked, before, [made('2', { by: actorView('person:bea') }), ...before], 'person:ana')).toBe(false);
     expect(madeByRequest(asked, before, [made('2', { label: 'other' }), ...before], 'person:ana')).toBe(false);
   });
   it('is not a row that was there already, and nothing when no request is out or the request was refused', () => {
@@ -163,6 +164,6 @@ describe('which new checkpoint is the one that was asked for', () => {
     expect(madeByRequest({ label: '' }, before, [made('2', { label: undefined }), ...before], 'person:ana')).toBe(true);
     expect(madeByRequest({ label: '' }, before, [made('2'), ...before], 'person:ana')).toBe(false);
     // A row this person's revert or restore made, with no label, is not the unnamed checkpoint that was asked for.
-    expect(madeByRequest({ label: '' }, before, [made('2', { kind: 'beforeRevert', label: undefined, about: 'agent:x' }), ...before], 'person:ana')).toBe(false);
+    expect(madeByRequest({ label: '' }, before, [made('2', { kind: 'beforeRevert', label: undefined, about: actorView('agent:x') }), ...before], 'person:ana')).toBe(false);
   });
 });

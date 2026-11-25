@@ -32,7 +32,6 @@
   import VariablesPanel from './react-pilot/VariablesPanelSwitch.svelte'; // VariablesPanel.svelte of web-panels, or its React copy with /?react=variables (E7.3, S5)
   import ActivityPanel from '@meldframe/web-activity/ActivityPanel.svelte';
   import { tabChange, toastFor, type RightTab } from '@meldframe/web-activity/tab';
-  import { layerRows } from '@meldframe/web-document/layers';
   import { presetAction } from '@meldframe/web-shell/presets';
   import type { ExportScale } from '@meldframe/web-document/export';
   // The two switch files draw ExportDialog.svelte and ExportSection.svelte of web-export, or their React copies with /?react=export (E7.3, S2).
@@ -54,14 +53,12 @@
     file: string;
     /** The actor of this page: its own changes carry no label in the layers panel. */
     actor: string;
-    /** Who last changed each node when the file was loaded; live changes are in the app state. */
-    attribution?: Record<string, { actor: string; seq: number }>;
     /** "Auto layout on canvas": whether the canvas draws laid-out boxes, and the switch (the palette entry). */
     layout?: LayoutSwitch;
     /** Capture requests of agents: where they come from, and how to tell the server this editor cannot serve one. */
     captures?: { subscribe: (fn: (r: Req) => void) => () => void; fail: (requestId: string, code: string, message: string) => void };
   }
-  let { engine, file, actor, attribution = {}, layout, captures }: Props = $props();
+  let { engine, file, actor, layout, captures }: Props = $props();
   const reactFeedback = reactFeedbackOn(location.search); // the React copy of web-feedback (E7.3, S3): /?react=feedback; removed with the last Svelte page
   let autoLayout = $state(untrack(() => layout?.on ?? false));
 
@@ -86,16 +83,12 @@
 
   const dispatch = (a: Action) => void engine.dispatch(a);
 
-  // The layers: what the server stamped when the file loaded, then what the app saw change since.
-  const actors = $derived({ ...Object.fromEntries(Object.entries(attribution).map(([id, a]) => [id, a.actor])), ...snap.state.lastActor });
-  const rows = $derived(layerRows(nodes, scene, snap.state.panels.collapsed, snap.state.selection, actors));
-
   // The touch rings of other actors are the app layer's (`state.activity.touches`); the canvas draws them on its own clock.
   const noRings: Touched[] = [];
   const touches = $derived.by(() => {
     if (snap.state.activity.touches.length === 0) return noRings;
     const c = pixiColors(theme);
-    return ringsOnCanvas(snap.state.activity.touches, { epochMs: Date.now(), perfMs: performance.now() }, { person: c.person, agents: [c['agent-1'], c['agent-2'], c['agent-3']] });
+    return ringsOnCanvas(snap.state.activity.touches, { epochMs: Date.now(), perfMs: performance.now() }, { person: c.person, agent1: c['agent-1'], agent2: c['agent-2'], agent3: c['agent-3'] });
   });
 
   // An agent asks for a PNG of a node: the canvas draws it offscreen and the page uploads it (see capture.ts).
@@ -373,7 +366,7 @@
   {/snippet}
   {#snippet layersPanel()}
     <LayersPanel
-      {rows}
+      rows={snap.state.layers}
       self={actor}
       onSelect={(id, additive) => (additive ? dispatch({ type: 'toggleSelect', id }) : dispatch({ type: 'select', ids: [id] }))}
       onToggle={(id) => dispatch({ type: 'toggleCollapsed', id })}

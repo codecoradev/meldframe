@@ -1,10 +1,12 @@
 import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
-import type { LayerRow } from '@meldframe/web-document/layers';
+import type { LayerRow } from '@meldframe/protocol';
+import { actorView } from '@meldframe/web-document/fixtures';
 import LayersPanel from './LayersPanel.svelte';
 import { KIND_ICON, changedBy } from './layers';
 
 const row = (over: Partial<LayerRow>): LayerRow => ({ id: 'a', name: 'Hero', kind: 'frame', depth: 0, hasChildren: false, collapsed: false, selected: false, actor: null, ...over });
+const who = (actor: string, tone?: Parameters<typeof actorView>[1]) => ({ actor: actorView(actor, tone) });
 const html = (rows: LayerRow[], self = 'agent:dev') =>
   render(LayersPanel as never, { props: { rows, self, onSelect: () => {}, onToggle: () => {} } as never }).body;
 
@@ -37,17 +39,29 @@ describe('the layers panel as the Panels and EditorLight boards draw it', () => 
     expect(out).toContain('aria-expanded="false"');
   });
   it('shows another actor as a dot in its colour with the name in text for readers, and none for the page itself', () => {
-    const other = html([row({ actor: 'agent:a' })]);
+    const other = html([row(who('agent:a'))]);
     expect(other).toContain('data-testid="actor"');
     expect(other).toContain('title="Last changed by a"');
     expect(other).toMatch(/text-text-muted[^>]*>a</); // the name is in text on an idle row, not only a colour
     expect(other).toMatch(/bg-agent-[123]/);
-    expect(html([row({ actor: 'agent:dev' })])).not.toContain('data-testid="actor"');
+    expect(html([row(who('agent:dev'))])).not.toContain('data-testid="actor"');
   });
-  it('two agents do not have to share a colour, and the selected row shows the name in plain text', () => {
-    const tones = new Set(['agent:a', 'agent:b', 'agent:c', 'agent:d'].map((a) => (html([row({ actor: a })]).match(/bg-agent-(\d)/) ?? [])[1]));
-    expect(tones.size).toBeGreaterThan(1);
-    const sel = html([row({ actor: 'agent:a', selected: true })]);
+  it('draws the tone the app layer gave the actor, a person in the person colour, and works nothing out from the id', () => {
+    const dot = (actor: string, tone: Parameters<typeof actorView>[1]) => (html([row(who(actor, tone))]).match(/rounded-pill (bg-[a-z0-9-]+)/) ?? [])[1];
+    expect([dot('agent:a', 'agent1'), dot('agent:a', 'agent2'), dot('agent:a', 'agent3'), dot('person:ana', 'person')]).toEqual(['bg-agent-1', 'bg-agent-2', 'bg-agent-3', 'bg-person']);
+    // Whatever the characters of the id, the colour is the one the view carries (a non-BMP id gave two colours before).
+    expect(dot('agent:\u{1F300}', 'agent3')).toBe('bg-agent-3');
+    expect(html([row(who('agent:\u{1F300}', 'agent3'))])).toContain('data-tone="agent3"');
+  });
+  it('draws the name of the app layer as it is, and a node with no name left in words', () => {
+    // The app layer made every name safe to show; this panel draws it and cleans nothing.
+    expect(html([row({ name: 'a b' })])).toContain('a b');
+    const out = html([row({ name: '', hasChildren: true })]);
+    expect(out).toContain('(no name)');
+    expect(out).toContain('aria-label="Collapse (no name)"');
+  });
+  it('the selected row shows the name in plain text', () => {
+    const sel = html([row({ ...who('agent:a'), selected: true })]);
     expect(sel).toMatch(/text-selection-text[^>]*>a</);
     expect(sel).not.toContain('sr-only');
     expect(sel).toMatch(/aria-current="true"/);
@@ -68,16 +82,14 @@ describe('the layers panel as the Panels and EditorLight boards draw it', () => 
 
 describe('changedBy, which both copies of the panel call', () => {
   it('names another actor and says nothing for the page itself or a node nobody changed', () => {
-    expect(changedBy(row({ actor: 'agent:a' }), 'agent:dev')?.name).toBe('a');
-    expect(changedBy(row({ actor: 'agent:dev' }), 'agent:dev')).toBeNull();
+    expect(changedBy(row(who('agent:a')), 'agent:dev')?.name).toBe('a');
+    expect(changedBy(row(who('agent:dev')), 'agent:dev')).toBeNull();
     expect(changedBy(row({ actor: null }), 'agent:dev')).toBeNull();
   });
-  it('gives a person the person colour and an agent one of the three agent colours, the same every time', () => {
-    expect(changedBy(row({ actor: 'person:ana' }), 'agent:dev')?.dot).toBe('bg-person');
-    const dot = (a: string) => changedBy(row({ actor: a }), 'agent:dev')?.dot;
-    expect(dot('agent:a')).toMatch(/^bg-agent-[123]$/);
-    expect(dot('agent:a')).toBe(dot('agent:a'));
-    expect(new Set(['agent:a', 'agent:b', 'agent:c', 'agent:d'].map(dot)).size).toBeGreaterThan(1);
+  it('maps the tone of the app layer to a class and works nothing out from the id', () => {
+    const dot = (a: string, tone: Parameters<typeof actorView>[1]) => changedBy(row(who(a, tone)), 'agent:dev')?.dot;
+    expect([dot('person:ana', 'person'), dot('agent:a', 'agent1'), dot('agent:a', 'agent2'), dot('agent:a', 'agent3')]).toEqual(['bg-person', 'bg-agent-1', 'bg-agent-2', 'bg-agent-3']);
+    expect(dot('agent:\u{1F300}', 'agent3')).toBe('bg-agent-3');
   });
   it('knows an icon for every kind of node', () => {
     expect(Object.keys(KIND_ICON).sort()).toEqual(['ellipse', 'frame', 'rect', 'shader', 'text']);
