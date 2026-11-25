@@ -300,3 +300,68 @@ fn selectors_are_counted_over_the_whole_import() {
     assert_eq!(s.rules.len(), 10);
     assert_eq!(count(&r, "selector_limit"), 1);
 }
+
+#[test]
+fn only_ascii_white_space_is_trimmed_around_a_selector_a_statement_and_a_layer_name() {
+    // A no-break space is a character of a name, not space: it is in the selector, in both places.
+    assert_eq!(lines("\u{a0}b{x:1}"), ["\u{a0}b{x:1}"]);
+    assert_eq!(lines("b\u{a0}{x:1}"), ["b\u{a0}{x:1}"]);
+    assert_eq!(lines("a,\u{a0}c{x:1}"), ["a, \u{a0}c{x:1}"]);
+    assert_eq!(lines("\t\n\u{c}\r b \r\n{x:1}"), ["b{x:1}"]);
+    // A statement and an at-rule name have their own trim.
+    let (_, r) = sheet("\u{a0}junk; @media\u{a0}x{a{b:c}}");
+    assert_eq!(names(&r, "invalid_statement"), ["\u{a0}junk"]);
+    assert_eq!(names(&r, "at_rule_skipped"), ["@media\u{a0}x"]);
+    // And a declaration in a rule.
+    assert_eq!(lines("a{b:\u{a0}c\u{a0}}"), ["a{b:\u{a0}c\u{a0}}"]);
+}
+
+#[test]
+fn text_before_the_brace_that_closes_a_layer_is_listed_too() {
+    for css in [
+        "@layer a{ b{x:1} c:d }",
+        "@layer a{ b{x:1} junk }",
+        "@layer a{@layer b{ junk } b{x:1}}",
+    ] {
+        let (s, r) = sheet(css);
+        assert_eq!(s.rules.len(), 1, "{css}");
+        assert_eq!(r.entries.len(), 1, "{css}");
+        assert_eq!(r.entries[0].code, "invalid_statement", "{css}");
+    }
+    assert_eq!(
+        names(&sheet("@layer a{ b{x:1} c:d }").1, "invalid_statement"),
+        ["c:d"]
+    );
+    // Nothing before it, and a rule before it, say nothing.
+    assert!(sheet("@layer a{ b{x:1} }").1.entries.is_empty());
+    assert!(sheet("@layer a{}").1.entries.is_empty());
+    assert!(sheet("@layer a{ ; }").1.entries.is_empty());
+}
+
+#[test]
+fn a_selector_with_a_string_that_ends_at_its_line_drops_the_whole_list_and_the_next_rule_is_read() {
+    // The line end ends the string and the `{` after it opens the block: the rule is invalid as a whole, `a` too,
+    // which is not what reading the list selector by selector would do.
+    let (s, r) = sheet("a, [x=\"1\n]{c:d} b{e:f}");
+    assert_eq!(dump(&s), ["b{e:f}"]);
+    assert_eq!(names(&r, "selector_invalid").len(), 1);
+    assert!(r.entries[0].message.contains("line"), "{:?}", r.entries[0]);
+    // Without the line end the list is read selector by selector.
+    assert_eq!(lines("a, [x=\"1\"]{c:d}"), ["a, [x=1]{c:d}"]);
+}
+
+#[test]
+fn a_backslash_before_any_line_end_joins_the_lines_of_a_string_in_a_rule() {
+    for end in ["\n", "\r", "\r\n", "\u{c}"] {
+        assert_eq!(
+            lines(&format!("a{{b:\"x\\{end}y\";c:d}}")),
+            [format!("a{{b:\"x\\{end}y\"; c:d}}")],
+            "{end:?}"
+        );
+        assert_eq!(
+            lines(&format!("[a=\"x\\{end}y\"]{{c:d}}")),
+            ["[a=xy]{c:d}"],
+            "{end:?}"
+        );
+    }
+}

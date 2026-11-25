@@ -128,25 +128,42 @@ struct Run<'a> {
 impl Run<'_> {
     /// The selectors that could pick `n`, by what the last compound asks for.
     fn possible(&mut self, n: Node) -> Vec<(u32, u32)> {
-        let mut out = self.ix.any.clone();
-        let mut add = |l: Option<&Vec<(u32, u32)>>| out.extend(l.into_iter().flatten().copied());
+        let (ix, m) = (&self.ix, &mut self.m);
+        let mut out = Vec::new();
+        // A list is charged before it is copied, and not copied once the budget is gone, so that a hostile text cannot
+        // make a list of millions first and be charged after.
+        let mut add = |extra: usize, l: Option<&Vec<(u32, u32)>>| {
+            m.steps += extra;
+            if let Some(l) = l {
+                m.steps += l.len();
+                if !m.exhausted() {
+                    out.extend(l.iter().copied());
+                }
+            }
+        };
+        add(0, Some(&ix.any));
         match n {
             Node::Html | Node::Body => {
                 let t = if n == Node::Html { "html" } else { "body" };
-                add(self.ix.by_tag.get(t));
+                add(0, ix.by_tag.get(t));
             }
             Node::El(e) => {
                 let el = self.tree.element(e);
-                add(self.ix.by_tag.get(&el.tag));
+                add(0, ix.by_tag.get(&el.tag));
                 if let Some(id) = el.attr("id") {
-                    add(self.ix.by_id.get(id));
+                    add(0, ix.by_id.get(id));
                 }
+                // Each distinct class adds its list once, however often the attribute repeats it; each word of the
+                // attribute costs a step.
+                let mut seen = std::collections::HashSet::new();
                 for c in el.attr("class").unwrap_or("").split_ascii_whitespace() {
-                    add(self.ix.by_class.get(c));
+                    add(1, None);
+                    if seen.insert(c) {
+                        add(0, ix.by_class.get(c));
+                    }
                 }
             }
         }
-        self.m.steps += out.len();
         out
     }
 
