@@ -12,3 +12,6 @@ group = "html-import"
 
 [lints]
 workspace = true
+
+[dependencies]
+html-import-tree = { path = "../html-import-tree" }
