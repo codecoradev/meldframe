@@ -1783,6 +1783,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-import-html-paint-tests"
+version = "0.0.0"
+dependencies = [
+ "html-import",
+ "meldframe-check",
+ "meldframe-protocol",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-import-html-roundtrip-tests"
 version = "0.0.0"
 dependencies = [
