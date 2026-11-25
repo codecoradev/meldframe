@@ -6,12 +6,8 @@
 <script lang="ts">
   import Button from '@meldframe/web-chrome/Button.svelte';
 
-  export interface Banner {
-    id: string;
-    tone: 'warning' | 'danger';
-    text: string;
-    action?: { id: string; label: string };
-  }
+  import type { Banner } from './banner'; // shared with the React copy (react/BannerStack.tsx)
+
   interface Props {
     banners: readonly Banner[];
     onAction: (banner: string, action: string) => void;
