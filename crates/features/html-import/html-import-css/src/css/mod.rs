@@ -41,6 +41,7 @@ mod decl;
 mod matching;
 mod scan;
 pub mod selector;
+pub mod shorthand;
 pub mod value;
 pub mod vars;
 
