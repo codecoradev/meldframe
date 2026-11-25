@@ -395,10 +395,8 @@ impl<'a> Builder<'a> {
         };
         let mut kids = Vec::new();
         self.content(e, &inner, &mut kids);
-        let sized = node.sw == SizeMode::Fixed
-            && node.sh == SizeMode::Fixed
-            && st.len("width").is_some()
-            && st.len("height").is_some();
+        // A rect has a size on both axes, fixed or filling (the export writes a frame with no layout and a rect alike).
+        let sized = node.sw != SizeMode::Hug && node.sh != SizeMode::Hug;
         let childless = kids.is_empty();
         if childless && self.pre.paint[e.index()].ellipse && sized {
             node.kind = NodeKind::Ellipse;

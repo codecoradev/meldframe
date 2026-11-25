@@ -72,6 +72,21 @@ fn a_box_with_padding_is_a_frame_with_a_text_not_a_text() {
 }
 
 #[test]
+fn a_childless_box_with_a_fixed_height_and_a_filling_width_is_a_rect() {
+    let list =
+        map("<div data-name=Root><div data-name=Bar style='height:5px'></div><p>x</p></div>");
+    let bar = named(&list, "Bar");
+    assert_eq!(bar.kind, NodeKind::Rect);
+    assert_eq!(
+        (bar.sw, bar.sh),
+        (
+            meldframe_protocol::SizeMode::Fill,
+            meldframe_protocol::SizeMode::Fixed
+        )
+    );
+}
+
+#[test]
 fn a_childless_flex_container_or_padded_box_is_a_frame_not_a_rect() {
     let list = map(
         "<div data-name=Root><div data-name=Flex style='display:flex;width:10px;height:10px'></div>\
