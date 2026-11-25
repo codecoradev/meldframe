@@ -55,6 +55,7 @@ The same structured errors as the rest of the surface: a tool error `{"ok": fals
 |---|---|
 | `E_IMPORT_HTML_TOO_LARGE` | `html` and `css` together are over 256 KiB. Nothing is read. |
 | `E_IMPORT_HTML_TOO_MANY` | The import would write more than 100 Commands (open decision 3). The message says how many nodes the text makes and tells the agent to send one section at a time. Nothing is written. |
+| `E_IMPORT_HTML_TOO_MANY_ELEMENTS` | The HTML makes more than 5,000 elements (ADR-0024; the tree builder's own bound, `html::ParseError::TooMany`). Nothing is read further. The message tells the agent to send one section at a time. |
 | `E_IMPORT_HTML_EMPTY` | No element makes a node (all `display:none`, only scripts, or no markup). |
 | `E_IMPORT_HTML_UNSUPPORTED` | `strict` is true and at least one property was refused. The result lists them; nothing is written. |
 
@@ -117,10 +118,10 @@ An `addNode` that leaves a field out gets the default of `meldframe-protocol` (`
 | Source | Maps to | Status | Reason and pointer |
 |---|---|---|---|
 | `style` attribute | declarations | **supported** | |
-| Rules with type, `.class`, `#id`, `[attr]`, `[attr=value]`, `*`, compounds of those, descendant and child combinators, selector lists, and `[data-node="id"]` with CSS escapes | declarations by specificity, then source order; `!important` over normal | **supported** | The export's `css` form selects `[data-node="<id>"]` (ADR-0019), and its escaping (hex escapes) must be read back. |
+| Rules with type, `.class`, `#id`, `[attr]`, `[attr=value]`, `*`, compounds of those, descendant and child combinators, selector lists, and `[data-node="id"]` with CSS escapes | declarations by specificity, then source order; `!important` over normal | **supported** | The export's `css` form selects `[data-node="<id>"]` (ADR-0019), and its escaping (hex escapes) must be read back. The CSS reader also reads `:root` (the `html` element, where the export puts its variables) and a last `::before` or `::after` (the export's border form, row in 3.6), both spellings. |
 | Inheritance of `color`, `font-size`, `font-weight`, `text-align`, `white-space` | inherited values | **supported** | Text nodes need them (contract 4.2). `font-family` and `line-height` inherit too, and are refused where they land (3.5). |
 | Browser default styles (`h1` size and weight, `strong` weight, `p`, `ul`, `ol` and `blockquote` margins, `body` margin 8 px) | a small fixed table | **approximated** | Needed for a web page with no reset; the table is part of the slice and is listed in the tool text. Anything not in it uses CSS initial values, not the browser's. |
-| `:hover`, `:focus`, `:first-child`, `:nth-*`, `:not()`, `+`, `~` | rule skipped, selector label in the report | **refused** | State and structure selectors have no static meaning here. Precedent: a non-root rule is skipped with its selector in the report (ADR-0020). |
+| `:hover`, `:focus`, `:first-child`, `:nth-*`, `:not()`, `+`, `~`, `[a~=b]` and the other attribute operators, pseudo-elements other than `::before` and `::after` | selector skipped, selector label in the report | **refused** | State and structure selectors have no static meaning here. Reported as `selector_pseudo_class`, `selector_pseudo_element`, `selector_sibling` or `selector_attribute`; the other selectors of a list, and the rule with them, stay. A rule with none left is skipped. Precedent: a non-root rule is skipped with its selector in the report (ADR-0020). |
 | `@media`, `@supports`, `@container` | rule skipped | **refused** | Responsive output is outside the contract (contract open question 10); no viewport is known. The base rules apply. |
 | `@layer` | transparent | **supported** | As ADR-0020. |
 | `@import`, `@font-face`, `@keyframes`, `@property`, `<link rel=stylesheet>`, `url()` | never followed, listed | **refused** | Nothing is fetched. Only Inter Variable is available (contract section 6). |
