@@ -23,10 +23,13 @@
 mod border;
 mod fill;
 mod gradient;
+mod image;
 mod lex;
 mod misc;
 mod radius;
 mod shadow;
+
+pub use misc::handles;
 
 use crate::css::{EntryKind, Report, Style};
 use meldframe_protocol::{Bind, Border, Gradient, ImageFill, Node, Shadow};
@@ -201,6 +204,7 @@ pub fn read(style: &Style, ctx: &Ctx, at: usize, report: &mut Report) -> Paint {
     radius::read(style, ctx, &mut paint, &mut k);
     shadow::read(style, &mut paint, &mut k);
     misc::opacity(style, &mut paint, &mut k);
+    misc::refused(style, &mut k);
     k.report.work += k.steps;
     paint
 }
