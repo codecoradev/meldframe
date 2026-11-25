@@ -112,6 +112,10 @@ fn reference(s: &str, work: &mut usize) -> Option<(char, usize)> {
         if end == start || b.get(end) != Some(&b';') {
             return None;
         }
+        // This is how a browser reads a reference to a control character (it is the replacement character), so it is
+        // part of reading the document and not a cleaning of text for display (rule U9): the text the tree keeps is
+        // file content and keeps every other character, hidden ones included, as the user wrote it. The display layer
+        // makes it safe where it shows it.
         let c = char::from_u32(value)
             .filter(|c| !c.is_control() || matches!(c, '\t' | '\n'))
             .unwrap_or('\u{fffd}');

@@ -18,3 +18,4 @@ html-import-css = { path = "../html-import-css" }
 html-import-style = { path = "../html-import-style" }
 html-import-tree = { path = "../html-import-tree" }
 meldframe-protocol = { path = "../../../core/meldframe-protocol" }
+meldframe-text = { path = "../../../core/meldframe-text" }

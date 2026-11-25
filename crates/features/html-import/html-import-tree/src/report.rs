@@ -2,6 +2,7 @@
 //! happened, and a count of everything it dropped. Bounded as the report of `variables-import` is: a fixed number
 //! of entries and bytes, a name and a message cut, hidden characters removed from anything taken from the text.
 
+use meldframe_text::{Profile, sanitize_clip};
 use std::collections::BTreeMap;
 
 /// The most entries a report lists; the count of the rest is [`Report::omitted`].
@@ -103,17 +104,10 @@ impl Report {
     }
 }
 
-/// `s` with the characters a reader should not be shown removed (controls, bidi and other format characters), cut
-/// to `max` characters.
+/// `s` made safe to show (rule U9: the one set and the display profile of `meldframe-text`), cut to `max` characters.
+/// A report line is text for a person, so a joiner stays between two pictures and every other hidden character goes.
+/// Only what the report echoes is cleaned here: the text, tags and attributes the tree keeps are file content and are
+/// left as written.
 fn clean(s: &str, max: usize) -> String {
-    s.chars().filter(|c| !hidden(*c)).take(max).collect()
-}
-
-fn hidden(c: char) -> bool {
-    c.is_control()
-        || matches!(
-            c,
-            '\u{AD}' | '\u{34F}' | '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2060}'..='\u{206F}'
-                | '\u{FE00}'..='\u{FE0F}' | '\u{FEFF}' | '\u{E0000}'..='\u{E007F}'
-        )
+    sanitize_clip(s, Profile::Display, max, usize::MAX)
 }

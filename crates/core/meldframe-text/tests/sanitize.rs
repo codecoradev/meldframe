@@ -3,7 +3,7 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
-use meldframe_text::{Profile, clip, sanitize};
+use meldframe_text::{Profile, clip, sanitize, sanitize_clip};
 use std::borrow::Cow;
 
 const FAMILY: &str = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}\u{200D}\u{1F466}";
@@ -125,4 +125,45 @@ fn clip_cuts_between_characters_in_both_counts() {
     assert_eq!(clip(&text, 0, usize::MAX), "");
     // A two-byte character is not split.
     assert_eq!(clip("\u{e9}\u{e9}", usize::MAX, 3), "\u{e9}");
+}
+
+#[test]
+fn sanitize_clip_makes_safe_then_cuts_and_counts_both_ways() {
+    // The hidden characters do not count toward the cap: they are gone before the cut.
+    assert_eq!(
+        sanitize_clip(
+            "a\u{202E}b\u{200B}c\u{2028}d",
+            Profile::Display,
+            3,
+            usize::MAX
+        ),
+        "abc"
+    );
+    // Four-byte characters at the cap: the character cap and the byte cap each hold.
+    let text = "\u{1F600}".repeat(10);
+    assert_eq!(
+        sanitize_clip(&text, Profile::Display, 4, usize::MAX)
+            .chars()
+            .count(),
+        4
+    );
+    assert_eq!(
+        sanitize_clip(&text, Profile::Display, usize::MAX, 10),
+        "\u{1F600}\u{1F600}"
+    );
+    assert_eq!(sanitize_clip("", Profile::Strict, 3, 3), "");
+}
+
+#[test]
+fn a_cut_that_leaves_a_joiner_at_the_end_drops_it() {
+    // The family cut after its first joiner would end with a joiner that joins nothing.
+    let cut = sanitize_clip(FAMILY, Profile::Display, 2, usize::MAX);
+    assert_eq!(cut, "\u{1F468}");
+    // A cut after a whole member keeps what joined it.
+    let cut = sanitize_clip(FAMILY, Profile::Display, 3, usize::MAX);
+    assert_eq!(cut, "\u{1F468}\u{200D}\u{1F469}");
+    // A keycap cut before its enclosing mark loses the selector that was waiting for it.
+    assert_eq!(sanitize_clip(KEYCAP, Profile::Display, 2, usize::MAX), "1");
+    // Nothing to cut: the same text.
+    assert_eq!(sanitize_clip(FAMILY, Profile::Display, 20, 100), FAMILY);
 }
