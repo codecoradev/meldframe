@@ -11,6 +11,9 @@
 //! only against the selectors that could pick it. The whole cascade has a budget of steps ([`Limits::max_work`]):
 //! a text that would cost more (thousands of `*` rules over thousands of elements) is cut there, in the order of
 //! the elements, and the report says so; the elements left get no declarations at all.
+//!
+//! A report entry of a `style` attribute carries the byte where its element starts plus the offset inside the value,
+//! not a byte of the document: the tree keeps the start of the element and not of its attributes.
 
 use super::matching::{Matcher, Node};
 use super::selector::{Pseudo, Simple};
