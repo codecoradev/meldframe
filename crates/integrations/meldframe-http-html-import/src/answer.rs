@@ -10,6 +10,9 @@ use serde_json::{Value, json};
 /// The longest string of the text echoed in the answer, in characters.
 const ECHO: usize = 240;
 
+/// The most `approximated` and the most `unsupported` entries one node lists in the answer.
+const LISTED_PER_NODE: usize = 20;
+
 /// The most ids the `text_size_estimated` message lists.
 const LISTED_IDS: usize = 8;
 
@@ -79,11 +82,18 @@ pub fn describe(p: &Planned) -> Value {
         .nodes
         .iter()
         .map(|n| {
-            json!({"id": n.id, "name": echo(&n.name), "type": kind(n.kind), "source": echo(&n.source),
-                "approximated": n.approximated.iter().map(|a| json!({"property": echo(&a.property),
+            let mut row = json!({"id": n.id, "name": echo(&n.name), "type": kind(n.kind), "source": echo(&n.source),
+                "approximated": n.approximated.iter().take(LISTED_PER_NODE).map(|a| json!({"property": echo(&a.property),
                     "from": echo(&a.from), "to": echo(&a.to)})).collect::<Vec<_>>(),
-                "unsupported": n.unsupported.iter().map(|u| json!({"property": echo(&u.property),
-                    "value": echo(&u.value), "code": u.code})).collect::<Vec<_>>()})
+                "unsupported": n.unsupported.iter().take(LISTED_PER_NODE).map(|u| json!({"property": echo(&u.property),
+                    "value": echo(&u.value), "code": u.code})).collect::<Vec<_>>()});
+            // A style sheet can give an element thousands of properties: a node lists the first few and counts the rest.
+            for (key, all) in [("approximatedOmitted", n.approximated.len()), ("unsupportedOmitted", n.unsupported.len())] {
+                if all > LISTED_PER_NODE {
+                    row[key] = json!(all - LISTED_PER_NODE);
+                }
+            }
+            row
         })
         .collect();
     // An element that makes no node: the report keeps its tag and where it starts.

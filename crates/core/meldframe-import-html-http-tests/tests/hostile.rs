@@ -215,3 +215,36 @@ async fn nasty_pages_sent_to_the_server_get_an_answer_and_leave_the_file_valid()
     let tree = call(&c, "get_tree", json!({"file": "f"})).await;
     assert!(!tree.is_error, "{}", tree.body);
 }
+
+#[test]
+fn a_style_sheet_of_thousands_of_unread_properties_does_not_make_a_huge_answer() {
+    // `*` gives every element the same 8,000 properties the importer does not read: each node would list all of them.
+    let decls: String = (0..8_000).map(|i| format!("x-p{i}:1;")).collect();
+    let css = format!("*{{{decls}}}");
+    let boxes = "<div style='width:10px;height:10px;background:#eee'></div>".repeat(40);
+    let html = format!("<div id=r>{boxes}</div>");
+    let a = Args::parse(args_of(&html, json!({"css": css}))).unwrap();
+    let p = make(&a, ACTOR).expect("planned");
+    let lost: usize = p.plan.nodes.iter().map(|n| n.unsupported.len()).sum();
+    let answer = describe(&p);
+    let size = answer.to_string().len();
+    assert!(
+        size < 1_000_000,
+        "an answer of {size} bytes for {lost} listed properties"
+    );
+    // Each node lists 20 and counts the rest, so nothing is lost without a number.
+    let rows = answer["nodes"].as_array().unwrap().iter();
+    for (row, planned) in rows.zip(&p.plan.nodes) {
+        let (shown, left) = (
+            row["unsupported"].as_array().unwrap().len(),
+            planned.unsupported.len(),
+        );
+        assert_eq!(shown, left.min(20));
+        let omitted = row["unsupportedOmitted"].as_u64().unwrap_or(0) as usize;
+        assert_eq!(omitted, left.saturating_sub(20));
+    }
+    assert!(
+        lost > 1_000,
+        "the sheet gave the nodes thousands of properties: {lost}"
+    );
+}

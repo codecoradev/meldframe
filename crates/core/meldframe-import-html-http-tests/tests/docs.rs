@@ -5,7 +5,7 @@
 mod common;
 mod harness;
 use harness::*;
-use meldframe_http_html_import::{DESCRIPTION, TOOL, input_schema};
+use meldframe_http_html_import::{DESCRIPTION, MAX_IMPORT_KEY, TOOL, input_schema};
 use serde_json::{Value, json};
 
 const CATALOGUE: &str = include_str!("../../../../docs/mcp-tools.json");
@@ -100,6 +100,10 @@ fn the_tool_text_says_what_the_note_requires() {
     ] {
         assert!(t.contains(phrase), "the tool text says `{phrase}`");
     }
+    assert!(
+        t.contains(&format!("1 to {MAX_IMPORT_KEY} characters")),
+        "the key limit in the text is the code's"
+    );
     assert!(DESCRIPTION.is_ascii());
     assert!(!DESCRIPTION.contains('\u{2014}') && !DESCRIPTION.contains('\u{2013}'));
 }
