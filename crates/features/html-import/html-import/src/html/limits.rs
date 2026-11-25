@@ -4,8 +4,8 @@
 /// the others cut something and the report says what (see [`crate::html::Report`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Limits {
-    /// The most bytes of text (`docs/import-html.md` counts HTML and CSS together; the caller passes what is left for the HTML).
-    /// More is [`ParseError::TooLarge`], before anything is read. 256 KiB.
+    /// The most bytes of text (`docs/import-html.md` counts HTML and CSS together; the caller passes what is left
+    /// for the HTML). More is [`ParseError::TooLarge`], before anything is read. 256 KiB.
     pub max_input_bytes: usize,
     /// The most elements the tree holds (scripts and what the depth limit flattens are not counted). One more is
     /// [`ParseError::TooMany`]. 5,000, a starting guess with nothing behind it.
@@ -19,8 +19,8 @@ pub struct Limits {
     /// The most bytes of an attribute value, as written. A longer one is left out with its name. 1,000, the
     /// `MAX_VALUE` of the variables import.
     pub max_value_bytes: usize,
-    /// The most bytes of one text (a run of text and what sits between its comments); more is cut. A `<style>`
-    /// is bounded by the input and not by this. 64 KiB, a starting guess.
+    /// The most bytes of one text (a run of text and what sits between its comments); more is cut. Bytes are counted as
+    /// stored: a NUL is three, a reference is what it stands for. A `<style>` is bounded by the input and not by this. 64 KiB, a starting guess.
     pub max_text_bytes: usize,
 }
 
