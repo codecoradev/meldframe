@@ -1,0 +1,21 @@
+[package]
+name = "meldframe-import-html-css-tests"
+description = "The tests of the CSS side of the HTML import (E4.4): the selector reader, the style reader, the cascade, the computed style and the Tailwind decoder, with their bounds and hostile text. Split from the crate for the size ceiling. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+html-import = { path = "../../features/html-import/html-import" }
+
+# The tests run under WASM through wasm-bindgen-test (`just wasm-test`); each test file imports it as `test` on
+# wasm32 only. Keep the version in step with `meldframe-import-html-tests`.
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
+
+[lints]
+workspace = true

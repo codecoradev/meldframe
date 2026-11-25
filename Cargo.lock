@@ -728,8 +728,13 @@ dependencies = [
 name = "html-import"
 version = "0.0.0"
 dependencies = [
+ "html-import-css",
  "html-import-tree",
 ]
+
+[[package]]
+name = "html-import-css"
+version = "0.0.0"
 
 [[package]]
 name = "html-import-tree"
@@ -1744,6 +1749,14 @@ dependencies = [
  "rmcp",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "meldframe-import-html-css-tests"
+version = "0.0.0"
+dependencies = [
+ "html-import",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
