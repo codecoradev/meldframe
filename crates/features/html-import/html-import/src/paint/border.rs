@@ -229,7 +229,9 @@ fn export_box(style: &Style, k: &mut Sink) -> Option<Border> {
     Some(Border { position, ..border })
 }
 
-pub(super) fn read(style: &Style, out: &mut Paint, k: &mut Sink) {
+/// Read the border into `out`. Returns whether it is the export's box (the `::after` form), so that the radius of that
+/// box is read with it.
+pub(super) fn read(style: &Style, out: &mut Paint, k: &mut Sink) -> bool {
     let own = four_sides(&style.props, style, k);
     match (own, export_box(style, k)) {
         (own, Some(b)) => {
@@ -242,11 +244,13 @@ pub(super) fn read(style: &Style, out: &mut Paint, k: &mut Sink) {
                 );
             }
             out.border = b;
+            true
         }
         (Some(b), None) => {
             out.border_room = b.width;
             out.border = b;
+            false
         }
-        (None, None) => {}
+        (None, None) => false,
     }
 }
