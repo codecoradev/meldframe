@@ -2181,6 +2181,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-text"
+version = "0.0.0"
+dependencies = [
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-ui"
 version = "0.0.0"
 
