@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { fixtureItems } from './fixture';
-import { pilotPage } from './pilot';
+import { pilotPage, reactFor } from './pilot';
+
+describe('the switch of a React panel (S2)', () => {
+  it('names the panels that draw with React, and leaves every other page Svelte', () => {
+    expect(reactFor('export', '?react=export')).toBe(true);
+    expect(reactFor('export', '?canvaslayout=0&react=activity,export')).toBe(true);
+    expect(reactFor('export', '')).toBe(false); // the default is Svelte
+    expect(reactFor('export', '?react')).toBe(false); // the bare form is the state matrix page
+    expect(reactFor('export', '?react=exports')).toBe(false);
+    expect(reactFor('export', '?react=activity')).toBe(false);
+  });
+  it('does not turn the editor into the state matrix page', () => {
+    expect(pilotPage('?react=export', false)).toBeNull();
+  });
+});
 
 describe('the switch of the React pilot', () => {
   it('draws the React state matrix only when the page asks for it with `react`', () => {
