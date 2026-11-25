@@ -262,6 +262,8 @@ Cross-cutting work ordered by the owner, recorded in ADR-0026 and tracked as epi
 
 **Exit criteria of E7:** the decisions are recorded; standard v1.3 is mirrored and enforced; the TypeScript front end is audited against U1 to U9, what is more than rendering is in the app layer, and the web packages have enforced boundaries; the web client is React with no Svelte left; the desktop spike has a written result against its written exit criteria.
 
+**Audits of 25 Nov 2026 and their findings.** `docs/audits/2026-11-25-rust-modular-monolith.md` (Rust workspace against D1 and U9) and `docs/audits/2026-11-25-ts-thin-ui.md` (TypeScript front end against U1 to U9). Findings are tracked as issues under #305: Rust #311 to #317 (one text helper for U9, `touches` copied, one home per duplicated helper, `mm-check`, merging the crates split for the old ceiling, the 44 test-only crates, the crate kinds decision for the owner), TypeScript #319 to #324 (U9 in the front end, one actor view, limits copied from Rust, typed text and variables rules, answer validators, the lower priorities).
+
 ### E7.1 Adopt standard v1.3 (S, #306)
 - [ ] `docs/standards/modular-thin-ui.md` is v1.3 (the text of D1, U9, D8, the checklist, the anti-patterns and the adoption row), in the repository's public wording (no internal room names).
 - [ ] `cargo xtask size-check` enforces 50,000 lines a crate and 500 a file, with its tests first, and the allow-list semantics (entries only go down) are unchanged; the note that names crates above 2,500 lines stays.
