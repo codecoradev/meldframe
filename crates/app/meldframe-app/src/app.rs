@@ -192,6 +192,7 @@ impl App {
         match self.level {
             Level::Nothing => self.activity_changed(),
             Level::Ui => {
+                self.refresh_layers();
                 self.refresh_properties();
                 self.refresh_variables();
                 self.refresh_picker();
@@ -275,6 +276,7 @@ impl App {
             self.events.push(Event::SelectionChanged { ids: rest });
         }
         self.prune_modes();
+        self.refresh_layers();
         self.refresh_properties();
         self.refresh_variables();
         self.activity_changed();

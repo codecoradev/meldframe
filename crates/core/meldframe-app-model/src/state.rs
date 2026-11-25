@@ -4,6 +4,7 @@ use crate::activity::ActivityState;
 use crate::assets::AssetsState;
 use crate::checkpoint::{Checkpoint, CheckpointsStatus};
 use crate::export::ExportState;
+use crate::layers::LayerRow;
 use crate::layout::{LayoutNote, Sides};
 use crate::variables::{BindField, Picker, VariablesPanel};
 use crate::variables_io::VariablesIo;
@@ -35,8 +36,13 @@ pub struct AppState {
     pub history: History,
     /// Idempotency keys of the person's ops the server has not confirmed yet, oldest first.
     pub pending: Vec<String>,
-    /// For the layers panel: the actor of the last change to each node, as the server stamped it.
+    /// For the layers panel: the actor of the last change to each node, as the server stamped it, made safe to show
+    /// and to key by (rule U9: strict profile, at most 128 bytes).
     pub last_actor: BTreeMap<String, String>,
+    /// The Layers panel: its rows with every name made safe to show (rule U9). Filled while `panels.layers` is open,
+    /// empty otherwise.
+    #[serde(default)]
+    pub layers: Vec<LayerRow>,
     /// The checkpoints of the file as the server last said (E5.3, ADR-0023), newest first: a person's, the one the
     /// server takes when an agent's run starts, and the ones before a revert or a restore. The app never adds one
     /// itself: a row is here when the server has said so.
@@ -163,6 +169,7 @@ pub struct History {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Properties {
     pub id: String,
+    /// The node's name made safe to show (display profile, `meldframe_text::label`); the file keeps what was written.
     pub name: String,
     pub kind: NodeKind,
     pub x: f64,
@@ -251,7 +258,7 @@ pub struct FieldBinding {
     pub field: BindField,
     /// The id of the variable.
     pub variable: String,
-    /// Its name, as the Variables panel lists it; the id when the variable is gone.
+    /// Its name, as the Variables panel lists it (made safe to show); the id when the variable is gone.
     pub name: String,
     /// The variable no longer exists (another actor removed it): the field keeps the binding and paints its default.
     pub missing: bool,
