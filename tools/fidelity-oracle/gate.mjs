@@ -4,6 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { KNOWN_GAPS } from './known-gaps.mjs';
 import { OUT } from './lib.mjs';
+import { evaluateImport, reportImport } from './gate-import.mjs';
 
 export const LIMITS = { geometry: 0.05, tailwind: 0.001, ink: 1, blur: 20 };
 /** A run that checks less than this is not a run of the oracle: the hand-written fixtures, and the share of the seeds the gate must hold. */
@@ -20,7 +21,7 @@ export function evaluate(results) {
   const names = new Set(files.map((d) => d.name));
   if (!(results.seeds >= 1)) fail.push('the run has no fuzz seeds (--seeds must be 1 or more)');
   if (!results.only) {
-    const fixtures = files.filter((d) => !d.fuzz), fuzz = files.filter((d) => d.fuzz);
+    const fixtures = files.filter((d) => !d.fuzz && !d.imported), fuzz = files.filter((d) => d.fuzz);
     if (fixtures.length < FLOORS.fixtures) fail.push(`only ${fixtures.length} fixtures ran (at least ${FLOORS.fixtures})`);
     if (fuzz.length !== results.seeds) fail.push(`${fuzz.length} fuzz files ran for ${results.seeds} seeds`);
     const gated = fuzz.filter((d) => !d.unspecified).length;
@@ -39,6 +40,7 @@ export function evaluate(results) {
     }
     if (!results.ink?.rows?.length) fail.push('the text ink oracle ran no case');
     if (!results.blur?.length) fail.push('the blur check ran no case');
+    fail.push(...evaluateImport(results));
   }
   for (const p of results.paint?.probes ?? []) if (!p.ok) fail.push(`paint probe failed: ${p.id} at ${p.at}, wanted ${p.want}, got rgb(${p.got})`);
   for (const f of results.paint?.forms ?? []) if (!(f.differing === 0)) fail.push(`${f.fixture}: the Tailwind page and the CSS page differ in ${f.differing} pixels`);
@@ -58,7 +60,7 @@ export function evaluate(results) {
       if (r.max > LIMITS.geometry) problems.push({ kind: 'box', text: `${key}: box off by ${r.max.toFixed(3)} px at ${r.worst} (limit ${LIMITS.geometry})`, nodes: r.bad ?? [] });
     }
     if (d.twVsCss && d.twVsCss.max > LIMITS.tailwind) problems.push({ kind: 'tailwind', text: `tailwind differs from css by ${d.twVsCss.max.toFixed(4)} px at ${d.twVsCss.worst}` });
-    if (d.fuzz && d.fillUnderHug) problems.push({ kind: 'g1', text: 'the export reports fill_under_hug on a fuzz file that rule G1 was applied to (fuzz.mjs normaliseG1 missed a case)' });
+    if ((d.fuzz || d.imported) && d.fillUnderHug) problems.push({ kind: 'g1', text: 'the export reports fill_under_hug on a fuzz file that rule G1 was applied to (fuzz.mjs normaliseG1 missed a case)' });
     const gap = KNOWN_GAPS[d.name];
     if (gap) {
       const why = [];
@@ -72,8 +74,8 @@ export function evaluate(results) {
       else for (const w of [...new Set(why)]) fail.push(`${d.name}: known gap no longer as stated: ${w}`);
       continue;
     }
-    // rule G3: the contract promises no box there, so box deltas are not gated; an export error, a missing node and a font are
-    const gated = d.fuzz && d.unspecified ? problems.filter((p) => p.kind !== 'box') : problems;
+    // rule G3: the contract promises no box there (in a fuzz file or in an imported file), so box deltas are not gated; an export error, a missing node and a font are
+    const gated = (d.fuzz || d.imported) && d.unspecified ? problems.filter((p) => p.kind !== 'box') : problems;
     for (const p of gated) fail.push(`${d.name}: ${p.text}${d.nodesJson ? `\n  file (add it as a fixture): ${JSON.stringify(d.nodesJson)}` : ''}`);
   }
   return fail;
@@ -83,13 +85,16 @@ export function evaluate(results) {
 export function report(results, failures, log) {
   const docs = results.geometry?.files ?? [];
   const max = (list, f) => list.reduce((m, d) => Math.max(m, ...Object.values(d.runs).map(f)), 0);
-  const fixtures = docs.filter((d) => !d.fuzz), fuzz = docs.filter((d) => d.fuzz);
+  const fixtures = docs.filter((d) => !d.fuzz && !d.imported), fuzz = docs.filter((d) => d.fuzz);
   const gated = fuzz.filter((d) => !d.unspecified);
   log(`fixtures ${fixtures.length} (${fixtures.reduce((n, d) => n + d.nodes, 0)} nodes), known gaps ${fixtures.filter((d) => KNOWN_GAPS[d.name]).length}`);
   log(`  max box delta outside the known gaps: ${max(fixtures.filter((d) => !KNOWN_GAPS[d.name]), (r) => r.max).toFixed(4)} px`);
   log(`fuzz ${fuzz.length} seeds (${fuzz.reduce((n, d) => n + d.nodes, 0)} nodes), gated ${gated.length}, outside the contract (rule G3) ${fuzz.length - gated.length}, of which the export did not warn ${fuzz.filter((d) => d.silentG3).length}`);
   log(`  max box delta in the gated seeds: ${max(gated, (r) => r.max).toFixed(4)} px`);
   log(`  max tailwind vs css delta: ${Math.max(0, ...docs.filter((d) => !KNOWN_GAPS[d.name] && d.twVsCss).map((d) => d.twVsCss.max)).toFixed(4)} px`);
+  reportImport(results, log);
+  const imported = docs.filter((d) => d.imported);
+  if (imported.length) log(`imported files ${imported.length} (${imported.reduce((n, d) => n + d.nodes, 0)} nodes), their export against the core: max box delta ${max(imported.filter((d) => !d.unspecified), (r) => r.max).toFixed(4)} px, outside the contract (rule G3) ${imported.filter((d) => d.unspecified).length}`);
   if (results.paint) log(`paint probes ${results.paint.probes.filter((p) => p.ok).length}/${results.paint.probes.length}, pixels differing between the forms ${results.paint.forms.reduce((n, f) => n + f.differing, 0)}`);
   if (results.ink) log(`text ink: ${new Set(results.ink.rows.map((r) => r.id)).size} cases, largest edge difference ${results.ink.worst} px (limit ${LIMITS.ink})`);
   if (results.blur) log(`CSS blur model against Pixi (not the export): largest falloff difference ${Math.max(...results.blur.map((b) => b.maxAbs))}/255 (limit ${LIMITS.blur})`);

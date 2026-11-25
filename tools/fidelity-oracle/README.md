@@ -31,6 +31,16 @@ For each file (hand-written fixtures in `fixtures.mjs`, seeded fuzz files in `fu
    did not load, when the Tailwind page differs from the CSS page by more than 0.001 px (boxes) or at all (pixels), when
    a probe fails, when an ink edge is more than 1 px away, or when a blur falloff is more than 20/255 away.
 
+7. The importer (`import.mjs`, `gate-import.mjs`; E4.4 slice 8, `docs/fidelity-contract.md` section 10). The runner imports every
+   exported frame back with `html_import::map::plan_with` (the css form from its own style block, the Tailwind form with the css
+   the export returns), lays the imported file out with the same measurer, and compares it with the original: every box within
+   0.05 px, every field the export writes (`compare.rs` of the runner), no refused property beyond the five an export always
+   carries (`EXPORT_REFUSED`), and export, import, export giving the same HTML once the ids are renamed. The file the css form
+   comes back as is exported again and loaded like any other (`imported` files of the geometry oracle). The hand-written pages
+   `h01` onward (`pages.mjs`, and `pages-gaps.mjs` for the known gaps) are loaded as written in Chromium: the box of every
+   element with a `data-name` is compared with the layout core's rect of the imported node of that name, and for the pages marked
+   `pixels` the pixels of the page against the pixels of the export of its import (inside the root box, none may differ).
+
 Text: the core asks a measurer for the size of every text. The runner replays a table that this harness records in
 Chromium with Pixi `CanvasTextMetrics` and Inter (the way the canvas draws text); a query the table lacks comes back as a
 miss, the harness measures it and runs again until nothing is missing (two or three runs).
@@ -41,6 +51,10 @@ miss, the harness measures it and runs again until nothing is missing (two or th
 must still be there and the only nodes allowed to be off. They are checked in both directions: the gate passes while a
 fixture fails in that way, and fails on the day it passes, or when it fails in any other way (a font, Tailwind against CSS, a
 node outside the cause, an export error), so the entry is removed and the contract updated.
+
+`IMPORT_GAPS` in the same file lists what the importer does not match, in the same two directions: a hand-written page (`kind: 'page'`)
+or a fixture imported back from its export (`kind: 'roundtrip'`) with its cause, the finding the importer must still report (or none, when
+it is silent), and the only nodes allowed to be off (and `pixels: true` where the gap is a difference of pixels).
 
 Outside the contract by rule: fuzz files where a layout frame is smaller than its padding, its children overflow it, or a
 fill resolves to under 1 px (rule G3; the contract promises nothing there). They are counted, not gated. Fuzz files
@@ -68,7 +82,7 @@ npx playwright install chromium                 # once; Chromium comes with Play
 node oracle.mjs --seeds 50                      # what a pull request runs (npm run oracle)
 node oracle.mjs --seeds 500                     # what the nightly runs
 node oracle.mjs --seeds 50 --geometry-only      # skip the paint and ink oracles (the slow part is the browser start)
-node oracle.mjs f13-overflow fz-007 --seeds 10  # only these files (geometry only)
+node oracle.mjs f13-overflow fz-007 --seeds 10  # only these files (geometry only; no import checks)
 npm test                                        # the gate on made-up results, the platform guard and the screenshot retry on a fake page (no browser)
 npm run sensitivity                             # the gate fails on a wrong export (mutations in geometry and paint are caught; a mutation whose search string is not in an export counts as missed)
 ```

@@ -48,8 +48,9 @@ function subtree(nodes, root) {
 
 /** Runs the fixtures and `seeds` fuzz files. Returns one record per file. */
 /** `mutate(form, exported)` may change an export before it is loaded: the sensitivity check (sensitivity.mjs) uses it to prove that the gate fails on a wrong export. */
-export async function geometry({ browser, base, mp, seeds, only = [], log = () => {}, mutate = (_form, e) => e }) {
-  const docs = [...fixtures, ...fuzzFixtures(seeds)].filter((d) => !only.length || only.includes(d.name));
+export async function geometry({ browser, base, mp, seeds, only = [], log = () => {}, mutate = (_form, e) => e, files = null }) {
+  // `files` replaces the fixtures and the fuzz files: oracle.mjs gives the imported files back (import.mjs), loaded as any other file
+  const docs = files ?? [...fixtures, ...fuzzFixtures(seeds)].filter((d) => !only.length || only.includes(d.name));
   const { out, table, rounds } = await solve(docs.map(({ name, nodes, variables, modes }) => ({ name, nodes, variables, modes })), mp);
   log(`text table settled in ${rounds} runs, ${table.size} measurements`);
   const contexts = await Promise.all(SETTINGS.map(async ([label, viewport, dpr]) => ({ label, ctx: await browser.newContext({ viewport, deviceScaleFactor: dpr }) })));
@@ -57,7 +58,7 @@ export async function geometry({ browser, base, mp, seeds, only = [], log = () =
   const records = [];
   for (const [i, doc] of docs.entries()) {
     const ans = out.fixtures[i];
-    const rec = { name: doc.name, fuzz: !!doc.fuzz, nodes: doc.nodes.length, textNodes: doc.nodes.filter((n) => n.type === 'text').length, errors: ans.errors, frames: [], warnings: [], unsupported: [], runs: {}, twVsCss: null };
+    const rec = { name: doc.name, fuzz: !!doc.fuzz, imported: !!doc.imported, nodes: doc.nodes.length, textNodes: doc.nodes.filter((n) => n.type === 'text').length, errors: ans.errors, frames: [], warnings: [], unsupported: [], runs: {}, twVsCss: null };
     for (const fr of ans.frames) {
       const ids = subtree(doc.nodes, fr.id);
       const expected = Object.fromEntries(Object.entries(ans.rects).filter(([id]) => ids.has(id)));
@@ -69,8 +70,8 @@ export async function geometry({ browser, base, mp, seeds, only = [], log = () =
         rec.warnings.push(...exp.warnings);
         rec.unsupported.push(...exp.unsupported);
         const url = await writePage(base, `${doc.name}/${fr.id}.${form}`, form, exp);
-        // fuzz files are checked at one setting, the hand-written fixtures at all three (contract section 7)
-        for (const [label] of doc.fuzz ? SETTINGS.slice(0, 1) : SETTINGS) {
+        // fuzz files and imported files are checked at one setting, the hand-written fixtures at all three (contract section 7)
+        for (const [label] of doc.fuzz || doc.imported ? SETTINGS.slice(0, 1) : SETTINGS) {
           const page = pages[label];
           await page.goto(url);
           const fontOk = await fontsReady(page);
@@ -105,5 +106,5 @@ export async function geometry({ browser, base, mp, seeds, only = [], log = () =
     records.push(rec);
   }
   await Promise.all(contexts.map(({ ctx }) => ctx.close()));
-  return { files: records, rounds, measurements: table.size };
+  return { files: records, rounds, measurements: table.size, docs, out };
 }

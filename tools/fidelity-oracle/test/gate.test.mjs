@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { KNOWN_GAPS } from '../known-gaps.mjs';
 import { FLOORS, PAINT_FIXTURES } from '../gate.mjs';
 import { overflowing } from '../geometry.mjs';
+import { importSection } from './import-results.mjs';
 
 const gate = path.join(path.dirname(fileURLToPath(import.meta.url)), '../gate.mjs');
 const run = (name, max, extra = {}) => ({ name, fuzz: false, nodes: 3, textNodes: 0, errors: [], warnings: [], runs: { 'css@1280@1': { max, worst: 'a', missing: 0, fontOk: true, bad: max > 0.05 ? ['a'] : [] } }, twVsCss: { max: 0, worst: 'a' }, ...extra });
@@ -24,6 +25,7 @@ const sections = {
   paint: { probes: probesFor(PAINT_FIXTURES), forms: PAINT_FIXTURES.map((fixture) => ({ fixture, differing: 0 })) },
   ink: { rows: [{ id: 'hug700', form: 'css', dLeft: 0, dRight: 0, dTop: 0, dBottom: 0 }], worst: 0 },
   blur: [{ blur: 8, maxAbs: 19 }],
+  import: importSection(),
 };
 const gaps = Object.keys(KNOWN_GAPS);
 /** A gap that fails in the way its entry says. */
@@ -143,4 +145,10 @@ test('overflowing: padding larger than the box, children larger than the content
   assert.equal(overflowing([frame({ padding: 30 }), kid({})], rects({ w: 50, h: 50 }, { w: 1, h: 1 })), true);
   assert.equal(overflowing([frame({}), kid({})], rects({ w: 100, h: 50 }, { w: 120, h: 20 })), true);
   assert.equal(overflowing([frame({}), kid({ sw: 'fill' })], rects({ w: 100, h: 50 }, { w: 0.5, h: 20 })), true);
+});
+test('a violation of the importer oracle fails the gate, and a gap of the importer that closed does', () => {
+  const bad = importSection();
+  bad.pages[bad.pages.length - 1] = { ...bad.pages[bad.pages.length - 1], max: 0.5, worst: 'a', bad: ['a'], detail: [] };
+  assert.equal(exit(full(), { import: bad }).code, 1);
+  assert.equal(exit(full(), { import: undefined }).code, 1, 'no import section');
 });
