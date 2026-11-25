@@ -230,8 +230,9 @@ fn each_charge_of_the_budget_is_pinned_alone() {
     // A selector looked at: the html and body of a fragment and the paragraph each look at three, test three
     // (a compound with no part costs 1) and make three declarations candidates: 3 * (3 + 3 + 3).
     assert_eq!(steps("<p>", "*{x:1} *{x:1} *{x:1}"), 27);
-    // A compound costs 1 and one for each part: `p.a.b#c[d]` is 6, found through its id (1), with 1 declaration.
-    assert_eq!(steps("<p class=\"a b\" id=c d>", "p.a.b#c[d]{x:1}"), 8);
+    // A compound costs 1 and one for each part: `p.a.b#c[d]` is 6, found through its id (1), with 1 declaration, and
+    // each of the two words of the class attribute costs a step (a class is looked up once, however it is repeated).
+    assert_eq!(steps("<p class=\"a b\" id=c d>", "p.a.b#c[d]{x:1}"), 8 + 2);
     // A declaration of a rule that picks the element costs 1: 20,000 of them, for the two virtual elements and three
     // paragraphs, each with its one selector looked at and one compound.
     let wide = format!("*{{{}}}", "x:1;".repeat(20_000));
@@ -290,4 +291,46 @@ fn the_report_of_a_style_attribute_carries_the_byte_of_its_element() {
     assert!(at > 10);
     assert_eq!(names(&r, "invalid_declaration"), ["bad"]);
     assert_eq!(r.entries[0].at, at);
+}
+
+#[test]
+fn a_class_repeated_in_the_attribute_costs_its_rules_once_and_the_work_is_charged_before_the_lists_grow()
+ {
+    // The attribute may hold 8 KiB: 4,096 repeats of one class, and 7,500 selectors that name it, over one element
+    // (a list of 30 million entries if each repeat added the list again) and over many.
+    let class = "a ".repeat(4_096);
+    let one: String = ".a{x:1}".repeat(2_500) + &".a,.a{y:2}".repeat(2_500);
+    let html = format!("<p class=\"{class}\">x</p>");
+    let (_, c, r) = cascaded(&html, &one);
+    assert!(c.complete);
+    let work = r.work - sheet(&one).1.work;
+    // Once for each distinct class: the 7,500 selectors looked at, 15,000 of compounds, 5,000 of declarations, a step
+    // for each of the 4,096 words of the attribute; and not 4,096 times the list.
+    assert!(work < 60_000, "{work} steps for one element");
+    let many = html.repeat(30);
+    let limits = Limits {
+        max_work: 500_000,
+        ..Limits::default()
+    };
+    let (_, c, r) = cascaded_with(&many, &one, &limits);
+    assert!(!c.complete);
+    assert_eq!(count(&r, "cascade_work_limit"), 1);
+    let work = r.work - sheet(&one).1.work;
+    assert!(
+        work <= limits.max_work + 60_000,
+        "{work} steps against {}",
+        limits.max_work
+    );
+    // What one element did before the cut is whole: all the rules that name the class.
+    let done = c.elements.iter().filter(|m| !m.main.is_empty()).count();
+    assert!(done > 5 && done < 30, "{done}");
+    assert_eq!(
+        c.elements
+            .iter()
+            .find(|m| !m.main.is_empty())
+            .unwrap()
+            .main
+            .len(),
+        5_000
+    );
 }
