@@ -149,6 +149,7 @@ fn limits_for(seed: u64) -> Limits {
             max_depth: 4,
             max_attributes: 3,
             max_value_bytes: 8,
+            max_class_bytes: 8,
             max_text_bytes: 16,
         },
         2 => Limits {
@@ -156,6 +157,7 @@ fn limits_for(seed: u64) -> Limits {
             max_depth: 2,
             max_attributes: 1,
             max_value_bytes: 2,
+            max_class_bytes: 2,
             max_text_bytes: 5,
             ..Limits::default()
         },

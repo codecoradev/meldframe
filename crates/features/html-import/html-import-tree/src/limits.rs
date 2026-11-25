@@ -19,6 +19,10 @@ pub struct Limits {
     /// The most bytes of an attribute value, as written. A longer one is left out with its name. 1,000, the
     /// `MAX_VALUE` of the variables import.
     pub max_value_bytes: usize,
+    /// The same for the `class` and `style` attributes, which carry a whole list: the Tailwind classes of a node of
+    /// the export are about 1,000 bytes and its `style` is as long. Longer is left out with its name. 8 KiB, a
+    /// starting guess.
+    pub max_class_bytes: usize,
     /// The most bytes of one text (a run of text and what sits between its comments); more is cut. Bytes are counted as
     /// stored: a NUL is three, a reference is what it stands for. A `<style>` is bounded by the input and not by this. 64 KiB, a starting guess.
     pub max_text_bytes: usize,
@@ -32,6 +36,7 @@ impl Default for Limits {
             max_depth: 64,
             max_attributes: 64,
             max_value_bytes: 1_000,
+            max_class_bytes: 8 * 1024,
             max_text_bytes: 64 * 1024,
         }
     }

@@ -17,6 +17,7 @@ fn the_default_limits_are_the_ones_of_adr_0024() {
     assert_eq!(l.max_elements, 5_000);
     assert_eq!(l.max_depth, 64);
     assert_eq!(l.max_value_bytes, 1_000);
+    assert_eq!(l.max_class_bytes, 8 * 1024);
     assert_eq!(l.max_attributes, 64);
     assert_eq!(l.max_text_bytes, 64 * 1024);
 }
@@ -164,6 +165,49 @@ fn an_element_with_more_attributes_than_the_limit_keeps_the_first_ones() {
     // A repeated name and an event attribute are not counted against the limit.
     let p = parse("<a a=1 a=2 onclick=x b=2 c=3>", &l).unwrap();
     assert_eq!(dump(&p.tree), "a(a=1 b=2 c=3)");
+}
+
+#[test]
+fn class_and_style_have_a_larger_bound_of_their_own() {
+    // The class attribute of a rich Tailwind node of the export (a few dozen utilities, a shadow list and an
+    // `after:` border) is about 1,000 bytes: more than a plain attribute may be, and it must not be dropped.
+    let base = "absolute left-[10px] top-[20px] w-[100px] h-auto flex flex-row gap-[8px] p-[4px_8px] items-center \
+        justify-between overflow-hidden bg-[color:var(--collection-primary-brand-color)] rounded-[calc(var(--collection-radius-large)_*_1px)] \
+        opacity-[0.5] shadow-[0px_2px_4px_0px_#00000040,0px_4px_8px_0px_#00000040,0px_8px_16px_0px_#00000040,0px_16px_32px_0px_#00000040] \
+        after:content-[''] after:absolute after:pointer-events-none after:inset-[-1px] after:[border:2px_solid_#000000] \
+        after:rounded-[calc(min(var(--collection-radius-large)_*_1px,_100px,_100px)_+_1px)] [box-sizing:border-box] [word-break:keep-all] \
+        font-[600] leading-[19px] text-[length:16px] text-[color:#112233] whitespace-pre-wrap";
+    let more = "min-w-[20px] min-h-[10px] m-[0_0_0_4px] flex-[1_1_0%] self-stretch shrink-0 items-start justify-start w-fit \
+        h-[40px] [background-image:url(assets\\_base/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef),\
+        linear-gradient(90deg,#ff0000_0%,#0000ff_100%)] [background-size:cover,100%_100%] [background-position:center] \
+        [background-repeat:no-repeat]";
+    let class = format!("{base} {more}");
+    assert!(
+        class.len() > 1_000 && class.len() < 8 * 1024,
+        "{}",
+        class.len()
+    );
+    let style = "margin-top:1px;".repeat(120);
+    let p = run(&format!(
+        "<div class=\"{class}\" style=\"{style}\" title=\"{}\" id=i>",
+        "x".repeat(1_001)
+    ));
+    let e = p.tree.element(first_element(&p.tree));
+    assert_eq!(e.attr("class"), Some(class.as_str()));
+    assert_eq!(e.attr("style"), Some(style.as_str()));
+    // The bound of another attribute is the old one, and its name is the one reported.
+    assert_eq!((e.attr("title"), e.attr("id")), (None, Some("i")));
+    assert_eq!(count(&p, "attribute_too_long"), 1);
+    // The larger bound is exact too.
+    let ok = "c".repeat(8 * 1024);
+    let p = run(&format!("<p class=\"{ok}\" style=\"{ok}\" id=i>"));
+    assert_eq!(
+        p.tree.element(first_element(&p.tree)).attr("class"),
+        Some(ok.as_str())
+    );
+    let p = run(&format!("<p class=\"{ok}x\" style=\"{ok}x\" id=i>"));
+    assert_eq!(dump(&p.tree), "p(id=i)");
+    assert_eq!(count(&p, "attribute_too_long"), 2);
 }
 
 #[test]

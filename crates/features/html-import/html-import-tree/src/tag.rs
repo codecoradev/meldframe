@@ -127,20 +127,23 @@ fn keep_attr(
     report: &mut Report,
 ) {
     let name = fold(raw_name);
+    let max = if name == "class" || name == "style" {
+        l.max_class_bytes
+    } else {
+        l.max_value_bytes
+    };
     report.work += kept.attrs.len() + kept.cut.len() + 1;
     if kept.attrs.iter().any(|a| a.name == name) || kept.cut.contains(&name) {
         report.count("duplicate_attribute", 1);
     } else if name.len() > 2 && name.starts_with("on") {
         report.count("event_attribute", 1);
-    } else if raw_value.len() > l.max_value_bytes
-        && kept.attrs.len() + kept.cut.len() < l.max_attributes
-    {
+    } else if raw_value.len() > max && kept.attrs.len() + kept.cut.len() < l.max_attributes {
         // Its name is remembered, so that a later one of the name stays a repeat. Names looked at, kept or cut,
         // are at most `max_attributes`, which bounds the list.
         let msg = format!(
             "{} bytes as written; an attribute value is at most {}",
             raw_value.len(),
-            l.max_value_bytes
+            max
         );
         report.note(EntryKind::Cut, "attribute_too_long", &name, msg, at);
         kept.cut.push(name);

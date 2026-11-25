@@ -72,6 +72,7 @@ pub fn roomy() -> Limits {
         max_depth: 64,
         max_attributes: 64,
         max_value_bytes: 1_000,
+        max_class_bytes: 8 * 1024,
         max_text_bytes: usize::MAX,
     }
 }
