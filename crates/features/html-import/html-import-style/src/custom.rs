@@ -7,7 +7,7 @@ use crate::value::is_wide;
 use crate::vars::{MAX_DEPTH, VarError, resolve};
 use html_import_css::css::Candidate;
 use std::cell::{Cell, RefCell};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -61,6 +61,8 @@ struct Resolver<'a> {
     stack: RefCell<Vec<Arc<str>>>,
     steps: Cell<usize>,
     cycles: Cell<usize>,
+    /// The names that are in a cycle: invalid, whatever fallback their own `var()` has.
+    cyclic: RefCell<BTreeSet<Arc<str>>>,
     notes: RefCell<Vec<Failure>>,
 }
 
@@ -77,8 +79,13 @@ impl Resolver<'_> {
         let Some((name, raw)) = self.winners.get_key_value(n) else {
             return self.parent.get(n).cloned().flatten();
         };
-        let deep = self.stack.borrow().len() >= MAX_DEPTH;
-        if deep || self.stack.borrow().iter().any(|s| **s == *n) {
+        let at = self.stack.borrow().iter().position(|s| **s == *n);
+        if let Some(at) = at {
+            // Everything from there up is in the cycle, and the fallback of a `var()` in it does not save it.
+            let stack = self.stack.borrow();
+            self.cyclic.borrow_mut().extend(stack[at..].iter().cloned());
+        }
+        if at.is_some() || self.stack.borrow().len() >= MAX_DEPTH {
             self.cycles.set(self.cycles.get() + 1);
             return None;
         }
@@ -97,6 +104,12 @@ impl Resolver<'_> {
         self.steps
             .set(self.steps.get() + 1 + cost.expansions + cost.scanned / 64);
         let entry = match r {
+            Ok(_) if self.cyclic.borrow().contains(name) => {
+                self.notes
+                    .borrow_mut()
+                    .push((name.clone(), raw.clone(), "var_too_deep"));
+                Entry::Invalid
+            }
             Ok(v) if has_var(raw) => Entry::Value(v.into()),
             Ok(_) => Entry::Value(raw.clone()),
             Err(e) => {
@@ -138,6 +151,7 @@ pub(crate) fn customs(
         stack: RefCell::new(Vec::new()),
         steps: Cell::new(0),
         cycles: Cell::new(0),
+        cyclic: RefCell::new(BTreeSet::new()),
         notes: RefCell::new(Vec::new()),
     };
     // The CSS-wide keywords first, so that a value that names one of them finds what it came to: `initial` is
