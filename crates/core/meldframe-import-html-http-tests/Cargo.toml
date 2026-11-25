@@ -10,6 +10,7 @@ publish.workspace = true
 kind = "tool"
 
 [dev-dependencies]
+html-import = { path = "../../features/html-import/html-import" }
 activity-store = { path = "../../features/activity/activity-store" }
 meldframe-host = { path = "../meldframe-host" }
 meldframe-http = { path = "../../integrations/meldframe-http", features = ["mcp"] }

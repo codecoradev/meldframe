@@ -13,6 +13,7 @@ mod plan;
 mod schema;
 mod tool;
 
+pub use answer::describe;
 pub use args::Args;
 pub use plan::{Planned, make};
 pub use schema::{DESCRIPTION, MAX_IMPORT_KEY, TOOL, input_schema};
