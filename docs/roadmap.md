@@ -9,12 +9,12 @@ W1 built and through its gate (owner score 4/5 or better on 3 of 4 real screens)
 ## Notes
 
 - W1 means web editor plus MCP: model round 2, variables, export with oracle, agent review UX, V2 against Wonder.
-- Carousel, slides, motion, desktop (ACP) and PPTX stay out until W1 passes its gate.
+- Carousel, slides, motion, desktop (ACP) and PPTX stay out until W1 passes its gate. The front end direction of decision 42 (a thin UI first, React for the web, GPUIX + React for the desktop after the web client is fixed) is ordered work inside W1 and is planned in epic E7 of `docs/epics.md` and ADR-0026.
 - Each decision ticket below is resolved with the owner, then recorded in `docs/decisions.md` or an ADR.
 
 ## Decisions so far
 
-See `docs/decisions.md` (items 1 to 14 and 20 to 26), the working defaults in `docs/owner-questionnaire.md`, and accepted ADRs 0001, 0002, 0006, 0007, 0008, 0009, 0010.
+See `docs/decisions.md` (items 1 to 14 and 20 to 26; 42 for the front end direction, which supersedes decision 5 for the desktop and the Svelte part of decision 14), the working defaults in `docs/owner-questionnaire.md`, and accepted ADRs 0001, 0002, 0006, 0007, 0008, 0009, 0010 and 0026.
 
 ## Frontier (open decisions, takeable now)
 
@@ -34,6 +34,7 @@ See `docs/decisions.md` (items 1 to 14 and 20 to 26), the working defaults in `d
 | Checkpoints kept by the server per file (E5.3 open part): the questions of ADR-0023 (restore after a reload, which run starts, the caps, agents over MCP, delete, the replay bound) | decided (decision 39, 21 Nov 2026) | ADR-0023, section Answers |
 | Refused calls in a lane (ADR-0021 slice 17, optional): a read route over the call log for one file, with no content | decision (owner) | ADR-0021 owner question 5 |
 | `docs/prd.md` user story 38 says "one lane per agent session"; it should say per actor in a file (owner text, ADR-0021) | edit (owner) | `docs/prd.md` line 81 |
+| Front end direction (decision 42, ADR-0026), in order: the thin UI audit and web package boundaries (#307), then the React plan and pilot and the component library that replaces Bits UI (#308), then the desktop spike on GPUIX + React with written exit criteria, after the web client is fixed (#309). Standard v1.3 is adopted (#306) | work in order (owner decided 25 Nov 2026); the component library, the migration shape and any desktop commitment are open | `docs/epics.md` E7, ADR-0026 |
 | The real Claude Code run of the M5 exit, with two tokens, before E5.1, E5.2 and E5.3 are ticked | run, then review (owner) | `AGENTS.md` (the Activity panel, operator notes) |
 
 ## Not yet specified (fog)
@@ -42,7 +43,7 @@ See `docs/decisions.md` (items 1 to 14 and 20 to 26), the working defaults in `d
 - Responsive export and breakpoints.
 - Brand memory through Uteke: what is stored and how agents read it.
 - Mobile app presets beyond frames.
-- Desktop shell and local agent (ACP) boundaries.
+- Desktop shell and local agent (ACP) boundaries. The desktop client is GPUIX + React after the web client is fixed (decision 42, replacing the Tauri 2 plan of decision 5); the spike of #309 comes first.
 - Carousel, slides and motion design system.
 - Pricing, hosting and billing (deferred by the owner).
 
