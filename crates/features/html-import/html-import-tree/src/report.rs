@@ -20,6 +20,9 @@ pub enum EntryKind {
     Recovered,
     /// A bound cut something: an attribute left out, a text cut.
     Cut,
+    /// The CSS reader left something out because the importer does not read it: a selector, an at-rule, a
+    /// declaration (`html-import-css`).
+    Refused,
 }
 
 impl EntryKind {
@@ -27,6 +30,7 @@ impl EntryKind {
         match self {
             EntryKind::Recovered => "recovered",
             EntryKind::Cut => "cut",
+            EntryKind::Refused => "refused",
         }
     }
 }
@@ -63,7 +67,7 @@ pub struct Report {
 
 impl Report {
     /// Count `code` once and list it when there is room.
-    pub(super) fn note(
+    pub fn note(
         &mut self,
         kind: EntryKind,
         code: &'static str,
@@ -90,7 +94,7 @@ impl Report {
     }
 
     /// Count `code` `n` times, with no entry.
-    pub(super) fn count(&mut self, code: &'static str, n: usize) {
+    pub fn count(&mut self, code: &'static str, n: usize) {
         *self.counts.entry(code).or_insert(0) += n;
     }
 }
