@@ -275,7 +275,7 @@ mod tests {
         let mut files: Vec<(String, usize)> = (0..total / 500)
             .map(|i| (format!("{name}/{i}.rs"), 500))
             .collect();
-        if total % 500 > 0 {
+        if !total.is_multiple_of(500) {
             files.push((format!("{name}/last.rs"), total % 500));
         }
         (name.into(), files)
