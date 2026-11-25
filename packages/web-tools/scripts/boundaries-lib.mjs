@@ -7,8 +7,8 @@
 //   matrix          a package imports only the kinds that its kind may import (KINDS)
 //   group           a view imports a view of another group only when its `composite` names that group
 //   framework       a framework is imported only in the kinds that FRAMEWORKS lists for it (not in test files)
-//   framework-file  in a kit or a view only a .svelte file imports a framework, not a plain .ts file
-//   file-type       a .svelte file sits only in a package of a kind that holds views
+//   framework-file  in a kit or a view only a view file (.svelte, .tsx) imports a framework, not a plain .ts file
+//   file-type       a .svelte or .tsx file sits only in a package of a kind that holds views
 //   cycle           the graph of packages has no cycle
 // What exists today and is not yet fixed is named in boundaries-allow.json (entries only go down).
 
@@ -43,12 +43,12 @@ export const KINDS = {
  * `kinds` where a non-test file may import it; `viewFiles` the extensions of its view files (a file with
  * one of them may sit only in a package of those kinds); `plainFileKinds` the kinds where a plain .ts file may also
  * import it (the composition root mounts the app). With no `viewFiles` any file of those kinds may import it.
- * To add a framework, add a row (React: `{ name: 'react', imports: ['react', 'react-dom'], kinds: ['kit', 'view',
- * 'bin'], viewFiles: ['.tsx'], plainFileKinds: ['bin'] }`).
+ * To add a framework, add a row (React is the example: it joined the view kinds with the toolchain of E7.3, S0).
  */
 export const FRAMEWORKS = [
   { name: 'svelte', imports: ['svelte'], kinds: ['kit', 'view', 'bin'], viewFiles: ['.svelte'], plainFileKinds: ['bin'] },
   { name: 'bits-ui', imports: ['bits-ui'], kinds: ['kit', 'view', 'bin'], viewFiles: ['.svelte'], plainFileKinds: ['bin'] },
+  { name: 'react', imports: ['react', 'react-dom'], kinds: ['kit', 'view', 'bin'], viewFiles: ['.tsx'], plainFileKinds: ['bin'] },
   { name: 'pixi.js', imports: ['pixi.js'], kinds: ['render', 'bin'] },
 ];
 
