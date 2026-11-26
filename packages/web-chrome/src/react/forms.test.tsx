@@ -131,6 +131,13 @@ describe('Tabs', () => {
     expect(out.match(/aria-selected="true"/g)).toHaveLength(1);
     expect(out).toContain('>3<');
   });
+  it('draws a count that is not known as ? and says unknown to a reader, and draws nothing for no badge', () => {
+    const unknown = [tabs[0]!, { id: 'activity', label: 'Activity', badge: null, badgeLabel: 'batches to review' }];
+    const out = html(<Tabs label="Right panel" tabs={unknown} selected="design" onSelect={noop} idPrefix="rp" />);
+    expect(out).toMatch(/>\?<span class="sr-only"> batches to review: unknown<\/span>/);
+    expect(out).toContain('data-unknown="true"');
+    expect(html(<Tabs label="Right panel" tabs={[tabs[0]!, { id: 'activity', label: 'Activity', badge: 0 }]} selected="design" onSelect={noop} idPrefix="rp" />)).not.toContain('?');
+  });
   it('says what a badge counts to a reader, who does not see the colour', () => {
     const named = [tabs[0]!, { id: 'activity', label: 'Activity', badge: 3, badgeLabel: 'batches to review' }];
     const out = html(<Tabs label="Right panel" tabs={named} selected="design" onSelect={noop} idPrefix="rp" />);

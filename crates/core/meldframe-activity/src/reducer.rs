@@ -86,8 +86,9 @@ pub struct Activity {
     pub(crate) now: u64,
     last_seq: Option<u64>,
     highest_rev: u64,
-    /// The server's `unreviewedCount` and the `rev` it was read at.
-    count: (u64, u32),
+    /// The server's `unreviewedCount` and the `rev` it was read at; `None` until a frame or a page has said it (a count
+    /// nobody read is not zero, rule U9).
+    count: Option<(u64, u32)>,
     last_fetch: Option<u64>,
     /// A gap in `rev` was seen and not asked for (inside the window of [`FETCH_EVERY_MS`]); `tick` asks once it is due.
     gap_pending: bool,
@@ -105,7 +106,7 @@ impl Activity {
             now: 0,
             last_seq: None,
             highest_rev: 0,
-            count: (0, 0),
+            count: None,
             last_fetch: None,
             gap_pending: false,
             rings: Vec::new(),
@@ -240,8 +241,8 @@ impl Activity {
         }
         let gap = h.rev > self.highest_rev.saturating_add(1);
         self.highest_rev = self.highest_rev.max(h.rev);
-        if h.rev >= self.count.0 {
-            self.count = (h.rev, unreviewed);
+        if self.count.is_none_or(|(rev, _)| h.rev >= rev) {
+            self.count = Some((h.rev, unreviewed));
         }
         self.take(h);
         self.prune();
@@ -254,14 +255,21 @@ impl Activity {
     /// when the highest `rev` of the page is above the `rev` of the count held, so a frame as new as the page, or newer,
     /// keeps its own.
     pub fn observe_page(&mut self, headers: impl IntoIterator<Item = RawHeader>, unreviewed: u32) {
-        let mut top = None;
-        for h in headers.into_iter().filter_map(RawHeader::check) {
+        let (mut top, mut given) = (None, 0usize);
+        for h in headers {
+            given += 1;
+            let Some(h) = h.check() else { continue };
             top = top.max(Some(h.rev));
             self.highest_rev = self.highest_rev.max(h.rev);
             self.take(h);
         }
-        if let Some(rev) = top.filter(|r| *r > self.count.0) {
-            self.count = (rev, unreviewed);
+        // The first page is the first answer: even a list with no header in it says how many are waiting. A page whose
+        // every header failed the check is a bad answer, and its count is not taken.
+        match (self.count, top) {
+            (None, None) if given > 0 => {}
+            (None, _) => self.count = Some((top.unwrap_or(0), unreviewed)),
+            (Some((held, _)), Some(rev)) if rev > held => self.count = Some((rev, unreviewed)),
+            _ => {}
         }
         self.prune();
     }
@@ -425,9 +433,10 @@ impl Activity {
         }
     }
 
-    /// The `unreviewedCount` of the highest `rev` seen: the server's number, never recounted from the rows held.
-    pub fn unreviewed_count(&self) -> u32 {
-        self.count.1
+    /// The `unreviewedCount` of the highest `rev` seen: the server's number, never recounted from the rows held. `None`
+    /// until a batch frame or a page of the list has brought one: a list that failed to load leaves it unknown.
+    pub fn unreviewed_count(&self) -> Option<u32> {
+        self.count.map(|(_, n)| n)
     }
 
     pub fn highest_rev(&self) -> u64 {

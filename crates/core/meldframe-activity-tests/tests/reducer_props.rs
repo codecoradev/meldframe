@@ -101,7 +101,7 @@ fn scenario(seed: u64) -> Scenario {
     (ops, headers)
 }
 
-fn run(events: Vec<Event>, now: u64) -> (String, u32, u64) {
+fn run(events: Vec<Event>, now: u64) -> (String, Option<u32>, u64) {
     let mut a: Activity = activity();
     for e in events {
         match e {

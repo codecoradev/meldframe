@@ -173,6 +173,8 @@ describe('the Layout', () => {
     expect(html({ activityBadge: 1 }).replace(/<!--.*?-->/g, '')).toMatch(/>1<span class="sr-only"> batch to review<\/span>/);
     expect(html({ activityBadge: 1 })).not.toContain('1 batches');
     expect(html({ activityBadge: 0 })).not.toContain('batches to review');
+    // A count that is not known is a question mark with its meaning for a reader, and never the absence of a badge.
+    expect(html({ activityBadge: null }).replace(/<!--.*?-->/g, '')).toMatch(/id="right-tab-activity"[^>]*>Activity<span[^>]*>\?<span class="sr-only"> batches to review: unknown<\/span>/);
     expect(html()).not.toContain('batches to review');
   });
   it('the card is 288 wide on Design and 360 on Activity', () => {

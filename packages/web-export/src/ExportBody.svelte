@@ -18,7 +18,7 @@
   interface Props {
     dialog: Model;
     /** `state.activity.unreviewedCount`. */
-    unreviewed: number;
+    unreviewed: number | null;
     view: View;
     onView: (v: View) => void;
     scale: ExportScale;

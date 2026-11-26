@@ -17,7 +17,7 @@ import { errorText, fileOf, findingRows, plain, previewOf, reviewText, sizeText 
 export interface ExportBodyProps {
   dialog: Model;
   /** `state.activity.unreviewedCount`. */
-  unreviewed: number;
+  unreviewed: number | null;
   view: View;
   onView: (v: View) => void;
   scale: ExportScale;

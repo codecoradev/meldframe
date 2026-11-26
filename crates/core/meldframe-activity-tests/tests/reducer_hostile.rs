@@ -34,13 +34,13 @@ fn a_rev_past_the_ceiling_is_dropped_and_poisons_nothing() {
     }
     a.observe_page([header(1, u64::MAX, "agent:a", "k", 1, 1)], 9);
     assert!(a.rows().is_empty());
-    assert_eq!((a.highest_rev(), a.unreviewed_count()), (0, 0));
+    assert_eq!((a.highest_rev(), a.unreviewed_count()), (0, None));
     // The next honest header is no gap and sets the count.
     assert_eq!(
         a.observe_header(header(2, 1, "agent:a", "k2", 1, 2), 3),
         None
     );
-    assert_eq!(a.unreviewed_count(), 3);
+    assert_eq!(a.unreviewed_count(), Some(3));
     // The ceiling itself is a rev (a page is the truth: no jump bound).
     a.observe_page([header(3, MAX_REV, "agent:a", "k3", 1, 3)], 4);
     assert_eq!(a.highest_rev(), MAX_REV);
@@ -58,13 +58,13 @@ fn a_frame_that_jumps_past_the_bound_is_not_taken_and_asks_for_a_fetch() {
     assert!(a.observe_header(far, 7).is_some());
     assert_eq!(
         (a.rows().len(), a.highest_rev(), a.unreviewed_count()),
-        (1, 1, 1)
+        (1, 1, Some(1))
     );
     // Up to the bound it is a gap, taken in (and asked for, once the 5 seconds between fetches have passed).
     a.clock(10_000);
     let near = header(3, 1 + MAX_REV_JUMP, "agent:a", "k3", 1, 3);
     assert!(a.observe_header(near, 2).is_some());
-    assert_eq!((a.rows().len(), a.unreviewed_count()), (2, 2));
+    assert_eq!((a.rows().len(), a.unreviewed_count()), (2, Some(2)));
 }
 
 #[test]
@@ -210,7 +210,7 @@ fn the_jump_fetch_is_asked_for_once_in_the_fetch_window() {
     // None of them was taken in.
     assert_eq!(
         (a.rows().len(), a.highest_rev(), a.unreviewed_count()),
-        (1, 1, 1)
+        (1, 1, Some(1))
     );
 }
 
@@ -223,13 +223,13 @@ fn the_first_frame_of_a_fresh_reducer_cannot_freeze_the_count_either() {
     );
     assert_eq!(
         (a.rows().len(), a.highest_rev(), a.unreviewed_count()),
-        (0, 0, 0)
+        (0, 0, None)
     );
     assert_eq!(
         a.observe_header(header(2, 1, "agent:a", "k2", 1, 2), 3),
         None
     );
-    assert_eq!(a.unreviewed_count(), 3);
+    assert_eq!(a.unreviewed_count(), Some(3));
 }
 
 #[test]
@@ -245,13 +245,13 @@ fn a_large_but_true_jump_heals_through_a_page() {
     a.observe_page([header(7, rev, "agent:a", "k", 1, 1)], 4);
     assert_eq!(
         (a.rows().len(), a.highest_rev(), a.unreviewed_count()),
-        (1, rev, 4)
+        (1, rev, Some(4))
     );
     assert_eq!(
         a.observe_header(header(8, rev + 1, "agent:a", "k8", 1, 2), 5),
         None
     );
-    assert_eq!(a.unreviewed_count(), 5);
+    assert_eq!(a.unreviewed_count(), Some(5));
 }
 
 #[test]
@@ -263,15 +263,18 @@ fn reset_log_keeps_header_numbering_and_reset_all_starts_from_nothing() {
     a.observe_header(header(1, 1, "agent:b", "other", 1, 2), 1);
     assert_eq!(
         (a.rows()[0].actor.as_str(), a.unreviewed_count()),
-        ("agent:a", 3)
+        ("agent:a", Some(3))
     );
     a.reset_all(0);
     assert!(a.rows().is_empty());
-    assert_eq!((a.highest_rev(), a.unreviewed_count(), a.me()), (0, 0, ME));
+    assert_eq!(
+        (a.highest_rev(), a.unreviewed_count(), a.me()),
+        (0, None, ME)
+    );
     a.observe_header(header(1, 1, "agent:b", "other", 1, 2), 1);
     assert_eq!(
         (a.rows()[0].actor.as_str(), a.unreviewed_count()),
-        ("agent:b", 1)
+        ("agent:b", Some(1))
     );
     // Ops of the new log count from seq 1.
     a.observe_op(&op(1, "agent:b", "other:0", set_x("a", 1.0)), 5);

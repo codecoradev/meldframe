@@ -58,7 +58,7 @@ fn two_agents_and_a_person_make_three_lanes_and_two_rows_newest_first() {
     assert_eq!(lanes[1].batches, ["ka"]);
     assert_eq!(lanes[2].ops, 1);
     assert!(lanes[2].batches.is_empty());
-    assert_eq!(a.unreviewed_count(), 2);
+    assert_eq!(a.unreviewed_count(), Some(2));
 }
 
 #[test]
@@ -144,7 +144,10 @@ fn a_partial_batch_says_how_many_were_written_and_the_log_wins_over_the_cache() 
     h.written = 18;
     a.observe_header(h, 1);
     let r = &a.rows()[0];
-    assert_eq!((r.status, r.written, r.commands), (Status::Partial, 18, 30));
+    assert_eq!(
+        (r.status, r.written, r.commands),
+        (Status::Partial, 18, Some(30))
+    );
     // Two more ops are held than the cache says: the row counts them.
     for i in 0..20 {
         a.observe_op(
@@ -153,7 +156,10 @@ fn a_partial_batch_says_how_many_were_written_and_the_log_wins_over_the_cache() 
         );
     }
     let r = &a.rows()[0];
-    assert_eq!((r.status, r.written, r.commands), (Status::Partial, 20, 30));
+    assert_eq!(
+        (r.status, r.written, r.commands),
+        (Status::Partial, 20, Some(30))
+    );
 }
 
 #[test]
@@ -213,7 +219,7 @@ fn the_highest_rev_wins_per_n_and_the_count_of_the_highest_rev_stays() {
         (r.reviewed_by.as_deref(), r.reviewed_at_ms),
         (Some(ME), Some(5_000))
     );
-    assert_eq!(a.unreviewed_count(), 0);
+    assert_eq!(a.unreviewed_count(), Some(0));
 }
 
 #[test]

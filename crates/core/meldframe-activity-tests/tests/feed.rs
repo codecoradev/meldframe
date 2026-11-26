@@ -53,15 +53,15 @@ fn a_page_changes_the_count_only_with_a_strictly_higher_rev_and_a_row_never() {
     a.observe_page([header(1, 2, "agent:a", "k1", 1, 1_000)], 1);
     assert_eq!(
         a.unreviewed_count(),
-        0,
+        Some(0),
         "a page as new as the count does not overwrite it"
     );
     a.observe_page([header(1, 3, "agent:a", "k1", 1, 1_000)], 1);
-    assert_eq!(a.unreviewed_count(), 1);
+    assert_eq!(a.unreviewed_count(), Some(1));
     a.observe_row(header(2, 9, "agent:a", "k2", 1, 1_000));
     assert_eq!(
         (a.rows().len(), a.unreviewed_count(), a.highest_rev()),
-        (2, 1, 3)
+        (2, Some(1), 3)
     );
 }
 

@@ -6,7 +6,12 @@ import type { ReviewState } from "./ReviewState";
 /**
  * One batch of one lane. A row with no header has no `n`, note or review (it reads `unreviewed` for display only).
  */
-export type BatchRow = { actor: string, keyPrefix: string, n: number | null, rev: number, firstSeq: number, lastSeq: number, commands: number, written: number, atomic: boolean, atMs: number, 
+export type BatchRow = { actor: string, keyPrefix: string, n: number | null, rev: number, firstSeq: number, lastSeq: number, 
+/**
+ * How many commands the batch had, as its header says; `None` for a row made from ops alone (no header: the app
+ * cannot know how many the call held).
+ */
+commands: number | null, written: number, atomic: boolean, atMs: number, 
 /**
  * Plain text written by `actor`: show it quoted and attributed, never as markup.
  */

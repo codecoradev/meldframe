@@ -100,7 +100,7 @@ fn at_most_one_fetch_in_five_seconds_and_three_tries_then_headerless_until_a_hea
     assert_eq!(r.review, meldframe_activity::Review::Unreviewed);
     assert_eq!(r.written, 2);
     // It is not counted by the server's number.
-    assert_eq!(a.unreviewed_count(), 1);
+    assert_eq!(a.unreviewed_count(), Some(1));
     // A header that comes late still turns it into a numbered row.
     a.observe_header(header(4, 4, "agent:a", "lost", 2, 10_050), 2);
     assert_eq!(status_of(&a, "lost"), Status::Applied);
@@ -146,7 +146,7 @@ fn a_page_of_headers_is_taken_in_without_asking_for_a_fetch() {
     );
     assert_eq!((a.lowest_n(), a.highest_n()), (Some(1), Some(2)));
     assert_eq!(a.highest_rev(), 9);
-    assert_eq!(a.unreviewed_count(), 1);
+    assert_eq!(a.unreviewed_count(), Some(1));
     assert_eq!(
         a.observe_header(header(3, 10, "agent:a", "k3", 1, 3), 2),
         None

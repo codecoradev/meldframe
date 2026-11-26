@@ -115,7 +115,7 @@ fn fetches(w: &World, i: usize, from: usize) -> Vec<(Option<u32>, Option<u32>)> 
         .collect()
 }
 
-fn count(w: &World, i: usize) -> u32 {
+fn count(w: &World, i: usize) -> Option<u32> {
     w.app(i).state().activity.unreviewed_count
 }
 
@@ -177,7 +177,7 @@ fn the_answer_of_the_review_route_cannot_overwrite_the_count_of_a_newer_frame() 
     // end had before.
     w.act(me, frame(accepted.clone(), 0, T));
     w.act(me, Action::BatchReviewed { batch: accepted });
-    assert_eq!(count(&w, me), 0, "the count of the frame stays");
+    assert_eq!(count(&w, me), Some(0), "the count of the frame stays");
     assert_eq!(
         w.app(me)
             .state()
@@ -404,7 +404,7 @@ fn batch_and_touch_frames_refresh_only_the_panel() {
     let a = &w.app(me).state().activity;
     assert_eq!(
         (a.touches.len(), a.rows.len(), a.unreviewed_count),
-        (1, 1, 1),
+        (1, 1, Some(1)),
         "the panel was rebuilt"
     );
 }
