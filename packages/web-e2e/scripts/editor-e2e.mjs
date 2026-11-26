@@ -2,8 +2,9 @@
 // Needs `just dev` (server on 8080) and `just web` (Vite on 5173) running, the WASM bridge built (`just wasm-build`),
 // and Playwright from the global module path. It restarts the server (bash scripts/dev.sh) for the reconnect check, so
 // run it against the development server only. Not part of `npm test`: it needs a browser, a server and Postgres.
-// MELDFRAME_UI=react opens the page with `react=feedback`: the notices of its checks (a refused delete, a missing image) are then
-// drawn by the React copy of packages/web-feedback. The banners and the other states are checked by packages/web-feedback/scripts/feedback-e2e.mjs.
+// MELDFRAME_UI=react opens the page with `react=feedback,layers`: the notices of its checks (a refused delete, a missing image) are then
+// drawn by the React copy of packages/web-feedback, and the Layers panel by the React copy of packages/web-panels (S5). The banners and the
+// other states are checked by packages/web-feedback/scripts/feedback-e2e.mjs, the Layers panel by packages/web-panels/scripts/layers-e2e.mjs.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { closeSync, openSync, readFileSync } from 'node:fs';
@@ -141,7 +142,7 @@ const id = `e2e_${run}`;
   browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
-  await page.goto(react ? `${web}/?react=feedback` : web); // MELDFRAME_UI=react: the React copy of web-feedback (the banners, the toast, the empty state)
+  await page.goto(react ? `${web}/?react=feedback,layers` : web); // MELDFRAME_UI=react: the React copies of web-feedback (the banners, the toast, the empty state) and of the Layers panel (S5)
   await page.evaluate(() => { window.__stay = true; });
 
   await check('the page connects and shows the file that was saved before it opened', async () => {
