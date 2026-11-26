@@ -121,11 +121,10 @@ describe('the React properties panel as the Properties and Inspector boards draw
     expect(html(null, 0)).not.toMatch(/Page/);
     expect(html(null, 0)).toContain('data-testid="properties-empty"');
   });
-  it('gives the image picker to the Fill section while the app state has it open for the node, through the view the page gave', () => {
+  it('draws the image picker in the Fill section while the app state has it open for the node', () => {
     const closed: AssetsState = { items: [], loading: false, loaded: false, capped: false, request: 0 };
-    const view = { mount: () => ({ update() {}, destroy() {} }) };
-    expect(html(properties(), 1, { assets: { ...closed, target: 'n' }, imageView: view })).toContain('<div class="contents"></div>');
-    expect(html(properties(), 1, { assets: closed, imageView: view })).not.toContain('<div class="contents"></div>');
+    expect(html(properties(), 1, { assets: { ...closed, target: 'n' } })).toContain('data-testid="image-picker"');
+    expect(html(properties(), 1, { assets: closed })).not.toContain('data-testid="image-picker"');
   });
   it('draws the gradient and the image thumbnail the page gives, in the Fill section', () => {
     expect(html(properties({ kind: 'rect', sections: RECT, fillKind: 'linear', gradient }))).toContain('data-testid="prop-gradient-bar"');

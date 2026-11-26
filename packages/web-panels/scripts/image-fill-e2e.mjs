@@ -15,7 +15,10 @@
 // sent there). It adds a frame, two nodes and about 54 images to the file's workspace and leaves them: development server only.
 // The checks run in order and share the file; one that fails can fail the ones after it.
 // MELDFRAME_UI=react opens the page with `/?react=properties` (the React copy of the Properties panel, E7.3 slice S6) and first asks that React drew it, so that a
-// silent fallback to Svelte cannot pass; without it the Svelte copy runs and the same checks apply.
+// silent fallback to Svelte cannot pass; without it the Svelte copy runs and the same checks apply. The picker is part of that copy since S7
+// (ImageFillPicker.tsx): the check that opens it asks who drew it (a React fibre on the React run, none on the Svelte run). A last check, on React
+// only, blocks the module of the React picker (the paths of the Vite dev server's modules, so for the dev server only) and asks that the whole
+// panel falls back to the Svelte one (the switch's {:catch}), whose picker opens and shows the images.
 // MELDFRAME_E2E_SHOTS=<dir> saves screenshots (and one of the page when a check fails).
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -117,6 +120,8 @@ const listOf = async (who, query = '') => {
 };
 
 const $ = (sel) => page.locator(sel);
+/** Whether React drew the element: React puts a fibre on every DOM node it makes. */
+const drawnByReact = (pg, sel) => pg.evaluate((s) => Object.keys(document.querySelector(s) ?? {}).some((k) => k.startsWith('__reactFiber$')), sel);
 const activeDataId = () => page.evaluate(() => document.activeElement?.getAttribute('data-id') ?? '');
 const results = [];
 /** A check that did not run: printed as SKIP, and counted as neither passed nor failed. */
@@ -145,9 +150,9 @@ const T = ['#ff9800', '#673ab7', '#009688']; // image B
 const short = (id) => id.slice(0, 8);
 const imageRadio = () => $('[data-testid=prop-fill-type]').getByRole('radio', { name: 'Image', exact: true });
 // The panel shows the node once its name is in the name field (the panel of the node selected before stays up until then).
-const select = async (id, name) => {
-  await $(`[data-testid=layer][data-id="${id}"] button`).last().click();
-  await until('the properties panel shows the node', async () => (await $('[data-testid=prop-name]').inputValue().catch(() => '')) === name);
+const select = async (id, name, pg = page) => {
+  await pg.locator(`[data-testid=layer][data-id="${id}"] button`).last().click();
+  await until('the properties panel shows the node', async () => (await pg.locator('[data-testid=prop-name]').inputValue().catch(() => '')) === name);
 };
 
 (async () => {
@@ -195,6 +200,7 @@ const select = async (id, name) => {
       assert.match((await tile.getAttribute('aria-label')) ?? '', new RegExp(`^Image ${short(id)}, PNG, \\d+ B$`));
       await until('the thumbnail loaded', () => tile.locator('img').evaluate((i) => i.complete && i.naturalWidth > 0));
     }
+    assert.equal(await drawnByReact(page, '[data-testid=image-picker]'), react, react ? 'the picker has no React fibre: it is the Svelte one (a view mounted in a slot)' : 'the picker has a React fibre on the Svelte page');
     assert.equal(await $('[data-testid=prop-fill-type] [aria-checked=true]').textContent().then((t) => t.trim()), 'Solid', 'the fill is not changed by opening');
     await until('the focus is on the first tile', async () => (await activeDataId()) === first);
     assert.equal(await $('[data-testid=image-picker-empty]').count(), 0);
@@ -298,6 +304,18 @@ const select = async (id, name) => {
     await until('the picker is closed', async () => (await $('[data-testid=image-picker]').count()) === 0);
   });
 
+  await check('Escape with the focus on the Close button and its tooltip open closes the picker at once, not the tooltip first', async () => {
+    await $('[data-testid=prop-fill-image-change]').click();
+    await $('[data-testid=image-picker]').waitFor();
+    await until('both tiles', async () => (await $('[data-testid=image-tile]').count()) === 2);
+    await $('[data-testid=image-tile]').first().focus();
+    await page.keyboard.press('Shift+Tab'); // back over the heading to the Close button, by keyboard, so its tooltip opens
+    await until('the focus is on Close', async () => (await page.evaluate(() => document.activeElement?.getAttribute('data-testid'))) === 'image-picker-close');
+    await until('the tooltip is open', async () => (await page.locator('[role=tooltip]').count()) > 0);
+    await page.keyboard.press('Escape');
+    await until('the picker is closed by the first Escape', async () => (await $('[data-testid=image-picker]').count()) === 0, 3000);
+  });
+
   if (!other) skip('a second workspace sees none of the images, by the list or by id', 'MELDFRAME_OTHER_TOKEN is not set (a token of a second workspace among the server tokens)');
   else await check('a second workspace sees none of the images, by the list or by id', async () => {
     const { status, body } = await listOf(other);
@@ -334,6 +352,30 @@ const select = async (id, name) => {
     await until('the focus is on the first new tile of the last page', async () => (await activeDataId()) === ids[48]);
     await page.keyboard.press('Escape');
     await until('the picker is closed', async () => (await $('[data-testid=image-picker]').count()) === 0);
+  });
+
+  if (react) await check('with the module of the React picker blocked, the whole panel is the Svelte one, and its picker opens and shows the images', async () => {
+    const errors = [];
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const blocked = await ctx.newPage();
+    blocked.on('pageerror', (e) => { errors.push(e.message); console.log('[pageerror]', e.message); });
+    // One module of the React copy, not the panel's: the panel's import fails with it, so no half of the panel is drawn.
+    await blocked.route((u) => /react\/ImageFillPicker/.test(u.pathname), (route) => route.abort('failed'));
+    await blocked.goto(`${web.replace(/\/?$/, '/')}?react=properties`);
+    await until('the editor is live', async () => (await blocked.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
+    await until('the nodes are listed', async () => (await blocked.locator(`[data-testid=layer][data-id="${rect}"]`).count()) === 1);
+    await until('the panel is drawn', async () => (await blocked.locator('[data-testid=properties]').count()) === 1);
+    assert.equal(await drawnByReact(blocked, '[data-testid=properties]'), false, 'the panel is the Svelte copy');
+    await select(rect, `Box ${run}`, blocked);
+    await blocked.locator('[data-testid=prop-fill-image-change]').click(); // the rectangle has an image fill by now
+    await blocked.locator('[data-testid=image-picker]').waitFor();
+    await until('the tiles are listed', async () => (await blocked.locator('[data-testid=image-tile]').count()) >= 2);
+    assert.equal(await drawnByReact(blocked, '[data-testid=image-picker]'), false, 'the picker is the Svelte copy');
+    await blocked.keyboard.press('Escape');
+    await until('the picker is closed', async () => (await blocked.locator('[data-testid=image-picker]').count()) === 0);
+    await ctx.close();
+    // The errors that the aborted request raises in the page (a failed dynamic import is caught by the switch) are the one thing allowed here.
+    assert.deepEqual(errors.filter((m) => !/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(m)), []);
   });
 
   const failed = results.filter((r) => r === false).length;

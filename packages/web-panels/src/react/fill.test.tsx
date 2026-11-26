@@ -9,16 +9,15 @@ import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
 import FillSectionSvelte from '../FillSection.svelte';
 import { FillSection } from './FillSection';
-import { type Foreign, ForeignSlot, safely } from './ForeignSlot';
 import { viewOf } from './compare';
 import { binding, gradient, properties } from './fixture';
 
 // The route of an asset is the host's (a view may not import web-assets): the test gives the one the page does, for ids of 64 hex digits.
 const thumbnail = (id: string) => (/^[0-9a-f]{64}$/.test(id) ? `/v1/assets/${id}` : null);
-const html = (p: Properties, picker: Picker | null = null, assets?: AssetsState, imageView?: Parameters<typeof FillSection>[0]['imageView'], thumb: typeof thumbnail | 'none' = thumbnail) =>
+const html = (p: Properties, picker: Picker | null = null, assets?: AssetsState, thumb: typeof thumbnail | 'none' = thumbnail) =>
   renderToStaticMarkup(
     <TooltipProvider>
-      <FillSection properties={p} picker={picker} assets={assets} dispatch={() => {}} imageView={imageView} thumbnail={thumb === 'none' ? undefined : thumb} />
+      <FillSection properties={p} picker={picker} assets={assets} dispatch={() => {}} thumbnail={thumb === 'none' ? undefined : thumb} />
     </TooltipProvider>,
   );
 const rect = (over: Partial<Properties> = {}) => properties({ kind: 'rect', ...over });
@@ -105,57 +104,40 @@ describe('the React Fill section', () => {
     const out = html(hostile);
     expect(out).toContain('data-testid="prop-fill-image"');
     expect(out).not.toContain('<img');
-    expect(html(rect({ fillKind: 'image', image: { assetId: 'a'.repeat(64), fit: 'cover' } }), null, undefined, undefined, 'none')).not.toContain('<img');
+    expect(html(rect({ fillKind: 'image', image: { assetId: 'a'.repeat(64), fit: 'cover' } }), null, undefined, 'none')).not.toContain('<img');
   });
 });
 
-describe('the image picker the React Fill section hosts', () => {
-  it('keeps a view that throws out of React: the slot stays empty, the error is reported, the next calls are no-ops', () => {
-    const reported: unknown[] = [];
-    const g = globalThis as { reportError?: (e: unknown) => void };
-    const was = g.reportError;
-    g.reportError = (e) => reported.push(e);
-    try {
-      const calls: string[] = [];
-      const bad: Foreign<number> = { mount: () => { calls.push('mount'); throw new Error('no mount'); } };
-      const handle = safely(bad).mount({} as HTMLElement, 1);
-      handle.update(2);
-      handle.destroy();
-      expect(calls).toEqual(['mount']);
-      expect(reported.map(String)).toEqual(['Error: no mount']);
-      const worse: Foreign<number> = { mount: () => ({ update: () => { throw new Error('no update'); }, destroy: () => { throw new Error('no destroy'); } }) };
-      const h2 = safely(worse).mount({} as HTMLElement, 1);
-      h2.update(2);
-      h2.destroy();
-      expect(reported.map(String)).toEqual(['Error: no mount', 'Error: no update', 'Error: no destroy']);
-      // A view that works is passed through.
-      const seen: number[] = [];
-      const fine: Foreign<number> = { mount: (_t, p) => { seen.push(p); return { update: (n) => seen.push(n), destroy: () => seen.push(0) }; } };
-      const h3 = safely(fine).mount({} as HTMLElement, 1);
-      h3.update(2);
-      h3.destroy();
-      expect(seen).toEqual([1, 2, 0]);
-    } finally {
-      g.reportError = was;
-    }
-  });
-
+describe('the image picker the React Fill section draws', () => {
   const closed: AssetsState = { items: [], loading: false, loaded: false, capped: false, request: 0 };
-  const view = { mount: () => ({ update() {}, destroy() {} }) };
-  it('is a slot only while the app state has it open for this node, and none when the page gave no view', () => {
-    const slot = '<div class="contents"></div>';
-    expect(html(rect(), null, { ...closed, target: 'n' }, view)).toContain(slot);
-    expect(html(rect(), null, closed, view)).not.toContain(slot);
-    expect(html(rect(), null, { ...closed, target: 'other' }, view)).not.toContain(slot);
-    expect(html(rect(), null, { ...closed, target: 'n' })).not.toContain(slot);
+  const id = (n: number) => n.toString(16).padStart(2, '0').repeat(32);
+  const open = (over: Partial<AssetsState> = {}): AssetsState => ({ ...closed, target: 'n', loaded: true, ...over });
+  it('is drawn while the app state has it open for this node, and not when it is closed or open for another node', () => {
+    expect(html(rect(), null, open())).toContain('data-testid="image-picker"');
+    expect(html(rect(), null, closed)).not.toContain('data-testid="image-picker"');
+    expect(html(rect(), null, open({ target: 'other' }))).not.toContain('data-testid="image-picker"');
+    expect(html(rect())).not.toContain('data-testid="image-picker"');
   });
   it('is drawn between the type switch and the fields of the type, as the Svelte section draws it', () => {
-    const out = html(rect(), null, { ...closed, target: 'n' }, view);
-    expect(out.indexOf('aria-label="Fill type"')).toBeLessThan(out.indexOf('<div class="contents"></div>'));
-    expect(out.indexOf('<div class="contents"></div>')).toBeLessThan(out.indexOf('data-testid="prop-fill"'));
+    const out = html(rect(), null, open());
+    expect(out.indexOf('aria-label="Fill type"')).toBeLessThan(out.indexOf('data-testid="image-picker"'));
+    expect(out.indexOf('data-testid="image-picker"')).toBeLessThan(out.indexOf('data-testid="prop-fill"'));
   });
-  it('the slot is a host that draws nothing of its own', () => {
-    expect(renderToStaticMarkup(<ForeignSlot view={view} props={{}} />)).toBe('<div class="contents"></div>');
+  it('gets its thumbnails from the route the page gives, the same function as the thumbnail of the image fill', () => {
+    const items = [{ id: id(1), bytes: 10, mime: 'image/png' }];
+    expect(html(rect(), null, open({ items }))).toContain(`src="/v1/assets/${id(1)}"`);
+    const other = (assetId: string) => `/elsewhere/${assetId}`;
+    expect(html(rect(), null, open({ items }), other)).toContain(`src="/elsewhere/${id(1)}"`);
+    // With no route from the page there is no image to draw, so each tile says there is no preview.
+    const none = html(rect(), null, open({ items }), 'none');
+    expect(none).not.toContain('<img');
+    expect(none).toContain('No preview');
+  });
+  it('marks the tile of the image the node has, in a node that is on the Image type already', () => {
+    const items = [{ id: id(1), bytes: 10, mime: 'image/png' }, { id: id(2), bytes: 10, mime: 'image/png' }];
+    const out = html(rect({ fillKind: 'image', image: { assetId: id(2), fit: 'cover' } }), null, open({ items }));
+    expect(out.match(/aria-current="true"/g)).toHaveLength(1);
+    expect(out).toContain('data-testid="prop-fill-image"');
   });
 });
 
@@ -163,18 +145,22 @@ describe('the image picker the React Fill section hosts', () => {
 // is a visible difference). What a class cannot say (the real pixels) is checked in a browser by pixels-e2e.mjs, with a tolerance of 0.
 describe('the React Fill section against the Svelte one', () => {
   // The Svelte section takes the chip as a snippet, which a test cannot pass; the bound states are compared through the whole panel (properties.test.tsx).
-  const svelte = (p: Properties) => render(TestHost as never, { props: { of: FillSectionSvelte, props: { properties: p, picker: null, dispatch: () => {}, chip: () => {} } } as never }).body;
-  const states: [string, Properties][] = [
+  const svelte = (p: Properties, assets?: AssetsState) => render(TestHost as never, { props: { of: FillSectionSvelte, props: { properties: p, picker: null, assets, dispatch: () => {}, chip: () => {} } } as never }).body;
+  const items = [1, 2, 3, 4].map((n) => ({ id: n.toString(16).padStart(2, '0').repeat(32), bytes: 1024 * n, mime: 'image/png' }));
+  const picking: AssetsState = { items, loading: false, loaded: true, capped: false, request: 1, target: 'n', next: items[3]!.id };
+  const states: [string, Properties, AssetsState?][] = [
     ['solid', rect()],
     ['linear', rect({ fillKind: 'linear', gradient })],
     ['radial', rect({ fillKind: 'radial', gradient: { ...gradient, kind: 'radial' } })],
     ['linear at the most stops and at the fewest', rect({ fillKind: 'linear', gradient, minStops: 3, maxStops: 3 })],
     ['image', rect({ fillKind: 'image', image: { assetId: 'a'.repeat(64), fit: 'contain' } })],
     ['none', rect({ fill: 'none', fillKind: 'none' })],
+    ['the picker open on a solid fill', rect(), picking],
+    ['the picker open on an image fill', rect({ fillKind: 'image', image: { assetId: items[1]!.id, fit: 'cover' } }), picking],
   ];
-  for (const [name, p] of states) {
+  for (const [name, p, assets] of states) {
     it(`has the same classes, names, states and texts: ${name}`, () => {
-      expect(viewOf(html(p))).toEqual(viewOf(svelte(p)));
+      expect(viewOf(html(p, null, assets))).toEqual(viewOf(svelte(p, assets)));
     });
   }
 });
