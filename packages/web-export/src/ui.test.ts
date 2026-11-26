@@ -27,7 +27,7 @@ describe('the view of the dialog starts again for every dialog', () => {
 
 describe('what the dialog acts on', () => {
   it('the PNG is of the dialog\'s frame, not of what is selected now', () => {
-    expect(dialogFrame({ frame: 'f1', name: 'Landing' })).toEqual({ id: 'f1', name: 'Landing' });
+    expect(dialogFrame({ frame: 'f1', name: 'Landing', fileStem: 'Landing' })).toEqual({ id: 'f1', name: 'Landing', fileStem: 'Landing' });
     expect(dialogFrame(null)).toBeNull();
   });
 

@@ -37,22 +37,10 @@ export function largestFittingScale(box: Rect | null): ExportScale | null {
 }
 
 /**
- * The file name of an export: the layer's name, with the characters a file system refuses (and control characters)
- * turned into `-`, cut to 80 characters, then `@<scale>x` for every scale but 1 (`@0.5x`, `@2x`, `@3x`, `@4x`), then `.png` (or the extension asked for: the HTML
- * of a frame is `.html`, always at scale 1). A name that is empty after that
- * falls back to the node's id.
+ * The file an export is saved as: `stem` is the name the app layer worked out (`ExportTarget.fileStem`, safe to use as it
+ * is: no hidden character, no character a file system refuses, at most 80 characters), then `@<scale>x` for every scale
+ * but 1 (`@0.5x`, `@2x`, `@3x`, `@4x`), then `.png` (or the extension asked for). The page cleans nothing here.
  */
-export function exportFileName(name: string, id: string, scale: ExportScale, ext: 'png' | 'html' = 'png'): string {
-  // Characters that reorder text are dropped first: a name cannot be made to read as another extension.
-  const clean = (s: string) =>
-    // eslint-disable-next-line no-control-regex -- the control characters are what this expression removes
-    Array.from(s.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, '-').trim())
-      .slice(0, 80)
-      .join('')
-      .replace(/^[.\s]+/, '');
-  let base = clean(name) || clean(id) || 'export';
-  // Windows refuses these names whatever follows the first dot (NUL, NUL.txt, NUL.tar.gz).
-  const stem = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?=\.|$)/i.exec(base);
-  if (stem) base = `${stem[0]}-${base.slice(stem[0].length)}`;
-  return `${base}${scale === 1 ? '' : `@${exportScaleLabel(scale)}`}.${ext}`;
+export function exportFileName(stem: string, scale: ExportScale, ext: 'png' | 'html' = 'png'): string {
+  return `${stem}${scale === 1 ? '' : `@${exportScaleLabel(scale)}`}.${ext}`;
 }

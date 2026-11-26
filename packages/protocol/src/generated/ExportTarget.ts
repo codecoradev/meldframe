@@ -3,4 +3,9 @@
 /**
  * A frame that can be exported.
  */
-export type ExportTarget = { id: string, name: string, };
+export type ExportTarget = { id: string, name: string, 
+/**
+ * The stem of the file an export of this frame is saved under, safe to use as it is: a front end adds the scale
+ * (`@2x`) and the extension (`.png`). The same decision as `ExportDialog::html_file`.
+ */
+fileStem: string, };

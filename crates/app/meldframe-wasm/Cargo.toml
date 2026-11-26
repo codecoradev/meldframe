@@ -16,6 +16,7 @@ crate-type = ["cdylib", "rlib"]
 meldframe-app = { path = "../meldframe-app" }
 meldframe-layout = { path = "../../core/meldframe-layout" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
+meldframe-text = { path = "../../core/meldframe-text" }
 js-sys = "0.3.107"
 serde = "1"
 serde_json = { version = "1", features = ["float_roundtrip"] }

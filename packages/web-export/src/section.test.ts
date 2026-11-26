@@ -8,7 +8,7 @@ const tag = (out: string, id: string) => new RegExp(`<button[^>]*data-testid="${
 const disabled = (t: string) => /\sdisabled(?![:-])/.test(t);
 const radios = (out: string) => [...out.matchAll(/<button[^>]*role="radio"[^>]*>[\s\S]*?<\/button>/g)].map((m) => m[0]);
 const checkedScale = (out: string) => radios(out).filter((b) => b.includes('aria-checked="true"')).map((b) => /([\d.]+)x/.exec(b)?.[1]);
-const target = { id: 'f1', name: 'Landing Desktop' };
+const target = { id: 'f1', name: 'Landing Desktop', fileStem: 'Landing Desktop' };
 const ok = { ok: true as const, file: 'Landing Desktop.png', width: 1440, height: 2200 };
 
 describe('the Export section', () => {

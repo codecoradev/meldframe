@@ -289,7 +289,7 @@ fn the_export_dialog_is_state_and_its_actions_are_json() {
     run(&mut b, json!({"type": "select", "ids": ["f"]}));
     assert_eq!(
         state(&b)["export"]["target"],
-        json!({"id": "f", "name": "Landing"})
+        json!({"id": "f", "name": "Landing", "fileStem": "Landing"})
     );
     assert_eq!(state(&b)["export"]["dialog"], Value::Null);
     // Open: the document, the format and the report cross as JSON; a format switch and a close are actions.

@@ -12,7 +12,7 @@ import { useRef } from 'react';
 import { type PngPlan, SCALE_OPTIONS, pngText, scaleOf } from '../png';
 import { copyText, saveText } from '../save';
 import { type View, afterFormat } from '../ui';
-import { errorText, fileOf, findingRows, plain, previewOf, reviewText, sizeText } from '../view';
+import { errorText, fileOf, findingRows, previewOf, reviewText, sizeText } from '../view';
 
 export interface ExportBodyProps {
   dialog: Model;
@@ -133,7 +133,7 @@ export function ExportBody({ dialog, unreviewed, view, onView, scale, onScale, p
               label="File"
               options={[
                 { value: 'html', label: 'HTML' },
-                { value: 'css', label: plain(dialog.cssFile) },
+                { value: 'css', label: dialog.cssFile },
               ]}
               value={view.shown}
               onChange={(v) => onView({ ...view, shown: v === 'css' ? 'css' : 'html', said: null })}
@@ -149,7 +149,7 @@ export function ExportBody({ dialog, unreviewed, view, onView, scale, onScale, p
         ) : (
           <>
             {/* A scrollable region must be reachable by keyboard. */}
-            <div className="h-72 shrink-0 overflow-auto rounded-md border border-border bg-sidebar py-2 font-mono text-small leading-relaxed" data-testid="export-code" tabIndex={0} role="region" aria-label={`${plain(file.name)} preview`}>
+            <div className="h-72 shrink-0 overflow-auto rounded-md border border-border bg-sidebar py-2 font-mono text-small leading-relaxed" data-testid="export-code" tabIndex={0} role="region" aria-label={`${file.name} preview`}>
               {preview.lines.map((line, i) => (
                 // The lines have no identity but their place, as in the Svelte copy.
                 <div key={i} className="flex w-max min-w-full whitespace-pre">
@@ -166,7 +166,7 @@ export function ExportBody({ dialog, unreviewed, view, onView, scale, onScale, p
               </p>
             ) : null}
             <p className="m-0 text-caption text-text-muted">
-              {`The HTML uses the Inter font file inter.woff2 beside it${dialog.format === 'tailwind' ? `, and links ${plain(dialog.cssFile)}, the input of the Tailwind v4 compiler` : ''}. Text sizes are measured in this browser, with the font the canvas draws, so they are the sizes the canvas lays text out with. The exported page is laid out by the browser that opens it: a text with a tab, a link or CJK characters can break differently there (Warnings names the ones it detects), and any text can if the Inter file is missing.`}
+              {`The HTML uses the Inter font file inter.woff2 beside it${dialog.format === 'tailwind' ? `, and links ${dialog.cssFile}, the input of the Tailwind v4 compiler` : ''}. Text sizes are measured in this browser, with the font the canvas draws, so they are the sizes the canvas lays text out with. The exported page is laid out by the browser that opens it: a text with a tab, a link or CJK characters can break differently there (Warnings names the ones it detects), and any text can if the Inter file is missing.`}
             </p>
           </>
         )}

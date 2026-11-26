@@ -4,8 +4,10 @@
 //! Pixi metrics on the font the canvas draws with), so a hug text exports the width the canvas draws, and the layout
 //! core's stub when the host gave none. The MCP tool `export_frame` runs on the server, which has no fonts: it keeps the stub.
 
+mod name;
 mod variables;
 
+pub use name::file_stem;
 pub use variables::variables_dialog;
 
 use export::{ExportError, ExportOptions, Finding, Format, MAX_OUTPUT_BYTES};
@@ -16,6 +18,9 @@ use meldframe_text::{MAX_LABEL, label};
 use meldframe_variables::ModeChoice;
 use std::collections::BTreeMap;
 
+/// The longest report message kept, in characters. A message is the export's own sentence with the ids of nodes in it.
+pub(crate) const MAX_MESSAGE: usize = 1024;
+
 /// The frame an export acts on: the one selected node, when it is a frame.
 pub fn target(selection: &[String], nodes: &[Node]) -> Option<ExportTarget> {
     match selection {
@@ -25,6 +30,7 @@ pub fn target(selection: &[String], nodes: &[Node]) -> Option<ExportTarget> {
             .map(|n| ExportTarget {
                 id: n.id.clone(),
                 name: label(&n.name, MAX_LABEL),
+                file_stem: file_stem(&n.name, &n.id),
             }),
         _ => None,
     }
@@ -44,12 +50,15 @@ pub fn dialog(
         .iter()
         .find(|n| n.id == id && n.kind == NodeKind::Frame)?;
     let name = label(&frame.name, MAX_LABEL);
+    let stem = file_stem(&frame.name, &frame.id);
     let mut d = ExportDialog {
         frame: id.to_string(),
         name,
         format,
         html: String::new(),
         css: String::new(),
+        html_file: format!("{stem}.html"),
+        file_stem: stem,
         css_file: String::new(),
         html_bytes: None,
         css_bytes: None,
@@ -103,7 +112,7 @@ fn finding(f: &Finding, nodes: &[Node]) -> ExportFinding {
             .as_deref()
             .and_then(|id| nodes.iter().find(|n| n.id == id))
             .map(|n| label(&n.name, MAX_LABEL)),
-        message: f.message.clone(),
+        message: label(&f.message, MAX_MESSAGE),
     }
 }
 

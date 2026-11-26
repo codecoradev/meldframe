@@ -14,7 +14,6 @@ import type { ExportScale } from '@meldframe/web-document/export';
 import { useRef, useState } from 'react';
 import type { PngPlan } from '../png';
 import { START, type View, viewFor } from '../ui';
-import { plain } from '../view';
 import { ExportBody } from './ExportBody';
 
 export interface ExportDialogProps {
@@ -68,10 +67,10 @@ export function ExportDialog({ dialog, unreviewed, scale, onScale, plan, onPng, 
             {dialog ? (
               <>
                 <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline pr-3 pl-5">
-                  <Dialog.Title className="m-0 truncate text-title font-semibold text-text-strong">{`Export ${plain(dialog.name)}`}</Dialog.Title>
+                  <Dialog.Title className="m-0 truncate text-title font-semibold text-text-strong">{`Export ${dialog.name}`}</Dialog.Title>
                   <Dialog.Close render={<IconButton label="Close" icon="close" />} />
                 </header>
-                <Dialog.Description className="sr-only">{`Export the frame ${plain(dialog.name)} as HTML or as a PNG image. Your file is not changed.`}</Dialog.Description>
+                <Dialog.Description className="sr-only">{`Export the frame ${dialog.name} as HTML or as a PNG image. Your file is not changed.`}</Dialog.Description>
                 <ExportBody dialog={dialog} unreviewed={unreviewed} view={ui.view} onView={(view) => setHeld((h) => ({ ...h, view }))} scale={scale} onScale={onScale} plan={plan} onPng={onPng} dispatch={dispatch} onReview={onReview} onClose={close} />
               </>
             ) : null}
