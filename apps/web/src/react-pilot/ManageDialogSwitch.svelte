@@ -3,7 +3,9 @@
   of ManageDialog.svelte, through `VariablesPanelSwitch.svelte` (the Svelte panel takes it as `manageView`; the React panel's switch draws
   it beside the island). Without `/?react=manage` it draws the Svelte dialog (Bits UI); with it, the React dialog (Base UI's Dialog) in an
   island, loaded on demand so that the editor's bundle does not carry React. The island draws every update to its end (`syncIsland.tsx`):
-  the dialog reads the events of each snapshot, and React would batch two snapshots into one draw and lose the first one's events. The
+  the dialog reads the events of each snapshot, and with the shared helper the events of a snapshot were lost (inferred: React keeping the
+  last of two updates). Delete `syncIsland.tsx` and import `island` from the shared helper when the shared island flush lands (S8,
+  fix/web-island-flush). The
   dialog portals to the body, so its host element draws nothing (`display: contents`). If the React chunk does not load, the Svelte dialog is drawn instead, and the manage view still opens.
   It goes with the switch when the last slice removes the Svelte shell.
 -->
