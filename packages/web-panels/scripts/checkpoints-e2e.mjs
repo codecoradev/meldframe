@@ -14,10 +14,14 @@
 // (a row made in one arrives in the other without a reload). Needs the WASM bridge built (`just wasm-build`) and Playwright from the
 // global module path. Run it against a development server only: it adds nodes and checkpoints to the file and leaves them.
 // MELDFRAME_E2E_SHOTS=<dir> saves screenshots (and one of the page when a check fails); MELDFRAME_E2E_DEBUG=1 prints more.
+// With MELDFRAME_UI=react the pages open with /?react=activity (the React copy of the panel, E7.3 slice S8), the first check of the
+// page asks that React drew the panel (a silent fallback to Svelte would pass every other check), and a last check blocks the chunks
+// of the React copy and asks that the Svelte panel is drawn and still lists the checkpoints (dev server only: the block matches the
+// paths of its modules).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { until } from './activity-helpers.mjs';
+import { fibre, openWithChunksBlocked, pageUrl, react, until } from './activity-helpers.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const die = (m) => { console.error(`checkpoints-e2e: ${m}`); process.exit(1); };
@@ -90,7 +94,7 @@ async function check(name, fn) {
   const open = async () => {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
     page.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
-    await page.goto(web);
+    await page.goto(pageUrl(web));
     await until('live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
     await page.locator('#right-tab-activity').click();
     await page.locator('[data-testid=activity]').waitFor({ timeout: 10000 });
@@ -104,6 +108,11 @@ async function check(name, fn) {
   mainPage = page;
   await page.evaluate(() => { window.__stay = true; });
   const create = async (p, name) => { await p.locator('[data-testid=checkpoint-name]').fill(name); await p.locator('[data-testid=checkpoint-create]').click(); };
+
+  await check('the Activity panel is drawn by the copy that was asked for', async () => {
+    assert.equal(await page.locator('[data-testid=activity]').count(), 1);
+    assert.equal(await fibre(page, '[data-testid=activity]'), react, react ? 'the Activity panel has no React fibre: the page fell back to Svelte' : 'the Activity panel has a React fibre on the Svelte run');
+  });
 
   await check("the list is read on load: the agent's run start shows in words, and the control is enabled", async () => {
     await until('the run start', async () => (await words(page)).some((t) => /Before claude's run/.test(t)));
@@ -208,6 +217,21 @@ async function check(name, fn) {
     await shot(other, 'second-editor');
     await other.close();
   });
+
+  if (react) {
+    await check('with the chunks of the React copy blocked, the Svelte panel is drawn and lists the checkpoints', async () => {
+      const { ctx, page: blocked } = await openWithChunksBlocked(browser, pageUrl(web), pageErrors);
+      await blocked.locator('#right-tab-activity').click();
+      await blocked.locator('[data-testid=activity]').waitFor({ timeout: 10000 });
+      assert.equal(await fibre(blocked, '[data-testid=activity]'), false, 'the panel is the Svelte copy');
+      await until('the same list', async () => JSON.stringify(await ids(blocked)) === JSON.stringify((await rows()).checkpoints.map((c) => String(c.n))));
+      // It works: Create checkpoint makes a row on the server.
+      const before = (await rows()).checkpoints.length;
+      await create(blocked, `blocked ${run}`);
+      await until('the row on the server', async () => (await rows()).checkpoints.length === before + 1);
+      await ctx.close();
+    });
+  }
 
   await check('no uncaught error in the pages', async () => assert.deepEqual(pageErrors, []));
   await browser.close();

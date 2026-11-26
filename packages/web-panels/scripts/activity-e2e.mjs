@@ -17,10 +17,15 @@
 // The Activity tab needs the WASM bridge built (`just wasm-build`) and Playwright from the global module path. Run it against a
 // development server only: it adds nodes and batches to the file and leaves them. It waits about 10 s for the touch rings to
 // go out and the lane to go quiet.
+// The React copy of the panel (E7.3 slice S8) is checked by the same script with MELDFRAME_UI=react: the pages open with
+// /?react=activity (the agent's page too), a check asks that React drew the panel (a silent fallback to Svelte would pass every
+// other check), and a last check blocks the chunks of the React copy and asks that the Svelte panel is drawn and works, so that a
+// chunk that does not load never leaves a card with no panel. The block matches the paths of the Vite dev server's modules, so that
+// check is for the dev server only. Without MELDFRAME_UI the Svelte copy runs.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { rgbCount, sleep, until } from './activity-helpers.mjs';
+import { fibre, openWithChunksBlocked, pageUrl, react, rgbCount, sleep, until } from './activity-helpers.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const web = process.argv[2] ?? 'http://localhost:5173';
@@ -90,7 +95,7 @@ const skip = (name, why) => console.log(`skip ${name}: ${why}`);
     return page;
   };
   const shot = (page, name) => (shots ? page.screenshot({ path: `${shots}/${name}.png` }) : null);
-  const page = await open(web);
+  const page = await open(pageUrl(web));
   mainPage = page;
   await page.evaluate(() => { window.__stay = true; });
   const tab = (p = page) => p.locator('#right-tab-activity');
@@ -156,6 +161,12 @@ const skip = (name, why) => console.log(`skip ${name}: ${why}`);
     await shot(page, 'design-with-ring');
   });
 
+  await check('the Activity panel is drawn by the copy that was asked for', async () => {
+    await openActivity();
+    assert.equal(await page.locator('[data-testid=activity]').count(), 1);
+    assert.equal(await fibre(page, '[data-testid=activity]'), react, react ? 'the Activity panel has no React fibre: the page fell back to Svelte' : 'the Activity panel has a React fibre on the Svelte run');
+  });
+
   await check('the Activity tab fetches and shows the agent lane with its numbered batches, newest first, and the notes as literal text', async () => {
     await openActivity();
     await until('the lane', async () => (await page.locator('[data-testid=lane][data-actor="agent:claude"]').count()) === 1);
@@ -177,6 +188,26 @@ const skip = (name, why) => console.log(`skip ${name}: ${why}`);
     await row(B.n).locator('[data-testid=batch-show]').click();
     const selected = (nid) => page.locator(`[data-testid=layer][data-id="${nid}"]`).getAttribute('data-selected');
     await until('the nodes of the batch are selected', async () => (await selected(heading)) === 'true' && (await selected(hero)) === 'true');
+  });
+
+  await check('the question of a revert takes the focus on Cancel, and Escape closes it and gives the focus back to Revert; so does a restore', async () => {
+    const active = () => page.evaluate(() => { const e = document.activeElement; return `${e?.closest('[data-testid]')?.getAttribute('data-testid') ?? ''}|${e?.textContent?.trim() ?? ''}`; });
+    await row(B.n).locator('[data-testid=batch-revert]').click();
+    await row(B.n).locator('[data-testid=revert-confirm]').waitFor();
+    await until('the focus is on Cancel', async () => (await active()) === 'revert-cancel|Cancel');
+    await page.keyboard.press('Escape');
+    await until('the question is gone', async () => (await row(B.n).locator('[data-testid=revert-confirm]').count()) === 0);
+    await until('the focus is back on Revert', async () => (await active()) === 'batch-revert|Revert');
+    await row(B.n).locator('[data-testid=batch-revert]').click();
+    await row(B.n).locator('[data-testid=revert-cancel]').click();
+    await until('Cancel closed it', async () => (await row(B.n).locator('[data-testid=revert-confirm]').count()) === 0);
+    await until('the focus is back on Revert after Cancel', async () => (await active()) === 'batch-revert|Revert');
+    const first = page.locator('[data-testid=checkpoint]').first();
+    await first.locator('[data-testid=checkpoint-restore] button').click();
+    await until('the focus is on Cancel of the restore', async () => (await active()) === 'restore-cancel|Cancel');
+    await page.keyboard.press('Escape');
+    await until('the restore question is gone', async () => (await page.locator('[data-testid=restore-confirm]').count()) === 0);
+    await until('the focus is back on Restore', async () => (await active()) === 'checkpoint-restore|Restore');
   });
 
   await check('the touch rings go out after the lane is quiet', async () => {
@@ -236,7 +267,7 @@ const skip = (name, why) => console.log(`skip ${name}: ${why}`);
 
   if (agentWeb) {
     await check("in the agent's own page the panel shows the batches and no review controls", async () => {
-      const mine = await open(agentWeb);
+      const mine = await open(pageUrl(agentWeb));
       await openActivity(mine);
       await until('rows', async () => (await mine.locator('[data-testid=batch][data-n]').count()) >= 3);
       assert.equal(await mine.locator('[data-testid=review-set]').count(), 0);
@@ -318,6 +349,21 @@ const skip = (name, why) => console.log(`skip ${name}: ${why}`);
     assert.ok(await page.locator('[data-testid=batch-not-revertable]').count() >= 4);
     await shot(page, 'after-reload');
   });
+
+  if (react) {
+    await check('with the chunks of the React copy blocked, the Svelte panel is drawn and works', async () => {
+      const { ctx, page: blocked } = await openWithChunksBlocked(browser, pageUrl(web), pageErrors);
+      await blocked.locator('#right-tab-activity').click();
+      await blocked.locator('[data-testid=activity]').waitFor({ timeout: 10000 });
+      await unfold(blocked);
+      assert.equal(await fibre(blocked, '[data-testid=activity]'), false, 'the panel is the Svelte copy');
+      await until('the rows', async () => (await blocked.locator('[data-testid=batch][data-n]').count()) >= 3);
+      // It works: a review state set from this page reaches the server (batch C went back to Not reviewed above).
+      await row(C.n, blocked).locator('[data-testid=review-set][data-state=accepted]').click();
+      await until('C accepted on the server', async () => (await list(person)).batches.find((b) => b.n === C.n)?.review === 'accepted');
+      await ctx.close();
+    });
+  }
 
   await check('no uncaught error in the pages', async () => assert.deepEqual(pageErrors, []));
   await browser.close();

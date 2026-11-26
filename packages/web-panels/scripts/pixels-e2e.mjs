@@ -17,9 +17,12 @@
 // section's weight select open, the chip of a variable that was removed (a binding whose variable is gone) and Absolute position
 // checked. A step only clicks and types: it never changes the file, so the second run starts from the file
 // the first one saw.
+// The Activity panel is imaged by pixels-activity-e2e.mjs: its rows are live (a batch the page watched arrive can be reverted, one that was
+// there when the page loaded cannot) and its lanes change with the clock, so it opens both copies at the same time on one file.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { fibre, makeDiffer } from './pixels-helpers.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const web = process.argv[2] ?? 'http://localhost:5173';
@@ -116,8 +119,6 @@ const PANELS = {
 };
 
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-// Whether React drew the element: React puts a fibre on every DOM node it makes; a Svelte page has none.
-const fibre = (page, sel) => page.evaluate((s) => Object.keys(document.querySelector(s) ?? {}).some((k) => k.startsWith('__reactFiber$')), sel);
 
 async function images(word, panel, react) {
   const ctx = await browser.newContext({ viewport: panel.viewport ?? { width: 1440, height: 900 }, deviceScaleFactor: 2, reducedMotion: 'reduce' });
@@ -184,27 +185,7 @@ await post({ type: 'updateNode', id: 'b1', patch: { fill: { var: 'v1' }, opacity
 if (token2) await post({ type: 'addNode', node: { id: 'x1', name: 'From another actor', type: 'rect', parentId: 'f1', x: 60, y: 140, w: 40, h: 20, fill: '#775533' } }, token2);
 else console.log('SKIP the marker of another actor in the Layers panel: MELDFRAME_E2E_TOKEN2 is not set (a second token with another actor among the server tokens)');
 
-const cmp = await (await browser.newContext()).newPage();
-await cmp.setContent('<canvas></canvas>');
-const differ = (a, b) =>
-  cmp.evaluate(async ({ a, b }) => {
-    const load = async (b64) => {
-      const im = new Image();
-      im.src = `data:image/png;base64,${b64}`;
-      await im.decode();
-      const c = document.createElement('canvas');
-      c.width = im.width;
-      c.height = im.height;
-      const g = c.getContext('2d');
-      g.drawImage(im, 0, 0);
-      return g.getImageData(0, 0, c.width, c.height);
-    };
-    const [p, q] = [await load(a), await load(b)];
-    if (p.width !== q.width || p.height !== q.height) return { size: [p.width, p.height, q.width, q.height] };
-    let k = 0;
-    for (let i = 0; i < p.data.length; i += 4) if (p.data[i] !== q.data[i] || p.data[i + 1] !== q.data[i + 1] || p.data[i + 2] !== q.data[i + 2] || p.data[i + 3] !== q.data[i + 3]) k++;
-    return { differing: k, total: p.width * p.height };
-  }, { a, b });
+const differ = await makeDiffer(browser);
 
 let bad = 0;
 // MELDFRAME_PIXELS_ONLY=properties,picker compares those panels only (the file still gets every node, so the images are the same as in a full run).
