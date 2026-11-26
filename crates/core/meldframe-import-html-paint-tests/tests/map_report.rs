@@ -107,3 +107,18 @@ fn skipped_lines_are_bounded() {
     assert_eq!(i.skipped.len(), html_import::map::MAX_SKIPPED);
     assert_eq!(i.skipped_omitted, 100);
 }
+
+#[test]
+fn the_lists_of_a_node_are_bounded_and_the_lines_left_out_are_counted_and_still_refuse_strict() {
+    let props: String = (0..50).map(|i| format!("zz-prop-{i}:1;")).collect();
+    let i = run(&format!(
+        "<div style=\"width:300px\"><div id=a style=\"width:5px;height:5px;{props}\"></div></div>"
+    ));
+    let a = info(&i, "a");
+    assert_eq!(
+        (a.unsupported.len(), a.lost_omitted, a.approx_omitted),
+        (32, 18, 0)
+    );
+    // What strict refuses is every property that was not carried, listed or not.
+    assert_eq!(i.unsupported_count(), 50);
+}

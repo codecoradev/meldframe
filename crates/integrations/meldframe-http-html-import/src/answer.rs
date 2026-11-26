@@ -31,7 +31,8 @@ fn node(n: &NodeInfo) -> Value {
         "approximated": n.approximated.iter()
             .map(|c| json!({"property": c.property, "from": c.from, "to": c.to})).collect::<Vec<_>>(),
         "unsupported": n.unsupported.iter()
-            .map(|l| json!({"property": l.property, "value": l.value, "code": l.code})).collect::<Vec<_>>()})
+            .map(|l| json!({"property": l.property, "value": l.value, "code": l.code})).collect::<Vec<_>>(),
+        "omitted": n.approx_omitted + n.lost_omitted})
 }
 
 /// What `apply_commands` and `export_frame` already warn about, for the nodes of this import: default layer names,

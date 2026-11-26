@@ -211,3 +211,36 @@ async fn the_tool_text_does_not_promise_a_whole_revert() {
         "a dry run with no key makes other ids"
     );
 }
+
+#[tokio::test]
+async fn strict_counts_the_properties_a_full_list_left_out_and_the_row_says_how_many() {
+    let w = start().await;
+    let c = connect(&w.h, AGENT).await;
+    let props: String = (0..50).map(|i| format!("zz-prop-{i}:1;")).collect();
+    let html = format!(
+        "<style>body{{margin:0}}</style><div style=\"width:300px\"><div id=a style=\"width:5px;height:5px;{props}\"></div></div>"
+    );
+    let strict = import(&c, "k", &html, json!({"strict": true})).await;
+    assert_eq!(strict.body["error"]["code"], "E_IMPORT_HTML_UNSUPPORTED");
+    assert!(
+        strict.body["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("50 properties"),
+        "{}",
+        strict.body
+    );
+    let loose = import(&c, "k2", &html, json!({})).await;
+    let row = loose.body["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["name"] == "a")
+        .unwrap()
+        .clone();
+    assert_eq!(row["unsupported"].as_array().unwrap().len(), 32);
+    assert_eq!(
+        row["omitted"], 18,
+        "the lines left out of the two lists of the row"
+    );
+}
