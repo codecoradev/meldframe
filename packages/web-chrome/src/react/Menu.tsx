@@ -1,12 +1,13 @@
 // React copy of Menu.svelte, on Base UI. A menu behind an icon button: rows with a label, an optional shortcut, and a
-// disabled state. It holds no state: a row calls `onSelect`. The trigger is an IconButton, so the label is its name and
+// disabled state. It holds no editor state: a row calls `onSelect`. The trigger is an IconButton, so the label is its name and
 // tooltip. With `text` the trigger is a plain text button instead (the zoom readout): the text is what it shows and
 // the label its name, which repeats the text.
 import { Menu as Base } from '@base-ui/react/menu';
-import { useRef } from 'react';
-import { type ControlSize, rememberFocus, ring } from '../focus';
+import { useRef, useState } from 'react';
+import { type ControlSize, ring } from '../focus';
 import type { IconName } from '../icons';
 import { IconButton } from './IconButton';
+import { useFocusHandoff } from './useFocusHandoff';
 
 export interface MenuItem {
   id: string;
@@ -35,10 +36,12 @@ export interface MenuProps {
 const row = 'flex h-(--mf-size-control-lg) cursor-default items-center justify-between gap-4 rounded-sm px-3 outline-none';
 
 export function Menu({ label, icon = 'menu', text, items, size = 32, testId, side = 'bottom', align = 'start' }: MenuProps) {
-  const keepFocus = useRef(false);
+  // The one view state the menu holds: whether it is open, which the focus handoff needs to know (a row that opens a dialog hands the button on to it).
+  const [open, setOpen] = useState(false);
+  const hand = useFocusHandoff(open);
   const trigger = useRef<HTMLButtonElement>(null);
   return (
-    <Base.Root>
+    <Base.Root open={open} onOpenChange={setOpen}>
       <Base.Trigger
         render={
           text ? (
@@ -54,12 +57,8 @@ export function Menu({ label, icon = 'menu', text, items, size = 32, testId, sid
         <Base.Positioner side={side} sideOffset={8} align={align} className="z-50">
           <Base.Popup
             data-owns-keys=""
-            finalFocus={() => {
-              // A row that opened a dialog leaves the focus where the dialog took it; any other close gives it back to the button.
-              const keep = keepFocus.current;
-              keepFocus.current = false;
-              return !keep;
-            }}
+            // A row that opened a dialog leaves the focus where the dialog took it; any other close gives it back to the button.
+            finalFocus={() => hand.finalFocus() !== false}
             className="min-w-48 rounded-lg border border-menu-border bg-surface-raised p-1 text-small text-text shadow-popover"
           >
             {items.map((it) => {
@@ -81,8 +80,7 @@ export function Menu({ label, icon = 'menu', text, items, size = 32, testId, sid
                   key={it.id}
                   label={it.label}
                   onClick={() => {
-                    keepFocus.current = !!it.opensDialog;
-                    if (keepFocus.current) rememberFocus(trigger.current);
+                    if (it.opensDialog) hand.pass(trigger.current);
                     it.onSelect();
                   }}
                   data-testid={it.testId}
