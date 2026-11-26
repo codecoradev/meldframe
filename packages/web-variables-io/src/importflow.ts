@@ -16,7 +16,9 @@ export interface ImportFlowDeps<F extends { name: string; size: number }> {
   read: (file: F) => Promise<Read>;
 }
 
+// Closing the dialog closes it and forgets the result; a text that changes forgets the result and leaves the dialog open.
 const CLOSE: Action = { type: 'closeVariablesImport' };
+const CLEAR: Action = { type: 'clearVariablesImport' };
 
 export function createImportFlow<F extends { name: string; size: number }>(deps: ImportFlowDeps<F>) {
   let view: ImportView = FRESH;
@@ -28,7 +30,7 @@ export function createImportFlow<F extends { name: string; size: number }>(deps:
   };
   /** The result belongs to the text it was made from: a text that changes puts it away. */
   const putAway = () => {
-    if (deps.result()) deps.dispatch(CLOSE);
+    if (deps.result()) deps.dispatch(CLEAR);
   };
   return {
     view: (): ImportView => view,

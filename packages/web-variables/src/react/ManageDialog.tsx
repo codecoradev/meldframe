@@ -1,7 +1,7 @@
 // React copy of ManageDialog.svelte, on Base UI's Dialog. The manage view in a dialog (the scrim, the focus, Escape, the title and the
 // close button) around `ManageBody`. It is opened from the Variables panel and gives the focus back to the button that opened it. Open
-// or closed is the page's view state (the caller owns it); the content is the app state. Whatever closes it (the Close button, the
-// scrim, Escape) tells the app layer (`ManageOp::Close`), which forgets the question, the rename field, the forms and the choice of a
+// or closed, and the content, are the app state (`state.manage`: `open` is set by `ManageOp::Open` and cleared by `Close`). Whatever closes it (the
+// Close button, the scrim, Escape) tells the app layer (`ManageOp::Close`), which closes it and forgets the question, the rename field, the forms and the choice of a
 // collection; both copies of the Variables panel draw this dialog through the switch, so this is the one place.
 import { Dialog } from '@base-ui/react/dialog';
 import type { Action, Event, ManageState, VariablesPanel } from '@meldframe/protocol';
@@ -11,8 +11,8 @@ import { useFocusHandoff } from '@meldframe/web-chrome/react/useFocusHandoff';
 import { ManageBody } from './ManageBody';
 
 export interface ManageDialogProps {
+  /** `state.manage.open`. */
   open: boolean;
-  onOpenChange: (open: boolean) => void;
   panel: VariablesPanel;
   /** `AppState.manage`: what the manage view shows and asks. */
   manage: ManageState;
@@ -26,7 +26,7 @@ export interface ManageDialogProps {
 // Null (nothing to focus yet) is Base UI's own first focus, as it is Bits UI's.
 const focusStart = () => document.querySelector<HTMLElement>('[data-testid=manage-dialog] [aria-current=true]') ?? document.querySelector<HTMLElement>('[data-testid=manage-new-collection]');
 
-export function ManageDialog({ open, onOpenChange, panel, manage, events, dispatch, opener }: ManageDialogProps) {
+export function ManageDialog({ open, panel, manage, events, dispatch, opener }: ManageDialogProps) {
   // The button that opened the dialog gets the focus back, as in the Svelte copy; when the caller cannot name it (or it left the page), the
   // handoff's answer stands: what an earlier overlay left for this one, else the element that had the focus when this opened.
   const hand = useFocusHandoff(open);
@@ -36,7 +36,6 @@ export function ManageDialog({ open, onOpenChange, panel, manage, events, dispat
         open={open}
         onOpenChange={(next) => {
           if (!next) dispatch({ type: 'manage', op: { type: 'close' } });
-          onOpenChange(next);
         }}
       >
         <Dialog.Portal>

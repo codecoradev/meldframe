@@ -5,10 +5,9 @@
 //
 // The three dialogs (the manage view, Import variables, Export variables) are not in this copy: each has a React copy (`/?react=manage` since S9,
 // `/?react=io` since S10), but a dialog that the default page draws as Svelte cannot be drawn inside this root, and each React one is a root of
-// its own. The switch file that hosts this panel (apps/web/src/react-pilot/VariablesPanelSwitch.svelte) draws them beside it and owns
-// whether the manage view and Import variables are open; this panel only has the buttons, and tells the host when one is pressed
-// (`onManage`, `onImport`).
-// Export variables is an action, as in the Svelte copy. A text with a value in it is one string (a template), not two text nodes.
+// its own. The switch file that hosts this panel (apps/web/src/react-pilot/VariablesPanelSwitch.svelte) draws them beside it, from the app
+// layer's state (`manage.open`, `io.importOpen`, `io.export`); this panel only has the three buttons, which send the actions that open them.
+// A text with a value in it is one string (a template), not two text nodes.
 import type { Action, VariableRow, VariablesPanel as Model } from '@meldframe/protocol';
 import { Button } from '@meldframe/web-chrome/react/Button';
 import { Field } from '@meldframe/web-chrome/react/Field';
@@ -16,39 +15,29 @@ import { Segmented } from '@meldframe/web-chrome/react/Segmented';
 import { TYPE_LABEL } from '@meldframe/web-document/labels';
 import { nameOf } from '@meldframe/web-document/names';
 import { Fragment } from 'react';
-import { FIELD_LABEL, beforeManage, bindAction, display, listedCount, modeAction, modeName, shownValue, swatch, truncated, valueAction } from '../variables';
+import { FIELD_LABEL, bindAction, display, listedCount, modeAction, modeName, shownValue, swatch, truncated, valueAction } from '../variables';
 
 export interface VariablesPanelProps {
   panel: Model;
   /** The id of the one selected node, which the bind buttons act on; none for no selection or several. */
   target: string | null;
   dispatch: (a: Action) => void;
-  /** The Manage button was pressed (the host opens the manage view, after the search has been cleared here). */
-  onManage: () => void;
-  /** The Import variables button was pressed (the host opens its dialog). */
-  onImport: () => void;
 }
 
-export function VariablesPanel({ panel, target, dispatch, onManage, onImport }: VariablesPanelProps) {
+export function VariablesPanel({ panel, target, dispatch }: VariablesPanelProps) {
   const commit = (row: VariableRow, mode: string) => (raw: string) => dispatch(valueAction(row, mode, raw));
-  const manage = () => {
-    // The manage view draws the rows of the panel, so it starts with the search cleared (the counts of a removal are the app layer's, of the whole file).
-    const clear = beforeManage(panel);
-    if (clear) dispatch(clear);
-    onManage();
-  };
   const shown = panel.collections.filter((c) => c.modes.length > 1);
   return (
     <div className="flex flex-col gap-2 text-small text-text" data-testid="variables">
       <Field label="Search variables" prefix="Search" size="dense" value={panel.query} onInput={(q) => dispatch({ type: 'setVariablesQuery', query: q })} testId="var-search" />
       <div className="flex items-center justify-between gap-2">
-        <Button size="sm" onClick={manage} data-testid="var-manage">
+        <Button size="sm" onClick={() => dispatch({ type: 'manage', op: { type: 'open' } })} data-testid="var-manage">
           Manage
         </Button>
         <p className="m-0 text-right text-caption text-text-muted" data-testid="var-count">{`${panel.matched} of ${panel.total}`}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={onImport} data-testid="var-import">
+        <Button size="sm" onClick={() => dispatch({ type: 'openVariablesImport' })} data-testid="var-import">
           Import variables
         </Button>
         <Button size="sm" onClick={() => dispatch({ type: 'openVariablesExport' })} data-testid="var-export">

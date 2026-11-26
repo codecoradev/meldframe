@@ -2,8 +2,8 @@
 // a file the person chooses (in the browser, nothing is uploaded), sent to the app layer as `importVariables`, and the result drawn under it:
 // what was added, what was skipped and why, or why nothing was imported. The app layer reads the text, checks the commands, and applies them as
 // one undo step of the person's own, or applies nothing (`state.variablesIo.import`); this holds the text of the field and the note about the
-// file (`importflow.ts`, no framework), and words the result (`io.ts`). Open or closed is the page's view state (the caller owns it); closing
-// sends `closeVariablesImport` and keeps the text. The focus goes into the field and back to the button that opened the dialog.
+// file (`importflow.ts`, no framework), and words the result (`io.ts`). Open or closed is the app state (`state.variablesIo.importOpen`, opened by
+// the button of the panel); closing sends `closeVariablesImport` and keeps the text. The focus goes into the field and back to the button that opened the dialog.
 import { Dialog } from '@base-ui/react/dialog';
 import type { Action, VariablesImportResult } from '@meldframe/protocol';
 import { IconButton } from '@meldframe/web-chrome/react/IconButton';
@@ -16,8 +16,8 @@ import { readFile } from '../read';
 import { ImportBody } from './ImportBody';
 
 export interface ImportDialogProps {
+  /** `state.variablesIo.importOpen`. */
   open: boolean;
-  onOpenChange: (open: boolean) => void;
   /** `state.variablesIo.import`. */
   result: VariablesImportResult | null;
   dispatch: (a: Action) => void;
@@ -28,7 +28,7 @@ export interface ImportDialogProps {
 // The first thing to focus is the field, not the Close button: a tooltip opens on that button and takes the first Escape.
 const focusStart = () => document.querySelector<HTMLElement>('[data-testid=import-vars-text]');
 
-export function ImportDialog({ open, onOpenChange, result, dispatch, opener }: ImportDialogProps) {
+export function ImportDialog({ open, result, dispatch, opener }: ImportDialogProps) {
   const hand = useFocusHandoff(open);
   // What the flow reads when a step needs it: the answer of the app layer arrives after the click that asked.
   const now = useRef({ result, dispatch });
@@ -64,7 +64,6 @@ export function ImportDialog({ open, onOpenChange, result, dispatch, opener }: I
 
   const change = (next: boolean) => {
     if (!next) flow.close();
-    onOpenChange(next);
   };
   return (
     <TooltipProvider>

@@ -3,8 +3,8 @@
   nothing is uploaded), sent to the app layer as `importVariables`, and the result drawn under it: what was added, what was
   skipped and why, or why nothing was imported. The app layer reads the text, checks the commands, and applies them as one
   undo step of the person's own, or applies nothing (`state.variablesIo.import`); this holds the text of the field and
-  the note about the file, and words the result (io.ts). Open or closed is the page's view state (the caller owns it);
-  closing sends `closeVariablesImport` and keeps the text. The focus goes into the field and back to the button that opened the dialog.
+  the note about the file, and words the result (io.ts). Open or closed is the app state (`state.variablesIo.importOpen`, opened
+  by the button of the panel); closing sends `closeVariablesImport` and keeps the text. The focus goes into the field and back to the button that opened the dialog.
 -->
 <script lang="ts">
   import { Dialog } from 'bits-ui';
@@ -18,15 +18,15 @@
   import { readFile } from './read';
 
   interface Props {
+    /** `state.variablesIo.importOpen`. */
     open: boolean;
-    onOpenChange: (open: boolean) => void;
     /** `state.variablesIo.import`. */
     result: VariablesImportResult | null;
     dispatch: (a: Action) => void;
     /** The button that opened the dialog, to give the focus back to. */
     opener: () => HTMLElement | null | undefined;
   }
-  let { open, onOpenChange, result, dispatch, opener }: Props = $props();
+  let { open, result, dispatch, opener }: Props = $props();
 
   // What the field holds, kept for the life of the page: closing the dialog (Escape is a key the person can hit by mistake)
   // keeps the text, and an import that was applied, or Clear, starts it again.
@@ -53,25 +53,24 @@
       guard.cancel();
       dispatch({ type: 'closeVariablesImport' });
     }
-    onOpenChange(o);
   };
   // The result belongs to the text it was made from: editing the text puts it away. What is typed also ends a file that is still
   // being read, so the file's text never replaces it.
   const edit = (t: string) => {
     view = edited(guard, view, t);
-    if (result) dispatch({ type: 'closeVariablesImport' });
+    if (result) dispatch({ type: 'clearVariablesImport' });
   };
   const clear = () => {
     guard.cancel();
     view = FRESH;
-    if (result) dispatch({ type: 'closeVariablesImport' });
+    if (result) dispatch({ type: 'clearVariablesImport' });
   };
   const send = () => dispatch({ type: 'importVariables', text: view.text });
   async function chosen(file: File) {
     const next = await fileInto(guard, file, () => view, readFile, sizeText);
     if (!next) return;
     // The result of an earlier text is not about this one.
-    if (result) dispatch({ type: 'closeVariablesImport' });
+    if (result) dispatch({ type: 'clearVariablesImport' });
     view = next;
   }
   // The first thing to focus is the field, not the Close button: a tooltip opens on that button and takes the first Escape.
