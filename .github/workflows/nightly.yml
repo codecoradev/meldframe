@@ -83,6 +83,23 @@ jobs:
       - if: steps.gate.outputs.pending != 'true'
         run: cargo xtask size-check
 
+  mm-check:
+    name: mm-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: gate
+        run: sh scripts/ci/gate.sh mm-check
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask mm-check
+
   ui-literals:
     name: ui-literals
     runs-on: ubuntu-latest

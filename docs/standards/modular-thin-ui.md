@@ -118,7 +118,7 @@ repo/
 │  ├─ features/<g>/ <g> (domain), <g>-ui (view), optional composite
 │  ├─ app/          UI-neutral view models: state, actions, effects, events
 │  └─ ui/           tokens, components, shell; plain-data *-model beside *-ui
-└─ xtask/           deps-check, build-matrix, portable-check, size-check, ui-literals, licences
+└─ xtask/           deps-check, build-matrix, portable-check, size-check, mm-check, ui-literals, licences
 ```
 
 ```
@@ -137,6 +137,7 @@ Write the layering rules as a pure function over package data so they are unit-t
 | `build-matrix` | Product builds with no features and with each feature alone (M3) |
 | `portable-check` | Portable kinds compile for each planned target (L5) |
 | `size-check` | File ceiling of 500 lines and crate ceiling of 50,000 against the allow-list, and a note on crates above the ideal band (D1) |
+| `mm-check` | The modular monolith rule (D1): no function copied between files, a pattern of a shared helper written only in its home, the shape of a crate above the threshold (root, modules, cycles), no crate that only holds tests; allow-lists whose entries only go down. It finds exact copies only and depends on a maintained pattern list |
 | `ui-literals` | No colour, font, size or duration literals in UI crates (U4) |
 | `licences --check` | Dependency and model licences (D2) |
 
