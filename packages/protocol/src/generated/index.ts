@@ -1,5 +1,6 @@
 export type { Action } from './Action';
 export type { ActivityLane } from './ActivityLane';
+export type { ActivityOp } from './ActivityOp';
 export type { ActivityRun } from './ActivityRun';
 export type { ActivityState } from './ActivityState';
 export type { ActorTone } from './ActorTone';
@@ -88,6 +89,7 @@ export type { RenameField } from './RenameField';
 export type { RevertSkip } from './RevertSkip';
 export type { RevertSkipReason } from './RevertSkipReason';
 export type { ReviewState } from './ReviewState';
+export type { RightTab } from './RightTab';
 export type { Sections } from './Sections';
 export type { ServerMsg } from './ServerMsg';
 export type { ShaderPreset } from './ShaderPreset';

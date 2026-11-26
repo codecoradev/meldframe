@@ -11,6 +11,7 @@ import type { ManageState } from "./ManageState";
 import type { Panels } from "./Panels";
 import type { Picker } from "./Picker";
 import type { Properties } from "./Properties";
+import type { RightTab } from "./RightTab";
 import type { Tool } from "./Tool";
 import type { VariablesIo } from "./VariablesIo";
 import type { VariablesPanel } from "./VariablesPanel";
@@ -80,6 +81,10 @@ manage: ManageState,
  * The Activity panel (E5.1): lanes, batches with their notes and review states, and touch rings.
  */
 activity: ActivityState, 
+/**
+ * The tab of the right card (`Action::Activity` with `ActivityOp::SetTab`).
+ */
+rightTab: RightTab, 
 /**
  * Export (D9): the frame an export acts on, and the dialog while it is open.
  */

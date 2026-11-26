@@ -10,7 +10,7 @@ pub use crate::preset::{CreateKind, FramePreset};
 pub use crate::property::Property;
 use crate::state::{Panel, Tool};
 use crate::variables::{BindField, VariableValue};
-use crate::{manage::ManageOp, text_field::TypedText, wire::Wire};
+use crate::{confirm::ActivityOp, manage::ManageOp, text_field::TypedText, wire::Wire};
 use meldframe_protocol::{Command, ImageFit, Node, VarType, Variables};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -351,6 +351,10 @@ pub enum Action {
     },
     /// The Activity tab was opened: ask for the newest page of batches (heal rule (c)).
     OpenActivity {},
+    /// The tab of the right card (`ActivityOp`): `AppState::right_tab`.
+    Activity {
+        op: ActivityOp,
+    },
     /// Fetch the page of batches older than the oldest held (when `AppState::activity.has_older`).
     LoadOlderBatches {},
     /// Show a batch: select its nodes on the canvas and mark the row (the row's `inEffect` is then worked out).

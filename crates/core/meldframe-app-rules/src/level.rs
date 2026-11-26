@@ -38,6 +38,7 @@ pub fn is_view(action: &Action) -> bool {
             | Action::CloseVariablesImport {}
     ) || action.is_assets()
         || matches!(action, Action::Manage { op } if op.is_view())
+        || matches!(action, Action::Activity { op } if op.is_view())
 }
 
 /// The level of an action; `ui` is `is_view(action)`.

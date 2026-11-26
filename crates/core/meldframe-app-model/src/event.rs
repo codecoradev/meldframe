@@ -1,5 +1,6 @@
 //! Changes of [`AppState`](crate::AppState), one per change, for a front end that redraws only what moved.
 
+use crate::confirm::RightTab;
 use crate::state::{Connection, Panel, Tool};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -54,6 +55,10 @@ pub enum Event {
     EntityAdded {
         entity: VariableEntity,
         id: String,
+    },
+    /// The tab of the right card changed (`Action::Activity` with `SetTab`).
+    RightTabChanged {
+        tab: RightTab,
     },
     /// `AppState::manage` changed (the shown collection, the question, the rename field, a form or what follows the file).
     ManageChanged {},
