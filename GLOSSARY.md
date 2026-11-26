@@ -100,7 +100,7 @@ A pending op of the same actor that another op was built on, such as the edit an
 _Avoid_: Prerequisite, parent op
 
 **Batch**:
-A group of ops submitted together, optionally all-or-nothing. A batch is the unit of review and revert. Over MCP it is the written ops of one `apply_commands` call: they share one key prefix (`{prefix}:{n}`) and belong to the actor that sent them. A call that wrote nothing is not a batch; one that wrote gets a number in its file (see **Batch header**).
+A group of ops submitted together, optionally all-or-nothing. A batch is the unit of review and revert. Over MCP it is the written ops of one `apply_commands` or `import_html` call: they share one key prefix (`{prefix}:{n}`) and belong to the actor that sent them. A call that wrote nothing is not a batch; one that wrote gets a number in its file (see **Batch header**).
 _Avoid_: Transaction, changeset
 
 **Batch header**:
