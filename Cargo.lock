@@ -2217,19 +2217,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-sync-scenarios"
-version = "0.0.0"
-dependencies = [
- "meldframe-check",
- "meldframe-core",
- "meldframe-history",
- "meldframe-protocol",
- "meldframe-sync",
- "serde_json",
- "wasm-bindgen-test",
-]
-
-[[package]]
 name = "meldframe-text"
 version = "0.0.0"
 dependencies = [

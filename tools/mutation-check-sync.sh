@@ -119,7 +119,7 @@ want=("$@")
 current=""
 trap '[ -n "$current" ] && { rm -f "$current.mutation"; git checkout -- "$current"; }' EXIT
 killed=0; survived=0
-crates=(-p meldframe-history -p meldframe-sync -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-app -p meldframe-app-tests -p meldframe-variables-rename-tests)
+crates=(-p meldframe-history -p meldframe-sync -p meldframe-sync-props -p meldframe-app -p meldframe-app-tests -p meldframe-variables-rename-tests)
 while IFS=$'\t' read -r name file from to what; do
   if [ ${#want[@]} -gt 0 ] && [[ ! " ${want[*]} " == *" $name "* ]]; then continue; fi
   if ! git diff --quiet -- "$file"; then echo "FAIL: $file has local changes; commit or stash them first"; exit 2; fi
