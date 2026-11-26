@@ -40,6 +40,9 @@ pub fn action_of(wire: Wire) -> Option<Action> {
     Some(match wire {
         Wire::Batches { status, body } => batches::list(status, &body),
         Wire::BatchReview { status, body } => batches::review(status, &body),
+        Wire::Checkpoints { status, body } => checkpoints::list(status, &body),
+        Wire::CheckpointPosted { key, status, body } => checkpoints::posted(key, status, &body),
+        Wire::CheckpointState { n, status, body } => checkpoints::state(n, status, &body),
         Wire::Hint { now_ms, text } => {
             let frame = hint(&text)?;
             Action::Frame { now_ms, frame }

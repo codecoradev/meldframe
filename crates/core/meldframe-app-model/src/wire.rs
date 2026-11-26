@@ -25,6 +25,16 @@ pub enum Wire {
     Batches { status: u16, body: String },
     /// The answer of `Effect::PutBatchReview`: `BatchReviewed` with the row alone, or `BatchRequestFailed`.
     BatchReview { status: u16, body: String },
+    /// The answer of `Effect::FetchCheckpoints`: `CheckpointsLoaded`, or `CheckpointRequestFailed` for the list.
+    Checkpoints { status: u16, body: String },
+    /// The answer of `Effect::PostCheckpoint` with this `key`: `CheckpointPosted`, or `CheckpointRequestFailed` for the post.
+    CheckpointPosted {
+        key: String,
+        status: u16,
+        body: String,
+    },
+    /// The answer of `Effect::FetchCheckpointState` for number `n`: `CheckpointStateLoaded`, or `CheckpointRequestFailed`.
+    CheckpointState { n: u32, status: u16, body: String },
     /// A `batch`, `touch` or `checkpoint` frame of the live socket, as the socket sent it: `Action::Frame` with the frame
     /// made of it. These are hints over the log, so a frame that does not pass the check is ignored (a fetch heals the gap);
     /// the app treats a text of any other type as nothing.

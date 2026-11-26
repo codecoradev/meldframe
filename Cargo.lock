@@ -1299,6 +1299,7 @@ dependencies = [
  "meldframe-text",
  "meldframe-variables",
  "meldframe-variant",
+ "serde",
  "serde_json",
 ]
 
