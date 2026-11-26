@@ -1,0 +1,38 @@
+// React copy of BindPicker.svelte, on Base UI's Popover. The bind button of a field and its picker, as the Inspector board
+// draws it: the variable button at the end of a field opens a popover with a search and the variables that fit the field (the
+// app layer lists them, only while it is open). A row binds the field and the app layer closes the popover (it stays open when
+// the bind is refused). What is inside is PickerList. It holds no state of its own: it is open while the app state says so.
+import { Popover as Base } from '@base-ui/react/popover';
+import type { Action, BindField, Picker, Properties } from '@meldframe/protocol';
+import { IconButton } from '@meldframe/web-chrome/react/IconButton';
+import { TooltipProvider } from '@meldframe/web-chrome/react/Tooltip';
+import { closePickerAction, openPickerAction } from '@meldframe/web-document/picker';
+import { FIELD_LABEL } from '../variables';
+import { PickerList } from './PickerList';
+
+export interface BindPickerProps {
+  properties: Properties;
+  field: BindField;
+  /** The picker of the app state; this one is open when it is the picker of this field of this node. */
+  picker: Picker | null;
+  dispatch: (a: Action) => void;
+}
+
+export function BindPicker({ properties: p, field, picker, dispatch }: BindPickerProps) {
+  const mine = picker && picker.id === p.id && picker.field === field ? picker : null;
+  return (
+    // An island is a root of its own: the provider the Svelte layout gives the button from above is here.
+    <TooltipProvider>
+      <Base.Root open={!!mine} onOpenChange={(o) => dispatch(o ? openPickerAction(p, field) : closePickerAction())}>
+        <Base.Trigger render={<IconButton label={`Bind ${FIELD_LABEL[field]} to a variable`} icon="variable" size={24} data-testid={`prop-${field}-bind`} />} />
+        <Base.Portal>
+          <Base.Positioner side="bottom" align="end" sideOffset={8} className="z-50">
+            <Base.Popup data-owns-keys="" data-testid="picker" className="flex w-72 flex-col overflow-hidden rounded-lg border border-menu-border bg-surface-raised text-small text-text shadow-popover">
+              {mine ? <PickerList picker={mine} dispatch={dispatch} /> : null}
+            </Base.Popup>
+          </Base.Positioner>
+        </Base.Portal>
+      </Base.Root>
+    </TooltipProvider>
+  );
+}

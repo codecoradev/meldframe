@@ -48,3 +48,6 @@ export const FIELD_LABEL: Record<BindField, string> = { fill: 'Fill', radius: 'R
 
 /** The name of a mode for a label (the id, for a mode the collection does not have). */
 export const modeName = (c: CollectionRow, id: string): string => c.modes.find((m) => m.id === id)?.name ?? id;
+
+/** What opening the manage view sends first: it reads the whole list, so a search is cleared (the counts of a removal are of what is listed). */
+export const beforeManage = (p: VariablesPanel): Action | null => (p.query.trim() === '' ? null : { type: 'setVariablesQuery', query: '' });

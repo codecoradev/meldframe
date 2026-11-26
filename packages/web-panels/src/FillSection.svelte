@@ -6,7 +6,7 @@
   a button to change it and its fit. It draws the document and reports input as actions (see fills.ts and images.ts).
 -->
 <script lang="ts">
-  import { tick, type Snippet } from 'svelte';
+  import { tick, type Component, type ComponentProps, type Snippet } from 'svelte';
   import type { Action, AssetsState, BindField, FieldBinding, ImageFit, Picker, Properties } from '@meldframe/protocol';
   import { assetUrl, isAssetId } from '@meldframe/web-assets/assets';
   import Button from '@meldframe/web-chrome/Button.svelte';
@@ -30,8 +30,10 @@
     dispatch: (a: Action) => void;
     /** The chip of a bound field, drawn by the panel so every bound field looks alike. */
     chip: Snippet<[string, BindField, FieldBinding, string]>;
+    /** The bind picker as the page draws it: the Svelte one unless the page gives another (the React pilot, `/?react=variables`). */
+    bindView?: Component<ComponentProps<typeof BindPicker>>;
   }
-  let { properties: p, picker, assets = CLOSED, dispatch, chip }: Props = $props();
+  let { properties: p, picker, assets = CLOSED, dispatch, chip, bindView: BindView = BindPicker }: Props = $props();
   const send = (a: Action | null) => {
     if (a) dispatch(a);
   };
@@ -83,7 +85,7 @@
               {#snippet lead()}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={swatch}></i>{/snippet}
             </Field>
           </div>
-          <BindPicker properties={p} field="fill" {picker} {dispatch} />
+          <BindView properties={p} field="fill" {picker} {dispatch} />
         </div>
       {/if}
     {/if}

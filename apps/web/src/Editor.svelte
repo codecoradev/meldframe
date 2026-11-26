@@ -25,11 +25,11 @@
   import NoFrames from '@meldframe/web-feedback/NoFrames.svelte';
   import { Toaster, type ToastView } from '@meldframe/web-feedback/toaster';
   import { layoutKey, paletteBlocked, readOverlays } from '@meldframe/web-shell/keys';
-  import { shellParts } from './react-pilot/shell'; // the palette and the shortcut sheet, Svelte or React with /?react=palette (E7.3, S4)
+  import { bindParts, shellParts } from './react-pilot/shell'; // the palette and the shortcut sheet, Svelte or React with /?react=palette (E7.3, S4); the bind picker with /?react=variables (S5)
   import { zoomCamera } from '@meldframe/web-shell/zoom';
   import LayersPanel from './react-pilot/LayersPanelSwitch.svelte'; // LayersPanel.svelte of web-panels, or its React copy with /?react=layers (E7.3, S5)
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
-  import VariablesPanel from '@meldframe/web-panels/VariablesPanel.svelte';
+  import VariablesPanel from './react-pilot/VariablesPanelSwitch.svelte'; // VariablesPanel.svelte of web-panels, or its React copy with /?react=variables (E7.3, S5)
   import ActivityPanel from '@meldframe/web-activity/ActivityPanel.svelte';
   import { tabChange, toastFor, type RightTab } from '@meldframe/web-activity/tab';
   import { layerRows } from '@meldframe/web-document/layers';
@@ -383,7 +383,7 @@
     <Section title="Variables" open={snap.state.panels.variables} onToggle={() => dispatch({ type: 'togglePanel', panel: 'variables' })} toggleId="toggle-variables">
       <VariablesPanel panel={snap.state.variables} io={snap.state.variablesIo} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} events={snap.events} />
     </Section>
-    <PropertiesPanel properties={snap.state.properties} picker={snap.state.picker ?? null} assets={snap.state.assets} selected={snap.state.selection.length} {dispatch} />
+    <PropertiesPanel properties={snap.state.properties} picker={snap.state.picker ?? null} assets={snap.state.assets} selected={snap.state.selection.length} {dispatch} {...bindParts} />
     <ExportSection {target} scale={pngScale} onScale={(s) => (pngScale = s)} plan={planOf(target)} onPng={() => exportPng(target)} onHtml={() => dispatch({ type: 'openExport' })} />
   {/snippet}
   {#snippet activityPanel()}<ActivityPanel activity={snap.state.activity} checkpoints={snap.state.checkpoints} canCreate={snap.state.canCreateCheckpoint} status={snap.state.checkpointsStatus} self={actor} {dispatch} events={snap.events} />{/snippet}
