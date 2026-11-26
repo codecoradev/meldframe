@@ -3,6 +3,7 @@ import type { CheckpointKind } from "./CheckpointKind";
 
 /**
  * A row of the list route, of the answer to a create or the body of a `checkpoint` frame, as it came off the wire:
- * nothing in it is trusted, and the app layer checks it again before a row is made from it.
+ * nothing in it is trusted, and the app layer checks it again before a row is made from it. A field it does not know is
+ * ignored (the server may add one).
  */
 export type CheckpointRow = { n: number, seq: number, kind: CheckpointKind, label?: string, about?: string, by?: string, atMs: number, };

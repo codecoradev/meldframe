@@ -4,6 +4,16 @@
 use meldframe_app::{Action, App, Effect, Event, Frame};
 use meldframe_protocol::{Command, Node};
 
+/// What a raw answer comes to, compared as JSON (an action has no equality of its own).
+#[derive(Debug)]
+pub struct Out(pub Option<Action>);
+
+impl PartialEq for Out {
+    fn eq(&self, other: &Self) -> bool {
+        serde_json::to_value(&self.0).unwrap() == serde_json::to_value(&other.0).unwrap()
+    }
+}
+
 pub fn node(id: &str, kind: &str, parent: Option<&str>) -> Node {
     serde_json::from_value(serde_json::json!({"id": id, "type": kind, "parentId": parent})).unwrap()
 }

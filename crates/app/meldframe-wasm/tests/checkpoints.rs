@@ -263,7 +263,6 @@ fn a_failed_request_refuses_what_waited_and_bad_payloads_are_errors_not_panics()
     );
     for action in [
         json!({"type": "checkpointsLoaded", "checkpoints": [{"n": 1, "seq": 0, "kind": "snapshot", "atMs": 1}], "canCreate": true}),
-        json!({"type": "checkpointsLoaded", "checkpoints": [{"n": 1, "seq": 0, "kind": "manual", "atMs": 1, "x": 1}], "canCreate": true}),
         json!({"type": "checkpointsLoaded", "checkpoints": []}),
         json!({"type": "checkpointRequestFailed", "request": {"type": "state"}, "code": "x"}),
         json!({"type": "checkpointRequestFailed", "request": {"type": "elsewhere"}, "code": "x"}),
@@ -273,6 +272,12 @@ fn a_failed_request_refuses_what_waited_and_bad_payloads_are_errors_not_panics()
         let e = run_err(&mut b, action).expect("refused");
         assert!(e.starts_with("action:"), "{e}");
     }
+    // A row is read as the server sends it: a field the app does not know is ignored, not an error (audit finding T6).
+    loaded(
+        &mut b,
+        vec![json!({"n": 1, "seq": 0, "kind": "manual", "atMs": 1, "x": 1})],
+        true,
+    );
     let bad_frame = json!({"type": "frame", "nowMs": T, "frame": {"type": "checkpoint", "checkpoint": {"n": 1}}});
     assert!(run_err(&mut b, bad_frame).unwrap().starts_with("action:"));
 }

@@ -206,9 +206,9 @@ fn unknown_fields_and_bad_values_are_errors_not_panics() {
         let e = b.dispatch(&action.to_string()).expect_err("refused");
         assert!(e.starts_with("action:"), "{e}");
     }
+    // A header is read as the server sends it: a field the app does not know is ignored, not an error (audit finding T6).
     let mut h = header(1, 1, "b1", Value::Null);
     h["extra"] = json!(true);
-    let e = b.dispatch(&frame(h, 1).to_string()).expect_err("refused");
-    assert!(e.starts_with("action:"), "{e}");
-    assert_eq!(state(&b)["activity"]["rows"], json!([]));
+    b.dispatch(&frame(h, 1).to_string())
+        .expect("a field more is ignored");
 }

@@ -6,12 +6,11 @@ use crate::checkpoint::{CheckpointRequest, CheckpointRow};
 use crate::export::ExportFormat;
 pub use crate::frame::Frame;
 use crate::layout::Direction;
-use crate::manage::ManageOp;
 pub use crate::preset::{CreateKind, FramePreset};
 pub use crate::property::Property;
 use crate::state::{Panel, Tool};
-use crate::text_field::TypedText;
 use crate::variables::{BindField, VariableValue};
+use crate::{manage::ManageOp, text_field::TypedText, wire::Wire};
 use meldframe_protocol::{Command, ImageFit, Node, VarType, Variables};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -225,6 +224,10 @@ pub enum Action {
     /// Something done in the Variables manage view (`ManageOp`): `AppState::manage` is what it shows and asks.
     Manage {
         op: ManageOp,
+    },
+    /// A raw answer of the server or a raw frame (`Wire`): the app parses and checks it, then acts or ignores it.
+    Wire {
+        wire: Wire,
     },
     /// Search the Variables panel (view state: nothing is written to the file). The text is trimmed and cut at 200
     /// characters; every word has to match (see `VariablesPanel::query`).

@@ -5,6 +5,7 @@
 //! network, so the app checks it too (`AssetPage::is_valid`): a front end may check it as well, and none has to.
 
 use crate::action::Action;
+use crate::wire::MAX_SAFE_INT;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -22,9 +23,6 @@ pub const ASSET_LIST_MAX: usize = 500;
 
 /// The types the server serves (SVG is refused at upload).
 const MIMES: [&str; 4] = ["image/png", "image/jpeg", "image/webp", "image/gif"];
-
-/// The largest whole number a JavaScript front end holds exactly.
-const MAX_SAFE_BYTES: u64 = (1 << 53) - 1;
 
 /// Whether `id` has the form of an asset id: 64 lowercase hex characters (the SHA-256 of the bytes).
 pub fn is_asset_id(id: &str) -> bool {
@@ -47,7 +45,7 @@ pub struct AssetInfo {
 impl AssetInfo {
     /// Whether it is what the server lists: an id of the right form, a size a front end can hold and one of the four types.
     pub fn is_valid(&self) -> bool {
-        is_asset_id(&self.id) && self.bytes <= MAX_SAFE_BYTES && MIMES.contains(&self.mime.as_str())
+        is_asset_id(&self.id) && self.bytes <= MAX_SAFE_INT && MIMES.contains(&self.mime.as_str())
     }
 }
 

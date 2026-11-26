@@ -66,9 +66,16 @@ assert.deepEqual([ring.actor, ring.ids, ring.persistent], ['agent:x', ['a'], fal
 app.takeEventsJson();
 run({ type: 'batchRequestFailed', code: 'forbidden' });
 assert.deepEqual(JSON.parse(app.takeEventsJson()), [{ type: 'refused', code: 'forbidden' }], 'a failed request is a refusal');
-// A header with a field the app does not know, and a review state that is not one, are thrown as strings.
-assert.throws(() => run({ type: 'frame', nowMs: T, frame: { type: 'batch', header: header(2, 1, 'b2', { extra: 1 }), unreviewedCount: 1 } }), (e) => typeof e === 'string' && e.startsWith('action:'));
+// A header with a field the app does not know is read as the server sends it (finding T6), and a review state that is not one is thrown as a string.
+run({ type: 'frame', nowMs: T, frame: { type: 'batch', header: header(2, 1, 'b2', { extra: 1 }), unreviewedCount: 1 } });
 assert.throws(() => run({ type: 'setBatchReview', batch: { actor: 'a', keyPrefix: 'k' }, state: 'approved' }), (e) => typeof e === 'string' && e.startsWith('action:'));
+// A raw answer as text (finding T6): the app layer reads it, and a body that is not the server's is refused as unavailable.
+const rawPage = { batches: [header(3, 1, 'b3')], hasMore: false, unreviewedCount: 4, canReview: true };
+run({ type: 'wire', wire: { kind: 'batches', status: 200, body: JSON.stringify(rawPage) } });
+assert.ok(JSON.parse(app.stateJson()).activity.rows.some((r) => r.n === 3), 'the row of the raw page is in the panel');
+app.takeEventsJson();
+run({ type: 'wire', wire: { kind: 'batches', status: 200, body: '<html>' } });
+assert.deepEqual(JSON.parse(app.takeEventsJson()), [{ type: 'refused', code: 'unavailable' }]);
 
 // The Export dialog (D9): the HTML of the selected frame is built in the state while the dialog is open.
 const exp = new WasmApp('usr_me', 'web', 8, JSON.stringify([{ id: 'f', type: 'frame', pos: 'a0', name: 'Landing', w: 300, h: 200 }]), 0);

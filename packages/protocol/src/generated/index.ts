@@ -115,3 +115,4 @@ export type { VariablesExportDialog } from './VariablesExportDialog';
 export type { VariablesImportResult } from './VariablesImportResult';
 export type { VariablesIo } from './VariablesIo';
 export type { VariablesPanel } from './VariablesPanel';
+export type { Wire } from './Wire';

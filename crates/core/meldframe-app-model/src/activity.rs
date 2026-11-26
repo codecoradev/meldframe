@@ -42,10 +42,11 @@ impl From<ReviewState> for act::Review {
 }
 
 /// A batch header as the server sent it: a row of the list route or the body of a `batch` frame. Nothing in it is
-/// trusted: the app layer checks it again (the note most of all) before a row is made from it.
+/// trusted: the app layer checks it again (the note most of all) before a row is made from it. A field it does not know is
+/// ignored, as in every answer of the server (`meldframe-app-parts` `answers`): the server may add one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct BatchHeader {
     pub n: u32,
     #[ts(type = "number")]
@@ -101,7 +102,7 @@ impl From<BatchHeader> for act::RawHeader {
 /// this person may set review states.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct BatchPage {
     pub batches: Vec<BatchHeader>,
     pub has_more: bool,
