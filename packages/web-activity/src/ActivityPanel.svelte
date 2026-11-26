@@ -114,7 +114,7 @@
                     selected={activity.selected?.actor === r.actor && activity.selected.keyPrefix === r.keyPrefix}
                     confirming={asking(r)}
                     canReview={activity.canReview}
-                    onReview={(state) => dispatch(setReview(r, state))}
+                    onReview={(state) => send(setReview(r, state))}
                     onShow={() => send(show(r))}
                     onAskRevert={() => send(askRevert(r))}
                     onRevert={() => send(confirmRevert(r))}
@@ -134,7 +134,7 @@
       </div>
     {/each}
     {#if activity.hasOlder}
-      <Button size="sm" onclick={() => dispatch(older())} data-testid="older">Show older batches</Button>
+      <Button size="sm" onclick={() => send(older())} data-testid="older">Show older batches</Button>
     {/if}
   </Section>
   <Section title="Checkpoints">

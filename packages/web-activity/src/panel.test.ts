@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
 import type { ActivityState, Checkpoint } from '@meldframe/protocol';
@@ -296,5 +297,12 @@ describe('Create checkpoint', () => {
     expect(out).toContain('Made by bea');
     expect(out).toContain("Before claude's run");
     expect(out.match(/Made by/g)).toHaveLength(1);
+  });
+});
+
+describe('what the controls send', () => {
+  it('goes through `send` for every control, so that a review puts the words of a refusal back to a review (controller.ts, aboutAfter)', () => {
+    const src = readFileSync(new URL('./ActivityPanel.svelte', import.meta.url), 'utf8');
+    expect(src.match(/\bdispatch\(/g)).toHaveLength(1); // the one inside `send`
   });
 });
