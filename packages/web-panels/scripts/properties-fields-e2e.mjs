@@ -5,12 +5,16 @@
 // .dev-token at the root and in the server's token list, loopback URLs, the WASM bridge built from this revision, no defaults). It adds a frame
 // with a row frame, a rectangle, a gradient, a text and a node bound to two variables to the file and leaves them: development server only.
 // Each step acts on a control with the pointer or the keyboard, reads the node back from the server, and takes one undo: the node has its
-// old value again. Driven here: Gap, Padding (all sides, one side), Align and Justify, Width sizing (Hug), the margin of a side and Absolute
-// position of a node in a row, the corner radius, the font size, the gradient's angle, a stop's colour and position, Add stop and Remove
-// stop, the border's width, colour and position, the shadow's X, blur and colour, Detach on the opacity chip and on the radius chip.
-// Not driven by any script: Height sizing, the other padding sides, margins and shadow numbers other than the ones above, the stop of
-// a radial gradient, Fill type, the weight and the alignment of a text (text-style-e2e.mjs drives those two), Remove border (border-remove-e2e.mjs
-// drives it), Detach on a fill chip and the image fill controls (image-fill-e2e.mjs drives those).
+// old value again. Driven here: Gap, Padding (all sides and each side), Align and Justify, Width and Height sizing (one choice each), the margin
+// of each side and Absolute position of a node in a row, the corner radius, the font size, the height and Y of a free node, the fill's type
+// (Radial), the gradient's angle, a stop's colour and position, Add stop and Remove stop, the border's width, colour and position, the shadow's
+// X, Y, spread, blur and colour, the bind buttons of the opacity and of the corner radius (a row of the picker), Detach on the opacity chip and on
+// the radius chip.
+// Not driven in a browser by any script: the other choices of Width and Height sizing, the other types of the fill switch (Solid, Linear, None),
+// the angle and stops of a radial gradient, a second shadow, Detach and the bind button on a node that is not in the state above, and the
+// controls of a shader node. Driven by other scripts: the weight and the alignment of a text (text-style-e2e.mjs), Remove border
+// (border-remove-e2e.mjs), the fill's bind button and Detach on the fill chip (variables-e2e.mjs), the image fill's type, fit, Change image and
+// picker (image-fill-e2e.mjs), Clip content, the name, X, W and the opacity (properties-e2e.mjs, text-style-e2e.mjs, editor-e2e.mjs).
 // MELDFRAME_UI=react opens the page with `/?react=properties` and first asks that React drew the panel, so that a silent fallback to Svelte
 // cannot pass; without it the Svelte copy runs and the same steps apply. The steps share the file; one that fails can fail the ones after it.
 import assert from 'node:assert/strict';
@@ -75,6 +79,7 @@ const id = (k) => `${k}_${run}`;
 const names = { [id('root')]: `Root ${run}`, [id('row')]: `Row ${run}`, [id('kid')]: `Kid ${run}`, [id('grad')]: `Grad ${run}`, [id('txt')]: `Text ${run}`, [id('bnd')]: `Bound ${run}` };
 const stops = [{ pos: 0, color: '#112233' }, { pos: 0.5, color: '#445566' }, { pos: 1, color: '#ffffff' }];
 let page;
+const field_ = (testid) => page.locator(`[data-testid=${testid}]`).first();
 const field = (testid, i = 0) => page.locator(`[data-testid=${testid}]`).nth(i);
 const radio = (group, name) => page.locator(`[data-testid=${group}]`).getByRole('radio', { name, exact: true });
 // The panel shows the node once its name is in the name field (the panel of the node selected before stays up until then).
@@ -125,7 +130,7 @@ async function step(k, read, want, act) {
     await select('row');
     await step('row', (x) => x.gap, 20, () => type('prop-gap', '20'));
     await step('row', (x) => x.padding, 12, () => type('prop-padding', '12'));
-    await step('row', (x) => x.padT ?? null, 30, () => type('prop-padding-top', '30'));
+    for (const [side, key] of [['top', 'padT'], ['right', 'padR'], ['bottom', 'padB'], ['left', 'padL']]) await step('row', (x) => x[key] ?? null, 30, () => type(`prop-padding-${side}`, '30'));
     await step('row', (x) => x.align, 'center', () => radio('prop-align', 'Center').click());
     await step('row', (x) => x.justify, 'between', () => radio('prop-justify', 'Between').click());
   });
@@ -133,14 +138,15 @@ async function step(k, read, want, act) {
   await check('a node in a row: Width sizing Hug, the margin of two sides, Absolute position, the corner radius', async () => {
     await select('kid');
     await step('kid', (x) => x.sw, 'hug', () => radio('prop-sw', 'Hug').click());
-    await step('kid', (x) => x.marT, 9, () => type('prop-margin-top', '9'));
-    await step('kid', (x) => x.marL, 5, () => type('prop-margin-left', '5'));
+    await step('kid', (x) => x.sh, 'fill', () => radio('prop-sh', 'Fill').click());
+    for (const [side, key] of [['top', 'marT'], ['right', 'marR'], ['bottom', 'marB'], ['left', 'marL']]) await step('kid', (x) => x[key], 9, () => type(`prop-margin-${side}`, '9'));
     await step('kid', (x) => x.absolute, true, () => field('prop-absolute').click());
     await step('kid', (x) => x.radius, 12, () => type('prop-radius', '12'));
   });
 
   await check('a gradient: the angle, the colour and the position of a stop, Add stop and Remove stop', async () => {
     await select('grad');
+    await step('grad', (x) => x.gradient.kind, 'radial', () => radio('prop-fill-type', 'Radial').click());
     await step('grad', (x) => x.gradient.angle, 45, () => type('prop-gradient-angle', '45'));
     await step('grad', (x) => x.gradient.stops[0].color, '#abcdef', () => type('prop-gradient-color', '#abcdef', 0));
     await step('grad', (x) => x.gradient.stops[1].pos, 0.25, () => type('prop-gradient-pos', '25', 1));
@@ -155,13 +161,27 @@ async function step(k, read, want, act) {
     await step('row', (x) => x.border.color, '#ff0000', () => type('prop-border-color', '#ff0000'));
     await step('row', (x) => x.border.position, 'outside', () => radio('prop-border-position', 'Outside').click());
     await step('row', (x) => x.shadows[0].x, 7, () => type('prop-shadow-x', '7'));
+    await step('row', (x) => x.shadows[0].y, 6, () => type('prop-shadow-y', '6'));
+    await step('row', (x) => x.shadows[0].spread, 2, () => type('prop-shadow-spread', '2'));
     await step('row', (x) => x.shadows[0].blur, 9, () => type('prop-shadow-blur', '9'));
     await step('row', (x) => x.shadows[0].color, '#00ff0080', () => type('prop-shadow-color', '#00ff0080'));
   });
 
-  await check('a text: the font size', async () => {
+  await check('a text: the font size, and the height and Y of a node that is free', async () => {
     await select('txt');
+    await step('txt', (x) => x.h, 50, () => type('prop-h', '50'));
+    await step('txt', (x) => x.y, 260, () => type('prop-y', '260'));
     await step('txt', (x) => x.fontSize, 30, () => type('prop-fontSize', '30'));
+  });
+
+  await check('the bind buttons of the opacity and of the corner radius: a row of the picker binds the field, and one undo frees it', async () => {
+    await select('kid');
+    for (const [field, key, row] of [['opacity', 'opacity', 'opacity/half'], ['radius', 'radius', 'radius/six']]) {
+      await step('kid', (x) => typeof x[key], 'object', async () => {
+        await field_(`prop-${field}-bind`).click();
+        await page.locator('[data-testid=picker-row]', { hasText: row }).click();
+      });
+    }
   });
 
   await check('a node bound to two variables: Detach on the opacity chip and on the radius chip makes the value a literal, and one undo binds it again', async () => {
