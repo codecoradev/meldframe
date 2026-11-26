@@ -73,6 +73,8 @@ async function newPage(init, track = false) {
 const shot = async (page, state) => { if (shots) await page.screenshot({ path: `${shots}/feedback-${state}-${ui}.png` }); };
 const state = (page) => page.getAttribute('[data-testid=connection]', 'data-state');
 /** True when the element carries a React fiber: the guard against a page that says "React" and draws Svelte. */
+// The modules of the React copy that Vite or the built site loads on demand.
+const chunk = /FeedbackHost|FeedbackLayerHost|react\/ErrorPage|react\/FeedbackLayer/;
 const fibre = (page, selector) => page.evaluate((s) => Object.keys(document.querySelector(s) ?? {}).some((k) => k.startsWith('__reactFiber$')), selector);
 
 /**
@@ -140,6 +142,18 @@ const statusRegion = '[data-testid=banner-region-status]';
     assert.ok(box.width <= 320 && box.y > 0 && box.y + box.height < viewport.height, `the card is a small card: ${JSON.stringify(box)}`);
     await shot(page, 'no-frames');
   });
+
+  if (react) {
+    await check('React chunk of the editor layer that does not load: the empty state is drawn by Svelte', async () => {
+      const p = await newPage();
+      await p.route((u) => chunk.test(u.pathname), (route) => route.abort('failed'));
+      await p.goto(page_url());
+      const card = p.locator('[data-testid=empty-state]');
+      await card.waitFor({ state: 'visible', timeout: 20000 });
+      assert.equal(await fibre(p, '[data-testid=empty-state]'), false, 'the empty state is the Svelte copy');
+      await p.context().close();
+    });
+  }
 
   await check('a node whose image the server does not hold shows a toast in a live region, with the tone and a Dismiss button', async () => {
     await post({ type: 'addNode', node: { id: `${run}_img1`, name: 'Image one', type: 'rect', parentId: null, x: 0, y: 0, w: 120, h: 60, fill: '#a0522d', image: { assetId: 'e'.repeat(64), fit: 'cover' } } });
@@ -298,6 +312,22 @@ const statusRegion = '[data-testid=banner-region-status]';
     await shot(p, 'error-start');
     await p.context().close();
   });
+
+  if (react) {
+    // The React copy loads on demand. A chunk that does not load must leave the Svelte copy, never a blank page.
+    await check('React chunk that does not load: the error page of an editor that could not start is drawn by Svelte', async () => {
+      const p = await newPage();
+      await p.route(/\.wasm(\?.*)?$/, (route) => route.abort('failed'));
+      await p.route((u) => chunk.test(u.pathname), (route) => route.abort('failed'));
+      await p.goto(page_url());
+      const err = p.locator('[data-testid=error-page]');
+      await err.waitFor({ state: 'visible', timeout: 20000 });
+      assert.equal(await err.getAttribute('data-kind'), 'start');
+      assert.equal(await err.getByRole('button', { name: 'Try again' }).count(), 1);
+      assert.equal(await fibre(p, '[data-testid=error-page]'), false, 'the page is the Svelte copy');
+      await p.context().close();
+    });
+  }
 
   await check('no uncaught error in the page that was cut, refused and made to disagree', async () => assert.deepEqual(pageErrors, []));
   await browser.close();

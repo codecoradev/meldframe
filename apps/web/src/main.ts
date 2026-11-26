@@ -69,6 +69,13 @@ start().catch((e: unknown) => {
   root.replaceChildren();
   const page = pageFor(e, { dev: import.meta.env.DEV });
   const again = () => location.reload();
-  if (reactFeedback(location.search)) void mountReactErrorPage(root, page, again); // /?react=feedback (E7.3, S3)
-  else mount(ErrorPage, { target: root, props: { page, onAction: again } });
+  const svelte = () => mount(ErrorPage, { target: root, props: { page, onAction: again } });
+  // /?react=feedback (E7.3, S3): the React copy loads on demand, and a chunk that does not load (the server or the network is
+  // the very thing that is down) must not leave a blank page: the Svelte copy is in the entry and draws instead.
+  if (reactFeedback(location.search)) {
+    mountReactErrorPage(root, page, again).catch(() => {
+      root.replaceChildren();
+      svelte();
+    });
+  } else svelte();
 });

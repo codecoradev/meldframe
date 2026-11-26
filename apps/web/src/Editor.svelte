@@ -357,6 +357,11 @@
     {#if reactFeedback}
       {#await import('./react-pilot/FeedbackLayerHost.svelte') then host}
         <host.default {nodes} {ready} canAdd={snap.state.connection.type !== 'halted'} onAdd={() => canvas && dispatch(presetAction('desktop', canvas.centre()))} {toast} onCloseToast={() => toaster.dismiss()} {banners} onBanner={onBanner} />
+      {:catch}
+        <!-- the React chunk did not load: the Svelte copy is in the entry, so the banners, the toast and the empty state still draw -->
+        <NoFrames {nodes} {ready} canAdd={snap.state.connection.type !== 'halted'} onAdd={() => canvas && dispatch(presetAction('desktop', canvas.centre()))} />
+        <Toast {toast} onClose={() => toaster.dismiss()} />
+        <BannerStack {banners} onAction={onBanner} />
       {/await}
     {:else}
       <NoFrames {nodes} {ready} canAdd={snap.state.connection.type !== 'halted'} onAdd={() => canvas && dispatch(presetAction('desktop', canvas.centre()))} />
