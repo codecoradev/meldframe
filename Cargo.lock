@@ -1947,12 +1947,17 @@ dependencies = [
 name = "meldframe-mcp-tests"
 version = "0.0.0"
 dependencies = [
+ "activity-store",
  "axum",
+ "meldframe-activity",
  "meldframe-calls",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-http-activity",
  "meldframe-http-assets",
  "meldframe-http-capture",
+ "meldframe-http-export",
+ "meldframe-http-html-import",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-render",

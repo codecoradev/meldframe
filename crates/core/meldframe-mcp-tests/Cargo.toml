@@ -10,13 +10,18 @@ publish.workspace = true
 kind = "tool"
 
 [dependencies]
+activity-store = { path = "../../features/activity/activity-store" }
+meldframe-activity = { path = "../meldframe-activity" }
 meldframe-host = { path = "../meldframe-host" }
 meldframe-calls = { path = "../meldframe-calls" }
 meldframe-module = { path = "../meldframe-module" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-render = { path = "../meldframe-render" }
 meldframe-http = { path = "../../integrations/meldframe-http", features = ["mcp"] }
+meldframe-http-activity = { path = "../../integrations/meldframe-http-activity" }
 meldframe-http-capture = { path = "../../integrations/meldframe-http-capture" }
+meldframe-http-export = { path = "../../integrations/meldframe-http-export" }
+meldframe-http-html-import = { path = "../../integrations/meldframe-http-html-import" }
 meldframe-http-assets = { path = "../../integrations/meldframe-http-assets" }
 meldframe-server = { path = "../../../apps/server" }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
