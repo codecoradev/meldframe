@@ -7,15 +7,14 @@
   import type { Action, Properties } from '@meldframe/protocol';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { noteText, SIZE_MODES, sizingAction } from '@meldframe/web-document/layout';
+  import { sender } from './fields';
 
   interface Props {
     properties: Properties;
     dispatch: (a: Action) => void;
   }
   let { properties: p, dispatch }: Props = $props();
-  const send = (a: Action | null) => {
-    if (a) dispatch(a);
-  };
+  const send = $derived(sender(dispatch));
 </script>
 
 <div class="flex flex-col gap-2">

@@ -20,6 +20,7 @@ import { PlacementSection } from './PlacementSection';
 import { ShadowSection } from './ShadowSection';
 import { SizeModes } from './SizeModes';
 import { TextStyle } from './TextStyle';
+import { viewOf } from './compare';
 import { FRAME, LINE_B, RECT, TEXT, properties, shadow } from './fixture';
 
 const html = (el: ReactElement) => renderToStaticMarkup(<TooltipProvider>{el}</TooltipProvider>);
@@ -114,10 +115,10 @@ describe('the React text style', () => {
     for (const a of ['Align left', 'Align center', 'Align right']) expect(out).toContain(`aria-label="${a}"`);
     expect(out).toMatch(/aria-checked="true"[^>]*aria-label="Align center"|aria-label="Align center"[^>]*aria-checked="true"/);
   });
-  it('takes the model\'s defaults, 400 and left, for a text that has none', () => {
-    const out = textStyle(properties({ kind: 'text', sections: TEXT }));
-    expect(out).toMatch(/<option value="400" selected(="")?[^>]*>/);
-    expect(out).toMatch(/aria-checked="true"[^>]*aria-label="Align left"|aria-label="Align left"[^>]*aria-checked="true"/);
+  it('draws no weight and no alignment where the app layer sent none (it sends both for a text, and no default is made here)', () => {
+    expect(textStyle(properties({ kind: 'text', sections: TEXT }))).toBe('');
+    expect(textStyle(properties({ kind: 'text', sections: TEXT, fontWeight: 700 }))).toBe('');
+    expect(textStyle(properties({ kind: 'text', sections: TEXT, textAlign: 'left' }))).toBe('');
   });
 });
 
@@ -159,26 +160,22 @@ describe('the React Shadow section', () => {
   });
 });
 
-// The two copies draw the same elements with the same classes in the same order (a class that is not here is a visible
-// difference). What a class cannot say (the real pixels) is checked in a browser by pixels-e2e.mjs, with a tolerance of 0.
+// The two copies draw the same elements with the same classes, names, states and texts, in the same order (a class that is not here
+// is a visible difference). What a class cannot say (the real pixels) is checked in a browser by pixels-e2e.mjs, with a tolerance of 0.
 describe('the React sections against the Svelte ones', () => {
-  const svelte = (component: unknown, props: Properties) => render(TestHost as never, { props: { of: component, props: { properties: props, dispatch } } as never }).body.replace(/<!--.*?-->/g, '');
-  const classes = (out: string) => [...out.matchAll(/class="([^"]*)"/g)].map((m) => m[1]!.split(/\s+/).filter(Boolean).sort().join(' '));
-  // The ids that the two libraries make for a tooltip (`bits-s1`, `base-ui-_R_va_`) are theirs, and left out.
-  const attrs = (out: string, name: string) => [...out.matchAll(new RegExp(`\\s${name}="([^"]*)"`, 'g'))].map((m) => m[1]!).filter((v) => !/^(bits|base-ui)-/.test(v));
-  // `style` is compared without the spaces and the semicolon that the two renderers write differently.
-  const names = ['id', 'for', 'role', 'data-testid', 'aria-label', 'aria-checked', 'aria-describedby', 'title', 'placeholder', 'value'];
-  const style = (out: string) => attrs(out, 'style').map((s) => s.replace(/[\s;]/g, ''));
-  const same = (a: string, b: string, what: string) => {
-    expect(classes(b), what).toEqual(classes(a));
-    for (const name of names) expect(attrs(b, name), `${what} ${name}`).toEqual(attrs(a, name));
-    expect(style(b), `${what} style`).toEqual(style(a));
-  };
-  const node = properties({ layout: 'row', padding: { top: 4, right: 4, bottom: 4, left: 8 }, notes: [{ note: 'marginIgnored' }], border: { width: 2, color: LINE_B, position: 'outside' }, shadows: [shadow, { ...shadow, blur: 20 }], kind: 'text', sections: { ...TEXT, placement: true }, fontWeight: 700, textAlign: 'right', margin: { top: 8, right: 0, bottom: 0, left: 0 } });
-  it('the Layout section', () => same(svelte(LayoutSectionSvelte, node), layout(node), 'layout'));
-  it('the Placement section', () => same(svelte(PlacementSectionSvelte, node), placement(node), 'placement'));
-  it('the Size modes', () => same(svelte(SizeModesSvelte, node), sizes(node), 'sizes'));
-  it('the Border section', () => same(svelte(BorderSectionSvelte, node), border(node), 'border'));
-  it('the Shadow section', () => same(svelte(ShadowSectionSvelte, node), shadows(node), 'shadow'));
-  it('the text style', () => same(svelte(TextStyleSvelte, node), textStyle(node), 'text style'));
+  const svelte = (component: unknown, props: Properties) => render(TestHost as never, { props: { of: component, props: { properties: props, dispatch } } as never }).body;
+  const same = (a: string, b: string) => expect(viewOf(b)).toEqual(viewOf(a));
+  const node = properties({ layout: 'row', padding: { top: 4, right: 4, bottom: 4, left: 8 }, notes: [{ note: 'marginIgnored' }], border: { width: 2, color: LINE_B, position: 'outside' }, shadows: [shadow, { ...shadow, blur: 20 }], kind: 'text', sections: { ...TEXT, placement: true }, fontWeight: 700, textAlign: 'right', margin: { top: 8, right: 0, bottom: 0, left: 0 }, absolute: true, sw: 'hug', maxShadows: 2 });
+  it('the Layout section', () => same(svelte(LayoutSectionSvelte, node), layout(node)));
+  it('the Placement section', () => same(svelte(PlacementSectionSvelte, node), placement(node)));
+  it('the Size modes', () => same(svelte(SizeModesSvelte, node), sizes(node)));
+  it('the Border section', () => same(svelte(BorderSectionSvelte, node), border(node)));
+  it('the Shadow section, with Add shadow disabled at the most', () => same(svelte(ShadowSectionSvelte, node), shadows(node)));
+  it('the text style', () => same(svelte(TextStyleSvelte, node), textStyle(node)));
+  it('the comparison sees a text, a flag and a state that differ', () => {
+    const base = viewOf(shadows(node));
+    expect(viewOf(shadows({ ...node, maxShadows: 4 })).tags.map((t) => t.flags)).not.toEqual(base.tags.map((t) => t.flags));
+    expect(viewOf(sizes({ ...node, sw: 'fill' })).tags.map((t) => t.attrs)).not.toEqual(viewOf(sizes(node)).tags.map((t) => t.attrs));
+    expect(viewOf(sizes({ ...node, notes: [{ note: 'marginIgnored' }] })).texts).not.toEqual(viewOf(sizes({ ...node, notes: [] })).texts);
+  });
 });

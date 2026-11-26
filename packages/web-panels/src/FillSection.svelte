@@ -17,7 +17,7 @@
   import { addStopAction, fillTypeAction, gradientBar, removeStopAction, stopPercent } from '@meldframe/web-document/fills';
   import { bindingOf, textAction } from '@meldframe/web-document/properties';
   import BindPicker from './BindPicker.svelte';
-  import { pickerClosed } from './fields';
+  import { pickerClosed, round2, sender } from './fields';
   import ImageFillPicker from './ImageFillPicker.svelte';
   import { fillTypes, fitAction, IMAGE_FITS, openAssetsAction, shortId } from './images';
 
@@ -35,9 +35,7 @@
     bindView?: Component<ComponentProps<typeof BindPicker>>;
   }
   let { properties: p, picker, assets = CLOSED, dispatch, chip, bindView: BindView = BindPicker }: Props = $props();
-  const send = (a: Action | null) => {
-    if (a) dispatch(a);
-  };
+  const send = $derived(sender(dispatch));
   const fill = $derived(bindingOf(p, 'fill'));
   // What the node can take is the app layer's to say (gradientAllowed, imageAllowed).
   const types = $derived(fillTypes(p));
@@ -95,7 +93,7 @@
     {#if p.fillKind === 'linear'}
       <div class="flex items-center gap-2">
         <span class="w-10 text-text-muted">Angle</span>
-        <div class="w-24"><Field label="Angle" suffix="°" mono value={String(Math.round(g.angle * 100) / 100)} onCommit={(raw) => send(textAction(p, { type: 'gradientAngle' }, raw))} testId="prop-gradient-angle" /></div>
+        <div class="w-24"><Field label="Angle" suffix="°" mono value={round2(g.angle)} onCommit={(raw) => send(textAction(p, { type: 'gradientAngle' }, raw))} testId="prop-gradient-angle" /></div>
       </div>
     {/if}
     <div class="h-4 rounded-sm border border-border" style:background={gradientBar(g)} data-testid="prop-gradient-bar" role="img" aria-label="Gradient, {g.stops.length} stops"></div>

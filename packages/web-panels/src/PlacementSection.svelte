@@ -11,15 +11,14 @@
   import Section from '@meldframe/web-chrome/Section.svelte';
   import { absoluteAction, SIDES } from '@meldframe/web-document/layout';
   import { textAction } from '@meldframe/web-document/properties';
+  import { sender } from './fields';
 
   interface Props {
     properties: Properties;
     dispatch: (a: Action) => void;
   }
   let { properties: p, dispatch }: Props = $props();
-  const send = (a: Action | null) => {
-    if (a) dispatch(a);
-  };
+  const send = $derived(sender(dispatch));
 </script>
 
 <Section title="Margin">

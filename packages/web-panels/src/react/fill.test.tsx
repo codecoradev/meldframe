@@ -9,7 +9,8 @@ import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
 import FillSectionSvelte from '../FillSection.svelte';
 import { FillSection } from './FillSection';
-import { ForeignSlot } from './ForeignSlot';
+import { type Foreign, ForeignSlot, safely } from './ForeignSlot';
+import { viewOf } from './compare';
 import { binding, gradient, properties } from './fixture';
 
 // The route of an asset is the host's (a view may not import web-assets): the test gives the one the page does, for ids of 64 hex digits.
@@ -53,6 +54,16 @@ describe('the React Fill section', () => {
     expect(out).toContain('aria-label="Detach color/brand"');
     expect(out).not.toContain('data-testid="prop-fill-bind"');
     expect(html(rect({ bound: ['fill'], bindings: [binding('fill', { name: 'ghost', missing: true })] }))).toContain('ghost (removed)');
+  });
+  it('says (no name) for a variable whose name is nothing, as the Layers panel does for a node, in the chip, its title and the button', () => {
+    const out = html(rect({ bound: ['fill'], bindings: [binding('fill', { name: '' })] }));
+    expect(out).toContain('(no name)');
+    expect(out).toContain('aria-label="Detach (no name)"');
+    expect(out).not.toContain('aria-label="Detach "');
+    expect(out).toContain('title="(no name)"');
+    const gone = html(rect({ bound: ['fill'], bindings: [binding('fill', { name: '', missing: true })] }));
+    expect(gone).toContain('(no name) (removed)');
+    expect(gone).toContain('title="(no name) (variable removed)"');
   });
   it('shows no colour field for none', () => {
     expect(html(rect({ fill: 'none', fillKind: 'none' }))).not.toContain('data-testid="prop-fill"');
@@ -99,6 +110,36 @@ describe('the React Fill section', () => {
 });
 
 describe('the image picker the React Fill section hosts', () => {
+  it('keeps a view that throws out of React: the slot stays empty, the error is reported, the next calls are no-ops', () => {
+    const reported: unknown[] = [];
+    const g = globalThis as { reportError?: (e: unknown) => void };
+    const was = g.reportError;
+    g.reportError = (e) => reported.push(e);
+    try {
+      const calls: string[] = [];
+      const bad: Foreign<number> = { mount: () => { calls.push('mount'); throw new Error('no mount'); } };
+      const handle = safely(bad).mount({} as HTMLElement, 1);
+      handle.update(2);
+      handle.destroy();
+      expect(calls).toEqual(['mount']);
+      expect(reported.map(String)).toEqual(['Error: no mount']);
+      const worse: Foreign<number> = { mount: () => ({ update: () => { throw new Error('no update'); }, destroy: () => { throw new Error('no destroy'); } }) };
+      const h2 = safely(worse).mount({} as HTMLElement, 1);
+      h2.update(2);
+      h2.destroy();
+      expect(reported.map(String)).toEqual(['Error: no mount', 'Error: no update', 'Error: no destroy']);
+      // A view that works is passed through.
+      const seen: number[] = [];
+      const fine: Foreign<number> = { mount: (_t, p) => { seen.push(p); return { update: (n) => seen.push(n), destroy: () => seen.push(0) }; } };
+      const h3 = safely(fine).mount({} as HTMLElement, 1);
+      h3.update(2);
+      h3.destroy();
+      expect(seen).toEqual([1, 2, 0]);
+    } finally {
+      g.reportError = was;
+    }
+  });
+
   const closed: AssetsState = { items: [], loading: false, loaded: false, capped: false, request: 0 };
   const view = { mount: () => ({ update() {}, destroy() {} }) };
   it('is a slot only while the app state has it open for this node, and none when the page gave no view', () => {
@@ -118,29 +159,22 @@ describe('the image picker the React Fill section hosts', () => {
   });
 });
 
-// The two copies draw the same elements with the same classes in the same order (a class that is not here is a visible
-// difference). What a class cannot say (the real pixels) is checked in a browser by pixels-e2e.mjs, with a tolerance of 0.
+// The two copies draw the same elements with the same classes, names, states and texts, in the same order (a class that is not here
+// is a visible difference). What a class cannot say (the real pixels) is checked in a browser by pixels-e2e.mjs, with a tolerance of 0.
 describe('the React Fill section against the Svelte one', () => {
   // The Svelte section takes the chip as a snippet, which a test cannot pass; the bound states are compared through the whole panel (properties.test.tsx).
-  const svelte = (p: Properties) => render(TestHost as never, { props: { of: FillSectionSvelte, props: { properties: p, picker: null, dispatch: () => {}, chip: () => {} } } as never }).body.replace(/<!--.*?-->/g, '');
-  const classes = (out: string) => [...out.matchAll(/class="([^"]*)"/g)].map((m) => m[1]!.split(/\s+/).filter(Boolean).sort().join(' '));
-  const attrs = (out: string, name: string) => [...out.matchAll(new RegExp(`\\s${name}="([^"]*)"`, 'g'))].map((m) => m[1]!).filter((v) => !/^(bits|base-ui)-/.test(v));
-  const names = ['id', 'role', 'data-testid', 'aria-label', 'aria-checked', 'aria-haspopup', 'title', 'src', 'value'];
-  const style = (out: string) => attrs(out, 'style').map((s) => s.replace(/[\s;]/g, ''));
+  const svelte = (p: Properties) => render(TestHost as never, { props: { of: FillSectionSvelte, props: { properties: p, picker: null, dispatch: () => {}, chip: () => {} } } as never }).body;
   const states: [string, Properties][] = [
     ['solid', rect()],
     ['linear', rect({ fillKind: 'linear', gradient })],
     ['radial', rect({ fillKind: 'radial', gradient: { ...gradient, kind: 'radial' } })],
+    ['linear at the most stops and at the fewest', rect({ fillKind: 'linear', gradient, minStops: 3, maxStops: 3 })],
     ['image', rect({ fillKind: 'image', image: { assetId: 'a'.repeat(64), fit: 'contain' } })],
     ['none', rect({ fill: 'none', fillKind: 'none' })],
   ];
   for (const [name, p] of states) {
-    it(`has the same classes, roles, names, test ids and styles: ${name}`, () => {
-      const a = svelte(p);
-      const b = html(p);
-      expect(classes(b)).toEqual(classes(a));
-      for (const attr of names) expect(attrs(b, attr), attr).toEqual(attrs(a, attr));
-      expect(style(b)).toEqual(style(a));
+    it(`has the same classes, names, states and texts: ${name}`, () => {
+      expect(viewOf(html(p))).toEqual(viewOf(svelte(p)));
     });
   }
 });

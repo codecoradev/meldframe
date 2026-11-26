@@ -1,9 +1,7 @@
 // What the sections of the Properties panel read in common, apart from the markup (fields.ts): both copies, Svelte and React, call these.
-import type { Action, Properties } from '@meldframe/protocol';
+import type { Action } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { alignOf, pickerClosed, round2, sender, weightOf } from './fields';
-
-const some = (over: Partial<Properties>) => over as Properties;
+import { pickerClosed, round2, sender } from './fields';
 
 describe('round2', () => {
   it('keeps at most two decimals and drops a trailing zero', () => {
@@ -22,15 +20,6 @@ describe('sender', () => {
     send(null);
     send({ type: 'undo' } as Action);
     expect(sent).toEqual([{ type: 'undo' }]);
-  });
-});
-
-describe('the defaults of a text', () => {
-  it('weight 400 and left for a node that has none, the node\'s own otherwise', () => {
-    expect(weightOf(some({}))).toBe('400');
-    expect(weightOf(some({ fontWeight: 700 }))).toBe('700');
-    expect(alignOf(some({}))).toBe('left');
-    expect(alignOf(some({ textAlign: 'right' }))).toBe('right');
   });
 });
 

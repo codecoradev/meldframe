@@ -12,16 +12,14 @@
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { BORDER_POSITIONS, borderPositionAction, removeBorderAction } from '@meldframe/web-document/decoration';
   import { textAction } from '@meldframe/web-document/properties';
-  import { round2 } from './fields';
+  import { round2, sender } from './fields';
 
   interface Props {
     properties: Properties;
     dispatch: (a: Action) => void;
   }
   let { properties: p, dispatch }: Props = $props();
-  const send = (a: Action | null) => {
-    if (a) dispatch(a);
-  };
+  const send = $derived(sender(dispatch));
   const on = $derived(p.border.width > 0);
   // The button goes away with the border, so focus moves first, to the width field (which stays and is what the button
   // changes), and the action is sent after: focus never falls to the page, whenever the document answers.

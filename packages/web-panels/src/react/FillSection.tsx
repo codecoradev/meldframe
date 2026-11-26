@@ -16,7 +16,7 @@ import { addStopAction, fillTypeAction, gradientBar, removeStopAction, stopPerce
 import { bindingOf, textAction, unbindAction } from '@meldframe/web-document/properties';
 import type { ImageFit, Properties } from '@meldframe/protocol';
 import { useEffect, useRef } from 'react';
-import { type SectionProps, pickerClosed, sender } from '../fields';
+import { type SectionProps, pickerClosed, round2, sender } from '../fields';
 import { IMAGE_FITS, fillTypes, fitAction, openAssetsAction, shortId } from '../images';
 import { BindPicker } from './BindPicker';
 import { BoundChip } from './BoundChip';
@@ -114,7 +114,7 @@ export function FillSection({ properties: p, picker, assets = CLOSED, dispatch, 
             <div className="flex items-center gap-2">
               <span className="w-10 text-text-muted">Angle</span>
               <div className="w-24">
-                <Field label="Angle" suffix="°" mono value={String(Math.round(g.angle * 100) / 100)} onCommit={(raw) => send(textAction(p, { type: 'gradientAngle' }, raw))} testId="prop-gradient-angle" />
+                <Field label="Angle" suffix="°" mono value={round2(g.angle)} onCommit={(raw) => send(textAction(p, { type: 'gradientAngle' }, raw))} testId="prop-gradient-angle" />
               </div>
             </div>
           ) : null}
