@@ -17,6 +17,7 @@ pub mod effect;
 pub mod event;
 pub mod export;
 pub mod frame;
+pub mod layers;
 pub mod layout;
 pub mod preset;
 pub mod property;
@@ -36,6 +37,7 @@ pub use checkpoint::{
 pub use effect::{Effect, OutOp};
 pub use event::{Event, RevertSkip, RevertSkipReason, VariableEntity};
 pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget};
+pub use layers::LayerRow;
 pub use layout::{Axis, Direction, LayoutNote, Side, Sides};
 pub use state::{
     AppState, Connection, FieldBinding, FillKind, History, Panel, Panels, Properties, Tool,

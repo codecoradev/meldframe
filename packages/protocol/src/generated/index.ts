@@ -57,6 +57,7 @@ export type { ImportStatus } from './ImportStatus';
 export type { Justify } from './Justify';
 export type { LaneKind } from './LaneKind';
 export type { LaneState } from './LaneState';
+export type { LayerRow } from './LayerRow';
 export type { LayoutMode } from './LayoutMode';
 export type { LayoutNote } from './LayoutNote';
 export type { Mode } from './Mode';

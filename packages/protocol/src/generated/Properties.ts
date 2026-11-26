@@ -17,7 +17,11 @@ import type { TextAlign } from "./TextAlign";
 /**
  * The editable values of the selected node.
  */
-export type Properties = { id: string, name: string, kind: NodeKind, x: number, y: number, w: number, h: number, 
+export type Properties = { id: string, 
+/**
+ * The node's name made safe to show (display profile, `meldframe_text::label`); the file keeps what was written.
+ */
+name: string, kind: NodeKind, x: number, y: number, w: number, h: number, 
 /**
  * The colour that is painted: the literal, or what the bound variable has in the picked modes.
  */

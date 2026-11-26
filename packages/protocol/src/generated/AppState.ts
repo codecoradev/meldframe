@@ -6,6 +6,7 @@ import type { CheckpointsStatus } from "./CheckpointsStatus";
 import type { Connection } from "./Connection";
 import type { ExportState } from "./ExportState";
 import type { History } from "./History";
+import type { LayerRow } from "./LayerRow";
 import type { Panels } from "./Panels";
 import type { Picker } from "./Picker";
 import type { Properties } from "./Properties";
@@ -37,9 +38,15 @@ confirmedSeq: number, history: History,
  */
 pending: Array<string>, 
 /**
- * For the layers panel: the actor of the last change to each node, as the server stamped it.
+ * For the layers panel: the actor of the last change to each node, as the server stamped it, made safe to show
+ * and to key by (rule U9: strict profile, at most 128 bytes).
  */
 lastActor: { [key in string]: string }, 
+/**
+ * The Layers panel: its rows with every name made safe to show (rule U9). Filled while `panels.layers` is open,
+ * empty otherwise.
+ */
+layers: Array<LayerRow>, 
 /**
  * The checkpoints of the file as the server last said (E5.3, ADR-0023), newest first: a person's, the one the
  * server takes when an agent's run starts, and the ones before a revert or a restore. The app never adds one

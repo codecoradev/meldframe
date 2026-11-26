@@ -10,7 +10,7 @@ export type FieldBinding = { field: BindField,
  */
 variable: string, 
 /**
- * Its name, as the Variables panel lists it; the id when the variable is gone.
+ * Its name, as the Variables panel lists it (made safe to show); the id when the variable is gone.
  */
 name: string, 
 /**
