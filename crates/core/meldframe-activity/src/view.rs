@@ -21,7 +21,7 @@ pub enum Status {
 }
 
 /// One batch. A row with no header has no number, no note, no review (it reads `unreviewed`, for display only),
-/// `commands` as `written` and `rev` 0; a row with a header and no ops seen has no summary and no Show.
+/// no `commands` and `rev` 0; a row with a header and no ops seen has no summary and no Show.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Row {
     pub actor: String,
@@ -30,7 +30,9 @@ pub struct Row {
     pub rev: u64,
     pub first_seq: u64,
     pub last_seq: u64,
-    pub commands: u32,
+    /// How many commands the batch had, as its header says; `None` for a row made from ops alone (the app cannot know
+    /// how many the call held).
+    pub commands: Option<u32>,
     pub written: u32,
     pub atomic: bool,
     pub at_ms: u64,
@@ -145,9 +147,9 @@ impl Group {
         let (first_seq, last_seq) = self.span();
         let written = self.written();
         let h = self.header.as_ref();
-        let commands = h.map_or(written, |h| h.commands.max(written));
-        let status = match h {
-            Some(_) if written >= commands => Status::Applied,
+        let commands = h.map(|h| h.commands.max(written));
+        let status = match commands {
+            Some(c) if written >= c => Status::Applied,
             Some(_) => Status::Partial,
             None if self.dead => Status::Headerless,
             None => Status::Building,

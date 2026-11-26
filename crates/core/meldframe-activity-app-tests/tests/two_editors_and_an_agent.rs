@@ -106,7 +106,7 @@ fn two_editors_see_the_same_batch_and_a_review_and_a_revert_stay_apart() {
                 panel(&w, i).unreviewed_count,
                 panel(&w, i).lanes[0].actor.as_str()
             ),
-            (1, "agent:claude")
+            (Some(1), "agent:claude")
         );
     }
     // Alice asks for Accepted; nothing changes until the server answers, and then both editors move together.
@@ -151,7 +151,7 @@ fn two_editors_see_the_same_batch_and_a_review_and_a_revert_stay_apart() {
             (row.review, row.reviewed_by.as_deref()),
             (ReviewState::Accepted, Some("user:alice"))
         );
-        assert_eq!(panel(&w, i).unreviewed_count, 0);
+        assert_eq!(panel(&w, i).unreviewed_count, Some(0));
     }
     // Bob reverts the batch: his ops go through the real gate and room and come back to both editors.
     w.act(
@@ -177,7 +177,7 @@ fn two_editors_see_the_same_batch_and_a_review_and_a_revert_stay_apart() {
         let row = p.row(&me()).unwrap();
         assert_eq!(
             (row.review, p.unreviewed_count),
-            (ReviewState::Accepted, 0),
+            (ReviewState::Accepted, Some(0)),
             "a revert is not a review"
         );
         assert!(

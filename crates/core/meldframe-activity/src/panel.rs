@@ -38,7 +38,8 @@ pub struct View {
     pub rings: Vec<ViewRing>,
     /// Older batches may be fetched: the numbers reach below the lowest held, and the rows are not at the cap.
     pub has_older: bool,
-    pub unreviewed: u32,
+    /// The server's count of batches nobody accepted; `None` while it is not known (nothing was read yet).
+    pub unreviewed: Option<u32>,
     /// The selected batch, when it is still a row.
     pub selected: Option<(String, String)>,
     pub can_review: bool,

@@ -32,7 +32,7 @@ fn the_501st_row_drops_the_oldest() {
     assert_eq!(rows.len(), 500);
     assert_eq!((rows[0].n, rows.last().unwrap().n), (Some(501), Some(2)));
     // The count is the server's, not the number of rows held.
-    assert_eq!(a.unreviewed_count(), 501);
+    assert_eq!(a.unreviewed_count(), Some(501));
     // An older page that is past the bound is dropped again at once.
     a.observe_page([header(1, 1, "agent:1", "k1", 1, 1)], 501);
     assert_eq!(a.rows().last().unwrap().n, Some(2));
@@ -90,5 +90,5 @@ fn a_revert_leaves_the_review_state_and_the_count_as_they_were() {
         (rows[0].review, rows[0].reviewed_by.as_deref()),
         (Review::NeedsReview, Some(ME))
     );
-    assert_eq!(a.unreviewed_count(), 1);
+    assert_eq!(a.unreviewed_count(), Some(1));
 }

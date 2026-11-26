@@ -174,7 +174,9 @@ pub struct BatchRow {
     pub first_seq: u64,
     #[ts(type = "number")]
     pub last_seq: u64,
-    pub commands: u32,
+    /// How many commands the batch had, as its header says; `None` for a row made from ops alone (no header: the app
+    /// cannot know how many the call held).
+    pub commands: Option<u32>,
     pub written: u32,
     pub atomic: bool,
     #[ts(type = "number")]
@@ -272,8 +274,10 @@ pub struct TouchRing {
 #[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ActivityState {
-    /// The server's count of headers that are not `accepted` (never recounted from the rows held).
-    pub unreviewed_count: u32,
+    /// The server's count of headers that are not `accepted` (never recounted from the rows held). `None` while it is
+    /// not known: nothing has said it yet (a batch frame or a page of the list), or the list failed to load. A front end
+    /// words that as Unknown, never as zero or as nothing waiting (rule U9).
+    pub unreviewed_count: Option<u32>,
     /// Whether the server lets this person set a review state: show the controls only then.
     pub can_review: bool,
     pub lanes: Vec<ActivityLane>,

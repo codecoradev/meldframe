@@ -130,7 +130,7 @@ fn a_batch_of_an_agent_is_one_row_with_its_note_and_a_working_lane() {
     );
     assert_eq!((row.can_show, row.revertable), (true, true));
     assert_eq!(row.summary.as_ref().map(|s| s.changed), Some(2));
-    assert_eq!(a.unreviewed_count, 1);
+    assert_eq!(a.unreviewed_count, Some(1));
     assert_eq!(a.lanes[0].actor, "agent:x");
     assert_eq!(a.lanes[0].state, LaneState::Working);
     assert!(l.events.contains(&Event::ActivityChanged {}));
@@ -179,7 +179,7 @@ fn a_gap_in_rev_asks_for_the_newest_page() {
         .app
         .dispatch(batch(header(3, 3, "agent:x", "b3", 1), 2, T));
     assert_eq!(fetches(&fx), vec![(None, None, 100)]);
-    assert_eq!(act(&l).unreviewed_count, 2);
+    assert_eq!(act(&l).unreviewed_count, Some(2));
 }
 
 #[test]
@@ -280,7 +280,7 @@ fn a_review_changes_the_row_only_when_the_server_says_so() {
     assert_eq!(refused(&mut l), vec!["forbidden"]);
     assert_eq!(
         (row(&l), act(&l).unreviewed_count),
-        (ReviewState::Unreviewed, 1)
+        (ReviewState::Unreviewed, Some(1))
     );
     // The answer is the row after the change; the frame of an older rev changes nothing.
     let mut h = header(1, 2, "agent:x", "b1", 2);
@@ -289,18 +289,18 @@ fn a_review_changes_the_row_only_when_the_server_says_so() {
     l.app.dispatch(Action::BatchReviewed { batch: h.clone() });
     assert_eq!(
         (row(&l), act(&l).unreviewed_count),
-        (ReviewState::Accepted, 1)
+        (ReviewState::Accepted, Some(1))
     );
     l.app.dispatch(batch(h, 0, T)); // the frame of the change brings the count
     assert_eq!(
         (row(&l), act(&l).unreviewed_count),
-        (ReviewState::Accepted, 0)
+        (ReviewState::Accepted, Some(0))
     );
     l.app
         .dispatch(batch(header(1, 1, "agent:x", "b1", 2), 1, T));
     assert_eq!(
         (row(&l), act(&l).unreviewed_count),
-        (ReviewState::Accepted, 0)
+        (ReviewState::Accepted, Some(0))
     );
 }
 
@@ -366,7 +366,7 @@ fn a_revert_does_not_change_the_activity_state_by_itself() {
     let row = act(&l).row(&by("agent:x", "b1")).unwrap();
     assert_eq!(
         (row.in_effect, row.review, act(&l).unreviewed_count),
-        (Some(false), ReviewState::Unreviewed, 1)
+        (Some(false), ReviewState::Unreviewed, Some(1))
     );
 }
 
@@ -430,7 +430,7 @@ fn a_reload_forgets_the_headers_and_the_next_subscription_reads_them_again() {
         applied: vec![],
     };
     let fx = l.app.dispatch(reload);
-    assert!(act(&l).rows.is_empty() && act(&l).unreviewed_count == 0);
+    assert!(act(&l).rows.is_empty() && act(&l).unreviewed_count.is_none());
     assert!(fetches(&fx).is_empty(), "not live until it subscribes");
     let fx = l.app.dispatch(Action::Connected { now_ms: T });
     assert_eq!(fetches(&fx), vec![(None, None, 100)]);

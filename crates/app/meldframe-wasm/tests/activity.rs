@@ -54,7 +54,8 @@ fn a_fresh_file_has_an_empty_panel_in_the_state() {
     for key in ["lanes", "rows", "touches"] {
         assert_eq!(a[key], json!([]), "{key}");
     }
-    assert_eq!(a["unreviewedCount"], 0);
+    // Nothing was read yet: the count is unknown, not zero (rule U9).
+    assert_eq!(a["unreviewedCount"], Value::Null);
     assert_eq!(a["canReview"], false);
     assert_eq!(a["hasOlder"], false);
     assert_eq!(a["selected"], Value::Null);
