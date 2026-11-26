@@ -60,6 +60,17 @@ describe('the React image picker', () => {
     expect(out).toContain('aria-label="Images in this workspace"');
     expect(out).toContain('alt=""');
   });
+  it('loads thumbnails lazily and decodes them off the main thread, as the Svelte picker does (the markup comparison below does not see these two attributes)', () => {
+    const items = [asset(1), asset(2), asset(3)];
+    for (const [name, out] of [['React', html(opened({ loaded: true, items }))], ['Svelte', svelte(opened({ loaded: true, items }))]] as const) {
+      const imgs = [...out.matchAll(/<img[^>]*>/g)].map((m) => m[0]);
+      expect(imgs, name).toHaveLength(3);
+      for (const img of imgs) {
+        expect(img, name).toContain('loading="lazy"');
+        expect(img, name).toContain('decoding="async"');
+      }
+    }
+  });
   it('draws no image for an id the page gives no route for (the id is the sender\'s, not trusted), and says there is no preview', () => {
     const out = html(opened({ loaded: true, items: [asset(1)] }), node, () => null);
     expect(out).not.toContain('<img');
