@@ -13,8 +13,8 @@
 //                        which Editor.svelte imports, and BindPickerSwitch.svelte, which `bindParts` in shell.ts hands to the Properties
 //                        panel. The three dialogs of the panel are drawn by the switch file beside the island (Import and Export variables stay Svelte until S10).
 //   /?react=properties  the Properties panel and its sections drawn by React (E7.3, S6): PropertiesPanelSwitch.svelte, which Editor.svelte imports.
-//                        The image picker of the Fill section is Svelte until S7: the switch gives the React panel a view that mounts it
-//                        (ImagePickerHost.svelte) and the route of an asset's thumbnail, which a view package may not import.
+//                        The image picker of the Fill section is a React component of the panel (S7); the switch gives the panel the
+//                        route of an asset's thumbnail, which a view package may not import.
 //   /?react=activity    the Activity panel (lanes, batches, review, Revert, the checkpoints) drawn by React (E7.3, S8):
 //                        ActivityPanelSwitch.svelte, which Editor.svelte imports.
 //   /?react=manage     the Variables manage view (the dialog, its body, the detail pane, the lists and forms) drawn by React (E7.3, S9): ManageDialogSwitch.svelte,

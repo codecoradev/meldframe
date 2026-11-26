@@ -20,7 +20,7 @@
   import Button from '@meldframe/web-chrome/Button.svelte';
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import { ring } from '@meldframe/web-chrome/focus';
-  import { closeAssetsAction, gridMove, loadMoreAction, pickImageAction, retryAssetsAction, shortId, tileLabel } from './images';
+  import { FOLLOW_START, askedForMore, closeAssetsAction, followPages, gridMove, loadMoreAction, pickImageAction, retryAssetsAction, shortId, tileLabel } from './images';
 
   interface Props {
     properties: Properties;
@@ -54,20 +54,16 @@
     (tiles()[0] ?? root)?.focus();
   });
 
-  // Focus follows the pages. The first page, when focus was parked on the picker because there was no tile to take it: to
-  // the first tile. A page asked for with Load more: to its first new tile (the button may be gone with the last page).
-  let seen = 0;
-  let following = false;
+  // Focus follows the pages (the rule is `followPages`, shared with the React copy): the first page, when focus was parked on the
+  // picker because there was no tile to take it, goes to the first tile; a page asked for with Load more, to its first new tile.
+  let follow = FOLLOW_START;
   $effect(() => {
-    const n = assets.items.length;
-    if (assets.error) following = false;
-    const first = seen === 0 && document.activeElement === root ? 0 : following && n > seen ? seen : -1;
-    if (n > seen && first >= 0) {
-      following = false;
-      cursor = first;
-      void tick().then(() => tiles()[first]?.focus());
-    }
-    seen = n;
+    const r = followPages(follow, assets.items.length, !!assets.error, document.activeElement === root);
+    follow = r.next;
+    if (r.focus === null) return;
+    const first = r.focus;
+    cursor = first;
+    void tick().then(() => tiles()[first]?.focus());
   });
 
   function key(e: KeyboardEvent, i: number) {
@@ -150,7 +146,7 @@
   {/if}
   {#if assets.next}
     <div class="flex">
-      <Button size="sm" onclick={() => { following = true; dispatch(loadMoreAction()); }} data-testid="image-picker-more">{assets.loading ? 'Loading…' : 'Load more'}</Button>
+      <Button size="sm" onclick={() => { follow = askedForMore(follow); dispatch(loadMoreAction()); }} data-testid="image-picker-more">{assets.loading ? 'Loading…' : 'Load more'}</Button>
     </div>
   {/if}
 </div>

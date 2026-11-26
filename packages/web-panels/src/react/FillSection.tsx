@@ -1,11 +1,8 @@
 // React copy of FillSection.svelte. The Fill section as the Properties, Inspector and Fill-and-layout boards draw it: the type switch
 // (solid, linear, radial, image, none), then the fields of the type: a colour with the bind button (or the chip of the variable it
 // is bound to), or a gradient with its angle, a bar, its stops and a button to add one. The Image type opens the image picker (the
-// workspace's images; open while the app state says so); an image fill shows its thumbnail and short id, a button to change it and
-// its fit. It draws the document and reports input as actions (see fills.ts and images.ts).
-//
-// The image picker is Svelte until S7 (ImageFillPicker.svelte), and it sits in the middle of this section, so it is drawn in a
-// ForeignSlot: the page that hosts the panel gives the view (`imageView`), and without one nothing is drawn there.
+// workspace's images, ImageFillPicker; open while the app state says so); an image fill shows its thumbnail and short id, a button to
+// change it and its fit. It draws the document and reports input as actions (see fills.ts and images.ts).
 import type { AssetsState, Picker } from '@meldframe/protocol';
 import { Button } from '@meldframe/web-chrome/react/Button';
 import { Field } from '@meldframe/web-chrome/react/Field';
@@ -14,37 +11,31 @@ import { Section } from '@meldframe/web-chrome/react/Section';
 import { Segmented } from '@meldframe/web-chrome/react/Segmented';
 import { addStopAction, fillTypeAction, gradientBar, removeStopAction, stopPercent } from '@meldframe/web-document/fills';
 import { bindingOf, textAction, unbindAction } from '@meldframe/web-document/properties';
-import type { ImageFit, Properties } from '@meldframe/protocol';
+import type { ImageFit } from '@meldframe/protocol';
 import { useEffect, useRef } from 'react';
 import { type SectionProps, pickerClosed, round2, sender } from '../fields';
 import { IMAGE_FITS, fillTypes, fitAction, openAssetsAction, shortId } from '../images';
 import { BindPicker } from './BindPicker';
 import { BoundChip } from './BoundChip';
-import { type Foreign, ForeignSlot } from './ForeignSlot';
+import { ImageFillPicker } from './ImageFillPicker';
 
 const CLOSED: AssetsState = { items: [], loading: false, loaded: false, capped: false, request: 0 };
-
-/** What the image picker is given: the node, the images the app state has read, and where to send an action. */
-export interface ImagePickerProps {
-  properties: Properties;
-  assets: AssetsState;
-  dispatch: SectionProps['dispatch'];
-}
+/** The page gave no route for thumbnails: no image is drawn, and a tile says so. */
+const NO_ROUTE = () => null;
 
 export interface FillSectionProps extends SectionProps {
   picker: Picker | null;
   /** The image picker of the app state: open for the node it names, with the images read so far. */
   assets?: AssetsState;
-  /** How the page draws the image picker (a Svelte view until S7); none draws none. */
-  imageView?: Foreign<ImagePickerProps>;
   /**
-   * Where the thumbnail of an image fill is fetched from, or null for an id that is not an asset id (the file is the sender's, not
-   * trusted); the page gives it, because it is the host package that knows the route (web-assets), which a view may not import.
+   * Where the thumbnail of an image fill, and of each tile of the image picker, is fetched from, or null for an id that is not an
+   * asset id (the file is the sender's, not trusted); the page gives it, because it is the host package that knows the route
+   * (web-assets), which a view may not import.
    */
   thumbnail?: (assetId: string) => string | null;
 }
 
-export function FillSection({ properties: p, picker, assets = CLOSED, dispatch, imageView, thumbnail }: FillSectionProps) {
+export function FillSection({ properties: p, picker, assets = CLOSED, dispatch, thumbnail }: FillSectionProps) {
   const send = sender(dispatch);
   const fill = bindingOf(p, 'fill');
   // What the node can take is the app layer's to say (gradientAllowed, imageAllowed).
@@ -72,7 +63,7 @@ export function FillSection({ properties: p, picker, assets = CLOSED, dispatch, 
       <div ref={host} className="contents">
         <Segmented label="Fill type" options={types} value={p.fillKind} onChange={choose} data-testid="prop-fill-type" />
       </div>
-      {open && imageView ? <ForeignSlot view={imageView} props={{ properties: p, assets, dispatch }} /> : null}
+      {open ? <ImageFillPicker properties={p} assets={assets} dispatch={dispatch} thumbnail={thumbnail ?? NO_ROUTE} /> : null}
       {p.fillKind === 'solid' || p.fillKind === 'none' || p.fillKind === 'image' ? (
         <>
           {p.fillKind === 'image' && p.image ? (

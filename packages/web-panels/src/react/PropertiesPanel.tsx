@@ -2,7 +2,7 @@
 // node in the sections of the Properties and Inspector boards. A field reports its text when the person leaves it or presses Enter;
 // what that becomes (an action, or nothing, and then the field shows the document's value again) is in properties.ts. It holds no
 // state of its own. The Svelte switch file that hosts this panel (apps/web/src/react-pilot/PropertiesPanelSwitch.svelte) gives it
-// the image picker's view and the thumbnail route, which are the host's (see FillSection.tsx).
+// the thumbnail route, which is the host's (see FillSection.tsx).
 import type { Action, AssetsState, Picker, Properties } from '@meldframe/protocol';
 import { Checkbox } from '@meldframe/web-chrome/react/Checkbox';
 import { Field } from '@meldframe/web-chrome/react/Field';
@@ -23,7 +23,7 @@ import { ShadowSection } from './ShadowSection';
 import { SizeModes } from './SizeModes';
 import { TextStyle } from './TextStyle';
 
-export interface PropertiesPanelProps extends Pick<FillSectionProps, 'imageView' | 'thumbnail'> {
+export interface PropertiesPanelProps extends Pick<FillSectionProps, 'thumbnail'> {
   properties: Properties | null;
   /** The bind picker of the app state, open on at most one field. */
   picker?: Picker | null;
@@ -34,7 +34,7 @@ export interface PropertiesPanelProps extends Pick<FillSectionProps, 'imageView'
   dispatch: (a: Action) => void;
 }
 
-export function PropertiesPanel({ properties: p, picker = null, assets, selected, dispatch, imageView, thumbnail }: PropertiesPanelProps) {
+export function PropertiesPanel({ properties: p, picker = null, assets, selected, dispatch, thumbnail }: PropertiesPanelProps) {
   const send = sender(dispatch);
   // What is typed goes to the app layer as typed: it parses, holds the value to the range of the field and sends nothing when nothing changes.
   const text = (q: Properties, field: PlainField['type']) => (raw: string) => send(textAction(q, { type: field }, raw));
@@ -42,7 +42,7 @@ export function PropertiesPanel({ properties: p, picker = null, assets, selected
     // An island is a root of its own: the provider the Svelte layout gives the buttons from above is here.
     <TooltipProvider>
       <div className="flex flex-col border-t border-hairline text-small text-text" role="group" aria-label="Properties" data-testid="properties">
-        {p ? <Body p={p} picker={picker} assets={assets} dispatch={dispatch} text={text} imageView={imageView} thumbnail={thumbnail} /> : <Empty selected={selected} />}
+        {p ? <Body p={p} picker={picker} assets={assets} dispatch={dispatch} text={text} thumbnail={thumbnail} /> : <Empty selected={selected} />}
       </div>
     </TooltipProvider>
   );
@@ -57,7 +57,7 @@ function Empty({ selected }: { selected: number }) {
   );
 }
 
-interface BodyProps extends Pick<FillSectionProps, 'imageView' | 'thumbnail'> {
+interface BodyProps extends Pick<FillSectionProps, 'thumbnail'> {
   p: Properties;
   picker: Picker | null;
   assets?: AssetsState;
@@ -65,7 +65,7 @@ interface BodyProps extends Pick<FillSectionProps, 'imageView' | 'thumbnail'> {
   text: (q: Properties, field: PlainField['type']) => (raw: string) => void;
 }
 
-function Body({ p, picker, assets, dispatch, text, imageView, thumbnail }: BodyProps) {
+function Body({ p, picker, assets, dispatch, text, thumbnail }: BodyProps) {
   const send = sender(dispatch);
   const has = p.sections;
   const opacity = bindingOf(p, 'opacity');
@@ -139,7 +139,7 @@ function Body({ p, picker, assets, dispatch, text, imageView, thumbnail }: BodyP
           <TextStyle properties={p} dispatch={dispatch} />
         </Section>
       ) : null}
-      <FillSection properties={p} picker={picker} assets={assets} dispatch={dispatch} imageView={imageView} thumbnail={thumbnail} />
+      <FillSection properties={p} picker={picker} assets={assets} dispatch={dispatch} thumbnail={thumbnail} />
       <BorderSection properties={p} dispatch={dispatch} />
       <ShadowSection properties={p} dispatch={dispatch} />
     </Fragment>

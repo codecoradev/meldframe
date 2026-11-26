@@ -52,6 +52,31 @@ export function fitAction(p: Properties, fit: ImageFit): Action | null {
   return p.image ? { type: 'setImageFill', id: p.id, assetId: p.image.assetId, fit } : null;
 }
 
+/** What the picker remembers between draws to know where the focus goes as pages of images arrive. */
+export interface Follow {
+  /** How many tiles the last draw had. */
+  seen: number;
+  /** Load more was pressed and its page has not come. */
+  following: boolean;
+}
+export const FOLLOW_START: Follow = { seen: 0, following: false };
+
+/** Load more was pressed: the first new tile of the page that comes takes the focus. */
+export const askedForMore = (f: Follow): Follow => ({ ...f, following: true });
+
+/**
+ * Where the focus goes as the list grows, asked after each draw with the number of tiles, whether the list failed and whether the
+ * focus is on the picker itself (it was parked there because there was no tile to take it). The first page, when the focus was parked:
+ * the first tile. A page asked for with Load more: its first new tile (the button may be gone with the last page). A failed list
+ * forgets that a page was asked for. Answers what to remember and the tile to focus, null for none; it changes nothing it was given.
+ */
+export function followPages(f: Follow, count: number, error: boolean, parked: boolean): { next: Follow; focus: number | null } {
+  const following = f.following && !error;
+  const first = f.seen === 0 && parked ? 0 : following && count > f.seen ? f.seen : -1;
+  const moves = count > f.seen && first >= 0;
+  return { next: { seen: count, following: moves ? false : following }, focus: moves ? first : null };
+}
+
 /**
  * Where an arrow key takes the cursor of a grid of `count` tiles in `cols` columns: one tile along or one row up or down, and
  * Home and End to the first and the last tile of the whole list (not of a row). Undefined for any other key, for an empty grid
