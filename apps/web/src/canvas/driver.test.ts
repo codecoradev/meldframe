@@ -2,101 +2,10 @@
 // It is the one place that holds what the Svelte and the React canvas share (the frame loop, the culling, the controlled camera,
 // the mount and its cleanup), so both are checked here and neither copy repeats it.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Container } from 'pixi.js';
-import { HOME, sameCamera, type Camera } from '@meldframe/web-canvas/camera';
-import type { Scene } from '@meldframe/web-canvas/scene';
+import { sameCamera, type Camera } from '@meldframe/web-canvas/camera';
 import { pixiColors } from '@meldframe/web-tokens/tokens';
 import { WorldView } from './stage';
-import { ASSET_RETRY_EVERY_MS, type CanvasEvents, type CanvasProps, type HostWatchers, type Platform } from './api';
-import { CanvasDriver } from './driver';
-
-const rect = (id: string, x: number, y = 0) => ({ id, parent: null, kind: 'rect' as const, x, y, w: 100, h: 100, fill: 0x808080 });
-const scene = (...nodes: ReturnType<typeof rect>[]): Scene => ({ space: 'parent', nodes });
-const props = (over: Partial<CanvasProps> = {}): CanvasProps => ({
-  scene: scene(), selection: [], camera: { ...HOME }, touches: [], indicator: null, tool: 'move', theme: 'dark', ...over,
-});
-
-function fakeApp(failWith?: Error) {
-  const stage = new Container();
-  const renderer = { name: 'fake', resolution: 1, background: { color: -1 }, render: vi.fn(), resize: vi.fn() };
-  return {
-    stage, renderer, ticker: { stop: vi.fn() }, destroy: vi.fn(),
-    init: vi.fn(async () => {
-      if (failWith) throw failWith;
-    }),
-  };
-}
-type FakeApp = ReturnType<typeof fakeApp>;
-
-/** An element that keeps its listeners (the `signal` of `addEventListener` removes them, as in a browser). */
-function fakeHost() {
-  const listeners = new Map<string, Set<(e: unknown) => void>>();
-  return {
-    addEventListener(type: string, fn: (e: unknown) => void, opts?: { signal?: AbortSignal }) {
-      const set = listeners.get(type) ?? new Set();
-      listeners.set(type, set);
-      set.add(fn);
-      opts?.signal?.addEventListener('abort', () => set.delete(fn));
-    },
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
-    focus: vi.fn(),
-    setPointerCapture: vi.fn(),
-    style: { cursor: '' },
-    count: () => [...listeners.values()].reduce((n, s) => n + s.size, 0),
-    emit(type: string, e: object) {
-      for (const fn of [...(listeners.get(type) ?? [])]) fn({ preventDefault() {}, ...e });
-    },
-  };
-}
-type FakeHost = ReturnType<typeof fakeHost>;
-const asHost = (h: FakeHost) => h as unknown as HTMLElement;
-const surface = {} as HTMLCanvasElement;
-
-function setup(app: FakeApp = fakeApp()) {
-  const frames = new Map<number, () => void>();
-  let nextFrame = 1;
-  let watchers: HostWatchers | null = null;
-  let unwatched = 0;
-  const platform: Platform = {
-    requestFrame: (cb) => (frames.set(nextFrame, cb), nextFrame++),
-    cancelFrame: (id) => void frames.delete(id),
-    dpr: () => 1,
-    measure: () => ({ w: 800, h: 600 }),
-    watch: (_host, w) => {
-      watchers = w;
-      w.reducedMotion(false);
-      return () => {
-        watchers = null;
-        unwatched++;
-      };
-    },
-    createApp: () => app as never,
-    assets: { fetch: async () => ({ ok: false, status: 404, blob: async () => new Blob(), json: async () => ({}) }), decode: async () => ({ width: 1, height: 1 }) },
-  };
-  const driver = new CanvasDriver(platform);
-  const events = { onReady: vi.fn(), onError: vi.fn(), onCameraChange: vi.fn(), onStatus: vi.fn() } satisfies CanvasEvents;
-  driver.events = events;
-  const host = fakeHost();
-  return {
-    app, driver, events, host, platform,
-    /** Runs the frames that were asked for (one animation frame). */
-    frame() {
-      const run = [...frames.values()];
-      frames.clear();
-      run.forEach((f) => f());
-      return run.length;
-    },
-    pending: () => frames.size,
-    watchers: () => watchers,
-    unwatched: () => unwatched,
-    /** Mounts and waits for the application to start. */
-    async mount() {
-      const dispose = driver.mount(asHost(host), surface);
-      await vi.advanceTimersByTimeAsync(0);
-      return dispose;
-    },
-  };
-}
+import { asHost, fakeApp, props, rect, scene, setup, surface } from './driver.testutil';
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -277,35 +186,6 @@ describe('frames', () => {
   });
 });
 
-describe('culling', () => {
-  const far = scene(rect('near', 0), rect('far', 5000));
-
-  it('draws what is in the view, and a node that comes into the view when the camera moves', async () => {
-    const t = setup();
-    t.driver.setProps(props({ scene: far }));
-    await t.mount();
-    t.frame();
-    expect(t.driver.stats().nodes).toBe(2);
-    expect(t.driver.stats().drawn).toBe(1);
-    t.driver.setProps(props({ scene: far, camera: { x: -5000, y: 0, zoom: 1 } }));
-    t.frame();
-    expect(t.driver.stats().drawn).toBe(1); // the far one now, the near one is out of the view
-    t.driver.setProps(props({ scene: far, camera: { x: 145, y: 0, zoom: 0.1 } }));
-    t.frame();
-    expect(t.driver.stats().drawn).toBe(2);
-  });
-
-  it('a node that is added, moved or turned visible is culled again although the camera stays', async () => {
-    const t = setup();
-    t.driver.setProps(props({ scene: scene(rect('a', 0)) }));
-    await t.mount();
-    t.frame();
-    t.driver.setProps(props({ scene: scene(rect('a', 0), rect('b', 200)) }));
-    t.frame();
-    expect(t.driver.stats().drawn).toBe(2);
-  });
-});
-
 describe('the camera, a controlled prop with a callback', () => {
   const reported = (t: ReturnType<typeof setup>): Camera[] => t.events.onCameraChange.mock.calls.map((c) => c[0] as Camera);
 
@@ -421,49 +301,5 @@ describe('input becomes intents of the host', () => {
     await t.mount();
     t.driver.focus();
     expect(t.host.focus).toHaveBeenCalledWith({ preventScroll: true });
-  });
-});
-
-describe('capture', () => {
-  it('says the canvas is not ready before it has started and after the cleanup', async () => {
-    const t = setup();
-    await expect(t.driver.capture({ x: 0, y: 0, w: 10, h: 10 }, 1)).rejects.toThrow('The canvas is not ready.');
-    const dispose = await t.mount();
-    dispose();
-    await expect(t.driver.capture({ x: 0, y: 0, w: 10, h: 10 }, 1)).rejects.toThrow('The canvas is not ready.');
-  });
-
-  it('draws the region at the scale, hands over the PNG, and culls again for the view afterwards', async () => {
-    const t = setup();
-    t.driver.setProps(props({ scene: scene(rect('a', 0)) }));
-    await t.mount();
-    t.frame();
-    const image = { toBlob: (cb: (b: Blob | null) => void) => cb(new Blob(['x'], { type: 'image/png' })) } as unknown as HTMLCanvasElement;
-    const region = vi.spyOn(WorldView.prototype, 'renderRegion').mockReturnValue(image);
-    const blob = await t.driver.capture({ x: 0, y: 0, w: 10.2, h: 5 }, 2);
-    expect(blob.type).toBe('image/png');
-    expect(region).toHaveBeenCalledWith(t.app.renderer, { x: 0, y: 0, w: 10.2, h: 5 }, 2, 21, 10);
-    expect(t.pending()).toBe(1);
-    region.mockRestore();
-  });
-
-  it('gives the box of a node, or of all the content, with the band of a border', async () => {
-    const t = setup();
-    t.driver.setProps(props({ scene: scene(rect('a', 0), rect('b', 300)) }));
-    await t.mount();
-    expect(t.driver.captureBox('a')).toEqual({ x: 0, y: 0, w: 100, h: 100 });
-    expect(t.driver.captureBox()).toEqual({ x: 0, y: 0, w: 400, h: 100 });
-    expect(t.driver.captureBox('missing')).toBeNull();
-  });
-});
-
-describe('the asset retry timer', () => {
-  it('runs while the canvas is mounted and stops with it', async () => {
-    const t = setup();
-    const dispose = await t.mount();
-    expect(vi.getTimerCount()).toBeGreaterThan(0);
-    await vi.advanceTimersByTimeAsync(ASSET_RETRY_EVERY_MS * 2);
-    dispose();
-    expect(vi.getTimerCount()).toBe(0);
   });
 });
