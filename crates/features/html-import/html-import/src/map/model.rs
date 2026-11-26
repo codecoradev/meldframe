@@ -113,6 +113,10 @@ pub struct NodeInfo {
     pub approximated: Vec<Change>,
     /// Properties that were not carried (counted by `strict`).
     pub unsupported: Vec<Lost>,
+    /// How many lines the `approximated` list would hold past its bound of 32 (0 for almost every node).
+    pub approx_omitted: usize,
+    /// The same for `unsupported`.
+    pub lost_omitted: usize,
 }
 
 /// An element that made no node: `display_none` or `no_model_equivalent`.
@@ -147,8 +151,12 @@ pub struct Imported {
 }
 
 impl Imported {
-    /// How many properties were not carried, over all the nodes: what `strict` refuses.
+    /// How many properties were not carried, over all the nodes, those a full list left out included: what `strict`
+    /// refuses.
     pub fn unsupported_count(&self) -> usize {
-        self.nodes.iter().map(|n| n.unsupported.len()).sum()
+        self.nodes
+            .iter()
+            .map(|n| n.unsupported.len() + n.lost_omitted)
+            .sum()
     }
 }

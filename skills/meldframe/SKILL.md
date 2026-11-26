@@ -128,14 +128,16 @@ more is refused as `E_IMPORT_HTML_TOO_MANY` (the same for more than 256 KiB, `E_
 without it the root is a new top-level frame beside the others. The import adds nodes and never changes one, so it has
 no `ifSeq`. Send it once with `dryRun` true and read the answer before you write: `nodes` lists every node with the
 element it came from (`source`), what was approximated and what was not carried, `unsupported` (line-height, grid, a
-font other than Inter, transforms and the like, each with a code), `skipped` lists the elements that make nothing, and
+font other than Inter, transforms and the like, each with a code; a row lists at most 32 lines of each kind and
+`omitted` counts the lines it left out), `skipped` lists the elements that make nothing, and
 `assets` lists image sources, which are never fetched: upload the file with `upload_asset` and set the image with
 `apply_commands`. With `strict` true any property that was not carried refuses the call as `E_IMPORT_HTML_UNSUPPORTED`.
 `export_frame` and `import_html` are inverses: import the `html` an export returned (and the `css` it returned with the
 tailwind form) and the nodes come back, with ids that are new. Give each import a `note`. You cannot undo an import
 yourself (undoing the creation of a frame needs the person's approval): a person reverts the batch in the Activity
 panel, which takes its texts and shapes and leaves every frame the import made, empty. The text sizes of the result are
-estimates from the stub, as in an export. Then rename the layers that carry a role and not a name, and bind what should be a variable: the import writes the values it read, never a binding.
+estimates from the stub, as in an export. Then rename the layers that carry a role and not a name, and bind what
+should be a variable: the import writes the values it read, never a binding.
 
 ## Handing a frame to code
 

@@ -4,8 +4,8 @@
 //! that hugs on that axis would be exported as a fixed size, so the box hugs.
 
 use super::notes::Notes;
-use crate::css::Style;
 use crate::css::value::{Len, Unit};
+use crate::css::{Source, Style};
 use meldframe_protocol::{LayoutMode, SizeMode};
 
 /// What a child needs to know of the frame it is in.
@@ -18,6 +18,8 @@ pub(super) struct Parent {
     pub stretch: bool,
     /// A flex container: `flex-grow` of a child counts.
     pub flex: bool,
+    /// A flex or grid container: a child is an item of it, so an inline child is blockified and stretches.
+    pub blockified: bool,
     /// The row of a table: its cells share it.
     pub cells: bool,
     /// The fixed size of the parent in pixels, for `100%`.
@@ -131,8 +133,13 @@ pub(super) fn auto(
 }
 
 /// A length that was not written in pixels is converted and says so.
-pub(super) fn converted(n: &mut Notes, prop: &str, raw: &str, l: Len) {
-    if l.unit != Unit::Px {
+pub(super) fn converted(s: &Style, n: &mut Notes, prop: &str, raw: &str, l: Len) {
+    // A length of the browser's own defaults table (the `1em` of a paragraph margin) is not the author's to be told of.
+    let default = s
+        .props
+        .get(prop)
+        .is_some_and(|p| p.source == Source::UserAgent);
+    if l.unit != Unit::Px && !default {
         n.change(prop, raw, &format!("{}px", l.px));
     }
 }
@@ -174,7 +181,7 @@ pub(super) fn axis(s: &Style, n: &mut Notes, p: &Parent, horizontal: bool, k: Ki
         }
         _ => match s.len(prop).filter(|l| l.px >= 0.0) {
             Some(l) => {
-                converted(n, prop, raw, l);
+                converted(s, n, prop, raw, l);
                 Axis::fixed(l.px)
             }
             None => {

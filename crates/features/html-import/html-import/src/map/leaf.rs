@@ -21,7 +21,7 @@ fn attr_px(el: &Element, name: &str) -> Option<f64> {
 }
 
 /// The longest text, in characters, that is measured wrapped.
-const WRAP_MEASURE_MAX: usize = 4_096;
+pub const WRAP_MEASURE_MAX: usize = 4_096;
 
 fn measure(node: &Node, wrap: Option<f64>) -> (f64, f64) {
     StubMeasurer.measure(node, wrap)

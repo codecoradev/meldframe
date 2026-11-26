@@ -107,3 +107,30 @@ fn skipped_lines_are_bounded() {
     assert_eq!(i.skipped.len(), html_import::map::MAX_SKIPPED);
     assert_eq!(i.skipped_omitted, 100);
 }
+
+#[test]
+fn the_lists_of_a_node_are_bounded_and_the_lines_left_out_are_counted_and_still_refuse_strict() {
+    let props: String = (0..50).map(|i| format!("zz-prop-{i}:1;")).collect();
+    let i = run(&format!(
+        "<div style=\"width:300px\"><div id=a style=\"width:5px;height:5px;{props}\"></div></div>"
+    ));
+    let a = info(&i, "a");
+    assert_eq!(
+        (a.unsupported.len(), a.lost_omitted, a.approx_omitted),
+        (32, 18, 0)
+    );
+    // What strict refuses is every property that was not carried, listed or not.
+    assert_eq!(i.unsupported_count(), 50);
+}
+
+#[test]
+fn a_property_left_out_twice_counts_once_for_strict() {
+    let props: String = (0..50).map(|i| format!("zz-prop-{i}:1;")).collect();
+    // The `li` and the one inline element that holds its text say the same 50 properties: they are 50 lines, not 68.
+    let i = run(&format!(
+        "<ul style=\"margin:0;padding:0\"><li id=a style=\"{props}\"><a style=\"{props}\">x</a></li></ul>"
+    ));
+    let a = info(&i, "a");
+    assert_eq!((a.unsupported.len(), a.lost_omitted), (32, 18), "{a:?}");
+    assert_eq!(i.unsupported_count(), 50);
+}

@@ -86,7 +86,7 @@ fn sides(s: &Style, base: &str, n: &mut Notes) -> [f64; 4] {
         };
         match s.len(&prop) {
             Some(l) if l.px >= 0.0 => {
-                converted(n, &prop, raw, l);
+                converted(s, n, &prop, raw, l);
                 out[i] = l.px;
             }
             Some(_) => n.lose(&prop, raw, "refused_negative"),
@@ -154,7 +154,7 @@ pub(super) fn place(s: &Style, n: &mut Notes) -> Place {
                 };
                 match s.len(prop) {
                     Some(l) => {
-                        converted(n, prop, raw, l);
+                        converted(s, n, prop, raw, l);
                         l.px
                     }
                     None => {
@@ -192,9 +192,17 @@ pub(super) struct Flow {
     pub flex: bool,
     pub stretch: bool,
     pub cells: bool,
+    /// Its children are items of a flex or grid container.
+    pub items: bool,
     pub align: Align,
     pub justify: Justify,
     pub gap: f64,
+}
+
+/// Is the element a flex or grid container? Its children are items of it, whatever their display was (blockified).
+pub(super) fn blockifies(s: &Style) -> bool {
+    let d = display(s);
+    d.contains("flex") || d.contains("grid")
 }
 
 /// The `display` of an element, in lower case; empty when it has none.
@@ -223,13 +231,22 @@ pub(super) fn flow(s: &Style, n: &mut Notes, all_absolute: bool, button: bool) -
         flex: false,
         stretch: true,
         cells: false,
+        items: false,
         align: Align::Start,
         justify: Justify::Start,
         gap: 0.0,
     };
     if grid {
         n.change("display", &d, "layout column");
-        return plain;
+        let gap = s
+            .len("row-gap")
+            .filter(|l| l.px >= 0.0)
+            .map_or(0.0, |l| l.px);
+        return Flow {
+            gap,
+            items: true,
+            ..plain
+        };
     }
     if table_row {
         return Flow {
@@ -297,7 +314,7 @@ pub(super) fn flow(s: &Style, n: &mut Notes, all_absolute: bool, button: bool) -
     let len = |p: &str, n: &mut Notes| {
         let raw = s.get(p)?.trim();
         let l = s.len(p).filter(|l| l.px >= 0.0)?;
-        converted(n, p, raw, l);
+        converted(s, n, p, raw, l);
         Some(l.px)
     };
     let (col, row) = (len("column-gap", n), len("row-gap", n));
@@ -320,6 +337,7 @@ pub(super) fn flow(s: &Style, n: &mut Notes, all_absolute: bool, button: bool) -
         flex: true,
         stretch,
         cells: false,
+        items: true,
         align,
         justify,
         gap,
@@ -365,6 +383,7 @@ pub(super) fn parent_of(f: &Flow, aw: Axis, ah: Axis, w: Option<f64>, h: Option<
         sh: ah.mode,
         stretch: f.stretch,
         flex: f.flex,
+        blockified: f.items,
         cells: f.cells,
         w,
         h,

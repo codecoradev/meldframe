@@ -3,9 +3,10 @@
 //! enters (rule U9): the display profile for a value, the strict one for a property name, each cut.
 
 use meldframe_text::{Profile, sanitize_clip};
+use std::collections::BTreeSet;
 
 /// The most entries of each list a node keeps (a starting guess, as the other bounds of the importer).
-const MAX_PER_NODE: usize = 64;
+const MAX_PER_NODE: usize = 32;
 const MAX_VALUE: usize = 80;
 
 /// A value changed to the nearest the model holds: `property` was `from` in the source and is `to` in the node.
@@ -30,6 +31,10 @@ pub struct Lost {
 pub(crate) struct Notes {
     pub approx: Vec<Change>,
     pub lost: Vec<Lost>,
+    /// The properties left out of `approx` because it was full: a property said twice is one line.
+    approx_over: BTreeSet<String>,
+    /// The same for `lost`, which `strict` counts.
+    lost_over: BTreeSet<String>,
 }
 
 fn show(s: &str) -> String {
@@ -45,29 +50,51 @@ impl Notes {
         for l in other.lost {
             self.lose(&l.property, &l.value, &l.code);
         }
+        self.approx_over.extend(other.approx_over);
+        self.lost_over.extend(other.lost_over);
+    }
+
+    /// How many lines `approx` would hold past its bound.
+    pub fn approx_omitted(&self) -> usize {
+        self.approx_over.len()
+    }
+
+    /// How many lines `lost` would hold past its bound.
+    pub fn lost_omitted(&self) -> usize {
+        self.lost_over.len()
     }
 
     /// `property` was read as `to` where the source said `from`.
     pub fn change(&mut self, property: &str, from: &str, to: &str) {
         let property = sanitize_clip(property, Profile::Strict, MAX_VALUE, usize::MAX);
-        if self.approx.len() < MAX_PER_NODE && !self.approx.iter().any(|c| c.property == property) {
-            self.approx.push(Change {
-                property,
-                from: show(from),
-                to: show(to),
-            });
+        if self.approx.iter().any(|c| c.property == property) {
+            return;
         }
+        if self.approx.len() >= MAX_PER_NODE {
+            self.approx_over.insert(property);
+            return;
+        }
+        self.approx.push(Change {
+            property,
+            from: show(from),
+            to: show(to),
+        });
     }
 
     /// `property` was not carried.
     pub fn lose(&mut self, property: &str, value: &str, code: &str) {
         let property = sanitize_clip(property, Profile::Strict, MAX_VALUE, usize::MAX);
-        if self.lost.len() < MAX_PER_NODE && !self.lost.iter().any(|l| l.property == property) {
-            self.lost.push(Lost {
-                property,
-                value: show(value),
-                code: sanitize_clip(code, Profile::Strict, MAX_VALUE, usize::MAX),
-            });
+        if self.lost.iter().any(|l| l.property == property) {
+            return;
         }
+        if self.lost.len() >= MAX_PER_NODE {
+            self.lost_over.insert(property);
+            return;
+        }
+        self.lost.push(Lost {
+            property,
+            value: show(value),
+            code: sanitize_clip(code, Profile::Strict, MAX_VALUE, usize::MAX),
+        });
     }
 }

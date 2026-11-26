@@ -2,7 +2,7 @@
 //! addresses listed, the warnings and the report of the readers. Every string that comes from the document was made
 //! safe where the importer made it (rule U9), so this only lays it out.
 
-use html_import::map::{Imported, NodeInfo};
+use html_import::map::{Imported, NodeInfo, WRAP_MEASURE_MAX};
 use meldframe_layout::{
     StubMeasurer, TEXT_OUTSIDE_CONTRACT_MESSAGE, layout_findings, text_outside_contract,
 };
@@ -31,7 +31,8 @@ fn node(n: &NodeInfo) -> Value {
         "approximated": n.approximated.iter()
             .map(|c| json!({"property": c.property, "from": c.from, "to": c.to})).collect::<Vec<_>>(),
         "unsupported": n.unsupported.iter()
-            .map(|l| json!({"property": l.property, "value": l.value, "code": l.code})).collect::<Vec<_>>()})
+            .map(|l| json!({"property": l.property, "value": l.value, "code": l.code})).collect::<Vec<_>>(),
+        "omitted": n.approx_omitted + n.lost_omitted})
 }
 
 /// What `apply_commands` and `export_frame` already warn about, for the nodes of this import: default layer names,
@@ -48,11 +49,18 @@ fn warnings(i: &Imported, nodes: &[Node]) -> Vec<Value> {
     if let Some(r) = alone.first_mut() {
         r.parent_id = None;
     }
-    out.extend(
-        layout_findings(&alone, &StubMeasurer)
-            .into_iter()
-            .map(|f| json!({"code": f.code, "nodeId": f.id, "message": f.message})),
-    );
+    // The layout core wraps text in time quadratic in the length of a line: when any text is longer than the importer
+    // measures wrapped, no layout finding is worked out at all (a part of the findings would read as the whole).
+    let long = alone
+        .iter()
+        .any(|n| n.kind == NodeKind::Text && n.text.chars().count() > WRAP_MEASURE_MAX);
+    if !long {
+        out.extend(
+            layout_findings(&alone, &StubMeasurer)
+                .into_iter()
+                .map(|f| json!({"code": f.code, "nodeId": f.id, "message": f.message})),
+        );
+    }
     let mut estimated: Vec<&str> = Vec::new();
     for n in nodes.iter().filter(|n| n.kind == NodeKind::Text) {
         if text_outside_contract(&n.text) {
