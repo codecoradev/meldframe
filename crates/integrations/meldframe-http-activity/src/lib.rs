@@ -182,7 +182,7 @@ impl BatchSink for Sink {
         let batch = NewBatch {
             actor: actor.to_owned(),
             key_prefix: call.key.clone(),
-            tool: "apply_commands".into(),
+            tool: call.tool.into(),
             commands: u32::try_from(call.commands).ok()?,
             written: u32::try_from(fresh).ok()?,
             // The keys of the call the log holds: the count never passes it, and a replay racing the original it

@@ -9,9 +9,9 @@
 
 use meldframe_host::{Op, Principal};
 use meldframe_http::Shared;
-use meldframe_http::mcp::{Extra, ExtraCall, MAX_BATCH, MAX_KEY};
+use meldframe_http::mcp::{Extra, ExtraCall, MAX_BATCH, MAX_KEY, change_tool_listing, fnv1a};
 use meldframe_module::Policy;
-use rmcp::model::{CallToolResult, Tool, ToolAnnotations};
+use rmcp::model::{CallToolResult, Tool};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use std::sync::Arc;
@@ -55,9 +55,7 @@ struct Args {
 /// FNV-1a over the text, 64 bits, as 12 hex digits: the keys of the ops carry it, so that a key sent again with other
 /// text is not taken for the call that wrote the first text.
 fn fnv12(s: &str) -> String {
-    let h = s.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
-        (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
-    });
+    let h = fnv1a(s.bytes());
     format!("{:012x}", h & 0xffff_ffff_ffff)
 }
 
@@ -212,16 +210,7 @@ impl ImportTool {
 
 impl Extra for ImportTool {
     fn tool(&self) -> Tool {
-        let schema = match input_schema() {
-            Value::Object(m) => m,
-            _ => Map::new(),
-        };
-        Tool::new(TOOL, DESCRIPTION, schema).annotate(
-            ToolAnnotations::new()
-                .read_only(false)
-                .destructive(false)
-                .idempotent(true),
-        )
+        change_tool_listing(TOOL, DESCRIPTION, input_schema())
     }
 
     fn call(&self, who: Principal, args: Map<String, Value>) -> ExtraCall<'_> {

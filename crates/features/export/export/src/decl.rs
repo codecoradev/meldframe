@@ -6,7 +6,7 @@
 
 use crate::names::{asset_id_ok, css_escape, escape, hex_alpha, hex_colour, num, px};
 use crate::report::Report;
-use meldframe_layout::{Rect, TextMeasurer};
+use meldframe_layout::{Rect, TEXT_OUTSIDE_CONTRACT_MESSAGE, TextMeasurer, text_outside_contract};
 use meldframe_protocol::{
     Align, Bind, BorderPosition, ImageFit, Justify, LayoutMode, Node, NodeKind, SizeMode, TextAlign,
 };
@@ -324,7 +324,11 @@ pub(crate) fn style(cx: &Cx, n: &Node, b: &PaintedBox, place: &Place, rep: &mut 
             }
         }
         if text_outside_contract(&n.text) {
-            rep.warn("text_outside_contract", Some(&n.id), "the text has a tab, a URL or a script (CJK) that the browser breaks differently from the canvas".into());
+            rep.warn(
+                "text_outside_contract",
+                Some(&n.id),
+                TEXT_OUTSIDE_CONTRACT_MESSAGE.into(),
+            );
         }
     } else {
         paint(cx, n, b, &mut s, rep);
@@ -346,15 +350,6 @@ pub(crate) fn style(cx: &Cx, n: &Node, b: &PaintedBox, place: &Place, rep: &mut 
         after(cx, n, b, rect, &mut s, rep);
     }
     s
-}
-
-/// A tab, a URL or CJK text: breaks the browser and the canvas place differently (contract, section 4.3).
-fn text_outside_contract(t: &str) -> bool {
-    t.contains('\t')
-        || t.contains("://")
-        || t.chars().any(|c| {
-            ('\u{3000}'..='\u{9fff}').contains(&c) || ('\u{ac00}'..='\u{d7af}').contains(&c)
-        })
 }
 
 /// Fill, gradient, image, radius, shadows and opacity of a box that is not text.

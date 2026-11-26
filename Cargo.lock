@@ -734,6 +734,7 @@ dependencies = [
  "html-import-style",
  "html-import-tree",
  "meldframe-layout",
+ "meldframe-module",
  "meldframe-protocol",
  "meldframe-text",
 ]
@@ -1701,6 +1702,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-http-html-import"
+version = "0.0.0"
+dependencies = [
+ "html-import",
+ "meldframe-activity",
+ "meldframe-check",
+ "meldframe-core",
+ "meldframe-host",
+ "meldframe-http",
+ "meldframe-layout",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-text",
+ "meldframe-variant",
+ "rmcp",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-http-live"
 version = "0.0.0"
 dependencies = [
@@ -1927,12 +1948,17 @@ dependencies = [
 name = "meldframe-mcp-tests"
 version = "0.0.0"
 dependencies = [
+ "activity-store",
  "axum",
+ "meldframe-activity",
  "meldframe-calls",
  "meldframe-host",
  "meldframe-http",
+ "meldframe-http-activity",
  "meldframe-http-assets",
  "meldframe-http-capture",
+ "meldframe-http-export",
+ "meldframe-http-html-import",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-render",
@@ -2013,6 +2039,7 @@ dependencies = [
  "axum",
  "design-review",
  "export",
+ "html-import",
  "meldframe-calls",
  "meldframe-host",
  "meldframe-http",
@@ -2020,6 +2047,7 @@ dependencies = [
  "meldframe-http-assets",
  "meldframe-http-capture",
  "meldframe-http-export",
+ "meldframe-http-html-import",
  "meldframe-http-review",
  "meldframe-http-variables-import",
  "meldframe-http-variant",
@@ -2076,6 +2104,7 @@ dependencies = [
  "design-review",
  "example",
  "export",
+ "html-import",
  "meldframe-approvals",
  "meldframe-batch",
  "meldframe-calls",
@@ -2086,6 +2115,7 @@ dependencies = [
  "meldframe-http-capture",
  "meldframe-http-checkpoints",
  "meldframe-http-export",
+ "meldframe-http-html-import",
  "meldframe-http-live",
  "meldframe-http-review",
  "meldframe-http-snapshot",

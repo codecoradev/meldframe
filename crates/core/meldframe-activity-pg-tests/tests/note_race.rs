@@ -17,6 +17,7 @@ fn call_of(file: &str, key: &str, commands: usize) -> meldframe_activity::BatchC
     meldframe_activity::BatchCall {
         file: file.into(),
         key: key.into(),
+        tool: "apply_commands",
         commands,
         atomic: true,
         note: None,

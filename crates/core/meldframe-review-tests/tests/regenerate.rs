@@ -54,6 +54,11 @@ fn regenerate() {
         json!({"name": vi.name, "tier": vi.tier.as_str(), "description": vi.description,
         "inputSchema": meldframe_http_variables_import::input_schema()}),
     );
+    let hi = server.registry().agent_tool(html_import::TOOL).unwrap();
+    tools.push(
+        json!({"name": hi.name, "tier": hi.tier.as_str(), "description": hi.description,
+        "inputSchema": meldframe_http_html_import::input_schema()}),
+    );
     let gb = server
         .registry()
         .agent_tool(meldframe_http_activity::TOOL)

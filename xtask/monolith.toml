@@ -180,22 +180,8 @@ reason = "audit D12: one adapter module in the merged http crate (#315)"
 
 [[allow_copy]]
 fns = [
-    "crates/integrations/meldframe-http-variables-import/src/lib.rs::tool",
-    "crates/integrations/meldframe-http-variant/src/lib.rs::tool",
-]
-reason = "audit D12: one adapter module in the merged http crate (#315)"
-
-[[allow_copy]]
-fns = [
     "crates/integrations/meldframe-http-variant/src/lib.rs::args",
     "crates/integrations/meldframe-http/src/mcp/tools.rs::args",
-]
-reason = "audit D12: one adapter module in the merged http crate (#315)"
-
-[[allow_copy]]
-fns = [
-    "crates/integrations/meldframe-http-variant/src/lib.rs::error",
-    "crates/integrations/meldframe-http/src/mcp/tools.rs::error",
 ]
 reason = "audit D12: one adapter module in the merged http crate (#315)"
 

@@ -12,7 +12,7 @@ kind = "bin"
 [features]
 # Each feature module is compiled in only when its cargo feature is on; leaving one out removes its
 # tools from the registry (ADR-0007). The example module is the first.
-default = ["example", "mcp", "capture", "assets", "design-review", "export", "variables-import", "variant", "activity", "checkpoints"]
+default = ["example", "mcp", "capture", "assets", "design-review", "export", "variables-import", "html-import", "variant", "activity", "checkpoints"]
 example = ["dep:example"]
 # The MCP surface: its tools in the registry and the read path behind them (E1.5).
 mcp = ["meldframe-http/mcp"]
@@ -29,6 +29,9 @@ export = ["mcp", "dep:export", "dep:meldframe-http-export"]
 # The import_tokens tool (E3.4, ADR-0020): CSS and Tailwind @theme text to variables, one atomic call; it is an MCP tool,
 # so it needs `mcp`.
 variables-import = ["mcp", "dep:variables-import", "dep:meldframe-http-variables-import"]
+# The import_html tool (E4.4, ADR-0024): HTML and CSS text to nodes, one atomic call of at most 100 commands; it is an MCP
+# tool, so it needs `mcp`.
+html-import = ["mcp", "dep:html-import", "dep:meldframe-http-html-import"]
 
 # The make_variant tool (E5.4): a copy of a frame beside it, one atomic call; it is an MCP tool, so it needs `mcp`.
 variant = ["mcp", "dep:meldframe-http-variant"]
@@ -64,6 +67,8 @@ export = { path = "../../crates/features/export/export", optional = true }
 meldframe-http-export = { path = "../../crates/integrations/meldframe-http-export", optional = true }
 variables-import = { path = "../../crates/features/variables-import/variables-import", optional = true }
 meldframe-http-variables-import = { path = "../../crates/integrations/meldframe-http-variables-import", optional = true }
+html-import = { path = "../../crates/features/html-import/html-import", optional = true }
+meldframe-http-html-import = { path = "../../crates/integrations/meldframe-http-html-import", optional = true }
 meldframe-http-variant = { path = "../../crates/integrations/meldframe-http-variant", optional = true }
 activity-store = { path = "../../crates/features/activity/activity-store", optional = true }
 meldframe-http-activity = { path = "../../crates/integrations/meldframe-http-activity", optional = true }

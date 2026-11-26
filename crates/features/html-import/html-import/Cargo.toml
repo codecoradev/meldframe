@@ -18,5 +18,6 @@ html-import-css = { path = "../html-import-css" }
 html-import-style = { path = "../html-import-style" }
 html-import-tree = { path = "../html-import-tree" }
 meldframe-layout = { path = "../../../core/meldframe-layout" }
+meldframe-module = { path = "../../../core/meldframe-module" }
 meldframe-protocol = { path = "../../../core/meldframe-protocol" }
 meldframe-text = { path = "../../../core/meldframe-text" }

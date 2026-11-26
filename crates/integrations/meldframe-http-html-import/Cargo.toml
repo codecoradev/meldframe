@@ -1,0 +1,30 @@
+[package]
+name = "meldframe-http-html-import"
+description = "The MCP tool import_html (E4.4): reads HTML and CSS text, makes the addNode commands with the html-import feature and writes them as one atomic batch through the gate of the server."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+# `bin`, as the other crates that serve a feature module over HTTP: it depends on the feature crate.
+[package.metadata.meldframe]
+kind = "bin"
+
+[dependencies]
+html-import = { path = "../../features/html-import/html-import" }
+meldframe-activity = { path = "../../core/meldframe-activity" }
+meldframe-check = { path = "../../core/meldframe-check" }
+meldframe-core = { path = "../../core/meldframe-core" }
+meldframe-host = { path = "../../core/meldframe-host" }
+meldframe-http = { path = "../meldframe-http", features = ["mcp"] }
+meldframe-layout = { path = "../../core/meldframe-layout" }
+meldframe-module = { path = "../../core/meldframe-module" }
+meldframe-protocol = { path = "../../core/meldframe-protocol" }
+meldframe-text = { path = "../../core/meldframe-text" }
+meldframe-variant = { path = "../../core/meldframe-variant" }
+rmcp = { version = "3.10", default-features = false, features = ["server"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lints]
+workspace = true

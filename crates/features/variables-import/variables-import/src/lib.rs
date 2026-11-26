@@ -25,7 +25,7 @@ pub mod value;
 pub use meldframe_css::color;
 
 use meldframe_check::Limits;
-use meldframe_module::{Module, Registrar, RiskTier};
+use meldframe_module::{Module, Registrar};
 use meldframe_protocol::Command;
 
 /// The most bytes of text an import reads.
@@ -174,6 +174,6 @@ impl Module for ImportModule {
     }
 
     fn register(&self, registrar: &mut Registrar) {
-        registrar.agent_tool(TOOL, DESCRIPTION, RiskTier::Change);
+        registrar.change_tool(TOOL, DESCRIPTION);
     }
 }

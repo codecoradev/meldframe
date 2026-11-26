@@ -12,10 +12,13 @@
 
 use meldframe_check::Limits;
 use meldframe_host::{Op, Principal};
-use meldframe_http::mcp::{Extra, ExtraCall, FileView, MAX_BATCH, MAX_KEY, Reader};
+use meldframe_http::mcp::{
+    Extra, ExtraCall, FileView, MAX_BATCH, MAX_KEY, Reader, change_tool_listing, fnv1a,
+    tool_error as error, tool_failed as failed,
+};
 use meldframe_http::{Failure, Shared, valid_file};
 use meldframe_module::{Module, Registrar, RiskTier};
-use rmcp::model::{CallToolResult, Tool, ToolAnnotations};
+use rmcp::model::{CallToolResult, Tool};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use std::sync::Arc;
@@ -60,17 +63,8 @@ impl Module for VariantModule {
 /// A tool's answer: the body of a success, or the body of a tool error.
 type Body = Result<Value, Value>;
 
-fn error(code: &str, message: impl Into<String>, retryable: bool) -> Value {
-    json!({"ok": false, "error": {"code": code, "message": message.into(), "retryable": retryable}})
-}
-
 fn invalid(message: impl Into<String>) -> Value {
     error("invalid", message, false)
-}
-
-/// A refused call, as the one handler words it: the same code, message and extras as REST.
-fn failed(reply: &meldframe_http::Reply) -> Value {
-    json!({"ok": false, "error": reply.body["error"]})
 }
 
 fn args<T: for<'de> Deserialize<'de>>(a: Map<String, Value>) -> Result<T, Value> {
@@ -113,12 +107,11 @@ fn check_key(key: &str) -> Result<(), Value> {
 
 /// The id of node `n` of the copy of `frame` made under `key` by `actor` in `file`.
 fn fresh_id(file: &str, actor: &str, key: &str, frame: &str, n: usize) -> String {
-    let h = [file, actor, key, frame]
-        .iter()
-        .flat_map(|s| s.bytes().chain(std::iter::once(0)))
-        .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
-            (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
-        });
+    let h = fnv1a(
+        [file, actor, key, frame]
+            .iter()
+            .flat_map(|s| s.bytes().chain(std::iter::once(0))),
+    );
     format!("v-{h:016x}-{n}")
 }
 
@@ -141,16 +134,7 @@ pub fn tool(shared: Arc<Shared>, reader: Arc<dyn Reader>) -> Arc<dyn Extra> {
 
 impl Extra for Variant {
     fn tool(&self) -> Tool {
-        let schema = match input_schema() {
-            Value::Object(m) => m,
-            _ => Map::new(),
-        };
-        Tool::new(TOOL, DESCRIPTION, schema).annotate(
-            ToolAnnotations::new()
-                .read_only(false)
-                .destructive(false)
-                .idempotent(true),
-        )
+        change_tool_listing(TOOL, DESCRIPTION, input_schema())
     }
 
     fn call(&self, who: Principal, args: Map<String, Value>) -> ExtraCall<'_> {

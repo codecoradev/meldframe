@@ -117,6 +117,26 @@ comes in `parts` of 100 commands: send the same call again with `part` 2, 3 and 
 import adds and does not update: text whose variables the file holds is refused as `E_DUPLICATE_ID`. Then read the ids
 with `get_variables` and bind the frames you design.
 
+## Pulling code onto the canvas
+
+To bring a section of the project's own page onto the canvas, read its HTML and CSS yourself and send them to
+`import_html` with the `file`, the `html` (a fragment or a whole document), the `css` (the style sheets the page links,
+inlined: the importer reads the CSS the author wrote, it follows no link and runs no script), a `name` and an
+`idempotencyKey`. Send one section at a time: an import is one atomic batch of at most 100 nodes, and a page that makes
+more is refused as `E_IMPORT_HTML_TOO_MANY` (the same for more than 256 KiB, `E_IMPORT_HTML_TOO_LARGE`, or more than
+5000 elements, `E_IMPORT_HTML_TOO_MANY_ELEMENTS`). Put a later section into the frame it belongs in with `parentId`;
+without it the root is a new top-level frame beside the others. The import adds nodes and never changes one, so it has
+no `ifSeq`. Send it once with `dryRun` true and read the answer before you write: `nodes` lists every node with the
+element it came from (`source`), what was approximated and what was not carried, `unsupported` (line-height, grid, a
+font other than Inter, transforms and the like, each with a code), `skipped` lists the elements that make nothing, and
+`assets` lists image sources, which are never fetched: upload the file with `upload_asset` and set the image with
+`apply_commands`. With `strict` true any property that was not carried refuses the call as `E_IMPORT_HTML_UNSUPPORTED`.
+`export_frame` and `import_html` are inverses: import the `html` an export returned (and the `css` it returned with the
+tailwind form) and the nodes come back, with ids that are new. Give each import a `note`. You cannot undo an import
+yourself (undoing the creation of a frame needs the person's approval): a person reverts the batch in the Activity
+panel, which takes its texts and shapes and leaves every frame the import made, empty. The text sizes of the result are
+estimates from the stub, as in an export. Then rename the layers that carry a role and not a name, and bind what should be a variable: the import writes the values it read, never a binding.
+
 ## Handing a frame to code
 
 Call `export_frame` with the `file`, the `frame` (the id of a frame) and, if you want it, `format` (`css`, the default,

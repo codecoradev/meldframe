@@ -290,6 +290,18 @@ A test in `crates/features/capture/capture/tests/registration.rs` reads this tab
 | `E_IMPORT_TOO_LARGE` | The `css` text is over 256 KiB. Nothing is read or written. | Send the style sheet in parts, or only the files that hold the variables (the theme, the root rule). |
 | `E_IMPORT_TOO_MANY` | The Import variables dialog of the editor (not the tool) was given text of more than 50 variables (at most 52 commands, inside a budget of 55). The browser sends one request for each op and the server's burst is 60, so a longer import could be rolled back after it was reported done. Nothing is applied; the result carries the count the reader made, which stops at 5,000 variables, so for a longer text it is a lower bound. | Use the agent tool `import_tokens`, which reads the same CSS in atomic parts, or split the text. |
 
+## HTML import codes
+
+`import_html` (E4.4, `docs/import-html.md`, ADR-0024) answers a tool error with one of these codes before it writes anything. The commands it writes are checked as `apply_commands` checks them, so a refused import also carries the codes of the first table (`E_PARENT_NOT_FOUND`, `E_PARENT_NOT_FRAME`, `E_TOO_LONG` for a text over 20,000 characters, `E_TOO_DEEP`, `E_TOO_MANY_NODES`) with the `index` of the command and the `source` element it came from, and the gate's codes (`forbidden`, `quota_ops_per_minute`, `batch_too_large`). `E_IMPORT_HTML_UNSUPPORTED` lists the properties under `error.unsupported`. A call with a bad argument is `invalid` or `bad_request`, as in the other tools.
+
+| Code | Meaning and typical cause | What to do next |
+| --- | --- | --- |
+| `E_IMPORT_HTML_TOO_LARGE` | `html` and `css` together are over 256 KiB, counted in bytes. Nothing is read or written. | Send one section of the page at a time, and only the CSS that section needs. |
+| `E_IMPORT_HTML_TOO_MANY_ELEMENTS` | The HTML makes more than 5,000 elements. Nothing is read further. | Send one section at a time, each under the `parentId` of the frame it belongs in. |
+| `E_IMPORT_HTML_EMPTY` | No element makes a node: the text is empty, plain text, only scripts or styles, or every element is `display: none`. | Send the markup of the section, not its text, and check that the elements are shown. |
+| `E_IMPORT_HTML_TOO_MANY` | The import would write more than 100 commands (one for each node). The message says how many nodes the text makes. Nothing is written. | Send one section at a time, each under the `parentId` of the frame it belongs in. |
+| `E_IMPORT_HTML_UNSUPPORTED` | `strict` is true and at least one property was not carried (line-height, grid, a font other than Inter, a transform, and the like). Nothing is written; the properties are listed. | Send it without `strict` to import what can be read, or change the HTML or the CSS. |
+
 ## Activity codes
 
 The store of batch headers (feature module `activity`, E5.1, ADR-0021) fails with these codes. They are the store's: a header that cannot be written never fails the tool call that wrote the ops (the call still writes and answers `batch: null`), so `activity_full` does not reach an agent over MCP; it is logged and counted by the server. The routes of the activity panel word them for a person.

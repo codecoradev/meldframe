@@ -21,6 +21,8 @@ export = { path = "../../features/export/export" }
 meldframe-http-export = { path = "../../integrations/meldframe-http-export" }
 variables-import = { path = "../../features/variables-import/variables-import" }
 meldframe-http-variables-import = { path = "../../integrations/meldframe-http-variables-import" }
+html-import = { path = "../../features/html-import/html-import" }
+meldframe-http-html-import = { path = "../../integrations/meldframe-http-html-import" }
 meldframe-http-variant = { path = "../../integrations/meldframe-http-variant" }
 meldframe-http-activity = { path = "../../integrations/meldframe-http-activity" }
 meldframe-http-capture = { path = "../../integrations/meldframe-http-capture" }
