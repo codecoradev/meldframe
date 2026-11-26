@@ -223,4 +223,31 @@ describe('the island action', () => {
     expect(log).toEqual(['draw1', 'draw2']);
     expect(errors).not.toHaveBeenCalled();
   });
+
+  // A prop can be a one-time message, such as the events of one dispatch of the app layer: a later update must not replace it before
+  // React drew it. Without a synchronous draw React keeps only the last of two updates that come in one task, which this test shows.
+  // That this is why the Activity panel's line "Reverted: ..." was missing on one run under load is probable and not shown (the cause
+  // was inferred, not reproduced). Not covered: an `update` made while React is committing, the one failure mode of `flushSync`
+  // (React logs an error in development and draws it later); Svelte calls `update` from a microtask, so the product does not do it.
+  it('draws each update when it comes: two in one task are both drawn, in order', async () => {
+    const log: string[] = [];
+    const Probe = ({ n }: { n: number }): ReactNode => {
+      log.push(`draw${n}`);
+      return null;
+    };
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // Outside `act`, as a Svelte flush calls it: React's test mode would warn about every draw that is not inside it.
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: false });
+    try {
+      const handle = island(container(), { component: Probe, props: { n: 1 } });
+      handle.update({ component: Probe, props: { n: 2 } });
+      handle.update({ component: Probe, props: { n: 3 } });
+      expect(log).toEqual(['draw1', 'draw2', 'draw3']); // before anything is awaited
+      handle.destroy();
+      await new Promise((r) => setTimeout(r, 30)); // the unmount is React's scheduled work: let it run while `window` is still there
+    } finally {
+      Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    }
+    expect(errors).not.toHaveBeenCalled();
+  });
 });
