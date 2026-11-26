@@ -30,7 +30,7 @@ const FILE: &str = "The name of the file: 1 to 128 characters, no slashes or con
 
 fn key_schema(spelling: &str, other: &str) -> Value {
     json!({"type": "string", "minLength": 1, "maxLength": MAX_KEY,
-        "description": format!("The idempotency key of the call (1 to 100 characters). Send {spelling} or {other}, not both.")})
+        "description": format!("The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send {spelling} or {other}, not both.")})
 }
 
 /// The JSON Schema of the arguments.

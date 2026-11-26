@@ -94,3 +94,22 @@ async fn a_file_name_with_a_hidden_character_is_refused_by_every_tool_that_takes
     let r = call(&c, "get_tree", json!({"file": "\u{e9}".repeat(64)})).await;
     assert!(!r.is_error, "{}", r.body);
 }
+
+#[tokio::test]
+async fn a_run_of_more_than_4_combining_marks_is_refused_in_a_key_and_a_file_name() {
+    let h = start().await;
+    let c = connect(&h, AGENT).await;
+    let marks = |n: usize| "\u{0301}".repeat(n);
+    // Four marks in a row are taken, five are not, in a key and in a file name alike.
+    let r = apply(&c, "m1", &format!("k{}", marks(4))).await;
+    assert!(!r.is_error, "{}", r.body);
+    let r = apply(&c, "m2", &format!("k{}", marks(5))).await;
+    assert!(r.is_error, "{}", r.body);
+    assert_eq!(r.body["error"]["code"], "invalid");
+    assert_eq!(seq(&c, "m2").await, 0, "a refused key wrote a command");
+    let r = apply(&c, &format!("f{}", marks(4)), "k").await;
+    assert!(!r.is_error, "{}", r.body);
+    let r = apply(&c, &format!("f{}", marks(5)), "k").await;
+    assert!(r.is_error, "{}", r.body);
+    assert_eq!(r.body["error"]["code"], "invalid");
+}

@@ -23,7 +23,7 @@ use variables_import::{
 pub fn input_schema() -> Value {
     let key = |other: &str| {
         json!({"type": "string", "minLength": 1, "maxLength": MAX_KEY,
-            "description": format!("The idempotency key of the call (1 to 100 characters). Send this or {other}, not both.")})
+            "description": format!("The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send this or {other}, not both.")})
     };
     json!({"type": "object", "required": ["file", "css"], "additionalProperties": false, "properties": {
         "file": {"type": "string", "minLength": 1, "maxLength": 128,
