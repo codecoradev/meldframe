@@ -20,6 +20,13 @@ pub fn is_hidden_text(c: char) -> bool {
             | 0xE0000..=0xE007F | 0xE0100..=0xE01EF)
 }
 
+/// Whether a character is a control character (category Cc): U+0000 to U+001F and U+007F to U+009F. Every one of them
+/// is in [`is_hidden_text`]; this is for a caller that must tell a control from the other hidden characters (a file name
+/// turns a control into a hyphen and removes the rest), so that no caller writes the ranges itself.
+pub fn is_control_char(c: char) -> bool {
+    matches!(c as u32, 0x00..=0x1F | 0x7F..=0x9F)
+}
+
 /// Whether a character is a combining mark of the blocks a run is capped in: U+0300 to 036F, 1AB0 to 1AFF, 1DC0 to
 /// 1DFF, 20D0 to 20FF and FE20 to FE2F.
 pub fn is_combining_mark(c: char) -> bool {

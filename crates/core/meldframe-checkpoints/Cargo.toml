@@ -12,6 +12,7 @@ kind = "core"
 [dependencies]
 meldframe-activity = { path = "../meldframe-activity" }
 meldframe-revert = { path = "../meldframe-revert" }
+meldframe-text = { path = "../meldframe-text" }
 
 [lints]
 workspace = true

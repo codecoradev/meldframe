@@ -2,6 +2,7 @@
 
 use crate::MAX_LABEL_CHARS;
 use meldframe_activity::{MAX_ACTOR, MAX_COMBINING_RUN, is_combining_mark, is_hidden_text};
+use meldframe_text::TextError;
 
 /// A label: the person's plain text on a `manual` checkpoint. Trimmed, never empty, at most [`MAX_LABEL_CHARS`]
 /// characters, with no line break, no control character, no hidden character (the stricter set `is_hidden_text` of
@@ -96,6 +97,8 @@ pub enum ActorError {
     TooLong,
     /// A control or hidden character.
     Hidden(char),
+    /// A run of more than [`MAX_COMBINING_RUN`] combining marks.
+    TooManyMarks,
 }
 
 impl ActorError {
@@ -116,22 +119,24 @@ impl std::fmt::Display for ActorError {
                     *c as u32
                 )
             }
+            ActorError::TooManyMarks => write!(
+                f,
+                "the actor has more than {MAX_COMBINING_RUN} combining marks in a row"
+            ),
         }
     }
 }
 
 impl std::error::Error for ActorError {}
 
-/// The rule of an actor string in a row: not empty, at most [`MAX_ACTOR`] bytes, no control or hidden character.
+/// The rule of an actor string in a row: the rule of `meldframe_text::actor` (not empty, at most [`MAX_ACTOR`] bytes, no
+/// control or hidden character, no run of more than [`MAX_COMBINING_RUN`] combining marks), so a row and a batch header
+/// refuse the same actors.
 pub fn check_actor(actor: &str) -> Result<(), ActorError> {
-    if actor.is_empty() {
-        return Err(ActorError::Empty);
-    }
-    if actor.len() > MAX_ACTOR {
-        return Err(ActorError::TooLong);
-    }
-    match actor.chars().find(|c| is_hidden_text(*c)) {
-        Some(c) => Err(ActorError::Hidden(c)),
-        None => Ok(()),
-    }
+    meldframe_text::actor(actor).map_err(|e| match e {
+        TextError::Empty => ActorError::Empty,
+        TextError::Hidden(c) => ActorError::Hidden(c),
+        TextError::TooManyMarks => ActorError::TooManyMarks,
+        _ => ActorError::TooLong,
+    })
 }

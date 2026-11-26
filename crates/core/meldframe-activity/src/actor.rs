@@ -3,10 +3,7 @@
 //! derives nothing from the actor string.
 
 use crate::LaneKind;
-use meldframe_text::{MAX_ACTOR, label};
-
-const AGENT: &str = "agent:";
-const PERSON: &str = "person:";
+use meldframe_text::{AGENT_PREFIX, MAX_ACTOR, PERSON_PREFIX, is_agent, label};
 
 /// Which colour an actor wears. A person has one; an agent keeps one of three, from a stable hash of its id, so two
 /// agents are told apart by colour as well as by name (the name is always on offer: colour is never the only signal).
@@ -31,7 +28,7 @@ pub struct ActorView {
 impl LaneKind {
     /// `agent:` is an agent, anything else a person: for display only, it decides nothing about who may review.
     pub fn of(actor: &str) -> Self {
-        if actor.starts_with(AGENT) {
+        if is_agent(actor) {
             Self::Agent
         } else {
             Self::Person
@@ -57,7 +54,7 @@ impl ActorView {
     /// actor of no known kind is a person named by the whole text, and a name with nothing in it is the actor itself.
     pub fn of(actor: &str) -> Self {
         let kind = LaneKind::of(actor);
-        let rest = [AGENT, PERSON]
+        let rest = [AGENT_PREFIX, PERSON_PREFIX]
             .iter()
             .find_map(|p| actor.strip_prefix(p))
             .unwrap_or(actor);

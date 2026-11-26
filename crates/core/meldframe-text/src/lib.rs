@@ -48,7 +48,7 @@
 //! space to one space, trims and cuts at [`MAX_LABEL`]. [`identifier`] is the strict profile as a value: an actor, a
 //! key and a refusal code, which the app layer uses as keys and shows as they are. It does not touch white space, so
 //! every text that [`actor`] or [`key`] accepts comes back unchanged. The stored text is never changed by either call:
-//! the document keeps what was written, and the state carries what is safe to draw.
+//! the file keeps what was written, and the state carries what is safe to draw.
 //!
 //! # Caps
 //!
@@ -69,9 +69,13 @@ mod plain;
 mod sanitize;
 mod shown;
 
-pub use charset::{first_hidden, is_combining_mark, is_hidden_text, mark_run_exceeds};
+pub use charset::{
+    first_hidden, is_combining_mark, is_control_char, is_hidden_text, mark_run_exceeds,
+};
 pub use number::canonical_u32;
-pub use plain::{TextError, actor, file_name, key, plain, workspace_name};
+pub use plain::{
+    AGENT_PREFIX, PERSON_PREFIX, TextError, actor, file_name, is_agent, key, plain, workspace_name,
+};
 pub use sanitize::{Profile, clip, sanitize, sanitize_clip};
 pub use shown::{identifier, label};
 
@@ -90,5 +94,5 @@ pub const MAX_NODE_REF: usize = 128;
 /// The longest run of combining marks in a text: more would let stacked marks smear a line.
 pub const MAX_COMBINING_RUN: usize = 4;
 /// The longest name or label shown, in characters: the longest name a node, a collection or a mode may have in the file
-/// (`max_name` of the document's limits, 256 characters).
+/// (`max_name` of the limits of a file, 256 characters).
 pub const MAX_LABEL: usize = 256;

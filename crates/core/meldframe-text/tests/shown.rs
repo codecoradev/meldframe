@@ -107,6 +107,62 @@ fn an_identifier_is_cut_to_both_bounds_between_characters() {
 }
 
 #[test]
+fn an_identifier_holds_at_most_four_combining_marks_in_a_row() {
+    let four = "\u{0301}".repeat(4);
+    let pile = "\u{0301}".repeat(100);
+    assert_eq!(
+        identifier(&format!("a{pile}b"), 128, 128),
+        format!("a{four}b")
+    );
+    // The marks of two runs are counted apart, and a hidden character between marks does not break a run.
+    assert_eq!(
+        identifier(&format!("a{four}b{four}"), 128, 128),
+        format!("a{four}b{four}")
+    );
+    assert_eq!(identifier(&"\u{0301}\u{200B}".repeat(50), 128, 128), four);
+    // What `actor` and `key` take is still a fixed point of the call.
+    for s in [format!("agent:a{four}"), format!("k{four}1")] {
+        assert!(meldframe_text::actor(&s).is_ok() && identifier(&s, 128, 128) == s);
+    }
+}
+
+#[test]
+fn every_line_break_of_unicode_reads_as_a_gap_in_a_name_like_a_tab_or_a_line_break() {
+    // U+0085 (next line), U+2028 and U+2029 are line breaks as `\n` is: the two words around one stay two words. As
+    // identifiers they are hidden characters and go.
+    for c in [
+        '\t', '\n', '\r', '\u{0B}', '\u{0C}', '\u{85}', '\u{2028}', '\u{2029}',
+    ] {
+        assert_eq!(
+            label(&format!("a{c}b"), MAX_LABEL),
+            "a b",
+            "U+{:04X}",
+            c as u32
+        );
+        assert_eq!(
+            identifier(&format!("a{c}b"), 128, 128),
+            "ab",
+            "U+{:04X}",
+            c as u32
+        );
+    }
+}
+
+#[test]
+fn a_very_long_text_is_cut_before_it_is_walked_and_a_clean_name_of_the_cap_is_whole() {
+    let huge = "x".repeat(5_000_000);
+    assert_eq!(label(&huge, MAX_LABEL), "x".repeat(MAX_LABEL));
+    assert_eq!(identifier(&huge, 128, 128), "x".repeat(128));
+    // 256 visible characters, each behind a hidden one, still come whole: the walk starts from a cut far past the cap.
+    let spaced = "\u{200B}x".repeat(MAX_LABEL);
+    assert_eq!(label(&spaced, MAX_LABEL), "x".repeat(MAX_LABEL));
+    // A clean ASCII name is returned as it is, and a name that only looks clean (a double space) is still folded.
+    assert_eq!(label("Card / title", MAX_LABEL), "Card / title");
+    assert_eq!(label("a  b ", MAX_LABEL), "a b");
+    assert_eq!(label(" a", MAX_LABEL), "a");
+}
+
+#[test]
 fn a_clean_text_is_returned_as_it_is() {
     assert_eq!(label("Card / title", MAX_LABEL), "Card / title");
     assert_eq!(identifier("agent:claude", 128, 128), "agent:claude");

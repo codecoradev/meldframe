@@ -125,7 +125,7 @@ pub struct Case {
     pub actor: &'static str,
 }
 
-pub const CASES: [Case; 7] = [
+pub const CASES: [Case; 10] = [
     Case {
         what: "U+2800 braille blank",
         given: "a\u{2800}b",
@@ -166,6 +166,24 @@ pub const CASES: [Case; 7] = [
         what: "U+202E override",
         given: "a\u{202E}b",
         name: "ab",
+        actor: "agent:ab",
+    },
+    Case {
+        what: "U+0007 control character",
+        given: "a\u{7}b",
+        name: "ab",
+        actor: "agent:ab",
+    },
+    Case {
+        what: "U+0085 next line reads as a gap, like a tab",
+        given: "a\u{85}b",
+        name: "a b",
+        actor: "agent:ab",
+    },
+    Case {
+        what: "U+2028 line separator reads as a gap, like a line break",
+        given: "a\u{2028}b",
+        name: "a b",
         actor: "agent:ab",
     },
 ];

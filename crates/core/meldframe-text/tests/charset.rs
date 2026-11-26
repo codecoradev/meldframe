@@ -4,7 +4,9 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
-use meldframe_text::{first_hidden, is_combining_mark, is_hidden_text, mark_run_exceeds};
+use meldframe_text::{
+    first_hidden, is_combining_mark, is_control_char, is_hidden_text, mark_run_exceeds,
+};
 
 /// The ranges, besides the controls: the set of the activity panel (ADR-0021) and the format characters that only
 /// the variables import held (0600 to 0605, 06DD, 070F, 0890 and 0891, 08E2, 110BD, 110CD, 13430 to 1343F).
@@ -107,6 +109,20 @@ fn what_is_not_hidden_stays_text() {
         '\u{13440}',
     ] {
         assert!(!is_hidden_text(c), "U+{:04X}", c as u32);
+    }
+}
+
+#[test]
+fn a_control_character_is_category_cc_and_every_one_is_hidden() {
+    // U+0000 to U+001F and U+007F to U+009F: what a file name refuses besides its own list, and what `char::is_control`
+    // answers, written out apart from the code.
+    for n in 0..=0x10FFFFu32 {
+        let Some(c) = char::from_u32(n) else { continue };
+        let want = matches!(n, 0..=0x1F | 0x7F..=0x9F);
+        assert_eq!(is_control_char(c), want, "U+{n:04X}");
+        if want {
+            assert!(is_hidden_text(c), "U+{n:04X}");
+        }
     }
 }
 

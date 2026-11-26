@@ -208,6 +208,34 @@ fn a_family_emoji_in_a_name_stays_whole_and_the_stored_name_is_kept() {
 }
 
 #[test]
+fn a_name_that_is_all_hidden_shows_empty_in_the_row_and_the_properties() {
+    // The app layer sends "" for a name with nothing left (the front end words it, "(no name)"); the stored name is kept.
+    // (A name over the cap cannot be in a file that loads: the core refuses it at 256 characters.)
+    for hidden in ["\u{200B}\u{202E}", "\u{7}\u{85}", "\u{2028}\t \u{00A0}"] {
+        let a = opened(hidden);
+        assert!(
+            a.state().layers.iter().all(|r| r.name.is_empty()),
+            "{hidden:?}"
+        );
+        assert_eq!(
+            a.state().properties.as_ref().unwrap().name,
+            "",
+            "{hidden:?}"
+        );
+        assert_eq!(get(&a, "root").name, hidden);
+    }
+}
+
+#[test]
+fn the_shown_name_cap_is_the_longest_name_the_file_takes() {
+    // MAX_LABEL is a copy of `max_name` of the limits of a file: if the limit moves, a name the file holds would be cut.
+    assert_eq!(
+        meldframe_text::MAX_LABEL,
+        meldframe_check::Limits::default().max_name
+    );
+}
+
+#[test]
 fn a_name_of_256_four_byte_characters_is_shown_whole() {
     let a = opened(&"\u{1F600}".repeat(256));
     assert_eq!(a.state().layers[0].name, "\u{1F600}".repeat(256));
