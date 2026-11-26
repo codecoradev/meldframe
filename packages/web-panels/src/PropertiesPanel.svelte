@@ -12,10 +12,11 @@
   import Icon from '@meldframe/web-chrome/Icon.svelte';
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
+  import { nameOf } from '@meldframe/web-document/names';
   import { bindingOf, clipAction, percent, textAction, unbindAction, type PlainField } from '@meldframe/web-document/properties';
   import BindPicker from './BindPicker.svelte';
   import BorderSection from './BorderSection.svelte';
-  import { round2 } from './fields';
+  import { round2, sender } from './fields';
   import FillSection from './FillSection.svelte';
   import { KIND_ICON } from './layers';
   import LayoutSection from './LayoutSection.svelte';
@@ -38,9 +39,7 @@
   }
   let { properties, picker = null, assets, selected, dispatch, bindView: BindView = BindPicker }: Props = $props();
 
-  const send = (a: Action | null) => {
-    if (a) dispatch(a);
-  };
+  const send = $derived(sender(dispatch));
   // What is typed goes to the app layer as typed: it parses, holds the value to the range of the field and sends nothing when nothing changes.
   const text = (p: Properties, field: PlainField['type']) => (raw: string) => send(textAction(p, { type: field }, raw));
 </script>
@@ -50,9 +49,9 @@
     {#if label}<span class="text-text-muted">{label}</span>{/if}
     <div class="flex h-(--mf-size-control-lg) items-center gap-2 rounded-md px-3 {b.missing ? 'bg-danger-bg text-danger-text' : 'bg-chip-bg text-chip-text'}">
       {#if field === 'fill'}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={value}></i>{/if}
-      <span class="min-w-0 flex-1 truncate font-medium" title={b.missing ? `${b.name} (variable removed)` : b.name}>{b.name}{b.missing ? ' (removed)' : ''}</span>
+      <span class="min-w-0 flex-1 truncate font-medium" title={b.missing ? `${nameOf(b.name)} (variable removed)` : nameOf(b.name)}>{nameOf(b.name)}{b.missing ? ' (removed)' : ''}</span>
       <span class="font-mono text-caption" data-testid={field === 'fill' ? 'prop-fill' : `prop-${field}`}>{value}</span>
-      <IconButton label="Detach {b.name}" icon="close" size={24} onclick={() => send(unbindAction(properties!, field))} data-testid="prop-{field}-detach" />
+      <IconButton label="Detach {nameOf(b.name)}" icon="close" size={24} onclick={() => send(unbindAction(properties!, field))} data-testid="prop-{field}-detach" />
     </div>
   </div>
 {/snippet}

@@ -1,11 +1,10 @@
 // Browser check of the editor against a real server: node packages/web-e2e/scripts/editor-e2e.mjs [web-url] [server-url]
 // Needs `just dev` (server on 8080) and `just web` (Vite on 5173) running, the WASM bridge built (`just wasm-build`),
-// and Playwright from the global module path. It restarts the server (bash scripts/dev.sh) for the reconnect check, so
-// run it against the development server only. Not part of `npm test`: it needs a browser, a server and Postgres.
-// MELDFRAME_UI=react opens the page with `react=feedback,layers,variables,properties`: the notices of its checks (a refused delete, a missing image) are then
-// drawn by the React copy of packages/web-feedback, and the Layers panel, the Variables panel with its bind picker and the Properties panel by the React copies of
-// packages/web-panels (S5, S6). The banners and the other states are checked by packages/web-feedback/scripts/feedback-e2e.mjs, the Layers panel by
-// packages/web-panels/scripts/layers-e2e.mjs, the Variables panel and the bind picker by packages/web-panels/scripts/variables-e2e.mjs.
+// and Playwright from the global module path. It restarts the server (bash scripts/dev.sh) for the reconnect check: run it against
+// the development server only. Not part of `npm test`: it needs a browser, a server and Postgres.
+// MELDFRAME_UI=react opens the page with `react=feedback,layers,variables,properties`: the notices of its checks are then drawn by the React copy of
+// web-feedback, and the Layers, Variables (with its bind picker) and Properties panels by the React copies of web-panels (S5, S6). The banners and the
+// other states are checked by feedback-e2e.mjs, the panels by layers-e2e.mjs, variables-e2e.mjs and properties-e2e.mjs.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { closeSync, openSync, readFileSync } from 'node:fs';

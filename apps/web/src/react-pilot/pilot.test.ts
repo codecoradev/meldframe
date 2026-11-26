@@ -96,12 +96,15 @@ describe('every switch file that loads React on demand falls back to Svelte', ()
   const switches = readdirSync(dir).filter((f) => f.endsWith('Switch.svelte'));
   it('finds the switch files', () => expect(switches.length).toBeGreaterThanOrEqual(8));
   for (const file of switches) {
-    it(`${file} has a {:catch} for each {#await}`, () => {
-      const source = readFileSync(new URL(file, dir), 'utf8');
+    it(`${file} has a {:catch} that draws a component for each {#await}`, () => {
+      // Without the comments: a `{:catch}` named in a comment is not one, and a catch that holds a comment only draws nothing.
+      const source = readFileSync(new URL(file, dir), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
       const awaits = source.match(/\{#await\b/g)?.length ?? 0;
-      const catches = source.match(/\{:catch\b/g)?.length ?? 0;
+      const catches = [...source.matchAll(/\{:catch\b[^}]*\}([\s\S]*?)\{\/await\}/g)].map((m) => m[1]!);
       expect(awaits).toBeGreaterThan(0);
-      expect(catches).toBe(awaits);
+      expect(catches).toHaveLength(awaits);
+      // The fallback is a component (the Svelte copy of the panel), not an empty block.
+      for (const block of catches) expect(block).toMatch(/<[A-Z]\w*/);
     });
   }
 });

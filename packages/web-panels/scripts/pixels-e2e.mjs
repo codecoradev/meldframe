@@ -13,8 +13,9 @@
 // PANELS: the switch word, the element, and the steps (each step ends in a state to compare).
 // Not covered: the other themes, other widths, a hover or focus ring that the steps do not leave on screen, text of other languages, the
 // Layers panel's empty state (the file has nodes), the icon of a shader node and, in the Properties panel, an image fill with an image (the
-// picker is imaged open on a workspace with no image; the image tiles are Svelte on both pages until S7), the shader node
-// and the Text section's weight select open. A step only clicks and types: it never changes the file, so the second run starts from the file
+// picker is imaged open on a workspace with no image; the image tiles are Svelte on both pages until S7), the shader node, the Text
+// section's weight select open, the chip of a variable that was removed (a binding whose variable is gone) and Absolute position
+// checked. A step only clicks and types: it never changes the file, so the second run starts from the file
 // the first one saw.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -82,6 +83,8 @@ const PANELS = {
       { name: 'a rectangle in an auto layout parent (the margin section)', run: (p) => pick(p, 'r2') },
       { name: 'a linear gradient fill', run: (p) => pick(p, 'g1') },
       { name: 'a fill, an opacity and a corner radius bound to variables', run: (p) => pick(p, 'b1') },
+      { name: 'a radial gradient', run: (p) => pick(p, 'g2') },
+      { name: 'padding that differs by side (the Mixed placeholder) and four shadows (Add shadow off)', run: (p) => pick(p, 'f3') },
       { name: 'a field focused', run: (p) => p.locator('[data-testid=prop-x]').focus() },
       {
         name: 'the image picker open (a workspace with no image)',
@@ -170,6 +173,11 @@ await post({ type: 'addNode', node: { id: 'r2', name: 'In the row', type: 'rect'
 await post({ type: 'updateNode', id: 'r2', patch: { marT: 6 } });
 await post({ type: 'addNode', node: { id: 'g1', name: 'Gradient', type: 'rect', parentId: 'f1', x: 200, y: 140, w: 80, h: 60, fill: '#335577' } });
 await post({ type: 'updateNode', id: 'g1', patch: { gradient: { kind: 'linear', angle: 90, stops: [{ pos: 0, color: '#335577' }, { pos: 0.5, color: '#aa5533' }, { pos: 1, color: '#ffffff' }] } } });
+await post({ type: 'addNode', node: { id: 'g2', name: 'Radial', type: 'rect', parentId: 'f1', x: 100, y: 220, w: 80, h: 60, fill: '#335577' } });
+await post({ type: 'updateNode', id: 'g2', patch: { gradient: { kind: 'radial', angle: 90, stops: [{ pos: 0, color: '#335577' }, { pos: 1, color: '#ffffff' }] } } });
+await post({ type: 'addNode', node: { id: 'f3', name: 'Frame three', type: 'frame', parentId: null, x: 500, y: 300, w: 300, h: 200, fill: '#eeeeee' } });
+const sh = (y) => ({ x: 0, y, blur: 4, spread: 0, color: '#00000040' });
+await post({ type: 'updateNode', id: 'f3', patch: { layout: 'column', padding: 4, padL: 12, shadows: [sh(1), sh(2), sh(3), sh(4)] } });
 await post({ type: 'addNode', node: { id: 'b1', name: 'Bound', type: 'rect', parentId: 'f1', x: 300, y: 140, w: 80, h: 60, fill: '#335577' } });
 await post({ type: 'updateNode', id: 'b1', patch: { fill: { var: 'v1' }, opacity: { var: 'v4' }, radius: { var: 'v3' } } });
 

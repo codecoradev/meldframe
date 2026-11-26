@@ -8,6 +8,7 @@ import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
 import PropertiesPanelSvelte from '../PropertiesPanel.svelte';
 import { PropertiesPanel } from './PropertiesPanel';
+import { viewOf } from './compare';
 import { FRAME, LINE_B, RECT, TEXT, binding, gradient, properties, shadow } from './fixture';
 
 const html = (p: Properties | null, selected = p ? 1 : 0, over: Partial<Parameters<typeof PropertiesPanel>[0]> = {}) =>
@@ -134,33 +135,26 @@ describe('the React properties panel as the Properties and Inspector boards draw
   });
 });
 
-// The two copies draw the same elements with the same classes in the same order (a class that is not here is a visible
-// difference). What a class cannot say (the real pixels) is checked in a browser by pixels-e2e.mjs, with a tolerance of 0. The bind
-// button is drawn by Bits UI in one copy and Base UI in the other, so the attributes the two libraries write differently are left out.
+// The two copies draw the same elements with the same classes, names, states and texts, in the same order (a class that is not here
+// is a visible difference). What a class cannot say (the real pixels) is checked in a browser by pixels-e2e.mjs, with a tolerance of 0. The bind
+// button is drawn by Bits UI in one copy and Base UI in the other: the ids and the tab stop that the two libraries write differently are left out.
 describe('the React properties panel against the Svelte one', () => {
   const svelte = (p: Properties | null, selected: number) =>
-    render(TestHost as never, { props: { of: PropertiesPanelSvelte, props: { properties: p, picker: null, selected, dispatch: () => {} } } as never }).body.replace(/<!--.*?-->/g, '');
-  const classes = (out: string) => [...out.matchAll(/class="([^"]*)"/g)].map((m) => m[1]!.split(/\s+/).filter(Boolean).sort().join(' '));
-  const attrs = (out: string, name: string) => [...out.matchAll(new RegExp(`\\s${name}="([^"]*)"`, 'g'))].map((m) => m[1]!).filter((v) => !/^(bits|base-ui)-/.test(v));
-  const names = ['id', 'for', 'role', 'data-testid', 'aria-label', 'aria-checked', 'aria-describedby', 'aria-labelledby', 'title', 'placeholder', 'value'];
-  const style = (out: string) => attrs(out, 'style').map((s) => s.replace(/[\s;]/g, ''));
+    render(TestHost as never, { props: { of: PropertiesPanelSvelte, props: { properties: p, picker: null, selected, dispatch: () => {} } } as never }).body;
   const states: [string, Properties | null, number][] = [
     ['a frame', properties({ layout: 'row', padding: { top: 4, right: 4, bottom: 4, left: 8 }, border: { width: 2, color: LINE_B, position: 'outside' }, shadows: [shadow] }), 1],
     ['a text', properties({ kind: 'text', sections: TEXT, fontWeight: 700, textAlign: 'right' }), 1],
     ['a rect in an auto layout parent, locked', properties({ kind: 'rect', sections: { ...RECT, placement: true }, inLayout: true, positionLocked: true, notes: [{ note: 'marginIgnored' }] }), 1],
     ['a bound frame', properties({ bound: ['fill', 'opacity', 'radius'], bindings: [binding('fill'), binding('opacity'), binding('radius', { missing: true })] }), 1],
+    ['bound to variables with no name', properties({ bound: ['fill', 'opacity'], bindings: [binding('fill', { name: '' }), binding('opacity', { name: '', missing: true })] }), 1],
     ['a gradient', properties({ kind: 'rect', sections: RECT, fillKind: 'linear', gradient }), 1],
-    ['a frame, FRAME sections', properties({ sections: FRAME }), 1],
+    ['a frame, FRAME sections, with the Mixed padding', properties({ sections: FRAME, layout: 'column', padding: { top: 1, right: 2, bottom: 3, left: 4 } }), 1],
     ['nothing selected', null, 0],
     ['several selected', null, 4],
   ];
   for (const [name, p, selected] of states) {
-    it(`has the same classes, roles, names, test ids and styles: ${name}`, () => {
-      const a = svelte(p, selected);
-      const b = html(p, selected);
-      expect(classes(b)).toEqual(classes(a));
-      for (const attr of names) expect(attrs(b, attr), attr).toEqual(attrs(a, attr));
-      expect(style(b)).toEqual(style(a));
+    it(`has the same classes, names, states and texts: ${name}`, () => {
+      expect(viewOf(html(p, selected))).toEqual(viewOf(svelte(p, selected)));
     });
   }
 });
