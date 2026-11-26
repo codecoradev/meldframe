@@ -1,3 +1,4 @@
+use meldframe_css::color::is_hex;
 use meldframe_order::sib_cmp;
 use meldframe_protocol::{
     Bind, BorderPosition, DEFAULT_FILL, DEFAULT_OPACITY, DEFAULT_RADIUS, GradientKind, ImageFit,
@@ -237,10 +238,7 @@ fn visit<'a>(
 /// `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa` as `(0xRRGGBB, alpha byte)`; a form with no alpha has 255. Anything else is no
 /// fill.
 fn parse_fill(css: &str) -> Option<(u32, u8)> {
-    let hex = css.strip_prefix('#')?;
-    if !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
-        return None;
-    }
+    let hex = css.strip_prefix('#').filter(|_| is_hex(css))?;
     let v = u32::from_str_radix(hex, 16).ok()?;
     let short = |v: u32| {
         // One digit each, doubled: `#f80` is `#ff8800`.
@@ -252,6 +250,7 @@ fn parse_fill(css: &str) -> Option<(u32, u8)> {
         4 => Some((short(v >> 4), ((v & 15) * 17) as u8)),
         6 => Some((v, 255)),
         8 => Some((v >> 8, (v & 255) as u8)),
+        // `is_hex` let only the four lengths above through; the match still has to be total.
         _ => None,
     }
 }
@@ -261,19 +260,12 @@ fn alpha_fraction(byte: u8) -> f64 {
     f64::from(byte) / 255.0
 }
 
-/// Any hex colour a stop may carry: `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`.
-fn is_hex_colour(css: &str) -> bool {
-    css.strip_prefix('#').is_some_and(|h| {
-        matches!(h.len(), 3 | 4 | 6 | 8) && h.bytes().all(|b| b.is_ascii_hexdigit())
-    })
-}
-
 fn paint(n: &Node, parent: Option<&str>, cx: &Fields) -> PaintedBox {
     let is_text = n.kind == NodeKind::Text;
     let gradient = n
         .gradient
         .as_ref()
-        .filter(|g| !is_text && g.stops.iter().all(|s| is_hex_colour(&s.color)))
+        .filter(|g| !is_text && g.stops.iter().all(|s| is_hex(&s.color)))
         .map(|g| PaintedGradient {
             kind: g.kind,
             angle: g.angle,

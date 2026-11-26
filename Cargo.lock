@@ -463,6 +463,7 @@ version = "0.0.0"
 name = "export"
 version = "0.0.0"
 dependencies = [
+ "meldframe-css",
  "meldframe-layout",
  "meldframe-module",
  "meldframe-protocol",
@@ -1443,6 +1444,7 @@ dependencies = [
 name = "meldframe-check"
 version = "0.0.0"
 dependencies = [
+ "meldframe-css",
  "meldframe-order",
  "meldframe-protocol",
  "meldframe-variables",
@@ -2025,6 +2027,7 @@ version = "0.0.0"
 name = "meldframe-render"
 version = "0.0.0"
 dependencies = [
+ "meldframe-css",
  "meldframe-layout",
  "meldframe-order",
  "meldframe-protocol",
@@ -2276,6 +2279,7 @@ dependencies = [
 name = "meldframe-variables"
 version = "0.0.0"
 dependencies = [
+ "meldframe-css",
  "meldframe-protocol",
 ]
 

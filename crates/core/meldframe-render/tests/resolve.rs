@@ -104,7 +104,10 @@ fn the_alpha_of_a_fill_is_kept_next_to_its_colour() {
         assert_eq!((b.fill, b.fill_alpha), (Some(rgb), 1.0), "{css}");
     }
     // No fill, or a bad colour: nothing is painted, and the alpha says nothing (it stays 1).
-    for css in ["none", "red", "#12", "#12345"] {
+    // `+ff` and `-ff` are numbers to `from_str_radix` but not hex digits: they must not read as a colour.
+    for css in [
+        "none", "red", "#12", "#12345", "#+ff", "#+fffff", "#-ff", "#ffff ff",
+    ] {
         let b = one(json!({"id": "n", "type": "rect", "fill": css}));
         assert_eq!((b.fill, b.fill_alpha), (None, 1.0), "{css}");
     }

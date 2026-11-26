@@ -14,6 +14,7 @@ group = "export"
 workspace = true
 
 [dependencies]
+meldframe-css = { path = "../../../core/meldframe-css" }
 meldframe-layout = { path = "../../../core/meldframe-layout" }
 meldframe-module = { path = "../../../core/meldframe-module" }
 meldframe-protocol = { path = "../../../core/meldframe-protocol" }

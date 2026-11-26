@@ -5,6 +5,7 @@
 use crate::error::VarError;
 use crate::limits::VarLimits;
 use crate::{Aliases, Binding, MAX_ALIAS_DEPTH, node_bindings, patch_bindings, users};
+use meldframe_css::color::is_hex;
 use meldframe_protocol::{
     Bind, Collection, Command, Node, NodePatch, Value, VarType, Variable, Variables,
 };
@@ -38,10 +39,7 @@ fn duplicate_id(id: &str) -> VarError {
 /// A hex colour: `#` and 3, 4, 6 or 8 hexadecimal digits.
 fn color(field: &str, s: &str) -> Result<(), VarError> {
     strlen(field, s, 64)?;
-    let ok = s.strip_prefix('#').is_some_and(|h| {
-        matches!(h.len(), 3 | 4 | 6 | 8) && h.bytes().all(|b| b.is_ascii_hexdigit())
-    });
-    if ok {
+    if is_hex(s) {
         Ok(())
     } else {
         Err(common(

@@ -1,5 +1,6 @@
 //! The names an export gives: CSS variables, and the attributes that pick a mode.
 
+use meldframe_css::color::is_hex;
 use std::collections::HashSet;
 
 /// Lowercase ASCII letters and digits, with every other run of characters as one hyphen; `x` when nothing is left.
@@ -90,8 +91,7 @@ pub(crate) fn css_escape(s: &str, keep: &str) -> String {
 /// The text of a hex colour (`#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`), else `None`: the only colour text the
 /// export copies into a stylesheet.
 pub(crate) fn hex_colour(s: &str) -> Option<&str> {
-    let h = s.strip_prefix('#')?;
-    (matches!(h.len(), 3 | 4 | 6 | 8) && h.bytes().all(|b| b.is_ascii_hexdigit())).then_some(s)
+    is_hex(s).then_some(s)
 }
 
 /// An asset id as the file stores it: 64 lowercase hex digits.

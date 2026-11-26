@@ -62,7 +62,11 @@ ban = [
 [shared.hex_colour]
 home = "crates/core/meldframe-css/src/color.rs"
 use = "use meldframe_css::color::is_hex"
-ban = ["matches!(_.len(), 3 | 4 | 6 | 8)"]
+ban = [
+    "matches!(_.len(), 3 | 4 | 6 | 8)",
+    "[3, 4, 6, 8].contains(&_.len())",
+    "matches!(_.len(), 8 | 6 | 4 | 3)",
+]
 
 [shared.asset_id]
 home = "crates/features/assets/assets/src/lib.rs"
@@ -190,13 +194,6 @@ fns = [
     "crates/integrations/meldframe-http/src/mcp/tools.rs::args",
 ]
 reason = "audit D12: one adapter module in the merged http crate (#315)"
-
-# MM4: files that write the `hex_colour` pattern themselves today.
-[allow_shared.hex_colour]
-"crates/core/meldframe-check/src/validate.rs" = "audit D2: this crate does not depend on meldframe-css, so the home must move to or below it"
-"crates/core/meldframe-render/src/resolve.rs" = "audit D2: this crate does not depend on meldframe-css, so the home must move to or below it"
-"crates/core/meldframe-variables/src/check.rs" = "audit D2: this crate does not depend on meldframe-css, so the home must move to or below it"
-"crates/features/export/export/src/names.rs" = "audit D2: export may depend on meldframe-css; use is_hex"
 
 # MM4: files that write the `asset_id` pattern themselves today.
 [allow_shared.asset_id]
