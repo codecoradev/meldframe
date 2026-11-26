@@ -18,7 +18,7 @@
   import CheckpointList from './CheckpointList.svelte';
   import { askRestore, askRevert, cancel, confirmRestore, confirmRevert, createStep, laneOpen, settle, show, start, toggleLane, type Step, type Ui } from './controller';
   import MessageLine from './MessageLine.svelte';
-  import { checkpointMade, clockText, laneSummary, laneViews, messageFor, type Message } from './view';
+  import { checkpointMade, clockText, laneSummary, laneViews, messageFor, rowKey, type Message } from './view';
 
   interface Props {
     activity: ActivityState;
@@ -73,7 +73,6 @@
   }
   onDestroy(() => clearTimeout(timer));
 
-  const key = (actor: string, prefix: string) => `${actor}\u0000${prefix}`;
   // Presentation only: the tone is the app layer's (`ActorView.tone`), this is the class that draws it.
   const tone: Record<ActorTone, string> = { person: 'bg-person', agent1: 'bg-agent-1', agent2: 'bg-agent-2', agent3: 'bg-agent-3' };
   const changes = (n: number) => `${n} ${n === 1 ? 'change' : 'changes'}`;
@@ -112,7 +111,7 @@
           <div id="lane-body-{i}" class="flex flex-col gap-2">
             {#if l.rows.length}
               <ul class="m-0 flex list-none flex-col gap-2 p-0">
-                {#each l.rows as r (key(r.actor, r.keyPrefix))}
+                {#each l.rows as r (rowKey(r.actor, r.keyPrefix))}
                   <BatchItem
                     row={r}
                     selected={activity.selected?.actor === r.actor && activity.selected.keyPrefix === r.keyPrefix}

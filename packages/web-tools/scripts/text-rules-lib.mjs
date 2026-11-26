@@ -6,16 +6,30 @@
 // written out in the source. This is the pure part; `text-rules.test.mjs` runs it on the tree.
 
 /** The Unicode property classes of hidden text (`\p{Cf}`, `\p{Cc}`, `\p{Z}`...), as a regex source or a string holds them. */
-const PROPERTY = String.raw`\\{1,2}p\{(?:C[a-z]?|Z[a-z]?|Control|Format|Other|Separator|Line_Separator|Paragraph_Separator|Space_Separator|Default_Ignorable_Code_Point)\}`;
+const PROPERTY = String.raw`\\{1,2}p\{(?:(?:gc|General_Category)=)?(?:C[a-z]?|Z[a-z]?|Control|Format|Other|Separator|Line_Separator|Paragraph_Separator|Space_Separator|Default_Ignorable_Code_Point)\}`;
 
-/** The code points a screen would be cleaning: hidden by the app layer's one set (`meldframe_text::is_hidden_text`). */
-const HIDDEN = [
+/**
+ * The code points a screen would be cleaning: hidden by the app layer's one set (`meldframe_text::is_hidden_text`, the controls
+ * included). This table is a COPY of that Rust function: it can drift when the set changes. `text-rules.test.mjs` reads
+ * `crates/core/meldframe-text/src/charset.rs` and fails when the two differ, so a change there is a change here.
+ */
+export const HIDDEN_RANGES = [
+  [0x0000, 0x001f], [0x007f, 0x009f],
   [0x00ad, 0x00ad], [0x034f, 0x034f], [0x0600, 0x0605], [0x061c, 0x061c], [0x06dd, 0x06dd], [0x070f, 0x070f],
+  [0x0890, 0x0891], [0x08e2, 0x08e2],
   [0x115f, 0x1160], [0x17b4, 0x17b5], [0x180b, 0x180f], [0x200b, 0x200f], [0x2028, 0x202e], [0x2060, 0x206f],
   [0x2800, 0x2800], [0x3164, 0x3164], [0xfe00, 0xfe0f], [0xfeff, 0xfeff], [0xffa0, 0xffa0], [0xfff9, 0xfffb],
+  [0x110bd, 0x110bd], [0x110cd, 0x110cd], [0x13430, 0x1343f], [0x1bca0, 0x1bca3], [0x1d173, 0x1d17a],
   [0xe0000, 0xe007f], [0xe0100, 0xe01ef],
 ];
+const HIDDEN = HIDDEN_RANGES;
 const isHidden = (cp) => HIDDEN.some(([a, b]) => cp >= a && cp <= b);
+
+/** A character built from a code (`String.fromCharCode(0x200b)`): the numbers of a literal call are read like an escape. */
+const BUILT = /\bfromC(?:har|ode)(?:Code|Point)\(([^)]*)\)/g;
+
+/** A split escape (`'\\u' + '200b'`, `'\\u{20' + '0b}'`): a `\u` that is not followed by four hex digits or a braced number on the same line. */
+const SPLIT = /\\{1,2}u(?:\{(?![0-9a-f]{1,6}\})|(?![0-9a-f{]))/i;
 
 /** An escape of such a code point: four hex digits after a backslash and u, or braces around up to six, or two after a backslash and x (below U+0100 only the soft hyphen counts). */
 const ESCAPE = /\\u\{([0-9a-f]{1,6})\}|\\u([0-9a-f]{4})|\\x([0-9a-f]{2})/gi;
@@ -34,8 +48,16 @@ export function hiddenTextLines(text) {
       const cp = parseInt(m[1] ?? m[2] ?? m[3], 16);
       if (isHidden(cp)) hit = true;
     }
+    for (const m of line.matchAll(BUILT)) {
+      // A call with a literal number says which character it builds; a call with anything else can build any: both count.
+      const args = m[1].split(',').map((x) => x.trim());
+      if (args.some((x) => !/^(?:0x[0-9a-f]+|\d+)$/i.test(x) || isHidden(Number(x)))) hit = true;
+    }
+    if (SPLIT.test(line)) hit = true;
     for (const ch of line) {
-      if (isHidden(ch.codePointAt(0))) hit = true;
+      const cp = ch.codePointAt(0);
+      // A tab and a carriage return are the layout of a source file, not a hidden character written in it.
+      if (isHidden(cp) && cp !== 0x09 && cp !== 0x0d) hit = true;
     }
     if (hit) lines.push(i + 1);
   });

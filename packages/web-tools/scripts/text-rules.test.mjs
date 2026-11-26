@@ -7,7 +7,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { checkText, hiddenTextLines, isProductSource } from './text-rules-lib.mjs';
+import { HIDDEN_RANGES, checkText, hiddenTextLines, isProductSource } from './text-rules-lib.mjs';
 
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 const SKIP = new Set(['node_modules', 'dist', '.wasm', 'target', 'rust']);
@@ -40,6 +40,24 @@ describe('hiddenTextLines', () => {
     }
     expect(hiddenTextLines(`const s = 'a${String.fromCodePoint(0x202e)}b';`)).toEqual([1]);
     expect(hiddenTextLines(`const s = 'a${String.fromCodePoint(0x200b)}b';`)).toEqual([1]);
+  });
+  it('finds the controls and the rest of the set of the Rust function, so a range of controls cannot slip by', () => {
+    for (const bad of ['[\\u0000-\\u001f\\u007f]', '\\x00', '\\x7f', '\\x9f', '\\u0890', '\\u08E2', '\\u{110bd}', '\\u{13430}', '\\u{1bca0}', '\\u{1d173}']) {
+      expect(hiddenTextLines(`x.replace(/${bad}/g, '')`), bad).toEqual([1]);
+    }
+  });
+  it('finds the General_Category form of a property class', () => {
+    expect(hiddenTextLines('/\\p{gc=Cf}/u')).toEqual([1]);
+    expect(hiddenTextLines('/\\p{General_Category=Format}/u')).toEqual([1]);
+    expect(hiddenTextLines("new RegExp('\\\\p{General_Category=Cc}', 'u')")).toEqual([1]);
+  });
+  it('finds a character built from its code and an escape split in two strings', () => {
+    expect(hiddenTextLines('const z = String.fromCharCode(0x200b);')).toEqual([1]);
+    expect(hiddenTextLines('const z = String.fromCodePoint(8238);')).toEqual([1]);
+    expect(hiddenTextLines('const z = String.fromCodePoint(code);')).toEqual([1]); // a code that is not a literal can be any
+    expect(hiddenTextLines("const z = '\\u{20' + '0b}';")).toEqual([1]);
+    expect(hiddenTextLines("const z = '\\u' + '200b';")).toEqual([1]);
+    expect(hiddenTextLines('const z = String.fromCodePoint(0x41);')).toEqual([]);
   });
   it('lets pass what is not a hidden character: a letter, a visible escape, a property class of letters', () => {
     expect(hiddenTextLines("const a = '\\u00e9'; const b = /\\p{L}+/u; const c = '\\u{1F600}'; const d = '\\x41';")).toEqual([]);
@@ -78,6 +96,21 @@ describe('checkText', () => {
 
 describe('the web client', () => {
   it('has no definition of hidden characters in a view, model or host package but the one allowed', () => {
+    // A tree that is empty (a moved directory, a wrong root) would pass this for nothing.
+    expect(tree().length).toBeGreaterThan(0);
     expect(checkText(tree(), ALLOW)).toEqual([]);
+  });
+});
+
+describe('the table of hidden code points', () => {
+  it('is the set of meldframe_text::is_hidden_text: the Rust function and this copy are read and compared', () => {
+    const rust = readFileSync(join(root, 'crates/core/meldframe-text/src/charset.rs'), 'utf8');
+    const body = rust.slice(rust.indexOf('pub fn is_hidden_text'));
+    const list = body.slice(body.indexOf('matches!(c as u32,'), body.indexOf('\n}\n'));
+    const ranges = [...list.matchAll(/0x([0-9A-Fa-f]+)(?:\.\.=0x([0-9A-Fa-f]+))?/g)].map((m) => [parseInt(m[1], 16), parseInt(m[2] ?? m[1], 16)]);
+    // The Rust function names the controls as `c.is_control()` (U+0000 to U+001F and U+007F to U+009F): they are in the table.
+    const table = HIDDEN_RANGES.filter(([a]) => !(a === 0x0000 || a === 0x007f));
+    expect(table).toEqual(ranges);
+    expect(HIDDEN_RANGES.slice(0, 2)).toEqual([[0x0000, 0x001f], [0x007f, 0x009f]]);
   });
 });
