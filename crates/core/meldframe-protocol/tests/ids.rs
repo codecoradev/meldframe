@@ -24,6 +24,8 @@ fn an_id_is_letters_digits_and_four_marks_up_to_the_given_length() {
         "a/b",
         "a\\b",
         "a\nb",
+        "a\tb",
+        "a\u{7f}b",
         "a\0b",
         "a+b",
         "a,b",
@@ -39,12 +41,15 @@ fn an_id_is_letters_digits_and_four_marks_up_to_the_given_length() {
 }
 
 #[test]
-fn the_length_of_an_id_is_counted_in_characters_and_the_cap_is_the_callers() {
+fn the_cap_on_the_length_of_an_id_is_the_callers() {
     assert!(valid_id("abc", 3));
     assert!(!valid_id("abcd", 3));
     assert!(valid_id(&"x".repeat(64), 64));
     assert!(!valid_id(&"x".repeat(65), 64));
     assert!(valid_id(&"x".repeat(128), 128));
+    // An id of any size is refused by the cap, and one with a multi-byte character is refused whatever the cap.
+    assert!(!valid_id(&"x".repeat(1 << 20), 64));
+    assert!(!valid_id("\u{e9}", 64) && !valid_id("\u{e9}", 1) && !valid_id("\u{e9}", 2));
     // A cap of 0 holds no id, and the empty text is no id under any cap.
     assert!(!valid_id("x", 0));
     assert!(!valid_id("", 64));
