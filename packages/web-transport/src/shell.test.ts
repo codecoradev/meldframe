@@ -66,7 +66,7 @@ class FakeEnv implements Env {
     this.sockets.push(s);
     return s;
   };
-  request = async () => ({ status: 200, body: null as unknown });
+  request = async () => ({ status: 200, text: '' });
   post = async (path: string, body: unknown) => {
     this.posts.push({ path, body });
     return this.reply();
@@ -123,24 +123,17 @@ describe('touch frames', () => {
     engine.effect({ type: 'subscribe', afterSeq: 0 });
     return { engine, socket: env.sockets[0]! };
   };
-  it('parseFrame takes a touch with an actor and node ids and refuses the rest', () => {
+  it('parseFrame leaves the check of a touch to the app layer: it routes by the type', () => {
     expect(parseFrame('{"type":"touch","actor":"agent:x","nodeIds":["a"],"seq":3}')?.type).toBe('touch');
-    for (const bad of ['{"type":"touch","nodeIds":["a"]}', '{"type":"touch","actor":"u"}', '{"type":"touch","actor":"u","nodeIds":[1]}', '{"type":"touch","actor":"u","nodeIds":"a"}']) {
-      expect(parseFrame(bad), bad).toBeNull();
-    }
+    expect(parseFrame('{"type":"touch","nodeIds":["a"]}')?.type).toBe('touch');
   });
-  it('dispatches a touch to the app as a frame, the one place the rings of the canvas come from', () => {
+  it('hands a touch to the app as the text the socket sent, which reads it as a frame (answers_batches.rs): the one place the rings of the canvas come from', () => {
     const { engine, socket } = live();
     const before = engine.dispatched.length;
-    socket.onmessage('{"type":"touch","actor":"agent:claude","nodeIds":["a","b"],"seq":4}');
+    const text = '{"type":"touch","actor":"agent:claude","nodeIds":["a","b"],"seq":4}';
+    socket.onmessage(text);
     expect(engine.dispatched).toHaveLength(before + 1);
-    expect(engine.dispatched.at(-1)).toMatchObject({ type: 'frame', frame: { type: 'touch', actor: 'agent:claude', ids: ['a', 'b'], seq: 4 } });
-  });
-  it('dispatches nothing for a touch the app would refuse (no sequence number), and keeps the connection', () => {
-    const { engine, socket } = live();
-    const before = engine.dispatched.length;
-    socket.onmessage('{"type":"touch","actor":"u","nodeIds":["a"]}');
-    expect(engine.dispatched).toHaveLength(before);
+    expect(engine.dispatched.at(-1)).toEqual({ type: 'wire', wire: { kind: 'hint', nowMs: expect.any(Number), text } });
     expect(socket.closed).toBe(false);
   });
 });

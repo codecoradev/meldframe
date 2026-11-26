@@ -1,9 +1,9 @@
 // The shell carries out the effects of the app layer: it opens the live socket, sends ops over REST, and waits
 // for the timers the app asks for. Everything it learns goes back as an action. No editing rules here.
-import type { Action, AppState, Effect, OutOp, ServerMsg } from '@meldframe/protocol';
-import { answerOfAssets, assetsFailed, assetsQuery } from './assets';
-import { answerOfList, answerOfReview, listQuery, toBatchFrame, toTouchFrame } from './batches';
-import { checkpointCall, toCheckpointFrame, type CheckpointCall } from './checkpoints';
+import type { Action, AppState, Effect, OutOp, ServerMsg, Wire } from '@meldframe/protocol';
+import { assetsQuery } from './assets';
+import { listQuery } from './batches';
+import { checkpointCall, type CheckpointCall } from './checkpoints';
 
 /** An agent asks this editor for a PNG of a node (or of the whole page when `nodeId` is absent). */
 export type CaptureRequest = Extract<ServerMsg, { type: 'captureRequest' }>;
@@ -31,8 +31,8 @@ export interface Env {
   openSocket(path: string): SocketLike;
   /** A POST that rejects after `timeoutMs` (a hung request must not hold up the ops behind it). */
   post(path: string, body: unknown, timeoutMs?: number): Promise<{ status: number; body: unknown }>;
-  /** A GET or PUT of the batch routes (the Activity panel); rejects after `timeoutMs`. */
-  request(method: 'GET' | 'PUT', path: string, body?: unknown, timeoutMs?: number): Promise<{ status: number; body: unknown }>;
+  /** A request of the routes the app layer reads the answer of (batches, checkpoints, assets); rejects after `timeoutMs`. The answer is the status and the text of the body, not read: the app layer parses and checks it. */
+  request(method: 'GET' | 'PUT' | 'POST', path: string, body?: unknown, timeoutMs?: number): Promise<{ status: number; text: string }>;
   setTimer(fn: () => void, ms: number, repeat?: boolean): number;
   clearTimer(id: number): void;
 }
@@ -59,18 +59,18 @@ export const POST_TIMEOUT_MS = 15_000;
 export const MAX_SUBSCRIBE_RETRIES = 3;
 const RETRY_FALLBACK_MS = 1000;
 
-type Wire = { type: string; id?: string; seq?: number; actor?: string; nodeIds?: unknown; key?: unknown; requestId?: unknown; scale?: unknown; maxPixels?: unknown; minSeq?: unknown; uploadToken?: unknown; timeoutMs?: unknown; nodeId?: unknown; command?: unknown; afterSeq?: number; latestSeq?: number; code?: string; retryAfterMs?: number };
+type Msg = { type: string; id?: string; seq?: number; actor?: string; nodeIds?: unknown; key?: unknown; requestId?: unknown; scale?: unknown; maxPixels?: unknown; minSeq?: unknown; uploadToken?: unknown; timeoutMs?: unknown; nodeId?: unknown; command?: unknown; afterSeq?: number; latestSeq?: number; code?: string; retryAfterMs?: number };
 
 /** A frame of the live socket, checked: null when it is not JSON or lacks a field its type needs. */
-export function parseFrame(data: string): Wire | null {
+export function parseFrame(data: string): Msg | null {
   let m: unknown;
   try {
     m = JSON.parse(data);
   } catch {
     return null;
   }
-  if (typeof m !== 'object' || m === null || typeof (m as Wire).type !== 'string') return null;
-  const w = m as Wire;
+  if (typeof m !== 'object' || m === null || typeof (m as Msg).type !== 'string') return null;
+  const w = m as Msg;
   const num = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0;
   switch (w.type) {
     case 'event':
@@ -82,8 +82,6 @@ export function parseFrame(data: string): Wire | null {
         num(w.minSeq) && num(w.timeoutMs) && (w.nodeId === undefined || typeof w.nodeId === 'string')
         ? w
         : null;
-    case 'touch':
-      return typeof w.actor === 'string' && Array.isArray(w.nodeIds) && w.nodeIds.every((x) => typeof x === 'string') ? w : null;
     default:
       return w;
   }
@@ -149,11 +147,11 @@ export class Shell {
       case 'wakeAfter':
         return this.later(e.afterMs, { type: 'tick', nowMs: 0 });
       case 'fetchBatches':
-        return this.batches('GET', this.batchPath(listQuery(e)), undefined, answerOfList);
+        return this.batches('GET', this.batchPath(listQuery(e)), undefined, (status, body) => ({ kind: 'batches', status, body }));
       case 'putBatchReview':
-        return this.batches('PUT', this.batchPath(`/${Math.trunc(e.n)}/review`), { state: e.state }, answerOfReview);
+        return this.batches('PUT', this.batchPath(`/${Math.trunc(e.n)}/review`), { state: e.state }, (status, body) => ({ kind: 'batchReview', status, body }));
       case 'fetchAssets':
-        return this.fetching('GET', `/v1/assets${assetsQuery(e)}`, undefined, (status, body) => answerOfAssets(e.request, e.after, status, body), assetsFailed(e.request));
+        return this.fetching('GET', `/v1/assets${assetsQuery(e)}`, undefined, (status, body) => ({ kind: 'assets', request: e.request, after: e.after, status, body }), { type: 'assetsRequestFailed', request: e.request, code: 'unavailable' });
       case 'fetchCheckpoints':
       case 'postCheckpoint':
       case 'fetchCheckpointState':
@@ -172,15 +170,15 @@ export class Shell {
   }
 
   /** One request of the batch routes; whatever happens, the app is told once (a failure is `batchRequestFailed`). */
-  private batches(method: 'GET' | 'PUT', path: string, body: unknown, answer: (status: number, body: unknown) => Action): void {
-    this.fetching(method, path, body, answer, { type: 'batchRequestFailed', code: 'unavailable' });
+  private batches(method: 'GET' | 'PUT', path: string, body: unknown, wire: (status: number, text: string) => Wire): void {
+    this.fetching(method, path, body, wire, { type: 'batchRequestFailed', code: 'unavailable' });
   }
 
-  /** One request that is not an op (the batch routes, the asset list): the app is told once, by `answer`, or by `failed` when the network fails. */
-  private fetching(method: 'GET' | 'PUT', path: string, body: unknown, answer: (status: number, body: unknown) => Action, failed: Action): void {
+  /** One request that is not an op (the batch routes, the asset list): the app is told once, with the raw answer, or by `failed` when the network fails. */
+  private fetching(method: 'GET' | 'PUT', path: string, body: unknown, wire: (status: number, text: string) => Wire, failed: Action): void {
     const gen = this.stopped;
     void this.env.request(method, path, body, POST_TIMEOUT_MS).then(
-      (r) => this.answered(gen, answer(r.status, r.body)),
+      (r) => this.answered(gen, { type: 'wire', wire: wire(r.status, r.text) }),
       () => this.answered(gen, failed),
     );
   }
@@ -192,9 +190,8 @@ export class Shell {
    */
   private checkpoint(c: CheckpointCall): void {
     const gen = this.stopped;
-    const sent = c.method === 'POST' ? this.env.post(c.path, c.body, POST_TIMEOUT_MS) : this.env.request('GET', c.path, undefined, POST_TIMEOUT_MS);
-    void sent.then(
-      (r) => this.answered(gen, c.answer(r.status, r.body), c.failure),
+    void this.env.request(c.method, c.path, c.body, POST_TIMEOUT_MS).then(
+      (r) => this.answered(gen, { type: 'wire', wire: c.wire(r.status, r.text) }, c.failure),
       () => this.answered(gen, c.failure),
     );
   }
@@ -297,7 +294,7 @@ export class Shell {
     const m = parseFrame(data);
     if (!m) return this.lost();
     try {
-      this.apply(m);
+      this.apply(m, data);
     } catch {
       // A frame the app cannot take (it passed the shape check but not the app's own): the view would go
       // stale while heartbeats look alive, so start again from the last confirmed number.
@@ -305,7 +302,7 @@ export class Shell {
     }
   }
 
-  private apply(m: Wire): void {
+  private apply(m: Msg, data: string): void {
     const nowMs = this.env.now();
     switch (m.type) {
       case 'subscribed':
@@ -330,23 +327,12 @@ export class Shell {
         });
       case 'resync':
         return this.dispatch({ type: 'frame', nowMs, frame: { type: 'resync', afterSeq: m.afterSeq!, latestSeq: m.latestSeq! } });
-      case 'batch': {
-        // An ephemeral hint over the log: one that does not pass the check is ignored, and a fetch heals the gap. One the app cannot take goes to `lost()` (a reconnect) through `frame()`, like any frame.
-        const frame = toBatchFrame(m);
-        if (frame) this.dispatch({ type: 'frame', nowMs, frame });
-        return;
-      }
-      case 'touch': {
-        const frame = toTouchFrame(m);
-        if (frame) this.dispatch({ type: 'frame', nowMs, frame });
-        return;
-      }
-      case 'checkpoint': {
-        // An ephemeral hint, like a batch frame: one that does not pass the check is ignored, and a read heals the gap.
-        const frame = toCheckpointFrame(m);
-        if (frame) this.dispatch({ type: 'frame', nowMs, frame });
-        return;
-      }
+      case 'batch':
+      case 'touch':
+      case 'checkpoint':
+        // An ephemeral hint over the log, handed to the app layer as the text the socket sent: it checks the frame and ignores
+        // one that does not pass (a fetch heals the gap). One it cannot take goes to `lost()` (a reconnect) through `frame()`, like any frame.
+        return this.dispatch({ type: 'wire', wire: { kind: 'hint', nowMs, text: data } });
       case 'error':
         return this.refused(m);
       default:
@@ -360,7 +346,7 @@ export class Shell {
   }
 
   /** An `error` frame. Only the answer to our last `subscribe` matters. */
-  private refused(m: Wire): void {
+  private refused(m: Msg): void {
     const sub = this.lastSub;
     if (!sub || m.id !== sub.id) return;
     if (m.code === 'rate_limited' || m.code === 'unavailable') {
@@ -455,7 +441,8 @@ export function browserEnv(): Env {
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
       });
-      return { status: res.status, body: await res.json().catch(() => null) };
+      // The text of the body, not read: a body that is not text (or that fails halfway) is an empty one, which the app layer does not take for an answer.
+      return { status: res.status, text: await res.text().catch(() => '') };
     },
     setTimer: (fn, ms, repeat) => (repeat ? setInterval(fn, ms) : setTimeout(fn, ms)) as unknown as number,
     clearTimer: (id) => {

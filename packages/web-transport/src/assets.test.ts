@@ -1,14 +1,12 @@
-// The web-transport seam of the image picker (E2.5, ADR-0015 follow-up): the `fetchAssets` effect is a GET of the asset
-// list, and its answer becomes `assetsLoaded` (or `assetsRequestFailed`). The answer comes from the network and is trusted
-// for nothing: each field is checked for type and bound, and only the fields the app layer knows are copied.
+// The web-transport seam of the image picker (E2.5, ADR-0015 follow-up): the `fetchAssets` effect is a GET of the asset list,
+// and the status and the text of its answer go to the app layer as they came (`Action.wire`). Reading the page is the app
+// layer's (finding T6): the table of what a page may hold is in answers_assets.rs.
 import type { Action, AppState, Effect } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { answerOfAssets, assetsQuery } from './assets';
+import { assetsQuery } from './assets';
 import { Shell, type Engine, type Env } from './shell';
 
 const id = (n: number) => n.toString(16).padStart(2, '0').repeat(32);
-const row = (n: number, over: Record<string, unknown> = {}) => ({ id: id(n), bytes: 120 + n, mime: 'image/png', ...over });
-const ok = (rows: unknown[], next: unknown = null) => ({ assets: rows, next });
 
 describe('assetsQuery', () => {
   it('carries the limit, and the cursor when there is one', () => {
@@ -23,46 +21,6 @@ describe('assetsQuery', () => {
   });
 });
 
-describe('answerOfAssets', () => {
-  it('a list answer becomes assetsLoaded with the cursor it was asked with', () => {
-    expect(answerOfAssets(7, null, 200, ok([row(1), row(2)], id(2)))).toEqual({
-      type: 'assetsLoaded',
-      request: 7,
-      after: null,
-      page: { assets: [row(1), row(2)], next: id(2) },
-    });
-    expect(answerOfAssets(7, id(2), 200, ok([row(3)]))).toEqual({ type: 'assetsLoaded', request: 7, after: id(2), page: { assets: [row(3)], next: null } });
-  });
-  it('copies the fields the app knows and drops the others (the app refuses unknown fields)', () => {
-    const a = answerOfAssets(7, null, 200, ok([row(1, { name: 'x', extra: 1 })]));
-    expect(a).toEqual({ type: 'assetsLoaded', request: 7, after: null, page: { assets: [row(1)], next: null } });
-  });
-  it('an empty page is a page', () => {
-    expect(answerOfAssets(7, null, 200, ok([]))).toEqual({ type: 'assetsLoaded', request: 7, after: null, page: { assets: [], next: null } });
-  });
-  it('a page that is wrong in shape, bound or content is a failed request', () => {
-    const failed: Action = { type: 'assetsRequestFailed', request: 7, code: 'unavailable' };
-    const bad: unknown[] = [
-      null, 'x', [], {}, { assets: 'x', next: null }, ok([null]), ok(['x']), ok([row(1, { id: 'ABC' })]), ok([row(1, { id: id(171).toUpperCase() })]),
-      ok([row(1, { id: `${id(1)}0` })]), ok([row(1, { id: '../../etc/passwd' })]), ok([row(1, { bytes: -1 })]), ok([row(1, { bytes: 1.5 })]),
-      ok([row(1, { bytes: '5' })]), ok([row(1, { bytes: Number.MAX_SAFE_INTEGER + 1 })]), ok([row(1, { mime: 'image/svg+xml' })]),
-      ok([row(1, { mime: 'text/html' })]), ok([row(1, { mime: undefined })]), ok([row(1)], 'nope'), ok([row(1)], 5), ok([row(1)], id(171).toUpperCase()),
-      ok(Array.from({ length: 201 }, (_, i) => row(i))),
-    ];
-    for (const b of bad) expect(answerOfAssets(7, null, 200, b), JSON.stringify(b)?.slice(0, 80)).toEqual(failed);
-  });
-  it('does not take a field from the prototype chain', () => {
-    const inherited = Object.create(ok([row(1)])) as unknown;
-    expect(answerOfAssets(7, null, 200, inherited)).toEqual({ type: 'assetsRequestFailed', request: 7, code: 'unavailable' });
-  });
-  it('a refusal carries the code of the error, capped to a short word', () => {
-    expect(answerOfAssets(7, null, 401, { error: { code: 'unauthenticated', message: 'm' } })).toEqual({ type: 'assetsRequestFailed', request: 7, code: 'unauthenticated' });
-    expect(answerOfAssets(7, null, 503, { error: { code: 'unavailable', retryable: true } })).toEqual({ type: 'assetsRequestFailed', request: 7, code: 'unavailable' });
-    expect(answerOfAssets(7, null, 500, { error: { code: 'Not A Code!' } })).toEqual({ type: 'assetsRequestFailed', request: 7, code: 'unavailable' });
-    expect(answerOfAssets(7, null, 502, '<html>bad gateway</html>')).toEqual({ type: 'assetsRequestFailed', request: 7, code: 'unavailable' });
-  });
-});
-
 class FakeEngine implements Engine {
   dispatched: Action[] = [];
   private handler: (fx: Effect[]) => void = () => {};
@@ -74,11 +32,11 @@ class FakeEngine implements Engine {
 }
 class FakeEnv implements Env {
   requests: { method: string; path: string; body?: unknown; timeoutMs?: number }[] = [];
-  reply: () => Promise<{ status: number; body: unknown }> = async () => ({ status: 200, body: null });
+  reply: () => Promise<{ status: number; text: string }> = async () => ({ status: 200, text: '' });
   now = () => 1000;
   openSocket = () => { throw new Error('no socket'); };
   post = async () => ({ status: 200, body: {} });
-  request = async (method: 'GET' | 'PUT', path: string, body?: unknown, timeoutMs?: number) => {
+  request = async (method: 'GET' | 'PUT' | 'POST', path: string, body?: unknown, timeoutMs?: number) => {
     this.requests.push({ method, path, body, timeoutMs });
     return this.reply();
   };
@@ -94,34 +52,35 @@ const setup = () => {
 };
 
 describe('the fetchAssets effect', () => {
-  it('is a GET of /v1/assets with a timeout, with no body, answered as assetsLoaded', async () => {
+  it('is a GET of /v1/assets with a timeout, with no body, answered with the raw text', async () => {
     const { engine, env } = setup();
-    env.reply = async () => ({ status: 200, body: ok([row(1)], id(1)) });
+    const text = `{"assets":[],"next":"${id(1)}"}`;
+    env.reply = async () => ({ status: 200, text });
     engine.effect({ type: 'fetchAssets', after: null, limit: 50, request: 4 });
     await settle();
     expect(env.requests).toHaveLength(1);
     expect(env.requests[0]).toMatchObject({ method: 'GET', path: '/v1/assets?limit=50', body: undefined });
     expect(env.requests[0]!.timeoutMs).toBeGreaterThan(0);
-    expect(engine.dispatched).toEqual([{ type: 'assetsLoaded', request: 4, after: null, page: { assets: [row(1)], next: id(1) } }]);
+    expect(engine.dispatched).toEqual([{ type: 'wire', wire: { kind: 'assets', request: 4, after: null, status: 200, body: text } }]);
   });
   it('answers with the request number and the cursor it was made with', async () => {
     const { engine, env } = setup();
-    env.reply = async () => ({ status: 200, body: ok([row(2)]) });
+    env.reply = async () => ({ status: 200, text: '{}' });
     engine.effect({ type: 'fetchAssets', after: id(1), limit: 50, request: 5 });
     await settle();
     expect(env.requests[0]!.path).toBe(`/v1/assets?limit=50&after=${id(1)}`);
-    expect(engine.dispatched).toEqual([{ type: 'assetsLoaded', request: 5, after: id(1), page: { assets: [row(2)], next: null } }]);
+    expect(engine.dispatched).toEqual([{ type: 'wire', wire: { kind: 'assets', request: 5, after: id(1), status: 200, body: '{}' } }]);
   });
-  it('a refusal and a network failure become assetsRequestFailed', async () => {
+  it('a refusal is handed over as it is, and a network failure becomes assetsRequestFailed', async () => {
     const { engine, env } = setup();
-    env.reply = async () => ({ status: 401, body: { error: { code: 'unauthenticated', message: 'm' } } });
+    env.reply = async () => ({ status: 401, text: '{"error":{"code":"unauthenticated","message":"m"}}' });
     engine.effect({ type: 'fetchAssets', after: null, limit: 50, request: 4 });
     await settle();
     env.reply = async () => { throw new Error('offline'); };
     engine.effect({ type: 'fetchAssets', after: null, limit: 50, request: 4 });
     await settle();
     expect(engine.dispatched).toEqual([
-      { type: 'assetsRequestFailed', request: 4, code: 'unauthenticated' },
+      { type: 'wire', wire: { kind: 'assets', request: 4, after: null, status: 401, body: '{"error":{"code":"unauthenticated","message":"m"}}' } },
       { type: 'assetsRequestFailed', request: 4, code: 'unavailable' },
     ]);
   });
