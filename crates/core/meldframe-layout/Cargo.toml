@@ -10,6 +10,7 @@ publish.workspace = true
 kind = "core"
 
 [dependencies]
+meldframe-order = { path = "../meldframe-order" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 serde = { version = "1", features = ["derive"] }
 

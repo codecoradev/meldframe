@@ -7,7 +7,8 @@
 //! counter row of the file, never from `max(n)`, so a number a roll deleted is never given again, and the counts of
 //! each share are recounted from the rows in the same transaction, so they cannot drift.
 
-use super::{PgStore, from_db_seq, room_key};
+use super::{PgStore, room_key};
+use crate::db::{db_i64, from_db_seq};
 use checkpoint_store::{CheckpointError, CheckpointStore, Held, Made, Plan, plan};
 use meldframe_checkpoints::{Checkpoint, Kind, Label, NewCheckpoint};
 use sqlx::{PgConnection, Row, postgres::PgRow};
@@ -44,10 +45,6 @@ fn row(r: &PgRow) -> Option<(Checkpoint, Option<String>)> {
         at_ms: from_db_seq(r.get("at_ms")),
     };
     Some((checkpoint, r.get("key")))
-}
-
-fn db_i64(n: u64) -> i64 {
-    i64::try_from(n).unwrap_or(i64::MAX)
 }
 
 /// The lock of a workspace's checkpoints, held until the transaction ends.

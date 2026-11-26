@@ -44,13 +44,11 @@ impl Batch<'_> {
 }
 
 /// Splits an op key `{prefix}:{n}` (the key of command `n` of one `apply_commands` call) into the prefix and `n`;
-/// `None` for any other key, such as the one-op keys of the editor.
+/// `None` for any other key, such as the one-op keys of the editor, and for an `n` that is not in its one spelling
+/// ([`meldframe_text::canonical_u32`]: `01` is not command 1 of the batch, and a call holds far fewer than 2^32).
 pub fn batch_index(key: &str) -> Option<(&str, u64)> {
     let (prefix, n) = key.rsplit_once(':')?;
-    if n.is_empty() || !n.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    Some((prefix, n.parse().ok()?))
+    Some((prefix, u64::from(meldframe_text::canonical_u32(n)?)))
 }
 
 /// Why a part of the batch was left as it is.

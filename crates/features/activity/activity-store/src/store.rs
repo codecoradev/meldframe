@@ -4,7 +4,7 @@ use crate::{
     ActivityError, BatchStore, Caps, NoteOutcome, Page, Query, Recorded, Reviewed, cap_reached,
     check_actor, check_batch, check_query, merge, new_header,
 };
-use meldframe_activity::{Header, NewBatch, Review};
+use meldframe_activity::{Header, NewBatch, Review, store_key};
 use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
 
@@ -45,10 +45,6 @@ impl MemoryBatches {
     }
 }
 
-fn key(workspace: &str, file: &str) -> (String, String) {
-    (workspace.to_owned(), file.to_owned())
-}
-
 impl BatchStore for MemoryBatches {
     fn record(
         &self,
@@ -65,11 +61,11 @@ impl BatchStore for MemoryBatches {
             .sum();
         let id = (batch.actor.clone(), batch.key_prefix.clone());
         let found = files
-            .get(&key(workspace, file))
+            .get(&store_key(workspace, file))
             .and_then(|f| f.by_key.get(&id).copied());
         if found.is_none() {
             // The caps come first, so a refused call leaves no file behind.
-            let (mine, rows) = files.get(&key(workspace, file)).map_or((0, 0), |f| {
+            let (mine, rows) = files.get(&store_key(workspace, file)).map_or((0, 0), |f| {
                 (
                     f.per_actor.get(&batch.actor).copied().unwrap_or(0),
                     f.rows.len(),
@@ -79,7 +75,7 @@ impl BatchStore for MemoryBatches {
                 return Err(full);
             }
         }
-        let f = files.entry(key(workspace, file)).or_default();
+        let f = files.entry(store_key(workspace, file)).or_default();
         if let Some(i) = found {
             let mut h = f.rows[i].clone();
             let (changed, note) = merge(&mut h, batch);
@@ -118,7 +114,7 @@ impl BatchStore for MemoryBatches {
     fn list(&self, workspace: &str, file: &str, query: &Query) -> Result<Page, ActivityError> {
         check_query(query)?;
         let files = self.files.lock().unwrap_or_else(PoisonError::into_inner);
-        let Some(f) = files.get(&key(workspace, file)) else {
+        let Some(f) = files.get(&store_key(workspace, file)) else {
             return Ok(Page {
                 headers: Vec::new(),
                 has_more: false,
@@ -148,7 +144,7 @@ impl BatchStore for MemoryBatches {
         check_actor(by)?;
         let mut files = self.files.lock().unwrap_or_else(PoisonError::into_inner);
         let f = files
-            .get_mut(&key(workspace, file))
+            .get_mut(&store_key(workspace, file))
             .ok_or(ActivityError::NotFound(n))?;
         let i = (n as usize)
             .checked_sub(1)
