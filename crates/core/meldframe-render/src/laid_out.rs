@@ -52,6 +52,8 @@ pub fn resolve_laid_out(
         if kinds.get(b.id.as_str()) == Some(&NodeKind::Ellipse) && b.paint == Paint::Rect {
             b.radius = b.w.min(b.h) / 2.0;
         }
+        // The reach of a shadow depends on the size of the box (a spread can leave nothing of a small one).
+        b.fit_paint_bounds();
         origin.insert(b.id.clone(), (wx, wy));
     }
     boxes

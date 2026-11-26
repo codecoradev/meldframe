@@ -12,10 +12,12 @@
 
 pub mod coverage;
 mod laid_out;
+mod paint_bounds;
 mod resolve;
 
 pub use laid_out::resolve_laid_out;
 pub use meldframe_variables::ModeChoice;
+pub use paint_bounds::PaintBounds;
 pub use resolve::{
     Fields, Paint, PaintedBorder, PaintedBox, PaintedGradient, PaintedImage, PaintedShadow,
     resolve, resolve_with,
