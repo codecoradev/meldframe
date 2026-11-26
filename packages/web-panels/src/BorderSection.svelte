@@ -12,6 +12,7 @@
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { BORDER_POSITIONS, borderPositionAction, removeBorderAction } from '@meldframe/web-document/decoration';
   import { textAction } from '@meldframe/web-document/properties';
+  import { round2 } from './fields';
 
   interface Props {
     properties: Properties;
@@ -33,7 +34,7 @@
 
 <Section title="Border">
   <div bind:this={widths} class="grid grid-cols-2 gap-2">
-    <Field label="Border width" suffix="px" mono value={String(Math.round(p.border.width * 100) / 100)} onCommit={(raw) => send(textAction(p, { type: 'borderWidth' }, raw))} testId="prop-border-width" />
+    <Field label="Border width" suffix="px" mono value={round2(p.border.width)} onCommit={(raw) => send(textAction(p, { type: 'borderWidth' }, raw))} testId="prop-border-width" />
     <Field label="Border colour" mono value={p.border.color} onCommit={(raw) => send(textAction(p, { type: 'borderColor' }, raw))} testId="prop-border-color">
       {#snippet lead()}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={p.border.color}></i>{/snippet}
     </Field>

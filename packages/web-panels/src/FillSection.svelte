@@ -17,6 +17,7 @@
   import { addStopAction, fillTypeAction, gradientBar, removeStopAction, stopPercent } from '@meldframe/web-document/fills';
   import { bindingOf, textAction } from '@meldframe/web-document/properties';
   import BindPicker from './BindPicker.svelte';
+  import { pickerClosed } from './fields';
   import ImageFillPicker from './ImageFillPicker.svelte';
   import { fillTypes, fitAction, IMAGE_FITS, openAssetsAction, shortId } from './images';
 
@@ -48,7 +49,7 @@
   let was: string | null = null;
   $effect(() => {
     const now = open ? p.id : null;
-    const closed = was === p.id && now === null;
+    const closed = pickerClosed(was, p.id, open);
     was = now;
     if (!closed) return;
     void tick().then(() => {

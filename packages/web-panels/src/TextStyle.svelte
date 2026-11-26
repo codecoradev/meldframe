@@ -10,6 +10,7 @@
   import { ring } from '@meldframe/web-chrome/focus';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { FONT_WEIGHTS, fontWeightAction, TEXT_ALIGNS, textAlignAction } from '@meldframe/web-document/properties';
+  import { alignOf, weightOf } from './fields';
 
   interface Props {
     properties: Properties;
@@ -19,8 +20,7 @@
   const send = (a: Action | null) => {
     if (a) dispatch(a);
   };
-  // A text always has both (the app layer leaves them out for other kinds); 400 and left are the model's defaults (`d_weight` and `TextAlign::default`) for a node that has none.
-  const weight = $derived(String(p.fontWeight ?? 400));
+  const weight = $derived(weightOf(p));
   const select = `${ring} h-(--mf-size-control-lg) w-full rounded-md border border-divider bg-field px-2 text-small text-text hov:border-border-strong`;
 </script>
 
@@ -43,5 +43,5 @@
 </div>
 <div class="flex flex-col gap-2">
   <span class="text-text-muted">Text alignment</span>
-  <Segmented label="Text alignment" iconOnly options={TEXT_ALIGNS} value={p.textAlign ?? 'left'} onChange={(v) => send(textAlignAction(p, v as TextAlign))} data-testid="prop-textAlign" />
+  <Segmented label="Text alignment" iconOnly options={TEXT_ALIGNS} value={alignOf(p)} onChange={(v) => send(textAlignAction(p, v as TextAlign))} data-testid="prop-textAlign" />
 </div>
