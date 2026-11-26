@@ -157,7 +157,7 @@ impl App {
             Action::SetMode { collection, mode } => self.set_mode(collection, mode, &mut fx),
             Action::SetVariablesQuery { query } => self.set_variables_query(query),
             Action::OpenPicker { id, field } => self.open_picker(id, field),
-            Action::ClosePicker {} => self.state.picker = None,
+            Action::ClosePicker {} => self.close_picker(),
             Action::SetPickerQuery { query } => self.set_picker_query(query),
             Action::OpenExport {} => self.open_export(),
             Action::SetExportFormat { format } => self.set_export_format(format),

@@ -3,7 +3,7 @@
 
 use crate::app::App;
 use crate::document::refuse;
-use meldframe_app_model::{BindField, Picker};
+use meldframe_app_model::{BindField, Event, Picker};
 use meldframe_app_parts::picker::{is_open_valid, open_refusal, picker_view};
 
 /// The longest search text, in characters.
@@ -18,13 +18,14 @@ impl App {
 
     pub(crate) fn open_picker(&mut self, id: String, field: BindField) {
         if let Some(code) = open_refusal(self.nodes(), &self.state.selection, &id, field) {
-            self.state.picker = None;
+            self.set_picker(None);
             let _ = refuse(&mut self.events, code);
             return;
         }
         let query = String::new();
-        self.state.picker = Some(self.picker_view(id, field, query));
+        let view = self.picker_view(id, field, query);
         self.panel.picker_builds += 1;
+        self.set_picker(Some(view));
     }
 
     pub(crate) fn set_picker_query(&mut self, query: String) {
@@ -32,8 +33,21 @@ impl App {
         let query: String = query.trim().chars().take(MAX_QUERY).collect();
         if p.query != query {
             let (id, field) = (p.id.clone(), p.field);
-            self.state.picker = Some(self.picker_view(id, field, query));
+            let view = self.picker_view(id, field, query);
             self.panel.picker_builds += 1;
+            self.set_picker(Some(view));
+        }
+    }
+
+    pub(crate) fn close_picker(&mut self) {
+        self.set_picker(None);
+    }
+
+    /// Set the picker, and say so when it is not what it was: the web reads the state again only after an event.
+    pub(crate) fn set_picker(&mut self, picker: Option<Picker>) {
+        if self.state.picker != picker {
+            self.state.picker = picker;
+            self.events.push(Event::PickerChanged {});
         }
     }
 
@@ -42,15 +56,13 @@ impl App {
     pub(crate) fn refresh_picker(&mut self) {
         let Some(p) = &self.state.picker else { return };
         if !is_open_valid(self.nodes(), &self.state.selection, &p.id, p.field) {
-            self.state.picker = None;
+            self.set_picker(None);
             return;
         }
         let (id, field, query) = (p.id.clone(), p.field, p.query.clone());
         let view = self.picker_view(id, field, query);
         self.panel.picker_builds += 1;
-        if self.state.picker.as_ref() != Some(&view) {
-            self.state.picker = Some(view);
-        }
+        self.set_picker(Some(view));
     }
 
     fn picker_view(&self, id: String, field: BindField, query: String) -> Picker {

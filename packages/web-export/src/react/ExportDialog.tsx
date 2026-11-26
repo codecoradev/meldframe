@@ -7,9 +7,9 @@
 // of the truncated title then ended a fraction of a pixel elsewhere (its last letter differed in some pixels).
 import { Dialog } from '@base-ui/react/dialog';
 import type { Action, ExportDialog as Model } from '@meldframe/protocol';
-import { takeFocusBack } from '@meldframe/web-chrome/focus';
 import { IconButton } from '@meldframe/web-chrome/react/IconButton';
 import { TooltipProvider } from '@meldframe/web-chrome/react/Tooltip';
+import { useFocusHandoff } from '@meldframe/web-chrome/react/useFocusHandoff';
 import type { ExportScale } from '@meldframe/web-document/export';
 import { useRef, useState } from 'react';
 import type { PngPlan } from '../png';
@@ -41,6 +41,8 @@ export function ExportDialog({ dialog, unreviewed, scale, onScale, plan, onPng, 
   const tab = useRef(ui.view.tab);
   tab.current = ui.view.tab;
 
+  // A dialog opened from a menu gives the focus back to the menu's button when it closes (the handoff took it when this opened); any other close takes the default (the element that had the focus).
+  const hand = useFocusHandoff(dialog !== null);
   const close = () => dispatch({ type: 'closeExport' });
   return (
     <TooltipProvider>
@@ -57,13 +59,7 @@ export function ExportDialog({ dialog, unreviewed, scale, onScale, plan, onPng, 
             data-testid="export-dialog"
             // The first thing to focus is the selected tab, not the Close button: a tooltip opens on that button and takes the first Escape.
             initialFocus={() => document.getElementById(`export-tab-${tab.current}`)}
-            // A dialog opened from a menu gives the focus back to the menu's button when it closes; any other close takes the default (the element that had the focus).
-            finalFocus={() => {
-              const el = takeFocusBack();
-              if (!el) return null;
-              el.focus();
-              return false;
-            }}
+            finalFocus={hand.finalFocus}
             // Bits UI sets this on its content, and it moves how a box at a half pixel is snapped to the device grid (the count badge of the
             // report sat 1 device pixel lower without it, at a scale factor of 2): kept, so that the two dialogs paint the same pixels.
             style={{ contain: 'layout style' }}
