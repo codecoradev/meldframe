@@ -13,11 +13,13 @@
 // The checks run in order and share the file: some start from what an earlier one left (the renamed variable and its undo, the
 // collection of the run). A check that fails can fail the ones after it.
 // MELDFRAME_E2E_SHOTS=<dir> saves screenshots (and one of the page when a check fails).
+// MELDFRAME_UI=react opens /?react=manage (MELDFRAME_REACT_PANELS names other switch words, such as variables,manage): the React dialog, E7.3 slice S9; the first check asks that React drew it. manage-dialog-e2e.mjs checks the dialog's shell on both.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
+const react = process.env.MELDFRAME_UI === 'react';
 const web = process.argv[2] ?? 'http://localhost:5173';
 const server = process.argv[3] ?? 'http://127.0.0.1:8080';
 const root = new URL('../../../', import.meta.url).pathname;
@@ -92,13 +94,14 @@ const addEntity = async (fieldId, value) => {
   browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
-  await page.goto(web);
+  await page.goto(react ? `${web.replace(/\/?$/, '/')}?react=${process.env.MELDFRAME_REACT_PANELS ?? 'manage'}` : web);
   await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
   await until('the frame is listed', async () => (await $(`[data-testid=layer][data-id="${frame}"]`).count()) === 1);
 
-  await check('the Manage button opens the view, with the focus inside it and the scrim over the page', async () => {
+  await check('the Manage button opens the view, drawn by the copy that was asked for, with the focus inside it and the scrim over the page', async () => {
     await $('[data-testid=var-manage]').click();
     await $('[data-testid=manage-dialog]').waitFor();
+    assert.equal(await page.evaluate(() => Object.keys(document.querySelector('[data-testid=manage-dialog]')).some((k) => k.startsWith('__reactFiber$'))), react, 'the dialog is not drawn by the copy that was asked for (a fallback to Svelte?)');
     await until('the focus is in the dialog', () => page.evaluate(() => document.querySelector('[data-testid=manage-dialog]')?.contains(document.activeElement)));
     assert.equal(await $('[data-testid=manage-collection]').count(), 0, 'a new file has no collection');
     assert.match(await text('[data-testid=manage-no-collections]'), /no collections yet/i);

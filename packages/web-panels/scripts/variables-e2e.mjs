@@ -9,6 +9,9 @@
 // fallback to Svelte would pass every other check; the picker's popover is asked the same when it opens). Without it the Svelte copies
 // (Bits UI) run. A last check with MELDFRAME_UI=react blocks the chunks of the React copies and asks that the Svelte panel and picker are
 // drawn and work. The Layers panel's switch is /?react=layers (layers-e2e.mjs asks it).
+// MELDFRAME_REACT_PANELS names the switch words of the React page (default `variables`; S6 uses the same variable); `variables,manage` draws the manage view with its React dialog
+// too (E7.3 slice S9: the check that closing it with its Close button tells the app layer then asks that React drew that dialog). The panel
+// is the React one in both; `manage-e2e.mjs` runs the React dialog under the Svelte panel.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -313,10 +316,11 @@ async function check(name, fn) {
   }
 
   // Closing the manage view tells the app layer (ManageOp::Close, sent by ManageDialog), so what was open in it does not come back. Both copies of
-  // the panel draw that dialog, so this runs on the Svelte page and on the React one.
+  // the panel draw that dialog, and both copies of the dialog send it, so this runs on the Svelte page and on the React one.
   await check('closing the manage view with its Close button forgets an open rename field: it opens again clean', async () => {
     await page.click('[data-testid=var-manage]');
     await page.locator('[data-testid=manage-dialog]').waitFor();
+    assert.equal(await fibre(page, '[data-testid=manage-dialog]'), react && panels.split(',').includes('manage'), 'the dialog is drawn by the copy that was asked for');
     await page.locator('[data-rename^="collection:"]').first().click();
     await page.locator('[data-testid=manage-renaming-collection]').waitFor();
     await page.click('[data-testid=manage-close]');

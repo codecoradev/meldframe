@@ -19,6 +19,7 @@
 // the first one saw.
 // The Activity panel is imaged by pixels-activity-e2e.mjs: its rows are live (a batch the page watched arrive can be reverted, one that was
 // there when the page loaded cannot) and its lanes change with the clock, so it opens both copies at the same time on one file.
+// Not imaged in the manage view (`manage`, the dialog's element, opened by its Manage button): the question before removing a mode, the partial-counts notice, the error and status lines and a file with no collection.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -116,6 +117,39 @@ const PANELS = {
       { name: 'a search with no match', run: (p) => p.fill('[data-testid=picker-search]', 'zzz') },
     ],
   },
+};
+
+PANELS.manage = {
+  word: 'manage',
+  element: '[data-testid=manage-dialog]',
+  steps: [
+    { name: 'open on the first collection', run: async (p) => { await p.click('[data-testid=var-manage]'); await p.locator('[data-testid=manage-var]').first().waitFor(); } },
+    { name: 'a name refused in the new collection field', run: (p) => p.fill('[data-testid=manage-new-collection]', 'Colour') },
+    { name: 'a mode name that exists already (a warning)', run: (p) => p.fill('[data-testid=manage-new-mode]', 'dark') },
+    {
+      name: 'the rename field of a variable, with a name refused',
+      run: async (p) => {
+        await p.click('[data-rename="variable:v2"]');
+        await p.fill('[data-testid=manage-renaming-variable]', 'Color/Ink');
+      },
+    },
+    {
+      name: 'the rename field of the first mode',
+      run: async (p) => {
+        await p.keyboard.press('Escape');
+        await p.click('[data-rename="mode:light"]');
+      },
+    },
+    {
+      name: 'the question before removing a variable',
+      run: async (p) => {
+        await p.keyboard.press('Escape');
+        await p.click('[data-remove="variable:v3"]');
+        await p.locator('[data-testid=remove-confirm]').waitFor();
+      },
+    },
+    { name: 'the question before removing a collection', run: (p) => p.click('[data-testid=manage-remove-collection]') },
+  ],
 };
 
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
