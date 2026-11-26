@@ -302,7 +302,11 @@ describe('Create checkpoint', () => {
 
 describe('what the controls send', () => {
   it('goes through `send` for every control, so that a review puts the words of a refusal back to a review (controller.ts, aboutAfter)', () => {
-    const src = readFileSync(new URL('./ActivityPanel.svelte', import.meta.url), 'utf8');
-    expect(src.match(/\bdispatch\(/g)).toHaveLength(1); // the one inside `send`
+    // Without its comments (a word in a comment cannot satisfy or break the test): the review handler goes through `send`, and the
+    // only call of `dispatch` left is the one inside `send` itself.
+    const src = readFileSync(new URL('./ActivityPanel.svelte', import.meta.url), 'utf8').replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    expect(src).toMatch(/onReview=\{\(state\) => send\(setReview\(r, state\)\)\}/);
+    expect(src.match(/\bdispatch\(a\)/g)).toHaveLength(1);
+    expect(src.match(/\bdispatch\(/g)).toHaveLength(1);
   });
 });
