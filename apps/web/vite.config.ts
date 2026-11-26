@@ -99,6 +99,8 @@ export default defineConfig(({ command }) => {
     },
     // The React side loads on demand, so the dev server would find each Base UI family on its first import, bundle it and reload the page
     // ("optimized dependencies changed"), which breaks a browser script that opened the page just before. Naming them has it bundle them at start.
+    // These four are the families the React copies import today (Dialog: Export and palette, Menu, Popover: the bind picker, Tooltip). A slice that
+    // imports another family (`@base-ui/react/<name>`) must add it here, or the reload comes back on the first load of that panel.
     optimizeDeps: { include: ['@base-ui/react/dialog', '@base-ui/react/menu', '@base-ui/react/popover', '@base-ui/react/tooltip'] },
     server: { proxy },
     preview: { proxy },

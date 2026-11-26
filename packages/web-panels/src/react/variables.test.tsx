@@ -9,7 +9,7 @@ import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
 import PickerListSvelte from '../PickerList.svelte';
 import VariablesPanelSvelte from '../VariablesPanel.svelte';
-import { BindPicker } from './BindPicker';
+import { BindPicker, tabTarget } from './BindPicker';
 import { PickerList } from './PickerList';
 import { VariablesPanel } from './VariablesPanel';
 
@@ -155,6 +155,28 @@ describe('the React bind picker', () => {
   });
   it('keeps the keys typed in the popover out of the editor, as every portaled popup does (ownskeys.test.ts)', () => {
     expect(readFileSync(new URL('./BindPicker.tsx', import.meta.url), 'utf8')).toMatch(/<Base\.Popup[^>]*data-owns-keys/);
+  });
+});
+
+describe('where Tab goes in the bind picker (plain stubs: the Node tests have no DOM)', () => {
+  const [search, a, b] = ['search', 'row-a', 'row-b'];
+  const stops = [search, a, b];
+  it('sends Tab from the last stop to the first, and leaves every other Tab to the browser', () => {
+    expect(tabTarget(stops, b, false)).toBe(search);
+    expect(tabTarget(stops, search, false)).toBeNull();
+    expect(tabTarget(stops, a, false)).toBeNull();
+  });
+  it('sends Shift+Tab from the first stop, or from the popup itself, to the last', () => {
+    expect(tabTarget(stops, search, true)).toBe(b);
+    expect(tabTarget(stops, 'popup', true, 'popup')).toBe(b);
+    expect(tabTarget(stops, a, true)).toBeNull();
+    expect(tabTarget(stops, 'popup', true)).toBeNull(); // no root given: the popup is not a stop
+  });
+  it('does nothing when there is no stop, and wraps a single stop onto itself', () => {
+    expect(tabTarget([], search, false)).toBeNull();
+    expect(tabTarget([], search, true, search)).toBeNull();
+    expect(tabTarget([search], search, false)).toBe(search);
+    expect(tabTarget([search], search, true)).toBe(search);
   });
 });
 

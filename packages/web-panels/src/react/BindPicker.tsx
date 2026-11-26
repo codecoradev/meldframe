@@ -25,20 +25,23 @@ const TABBABLE = 'a[href],button:not(:disabled),input:not(:disabled),select:not(
 // Bits UI keeps Tab inside the popover (a trap), and Base UI's non-modal popover does not: Tab from the last row left it and closed it. The
 // trap is written here, in the capture phase because the search field stops the keys it owns: Tab from the last stop goes to the first and
 // Shift+Tab from the first goes to the last, and nothing else changes (no focus guard, so no extra stop for a reader or a keyboard).
-function keepTabInside(e: KeyboardEvent<HTMLElement>) {
-  if (e.key !== 'Tab') return;
-  const stops = [...e.currentTarget.querySelectorAll<HTMLElement>(TABBABLE)];
+/** Where Tab (or Shift+Tab) must send the focus to keep it inside: the first stop from the last, the last from the first (or from the popup itself), null when the browser's own move stays inside. */
+export function tabTarget<T>(stops: readonly T[], active: unknown, shift: boolean, root?: unknown): T | null {
   const first = stops[0];
   const last = stops[stops.length - 1];
-  if (!first || !last) return;
-  const at = document.activeElement;
-  if (e.shiftKey && (at === first || at === e.currentTarget)) {
-    e.preventDefault();
-    last.focus();
-  } else if (!e.shiftKey && at === last) {
-    e.preventDefault();
-    first.focus();
-  }
+  if (first === undefined || last === undefined) return null;
+  if (shift) return active === first || (root !== undefined && active === root) ? last : null;
+  return active === last ? first : null;
+}
+
+function keepTabInside(e: KeyboardEvent<HTMLElement>) {
+  // Only a plain Tab or Shift+Tab: with Ctrl, Alt or Meta it is the browser's or the system's, and a key that composes text is not a move.
+  if (e.key !== 'Tab' || e.nativeEvent.isComposing || e.ctrlKey || e.altKey || e.metaKey) return;
+  const stops = [...e.currentTarget.querySelectorAll<HTMLElement>(TABBABLE)];
+  const to = tabTarget(stops, document.activeElement, e.shiftKey, e.currentTarget);
+  if (!to) return;
+  e.preventDefault();
+  to.focus();
 }
 
 export function BindPicker({ properties: p, field, picker, dispatch }: BindPickerProps) {
