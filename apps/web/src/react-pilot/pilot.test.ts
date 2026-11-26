@@ -137,3 +137,21 @@ describe('the switch of the Import variables and Export variables dialogs (S10)'
     expect(readers.sort()).toEqual(['ExportVariablesDialogSwitch.svelte', 'ImportVariablesDialogSwitch.svelte']);
   });
 });
+
+describe('the switch of the canvas (S11)', () => {
+  it('is the value `canvas`, alone or in a list, and not the word next to it; `strict` is its own word', () => {
+    expect(reactFor('canvas', '?react=canvas')).toBe(true);
+    expect(reactFor('canvas', '?react=layers,canvas,properties')).toBe(true);
+    expect(reactFor('canvas', '?react=canvases')).toBe(false);
+    expect(reactFor('canvas', '?react=layers')).toBe(false);
+    expect(reactFor('canvas', '')).toBe(false);
+    expect(reactFor('strict', '?react=canvas,strict')).toBe(true);
+    expect(reactFor('strict', '?react=canvas')).toBe(false);
+    expect(pilotPage('?react=canvas', false)).toBeNull();
+  });
+  it('answers every method the Svelte canvas has (the editor and the harness call them through bind:this)', () => {
+    const names = (file: string) => [...readFileSync(new URL(file, import.meta.url), 'utf8').matchAll(/export function (\w+)/g)].map((m) => m[1]).sort();
+    expect(names('./CanvasSwitch.svelte')).toEqual(names('../canvas/Canvas.svelte'));
+    expect(names('../canvas/Canvas.svelte')).toHaveLength(7);
+  });
+});

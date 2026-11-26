@@ -15,6 +15,7 @@
   import type { Scene } from '@meldframe/web-canvas/scene';
   import type { Theme } from '@meldframe/web-tokens/tokens';
   import type { Touch } from './overlayview';
+  import { CANVAS_FAILED } from './api';
   import { CanvasDriver } from './driver';
   import { browserPlatform } from './platform';
   import './canvas.css';
@@ -144,6 +145,6 @@
 >
   <canvas bind:this={surface} class="canvas-surface"></canvas>
   {#if failed}
-    <p class="canvas-failed">The canvas could not start in this browser.</p>
+    <p class="canvas-failed">{CANVAS_FAILED}</p>
   {/if}
 </div>

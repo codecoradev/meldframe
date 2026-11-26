@@ -6,7 +6,7 @@
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Canvas from '../canvas/Canvas.svelte';
+  import Canvas from '../react-pilot/CanvasSwitch.svelte'; // Canvas.svelte, or its React copy with ?react=canvas (E7.3, S11)
   import { HOME, fitRect, formatZoom, type Camera } from '@meldframe/web-canvas/camera';
   import type { MoveIntent, ResizeIntent, ToolMode } from '@meldframe/web-canvas/interaction';
   import type { Touch } from '../canvas/overlayview';

@@ -16,6 +16,7 @@ intents; it holds no document state and applies no edit (`docs/standards/modular
 | `api.ts` | the types a host and the driver exchange (`CanvasProps`, `CanvasEvents`, `Platform`) | no |
 | `platform.ts` | the browser as the driver uses it (animation frame, element size, density, fonts, reduced motion, the Pixi application, the asset transport) | yes |
 | `Canvas.svelte`, `canvas.css` | the element and its stylesheet (one file, for every copy of the canvas), props and callbacks handed to the driver | no |
+| `react/Canvas.tsx`, `react/surface.ts` | the React copy of the element (E7.3, S11, behind `/?react=canvas`, `react-pilot/CanvasSwitch.svelte`): the same driver and stylesheet, a surface of its own for each mount | no |
 | `../harness/` + `src/harness/` | development page `harness/canvas.html` (not in the product build) | via Canvas |
 
 Scene space: a node's `x`, `y` are relative to its parent (`'parent'`, the document model's form) or already

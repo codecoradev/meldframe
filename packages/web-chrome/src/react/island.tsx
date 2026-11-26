@@ -2,13 +2,15 @@
 // unmounted when the element goes. It is how a panel can be React while the shell around it is still Svelte
 // (docs/react-web-plan.md, option B). Every file that imports React is .tsx, whatever it holds.
 import type { ComponentType, ReactNode } from 'react';
-import { createElement } from 'react';
+import { StrictMode, createElement } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 
 export interface IslandParams<P extends object> {
   component: ComponentType<P>;
   props: P;
+  /** Draws the component inside React's strict mode (development: it runs effects twice, to show they are idempotent). */
+  strict?: boolean;
 }
 
 /** What the helper needs of a React root; `react-dom/client`'s `Root` fits it. */
@@ -46,9 +48,11 @@ export function createIsland(deps: IslandDeps) {
   return function island<P extends object>(node: HTMLElement, params: IslandParams<P>) {
     const root = deps.createRoot(node);
     let alive = true;
-    const draw = ({ component, props }: IslandParams<P>) => {
+    const draw = ({ component, props, strict }: IslandParams<P>) => {
       if (!alive) return;
-      const render = () => root.render(createElement(component, props));
+      // StrictMode is the root's child, not something the component returns: React does not double the effects of a component that
+      // mounts in the same commit as a StrictMode it returns itself (react.test.tsx).
+      const render = () => root.render(strict ? createElement(StrictMode, null, createElement(component, props)) : createElement(component, props));
       if (deps.flush) deps.flush(render);
       else render();
     };
