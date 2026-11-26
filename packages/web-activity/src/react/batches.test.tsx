@@ -171,17 +171,23 @@ describe('Create checkpoint and the checkpoints', () => {
   });
 });
 
-// The two copies draw the same elements with the same classes in the same order, with the ids of the generated elements given a
-// number in order of appearance (React and Svelte make them differently). What a class cannot say is the pixels: pixels-e2e.mjs.
+// The two copies draw the same elements with the same classes in the same order, with the ids that each copy makes for itself
+// (the name field and its reason) set aside. What a class cannot say is the pixels: pixels-e2e.mjs.
 describe('the React Activity panel against the Svelte one, whole', () => {
   const classes = (out: string) => [...out.matchAll(/class="([^"]*)"/g)].map((m) => m[1]!.split(/\s+/).filter(Boolean).sort().join(' '));
-  const ID = ['id', 'for', 'aria-describedby', 'aria-controls', 'aria-labelledby'];
-  /** The attribute values by name, with every id turned into its place in the list of ids, so that two copies' ids compare. */
-  const attrs = (out: string, name: string) => {
-    const ids = [...out.matchAll(/\sid="([^"]*)"/g)].map((m) => m[1]!);
-    return [...out.matchAll(new RegExp(`\\s${name}="([^"]*)"`, 'g'))].map((m) => (ID.includes(name) ? `#${ids.indexOf(m[1]!)}` : m[1]!));
-  };
-  const NAMES = ['data-testid', 'data-actor', 'data-state', 'data-tone', 'data-n', 'data-status', 'data-checkpoint', 'data-unknown', 'data-state', 'role', 'aria-label', 'aria-expanded', 'aria-current', 'title', 'type', 'maxlength', 'disabled', 'autocomplete', 'value', ...ID];
+  // Only the ids that the copies make for themselves differ: Svelte's `$props.id()` and React's `useId()` start the id of the name field
+  // and of its reason, which end in `-name` and `-why`. Every other id (`lane-body-0`) is compared as it is.
+  const ID = ['id', 'for', 'aria-describedby'];
+  const generated = (name: string, value: string) => (ID.includes(name) ? value.replace(/^.*-(name|why)$/, '#$1') : value);
+  /**
+   * Every tag in order with all its attributes but the class (that has its own comparison), by name and value: nothing is left out
+   * by a list of names that someone has to keep up, so an `aria-hidden`, a `data-*` or a `disabled` that one copy lacks fails.
+   */
+  const shape = (out: string) =>
+    [...out.matchAll(/<([a-z0-9]+)((?:\s[^<>]*)?)>/g)].map((m) => {
+      const attrs = [...m[2]!.matchAll(/\s([a-zA-Z:-]+)(?:="([^"]*)")?/g)].filter((a) => a[1] !== 'class').map((a) => `${a[1]}=${generated(a[1]!, a[2] ?? '')}`);
+      return `${m[1]} ${attrs.sort().join(' ')}`;
+    });
   const text = (out: string) => out.split(/<[^>]*>/).filter((t) => t.trim() !== '');
   // The two serializers write the apostrophe and the angle bracket in a text or an attribute differently (`&#x27;` and `'`, `&gt;` and `>`),
   // and React keeps the camel case of two attribute names that HTML reads without it.
@@ -189,9 +195,8 @@ describe('the React Activity panel against the Svelte one, whole', () => {
   const same = (a: ActivityState, over: Extra = {}) => {
     const [r, s] = [entities(html(a, over).replace(/maxLength=/g, 'maxlength=').replace(/autoComplete=/g, 'autocomplete=')), entities(svelte(a, over))];
     expect(classes(r)).toEqual(classes(s));
-    for (const name of NAMES) expect(attrs(r, name), name).toEqual(attrs(s, name));
+    expect(shape(r)).toEqual(shape(s));
     expect(text(r)).toEqual(text(s));
-    expect((r.match(/<[a-z0-9]+/g) ?? []).join()).toEqual((s.match(/<[a-z0-9]+/g) ?? []).join());
   };
   const rows = [
     row({ n: 3, keyPrefix: 'k3', note: 'Tighten the hero.\n<b>not bold</b> “quoted”', summary: { added: 2, changed: 1, removed: 0, names: ['Hero', 'Title'] }, atMs: new Date(2026, 10, 20, 10, 42, 31).getTime() }),
