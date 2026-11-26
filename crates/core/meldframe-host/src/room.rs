@@ -317,8 +317,9 @@ impl<S: Store> Room<S> {
     }
 }
 
-/// The ids of the nodes a command touches, for `if_seq`.
-fn touches(cmd: &Command) -> Vec<String> {
+/// The ids of the nodes a command touches, for `if_seq`. The one count: the batch dry run (`meldframe-batch`)
+/// calls it, so the dry run and `Room::accept` cannot disagree on which nodes an `ifSeq` guard covers.
+pub fn touches(cmd: &Command) -> Vec<String> {
     match cmd {
         Command::UpdateNode { id, .. }
         | Command::RemoveNode { id }

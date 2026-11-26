@@ -6,7 +6,7 @@
 -->
 <script lang="ts">
   import { layoutKey } from './keys';
-  import { filterEntries, firstEnabled, paletteKey, type PaletteEntry } from './palette';
+  import { filterEntries, highlightAt, paletteKey, resultsText, type PaletteEntry } from './palette';
 
   interface Props {
     entries: PaletteEntry[];
@@ -21,10 +21,7 @@
   // The row the pointer chose; typing forgets it, and the highlight starts again on the first row that can run.
   let picked = $state<string | null>(null);
   const shown = $derived(filterEntries(entries, query));
-  const at = $derived.by(() => {
-    const p = picked === null ? -1 : shown.findIndex((e) => e.id === picked && e.enabled);
-    return p >= 0 ? p : firstEnabled(shown);
-  });
+  const at = $derived(highlightAt(shown, picked));
   const rowId = (e: PaletteEntry) => `palette-option-${e.id}`;
   const keydown = (ev: KeyboardEvent) => {
     if (ev.isComposing) return;
@@ -92,5 +89,5 @@
     {/each}
   </div>
   {#if shown.length === 0}<p class="m-0 px-4 py-3 text-small text-text-muted" data-testid="palette-empty">Nothing matches.</p>{/if}
-  <p class="sr-only" role="status">{shown.length === 0 ? 'No results' : shown.length === 1 ? '1 result' : `${shown.length} results`}</p>
+  <p class="sr-only" role="status">{resultsText(shown.length)}</p>
 </div>

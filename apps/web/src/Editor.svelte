@@ -19,11 +19,13 @@
   import TextEditor from './TextEditor.svelte';
   import Layout from '@meldframe/web-shell/Layout.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
-  import BannerStack, { type Banner } from '@meldframe/web-feedback/BannerStack.svelte';
+  import BannerStack from '@meldframe/web-feedback/BannerStack.svelte';
+  import type { Banner } from '@meldframe/web-feedback/banner';
   import Toast from '@meldframe/web-feedback/Toast.svelte';
   import NoFrames from '@meldframe/web-feedback/NoFrames.svelte';
   import { Toaster, type ToastView } from '@meldframe/web-feedback/toaster';
   import { layoutKey, paletteBlocked, readOverlays } from '@meldframe/web-shell/keys';
+  import { shellParts } from './react-pilot/shell'; // the palette and the shortcut sheet, Svelte or React with /?react=palette (E7.3, S4)
   import { zoomCamera } from '@meldframe/web-shell/zoom';
   import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
@@ -42,6 +44,7 @@
   import { ringsOnCanvas, type Touched } from '@meldframe/web-document/rings';
   import { serveCapture, waitForSeq, type Req } from '@meldframe/web-document/capture-serve';
   import { bannerFor, connectionLabel } from '@meldframe/web-feedback/connection';
+  import { reactFeedback as reactFeedbackOn } from './react-pilot/feedback';
   import { duration, pixiColors } from '@meldframe/web-tokens/tokens';
   import { loadTheme } from '@meldframe/web-tokens/theme';
 
@@ -59,6 +62,7 @@
     captures?: { subscribe: (fn: (r: Req) => void) => () => void; fail: (requestId: string, code: string, message: string) => void };
   }
   let { engine, file, actor, attribution = {}, layout, captures }: Props = $props();
+  const reactFeedback = reactFeedbackOn(location.search); // the React copy of web-feedback (E7.3, S3): /?react=feedback; removed with the last Svelte page
   let autoLayout = $state(untrack(() => layout?.on ?? false));
 
   // Snapshots are replaced as a whole, never edited: no deep proxy over the nodes.
@@ -326,6 +330,7 @@
   {autoLayout} onAutoLayout={layout ? () => (autoLayout = toggleWithNotice(layout, showNotice)) : undefined}
   tab={rightTab} activityBadge={snap.state.activity.unreviewedCount}
   onTab={goTab}
+  {...shellParts}
 >
   {#snippet canvasLayer()}
     <Canvas
@@ -351,9 +356,20 @@
     {#if editing && editBox}
       <TextEditor text={editing.before} box={editBox} onCommit={endEdit} onCancel={() => endEdit(null)} />
     {/if}
-    <NoFrames {nodes} {ready} canAdd={snap.state.connection.type !== 'halted'} onAdd={() => canvas && dispatch(presetAction('desktop', canvas.centre()))} />
-    <Toast {toast} onClose={() => toaster.dismiss()} />
-    <BannerStack {banners} onAction={onBanner} />
+    {#if reactFeedback}
+      {#await import('./react-pilot/FeedbackLayerHost.svelte') then host}
+        <host.default {nodes} {ready} canAdd={snap.state.connection.type !== 'halted'} onAdd={() => canvas && dispatch(presetAction('desktop', canvas.centre()))} {toast} onCloseToast={() => toaster.dismiss()} {banners} onBanner={onBanner} />
+      {:catch}
+        <!-- the React chunk did not load: the Svelte copy is in the entry, so the banners, the toast and the empty state still draw -->
+        <NoFrames {nodes} {ready} canAdd={snap.state.connection.type !== 'halted'} onAdd={() => canvas && dispatch(presetAction('desktop', canvas.centre()))} />
+        <Toast {toast} onClose={() => toaster.dismiss()} />
+        <BannerStack {banners} onAction={onBanner} />
+      {/await}
+    {:else}
+      <NoFrames {nodes} {ready} canAdd={snap.state.connection.type !== 'halted'} onAdd={() => canvas && dispatch(presetAction('desktop', canvas.centre()))} />
+      <Toast {toast} onClose={() => toaster.dismiss()} />
+      <BannerStack {banners} onAction={onBanner} />
+    {/if}
   {/snippet}
   {#snippet layersPanel()}
     <LayersPanel
