@@ -5,6 +5,8 @@ status: accepted
 
 > Status note, 25 Nov 2026: the crate ceilings named below were written for the ceiling of the time. Since decision 42 (standard v1.3, ADR-0026) the hard ceiling of a crate is 50,000 lines; the ideal band of 1,500 to 2,500 lines and the file limit of 500 lines are unchanged. The decision below stands; a split it made stays, and a size figure is history.
 
+> Status note, 26 Nov 2026 (#316): superseded for the test crates. The crates that only hold tests (`-tests`, `-props` and `-scenarios`, such as `meldframe-history-props`) were made to keep the crate under test below the ceiling, which is the option "move tests out of the count" that this decision rejects below, and with the ceiling at 50,000 lines the reason is gone. They move into the `tests/` directory of the crate they test, in a stack of small pull requests (`docs/test-crates-plan.md`); `cargo xtask mm-check` rule MM6 fails a new one. The split of the code into `meldframe-order`, `-check`, `-layout`, `-core`, `-history` and `-sync` stands.
+
 The file model, its checks, its layout and its sibling order live in separate core crates: `meldframe-order`, `meldframe-check`, `meldframe-layout` and `meldframe-core`, with `meldframe-history` and `meldframe-sync` built on them (and two tool crates that hold their property tests). Each has one reason to change and stays under the 2,000-line crate ceiling with its tests counted. `meldframe-core` re-exports the check API, so callers keep one import path.
 
 ## Why
