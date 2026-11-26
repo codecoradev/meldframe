@@ -134,6 +134,11 @@ impl Registrar {
         self.panels.push(e);
     }
 
+    /// Register an agent tool that writes to the file: a Change (the tier of `import_tokens`, `import_html`).
+    pub fn change_tool(&mut self, name: &'static str, description: &'static str) {
+        self.agent_tool(name, description, RiskTier::Change);
+    }
+
     /// Register an agent tool. The tier is required, so no tool lacks one.
     pub fn agent_tool(&mut self, name: &'static str, description: &'static str, tier: RiskTier) {
         self.tools.push(AgentTool {

@@ -80,6 +80,7 @@ fn every_tool_and_code_the_skill_names_exists() {
         "capture",
         "export_frame",
         "import_tokens",
+        "import_html",
     ] {
         assert!(known.iter().any(|k| k == t), "{t} is a tool");
         assert!(

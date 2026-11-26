@@ -9,6 +9,9 @@ mod tools;
 mod variables;
 
 pub use meldframe_mcp_defs::{MAX_BATCH, MAX_KEY, TOOLS, ToolDef, check_key};
+/// The body of a tool error and of a refused call, as the tools of this crate word them, for the tools of other crates
+/// (`make_variant`, `import_html`): one wording, one shape.
+pub use tools::{error as tool_error, failed as tool_failed};
 
 use crate::{Failure, Shared, rest};
 use axum::{
@@ -163,6 +166,21 @@ impl Handler {
         let job = move || reader.record(&w, &tool, &file, code.as_deref());
         let _ = self.shared.blocking(&who, job).await;
     }
+}
+
+/// The listing of a tool that another crate contributes and that writes to a file: not read-only, not destructive,
+/// idempotent (every call carries an idempotency key). `schema` is the JSON Schema of its arguments.
+pub fn change_tool(name: &'static str, description: &'static str, schema: Value) -> Tool {
+    let schema = match schema {
+        Value::Object(m) => m,
+        _ => serde_json::Map::new(),
+    };
+    Tool::new(name, description, schema).annotate(
+        ToolAnnotations::new()
+            .read_only(false)
+            .destructive(false)
+            .idempotent(true),
+    )
 }
 
 fn tool_of(d: &ToolDef) -> Tool {

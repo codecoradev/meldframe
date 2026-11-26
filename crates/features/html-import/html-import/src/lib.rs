@@ -18,4 +18,7 @@ pub mod css;
 pub use html_import_css::tw;
 pub use html_import_tree as html;
 pub mod map;
+mod module;
 pub mod paint;
+
+pub use module::{DESCRIPTION, ImportHtmlModule, TOOL};

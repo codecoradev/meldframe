@@ -45,6 +45,8 @@ mod feature_on {
         expected.extend(["export"].into_iter().filter(|_| cfg!(feature = "export")));
         let import = cfg!(feature = "variables-import");
         expected.extend(["variables-import"].into_iter().filter(|_| import));
+        let html = cfg!(feature = "html-import");
+        expected.extend(["html-import"].into_iter().filter(|_| html));
         expected.extend(
             ["variant"]
                 .into_iter()
@@ -158,5 +160,30 @@ fn the_checkpoint_calls_are_registered_only_when_the_feature_is_on() {
         assert_eq!((state.module, state.tier), ("checkpoints", RiskTier::Read));
     } else {
         assert!(create.is_none() && state.is_none());
+    }
+}
+
+/// The HTML import module is compiled in only with its feature (`html-import`), and its tool is a Change: a build
+/// without the feature has no `import_html` in its registry, so the gate denies it.
+#[test]
+fn the_import_html_tool_is_listed_only_when_the_feature_is_on() {
+    let server = Server::assemble();
+    let tool = server.registry().agent_tool("import_html");
+    if cfg!(feature = "html-import") {
+        let tool = tool.expect("listed");
+        assert_eq!((tool.module, tool.tier), ("html-import", RiskTier::Change));
+    } else {
+        assert!(tool.is_none());
+        let mut server = Server::assemble();
+        let err = server
+            .submit_tool("import_html", "file_dev", &who(), vec![add("k1")])
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            SubmitError::Refused(Refusal::Forbidden {
+                policy: Policy::Deny,
+                ..
+            })
+        ));
     }
 }

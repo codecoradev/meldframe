@@ -22,7 +22,7 @@ const TREE_WINDOW: usize = 2_000;
 /// A tool's answer: the body of a success, or the body of a tool error.
 pub(super) type Body = Result<Value, Value>;
 
-pub(super) fn error(code: &str, message: impl Into<String>, retryable: bool) -> Value {
+pub fn error(code: &str, message: impl Into<String>, retryable: bool) -> Value {
     json!({"ok": false, "error": {"code": code, "message": message.into(), "retryable": retryable}})
 }
 
@@ -31,7 +31,7 @@ pub(super) fn invalid(message: impl Into<String>) -> Value {
 }
 
 /// A refused call, as the one handler words it: the same code, message and extras as REST.
-pub(super) fn failed(reply: &Reply) -> Value {
+pub fn failed(reply: &Reply) -> Value {
     json!({"ok": false, "error": reply.body["error"]})
 }
 
