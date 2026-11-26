@@ -163,6 +163,22 @@ await check('the File menu opens it too, the focus goes into the dialog, and bac
   await page.waitForTimeout(300);
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'File menu', 'the focus is back on the menu button');
 });
+await check('opened from the File menu, with an agent\'s change and a tab change while it is open, Escape still gives the focus back to the menu button', async () => {
+  await page.click('[data-testid=file-menu]');
+  await page.click('[data-testid=export]');
+  await dialog.waitFor();
+  await page.waitForTimeout(400);
+  await post({ type: 'updateNode', id: f, patch: { name: `${frame} again` } });
+  await page.waitForFunction((n) => document.querySelector('[data-testid=export-dialog]')?.getAttribute('aria-labelledby') && document.getElementById(document.querySelector('[data-testid=export-dialog]').getAttribute('aria-labelledby'))?.textContent?.includes(n), `${frame} again`);
+  await dialog.locator('#export-tab-png').click();
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => !!document.activeElement?.closest('[role=dialog]')), true, 'the focus stays in the dialog');
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'detached' });
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'File menu', 'the focus is back on the menu button');
+  await post({ type: 'updateNode', id: f, patch: { name: frame } });
+});
 const inDialog = () => page.evaluate(() => !!document.activeElement?.closest('[role=dialog]'));
 const openFromSection = async () => { await page.locator('[data-testid=export-section-html]').focus(); await page.keyboard.press('Enter'); await dialog.waitFor(); await page.waitForTimeout(400); };
 const focusIs = (label) => page.evaluate((l) => (document.activeElement?.getAttribute('data-testid') ?? document.activeElement?.getAttribute('aria-label')) === l, label);

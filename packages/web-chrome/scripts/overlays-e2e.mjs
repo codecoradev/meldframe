@@ -11,8 +11,9 @@
 //   menu      opens by click (the popup takes the focus), Enter, Space and ArrowDown (the first row is highlighted and focused);
 //             ArrowDown, ArrowUp, Home, End and a letter move between rows, wrap, and skip a disabled row; Enter or a click on a row
 //             calls its handler, closes the menu and gives the focus back to the button; Escape closes and does the same; a click outside
-//             closes; a disabled row does nothing; a row that opens a dialog leaves the focus in the dialog; the popup sits 8 px from
-//             its button, aligned as asked, and carries data-owns-keys
+//             closes; a disabled row does nothing; a row that opens a dialog leaves the focus in the dialog and, when the dialog closes (Escape or
+//             its Close button, from either menu), gives it to the menu's button; a dialog opened by something else keeps the place it was handed (the Outside button); React only: also when the dialog's popup is drawn again while open;
+//             the popup sits 8 px from its button, aligned as asked, and carries data-owns-keys
 // The delay is read in the page, from the pointer entering the control to the tooltip being added: 350 to 600 ms for the 400 asked.
 // It also checks the real shell on /?layout (Svelte): the same tooltip and a menu of the layout, so the fixture is not the only reference.
 import assert from 'node:assert/strict';
@@ -187,13 +188,81 @@ async function menus(ui) {
   assert.equal(await menu(page).count(), 0, `${ui}: a click outside left the menu open`);
   await page.context().close();
 
-  // a row that opens a dialog: the focus stays where the dialog took it
+  // a row that opens a dialog: the focus stays where the dialog took it, and goes back to the menu's button when the dialog closes
+  // (the real dialog of the fixture, on the focus handoff in React and on takeFocusBack in Svelte), whichever way it closes and
+  // from either of the two menus: the icon button and the text button each pass their own element on
   page = await fresh();
-  await openMenu(page);
-  await page.click('[data-testid=fx-dialog]');
-  await closed(page);
-  await page.waitForTimeout(300);
+  const box = page.locator('[data-testid=fx-dialog-box]');
+  const settle = () => page.waitForTimeout(300);
+  const openDialog = async (trigger) => {
+    await openMenu(page, trigger);
+    await page.click('[data-testid=fx-dialog]');
+    await closed(page);
+    await box.waitFor();
+    await settle();
+  };
+  await openDialog('fx-menu');
   assert.equal(await active(page), 'fx-dialog-input', `${ui}: the menu took the focus back from the dialog`);
+  if (ui === 'react') assert.equal(await box.getAttribute('data-return'), 'fx-menu', `${ui}: the dialog was handed the icon button of the menu (the ref reaches it through the trigger, the tooltip and the button)`);
+  await page.keyboard.press('Escape');
+  await box.waitFor({ state: 'detached' });
+  await settle();
+  assert.equal(await active(page), 'fx-menu', `${ui}: the focus after the dialog closed by Escape`);
+  await openDialog('fx-menu');
+  await page.click('[data-testid=fx-dialog-close]');
+  await box.waitFor({ state: 'detached' });
+  await settle();
+  assert.equal(await active(page), 'fx-menu', `${ui}: the focus after the dialog closed by its Close button`);
+  await openDialog('fx-text-menu');
+  if (ui === 'react') assert.equal(await box.getAttribute('data-return'), 'fx-text-menu', `${ui}: the dialog was handed the text button of the menu`);
+  await page.keyboard.press('Escape');
+  await box.waitFor({ state: 'detached' });
+  await settle();
+  assert.equal(await active(page), 'fx-text-menu', `${ui}: the focus after a dialog from the text button`);
+  // a row that opened a dialog does not change the next close of the menu: with no dialog behind it, the focus goes to the button as ever
+  await openMenu(page);
+  await page.keyboard.press('Escape');
+  await closed(page);
+  assert.equal(await active(page), 'fx-menu', `${ui}: a plain close after a dialog`);
+  // a dialog opened by something that is not a menu, handed a place that no default would find (the Outside button, not the one that
+  // opened it): the focus goes there, whichever way the dialog closes
+  const openElsewhere = async () => {
+    await page.click('[data-testid=fx-open-elsewhere]');
+    await box.waitFor();
+    await settle();
+  };
+  await openElsewhere();
+  await page.keyboard.press('Escape');
+  await box.waitFor({ state: 'detached' });
+  await settle();
+  assert.equal(await active(page), 'fx-outside', `${ui}: the focus after Escape goes to the place it was handed`);
+  if (ui === 'react') {
+    // Base UI resolves `finalFocus` in the cleanup of its focus manager's effect, which also runs when the popup is drawn again while
+    // it is open: the dialog stays open, the focus never leaves it (a `finalFocus` that moves the focus itself sends it to the place it was
+    // handed at that moment, and the dialog pulls it back), and the place it was handed is still the one the focus goes to when it closes
+    await openElsewhere();
+    await page.evaluate(() => {
+      window.__focusIn = [];
+      document.addEventListener('focusin', (e) => window.__focusIn.push(e.target.closest?.('[data-testid=fx-dialog-box]') ? 'dialog' : e.target.getAttribute?.('data-testid') ?? e.target.tagName), true);
+    });
+    for (const n of ['1', '2']) {
+      await page.click('[data-testid=fx-dialog-redraw]');
+      await page.waitForFunction((d) => document.querySelector('[data-testid=fx-dialog-box]')?.getAttribute('data-drawn') === d, n);
+      await settle();
+      assert.equal(await box.count(), 1, `${ui}: the dialog drawn again (${n}) is still open`);
+      assert.equal(await page.evaluate(() => !!document.activeElement?.closest('[data-testid=fx-dialog-box]')), true, `${ui}: the focus is in the dialog drawn again (${n})`);
+    }
+    assert.deepEqual([...new Set(await page.evaluate(() => window.__focusIn))], ['dialog'], `${ui}: the focus went somewhere else while the dialog was open`);
+    await page.keyboard.press('Escape');
+    await box.waitFor({ state: 'detached' });
+    await settle();
+    assert.equal(await active(page), 'fx-outside', `${ui}: the focus after a dialog drawn twice while open`);
+    await openElsewhere();
+    await page.click('[data-testid=fx-dialog-close]');
+    await box.waitFor({ state: 'detached' });
+    await settle();
+    assert.equal(await active(page), 'fx-outside', `${ui}: the focus after Close, with the dialog drawn before`);
+  }
   await page.context().close();
 
   // the text trigger (the zoom readout): its text, its name, popup above and aligned to the end

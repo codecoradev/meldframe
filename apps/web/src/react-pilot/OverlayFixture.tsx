@@ -1,11 +1,13 @@
 // Development only, part of the React pilot (docs/react-web-plan.md, section 7): the React side of the overlay fixture at
 // /?overlays=react. It draws the React IconButton and Menu, with the tooltip they bring, and the same test ids as
 // OverlayFixtureSvelte.svelte (/?overlays=svelte), so that packages/web-chrome/scripts/overlays-e2e.mjs asks both the same
-// questions. Not in production: main.ts loads it in development only.
-import { useEffect, useRef, useState } from 'react';
+// questions. The "Dialog…" row opens a real dialog on the focus handoff (FixtureDialog.tsx). Not in production: main.ts loads it in development only.
+import { useRef, useState } from 'react';
+import { rememberFocus } from '@meldframe/web-chrome/focus';
 import { IconButton } from '@meldframe/web-chrome/react/IconButton';
 import { Menu } from '@meldframe/web-chrome/react/Menu';
 import { TooltipProvider } from '@meldframe/web-chrome/react/Tooltip';
+import { FixtureDialog } from './FixtureDialog';
 import { fixtureItems } from './fixture';
 
 export function OverlayFixture() {
@@ -18,12 +20,9 @@ export function OverlayFixture() {
       if (id === 'dialog') setDialog(true);
     }),
   );
-  // The stand-in for a dialog: it takes the focus when it opens, as the Export dialog does.
-  const field = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (dialog) field.current?.focus();
-  }, [dialog]);
 
+  // A way to open the dialog that hands the focus on to a place no default would find: it goes to the "Outside" button, not to this one.
+  const outside = useRef<HTMLButtonElement>(null);
   return (
     <TooltipProvider>
       <main className="flex flex-col items-start gap-4 p-8 font-sans text-body text-text">
@@ -33,11 +32,16 @@ export function OverlayFixture() {
           <Menu label="Fixture menu" icon="menu" items={items} testId="fx-menu" />
           <Menu label="Zoom 100%" text="100%" items={items} testId="fx-text-menu" side="top" align="end" />
         </div>
-        <button type="button" data-testid="fx-outside" className="h-(--mf-size-control-lg) rounded-md bg-control px-4 text-small">
-          Outside
-        </button>
         <output data-testid="fx-log">{log.join(',')}</output>
-        {dialog ? <input ref={field} data-testid="fx-dialog-input" aria-label="Dialog stand-in" className="h-(--mf-size-control-lg) rounded-md border border-divider bg-field px-3 text-small" /> : null}
+        <div className="mt-16 flex gap-2">
+          <button type="button" data-testid="fx-open-elsewhere" onClick={() => { rememberFocus(outside.current); setDialog(true); }} className="h-(--mf-size-control-lg) rounded-md bg-control px-4 text-small">
+            Open the dialog, focus to Outside
+          </button>
+          <button ref={outside} type="button" data-testid="fx-outside" className="h-(--mf-size-control-lg) rounded-md bg-control px-4 text-small">
+            Outside
+          </button>
+        </div>
+        <FixtureDialog open={dialog} onClose={() => setDialog(false)} />
       </main>
     </TooltipProvider>
   );
