@@ -1,5 +1,5 @@
 // What a host and the canvas say to each other (E7.3, S11): the props the canvas draws from, the events it reports, and the
-// browser as the driver uses it. Types only; driver.ts holds the rules, Canvas.svelte and Canvas.tsx hand these over.
+// browser as the driver uses it, and the two time limits of the asset requests. driver.ts holds the rules, Canvas.svelte and Canvas.tsx hand these over.
 import type { Application } from 'pixi.js';
 import type { Camera } from '@meldframe/web-canvas/camera';
 import type { Rect, Size } from '@meldframe/web-canvas/geometry';
@@ -8,6 +8,10 @@ import type { Scene } from '@meldframe/web-canvas/scene';
 import type { AssetDeps } from '@meldframe/web-assets/assets';
 import type { Theme } from '@meldframe/web-tokens/tokens';
 import type { Touch } from './overlayview';
+
+/** The longest one asset request may take, and how often the failed ones are looked at (platform.ts and driver.ts read them). */
+export const ASSET_TIMEOUT_MS = 15_000;
+export const ASSET_RETRY_EVERY_MS = 5_000;
 
 /** What the canvas draws from. The host gives all of it each time; unchanged values are told by identity (the camera by value). */
 export interface CanvasProps {

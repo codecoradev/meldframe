@@ -7,8 +7,8 @@ import { HOME, sameCamera, type Camera } from '@meldframe/web-canvas/camera';
 import type { Scene } from '@meldframe/web-canvas/scene';
 import { pixiColors } from '@meldframe/web-tokens/tokens';
 import { WorldView } from './stage';
-import type { CanvasEvents, CanvasProps, HostWatchers, Platform } from './api';
-import { ASSET_RETRY_EVERY_MS, CanvasDriver } from './driver';
+import { ASSET_RETRY_EVERY_MS, type CanvasEvents, type CanvasProps, type HostWatchers, type Platform } from './api';
+import { CanvasDriver } from './driver';
 
 const rect = (id: string, x: number, y = 0) => ({ id, parent: null, kind: 'rect' as const, x, y, w: 100, h: 100, fill: 0x808080 });
 const scene = (...nodes: ReturnType<typeof rect>[]): Scene => ({ space: 'parent', nodes });

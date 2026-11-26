@@ -19,19 +19,17 @@ import { selectionBox } from '@meldframe/web-canvas/overlay';
 import { EMPTY_SCENE, captureBounds, captureRectOf, contentBounds, hitTest, rectsOf, resolveScene, type Scene } from '@meldframe/web-canvas/scene';
 import { AssetCache } from '@meldframe/web-assets/assets';
 import { duration, pixiColors } from '@meldframe/web-tokens/tokens';
-import type { CanvasEvents, CanvasProps, CanvasStatus, FrameTiming, Platform } from './api';
+import { ASSET_RETRY_EVERY_MS, ASSET_TIMEOUT_MS, type CanvasEvents, type CanvasProps, type CanvasStatus, type FrameTiming, type Platform } from './api';
 import { OverlayView } from './overlayview';
 import { WorldView } from './stage';
 
 export type { CanvasEvents, CanvasProps, CanvasStatus, FrameTiming, HostWatchers, Platform } from './api';
 
-/** The longest one asset request may take, and how often the failed ones are looked at. */
-export const ASSET_TIMEOUT_MS = 15_000;
-export const ASSET_RETRY_EVERY_MS = 5_000;
-
 /** What a host may call on a mounted canvas. */
 export type CanvasHandle = Pick<CanvasDriver, 'fitAll' | 'fitSelection' | 'centre' | 'focus' | 'captureBox' | 'capture' | 'stats'>;
 
+// The scene the props hold before the host gives one. It is a `Scene` (the host's form), not the `EMPTY_SCENE` of the module `scene`, which is a
+// `ResolvedScene`; its identity matters, since a scene is told changed by identity and the first real one must differ from it.
 const NO_SCENE: Scene = { space: 'parent', nodes: [] };
 
 export class CanvasDriver {
