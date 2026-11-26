@@ -44,6 +44,7 @@ impl App {
         id: String,
     ) -> Result<(), SubmitError> {
         self.apply_group(&[command])?;
+        self.manage_added(entity, &id);
         self.events.push(Event::EntityAdded { entity, id });
         Ok(())
     }

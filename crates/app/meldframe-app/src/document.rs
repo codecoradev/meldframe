@@ -4,7 +4,7 @@ use crate::action::Action;
 use crate::app::App;
 use crate::effect::Effect;
 use crate::state::Tool;
-use meldframe_app_model::TypedText;
+use meldframe_app_model::{ManageOp, TypedText};
 use meldframe_app_parts::document::{
     Variant, apply_all, check_all, code, edit_text, make_variant, move_by, move_to, new_node,
     preset_node,
@@ -114,6 +114,11 @@ impl App {
                     mode,
                     text,
                 } => self.set_variable_value_text(variable, mode, text),
+            },
+            Action::Manage { op } => match op {
+                ManageOp::ConfirmRemove {} => self.confirm_remove(),
+                ManageOp::SubmitRename {} => self.submit_rename(),
+                _ => Ok(()),
             },
             Action::SetImageFill { id, asset_id, fit } => self.set_image_fill(&id, asset_id, fit),
             Action::Delete { ids } => self.delete(&ids),

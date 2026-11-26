@@ -142,6 +142,7 @@ impl App {
             return Vec::new();
         }
         self.level = level::of(&action, ui);
+        let manage = self.state.manage.clone();
         let mut fx = Vec::new();
         match action {
             Action::Select { ids } => self.select(ids),
@@ -157,6 +158,7 @@ impl App {
             Action::Attribute { actors } => self.attribute(actors),
             Action::SetMode { collection, mode } => self.set_mode(collection, mode, &mut fx),
             Action::SetVariablesQuery { query } => self.set_variables_query(query),
+            Action::Manage { op } if op.is_view() => self.manage_view(op),
             Action::OpenPicker { id, field } => self.open_picker(id, field),
             Action::ClosePicker {} => self.close_picker(),
             Action::SetPickerQuery { query } => self.set_picker_query(query),
@@ -196,12 +198,16 @@ impl App {
                 self.refresh_layers();
                 self.refresh_properties();
                 self.refresh_variables();
+                self.refresh_manage();
                 self.refresh_picker();
                 self.refresh_assets();
                 self.refresh_export();
                 self.refresh_variables_export();
             }
             Level::Full => self.refresh(&mut fx),
+        }
+        if self.state.manage != manage {
+            self.events.push(Event::ManageChanged {});
         }
         fx
     }
@@ -280,6 +286,7 @@ impl App {
         self.refresh_layers();
         self.refresh_properties();
         self.refresh_variables();
+        self.refresh_manage();
         self.activity_changed();
         self.refresh_picker();
         self.refresh_assets();

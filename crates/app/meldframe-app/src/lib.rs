@@ -24,6 +24,7 @@ mod interact;
 mod layers;
 mod link;
 mod manage;
+mod manage_ui;
 mod panel;
 mod picker;
 mod props;
@@ -44,10 +45,11 @@ pub use meldframe_app_model::{
     AssetsState, Axis, BindField, BindOption, Checkpoint, CheckpointKind, CheckpointRequest,
     CheckpointRow, CheckpointsStatus, CollectionRow, Connection, CreateKind, Direction, Effect,
     Event, ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget, FieldBinding,
-    FillKind, Frame, FramePreset, History, LayoutNote, ModeValue, OutOp, Panel, Panels, Picker,
-    PickerRow, Properties, Property, RevertSkip, RevertSkipReason, Sections, ShadowPart, Side,
-    Sides, TextField, Tool, TypeHeading, TypedText, VariableEntity, VariableRow, VariableValue,
-    VariablesPanel,
+    FillKind, Frame, FramePreset, History, LayoutNote, MODE_NAME_MAX, ManageDrafts, ManageLimits,
+    ManageOp, ManageState, ManageTarget, ModeValue, NameCheck, NameDraft, NameError, NameWarning,
+    OutOp, Panel, Panels, Picker, PickerRow, Properties, Property, Removal, RenameField,
+    RevertSkip, RevertSkipReason, Sections, ShadowPart, Side, Sides, TextField, Tool, TypeHeading,
+    TypedText, VariableEntity, VariableRow, VariableValue, VariablesPanel,
 };
 pub use meldframe_app_model::{
     ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,
@@ -57,4 +59,5 @@ pub use meldframe_app_rules::drop::Slot as DropSlot;
 pub use meldframe_app_rules::multi::Preview as DropPreview;
 pub use meldframe_layout::{StubMeasurer, TextMeasurer};
 pub use meldframe_protocol::ImageFit;
+pub use meldframe_protocol::VarType;
 pub use meldframe_sync::LoadError;
