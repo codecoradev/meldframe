@@ -7,7 +7,8 @@
 //! (`unreviewedCount`) is a counter of the same row, not counted from the headers. The per-actor cap is the one indexed count, over at most
 //! 2,000 rows, and only for a new header.
 
-use super::{PgStore, from_db_seq, room_key};
+use super::{PgStore, room_key};
+use crate::db::{db_i32, db_i64, from_db_seq};
 use activity_store::{
     ActivityError, BatchStore, NoteOutcome, Page, Query, Recorded, Reviewed, cap_reached,
     check_actor, check_batch, check_query, merge, new_header,
@@ -56,14 +57,6 @@ fn header(r: &PgRow) -> Header {
         reviewed_by: r.get("reviewed_by"),
         reviewed_at_ms: r.get::<Option<i64>, _>("reviewed_at_ms").map(from_db_seq),
     }
-}
-
-fn db_i32(n: u32) -> i32 {
-    i32::try_from(n).unwrap_or(i32::MAX)
-}
-
-fn db_i64(n: u64) -> i64 {
-    i64::try_from(n).unwrap_or(i64::MAX)
 }
 
 /// The lock of a workspace's batch headers, held until the transaction ends.

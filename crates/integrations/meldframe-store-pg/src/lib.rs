@@ -12,6 +12,7 @@ mod backing;
 mod batches;
 mod calls;
 mod checkpoints;
+mod db;
 mod review;
 mod state;
 
@@ -19,6 +20,7 @@ pub use backing::{AnyStore, Backing};
 pub use calls::{CALL_QUEUE, PgCallLog};
 pub use state::{snapshot_from_state, state_json};
 
+use db::{db_i64, from_db_seq};
 use meldframe_host::{Appended, NewOp, Snapshot, Store, StoreError, StoredOp};
 use meldframe_protocol::{Command, SCHEMA_VERSION};
 use meldframe_text::canonical_u32;
@@ -104,15 +106,6 @@ fn plain_name(schema: &str) -> Result<(), StoreError> {
         return Err(unavailable(format!("bad schema name {schema:?}")));
     }
     Ok(())
-}
-
-/// A sequence number as Postgres holds it (`bigint`); anything above `i64::MAX` cannot be in the log.
-fn db_seq(seq: u64) -> i64 {
-    i64::try_from(seq).unwrap_or(i64::MAX)
-}
-
-fn from_db_seq(seq: i64) -> u64 {
-    u64::try_from(seq).unwrap_or(0)
 }
 
 impl PgStore {
@@ -330,7 +323,7 @@ impl PgStore {
                 log: 0,
             });
         };
-        if db_seq(snapshot.seq) > head {
+        if db_i64(snapshot.seq) > head {
             return Err(StoreError::SnapshotAhead {
                 seq: snapshot.seq,
                 log: from_db_seq(head),
@@ -342,7 +335,7 @@ impl PgStore {
                 .fetch_one(&mut *tx)
                 .await
                 .map_err(db_err)?;
-        if let Some(latest) = latest.filter(|l| *l >= db_seq(snapshot.seq)) {
+        if let Some(latest) = latest.filter(|l| *l >= db_i64(snapshot.seq)) {
             return Err(StoreError::SnapshotStale {
                 seq: snapshot.seq,
                 latest: from_db_seq(latest),
@@ -352,7 +345,7 @@ impl PgStore {
             "insert into snapshots (file_id, seq, state, schema_version) values ($1, $2, $3, $4)",
         )
         .bind(room)
-        .bind(db_seq(snapshot.seq))
+        .bind(db_i64(snapshot.seq))
         .bind(Json(state_json(&snapshot)))
         .bind(SCHEMA_VERSION as i32)
         .execute(&mut *tx)
@@ -403,7 +396,7 @@ impl Store for PgStore {
                     "select seq, actor, idempotency_key, command from ops where file_id = $1 and seq > $2 order by seq limit $3",
                 )
                 .bind(room)
-                .bind(db_seq(seq))
+                .bind(db_i64(seq))
                 .bind(i64::try_from(limit).unwrap_or(i64::MAX))
                 .fetch_all(&self.pool),
             )
