@@ -20,6 +20,9 @@
 {#if react}
   {#await react then r}
     <div class="border-t border-hairline empty:hidden" use:r.island={{ component: r.component, props: { ...props } }}></div>
+  {:catch}
+    <!-- the React chunk did not load: the Svelte section is in the entry, so Export as PNG is still offered -->
+    <ExportSection {...props} />
   {/await}
 {:else}
   <ExportSection {...props} />
