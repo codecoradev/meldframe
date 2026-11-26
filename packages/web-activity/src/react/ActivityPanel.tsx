@@ -1,6 +1,4 @@
-// React copy of ActivityPanel.svelte (first part: the panel, its lanes and the status line; the rows of a batch and the Checkpoints
-// section follow in the second part, and until then this copy is not reachable from the editor). The Activity panel (E5.1,
-// ADR-0021): one lane per actor, then the checkpoints. It draws `state.activity` of the app layer and sends actions: the lanes,
+// React copy of ActivityPanel.svelte. The Activity panel (E5.1, ADR-0021): one lane per actor with its batches, then the checkpoints. It draws `state.activity` of the app layer and sends actions: the lanes,
 // their order, the counts and which row may be reverted are the app layer's, and so is the question being asked
 // (`AppState.confirm`). What it keeps itself is view state only (which lanes the person folded or opened, the line it says and
 // when it goes), and what a control sends is `actions.ts`, shared with the Svelte copy, as are the two rules in `controller.ts`.
@@ -12,9 +10,12 @@ import { Section } from '@meldframe/web-chrome/react/Section';
 import { ring } from '@meldframe/web-chrome/focus';
 import { duration } from '@meldframe/web-tokens/tokens';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { older } from '../actions';
+import { askRestore, askRevert, cancel, confirmRestore, confirmRevert, createCheckpoint, older, setReview, show } from '../actions';
 import { type About, aboutAfter, eventsSay, laneOpen, start, toggleLane, type Ui } from '../controller';
-import { clockText, laneSummary, laneViews, type Message } from '../view';
+import { clockText, laneSummary, laneViews, rowKey, type Message } from '../view';
+import { BatchItem } from './BatchItem';
+import { CheckpointCreate } from './CheckpointCreate';
+import { CheckpointList } from './CheckpointList';
 import { MessageLine } from './MessageLine';
 
 export interface ActivityPanelProps {
@@ -41,7 +42,7 @@ const TONE: Record<ActorTone, string> = { person: 'bg-person', agent1: 'bg-agent
 const changes = (n: number) => `${n} ${n === 1 ? 'change' : 'changes'}`;
 const none: readonly Event[] = [];
 
-export function ActivityPanel({ activity, self, dispatch, events = none }: ActivityPanelProps) {
+export function ActivityPanel({ activity, checkpoints, canCreate, status, self, confirm = null, dispatch, events = none }: ActivityPanelProps) {
   const lanes = laneViews(activity, self);
   const [ui, setUi] = useState<Ui>(start);
   // What the person asked for last decides the words of a refusal: `forbidden` means one thing for a review and another for a checkpoint.
@@ -50,6 +51,9 @@ export function ActivityPanel({ activity, self, dispatch, events = none }: Activ
     about.current = aboutAfter(about.current, a);
     dispatch(a);
   };
+
+  // How many checkpoints this person asked for were made (the app layer says so by `Event.checkpointMade`): the name field empties.
+  const [made, setMade] = useState(0);
 
   const [message, setMessage] = useState<Message | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -64,10 +68,12 @@ export function ActivityPanel({ activity, self, dispatch, events = none }: Activ
     if (events === seen.current) return;
     seen.current = events;
     const says = eventsSay(events, about.current);
+    if (says.made) setMade((m) => m + 1);
     if (says.message) say(says.message);
   }, [events, say]);
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  const asking = (r: { actor: string; keyPrefix: string }) => confirm?.kind === 'revert' && confirm.actor === r.actor && confirm.keyPrefix === r.keyPrefix;
   const count = activity.unreviewedCount;
   return (
     <div className="flex flex-col" data-testid="activity">
@@ -111,13 +117,30 @@ export function ActivityPanel({ activity, self, dispatch, events = none }: Activ
               </button>
               {open ? (
                 <div id={`lane-body-${i}`} className="flex flex-col gap-2">
-                  {l.rows.length === 0 ? (
+                  {l.rows.length ? (
+                    <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                      {l.rows.map((r) => (
+                        <BatchItem
+                          key={rowKey(r.actor, r.keyPrefix)}
+                          row={r}
+                          selected={activity.selected?.actor === r.actor && activity.selected.keyPrefix === r.keyPrefix}
+                          confirming={asking(r)}
+                          canReview={activity.canReview}
+                          onReview={(state) => send(setReview(r, state))}
+                          onShow={() => send(show(r))}
+                          onAskRevert={() => send(askRevert(r))}
+                          onRevert={() => send(confirmRevert(r))}
+                          onCancel={() => send(cancel())}
+                        />
+                      ))}
+                    </ul>
+                  ) : (
                     <ul className="m-0 flex list-none flex-col gap-1 p-0 pl-6 text-small text-text-secondary" data-testid="lane-runs">
                       {l.runs.map((stretch) => (
                         <li key={stretch.startMs}>{`${clockText(stretch.startMs)} to ${clockText(stretch.endMs)}: ${changes(stretch.ops)}`}</li>
                       ))}
                     </ul>
-                  ) : null}
+                  )}
                 </div>
               ) : null}
             </div>
@@ -128,6 +151,16 @@ export function ActivityPanel({ activity, self, dispatch, events = none }: Activ
             Show older batches
           </Button>
         ) : null}
+      </Section>
+      <Section title="Checkpoints">
+        <CheckpointCreate canCreate={canCreate} status={status} made={made} onCreate={(label) => send(createCheckpoint(label))} />
+        <CheckpointList
+          checkpoints={checkpoints}
+          asking={confirm?.kind === 'restore' ? confirm.id : null}
+          onAsk={(id) => send(askRestore(id))}
+          onRestore={(id) => send(confirmRestore(id))}
+          onCancel={() => send(cancel())}
+        />
       </Section>
     </div>
   );
