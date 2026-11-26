@@ -6,7 +6,7 @@
   Share and the account are not part of it.
 -->
 <script lang="ts">
-  import { tick, type Snippet } from 'svelte';
+  import { tick, type Component, type ComponentProps, type Snippet } from 'svelte';
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import Menu from '@meldframe/web-chrome/Menu.svelte';
   import ShortcutHint from './ShortcutHint.svelte';
@@ -58,12 +58,15 @@
     onTab: (t: RightTab) => void;
     /** The count of batches to review, from the app layer: shown on the Activity tab when above zero. */
     activityBadge?: number;
+    /** The palette and the shortcut sheet as the page draws them: the Svelte ones unless the page gives others (the React pilot, `/?react=palette`). */
+    paletteView?: Component<ComponentProps<typeof Palette>>;
+    hintView?: Component<ComponentProps<typeof ShortcutHint>>;
     canvasLayer: Snippet;
     layersPanel: Snippet;
     designPanel: Snippet;
     activityPanel: Snippet;
   }
-  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, onZoom, connection, helpOpen, onHelp, paletteOpen, onPalette, canDelete, onDelete, autoLayout = false, onAutoLayout, tab, onTab, activityBadge = 0, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
+  let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, onZoom, connection, helpOpen, onHelp, paletteOpen, onPalette, canDelete, onDelete, autoLayout = false, onAutoLayout, tab, onTab, activityBadge = 0, paletteView: PaletteView = Palette, hintView: HintView = ShortcutHint, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
 
   const tools: { tool: Tool; label: string; key: string; icon: 'select' | 'frame' | 'rectangle' | 'ellipse' | 'text' }[] = [
     { tool: 'select', label: 'Select', key: 'V', icon: 'select' },
@@ -152,10 +155,10 @@
     <IconButton label="Shortcuts" icon="help" size={32} shortcut="?" pressed={helpOpen} onclick={() => onHelp(!helpOpen)} />
   </div>
   {#if helpOpen}
-    <div class="pointer-events-none absolute top-4 bottom-20 flex items-end" style:left={layersOpen ? `calc(${PANEL_INSET}px + var(--mf-size-layers) + var(--mf-space-4))` : 'var(--mf-space-4)'}><ShortcutHint onClose={() => onHelp(false)} {autoLayout} /></div>
+    <div class="pointer-events-none absolute top-4 bottom-20 flex items-end" style:left={layersOpen ? `calc(${PANEL_INSET}px + var(--mf-size-layers) + var(--mf-space-4))` : 'var(--mf-space-4)'}><HintView onClose={() => onHelp(false)} {autoLayout} /></div>
   {/if}
 
-  <Palette open={paletteOpen} onOpenChange={onPalette} {entries} />
+  <PaletteView open={paletteOpen} onOpenChange={onPalette} {entries} />
 
   <div class="absolute bottom-5 flex flex-col items-end gap-1 text-caption text-text-muted" style:right={inspectorOpen ? `calc(${PANEL_INSET}px + ${width}px + var(--mf-space-4))` : 'var(--mf-space-5)'}>
     <output class="flex items-center gap-2" data-testid="connection" data-state={connection.state}><span class="size-2 rounded-pill {connection.state === 'live' ? 'bg-success' : 'bg-warning'}"></span>{connection.text}</output>

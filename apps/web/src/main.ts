@@ -11,6 +11,8 @@ import { createLayoutSwitch, layoutChoice } from '@meldframe/web-link/layoutswit
 import { loadFile, reloadOnDivergence } from '@meldframe/web-document/file';
 import { applyTheme, loadTheme } from '@meldframe/web-tokens/theme';
 import { mountPilot, pilotPage } from './react-pilot/pilot';
+import { mountReactErrorPage, reactFeedback } from './react-pilot/feedback';
+import { shellParts } from './react-pilot/shell';
 
 applyTheme(loadTheme());
 const root = document.getElementById('app')!;
@@ -26,7 +28,7 @@ async function start() {
   if (pilot) return mountPilot(pilot, root);
   if (page.has('tokens')) return mount(App, { target: root });
   if (page.has('states')) return mount((await import('@meldframe/web-chrome/StateMatrix.svelte')).default, { target: root });
-  if (page.has('layout')) return mount((await import('@meldframe/web-shell/LayoutDemo.svelte')).default, { target: root }); // /?states and /?layout load on demand: the editor's bundle does not carry them
+  if (page.has('layout')) return mount((await import('@meldframe/web-shell/LayoutDemo.svelte')).default, { target: root, props: shellParts }); // /?states and /?layout load on demand: the editor's bundle does not carry them
   await loadWasm();
   const { seq, nodes, variables, attribution } = await loadFile(fetch, file);
   // A fresh nonce per page load: the app never reuses an idempotency key (see `App::new`).
@@ -66,5 +68,15 @@ start().catch((e: unknown) => {
   shell?.stop(); // a page that failed half way keeps no socket, timer or canvas
   if (editor) void unmount(editor);
   root.replaceChildren();
-  mount(ErrorPage, { target: root, props: { page: pageFor(e, { dev: import.meta.env.DEV }), onAction: () => location.reload() } });
+  const page = pageFor(e, { dev: import.meta.env.DEV });
+  const again = () => location.reload();
+  const svelte = () => mount(ErrorPage, { target: root, props: { page, onAction: again } });
+  // /?react=feedback (E7.3, S3): the React copy loads on demand, and a chunk that does not load (the server or the network is
+  // the very thing that is down) must not leave a blank page: the Svelte copy is in the entry and draws instead.
+  if (reactFeedback(location.search)) {
+    mountReactErrorPage(root, page, again).catch(() => {
+      root.replaceChildren();
+      svelte();
+    });
+  } else svelte();
 });
