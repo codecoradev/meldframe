@@ -4,7 +4,7 @@
 // tab, the file shown, what the last Copy said), which starts again for every dialog. Its PNG is of the dialog's own
 // frame. PDF is not offered (the epics defer it). A text with a value in it is one string (`{`Export ${name}`}`), as the
 // Svelte copy draws it: React makes two text nodes of `Export {name}`, the browser shapes them as two runs, and the clip
-// of the truncated title then ended a fraction of a pixel elsewhere (its last letter differed in 24 pixels).
+// of the truncated title then ended a fraction of a pixel elsewhere (its last letter differed in some pixels).
 import { Dialog } from '@base-ui/react/dialog';
 import type { Action, ExportDialog as Model } from '@meldframe/protocol';
 import { takeFocusBack } from '@meldframe/web-chrome/focus';
