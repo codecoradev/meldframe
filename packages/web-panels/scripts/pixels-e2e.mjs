@@ -260,7 +260,7 @@ async function pass(word, panel, react) {
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  // A busy server (a loaded machine, a budget of calls used up) answers 503 for a thumbnail, and the picker then images it as No preview on one
+  // A busy server (a loaded machine, a budget of calls used up) answers a 5xx (503 is what was seen) for a thumbnail, and the picker then images it as No preview on one
   // copy and not on the other, which is not a difference of the copies: the pass is made again (see `images` below) rather than compared.
   const refused = [];
   page.on('response', (r) => { if (r.status() >= 500 && /^\/v1\/assets\/[0-9a-f]{64}$/.test(new URL(r.url()).pathname)) refused.push(`${r.status()} ${new URL(r.url()).pathname.slice(-8)}`); });
