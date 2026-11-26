@@ -1,14 +1,6 @@
 // Shadows on the canvas: the shape a drop shadow covers, worked out as the browser draws a CSS `box-shadow` (the export
 // writes one for each shadow), so the canvas and the export agree. Pure.
 
-/** A rectangle in world units: what a shadow is measured on and what its reach is given as. The `Rect` of the canvas satisfies it as it stands. */
-export interface PaintBox {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 /** One drop shadow, paint only: it takes no room and lies behind the node. */
 export interface SceneShadow {
   /** Offset in world units. */
@@ -68,21 +60,15 @@ export function shadowShape(w: number, h: number, radius: number, s: SceneShadow
 }
 
 /**
- * The most blur, in pixels, that the canvas draws and that a capture makes room for. Pixi clips a filter to the render
- * target, whose side is at most the GPU's texture size (4096 is the least WebGL2 guarantees, and screens are less), so a
- * blur wider than 1024 px is wider than any picture the canvas draws; it is also the point at which the strength and the
- * padding of the filter (`blurFilterSettings`) and the reach of a capture box stop growing. One number for all three, so a
- * huge blur (the model allows 100000) costs a bounded filter and a bounded image. Above it the canvas blur is narrower
- * than the export's, which is not capped: a shadow with such a blur is faint over the whole of any picture anyway.
+ * The most blur, in pixels, that the canvas draws. Pixi clips a filter to the render target, whose side is at most the
+ * GPU's texture size (4096 is the least WebGL2 guarantees, and screens are less), so a blur wider than 1024 px is wider
+ * than any picture the canvas draws; it is also the point at which the strength and the padding of the filter
+ * (`blurFilterSettings`) stop growing, so a huge blur (the model allows 100000) costs a bounded filter. Above it the canvas
+ * blur is narrower than the export's, which is not capped: a shadow with such a blur is faint over the whole of any picture
+ * anyway. The reach of a capture box is capped at the same number, in Rust (`MAX_REACH` of `meldframe-render`, which owns
+ * the reach since T16): `packages/web-link/src/scene.test.ts` fails if the two differ.
  */
 export const MAX_BLUR = 1024;
-
-/**
- * How far the blur of a shadow reaches past its shape: its radius, where the fall-off has gone to 2% of the shadow's
- * strength (a Gaussian of sigma `blur / 2`, the one CSS specifies and the canvas filter is set to match), at most
- * `MAX_BLUR`, and 0 for a blur below 0 or one that is not a number.
- */
-export const blurReach = (s: SceneShadow): number => (Number.isFinite(s.blur) ? Math.min(Math.max(0, s.blur), MAX_BLUR) : 0);
 
 /**
  * The strength and the padding of the blur filter of a shadow of world radius `blur` when the world is scaled by `zoom`:
@@ -92,29 +78,4 @@ export const blurReach = (s: SceneShadow): number => (Number.isFinite(s.blur) ? 
 export function blurFilterSettings(blur: number, zoom: number): { strength: number; padding: number } {
   const px = Math.min(Math.max(0, blur * zoom), MAX_BLUR);
   return { strength: px / 2, padding: Math.ceil(1.5 * px) + 2 };
-}
-
-/**
- * The rectangle every shadow of `box` covers, blur included, or null when none shows (a shadow with an alpha of 0 paints nothing).
- * Offset, spread and blur each count for at most `MAX_BLUR` here.
- */
-export function shadowBounds(box: PaintBox, shadows: readonly SceneShadow[] | undefined): PaintBox | null {
-  let x0 = Infinity;
-  let y0 = Infinity;
-  let x1 = -Infinity;
-  let y1 = -Infinity;
-  for (const s of shadows ?? []) {
-    if (!(s.alpha > 0)) continue;
-    // The offset and the spread count for at most MAX_BLUR in the reach, as the blur does (the drawing is not capped): a far shadow
-    // does not make a huge capture.
-    const cap = (v: number) => Math.min(Math.max(v, -MAX_BLUR), MAX_BLUR);
-    const shape = shadowShape(box.w, box.h, 0, { ...s, x: cap(s.x), y: cap(s.y), spread: cap(s.spread) });
-    if (!shape) continue;
-    const g = blurReach(s);
-    x0 = Math.min(x0, box.x + shape.x - g);
-    y0 = Math.min(y0, box.y + shape.y - g);
-    x1 = Math.max(x1, box.x + shape.x + shape.w + g);
-    y1 = Math.max(y1, box.y + shape.y + shape.h + g);
-  }
-  return x0 > x1 ? null : { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }

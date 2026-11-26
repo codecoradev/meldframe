@@ -3,7 +3,7 @@
 // colour and no radius is worked out here. The fixtures of the Rust crate (`tests/fixtures/scene.json`) fix the JSON.
 import type { SceneBorder } from '@meldframe/web-paint/border';
 import type { SceneShadow } from '@meldframe/web-paint/shadow';
-import type { NodeKind, Scene, SceneImage, SceneNode, SceneTextAlign } from '@meldframe/web-canvas/scene';
+import type { NodeKind, Scene, SceneImage, SceneNode, ScenePaintBounds, SceneTextAlign } from '@meldframe/web-canvas/scene';
 
 /** One box as `meldframe_render::PaintedBox` serialises it, back to front. */
 export interface PaintedBox {
@@ -33,16 +33,19 @@ export interface PaintedBox {
   border?: SceneBorder;
   /** Absent for none (and always on a text), in the model's order. */
   shadows?: SceneShadow[];
+  /** How far the box paints beyond its rectangle, per side; absent when it does not (`PaintedBox.paint_bounds`). */
+  paintBounds?: ScenePaintBounds;
 }
 
 function toSceneNode(b: PaintedBox): SceneNode {
-  const { gradient: g, image: i, border, shadows } = b;
+  const { gradient: g, image: i, border, shadows, paintBounds: pb } = b;
   return {
     id: b.id, parent: b.parent, kind: b.paint, x: b.x, y: b.y, w: b.w, h: b.h, fill: b.fill, fillAlpha: b.fillAlpha, radius: b.radius,
     text: b.text, fontSize: b.fontSize, fontWeight: b.fontWeight, textAlign: b.textAlign, name: b.name, clip: b.clip, opacity: b.opacity,
     ...(g ? { gradient: { kind: g.kind, angle: g.angle, stops: g.stops.map(([pos, color]) => ({ pos, color })) } } : {}),
     ...(i ? { image: { assetId: i.assetId, fit: i.fit } } : {}),
     ...(border ? { border: { width: border.width, color: border.color, alpha: border.alpha, position: border.position } } : {}),
+    ...(pb ? { paintBounds: { left: pb.left, top: pb.top, right: pb.right, bottom: pb.bottom } } : {}),
     ...(shadows?.length ? { shadows: shadows.map((s) => ({ x: s.x, y: s.y, blur: s.blur, spread: s.spread, color: s.color, alpha: s.alpha })) } : {}),
   };
 }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_BLUR } from '@meldframe/web-paint/shadow';
-import { captureBounds, captureRectOf, contentBounds, hitTest, rectsOf, resolveScene, type Scene, type SceneNode } from './scene';
+import { captureBounds, captureRectOf, contentBounds, hitTest, rectsOf, resolveScene, type Scene, type SceneNode, type ScenePaintBounds } from './scene';
 
 const node = (o: Partial<SceneNode> & Pick<SceneNode, 'id'>): SceneNode => ({
   parent: null, kind: 'rect', x: 0, y: 0, w: 10, h: 10, fill: 1, ...o,
@@ -215,17 +214,20 @@ describe('bounds', () => {
   });
 });
 
+// The reach of a node's paint comes with the scene (`paintBounds`, worked out by `meldframe-render`: its tests and the shared fixtures
+// hold the numbers); these tests give it as data and check what the capture box does with it.
+const reach = (left: number, top = left, right = left, bottom = top): ScenePaintBounds => ({ left, top, right, bottom });
+
 describe('capture box', () => {
-  const border = (position: 'inside' | 'center' | 'outside', width = 6) => ({ width, color: 1, alpha: 1, position });
   const rs = resolveScene(parentScene(
-    node({ id: 'in', x: 100, y: 100, w: 50, h: 40, border: border('inside') }),
-    node({ id: 'mid', x: 200, y: 100, w: 50, h: 40, border: border('center') }),
-    node({ id: 'out', x: 300, y: 100, w: 50, h: 40, border: border('outside') }),
+    node({ id: 'in', x: 100, y: 100, w: 50, h: 40 }),
+    node({ id: 'mid', x: 200, y: 100, w: 50, h: 40, paintBounds: reach(3) }),
+    node({ id: 'out', x: 300, y: 100, w: 50, h: 40, paintBounds: reach(6) }),
     node({ id: 'plain', x: 400, y: 100, w: 50, h: 40 }),
-    node({ id: 'kid', parent: 'out', x: 5, y: 5, w: 10, h: 10, border: border('outside') }),
+    node({ id: 'kid', parent: 'out', x: 5, y: 5, w: 10, h: 10, paintBounds: reach(6) }),
   )).scene;
 
-  it('a node is captured with the band of its border that lies outside it, and the rectangle used to select it is not grown', () => {
+  it('a node is captured with the room its paint takes beyond it, and the rectangle used to select it is not grown', () => {
     expect(captureRectOf(rs, 'in')).toEqual({ x: 100, y: 100, w: 50, h: 40 });
     expect(captureRectOf(rs, 'mid')).toEqual({ x: 197, y: 97, w: 56, h: 46 });
     expect(captureRectOf(rs, 'out')).toEqual({ x: 294, y: 94, w: 62, h: 52 });
@@ -234,7 +236,15 @@ describe('capture box', () => {
     expect(rectsOf(rs, ['out'])[0]).toEqual({ x: 300, y: 100, w: 50, h: 40 });
   });
 
-  it('the whole page is captured with the band of the borders of the nodes on the canvas', () => {
+  it('the room is per side, from the node as the canvas places it', () => {
+    const one = resolveScene(parentScene(
+      node({ id: 'p', kind: 'frame', x: 50, y: 20, w: 100, h: 100 }),
+      node({ id: 'a', parent: 'p', x: 10, y: 5, w: 20, h: 20, paintBounds: reach(1, 2, 3, 4) }),
+    )).scene;
+    expect(captureRectOf(one, 'a')).toEqual({ x: 59, y: 23, w: 24, h: 26 });
+  });
+
+  it('the whole page is captured with the room of the nodes on the canvas', () => {
     expect(captureBounds(rs)).toEqual({ x: 100, y: 94, w: 350, h: 52 });
     // The bounds of the content itself (what fit shows) are unchanged.
     expect(contentBounds(rs)).toEqual({ x: 100, y: 100, w: 350, h: 40 });
@@ -242,37 +252,42 @@ describe('capture box', () => {
   });
 
   it('a hidden node adds nothing to the page', () => {
-    const hidden = resolveScene(parentScene(node({ id: 'a', w: 10, h: 10 }), node({ id: 'b', x: 500, visible: false, border: border('outside', 20) }))).scene;
+    const hidden = resolveScene(parentScene(node({ id: 'a', w: 10, h: 10 }), node({ id: 'b', x: 500, visible: false, paintBounds: reach(20) }))).scene;
     expect(captureBounds(hidden)).toEqual({ x: 0, y: 0, w: 10, h: 10 });
+  });
+
+  it('a change of the room is a change of the node, an equal one is not', () => {
+    const first = resolveScene(parentScene(node({ id: 'a', paintBounds: reach(2) }))).scene;
+    expect(resolveScene(parentScene(node({ id: 'a', paintBounds: reach(2) })), first).patch.changed).toEqual([]);
+    expect(resolveScene(parentScene(node({ id: 'a', paintBounds: reach(3) })), first).patch.changed).toEqual(['a']);
+    expect(resolveScene(parentScene(node({ id: 'a' })), first).patch.changed).toEqual(['a']);
   });
 });
 
 describe('capture box with shadows', () => {
-  const sh = (o = {}) => ({ x: 0, y: 0, blur: 0, spread: 0, color: 0, alpha: 1, ...o });
   const rs = resolveScene(parentScene(
-    node({ id: 'a', x: 100, y: 100, w: 50, h: 40, shadows: [sh({ y: 4, blur: 10 })] }),
-    node({ id: 'b', x: 300, y: 100, w: 50, h: 40, border: { width: 6, color: 1, alpha: 1, position: 'outside' }, shadows: [sh({ x: 20, spread: 2 })] }),
-    node({ id: 'c', x: 500, y: 100, w: 50, h: 40, shadows: [sh({ spread: -30, blur: 20 })] }),
+    node({ id: 'a', x: 100, y: 100, w: 50, h: 40, paintBounds: reach(10, 6, 10, 14) }),
+    node({ id: 'b', x: 300, y: 100, w: 50, h: 40, paintBounds: reach(6, 6, 22, 6) }),
+    node({ id: 'c', x: 500, y: 100, w: 50, h: 40 }),
     node({ id: 'frame', kind: 'frame', x: 600, y: 100, w: 100, h: 100, clip: true }),
-    node({ id: 'in', parent: 'frame', x: 0, y: 0, w: 20, h: 20, shadows: [sh({ blur: 50 })] }),
+    node({ id: 'in', parent: 'frame', x: 0, y: 0, w: 20, h: 20, paintBounds: reach(50) }),
     node({ id: 'free', kind: 'frame', x: 800, y: 100, w: 100, h: 100 }),
-    node({ id: 'out', parent: 'free', x: 90, y: 0, w: 20, h: 20, shadows: [sh({ x: 30 })] }),
+    node({ id: 'out', parent: 'free', x: 90, y: 0, w: 20, h: 20, paintBounds: reach(0, 0, 30, 0) }),
   )).scene;
 
-  it('a node is captured with the reach of its shadows (offset, spread and blur), joined to the band of its border', () => {
+  it('a node is captured with the room its shadows and border take, and the rectangle that selects the node is never grown', () => {
     expect(captureRectOf(rs, 'a')).toEqual({ x: 90, y: 94, w: 70, h: 60 });
     expect(captureRectOf(rs, 'b')).toEqual({ x: 294, y: 94, w: 78, h: 52 });
-    // A shadow with nothing left of it adds nothing, and the rectangle that selects the node is never grown.
     expect(captureRectOf(rs, 'c')).toEqual({ x: 500, y: 100, w: 50, h: 40 });
     expect(rectsOf(rs, ['a'])[0]).toEqual({ x: 100, y: 100, w: 50, h: 40 });
   });
 
-  it('the page is captured with the shadows of nodes at any depth, cut by a clipping ancestor and not by one that does not clip', () => {
+  it('the page is captured with the room of nodes at any depth, cut by a clipping ancestor and not by one that does not clip', () => {
     const b = captureBounds(rs)!;
     expect(b.x).toBe(90);
-    // `out` sits at the right edge of `free` (x 890) and casts 30 to the right: 890 + 20 + 30 = 940, past `free` at 900.
+    // `out` sits at the right edge of `free` (x 890) and reaches 30 to the right: 890 + 20 + 30 = 940, past `free` at 900.
     expect(b.x + b.w).toBe(940);
-    // The blur of `in` reaches 50 past the clipping `frame`, which cuts it: nothing above or left of the frame is in.
+    // The room of `in` reaches 50 past the clipping `frame`, which cuts it: nothing above or left of the frame is in.
     expect(b.y).toBe(94);
   });
 });
@@ -297,16 +312,6 @@ describe('capture box of the whole page', () => {
       node({ id: 'k', parent: 'f', x: 500, y: 500, w: 60, h: 50 }),
     )).scene;
     expect(captureBounds(gone)).toEqual({ x: 0, y: 0, w: 100, h: 100 });
-  });
-
-  it('a shadow with an alpha of 0 adds nothing and a huge blur adds no more than the cap', () => {
-    const sh = (o = {}) => ({ x: 0, y: 0, blur: 0, spread: 0, color: 0, alpha: 1, ...o });
-    const rs = resolveScene(parentScene(
-      node({ id: 'a', x: 0, y: 0, w: 10, h: 10, shadows: [sh({ blur: 50, alpha: 0 })] }),
-      node({ id: 'b', x: 500, y: 0, w: 10, h: 10, shadows: [sh({ blur: 1e9 })] }),
-    )).scene;
-    expect(captureRectOf(rs, 'a')).toEqual({ x: 0, y: 0, w: 10, h: 10 });
-    expect(captureRectOf(rs, 'b')).toEqual({ x: 500 - MAX_BLUR, y: -MAX_BLUR, w: 10 + 2 * MAX_BLUR, h: 10 + 2 * MAX_BLUR });
   });
 });
 

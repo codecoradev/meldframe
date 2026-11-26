@@ -180,10 +180,12 @@ describe('capture', () => {
 
   it('gives the box of a node, or of all the content, with the band of a border', async () => {
     const t = setup();
-    t.driver.setProps(props({ scene: scene(rect('a', 0), rect('b', 300)) }));
+    // `paintBounds` is what the render step works out (an outside border of 6 here); the driver asks the scene and adds nothing.
+    t.driver.setProps(props({ scene: scene(rect('a', 0), { ...rect('b', 300), paintBounds: { left: 6, top: 6, right: 6, bottom: 6 } }) }));
     await t.mount();
     expect(t.driver.captureBox('a')).toEqual({ x: 0, y: 0, w: 100, h: 100 });
-    expect(t.driver.captureBox()).toEqual({ x: 0, y: 0, w: 400, h: 100 });
+    expect(t.driver.captureBox('b')).toEqual({ x: 294, y: -6, w: 112, h: 112 });
+    expect(t.driver.captureBox()).toEqual({ x: 0, y: -6, w: 406, h: 112 });
     expect(t.driver.captureBox('missing')).toBeNull();
   });
 });

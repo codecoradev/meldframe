@@ -10,10 +10,10 @@
 //
 // The canvas draws what it is given: no layout, no editor rules (clamping, snapping, constraints) live here.
 import { containsPoint, intersectRects, rectsEqual, unionRects, type Rect } from './geometry';
-import { borderReach, sameBorder, type SceneBorder } from '@meldframe/web-paint/border';
+import { sameBorder, type SceneBorder } from '@meldframe/web-paint/border';
 import { sameGradient, type SceneGradient } from '@meldframe/web-paint/gradient';
 import { sameImage, type SceneImage } from '@meldframe/web-paint/image';
-import { sameShadows, shadowBounds, type SceneShadow } from '@meldframe/web-paint/shadow';
+import { sameShadows, type SceneShadow } from '@meldframe/web-paint/shadow';
 
 export type { SceneBorder, SceneBorderPosition } from '@meldframe/web-paint/border';
 export type { SceneGradient } from '@meldframe/web-paint/gradient';
@@ -22,6 +22,24 @@ export type { SceneShadow } from '@meldframe/web-paint/shadow';
 export type NodeKind = 'frame' | 'rect' | 'text';
 export type SceneSpace = 'parent' | 'world';
 export type SceneTextAlign = 'left' | 'center' | 'right';
+
+/**
+ * How far a node paints beyond its own rectangle, on each side in world units (none below 0): the part of its border that lies
+ * outside it and its shadows with their offset, spread and blur. It is worked out once, by `meldframe-render` (`PaintedBox.paint_bounds`),
+ * and read here as it is given: the canvas works none of it out.
+ */
+export interface ScenePaintBounds {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+export function samePaintBounds(a: ScenePaintBounds | undefined, b: ScenePaintBounds | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.left === b.left && a.top === b.top && a.right === b.right && a.bottom === b.bottom;
+}
 
 export interface SceneNode {
   id: string;
@@ -62,6 +80,8 @@ export interface SceneNode {
   border?: SceneBorder;
   /** Drawn behind the node, first = the bottom of the stack, and not clipped by the node's own `clip`; absent or empty means none. */
   shadows?: readonly SceneShadow[];
+  /** What the node paints beyond its rectangle; absent means nothing (its paint stays inside its rectangle). */
+  paintBounds?: ScenePaintBounds;
 }
 
 export interface Scene {
@@ -101,6 +121,7 @@ export interface ResolvedNode {
   image: SceneImage | undefined;
   border: SceneBorder | undefined;
   shadows: readonly SceneShadow[] | undefined;
+  paintBounds: ScenePaintBounds | undefined;
   /** The intersection of the clipping ancestors' rectangles; null when nothing clips it. */
   clipRect: Rect | null;
 }
@@ -127,7 +148,7 @@ function sameNode(a: ResolvedNode, b: ResolvedNode): boolean {
     a.parent === b.parent && a.kind === b.kind && a.depth === b.depth &&
     rectsEqual(a, b) && a.lx === b.lx && a.ly === b.ly &&
     a.fill === b.fill && a.fillAlpha === b.fillAlpha && a.radius === b.radius && a.text === b.text && a.fontSize === b.fontSize && a.fontWeight === b.fontWeight && a.textAlign === b.textAlign &&
-    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) && sameImage(a.image, b.image) && sameBorder(a.border, b.border) && sameShadows(a.shadows, b.shadows) &&
+    a.name === b.name && a.clip === b.clip && a.visible === b.visible && a.opacity === b.opacity && sameGradient(a.gradient, b.gradient) && sameImage(a.image, b.image) && sameBorder(a.border, b.border) && sameShadows(a.shadows, b.shadows) && samePaintBounds(a.paintBounds, b.paintBounds) &&
     (a.clipRect === b.clipRect || (!!a.clipRect && !!b.clipRect && rectsEqual(a.clipRect, b.clipRect)))
   );
 }
@@ -174,6 +195,7 @@ function resolveAll(scene: Scene): ResolvedNode[] {
         image: n.image,
         border: n.border,
         shadows: n.shadows,
+        paintBounds: n.paintBounds,
         clipRect: parentClip,
       };
       out.push(node);
@@ -247,12 +269,10 @@ export function contentBounds(rs: ResolvedScene): Rect | null {
   return out;
 }
 
-/** The rectangle of a node as a capture takes it: the node, the band of its border that lies outside it (not the inside) and its shadows. */
+/** The rectangle of a node as a capture takes it: the node with the room its paint takes beyond it (the scene's `paintBounds`: the band of its border that lies outside it, not the inside, and its shadows). */
 function paintedRect(n: ResolvedNode): Rect {
-  const g = borderReach(n.border);
-  const own = { x: n.x - g, y: n.y - g, w: n.w + 2 * g, h: n.h + 2 * g };
-  const shadow = shadowBounds(n, n.shadows);
-  return shadow ? unionRects([own, shadow])! : own;
+  const p = n.paintBounds;
+  return p ? { x: n.x - p.left, y: n.y - p.top, w: n.w + p.left + p.right, h: n.h + p.top + p.bottom } : { x: n.x, y: n.y, w: n.w, h: n.h };
 }
 
 /** The world rectangle to capture for a node, with its outside border and its shadows in it; null for an unknown id. */

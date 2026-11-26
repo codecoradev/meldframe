@@ -29,12 +29,6 @@ export interface RingShape {
   r: number;
 }
 
-/** How far a border lies outside its box: all of the width for an outside border, half of it for a centred one, none inside. */
-export function borderReach(b: SceneBorder | undefined): number {
-  if (!b) return 0;
-  return b.position === 'outside' ? b.width : b.position === 'center' ? b.width / 2 : 0;
-}
-
 /**
  * The two edges of the border of a `w` x `h` box with corner radius `radius`: the ring is the outer shape less the inner one.
  * `inner` is null when nothing is left inside the border (an inside border as wide as half of the box).
