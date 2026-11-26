@@ -194,7 +194,7 @@ fn what_is_not_in_the_vocabulary_is_unresolved_with_its_reason() {
 type Vocabulary = (Vec<(String, String, String)>, Vec<(String, String)>);
 
 fn export_vocabulary() -> Vocabulary {
-    let src = include_str!("../../../features/export/export/src/tw.rs");
+    let src = include_str!("../../../export/export/src/tw.rs");
     let quoted =
         |s: &str| -> Vec<String> { s.split('"').skip(1).step_by(2).map(str::to_owned).collect() };
     let (mut fixed, mut named) = (Vec::new(), Vec::new());
@@ -242,7 +242,7 @@ fn the_vocabulary_is_still_the_exports() {
             "{class}"
         );
     }
-    let src = include_str!("../../../features/export/export/src/tw.rs");
+    let src = include_str!("../../../export/export/src/tw.rs");
     assert!(
         src.contains("(\"position\", _) => Some(value)")
             && src.contains("content-['']")

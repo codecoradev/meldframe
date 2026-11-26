@@ -734,13 +734,17 @@ dependencies = [
 name = "html-import"
 version = "0.0.0"
 dependencies = [
+ "export",
  "html-import-css",
  "html-import-style",
  "html-import-tree",
+ "meldframe-check",
  "meldframe-layout",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-text",
+ "serde_json",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
@@ -1802,54 +1806,6 @@ dependencies = [
  "rmcp",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "meldframe-import-html-css-tests"
-version = "0.0.0"
-dependencies = [
- "html-import",
- "wasm-bindgen-test",
-]
-
-[[package]]
-name = "meldframe-import-html-paint-tests"
-version = "0.0.0"
-dependencies = [
- "html-import",
- "meldframe-check",
- "meldframe-protocol",
- "meldframe-text",
- "serde_json",
- "wasm-bindgen-test",
-]
-
-[[package]]
-name = "meldframe-import-html-roundtrip-tests"
-version = "0.0.0"
-dependencies = [
- "export",
- "html-import",
- "meldframe-layout",
- "meldframe-protocol",
- "serde_json",
- "wasm-bindgen-test",
-]
-
-[[package]]
-name = "meldframe-import-html-style-tests"
-version = "0.0.0"
-dependencies = [
- "html-import",
- "wasm-bindgen-test",
-]
-
-[[package]]
-name = "meldframe-import-html-tests"
-version = "0.0.0"
-dependencies = [
- "html-import",
- "wasm-bindgen-test",
 ]
 
 [[package]]

@@ -3,6 +3,7 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
+#[path = "style_common/mod.rs"]
 mod css_common;
 use css_common::*;
 

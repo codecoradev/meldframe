@@ -171,7 +171,7 @@ fn limits_for(seed: u64) -> Limits {
 fn check(seed: u64, html: &str, l: &Limits, p: &Parsed) {
     let ctx = |what: &str| {
         format!(
-            "seed {seed}: {what}\n{html:?}\nreplay: MELDFRAME_SEED={seed} cargo test -p meldframe-import-html-tests --test props"
+            "seed {seed}: {what}\n{html:?}\nreplay: MELDFRAME_SEED={seed} cargo test -p html-import --test props"
         )
     };
     let t = &p.tree;
