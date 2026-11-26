@@ -97,6 +97,9 @@ export default defineConfig(({ command }) => {
         '@meldframe/wasm': fileURLToPath(new URL(wasmGlue, import.meta.url)),
       },
     },
+    // The React side loads on demand, so the dev server would find each Base UI family on its first import, bundle it and reload the page
+    // ("optimized dependencies changed"), which breaks a browser script that opened the page just before. Naming them has it bundle them at start.
+    optimizeDeps: { include: ['@base-ui/react/dialog', '@base-ui/react/menu', '@base-ui/react/popover', '@base-ui/react/tooltip'] },
     server: { proxy },
     preview: { proxy },
     test: {
