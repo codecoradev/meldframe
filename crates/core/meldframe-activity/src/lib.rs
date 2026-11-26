@@ -11,6 +11,7 @@
 //! call) and [`Note::clean`] is the app layer's second check (it cuts what the first would refuse, from every header
 //! it takes in, because a header arrives from a socket and a route and the app layer trusts neither).
 
+mod actor;
 mod feed;
 mod header;
 mod in_effect;
@@ -23,6 +24,7 @@ mod store_key;
 mod summary;
 mod view;
 
+pub use actor::{ActorView, Tone};
 pub use feed::{Feed, Page};
 pub use header::{Header, NewBatch, Review};
 pub use in_effect::{InEffect, InEffectMemo, in_effect, revertable};
