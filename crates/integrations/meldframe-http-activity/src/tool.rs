@@ -8,7 +8,7 @@
 use crate::review::{REVIEW_DESCRIPTION, REVIEW_TOOL};
 use crate::wire::row;
 use activity_store::{ActivityError, BatchStore, Query, check_actor};
-use meldframe_activity::{Header, MAX_ACTOR, MAX_KEY_PREFIX, MAX_PAGE, MAX_TOOL, is_hidden_text};
+use meldframe_activity::{Header, MAX_KEY_PREFIX, MAX_PAGE, MAX_TOOL};
 use meldframe_host::Principal;
 use meldframe_http::mcp::{Extra, ExtraCall};
 use meldframe_http::{Shared, valid_file};
@@ -118,18 +118,19 @@ fn item(h: &Header) -> Value {
     v
 }
 
-/// A name the answer may show: not empty, within `max` characters, no control or hidden character. The write paths
-/// hold every header to this; it is checked again here so a row written another way (an edit of the table, an older
-/// adapter) never reaches the model.
-fn plain(s: &str, max: usize) -> bool {
-    !s.is_empty() && s.chars().count() <= max && !s.chars().any(is_hidden_text)
+/// A name the answer may show: the strict rule of `meldframe_text::plain` (not empty, within `max` characters and
+/// `max_bytes` bytes, no control or hidden character). The write paths hold every header to this; it is checked again
+/// here so a row written another way (an edit of the table, an older adapter) never reaches the model.
+fn plain(s: &str, max: usize, max_bytes: usize) -> bool {
+    meldframe_text::plain(s, max, max_bytes).is_ok()
 }
 
 fn safe(h: &Header) -> bool {
-    plain(&h.actor, MAX_ACTOR)
-        && plain(&h.key_prefix, MAX_KEY_PREFIX)
-        && plain(&h.tool, MAX_TOOL)
-        && h.reviewed_by.as_ref().is_none_or(|b| plain(b, MAX_ACTOR))
+    let actor = |a: &str| meldframe_text::actor(a).is_ok();
+    actor(&h.actor)
+        && plain(&h.key_prefix, MAX_KEY_PREFIX, meldframe_text::MAX_KEY_BYTES)
+        && plain(&h.tool, MAX_TOOL, MAX_TOOL)
+        && h.reviewed_by.as_deref().is_none_or(actor)
 }
 
 struct Found {

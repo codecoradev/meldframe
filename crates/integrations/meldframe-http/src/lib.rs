@@ -161,17 +161,10 @@ pub fn client_key(ip: std::net::IpAddr) -> String {
     }
 }
 
-/// A file name the server should see: 1 to 128 bytes, not `.` or `..`, not only whitespace, no slash or
-/// backslash, no control or invisible formatting character.
+/// A file name the server should see: the rule of `meldframe_text::file_name` (1 to 128 bytes, not `.` or `..`, not
+/// only whitespace, no control or hidden character), and no slash or backslash.
 pub fn valid_file(name: &str) -> bool {
-    !name.is_empty()
-        && name.len() <= 128
-        && name != "."
-        && name != ".."
-        && !name.trim().is_empty()
-        && !name
-            .chars()
-            .any(|c| c == '/' || c == '\\' || c.is_control() || meldframe_mcp_defs::is_invisible(c))
+    meldframe_text::file_name(name).is_ok() && !name.contains(['/', '\\'])
 }
 
 /// A tool name: 1 to 64 bytes of ASCII letters, digits, `_`, `-` and `.`.
