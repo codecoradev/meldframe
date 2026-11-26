@@ -28,6 +28,14 @@ describe('the Variables section as the boards draw it', () => {
     expect(out).toContain('aria-label="color/bg in Light"');
     expect(out).not.toContain('in m1');
   });
+  it('says (no name) for a mode, a collection and a variable whose name is nothing, as the Layers panel does', () => {
+    const empty = [{ id: 'm1', name: '' }, { id: 'm2', name: 'Dark' }];
+    const out = html(panel([col({ name: '', modes: empty, variables: [row({ name: '' })] })]));
+    expect(out).toContain('aria-label="(no name) in (no name)"');
+    expect(out).toContain('Mode of (no name)');
+    expect(out).toContain('>(no name)<');
+    expect(out).not.toMatch(/>\s*<\/h3>/);
+  });
   it('draws three modes with a long name truncated and titled, and says how to edit another mode', () => {
     const out = html(panel([col()]));
     expect(out.match(/role="radio"/g)).toHaveLength(3);

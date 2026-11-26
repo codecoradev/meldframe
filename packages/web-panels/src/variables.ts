@@ -1,6 +1,7 @@
 // The Variables panel: what its input becomes. The rules (the list, the search, the checks of a value, an alias or a
 // binding) are in the app layer; these functions only turn a field or a click into the action to send. Pure.
 import type { Action, BindField, CollectionRow, ModeValue, VariableRow, VariablesPanel } from '@meldframe/protocol';
+import { nameOf } from '@meldframe/web-document/names';
 
 /** The text typed in a value field of one mode. Nothing to send for empty text or the text the value already shows. */
 export function valueAction(row: VariableRow, mode: string, raw: string): Action | null {
@@ -47,7 +48,10 @@ export const display = (val: ModeValue): string => (val.alias ? `→ ${val.text}
 export const FIELD_LABEL: Record<BindField, string> = { fill: 'Fill', radius: 'Radius', opacity: 'Opacity' };
 
 /** The name of a mode for a label (the id, for a mode the collection does not have). */
-export const modeName = (c: CollectionRow, id: string): string => c.modes.find((m) => m.id === id)?.name ?? id;
+export const modeName = (c: CollectionRow, id: string): string => {
+  const found = c.modes.find((m) => m.id === id);
+  return found ? nameOf(found.name) : id;
+};
 
 /** What opening the manage view sends first: it reads the whole list, so a search is cleared (the counts of a removal are of what is listed). */
 export const beforeManage = (p: VariablesPanel): Action | null => (p.query.trim() === '' ? null : { type: 'setVariablesQuery', query: '' });

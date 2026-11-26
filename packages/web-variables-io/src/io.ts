@@ -3,6 +3,7 @@
 // export, the result and the report of the import); this file only words them. The rules (the limits, the duplicates,
 // the format) are in Rust and arrive as codes and numbers.
 import type { ImportEntry, VariablesExportDialog, VariablesImportResult } from '@meldframe/protocol';
+import { nameOf } from '@meldframe/web-document/names';
 import { noticeFor } from '@meldframe/web-document/notices';
 import { sizeText } from '@meldframe/web-export/view';
 import { MAX_COLLECTIONS, MAX_MODES, MAX_VARIABLES } from '@meldframe/web-variables/manage';
@@ -78,7 +79,7 @@ function refusal(r: VariablesImportResult): string {
   if (code === 'empty_text') return 'There is no text to import. Paste CSS into the field or choose a file.';
   if (code === 'E_IMPORT_TOO_LARGE') return `This text is ${sizeText(r.bytes)} and an import reads at most ${sizeText(r.limit)}. Send the style sheet in parts.`;
   if (code === 'E_DUPLICATE_ID' || code === 'E_DUPLICATE_NAME') {
-    const what = r.at ? `The ${ENTITY[r.at.entity] ?? 'item'} ${r.at.name || '(no name)'}` : 'Something in this text';
+    const what = r.at ? `The ${ENTITY[r.at.entity] ?? 'item'} ${nameOf(r.at.name)}` : 'Something in this text';
     return `${what} is already in this file. An import only adds: it does not change what the file holds, and a second import of the same names is refused. Edit the existing variables in Manage variables.`;
   }
   // The count of the report stops at the 5,000 of a file, so the text is only said to be over the cap.

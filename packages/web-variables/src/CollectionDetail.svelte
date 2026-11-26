@@ -14,7 +14,8 @@
   import { TYPE_LABEL } from '@meldframe/web-document/labels';
   import NameForm from './NameForm.svelte';
   import RenameField from './RenameField.svelte';
-  import { count, nameOf, type Ask, type Summary } from './manage';
+  import { nameOf } from '@meldframe/web-document/names';
+  import { count, type Ask, type Summary } from './manage';
   import type { RenameContext } from './rename';
 
   interface Props {

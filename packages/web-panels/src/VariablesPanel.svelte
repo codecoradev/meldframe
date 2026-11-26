@@ -12,6 +12,7 @@
   import Field from '@meldframe/web-chrome/Field.svelte';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { TYPE_LABEL } from '@meldframe/web-document/labels';
+  import { nameOf } from '@meldframe/web-document/names';
   import ExportVariablesDialog from '@meldframe/web-variables-io/ExportVariablesDialog.svelte';
   import ImportVariablesDialog from '@meldframe/web-variables-io/ImportVariablesDialog.svelte';
   import ManageDialog from '@meldframe/web-variables/ManageDialog.svelte';
@@ -64,8 +65,8 @@
   <ManageDialog open={manageOpen} onOpenChange={setManage} {panel} {events} {dispatch} opener={() => manageButton?.querySelector('button')} />
   {#each panel.collections.filter((c) => c.modes.length > 1) as c (c.id)}
     <div class="flex flex-col gap-1">
-      <span class="truncate text-caption font-semibold text-text-muted" title={c.name}>{c.name}</span>
-      <Segmented label="Mode of {c.name}" options={c.modes.map((m) => ({ value: m.id, label: m.name }))} value={c.active} onChange={(m) => dispatch(modeAction(c, m))} data-testid="var-modes" data-id={c.id} />
+      <span class="truncate text-caption font-semibold text-text-muted" title={nameOf(c.name)}>{nameOf(c.name)}</span>
+      <Segmented label="Mode of {nameOf(c.name)}" options={c.modes.map((m) => ({ value: m.id, label: nameOf(m.name) }))} value={c.active} onChange={(m) => dispatch(modeAction(c, m))} data-testid="var-modes" data-id={c.id} />
     </div>
   {/each}
   {#if panel.collections.some((c) => c.modes.length > 1)}
@@ -73,9 +74,9 @@
   {/if}
   <div class="max-h-(--mf-size-variables-list) overflow-y-auto" data-testid="var-list">
     {#each panel.collections as c (c.id)}
-      <section class="flex flex-col gap-1" aria-label={c.name} data-testid="var-collection" data-id={c.id}>
+      <section class="flex flex-col gap-1" aria-label={nameOf(c.name)} data-testid="var-collection" data-id={c.id}>
         {#if panel.collections.length > 1}
-          <h3 class="m-0 truncate pt-2 text-small font-semibold text-text-strong" title={c.name}>{c.name}</h3>
+          <h3 class="m-0 truncate pt-2 text-small font-semibold text-text-strong" title={nameOf(c.name)}>{nameOf(c.name)}</h3>
         {/if}
         <ul class="m-0 flex list-none flex-col gap-px p-0">
           {#each c.variables as v (v.id)}
@@ -87,9 +88,9 @@
             {/if}
             <li class="group flex items-center gap-2" data-testid="var-row" data-id={v.id}>
               <div class="relative min-w-0 flex-1">
-                <span class="block truncate {boundNow ? 'font-medium text-chip-text' : 'text-text-secondary'} {target && v.binds.length ? 'group-hover:invisible group-focus-within:invisible' : ''}" title="{v.name} · {v.usedBy > 0 ? `used ${v.usedBy}` : 'unused'}">{v.name}</span>
+                <span class="block truncate {boundNow ? 'font-medium text-chip-text' : 'text-text-secondary'} {target && v.binds.length ? 'group-hover:invisible group-focus-within:invisible' : ''}" title="{nameOf(v.name)} · {v.usedBy > 0 ? `used ${v.usedBy}` : 'unused'}">{nameOf(v.name)}</span>
                 {#if target && v.binds.length}
-                  <div class="absolute inset-y-0 left-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" role="group" aria-label="Bind {v.name} to the selection">
+                  <div class="absolute inset-y-0 left-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" role="group" aria-label="Bind {nameOf(v.name)} to the selection">
                     {#each v.binds as b (b.field)}
                       <Button size="sm" pressed={b.bound} onclick={() => dispatch(bindAction(target, v, b.field, b.bound))} data-testid="var-bind" data-field={b.field}>{FIELD_LABEL[b.field]}</Button>
                     {/each}
@@ -98,7 +99,7 @@
               </div>
               {#if val}
                 <div class="w-28 shrink-0" title={display(val)}>
-                  <Field label="{v.name} in {modeName(c, val.mode)}" size="dense" mono bound={!!val.alias} value={display(val)} onCommit={commit(v, val.mode)} testId="var-value">
+                  <Field label="{nameOf(v.name)} in {modeName(c, val.mode)}" size="dense" mono bound={!!val.alias} value={display(val)} onCommit={commit(v, val.mode)} testId="var-value">
                     {#snippet lead()}{#if colour}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={colour} data-testid="var-swatch"></i>{/if}{/snippet}
                   </Field>
                 </div>
@@ -107,7 +108,7 @@
           {/each}
         </ul>
         {#if c.matched > c.variables.length}
-          <p class="m-0 text-caption text-text-muted" data-testid="var-more">{c.matched - c.variables.length} more in {c.name}</p>
+          <p class="m-0 text-caption text-text-muted" data-testid="var-more">{c.matched - c.variables.length} more in {nameOf(c.name)}</p>
         {/if}
       </section>
     {/each}

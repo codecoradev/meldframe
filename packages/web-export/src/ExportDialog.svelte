@@ -11,6 +11,7 @@
   import TooltipProvider from '@meldframe/web-chrome/TooltipProvider.svelte';
   import { takeFocusBack } from '@meldframe/web-chrome/focus';
   import type { ExportScale } from '@meldframe/web-document/export';
+  import { nameOf } from '@meldframe/web-document/names';
   import ExportBody from './ExportBody.svelte';
   import type { PngPlan } from './png';
   import { START, viewFor, type View } from './ui';
@@ -59,10 +60,10 @@
     <Dialog.Content data-owns-keys data-testid="export-dialog" onOpenAutoFocus={focusTab} onCloseAutoFocus={giveBack} class="fixed inset-8 z-50 m-auto flex h-fit max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-divider bg-surface font-sans text-body text-text shadow-dialog">
       {#if dialog}
         <header class="flex h-14 shrink-0 items-center justify-between border-b border-hairline pr-3 pl-5">
-          <Dialog.Title class="m-0 truncate text-title font-semibold text-text-strong">Export {dialog.name}</Dialog.Title>
+          <Dialog.Title class="m-0 truncate text-title font-semibold text-text-strong">Export {nameOf(dialog.name)}</Dialog.Title>
           <Dialog.Close>{#snippet child({ props })}<IconButton label="Close" icon="close" triggerProps={props} />{/snippet}</Dialog.Close>
         </header>
-        <Dialog.Description class="sr-only">Export the frame {dialog.name} as HTML or as a PNG image. Your file is not changed.</Dialog.Description>
+        <Dialog.Description class="sr-only">Export the frame {nameOf(dialog.name)} as HTML or as a PNG image. Your file is not changed.</Dialog.Description>
         <ExportBody {dialog} {unreviewed} view={ui.view} onView={(v) => (ui = { ...ui, view: v })} {scale} {onScale} {plan} {onPng} {dispatch} {onReview} onClose={close} />
       {/if}
     </Dialog.Content>

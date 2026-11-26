@@ -13,6 +13,7 @@ import { Button } from '@meldframe/web-chrome/react/Button';
 import { Field } from '@meldframe/web-chrome/react/Field';
 import { Segmented } from '@meldframe/web-chrome/react/Segmented';
 import { TYPE_LABEL } from '@meldframe/web-document/labels';
+import { nameOf } from '@meldframe/web-document/names';
 import { Fragment } from 'react';
 import { FIELD_LABEL, beforeManage, bindAction, display, listedCount, modeAction, modeName, shownValue, swatch, truncated, valueAction } from '../variables';
 
@@ -58,19 +59,19 @@ export function VariablesPanel({ panel, target, dispatch, onManage, onImport }: 
       </div>
       {shown.map((c) => (
         <div key={c.id} className="flex flex-col gap-1">
-          <span className="truncate text-caption font-semibold text-text-muted" title={c.name}>
-            {c.name}
+          <span className="truncate text-caption font-semibold text-text-muted" title={nameOf(c.name)}>
+            {nameOf(c.name)}
           </span>
-          <Segmented label={`Mode of ${c.name}`} options={c.modes.map((m) => ({ value: m.id, label: m.name }))} value={c.active} onChange={(m) => dispatch(modeAction(c, m))} data-testid="var-modes" data-id={c.id} />
+          <Segmented label={`Mode of ${nameOf(c.name)}`} options={c.modes.map((m) => ({ value: m.id, label: nameOf(m.name) }))} value={c.active} onChange={(m) => dispatch(modeAction(c, m))} data-testid="var-modes" data-id={c.id} />
         </div>
       ))}
       {shown.length > 0 ? <p className="m-0 text-caption text-text-muted">Switch mode to edit its values.</p> : null}
       <div className="max-h-(--mf-size-variables-list) overflow-y-auto" data-testid="var-list">
         {panel.collections.map((c) => (
-          <section key={c.id} className="flex flex-col gap-1" aria-label={c.name} data-testid="var-collection" data-id={c.id}>
+          <section key={c.id} className="flex flex-col gap-1" aria-label={nameOf(c.name)} data-testid="var-collection" data-id={c.id}>
             {panel.collections.length > 1 ? (
-              <h3 className="m-0 truncate pt-2 text-small font-semibold text-text-strong" title={c.name}>
-                {c.name}
+              <h3 className="m-0 truncate pt-2 text-small font-semibold text-text-strong" title={nameOf(c.name)}>
+                {nameOf(c.name)}
               </h3>
             ) : null}
             <ul className="m-0 flex list-none flex-col gap-px p-0">
@@ -91,12 +92,12 @@ export function VariablesPanel({ panel, target, dispatch, onManage, onImport }: 
                       <div className="relative min-w-0 flex-1">
                         <span
                           className={`block truncate ${boundNow ? 'font-medium text-chip-text' : 'text-text-secondary'} ${target && v.binds.length ? 'group-hover:invisible group-focus-within:invisible' : ''}`}
-                          title={`${v.name} · ${v.usedBy > 0 ? `used ${v.usedBy}` : 'unused'}`}
+                          title={`${nameOf(v.name)} · ${v.usedBy > 0 ? `used ${v.usedBy}` : 'unused'}`}
                         >
-                          {v.name}
+                          {nameOf(v.name)}
                         </span>
                         {target && v.binds.length ? (
-                          <div className="absolute inset-y-0 left-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" role="group" aria-label={`Bind ${v.name} to the selection`}>
+                          <div className="absolute inset-y-0 left-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" role="group" aria-label={`Bind ${nameOf(v.name)} to the selection`}>
                             {v.binds.map((b) => (
                               <Button key={b.field} size="sm" pressed={b.bound} onClick={() => dispatch(bindAction(target, v, b.field, b.bound))} data-testid="var-bind" data-field={b.field}>
                                 {FIELD_LABEL[b.field]}
@@ -108,7 +109,7 @@ export function VariablesPanel({ panel, target, dispatch, onManage, onImport }: 
                       {val ? (
                         <div className="w-28 shrink-0" title={display(val)}>
                           <Field
-                            label={`${v.name} in ${modeName(c, val.mode)}`}
+                            label={`${nameOf(v.name)} in ${modeName(c, val.mode)}`}
                             size="dense"
                             mono
                             bound={!!val.alias}
@@ -125,7 +126,7 @@ export function VariablesPanel({ panel, target, dispatch, onManage, onImport }: 
               })}
             </ul>
             {c.matched > c.variables.length ? (
-              <p className="m-0 text-caption text-text-muted" data-testid="var-more">{`${c.matched - c.variables.length} more in ${c.name}`}</p>
+              <p className="m-0 text-caption text-text-muted" data-testid="var-more">{`${c.matched - c.variables.length} more in ${nameOf(c.name)}`}</p>
             ) : null}
           </section>
         ))}
