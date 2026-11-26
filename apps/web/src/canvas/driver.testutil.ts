@@ -7,7 +7,7 @@ import type { Scene } from '@meldframe/web-canvas/scene';
 import type { CanvasEvents, CanvasProps, HostWatchers, Platform } from './api';
 import { CanvasDriver } from './driver';
 
-export const rect = (id: string, x: number, y = 0) => ({ id, parent: null, kind: 'rect' as const, x, y, w: 100, h: 100, fill: 0x808080 });
+export const rect = (id: string, x: number, y = 0) => ({ id, parent: null, kind: 'rect' as const, x, y, w: 100, h: 100, fill: 0 });
 export const scene = (...nodes: Scene['nodes']): Scene => ({ space: 'parent', nodes });
 export const props = (over: Partial<CanvasProps> = {}): CanvasProps => ({
   scene: scene(), selection: [], camera: { ...HOME }, touches: [], indicator: null, tool: 'move', theme: 'dark', ...over,
