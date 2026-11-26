@@ -102,13 +102,16 @@ impl CaptureTool {
                 "a file name is 1 to 128 bytes without slashes or control characters".into(),
             ));
         }
-        if args
-            .node_id
-            .as_deref()
-            .is_some_and(|n| n.is_empty() || n.len() > 128 || n.chars().any(char::is_control))
-        {
+        if args.node_id.as_deref().is_some_and(|n| {
+            meldframe_text::plain(
+                n,
+                meldframe_text::MAX_NODE_REF,
+                meldframe_text::MAX_NODE_REF,
+            )
+            .is_err()
+        }) {
             return Err(CaptureError::Invalid(
-                "nodeId is 1 to 128 characters without control characters".into(),
+                "nodeId is 1 to 128 bytes without control or hidden characters".into(),
             ));
         }
         let file = hub.file_of(&who, args.file.as_deref())?;

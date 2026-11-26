@@ -78,6 +78,18 @@ pub fn a_text_is_checked_before_anything_is_written(s: &dyn ReviewStore) {
     ] {
         invalid(s.add("ws", "f", "a", &[format!("pay{c}ment")]));
     }
+    // The ones the old set of this check did not hold and the one set of `meldframe-text` does (U9): the combining
+    // grapheme joiner, the Hangul filler, the variation selector, a tag character, the soft hyphen.
+    for c in [
+        '\u{034F}',
+        '\u{3164}',
+        '\u{FE0F}',
+        '\u{E0041}',
+        '\u{00AD}',
+        '\u{2060}',
+    ] {
+        invalid(s.add("ws", "f", "a", &[format!("pay{c}ment")]));
+    }
     // The limit counts characters, not bytes.
     invalid(s.add("ws", "f", "a", &["\u{e9}".repeat(MAX_TEXT + 1)]));
     assert_eq!(
@@ -176,6 +188,15 @@ pub fn a_batch_is_linked_once_and_the_list_is_limited(s: &dyn ReviewStore) {
         Err(ReviewError::Invalid(_))
     ));
     assert!(check_batch(&"k".repeat(101)).is_err());
+    // A key is counted in characters (a key of 100 four-byte characters is taken) and holds no hidden character.
+    assert!(check_batch(&"\u{1F600}".repeat(100)).is_ok());
+    for c in ['\u{202E}', '\u{200B}', '\u{2028}', '\u{034F}', '\u{200D}'] {
+        assert!(
+            check_batch(&format!("run{c}1")).is_err(),
+            "U+{:04X}",
+            c as u32
+        );
+    }
     for i in 2..MAX_BATCHES {
         s.link("ws", "f", 1, &format!("run{}", i + 1)).unwrap();
     }

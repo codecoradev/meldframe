@@ -4,22 +4,27 @@
   "version": "0.0.0",
   "type": "module",
   "description": "Web client: renders the app layer state and carries out its effects.",
+  "meldframe": { "kind": "bin" },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
-    "lint": "eslint . && for p in web-panels web-variables web-variables-io web-activity web-canvas web-paint web-input web-e2e web-tools web-tokens web-chrome web-shell web-feedback web-export web-transport; do (cd ../../packages/$p && eslint -c ../../apps/web/eslint.config.js .) || exit 1; done",
+    "lint": "eslint . && for p in ../../packages/web-*; do (cd $p && eslint -c ../../apps/web/eslint.config.js .) || exit 1; done",
+    "boundaries": "node ../../packages/web-tools/scripts/boundaries.mjs",
     "test": "vitest run",
     "ui-literals": "node ../../packages/web-tools/scripts/ui-literals.mjs",
     "licences": "node ../../packages/web-tools/scripts/licences.mjs",
-    "check": "npm run typecheck && npm run lint && npm test && npm run build && npm run ui-literals && npm run licences"
+    "check": "npm run typecheck && npm run lint && npm run boundaries && npm test && npm run build && npm run ui-literals && npm run licences"
   },
   "dependencies": {
+    "@base-ui/react": "1.9.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "bits-ui": "^2.21.0",
-    "pixi.js": "^8.23.0"
+    "pixi.js": "^8.23.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -27,7 +32,11 @@
     "@tailwindcss/vite": "^4.3.5",
     "@tsconfig/svelte": "^5.0.9",
     "@types/node": "^22.20.5",
+    "@types/react": "^19.3.2",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^10.15.0",
+    "eslint-plugin-react-hooks": "5.2.0",
     "eslint-plugin-svelte": "^3.24.1",
     "globals": "^17.14.0",
     "svelte": "^5.57.3",
@@ -37,5 +46,10 @@
     "typescript-eslint": "^8.72.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "eslint-plugin-react-hooks": {
+      "eslint": "$eslint"
+    }
   }
 }

@@ -1,32 +1,9 @@
-//! The note of a batch and the hidden-text rule.
+//! The note of a batch. The hidden-text rule and the combining marks are the one set of `meldframe-text`, which
+//! this crate re-exports (`is_hidden_text`, `is_combining_mark`).
 
 use crate::{MAX_COMBINING_RUN, MAX_NOTE_BREAKS, MAX_NOTE_CHARS};
-
-/// Whether a character changes how a text reads without showing, or is not text at all.
-///
-/// This is stricter than `meldframe_mcp_defs::is_invisible` (which covers U+200B to 200F, U+202A to 202E, U+2028,
-/// U+2029, U+2066 to 2069 and U+FEFF and nothing else) and named in full: the controls (`char::is_control`, the
-/// line break among them: a note allows `\n` by its own rule, a node name gets no such exception), U+00AD, U+034F,
-/// U+061C, U+115F and U+1160, U+17B4 and U+17B5, U+180B to 180F, U+200B to 200F, U+2028 to 202E, U+2060 to 206F,
-/// U+2800, U+3164, U+FE00 to FE0F, U+FEFF, U+FFA0, U+FFF9 to FFFB, U+1BCA0 to 1BCA3, U+1D173 to 1D17A, U+E0000 to
-/// E007F and U+E0100 to E01EF.
-pub fn is_hidden_text(c: char) -> bool {
-    c.is_control()
-        || matches!(c,
-            '\u{00AD}' | '\u{034F}' | '\u{061C}' | '\u{115F}'..='\u{1160}' | '\u{17B4}'..='\u{17B5}'
-            | '\u{180B}'..='\u{180F}' | '\u{200B}'..='\u{200F}' | '\u{2028}'..='\u{202E}'
-            | '\u{2060}'..='\u{206F}' | '\u{2800}' | '\u{3164}' | '\u{FE00}'..='\u{FE0F}' | '\u{FEFF}'
-            | '\u{FFA0}' | '\u{FFF9}'..='\u{FFFB}' | '\u{1BCA0}'..='\u{1BCA3}'
-            | '\u{1D173}'..='\u{1D17A}' | '\u{E0000}'..='\u{E007F}' | '\u{E0100}'..='\u{E01EF}')
-}
-
-/// Whether a character is a combining mark of the blocks a note caps: U+0300 to 036F, 1AB0 to 1AFF, 1DC0 to 1DFF,
-/// 20D0 to 20FF and FE20 to FE2F.
-pub fn is_combining_mark(c: char) -> bool {
-    matches!(c,
-        '\u{0300}'..='\u{036F}' | '\u{1AB0}'..='\u{1AFF}' | '\u{1DC0}'..='\u{1DFF}'
-        | '\u{20D0}'..='\u{20FF}' | '\u{FE20}'..='\u{FE2F}')
-}
+use meldframe_text::{first_hidden, mark_run_exceeds};
+pub use meldframe_text::{is_combining_mark, is_hidden_text};
 
 /// A note: the plain text an agent leaves on a batch. It is trimmed, not empty, at most [`MAX_NOTE_CHARS`]
 /// characters and [`MAX_NOTE_BREAKS`] line breaks (`\n`), with no hidden character and no run of more than
@@ -92,7 +69,7 @@ impl Note {
     /// agent wrote would hide what it tried to say.
     pub fn parse(text: &str) -> Result<Note, NoteError> {
         let text = lf(text);
-        if let Some(c) = text.chars().find(|c| *c != '\n' && is_hidden_text(*c)) {
+        if let Some(c) = first_hidden(&text, true) {
             return Err(NoteError::Hidden(c));
         }
         let text = text.trim();
@@ -105,12 +82,8 @@ impl Note {
         if text.matches('\n').count() > MAX_NOTE_BREAKS {
             return Err(NoteError::TooManyBreaks);
         }
-        let mut run = 0;
-        for c in text.chars() {
-            run = if is_combining_mark(c) { run + 1 } else { 0 };
-            if run > MAX_COMBINING_RUN {
-                return Err(NoteError::TooManyMarks);
-            }
+        if mark_run_exceeds(text, MAX_COMBINING_RUN) {
+            return Err(NoteError::TooManyMarks);
         }
         Ok(Note(text.to_owned()))
     }

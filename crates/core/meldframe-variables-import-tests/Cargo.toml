@@ -14,6 +14,7 @@ export = { path = "../../features/export/export" }
 variables-import = { path = "../../features/variables-import/variables-import" }
 meldframe-core = { path = "../meldframe-core" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-text = { path = "../meldframe-text" }
 meldframe-variables = { path = "../meldframe-variables" }
 serde_json = "1"
 

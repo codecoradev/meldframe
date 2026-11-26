@@ -84,6 +84,8 @@ fn a_property_that_points_at_one_killed_later_is_missing_its_target_not_in_a_cyc
 
 #[test]
 fn no_format_character_variation_selector_or_tag_reaches_the_reader_of_a_report() {
+    // Each character stands next to letters or at an end, never between two pictures: the display profile of
+    // `meldframe-text` keeps a joiner or a selector 16 only there (`tests/text.rs` covers a family).
     let mut chars: Vec<char> = Vec::new();
     for (a, b) in [
         (0xADu32, 0xAD),

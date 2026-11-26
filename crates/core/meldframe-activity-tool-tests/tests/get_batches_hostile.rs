@@ -141,6 +141,25 @@ async fn a_header_the_server_could_not_have_written_is_left_out_and_counted() {
     assert!(clean.body.get("withheld").is_none());
 }
 
+/// U9: the actor is bounded in bytes everywhere (a column holds 128 bytes), so a row with 100 two-byte characters in
+/// its actor is left out here as the app layer's second check leaves it out; the tool used to count characters.
+#[tokio::test]
+async fn an_actor_of_100_two_byte_characters_is_left_out_as_over_128_bytes() {
+    let w = served().await;
+    put(&w, "agent:alpha", "ok-1");
+    put(&w, "agent:alpha", "tamper-wide-1");
+    let c = connect(&w.h, AGENT).await;
+    let r = call(&c, "get_batches", json!({"file": "f"})).await;
+    let kept: Vec<_> = r.body["batches"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| b["keyPrefix"].clone())
+        .collect();
+    assert_eq!(kept, [json!("ok-1")]);
+    assert_eq!(r.body["withheld"], 1);
+}
+
 #[tokio::test]
 async fn after_with_a_filter_that_hits_the_scan_cap_keeps_the_cursor_consistent() {
     let w = served().await;

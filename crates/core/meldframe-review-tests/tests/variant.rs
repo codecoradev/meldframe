@@ -362,3 +362,24 @@ async fn another_actor_with_the_same_key_gets_a_copy_of_its_own() {
     assert_ne!(one.body["root"], two.body["root"]);
     assert_eq!(two.body["replayed"], false);
 }
+
+/// U9: the key of `make_variant` is held to the one rule of keys (no control, bidirectional or zero-width character),
+/// and nothing is written.
+#[tokio::test]
+async fn a_key_with_a_hidden_character_is_refused_and_no_copy_is_made() {
+    let h = start().await;
+    let c = connect(&h, AGENT).await;
+    hero(&c).await;
+    for ch in ['\u{202E}', '\u{200B}', '\u{2028}', '\u{200D}', '\u{034F}'] {
+        let r = call(
+            &c,
+            "make_variant",
+            json!({"file": "f", "id": "hero", "idempotencyKey": format!("v{ch}")}),
+        )
+        .await;
+        assert!(r.is_error, "U+{:04X}: {}", ch as u32, r.body);
+        assert_eq!(r.body["error"]["code"], "invalid", "U+{:04X}", ch as u32);
+    }
+    let t = call(&c, "get_tree", json!({"file": "f"})).await;
+    assert_eq!(roots(&t.body).len(), 1, "a refused key made a copy");
+}

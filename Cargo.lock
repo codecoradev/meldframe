@@ -184,6 +184,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
 ]
 
 [[package]]
@@ -351,6 +352,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-mcp-defs",
  "meldframe-module",
+ "meldframe-text",
 ]
 
 [[package]]
@@ -732,6 +734,7 @@ dependencies = [
  "html-import-style",
  "html-import-tree",
  "meldframe-protocol",
+ "meldframe-text",
 ]
 
 [[package]]
@@ -753,6 +756,9 @@ dependencies = [
 [[package]]
 name = "html-import-tree"
 version = "0.0.0"
+dependencies = [
+ "meldframe-text",
+]
 
 [[package]]
 name = "http"
@@ -1101,6 +1107,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-protocol",
  "meldframe-revert",
+ "meldframe-text",
 ]
 
 [[package]]
@@ -1583,6 +1590,7 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-ratelimit",
+ "meldframe-text",
  "rmcp",
  "serde",
  "serde_json",
@@ -1601,6 +1609,7 @@ dependencies = [
  "meldframe-http",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
  "rmcp",
  "serde",
  "serde_json",
@@ -1640,6 +1649,7 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-stream",
+ "meldframe-text",
  "rmcp",
  "serde",
  "serde_json",
@@ -1895,6 +1905,7 @@ dependencies = [
  "meldframe-host",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
  "serde_json",
 ]
 
@@ -2069,6 +2080,7 @@ dependencies = [
  "meldframe-rooms",
  "meldframe-store-pg",
  "meldframe-stream",
+ "meldframe-text",
  "serde_json",
  "tokio",
  "variables-import",
@@ -2181,6 +2193,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-text"
+version = "0.0.0"
+dependencies = [
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-ui"
 version = "0.0.0"
 
@@ -2205,6 +2224,7 @@ dependencies = [
  "export",
  "meldframe-core",
  "meldframe-protocol",
+ "meldframe-text",
  "meldframe-variables",
  "serde_json",
  "variables-import",
@@ -3770,6 +3790,7 @@ dependencies = [
  "meldframe-css",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
  "meldframe-variables",
 ]
 

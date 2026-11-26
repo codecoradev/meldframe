@@ -45,6 +45,7 @@ export function largestFittingScale(box: Rect | null): ExportScale | null {
 export function exportFileName(name: string, id: string, scale: ExportScale, ext: 'png' | 'html' = 'png'): string {
   // Characters that reorder text are dropped first: a name cannot be made to read as another extension.
   const clean = (s: string) =>
+    // eslint-disable-next-line no-control-regex -- the control characters are what this expression removes
     Array.from(s.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, '-').trim())
       .slice(0, 80)
       .join('')

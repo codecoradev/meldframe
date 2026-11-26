@@ -341,6 +341,34 @@ fn a_failure_message_is_sanitised_and_truncated() {
     assert!(m.starts_with("bad[31m"));
 }
 
+/// The message of a client failure as the agent reads it (U9, the display profile): every hidden character goes (a
+/// control was the whole rule), an emoji sequence stays whole, and the cut at 200 bytes is between characters.
+#[test]
+fn a_failure_message_loses_every_hidden_character_and_keeps_an_emoji() {
+    let fail = |msg: &str| {
+        let mut r = Relay::<u32>::new(cfg());
+        capable(&mut r, "w", "f", 1);
+        r.begin(0, begin("a", "w", "f")).unwrap();
+        let done = r.failed("w", 1, "a", "render_failed", msg).unwrap();
+        let CaptureError::RenderFailed(m) = done.result.unwrap_err() else {
+            panic!()
+        };
+        m
+    };
+    // A right-to-left override, a line separator, a zero-width space and a tag character (a hidden message).
+    assert_eq!(fail("ok\u{202E}\u{2028}\u{200B}\u{E0068}\u{E0069}!"), "ok!");
+    // A family and a heart with its selector are what a person sees; a joiner between letters is not.
+    let family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F466}";
+    assert_eq!(
+        fail(&format!("{family} \u{2764}\u{FE0F} a\u{200D}b")),
+        format!("{family} \u{2764}\u{FE0F} ab")
+    );
+    // Four-byte characters at the cap: 50 of them are 200 bytes, a 51st is cut, and no character is split.
+    let m = fail(&"\u{1F600}".repeat(60));
+    assert_eq!(m, "\u{1F600}".repeat(50));
+    assert_eq!(m.len(), 200);
+}
+
 #[test]
 fn binding_refuses_a_second_file_and_documents_no_rebind() {
     let mut b = Binding::default();

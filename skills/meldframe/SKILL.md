@@ -24,7 +24,7 @@ shown to them as it lands. Work so that each step is small, safe to repeat, and 
    written. The first note a batch gets stays: a retry with the same key does not change it, and the answer says
    that the earlier one was kept. The answer's `batch` has the number of your batch in the file and what became of
    your note (kept, kept earlier, or none). It is `null` when no header was kept (the write failed, no slot was
-   free, the call timed out, or the key holds a hidden character): send the same call again with the same key and
+   free, or the call timed out): send the same call again with the same key and
    nothing is written twice. A call that stopped part way after writing some commands says `error.batch` with the
    number and how many were written. A server that keeps no notes refuses a call with a `note` as `invalid`.
 4. **Keep each call atomic.** Leave `atomic` at its default (true) for a call of several commands: it is checked as a

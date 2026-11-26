@@ -34,6 +34,7 @@ pub use misc::handles;
 
 use crate::css::{EntryKind, Report, Style};
 use meldframe_protocol::{Bind, Border, Gradient, ImageFill, Node, Shadow};
+use meldframe_text::{Profile, sanitize_clip};
 
 /// What the reader needs to know of the box besides its style: the size the author gave it in pixels (the border
 /// box, as the model's size is) and whether the element has anything inside it. Both only decide a few corner cases;
@@ -55,8 +56,10 @@ pub struct Asset {
 }
 
 impl Asset {
-    /// `src` as written, without control or bidi characters, cut to 200 characters. A `data:` URL keeps only what comes
-    /// before its first comma (the media type), never the payload.
+    /// `src` as written, without a control or hidden character, cut to 200 characters. A `data:` URL keeps only what
+    /// comes before its first comma (the media type), never the payload. An address is identifier-like (the agent
+    /// passes it on), so it takes the strict profile of `meldframe-text` (rule U9): no joiner is kept, there is no
+    /// emoji in it to protect.
     pub fn new(src: &str) -> Asset {
         let src = src.trim();
         let head = match src.get(..5) {
@@ -66,20 +69,9 @@ impl Asset {
             _ => src,
         };
         Asset {
-            src: head.chars().filter(|c| !hidden(*c)).take(200).collect(),
+            src: sanitize_clip(head, Profile::Strict, 200, usize::MAX),
         }
     }
-}
-
-/// The characters a reader should not be shown: controls, and the bidi and other format characters (the set the
-/// report removes from what it echoes).
-fn hidden(c: char) -> bool {
-    c.is_control()
-        || matches!(
-            c,
-            '\u{AD}' | '\u{34F}' | '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2060}'..='\u{206F}'
-                | '\u{FE00}'..='\u{FE0F}' | '\u{FEFF}' | '\u{E0000}'..='\u{E007F}'
-        )
 }
 
 /// The paint of one Node as the protocol holds it. `Paint::default()` paints nothing: `fill: none` (the Node's own

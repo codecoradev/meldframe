@@ -140,7 +140,8 @@ impl Reader for NoApplied {
 
 /// The store as the tool reads it, with the headers of a few key prefixes rewritten the way a row written outside the
 /// server could look: `tamper-actor` gets a hidden character in its actor, `tamper-prefix` in its key prefix and
-/// `tamper-by` in the name of its reviewer. Every other header passes as it is.
+/// `tamper-by` in the name of its reviewer, and `tamper-wide` gets an actor of 100 two-byte characters. Every other
+/// header passes as it is.
 pub struct Tamper(pub Arc<MemoryBatches>);
 
 impl BatchStore for Tamper {
@@ -163,6 +164,8 @@ impl BatchStore for Tamper {
             match h.key_prefix.split('-').take(2).collect::<Vec<_>>()[..] {
                 ["tamper", "actor"] => h.actor.push('\u{200B}'),
                 ["tamper", "prefix"] => h.key_prefix.push('\u{200B}'),
+                // 100 characters, 200 bytes: under the limit counted in characters and over it counted in bytes.
+                ["tamper", "wide"] => h.actor = "\u{e9}".repeat(100),
                 ["tamper", "by"] => {
                     h.reviewed_by = Some("x\u{200B}".into());
                     h.reviewed_at_ms = Some(1);

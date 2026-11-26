@@ -75,14 +75,9 @@ impl CaptureError {
     }
 }
 
-/// A client message shown to an agent: control characters removed, at most 200 bytes.
+/// A client message shown to an agent: every hidden character removed (the display profile of `meldframe_text`, which
+/// keeps an emoji whole), at most 200 bytes.
 fn clean(message: &str) -> String {
-    let mut out = String::new();
-    for c in message.chars().filter(|c| !c.is_control()) {
-        if out.len() + c.len_utf8() > 200 {
-            break;
-        }
-        out.push(c);
-    }
-    out
+    let shown = meldframe_text::sanitize(message, meldframe_text::Profile::Display);
+    meldframe_text::clip(&shown, usize::MAX, 200).to_owned()
 }

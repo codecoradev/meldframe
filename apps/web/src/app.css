@@ -3,6 +3,11 @@
 @import '../../../packages/web-tokens/src/tailwind.css';
 
 @layer base {
+  /* A stacking context on the app root, so that the popups of Base UI (rendered into the body) sit above the page (its quick start). */
+  #app {
+    isolation: isolate;
+  }
+
   html,
   body {
     margin: 0;
