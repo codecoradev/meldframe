@@ -3,10 +3,11 @@
 // value of the mode on view in the mono face (an alias as a chip with the name it points at). It draws the rows the app layer
 // gives it (order, headings, checks) and reports input as actions (see ../variables.ts).
 //
-// The three dialogs (the manage view, Import variables, Export variables) are not in this copy: they are Svelte until their own
-// slices (S9, S10), and a Svelte dialog cannot be drawn inside a React root. The switch file that hosts this panel
-// (apps/web/src/react-pilot/VariablesPanelSwitch.svelte) draws them beside it and owns whether the manage view and Import
-// variables are open; this panel only has the buttons, and tells the host when one is pressed (`onManage`, `onImport`).
+// The three dialogs (the manage view, Import variables, Export variables) are not in this copy: Import and Export variables are Svelte until
+// S10, and a Svelte dialog cannot be drawn inside a React root; the manage view has a React copy since S9 (`/?react=manage`) but it is a root of
+// its own too. The switch file that hosts this panel (apps/web/src/react-pilot/VariablesPanelSwitch.svelte) draws them beside it and owns
+// whether the manage view and Import variables are open; this panel only has the buttons, and tells the host when one is pressed
+// (`onManage`, `onImport`).
 // Export variables is an action, as in the Svelte copy. A text with a value in it is one string (a template), not two text nodes.
 import type { Action, VariableRow, VariablesPanel as Model } from '@meldframe/protocol';
 import { Button } from '@meldframe/web-chrome/react/Button';

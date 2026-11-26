@@ -7,6 +7,7 @@
   holds its text.
 -->
 <script lang="ts">
+  import type { Component, ComponentProps } from 'svelte';
   import type { Action, Event, ManageState, VariableRow, VariablesIo, VariablesPanel } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
@@ -29,8 +30,10 @@
     io?: VariablesIo;
     /** `state.manage`: what the manage view shows and asks (the shown collection, the question before a removal, the rename field, the forms). */
     manage: ManageState;
+    /** What draws the manage view: the Svelte dialog unless the editor hands another (the React pilot, E7.3 S9; `bindView` of the Properties panel is the same device). */
+    manageView?: Component<ComponentProps<typeof ManageDialog>>;
   }
-  let { panel, target, dispatch, events = [], io = { export: null, import: null }, manage }: Props = $props();
+  let { panel, target, dispatch, events = [], io = { export: null, import: null }, manage, manageView: ManageView = ManageDialog }: Props = $props();
 
   // The manage view draws the rows of the panel, so it starts with the search cleared (the counts of a removal are the app layer's, of the whole file).
   let manageOpen = $state(false);
@@ -61,7 +64,7 @@
   </div>
   <ImportVariablesDialog open={importOpen} onOpenChange={(o) => (importOpen = o)} result={io.import ?? null} {dispatch} opener={() => importButton?.querySelector('button')} />
   <ExportVariablesDialog dialog={io.export ?? null} {dispatch} opener={() => exportButton?.querySelector('button')} />
-  <ManageDialog open={manageOpen} onOpenChange={setManage} {panel} {manage} {events} {dispatch} opener={() => manageButton?.querySelector('button')} />
+  <ManageView open={manageOpen} onOpenChange={setManage} {panel} {manage} {events} {dispatch} opener={() => manageButton?.querySelector('button')} />
   {#each panel.collections.filter((c) => c.modes.length > 1) as c (c.id)}
     <div class="flex flex-col gap-1">
       <span class="truncate text-caption font-semibold text-text-muted" title={nameOf(c.name)}>{nameOf(c.name)}</span>

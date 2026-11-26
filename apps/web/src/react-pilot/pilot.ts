@@ -11,12 +11,15 @@
 //   /?react=layers      the Layers panel drawn by React (E7.3, S5): LayersPanelSwitch.svelte, which Editor.svelte imports.
 //   /?react=variables   the Variables panel, the bind picker and its list drawn by React (E7.3, S5): VariablesPanelSwitch.svelte,
 //                        which Editor.svelte imports, and BindPickerSwitch.svelte, which `bindParts` in shell.ts hands to the Properties
-//                        panel. The three dialogs of the panel stay Svelte (S9, S10): the switch file draws them beside the island.
+//                        panel. The three dialogs of the panel are drawn by the switch file beside the island (Import and Export variables stay Svelte until S10).
 //   /?react=properties  the Properties panel and its sections drawn by React (E7.3, S6): PropertiesPanelSwitch.svelte, which Editor.svelte imports.
 //                        The image picker of the Fill section is Svelte until S7: the switch gives the React panel a view that mounts it
 //                        (ImagePickerHost.svelte) and the route of an asset's thumbnail, which a view package may not import.
 //   /?react=activity    the Activity panel (lanes, batches, review, Revert, the checkpoints) drawn by React (E7.3, S8):
 //                        ActivityPanelSwitch.svelte, which Editor.svelte imports.
+//   /?react=manage     the Variables manage view (the dialog, its body, the detail pane, the lists and forms) drawn by React (E7.3, S9): ManageDialogSwitch.svelte,
+//                        which VariablesPanelSwitch.svelte draws beside the React panel and hands to the Svelte panel as `manageView`. It stands alone or joins
+//                        `variables` (/?react=variables,manage); the dialog opens from the Manage button of either panel.
 // packages/web-chrome/scripts/overlays-e2e.mjs asks the two fixtures the same questions; states-e2e.mjs runs on the first with MELDFRAME_UI=react.
 import { mount } from 'svelte';
 
