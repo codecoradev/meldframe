@@ -6,7 +6,10 @@
 // The React copy of the panel (E7.3 slice S5) is checked by the same script with MELDFRAME_UI=react: it opens the page with
 // /?react=layers, and a first check asks that React really drew the panel (a silent fallback to Svelte would pass every other
 // check). Without it the Svelte copy runs. With React, a last check blocks the chunks of the React copy and asks that the Svelte
-// panel is drawn and works, so that a chunk that does not load never leaves a page with no layers.
+// panel is drawn and works, so that a chunk that does not load never leaves a page with no layers. The block matches the paths of the Vite dev
+// server's modules (`.../react/LayersPanel.tsx`), so that check is for the dev server only and not for a production build (whose chunks have hashed names).
+// A second token among the server's development tokens, with another actor (MELDFRAME_E2E_TOKEN2, as editor-e2e.mjs has it), adds a check of the
+// marker of who changed a node; without it that check prints SKIP and counts as neither passed nor failed.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -24,10 +27,11 @@ const pageErrors = [];
 const results = [];
 let n = 0;
 
-async function post(command) {
+const token2 = process.env.MELDFRAME_E2E_TOKEN2;
+async function post(command, as = token) {
   const res = await fetch(`${server}/v1/files/${file}/tools/apply_commands`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${as}` },
     body: JSON.stringify({ ops: [{ key: `layers-e2e-${run}-${++n}`, command, deps: [] }] }),
   });
   assert.equal(res.status, 200, `op refused: ${res.status} ${await res.text()}`);
@@ -119,6 +123,19 @@ async function open(browser, url, viewport = { width: 1280, height: 800 }) {
     await post({ type: 'addNode', node: { id: late, name: `Late ${run}`, type: 'text', parentId: frame, x: 10, y: 100, w: 120, h: 30, text: 'Hello', fontSize: 16, fill: '#ffffff' } });
     await until('the new row', async () => (await rowOf(page, late).count()) === 1);
   });
+  if (token2) {
+    await check('a node changed by another actor shows who, and a node of this page does not', async () => {
+      const other = `l4_${run}`;
+      await post({ type: 'addNode', node: { id: other, name: `Other ${run}`, type: 'rect', parentId: frame, x: 10, y: 140, w: 20, h: 20, fill: '#335577' } }, token2);
+      await until('the new row', async () => (await rowOf(page, other).count()) === 1);
+      const marker = rowOf(page, other).locator('[data-testid=actor]');
+      assert.equal(await marker.count(), 1, 'the row names the actor');
+      assert.match(await marker.getAttribute('title'), /^Last changed by \S/);
+      assert.equal(await rowOf(page, one).locator('[data-testid=actor]').count(), 0, 'a node of this page has no marker');
+    });
+  } else {
+    console.log('SKIP the marker of another actor: MELDFRAME_E2E_TOKEN2 is not set (a second token with another actor among the server tokens)');
+  }
   await page.context().close();
 
   if (react) {

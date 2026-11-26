@@ -149,6 +149,13 @@ const id = `e2e_${run}`;
     await until('connected', async () => (await state(page)) === 'live');
     await until('the saved frame is drawn', async () => (await count(page, A)) > 300);
   });
+  if (react) {
+    // A silent fallback to Svelte would pass every check below: ask that React drew the Layers panel (React puts a fibre on every node it makes).
+    await check('the Layers panel is drawn by React', async () => {
+      await until('the panel is drawn', async () => (await page.locator('[data-testid=layers]').count()) === 1);
+      assert.equal(await page.evaluate(() => Object.keys(document.querySelector('[data-testid=layers]') ?? {}).some((k) => k.startsWith('__reactFiber$'))), true);
+    });
+  }
   await check('a change of an agent appears without a reload', async () => {
     await post({ type: 'updateNode', id, patch: { fill: B } });
     await until('the new fill', async () => (await count(page, B)) > 300);
