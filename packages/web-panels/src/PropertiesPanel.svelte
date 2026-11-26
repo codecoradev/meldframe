@@ -6,16 +6,18 @@
 -->
 <script lang="ts">
   import type { Component, ComponentProps } from 'svelte';
-  import type { Action, AssetsState, BindField, FieldBinding, NodeKind, Picker, Properties } from '@meldframe/protocol';
+  import type { Action, AssetsState, BindField, FieldBinding, Picker, Properties } from '@meldframe/protocol';
   import Checkbox from '@meldframe/web-chrome/Checkbox.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
-  import Icon, { type IconName } from '@meldframe/web-chrome/Icon.svelte';
+  import Icon from '@meldframe/web-chrome/Icon.svelte';
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
   import { bindingOf, clipAction, percent, textAction, unbindAction, type PlainField } from '@meldframe/web-document/properties';
   import BindPicker from './BindPicker.svelte';
   import BorderSection from './BorderSection.svelte';
+  import { round2 } from './fields';
   import FillSection from './FillSection.svelte';
+  import { KIND_ICON } from './layers';
   import LayoutSection from './LayoutSection.svelte';
   import PlacementSection from './PlacementSection.svelte';
   import ShadowSection from './ShadowSection.svelte';
@@ -36,8 +38,6 @@
   }
   let { properties, picker = null, assets, selected, dispatch, bindView: BindView = BindPicker }: Props = $props();
 
-  const kindIcon: Record<NodeKind, IconName> = { frame: 'frame', rect: 'rectangle', ellipse: 'ellipse', text: 'text', shader: 'layers' };
-  const round = (v: number) => String(Math.round(v * 100) / 100);
   const send = (a: Action | null) => {
     if (a) dispatch(a);
   };
@@ -65,13 +65,13 @@
     {@const radius = bindingOf(p, 'radius')}
     {#key p.id}
       <header class="flex items-center gap-2 px-4 pt-4 text-text-muted">
-        <Icon name={kindIcon[p.kind]} />
+        <Icon name={KIND_ICON[p.kind]} />
         <div class="min-w-0 flex-1"><Field label="Name" value={p.name} onCommit={text(p, 'name')} testId="prop-name" /></div>
       </header>
       <Section title="Position">
         <div class="grid grid-cols-2 gap-2">
-          <Field label="X" prefix="X" mono value={round(p.x)} onCommit={text(p, 'x')} testId="prop-x" disabled={p.positionLocked} describedBy={p.positionLocked ? 'prop-position-note' : undefined} />
-          <Field label="Y" prefix="Y" mono value={round(p.y)} onCommit={text(p, 'y')} testId="prop-y" disabled={p.positionLocked} describedBy={p.positionLocked ? 'prop-position-note' : undefined} />
+          <Field label="X" prefix="X" mono value={round2(p.x)} onCommit={text(p, 'x')} testId="prop-x" disabled={p.positionLocked} describedBy={p.positionLocked ? 'prop-position-note' : undefined} />
+          <Field label="Y" prefix="Y" mono value={round2(p.y)} onCommit={text(p, 'y')} testId="prop-y" disabled={p.positionLocked} describedBy={p.positionLocked ? 'prop-position-note' : undefined} />
         </div>
         {#if p.positionLocked}
           <!-- The position is the layout's: the fields show where the node is drawn and cannot move it. -->
@@ -80,8 +80,8 @@
       </Section>
       <Section title="Size">
         <div class="grid grid-cols-2 gap-2">
-          <Field label="Width" prefix="W" suffix="px" mono value={round(p.w)} onCommit={text(p, 'w')} testId="prop-w" />
-          <Field label="Height" prefix="H" suffix="px" mono value={round(p.h)} onCommit={text(p, 'h')} testId="prop-h" />
+          <Field label="Width" prefix="W" suffix="px" mono value={round2(p.w)} onCommit={text(p, 'w')} testId="prop-w" />
+          <Field label="Height" prefix="H" suffix="px" mono value={round2(p.h)} onCommit={text(p, 'h')} testId="prop-h" />
         </div>
         <SizeModes properties={p} {dispatch} />
       </Section>
@@ -103,11 +103,11 @@
           {/if}
           {#if has.radius}
             {#if radius}
-              <div class="col-span-2">{@render chip('Corner radius', 'radius', radius, round(p.radius))}</div>
+              <div class="col-span-2">{@render chip('Corner radius', 'radius', radius, round2(p.radius))}</div>
             {:else}
               <div class="flex flex-col gap-2">
                 <span class="flex items-center justify-between text-text-muted">Corner radius<BindView properties={p} field="radius" {picker} {dispatch} /></span>
-                <Field label="Corner radius" value={round(p.radius)} onCommit={text(p, 'radius')} testId="prop-radius" />
+                <Field label="Corner radius" value={round2(p.radius)} onCommit={text(p, 'radius')} testId="prop-radius" />
               </div>
             {/if}
           {/if}
@@ -118,7 +118,7 @@
       </Section>
       {#if has.fontSize}
         <Section title="Text">
-          <Field label="Font size" suffix="px" value={round(p.fontSize)} onCommit={text(p, 'fontSize')} testId="prop-fontSize" />
+          <Field label="Font size" suffix="px" value={round2(p.fontSize)} onCommit={text(p, 'fontSize')} testId="prop-fontSize" />
           <TextStyle properties={p} {dispatch} />
         </Section>
       {/if}
