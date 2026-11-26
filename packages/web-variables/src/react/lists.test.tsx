@@ -17,7 +17,7 @@ import { CollectionList } from './CollectionList';
 import { NameForm } from './NameForm';
 import { RemoveConfirm } from './RemoveConfirm';
 import { RenameField } from './RenameField';
-import { tokens } from './markup';
+import { tokens } from './markup.testutil';
 
 describe('the token list that compares the two copies', () => {
   it('reads tags with sorted attributes and classes, text by words, and drops comments and empty classes', () => {
