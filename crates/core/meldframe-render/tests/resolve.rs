@@ -287,3 +287,24 @@ fn an_ellipse_and_a_shader_take_shadows_like_a_rectangle() {
         assert_eq!(one(n).shadows.len(), 1, "{kind}");
     }
 }
+
+#[test]
+fn the_name_of_a_box_is_made_safe_to_draw_as_a_label_on_the_canvas() {
+    // The canvas draws the name of a frame above it: a right-to-left override would reorder the line (rule U9). The
+    // golden table of #319: braille blank, Hangul filler, Khmer vowel, zero width space, soft hyphen, a right-to-left
+    // override, and two no-break spaces.
+    for (c, want) in [
+        ("\u{2800}", "ab"),
+        ("\u{3164}", "ab"),
+        ("\u{17B4}", "ab"),
+        ("\u{200B}", "ab"),
+        ("\u{00AD}", "ab"),
+        ("\u{202E}", "ab"),
+        ("\u{00A0}\u{00A0}", "a b"),
+    ] {
+        let b = one(json!({"id": "f", "type": "frame", "name": format!("a{c}b")}));
+        assert_eq!(b.name, want, "{c:?}");
+    }
+    let long = one(json!({"id": "f", "type": "frame", "name": "x".repeat(300)}));
+    assert_eq!(long.name.len(), 256);
+}

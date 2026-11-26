@@ -2021,6 +2021,7 @@ dependencies = [
  "meldframe-layout",
  "meldframe-order",
  "meldframe-protocol",
+ "meldframe-text",
  "meldframe-variables",
  "serde",
  "serde_json",

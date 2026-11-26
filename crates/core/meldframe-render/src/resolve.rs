@@ -315,7 +315,7 @@ fn paint(n: &Node, parent: Option<&str>, cx: &Fields) -> PaintedBox {
         } else {
             TextAlign::default()
         },
-        name: n.name.clone(),
+        name: meldframe_text::label(&n.name, meldframe_text::MAX_LABEL),
         clip: n.clip,
         // Like the canvas, an opacity counts only when it is a number below 1.
         opacity: if opacity < 1.0 { opacity } else { 1.0 },
