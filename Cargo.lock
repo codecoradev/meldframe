@@ -733,6 +733,7 @@ dependencies = [
  "html-import-css",
  "html-import-style",
  "html-import-tree",
+ "meldframe-layout",
  "meldframe-protocol",
  "meldframe-text",
 ]
@@ -1798,7 +1799,9 @@ name = "meldframe-import-html-paint-tests"
 version = "0.0.0"
 dependencies = [
  "html-import",
+ "meldframe-check",
  "meldframe-protocol",
+ "meldframe-text",
  "serde_json",
  "wasm-bindgen-test",
 ]

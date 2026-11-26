@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-import-html-paint-tests"
-description = "The tests of the paint stage of the HTML import (E4.4): background colour, gradients, images, border, radius, shadows and opacity read from a computed style, what is refused, and the bounds. Its own crate to keep the other tests crates under the size ceiling. No library code."
+description = "The tests of the paint stage and of the mapping stage of the HTML import (E4.4), the two stages of the facade `html-import`: for the paint, background colour, gradients, images, border, radius, shadows and opacity read from a computed style and what is refused; for the mapping (`tests/map_*.rs`), structure, layout, sizing, text, the report of what a node could not take, and the bounds with hostile text. Its own crate to keep the other tests crates under the size ceiling. No library code."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,7 +11,9 @@ kind = "tool"
 
 [dev-dependencies]
 html-import = { path = "../../features/html-import/html-import" }
+meldframe-check = { path = "../meldframe-check" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-text = { path = "../meldframe-text" }
 serde_json = "1"
 
 # The tests run under WASM through wasm-bindgen-test (`just wasm-test`); each test file imports it as `test` on
