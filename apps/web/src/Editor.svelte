@@ -7,7 +7,7 @@
   import { onDestroy, onMount, untrack } from 'svelte';
   import type { Action } from '@meldframe/protocol';
   import { HOME, formatZoom, type Camera } from '@meldframe/web-canvas/camera';
-  import type { Engine } from '@meldframe/web-link/engine';
+  import { displayText, type Engine } from '@meldframe/web-link/engine';
   import type { LayoutSwitch } from '@meldframe/web-link/layoutswitch';
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
   import Canvas from './canvas/Canvas.svelte';
@@ -173,10 +173,19 @@
   // Show the content in full the first time there is some and the canvas is ready: a file that opens with content,
   // and one that opens empty and gets its first nodes over the socket. After that the camera is the person's.
   let canvasError = $state<string | null>(null);
+  // The message of the browser is text from outside: the helper of the app layer makes it safe and cuts it (rule U9); a trap in
+  // it leaves the banner with its own words ('' says there is no detail).
+  const safeMessage = (e: unknown): string => {
+    try {
+      return displayText(e instanceof Error ? e.message : String(e), 500);
+    } catch {
+      return '';
+    }
+  };
   // The banners over the canvas: the canvas could not start, and the connection while it is not live.
   const connection = $derived(bannerFor(snap.state.connection, snap.state.pending.length));
   const banners = $derived<Banner[]>([
-    ...(canvasError ? [{ id: 'canvas-error', tone: 'danger' as const, text: `The canvas could not start: ${canvasError}` }] : []),
+    ...(canvasError !== null ? [{ id: 'canvas-error', tone: 'danger' as const, text: canvasError ? `The canvas could not start: ${canvasError}` : 'The canvas could not start.' }] : []),
     ...(connection ? [connection] : []),
   ]);
   const onBanner = (_banner: string, action: string) => {
@@ -343,7 +352,7 @@
       {onCreate}
       onActivate={startEdit}
       {onReady}
-      onError={(e) => (canvasError = e instanceof Error ? e.message : String(e))}
+      onError={(e) => (canvasError = safeMessage(e))}
       {onAssetProblem}
     />
     {#if editing && editBox}

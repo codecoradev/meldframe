@@ -33,6 +33,9 @@ const MESSAGE_MAX = 500;
 /** What only a developer running `just dev` needs to read. */
 const DEV_HINT = 'The dev token is missing or wrong: run `just dev` first, then `just web`.';
 
+/** What only a developer needs to read when the editor could not start and the WASM module is not there to make the browser's message safe. */
+const WASM_HINT = 'If the WASM bridge is not built, run `just wasm-build`, then reload.';
+
 /** `LoadFailure` of web-document, read by its fields so this package does not import it. */
 const statusOf = (e: unknown): { status: number; body: string } | null =>
   typeof e === 'object' && e !== null && typeof (e as { status?: unknown }).status === 'number' ? { status: (e as { status: number }).status, body: String((e as { body?: unknown }).body ?? '') } : null;
@@ -40,8 +43,9 @@ const statusOf = (e: unknown): { status: number; body: string } | null =>
 /**
  * The page for a failure of the start. Only a refusal or a missing answer of the snapshot request (`LoadFailure`) says
  * something about the server; any other error, a TypeError of a bug or of the WASM module that did not load among them,
- * is the editor failing to start and shows its own message. `dev` is true in a development build, which adds the hint for
- * a missing token to the 401 page.
+ * is the editor failing to start and shows its own message (made safe by the helper; with no helper, a development build
+ * says that the WASM bridge may not be built, in a fixed sentence, and a product build says nothing more). `dev` is true in a
+ * development build, which adds the hint for a missing token to the 401 page.
  */
 export function pageFor(e: unknown, opts: { dev: boolean; safe: Safe | null }): ErrorPageView {
   const r = statusOf(e);
@@ -59,5 +63,5 @@ export function pageFor(e: unknown, opts: { dev: boolean; safe: Safe | null }): 
   if (r) {
     return { kind: 'server', title: 'The server could not open the file', text: 'Nothing was changed. Try again in a moment.', detail: said, action: AGAIN };
   }
-  return { kind: 'start', title: 'The editor could not start', text: 'Nothing was changed.', detail: opts.safe ? opts.safe(e instanceof Error ? e.message : String(e), MESSAGE_MAX) || undefined : undefined, action: AGAIN };
+  return { kind: 'start', title: 'The editor could not start', text: 'Nothing was changed.', detail: opts.safe ? opts.safe(e instanceof Error ? e.message : String(e), MESSAGE_MAX) || undefined : opts.dev ? WASM_HINT : undefined, action: AGAIN };
 }

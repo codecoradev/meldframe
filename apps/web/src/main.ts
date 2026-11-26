@@ -73,7 +73,9 @@ start().catch((e: unknown) => {
   shell?.stop(); // a page that failed half way keeps no socket, timer or canvas
   if (editor) void unmount(editor);
   root.replaceChildren();
-  const page = pageFor(e, { dev: import.meta.env.DEV, safe: wasmReady ? displayText : null });
+  // A trap inside the helper must not blank the page that reports a failure: it then shows what the page says itself.
+  const safe = wasmReady ? (text: string, max: number) => { try { return displayText(text, max); } catch { return ''; } } : null;
+  const page = pageFor(e, { dev: import.meta.env.DEV, safe });
   const again = () => location.reload();
   const svelte = () => mount(ErrorPage, { target: root, props: { page, onAction: again } });
   // /?react=feedback (E7.3, S3): the React copy loads on demand, and a chunk that does not load (the server or the network is
