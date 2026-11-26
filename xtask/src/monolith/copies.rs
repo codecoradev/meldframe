@@ -120,6 +120,7 @@ mod tests {
 
     fn cfg(allow: &[&[&str]]) -> Config {
         Config {
+            threshold: 2500,
             allow_copy: allow
                 .iter()
                 .map(|fns| AllowCopy {

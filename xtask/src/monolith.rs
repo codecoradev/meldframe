@@ -2,12 +2,21 @@
 //! The rules are pure functions over crate sources; this module holds their shared types, reads
 //! the workspace and runs them. The limits are in `xtask/monolith.toml` and are listed here.
 //!
+//! - MM1 root shape: in a crate above the threshold, `src/lib.rs` holds only docs, `use`, `mod`,
+//!   `pub use` and attributes, at most 150 lines.
+//! - MM2 capability modules: a crate above the threshold has at most 40 top-level modules; each is
+//!   a file of at most 500 lines or a directory of at least 2 files whose root obeys MM1, and
+//!   starts with a one-sentence `//!` doc naming the capability (`--list` prints them).
 //! - MM3 no copies: two files with a function of the same body (25 tokens or more, tests left
 //!   out) fail, in any crate, unless `[[allow_copy]]` lists the group with a reason.
 //! - MM4 shared helpers: a banned pattern of a `[shared.<name>]` rule outside its home fails with
 //!   "use <home>", unless `[allow_shared.<name>]` lists the file with a reason. A pattern is Rust
 //!   source compared token by token: hex digits (`0x200b`, `\u{feff}`) without regard to case, and
 //!   an `_` stands for any one identifier. A file is reported once per rule.
+//! - MM5 module cycles: top-level modules of a crate above the threshold that use each other in a
+//!   cycle fail.
+//! - MM6 tests live in the crate they test: a crate named `*-tests`, `*-props` or `*-scenarios`
+//!   with no source code fails unless `[allow_test_crate]` lists it.
 //!
 //! Every allow-list entry carries a reason and only goes down: an entry that no longer matches
 //! fails as not needed, and `--base <ref>` rejects an entry that is not on the base branch. An
@@ -19,14 +28,19 @@
 //!
 //! What it does not do. MM3 finds exact copies only: the same rule written twice with another
 //! name for a variable, another error type or another loop is not found. MM4 is only as good as
-//! the pattern list somebody keeps up to date. None of it checks that a shared helper is a good
-//! one, only that there is one. A crate is read as text: macros are not expanded.
+//! the pattern list somebody keeps up to date. MM5 sees the paths `crate::<module>` and a
+//! `use crate::{..}` list, not a re-export through another name. None of it checks that a shared
+//! helper is a good one, only that there is one. A crate is read as text: macros are not expanded.
 
 mod config;
 mod copies;
+mod cycles;
+mod shape;
 mod shared;
+mod tests_only;
 mod tokens;
 
+use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
 use std::process::ExitCode;
@@ -34,12 +48,16 @@ use std::process::ExitCode;
 use crate::rules::Package;
 use crate::{scan, size};
 
-pub use config::{CONFIG_FILE, Config, check_not_raised, parse};
+pub use config::{CONFIG_FILE, Config, check_not_raised, parse, parse_base};
 
 /// One crate's Rust sources.
 #[derive(Debug, Clone, Default)]
 pub struct CrateSrc {
     pub name: String,
+    /// Manifest directory relative to the workspace root.
+    pub dir: String,
+    /// Lines of every counted file of the crate, tests included (the measure of `size-check`).
+    pub total_lines: usize,
     pub files: Vec<SrcFile>,
 }
 
@@ -114,12 +132,19 @@ pub(crate) fn product_tokens(file: &SrcFile) -> Vec<tokens::Tok> {
 pub fn check(crates: &[CrateSrc], cfg: &Config) -> Vec<Violation> {
     let mut out = copies::check(crates, cfg);
     out.extend(shared::check(crates, cfg));
+    out.extend(tests_only::check(crates, cfg));
+    out.extend(shape::check(crates, cfg));
+    out.extend(cycles::check(crates, cfg));
     out.sort();
     out
 }
 
 /// Read the Rust sources of every package.
 fn load(root: &Path, packages: &[Package]) -> Vec<CrateSrc> {
+    let totals: HashMap<String, usize> = size::measure(root, packages)
+        .into_iter()
+        .map(|(name, files)| (name, files.iter().map(|f| f.1).sum()))
+        .collect();
     let files = |p: &Package| {
         scan::files(root, &p.dir, &["rs"])
             .into_iter()
@@ -133,6 +158,8 @@ fn load(root: &Path, packages: &[Package]) -> Vec<CrateSrc> {
         .iter()
         .map(|p| CrateSrc {
             name: p.name.clone(),
+            dir: p.dir.clone(),
+            total_lines: totals.get(&p.name).copied().unwrap_or_default(),
             files: files(p),
         })
         .collect()
@@ -140,15 +167,27 @@ fn load(root: &Path, packages: &[Package]) -> Vec<CrateSrc> {
 
 /// `mm-check [--base <git-ref>]`: the rules over the workspace, and with `--base` that the
 /// allow-lists did not grow. A configuration that is not on the base yet is being introduced.
+/// `mm-check --list` prints the top-level modules of each monolith with their one-sentence doc.
 pub fn run(packages: &[Package], args: &[String]) -> Result<ExitCode, String> {
-    crate::args::check_flags("mm-check", args, &["--base"])?;
+    crate::args::check_flags("mm-check", args, &["--base", "--list"])?;
     let root = scan::workspace_root();
     let cfg = parse(&scan::read(&root, CONFIG_FILE))?;
     let crates = load(&root, packages);
+    if args.iter().any(|a| a == "--list") {
+        let lines = shape::list(&crates, &cfg);
+        lines.iter().for_each(|l| println!("{l}"));
+        if lines.is_empty() {
+            println!(
+                "mm-check: no crate above {} lines has a src/lib.rs; there is no module to list",
+                cfg.threshold
+            );
+        }
+        return Ok(ExitCode::SUCCESS);
+    }
     let mut found = check(&crates, &cfg);
     if let Some(base) = size::base_arg(args).map_err(|e| e.replace("size-check", "mm-check"))? {
         match scan::base_file(&root, base, CONFIG_FILE)? {
-            Some(text) => found.extend(check_not_raised(&parse(&text)?, &cfg)),
+            Some(text) => found.extend(check_not_raised(&parse_base(&text)?, &cfg)),
             None => println!(
                 "mm-check: note: {CONFIG_FILE} is not on {base}; the lists are being introduced"
             ),
@@ -170,6 +209,8 @@ pub(crate) mod fixtures {
         let dir = format!("crates/{name}");
         CrateSrc {
             name: name.into(),
+            dir: dir.clone(),
+            total_lines: files.iter().map(|f| f.1.lines().count()).sum(),
             files: files
                 .iter()
                 .map(|(p, t)| SrcFile {
@@ -208,11 +249,11 @@ mod tests {
 
     #[test]
     fn a_violation_prints_crate_path_line_rule_and_message() {
-        let v = Violation::new("c", "a/b.rs", 7, "MM4", "msg".into());
-        assert_eq!(v.to_string(), "c: a/b.rs:7: MM4: msg");
-        let v = Violation::new("c", "a/b.rs", 0, "MM4", "msg".into());
-        assert_eq!(v.to_string(), "c: a/b.rs: MM4: msg");
-        let v = Violation::entry("MM4", "msg".into());
-        assert_eq!(v.to_string(), format!("{CONFIG_FILE}: MM4: msg"));
+        let v = Violation::new("c", "a/b.rs", 7, "MM3", "msg".into());
+        assert_eq!(v.to_string(), "c: a/b.rs:7: MM3: msg");
+        let v = Violation::new("c", "a/b.rs", 0, "MM3", "msg".into());
+        assert_eq!(v.to_string(), "c: a/b.rs: MM3: msg");
+        let v = Violation::entry("MM6", "msg".into());
+        assert_eq!(v.to_string(), format!("{CONFIG_FILE}: MM6: msg"));
     }
 }
