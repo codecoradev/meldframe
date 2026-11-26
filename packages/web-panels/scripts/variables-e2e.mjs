@@ -4,11 +4,17 @@
 // .dev-token at the root) and `just web` (Vite) running, the WASM bridge built, and Playwright from the global module
 // path. It adds one frame, one collection and one variable to the file, and removes the variable and the collection at
 // the end (the frame stays: deleting a frame needs the owner's approval): run it against the development server only.
+// The React copies of the panel, the bind picker (Base UI's Popover) and its list (E7.3 slice S5) are checked by the same script with
+// MELDFRAME_UI=react: it opens the page with /?react=variables, and a first check asks that React really drew the panel (a silent
+// fallback to Svelte would pass every other check; the picker's popover is asked the same when it opens). Without it the Svelte copies
+// (Bits UI) run. A last check with MELDFRAME_UI=react blocks the chunks of the React copies and asks that the Svelte panel and picker are
+// drawn and work. The Layers panel's switch is /?react=layers (layers-e2e.mjs asks it).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
+const react = process.env.MELDFRAME_UI === 'react';
 const web = process.argv[2] ?? 'http://localhost:5173';
 const server = process.argv[3] ?? 'http://127.0.0.1:8080';
 const root = new URL('../../../', import.meta.url).pathname;
@@ -68,6 +74,8 @@ const col = `col_${run}`;
 const bg = `bg_${run}`;
 const frame = `frame_${run}`;
 const results = [];
+// Whether React drew the element: React puts a fibre on every DOM node it makes; a Svelte page has none.
+const fibre = (page, sel) => page.evaluate((q) => Object.keys(document.querySelector(q) ?? {}).some((k) => k.startsWith('__reactFiber$')), sel);
 async function check(name, fn) {
   try { await fn(); results.push(true); console.log(`ok   ${name}`); } catch (e) { results.push(false); console.log(`FAIL ${name}: ${e.message}`); }
 }
@@ -79,9 +87,14 @@ async function check(name, fn) {
   browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
-  await page.goto(web);
+  await page.goto(react ? `${web.replace(/\/?$/, '/')}?react=variables` : web);
   await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
   await until('the frame is listed', async () => (await page.locator(`[data-testid=layer][data-id="${frame}"]`).count()) === 1);
+
+  await check('the panel is drawn by the copy that was asked for', async () => {
+    await until('the panel is drawn', async () => (await page.locator('[data-testid=variables]').count()) === 1); // the React side loads on demand
+    assert.equal(await fibre(page, '[data-testid=variables]'), react, react ? 'the Variables panel has no React fibre: the page fell back to Svelte' : 'the Variables panel has a React fibre on the Svelte run');
+  });
 
   await check('the panel is open at first load and lists the collection and the variable; the section folds', async () => {
     assert.equal(await page.getAttribute('[data-testid=toggle-variables]', 'aria-expanded'), 'true');
@@ -151,6 +164,88 @@ async function check(name, fn) {
     await sleep(300);
     assert.ok(await filled(page, EDITED), 'the literal does not follow the mode');
   });
+
+  // The bind picker (BindPicker and PickerList, Bits UI's Popover on Svelte and Base UI's on React) opens from the button at the end of the
+  // Fill field and is open while the app state says so (the app layer raises `pickerChanged` for each change of it, so the page reads the
+  // list again). A mouse click opens it, as the keyboard does: the button once toggled the popover twice for one click.
+  const picker = page.locator('[data-testid=picker]');
+  const trigger = page.locator('[data-testid=prop-fill-bind]');
+  const active = () => page.evaluate(() => `${document.activeElement?.getAttribute('data-testid') ?? document.activeElement?.tagName}`);
+  await check('the picker opens with the pointer or the keyboard, takes the focus into its search and lists the variables of the field', async () => {
+    await trigger.click();
+    await until('the rows', async () => (await page.locator('[data-testid=picker-row]').count()) >= 1);
+    assert.equal(await trigger.getAttribute('aria-expanded'), 'true');
+    assert.equal(await fibre(page, '[data-testid=picker]'), react, 'the picker is drawn by the copy that was asked for');
+    assert.equal(await active(), 'picker-search');
+    assert.ok(await page.locator('[data-testid=picker] ul[aria-label="Variables for Fill"]').count(), 'the list is named for the field');
+    assert.equal(await page.getAttribute(`[data-testid=picker-row][data-id="${bg}"]`, 'aria-pressed'), 'false');
+    assert.equal(await page.locator('[data-testid=picker-row][data-id="no-such-variable"]').count(), 0);
+    await page.locator('[data-testid=picker-row]').first().focus();
+    await page.keyboard.press('Escape');
+    await until('Escape from a row closes it', async () => (await picker.count()) === 0);
+    assert.equal(await active(), 'prop-fill-bind', 'the focus is back on the button');
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    await until('the rows again, from the keyboard', async () => (await page.locator('[data-testid=picker-row]').count()) >= 1);
+    assert.equal(await active(), 'picker-search');
+    await page.locator('[data-testid=picker-row]').first().focus();
+    await page.keyboard.press('Escape');
+    await until('closed again', async () => (await picker.count()) === 0);
+  });
+  await check('the search narrows the rows and says so; the keys typed in it are text, not tools', async () => {
+    await trigger.click();
+    await until('the rows', async () => (await page.locator('[data-testid=picker-row]').count()) >= 1);
+    const all = await page.locator('[data-testid=picker-row]').count();
+    await page.fill('[data-testid=picker-search]', 'zzz');
+    await until('no row', async () => (await page.locator('[data-testid=picker-row]').count()) === 0);
+    assert.match(await page.textContent('[data-testid=picker-empty]'), /No variable matches the search\./);
+    await page.fill('[data-testid=picker-search]', '');
+    await page.press('[data-testid=picker-search]', 'r');
+    await sleep(300);
+    assert.equal(await page.inputValue('[data-testid=picker-search]'), 'r');
+    assert.equal(await page.locator('[aria-pressed=true][aria-label*=ectangle]').count(), 0, 'r is text in the field, not the Rectangle tool');
+    await page.fill('[data-testid=picker-search]', '');
+    await until('all rows again', async () => (await page.locator('[data-testid=picker-row]').count()) === all);
+  });
+  await check('a click outside closes the picker and a row binds the field and closes it', async () => {
+    await page.mouse.click(150, 400);
+    await until('the click outside closes it', async () => (await picker.count()) === 0);
+    await trigger.click();
+    await until('the rows', async () => (await page.locator('[data-testid=picker-row]').count()) >= 1);
+    await page.click(`[data-testid=picker-row][data-id="${bg}"]`);
+    await until('the picker closes on a bind', async () => (await picker.count()) === 0);
+    const node = await until('the binding on the server', async () => (await snapshot()).nodes.find((x) => x.id === frame && x.fill?.var === bg));
+    assert.deepEqual(node.fill, { var: bg });
+    await until('the chip of the variable', async () => (await page.locator('[data-testid=prop-fill-bound]').count()) === 1);
+    await page.click('[data-testid=prop-fill-detach]');
+    await until('the field is a plain field again', async () => (await trigger.count()) === 1);
+  });
+
+  if (react) {
+    // The React copies load on demand. A chunk that does not load must leave the Svelte panel and the Svelte picker, never a page with no variables.
+    await check('with the chunks of the React copies blocked, the Svelte panel and picker are drawn and work', async () => {
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      const blocked = await ctx.newPage();
+      blocked.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
+      await blocked.route((u) => /react\/(VariablesPanel|BindPicker|island)/.test(u.pathname), (route) => route.abort('failed'));
+      await blocked.goto(`${web.replace(/\/?$/, '/')}?react=variables`);
+      await until('the editor is live', async () => (await blocked.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
+      await until('the panel is drawn', async () => (await blocked.locator(`[data-testid=var-row][data-id="${bg}"]`).count()) === 1);
+      assert.equal(await fibre(blocked, '[data-testid=variables]'), false, 'the panel is the Svelte copy');
+      await blocked.locator(`[data-testid=layer][data-id="${frame}"] button`).last().click();
+      await until('the bind button', async () => (await blocked.locator('[data-testid=prop-fill-bind]').count()) === 1);
+      await blocked.locator('[data-testid=prop-fill-bind]').click();
+      await until('the rows', async () => (await blocked.locator('[data-testid=picker-row]').count()) >= 1);
+      assert.equal(await fibre(blocked, '[data-testid=picker]'), false, 'the picker is the Svelte copy');
+      await blocked.keyboard.press('Escape');
+      await blocked.locator('[data-testid=picker-row]').first().focus();
+      await blocked.keyboard.press('Escape');
+      await until('the picker closes', async () => (await blocked.locator('[data-testid=picker]').count()) === 0);
+      await blocked.click('[data-testid=var-manage]');
+      await blocked.locator('[role=dialog]').first().waitFor({ timeout: 5000 });
+      await ctx.close();
+    });
+  }
 
   await check('no uncaught error in the page', async () => assert.deepEqual(pageErrors, []));
   await browser.close();
