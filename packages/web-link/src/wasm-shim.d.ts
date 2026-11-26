@@ -15,6 +15,8 @@ declare module '@meldframe/wasm' {
     setMeasurer(measure: (text: string, fontSize: number, fontWeight: number, wrapWidth: number | null) => [number, number]): string;
     free(): void;
   }
+  /** Text from outside made safe to show and cut to `maxChars` characters (rule U9; `meldframe_text::label`). */
+  export function displayText(raw: string, maxChars: number): string;
   export function initSync(module: { module: BufferSource } | BufferSource): unknown;
   export default function init(input?: unknown): Promise<unknown>;
 }

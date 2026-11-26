@@ -298,7 +298,9 @@ const statusRegion = '[data-testid=banner-region-status]';
     });
   }
 
-  await check('the error page for an editor that could not start (the WASM module does not load): the detail is the message, Try again is there', async () => {
+  // The text of the browser is made safe by `displayText` of the app layer (rule U9), which is in the WASM module: with the module
+  // gone there is no helper, so the page shows no text of the browser at all, only what it says itself (`pageFor`, `safe` null).
+  await check('the error page for an editor that could not start (the WASM module does not load): its own words, none of the browser\'s, and Try again', async () => {
     const p = await newPage();
     await p.route(/\.wasm(\?.*)?$/, (route) => route.abort('failed'));
     await p.goto(page_url());
@@ -306,7 +308,8 @@ const statusRegion = '[data-testid=banner-region-status]';
     await err.waitFor({ state: 'visible', timeout: 20000 });
     assert.equal(await err.getAttribute('data-kind'), 'start');
     assert.match(await err.locator('h1').textContent(), /^The editor could not start$/);
-    assert.ok((await err.locator('[data-testid=error-detail]').textContent()).length > 0);
+    assert.equal(await err.locator('[data-testid=error-detail]').count(), 0, 'no detail: the message of the browser is not made safe without the module');
+    assert.match(await err.textContent(), /^The editor could not start\s*Nothing was changed\.\s*Try again$/);
     assert.equal(await err.getByRole('button', { name: 'Try again' }).count(), 1);
     assert.equal(await fibre(p, '[data-testid=error-page]'), react);
     await shot(p, 'error-start');
