@@ -101,12 +101,16 @@ describe('the Import variables dialog body', () => {
     expect(out).toContain('Nothing to import');
     expect(out).toContain('a rule that is not the root');
   });
-  it('draws every text of the report as plain text and says how many lines were left out', () => {
-    const out = importBody({ result: res({ report: report({ omitted: 7, entries: [{ kind: 'skipped', code: 'x', name: '<img src=x>', message: 'a‮b' }] }) }) });
+  it('draws every text of the report as text, as the app layer gave it, and says how many lines were left out', () => {
+    const out = importBody({ result: res({ report: report({ omitted: 7, entries: [{ kind: 'skipped', code: 'x', name: '<img src=x>', message: 'a b' }] }) }) });
     expect(out).toContain('&lt;img src=x>');
     expect(out).not.toContain('<img src=x');
-    expect(out).not.toMatch(/‮/);
     expect(out).toContain('7 more lines not listed');
+  });
+  it('draws no report and no counts for text that was not read (the result has none), instead of an empty one', () => {
+    const out = importBody({ result: res({ status: 'refused', code: 'empty_text', report: null }) });
+    expect(out).toContain('no text to import');
+    expect(out).not.toContain('not listed');
   });
   it('keeps the note about the file in a status region', () => {
     expect(importBody({ note: { ok: false, text: 'This file is 2.0 MiB.' } })).toMatch(/role="status"[^>]*data-testid="import-vars-note">This file is 2\.0 MiB\./);

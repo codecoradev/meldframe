@@ -14,7 +14,7 @@
   import { TYPE_LABEL } from '@meldframe/web-document/labels';
   import NameForm from './NameForm.svelte';
   import RenameField from './RenameField.svelte';
-  import { count, label, type Ask, type Summary } from './manage';
+  import { count, nameOf, type Ask, type Summary } from './manage';
   import type { RenameContext } from './rename';
 
   interface Props {
@@ -39,7 +39,7 @@
   let from = $state('');
   // The mode the next one copies: the default (first) unless another was picked and is still there.
   const copy = $derived(col.modes.some((m) => m.id === from) ? from : (col.modes[0]?.id ?? ''));
-  const name = $derived(label(col.name));
+  const name = $derived(nameOf(col.name));
   const cut = $derived(col.matched > col.variables.length);
   /** Whether the field of a rename is open for this thing. */
   const editing = (kind: Ask['kind'], id: string) => !!ctx && renaming?.kind === kind && renaming.id === id;
@@ -70,17 +70,17 @@
       {#each col.modes as m, i (m.id)}
         {#if ctx && editing('mode', m.id)}
           <li tabindex="-1" class="{ring} w-full rounded-md border border-divider bg-field p-2 text-small text-text" data-testid="manage-mode" data-id={m.id} data-entity-id={m.id}>
-            <RenameField kind="mode" subject="mode {label(m.name)}" first={i === 0} {ctx} onSubmit={onRenameSubmit} onCancel={onRenameCancel} testId="manage-renaming-mode" />
+            <RenameField kind="mode" subject="mode {nameOf(m.name)}" first={i === 0} {ctx} onSubmit={onRenameSubmit} onCancel={onRenameCancel} testId="manage-renaming-mode" />
           </li>
         {:else}
           <li tabindex="-1" class="{ring} flex items-center gap-2 rounded-md border border-divider bg-field py-1 pr-1 pl-3 text-small text-text" data-testid="manage-mode" data-id={m.id} data-entity-id={m.id}>
-            <span class="max-w-48 truncate" title={label(m.name)}><bdi>{label(m.name)}</bdi></span>
+            <span class="max-w-48 truncate" title={nameOf(m.name)}><bdi>{nameOf(m.name)}</bdi></span>
             {#if i === 0}
               <span class="text-caption text-text-muted" title="The first mode is the default one and stays">default</span>
             {/if}
-            <Button size="sm" aria-label="Rename mode {label(m.name)}" onclick={() => onRename({ kind: 'mode', collection: col.id, id: m.id })} data-testid="manage-rename-mode" data-rename="mode:{m.id}">Rename</Button>
+            <Button size="sm" aria-label="Rename mode {nameOf(m.name)}" onclick={() => onRename({ kind: 'mode', collection: col.id, id: m.id })} data-testid="manage-rename-mode" data-rename="mode:{m.id}">Rename</Button>
             {#if i > 0}
-              <Button size="sm" aria-label="Remove mode {label(m.name)}" onclick={() => onAsk({ kind: 'mode', collection: col.id, id: m.id })} data-testid="manage-remove-mode" data-remove="mode:{m.id}">Remove</Button>
+              <Button size="sm" aria-label="Remove mode {nameOf(m.name)}" onclick={() => onAsk({ kind: 'mode', collection: col.id, id: m.id })} data-testid="manage-remove-mode" data-remove="mode:{m.id}">Remove</Button>
             {/if}
           </li>
         {/if}
@@ -92,7 +92,7 @@
           <label class="flex items-center gap-2 text-small text-text-muted">
             <span aria-hidden="true">Copy from</span>
             <select aria-label="Copy the values of the new mode from" class={select} value={copy} onchange={(e) => (from = e.currentTarget.value)} data-testid="manage-copy-from">
-              {#each col.modes as m (m.id)}<option value={m.id}>{label(m.name)}</option>{/each}
+              {#each col.modes as m (m.id)}<option value={m.id}>{nameOf(m.name)}</option>{/each}
             </select>
           </label>
         {/snippet}
@@ -126,15 +126,15 @@
           {#each col.variables as v (v.id)}
             <tr tabindex="-1" class="{ring} border-b border-hairline" data-testid="manage-var" data-id={v.id} data-entity-id={v.id}>
               {#if ctx && editing('variable', v.id)}
-                <th scope="row" class="max-w-0 py-1 pr-2 text-left font-normal text-text"><RenameField kind="variable" subject={label(v.name)} {ctx} onSubmit={onRenameSubmit} onCancel={onRenameCancel} testId="manage-renaming-variable" /></th>
+                <th scope="row" class="max-w-0 py-1 pr-2 text-left font-normal text-text"><RenameField kind="variable" subject={nameOf(v.name)} {ctx} onSubmit={onRenameSubmit} onCancel={onRenameCancel} testId="manage-renaming-variable" /></th>
               {:else}
-                <th scope="row" class="max-w-0 truncate py-1 pr-2 text-left font-normal text-text" title={label(v.name)}><bdi>{label(v.name)}</bdi></th>
+                <th scope="row" class="max-w-0 truncate py-1 pr-2 text-left font-normal text-text" title={nameOf(v.name)}><bdi>{nameOf(v.name)}</bdi></th>
               {/if}
               <td class="px-2 py-1 text-text-secondary" data-testid="manage-var-type">{TYPE_LABEL[v.type]}</td>
               <td class="px-2 py-1 text-right font-mono {v.usedBy === 0 ? 'text-text-muted' : 'text-text'}" data-testid="manage-var-uses" title={v.usedBy === 0 ? 'Nothing uses it' : count(v.usedBy, 'use', 'uses')}>{v.usedBy}</td>
               <td class="py-1 pl-2 text-right"><div class="flex justify-end gap-2">
-                {#if !editing('variable', v.id)}<Button size="sm" aria-label="Rename {label(v.name)}" onclick={() => onRename({ kind: 'variable', id: v.id })} data-testid="manage-rename-variable" data-rename="variable:{v.id}">Rename</Button>{/if}
-                <Button size="sm" aria-label="Remove {label(v.name)}" onclick={() => onAsk({ kind: 'variable', id: v.id })} data-testid="manage-remove-variable" data-remove="variable:{v.id}">Remove</Button>
+                {#if !editing('variable', v.id)}<Button size="sm" aria-label="Rename {nameOf(v.name)}" onclick={() => onRename({ kind: 'variable', id: v.id })} data-testid="manage-rename-variable" data-rename="variable:{v.id}">Rename</Button>{/if}
+                <Button size="sm" aria-label="Remove {nameOf(v.name)}" onclick={() => onAsk({ kind: 'variable', id: v.id })} data-testid="manage-remove-variable" data-remove="variable:{v.id}">Remove</Button>
               </div></td>
             </tr>
           {/each}

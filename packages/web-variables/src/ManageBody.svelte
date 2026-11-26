@@ -14,7 +14,7 @@
   import CollectionDetail from './CollectionDetail.svelte';
   import CollectionList from './CollectionList.svelte';
   import RemoveConfirm from './RemoveConfirm.svelte';
-  import { addModeAction, addVariableAction, collectionSummary, createCollectionAction, label, partial, reactTo, removalPlan, targetOf, whereAdded, type Ask } from './manage';
+  import { addModeAction, addVariableAction, collectionSummary, createCollectionAction, partial, reactTo, removalPlan, targetOf, whereAdded, type Ask } from './manage';
   import { NO_RENAME, answerRename, closeRename, goneWords, openRename, renameAction, renameContext, renamedWords, sendRename, type RenameFlow } from './rename';
 
   interface Props {
@@ -159,7 +159,7 @@
   {/if}
   <div class="flex min-h-0 flex-1">
     <div class="w-64 shrink-0 overflow-y-auto border-r border-hairline">
-      <CollectionList collections={panel.collections} chosen={current?.id ?? null} onChoose={(id) => { chosenId = id; ask = null; flow = closeRename(); }} onAdd={(n) => { flow = closeRename(); send(createCollectionAction(n), `Added the collection “${label(n)}”.`); }} resetKey={keys.collection} />
+      <CollectionList collections={panel.collections} chosen={current?.id ?? null} onChoose={(id) => { chosenId = id; ask = null; flow = closeRename(); }} onAdd={(n) => { flow = closeRename(); send(createCollectionAction(n), `Added the collection “${n.trim()}”.`); }} resetKey={keys.collection} />
     </div>
     <div class="min-w-0 flex-1 overflow-y-auto" data-testid="manage-detail">
       {#if plan && ask}
@@ -181,8 +181,8 @@
           onRename={startRename}
           onRenameSubmit={submitRename}
           onRenameCancel={cancelRename}
-          onAddMode={(n, from) => send(addModeAction(current.id, n, from), `Added the mode “${label(n)}”.`)}
-          onAddVariable={(n, kind: VarType) => send(addVariableAction(current.id, n, kind), `Added the variable “${label(n)}”.`)}
+          onAddMode={(n, from) => send(addModeAction(current.id, n, from), `Added the mode “${n.trim()}”.`)}
+          onAddVariable={(n, kind: VarType) => send(addVariableAction(current.id, n, kind), `Added the variable “${n.trim()}”.`)}
           modeKey={keys.mode}
           variableKey={keys.variable}
         />

@@ -16,21 +16,16 @@ export const MAX_MODES = 16;
 export const MAX_VARIABLES = 5000;
 
 /**
- * What is drawn as nothing or as a lookalike of something else: control, direction, zero-width and line-separator characters,
- * the Hangul fillers, the Khmer inherent vowels, the combining grapheme joiner and the blank braille cell.
+ * What a typed name may not hold: control, direction, zero-width and line-separator characters, the Hangul fillers, the Khmer
+ * inherent vowels, the combining grapheme joiner, the blank braille cell and every space but the plain one. This checks what
+ * the person types, before anything is sent; it is not a cleaner, and nothing in this view cleans a text it draws (the app
+ * layer made every name of `state.variables` safe to show, rule U9). The name rules belong in the app layer (finding T5 of the
+ * thin-UI audit); until they move, this check stays, and the test of the view packages lists it as the one exception.
  */
-const INVISIBLE = '[\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\u115F\\u1160\\u2800\\u3164\\uFFA0]|\\u034F|\\u17B4|\\u17B5';
-const HIDDEN = new RegExp(`${INVISIBLE}|(?! )\\p{Zs}`, 'u');
-const HIDDEN_ALL = new RegExp(INVISIBLE, 'gu');
+const HIDDEN = new RegExp('[\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\u115F\\u1160\\u2800\\u3164\\uFFA0]|\\u034F|\\u17B4|\\u17B5|(?! )\\p{Zs}', 'u');
 
-/**
- * A name, or any text of the file, as it is drawn: what is drawn as nothing is left out, every run of spaces (of any
- * kind) becomes one plain space, and the ends are trimmed, so a name cannot pass for the badge or the control beside it.
- */
-export const plain = (s: string): string => s.replace(HIDDEN_ALL, '').replace(/\p{Zs}+/gu, ' ').trim();
-
-/** A name for a label, a title or a sentence: `plain`, or a word for a name that shows as nothing (the core takes an empty mode name). */
-export const label = (s: string): string => plain(s) || '(no name)';
+/** A name for a label, a title or a sentence: the name the app layer gave, or a word for one that is nothing (the core takes an empty mode name, and a name of hidden characters only shows as empty). */
+export const nameOf = (s: string): string => s || '(no name)';
 
 export type NameKind = 'collection' | 'mode' | 'variable';
 
@@ -118,7 +113,7 @@ export interface RemovalPlan {
 
 /** A number and its noun, singular for one: `1 use`, `2 uses`. */
 export const count = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
-const quote = (name: string) => `“${label(name)}”`;
+const quote = (name: string) => `“${nameOf(name)}”`;
 
 /**
  * The confirmation of a removal. A variable nothing uses, an empty collection and a mode go with a plain removal (so

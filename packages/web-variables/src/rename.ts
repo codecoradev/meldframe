@@ -4,7 +4,7 @@
 // The view holds no business state: the target is an id and `renameContext` reads it again from the panel. Pure.
 import type { Action, VariablesPanel } from '@meldframe/protocol';
 import { noticeFor } from '@meldframe/web-document/notices';
-import { checkName, label, type Ask, type NameCheck, type NameKind } from './manage';
+import { checkName, nameOf, type Ask, type NameCheck, type NameKind } from './manage';
 
 /**
  * What a rename of a collection or a variable does to the export, said once in the field (docs/tokens-and-variables.md 9.6: export names change, the next
@@ -79,7 +79,7 @@ export function checkRename(kind: NameKind, raw: string, ctx: RenameContext, ope
   return { ...checkName(kind, raw, ctx.others), unchanged: false };
 }
 
-const quote = (name: string) => `“${label(name)}”`;
+const quote = (name: string) => `“${nameOf(name)}”`;
 
 /** The status line once a rename was done; names drawn as everywhere else. */
 export function renamedWords(kind: NameKind, from: string, to: string): string {

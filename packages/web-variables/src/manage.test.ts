@@ -8,10 +8,9 @@ import {
   addVariableAction,
   checkName,
   collectionSummary,
-  label,
   createCollectionAction,
   partial,
-  plain,
+  nameOf,
   reactTo,
   removalPlan,
   removeCollectionAction,
@@ -107,25 +106,12 @@ describe('a name that exists already', () => {
   });
 });
 
-describe('plain', () => {
-  it('removes control, direction and zero-width characters and line separators from a name for display', () => {
-    expect(plain('da\u202erk\u200b\n\u2028x')).toBe('darkx');
-    expect(plain('color/bg')).toBe('color/bg');
-  });
-  it('removes what is drawn as nothing, so a name cannot pass for the badge beside it', () => {
-    expect(plain('da\u3164rk\u115f\u1160\uffa0\u2800')).toBe('dark');
-  });
-  it('turns every other space into one plain space and drops the ones at the ends', () => {
-    expect(plain('a\u00a0\u3000  b')).toBe('a b');
-    expect(plain('  x\u2009')).toBe('x');
-  });
-});
-
-describe('label', () => {
-  it('is the plain name, or a word for a name that shows as nothing', () => {
-    expect(label('da\u202erk')).toBe('dark');
-    expect(label('\u3164\u2800')).toBe('(no name)');
-    expect(label('')).toBe('(no name)');
+describe('nameOf', () => {
+  it('is the name the app layer gave, or a word for a name that shows as nothing, and cleans nothing', () => {
+    expect(nameOf('dark')).toBe('dark');
+    expect(nameOf('')).toBe('(no name)');
+    // The app layer made the name safe; this only words an empty one.
+    expect(nameOf('a b')).toBe('a b');
   });
 });
 
@@ -197,14 +183,15 @@ describe('the confirmation of a removal', () => {
     expect(p.text).toMatch(/at least 7 uses/);
   });
   it('removes a mode with the values it holds, and names it as plain text', () => {
-    const p = removalPlan({ kind: 'mode', collection: 'c1', mode: { id: 'm2', name: 'da‮rk' } });
+    const p = removalPlan({ kind: 'mode', collection: 'c1', mode: { id: 'm2', name: 'dark' } });
     expect(p.action).toEqual({ type: 'removeMode', collection: 'c1', mode: 'm2' });
     expect(p.text).toContain('“dark”');
     expect(p.text).toMatch(/other modes keep/i);
     expect(p.confirm).toBe('Remove');
   });
-  it('names what goes without direction characters', () => {
-    expect(removalPlan({ kind: 'variable', row: row({ name: 'a‮b' }) }).text).toContain('“ab”');
+  it('names what goes as the app layer gave it, and a name that is nothing in words', () => {
+    expect(removalPlan({ kind: 'variable', row: row({ name: 'ab' }) }).text).toContain('“ab”');
+    expect(removalPlan({ kind: 'variable', row: row({ name: '' }) }).text).toContain('“(no name)”');
   });
 });
 
