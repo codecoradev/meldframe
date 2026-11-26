@@ -244,3 +244,38 @@ async fn strict_counts_the_properties_a_full_list_left_out_and_the_row_says_how_
         "the lines left out of the two lists of the row"
     );
 }
+
+#[tokio::test]
+async fn no_layout_finding_is_worked_out_when_a_text_is_longer_than_the_measure_wraps() {
+    // The layout core wraps text with the stub too, in time quadratic in the length of a line: past the length that
+    // the importer measures wrapped, the answer has no layout findings (and says nothing of why).
+    let w = start().await;
+    let c = connect(&w.h, AGENT).await;
+    let page = |text: &str| {
+        format!(
+            "<style>body{{margin:0}}</style><div style=\"width:300px;height:5px\"><p style=\"margin:0;width:100px;height:30px;white-space:nowrap\">{text}</p></div>"
+        )
+    };
+    let codes = |r: &Called| -> Vec<String> {
+        r.body["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| x["code"].as_str().unwrap().to_owned())
+            .collect()
+    };
+    let short = import(&c, "k1", &page(&"word ".repeat(20)), json!({})).await;
+    assert!(
+        codes(&short).contains(&"overflow".to_string()),
+        "{:?}",
+        codes(&short)
+    );
+    // 4,200 characters: under the limit of a text of the file (20,000) and over the length measured wrapped (4,096).
+    let long = import(&c, "k2", &page(&"word ".repeat(840)), json!({})).await;
+    assert!(!long.is_error, "{}", long.body);
+    assert!(
+        !codes(&long).contains(&"overflow".to_string()),
+        "{:?}",
+        codes(&long)
+    );
+}

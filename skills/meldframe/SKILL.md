@@ -128,7 +128,8 @@ more is refused as `E_IMPORT_HTML_TOO_MANY` (the same for more than 256 KiB, `E_
 without it the root is a new top-level frame beside the others. The import adds nodes and never changes one, so it has
 no `ifSeq`. Send it once with `dryRun` true and read the answer before you write: `nodes` lists every node with the
 element it came from (`source`), what was approximated and what was not carried, `unsupported` (line-height, grid, a
-font other than Inter, transforms and the like, each with a code), `skipped` lists the elements that make nothing, and
+font other than Inter, transforms and the like, each with a code; a row lists at most 32 lines of each kind and
+`omitted` counts the lines it left out), `skipped` lists the elements that make nothing, and
 `assets` lists image sources, which are never fetched: upload the file with `upload_asset` and set the image with
 `apply_commands`. With `strict` true any property that was not carried refuses the call as `E_IMPORT_HTML_UNSUPPORTED`.
 `export_frame` and `import_html` are inverses: import the `html` an export returned (and the `css` it returned with the

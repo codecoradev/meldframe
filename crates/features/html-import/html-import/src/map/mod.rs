@@ -34,6 +34,7 @@ mod size;
 mod text;
 mod walk;
 
+pub use leaf::WRAP_MEASURE_MAX;
 pub use model::{
     AssetRef, ImportError, Imported, MAX_COMMANDS, MAX_INPUT_BYTES, MAX_SKIPPED, NodeInfo, Options,
     Skipped,
