@@ -16,7 +16,7 @@ use super::{MAX_SKIPPED, Options, Skipped};
 use crate::css::{EntryKind, Report, Source, Style, Styles};
 use crate::html::{Element, ElementId, Tree};
 use crate::paint::{self, Ctx, Paint};
-use meldframe_protocol::{NodeKind, SizeMode};
+use meldframe_protocol::{Align, Justify, NodeKind, SizeMode};
 
 /// Tags whose content the browser draws itself: a box of the size given, nothing inside.
 const REPLACED: &[&str] = &[
@@ -74,6 +74,24 @@ pub(super) fn plain(s: &Style) -> bool {
     s.declared().all(|(name, p)| {
         !matches!(p.source, Source::Author | Source::Inline) || quiet(name, &p.value)
     }) && no_room(s)
+}
+
+/// Does a box that holds only a run of text still do something with it? A flex box that aligns or justifies, a grid
+/// (the frame lists its display) and a box that clips are a frame with a text in it: as a text alone the placement or
+/// the clip would be lost with nothing said. A flex box that places nothing is the text.
+fn places_text(s: &Style) -> bool {
+    let d = display(s);
+    let mut scratch = Notes::default();
+    if d.contains("grid") {
+        return true;
+    }
+    if d.contains("flex") {
+        let f = flow(s, &mut scratch, false, false);
+        if f.align != Align::Start || f.justify != Justify::Start || !scratch.lost.is_empty() {
+            return true;
+        }
+    }
+    clip(s, &mut scratch)
 }
 
 /// No margin and no padding, the browser's own (`ul`, `blockquote`, the `body`) as much as the author's: a wrapper
@@ -241,7 +259,11 @@ impl<'a> Walk<'a> {
             && names::authored(el).is_none()
             && !self.is_absolute(*c)
         {
-            return self.map_one(*c, p);
+            // What the wrapper's inline children could not carry is said on the box it collapses into.
+            return self.map_one(*c, p).map(|mut spec| {
+                spec.notes.merge(n);
+                spec
+            });
         }
         let w_px = s.len("width").filter(|l| l.px >= 0.0).map(|l| l.px);
         let h_px = s.len("height").filter(|l| l.px >= 0.0).map(|l| l.px);
@@ -271,6 +293,7 @@ impl<'a> Walk<'a> {
             && let [Item::Run(pieces)] = items.as_slice()
             && !paint.decorates()
             && !padded
+            && !places_text(s)
         {
             let ts = TextStyle::of(s);
             let text = ts.text(pieces);

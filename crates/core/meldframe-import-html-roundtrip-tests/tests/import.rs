@@ -115,7 +115,7 @@ fn child(r: &mut Rng, parent: &str, i: usize, depth: usize, bind: bool, out: &mu
     } else {
         *r.pick(&["rect", "rect", "ellipse", "text"])
     };
-    let mut n = json!({"id": id, "name": format!("Layer {id}"), "type": kind, "parentId": parent, "pos": format!("a{i}"),
+    let mut n = json!({"id": id, "name": format!("Node {id}"), "type": kind, "parentId": parent, "pos": format!("a{i}"),
         "x": r.below(50), "y": r.below(50), "w": 20 + r.below(80), "h": 10 + r.below(40)});
     if kind != "text" {
         merge(&mut n, paint(r, bind));
@@ -393,7 +393,7 @@ fn fixed_point(format: Format, first: &str, back: &[Node], msg: String) {
     assert_eq!(a, b, "{msg}");
 }
 
-/// The document with each `data-node` id replaced by its number in order.
+/// The HTML with each `data-node` id replaced by its number in order.
 fn strip(html: &str, ids: &[String]) -> String {
     let mut out = html.to_owned();
     for (n, id) in ids.iter().enumerate() {
@@ -408,7 +408,7 @@ fn seeds() -> std::ops::Range<u64> {
         return n..n + 1;
     }
     let default = if cfg!(target_arch = "wasm32") {
-        10
+        20
     } else {
         300
     };

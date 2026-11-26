@@ -72,16 +72,16 @@ impl Walk<'_> {
             if let Some(l) = s.len(prop).filter(|l| l.px >= 0.0) {
                 return l.px;
             }
-            if let Some(v) = s
+            let said = s
                 .get(prop)
                 .filter(|v| !v.trim().eq_ignore_ascii_case("auto"))
-            {
-                n.lose(prop, v, "refused_unreadable");
-            } else if let Some(v) = el.attr(attr).filter(|_| attr_px(el, attr).is_none()) {
+                .or_else(|| el.attr(attr).filter(|_| attr_px(el, attr).is_none()));
+            if let Some(v) = said {
                 n.lose(prop, v, "refused_unreadable");
             }
             attr_px(el, attr).unwrap_or_else(|| {
-                n.change(prop, "not set", "100px");
+                // "not set" is only true when the author said nothing: an unreadable size is listed above.
+                n.change(prop, said.unwrap_or("not set"), "100px");
                 100.0
             })
         };

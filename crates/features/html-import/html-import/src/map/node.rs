@@ -96,6 +96,11 @@ fn sides(s: &Style, base: &str, n: &mut Notes) -> [f64; 4] {
     out
 }
 
+/// The margin of a box on each side, read the way its padding is.
+pub(super) fn margins(s: &Style, n: &mut Notes) -> [f64; 4] {
+    sides(s, "margin", n)
+}
+
 /// The padding of a box on each side, with what its CSS border takes (`room`).
 pub(super) fn padding(s: &Style, n: &mut Notes, room: f64) -> [f64; 4] {
     sides(s, "padding", n).map(|p| p + room)

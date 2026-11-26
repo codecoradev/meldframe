@@ -7,8 +7,8 @@ use meldframe_text::{Profile, sanitize, sanitize_clip};
 /// The longest name of a node (`meldframe-check` `Limits::max_name`).
 pub(super) const MAX_NAME: usize = 256;
 
-/// A name made safe to show (rule U9). `meldframe_text::label` is this and replaces it when it is on `develop`: the display profile of `meldframe-text` (a joiner stays between emoji, every
-/// other hidden character goes), every run of white space one space, the ends trimmed, cut to `max` characters.
+/// A name made safe to show (rule U9): a later shared helper of `meldframe-text` may replace it. The display profile
+/// of `meldframe-text` (a joiner stays between emoji, every other hidden character goes), every run of white space one space, the ends trimmed, cut to `max` characters.
 /// A name that is only hidden or white space comes back empty. The text of a node is not made by this.
 pub(super) fn tidy(s: &str, max: usize) -> String {
     let spaced = s.replace(['\t', '\n', '\r', '\u{0B}', '\u{0C}'], " ");

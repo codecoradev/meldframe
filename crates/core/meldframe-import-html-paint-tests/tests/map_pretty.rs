@@ -8,7 +8,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 mod map_common;
 use html_import::map::{ImportError, Options, import};
 use map_common::*;
-use meldframe_protocol::{Bind, LayoutMode, NodeKind};
+use meldframe_protocol::{Align, Bind, Justify, LayoutMode, NodeKind};
 
 #[test]
 fn indentation_between_boxes_does_not_stop_a_wrapper_from_collapsing() {
@@ -212,4 +212,111 @@ fn the_walk_stops_at_the_first_node_past_the_cap_and_says_so() {
         other => panic!("{other:?}"),
     }
     assert!(e.to_string().contains("at least 10"), "{e}");
+}
+
+#[test]
+fn a_text_in_a_flex_box_that_places_it_is_a_frame_with_a_text_in_it() {
+    let ns = import_nodes(
+        "<body>\n  <div id=box style=\"display:flex;justify-content:center;width:200px;height:40px\">\n    Hi\n  </div>\n</body>\n",
+    );
+    let b = named(&ns, "box");
+    assert_eq!(
+        (b.kind, b.layout, b.justify),
+        (NodeKind::Frame, LayoutMode::Row, Justify::Center)
+    );
+    assert_eq!(kids(&ns, &b.id)[0].text, "Hi");
+    let ns = import_nodes(
+        "<div style=\"display:flex;flex-direction:column;align-items:center;width:200px\" id=col>\n  Hi\n</div>\n",
+    );
+    let c = named(&ns, "col");
+    assert_eq!((c.kind, c.align), (NodeKind::Frame, Align::Center));
+}
+
+#[test]
+fn a_text_in_a_box_that_clips_is_a_frame_and_a_flex_box_that_places_nothing_stays_a_text() {
+    let ns = import_nodes(
+        "<div id=clip style=\"overflow:hidden;width:50px;height:10px\">\n  a long line of text\n</div>\n",
+    );
+    let c = named(&ns, "clip");
+    assert_eq!((c.kind, c.clip), (NodeKind::Frame, true));
+    let ns = import_nodes("<div id=plain style=\"display:flex\">\n  Hi\n</div>\n");
+    assert_eq!(named(&ns, "plain").kind, NodeKind::Text);
+}
+
+#[test]
+fn a_wrapper_that_collapses_keeps_what_its_inline_children_could_not_carry() {
+    let i = run(
+        "<div><span style=\"background:#ff0000\"><div id=in style=\"width:5px;height:5px\"></div></span></div>",
+    );
+    assert!(
+        lost(&i, "in").contains(&"background-color".to_string()),
+        "{:?}",
+        info(&i, "in")
+    );
+}
+
+#[test]
+fn every_difference_of_an_inline_element_is_listed_and_not_only_the_first() {
+    let i = run(
+        "<ul style=\"margin:0;padding:0\">\n  <li id=item>\n    a <b style=\"font-weight:700;color:#ff0000;font-size:20px\">b</b>\n    <span style=\"opacity:0.5\">c</span> <span style=\"visibility:hidden\">d</span>\n    <span style=\"text-transform:uppercase\">e</span> <span style=\"white-space:pre\">f</span>\n  </li>\n</ul>\n",
+    );
+    let l = lost(&i, "item");
+    for p in ["opacity", "visibility"] {
+        assert!(l.contains(&p.to_string()), "{p}: {:?}", info(&i, "item"));
+    }
+    let a = approx(&i, "item");
+    for p in [
+        "font-weight",
+        "color",
+        "font-size",
+        "text-transform",
+        "white-space",
+    ] {
+        assert!(a.contains(&p.to_string()), "{p}: {:?}", info(&i, "item"));
+    }
+}
+
+#[test]
+fn a_body_margin_that_is_auto_is_listed_on_the_page_frame() {
+    let i = run_css(
+        "<body>\n  <div style=\"width:100px\">a</div>\n  <div style=\"width:100px\">b</div>\n</body>\n",
+        "body{margin:0 auto}",
+    );
+    assert_eq!(nodes(&i)[0].kind, NodeKind::Frame);
+    assert!(
+        i.nodes[0]
+            .unsupported
+            .iter()
+            .any(|l| l.property == "margin-left"),
+        "{:?}",
+        i.nodes[0]
+    );
+}
+
+#[test]
+fn a_size_past_the_models_range_is_written_as_it_is_and_the_gate_refuses_it() {
+    let ns = import_nodes("<div style=\"width:99999999px;height:5px\"></div>");
+    assert_eq!(
+        ns[1].w, 99_999_999.0,
+        "not clamped, so the file's limits are the gate's to apply"
+    );
+}
+
+#[test]
+fn a_whole_document_with_a_doctype_a_head_and_an_indented_body_is_the_one_frame_it_draws() {
+    let i = run(
+        "<!DOCTYPE html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Pricing</title>\n    <style>\n      body { margin: 0; }\n      .card { padding: 16px; background: #ffffff; }\n    </style>\n  </head>\n  <body>\n    <main class=\"card\" style=\"width: 320px\">\n      <h1>Plan</h1>\n      <p>Ten seats</p>\n    </main>\n  </body>\n</html>\n",
+    );
+    let ns = nodes(&i);
+    assert_eq!(names(&ns), ["card", "Plan", "Ten seats"]);
+    // The model's size is the border box: 320 px of content and 16 px of padding on each side.
+    assert_eq!(
+        (ns[0].kind, ns[0].padding, ns[0].w),
+        (NodeKind::Frame, 16.0, 352.0)
+    );
+    assert!(
+        i.skipped.is_empty(),
+        "head, meta, title and style are not drawn and not skipped: {:?}",
+        i.skipped
+    );
 }

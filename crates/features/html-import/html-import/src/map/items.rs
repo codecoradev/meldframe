@@ -73,7 +73,6 @@ impl Walk<'_> {
         base: &Style,
         items: &mut Vec<Item>,
         n: &mut Notes,
-        listed: &mut bool,
     ) {
         let tree = self.tree;
         for c in children {
@@ -85,15 +84,13 @@ impl Walk<'_> {
                     match role(el, s) {
                         Role::Skip => {}
                         Role::Hidden => self.skip(names::source(el, *e), "display_none"),
-                        Role::Through => self.collect(&el.children, base, items, n, listed),
+                        Role::Through => self.collect(&el.children, base, items, n),
                         Role::Box => items.push(Item::Box(*e)),
                         Role::Inline if el.tag == "br" => push(items, Piece::Br),
                         Role::Inline => {
-                            if !*listed {
-                                *listed = differs(base, s, n);
-                            }
+                            differs(base, s, n);
                             self.inline_lost(el, s, n);
-                            self.collect(&el.children, base, items, n, listed);
+                            self.collect(&el.children, base, items, n);
                         }
                     }
                 }
@@ -103,8 +100,7 @@ impl Walk<'_> {
 
     pub(super) fn items_of(&mut self, el: &Element, s: &Style, n: &mut Notes) -> Vec<Item> {
         let mut items = Vec::new();
-        let mut listed = false;
-        self.collect(&el.children, s, &mut items, n, &mut listed);
+        self.collect(&el.children, s, &mut items, n);
         drop_blank(&mut items, Ws::of(s));
         items
     }
@@ -141,6 +137,18 @@ impl Walk<'_> {
                 };
                 n.lose(prop, &v, "refused_inline_box");
             }
+        }
+        let opacity = s.get("opacity").and_then(|v| v.trim().parse::<f64>().ok());
+        if let Some(o) = opacity.filter(|o| (o - 1.0).abs() > f64::EPSILON) {
+            n.lose("opacity", &o.to_string(), "refused_inline_box");
+        }
+        if s.get("visibility").is_some_and(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "hidden" | "collapse"
+            )
+        }) {
+            n.lose("visibility", "hidden", "refused_inline_box");
         }
         for prop in [
             "padding-top",
@@ -251,31 +259,42 @@ fn push(items: &mut Vec<Item>, piece: Piece) {
     }
 }
 
-/// The first of color, size and weight that an inline element has other than its box: the model has one style for a
-/// text, so the text takes the box's and this is listed. `true` when something was listed.
-fn differs(base: &Style, inline: &Style, n: &mut Notes) -> bool {
+/// What an inline element has other than its box: the model has one style for a text, so the text takes the box's and
+/// each difference of weight, size, colour, case and white space is listed (every one, not only the first).
+fn differs(base: &Style, inline: &Style, n: &mut Notes) {
+    let mut said = |prop: &str, inside: &str, whole: &str| {
+        n.change(
+            prop,
+            &format!("{inside} inside the text"),
+            &format!("{whole} for the whole text"),
+        );
+    };
     if inline.font_weight != base.font_weight {
-        n.change(
+        said(
             "font-weight",
-            &format!("{} inside the text", inline.font_weight),
-            &format!("{} for the whole text", base.font_weight),
+            &inline.font_weight.to_string(),
+            &base.font_weight.to_string(),
         );
-    } else if inline.font_size != base.font_size {
-        n.change(
-            "font-size",
-            &format!("{}px inside the text", inline.font_size),
-            &format!("{}px for the whole text", base.font_size),
-        );
-    } else if inline.color != base.color {
-        n.change(
-            "color",
-            &format!("{} inside the text", inline.color),
-            &format!("{} for the whole text", base.color),
-        );
-    } else {
-        return false;
     }
-    true
+    if inline.font_size != base.font_size {
+        said(
+            "font-size",
+            &format!("{}px", inline.font_size),
+            &format!("{}px", base.font_size),
+        );
+    }
+    if inline.color != base.color {
+        said("color", &inline.color, &base.color);
+    }
+    for (prop, default) in [("text-transform", "none"), ("white-space", "normal")] {
+        let of = |s: &Style| {
+            s.get(prop)
+                .map_or_else(|| default.to_owned(), |v| v.trim().to_ascii_lowercase())
+        };
+        if of(inline) != of(base) {
+            said(prop, &of(inline), &of(base));
+        }
+    }
 }
 
 /// Drop the runs that hold only white space (the indentation between two tags): they are nothing once rendered, and

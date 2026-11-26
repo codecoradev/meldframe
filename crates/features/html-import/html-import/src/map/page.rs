@@ -2,7 +2,7 @@
 
 use super::items::drop_blank;
 use super::names;
-use super::node::{Spec, blank, flow, padding, parent_of, set_padding};
+use super::node::{Spec, blank, flow, margins, padding, parent_of, set_padding};
 use super::notes::Notes;
 use super::size::Axis;
 use super::text::Ws;
@@ -76,8 +76,7 @@ impl Walk<'_> {
         let fl = flow(&cs, &mut local, false, false);
         self.leftovers(&cs, exported, &mut local);
         let mut items = Vec::new();
-        let mut listed = false;
-        self.collect(children, &cs, &mut items, &mut local, &mut listed);
+        self.collect(children, &cs, &mut items, &mut local);
         drop_blank(&mut items, Ws::of(&cs));
         let fixed = |px: f64| Axis {
             mode: SizeMode::Fixed,
@@ -92,9 +91,9 @@ impl Walk<'_> {
         if kids.is_empty() {
             return None;
         }
-        // One frame on a page that has no room of its own (the margin of the body is the browser's 8 px unless the
-        // page says another) and says nothing else is the root: the same rule for one frame and for several, which are
-        // inside a root frame that holds the margin as its padding.
+        // One frame on a page that has no room of its own and says nothing else is the root: a margin of 0 (the
+        // browser's 8 px is room, and so is any other) collapses a single frame into the root; with a margin the root
+        // frame holds it as its padding, for one frame and for several alike.
         if kids.len() == 1 && kids[0].node.kind == NodeKind::Frame && plain(&cs) {
             let mut root = kids.remove(0);
             let node = &mut root.node;
@@ -171,15 +170,10 @@ impl Walk<'_> {
     }
 }
 
-/// The margin and the padding of the page, on each side, in pixels: the root frame holds both.
+/// The margin and the padding of the page, on each side, in pixels: the root frame holds both. A margin that is not a
+/// length, or is negative, is listed and is 0, as on any other box.
 fn page_padding(s: &Style, n: &mut Notes, room: f64) -> [f64; 4] {
     let pad = padding(s, n, room);
-    let mut m = [0.0; 4];
-    for (i, side) in ["top", "right", "bottom", "left"].iter().enumerate() {
-        let prop = format!("margin-{side}");
-        if let Some(l) = s.len(&prop).filter(|l| l.px >= 0.0) {
-            m[i] = l.px;
-        }
-    }
+    let m = margins(s, n);
     [pad[0] + m[0], pad[1] + m[1], pad[2] + m[2], pad[3] + m[3]]
 }

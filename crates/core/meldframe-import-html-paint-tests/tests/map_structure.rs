@@ -177,14 +177,14 @@ fn text_beside_a_block_is_its_own_text_node_in_order() {
 }
 
 #[test]
-fn inline_children_of_another_style_join_the_text_and_the_first_difference_is_listed() {
+fn inline_children_of_another_style_join_the_text_and_every_difference_is_listed() {
     let i = run(
         "<div id=a style=\"width:300px\"><p id=p style=\"margin:0\">a <b>bold</b> c <span style=\"color:#ff0000\">red</span></p></div>",
     );
     let ns = nodes(&i);
     assert_eq!(ns[1].text, "a bold c red");
     let a = approx(&i, "p");
-    assert_eq!(a, ["font-weight"], "{:?}", info(&i, "p"));
+    assert_eq!(a, ["font-weight", "color"], "{:?}", info(&i, "p"));
 }
 
 #[test]
