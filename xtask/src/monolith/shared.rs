@@ -68,7 +68,10 @@ mod tests {
     use crate::monolith::fixtures::krate;
 
     fn cfg(allow: &[(&str, &str)]) -> Config {
-        let mut c = Config::default();
+        let mut c = Config {
+            threshold: 2500,
+            ..Config::default()
+        };
         c.shared.insert(
             "hex".into(),
             Shared {
