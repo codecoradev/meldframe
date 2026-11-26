@@ -29,7 +29,7 @@ fn root_of(manifest_dir: &str) -> PathBuf {
 
 /// Build outputs that exist at a known path, relative to the workspace root. Only these exact
 /// directories are skipped (a `dist` or `target` anywhere else is source and is scanned).
-const SKIPPED_DIRS: &[&str] = &["target", "apps/web/dist"];
+const SKIPPED_DIRS: &[&str] = &["target", "apps/web/dist", "tools/fidelity-oracle/out"];
 
 /// Every file under `dir` whose extension is in `exts`, as `/`-separated paths relative to
 /// `root`, sorted. Skips the directories in `SKIPPED_DIRS`, `node_modules` at any depth and hidden
@@ -143,6 +143,31 @@ mod tests {
                 "apps/web/src/e.js",
                 "crates/x/src/dist/c.rs",
                 "crates/x/target/b.rs"
+            ]
+        );
+    }
+
+    #[test]
+    fn what_the_fidelity_oracle_writes_is_skipped_and_nothing_else_called_out() {
+        // The oracle writes pages and a stylesheet for each fixture to `out/` (git-ignored).
+        let root = tree(
+            "oracle-out",
+            &[
+                "tools/fidelity-oracle/out/f1/page.html",
+                "tools/fidelity-oracle/out/f1/tw.css",
+                "tools/fidelity-oracle/oracle.mjs",
+                "tools/fidelity-oracle/test/out/keep.mjs",
+                "tools/other/out/keep.mjs",
+            ],
+        );
+        let got = files(&root, "tools", &["html", "css", "mjs"]);
+        fs::remove_dir_all(&root).unwrap();
+        assert_eq!(
+            got,
+            [
+                "tools/fidelity-oracle/oracle.mjs",
+                "tools/fidelity-oracle/test/out/keep.mjs",
+                "tools/other/out/keep.mjs"
             ]
         );
     }
