@@ -48,11 +48,18 @@ async function post(command) {
   assert.equal(res.status, 200, `op refused: ${res.status} ${await res.text()}`);
 }
 // A file the server does not know yet is 404 and empty; any other answer that is not the file is an error (the guard cannot pass on it).
+// The server limits the calls of a token (429, retryable): a step that waits for the server reads the file often, so a 429 is waited out, not a failure.
 const snapshot = async () => {
-  const res = await fetch(`${server}/v1/files/${file}`, { headers: auth });
-  if (res.status === 200) return res.json();
-  if (res.status === 404) return { seq: 0, nodes: [] };
-  throw new Error(`reading the file: ${res.status} ${await res.text()}`);
+  for (let tries = 0; ; tries++) {
+    const res = await fetch(`${server}/v1/files/${file}`, { headers: auth });
+    if (res.status === 200) return res.json();
+    if (res.status === 404) return { seq: 0, nodes: [] };
+    if (res.status === 429 && tries < 40) {
+      await sleep(500);
+      continue;
+    }
+    throw new Error(`reading the file: ${res.status} ${await res.text()}`);
+  }
 };
 const nodeOf = async (id) => (await snapshot()).nodes.find((x) => x.id === id);
 async function until(what, fn, ms = 15000) {
@@ -61,7 +68,7 @@ async function until(what, fn, ms = 15000) {
     const v = await fn();
     if (v) return v;
     if (Date.now() - t0 > ms) throw new Error(`timed out waiting for: ${what}`);
-    await sleep(150);
+    await sleep(250);
   }
 }
 async function check(name, fn) {
