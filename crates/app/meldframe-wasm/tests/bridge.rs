@@ -262,6 +262,12 @@ fn the_bind_picker_is_state_and_its_actions_are_json() {
         json!({"type": "openPicker", "id": "card", "field": "fill"}),
     );
     assert_eq!(state(&b)["picker"]["rows"][0]["id"], "bg");
+    // The web reads the state again only after an event, so the open must raise one.
+    let events: Vec<Value> = serde_json::from_str(&b.take_events_json()).unwrap();
+    assert!(
+        events.iter().any(|e| e["type"] == "pickerChanged"),
+        "{events:?}"
+    );
     run(
         &mut b,
         json!({"type": "bindProperty", "id": "card", "field": "fill", "variable": "bg"}),

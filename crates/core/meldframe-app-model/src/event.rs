@@ -65,6 +65,9 @@ pub enum Event {
     AssetsChanged {},
     /// `AppState::export` changed (the frame an export acts on, the dialog opening, closing or following the document).
     ExportChanged {},
+    /// `AppState::picker` changed (the bind picker opening, its search, its list following the document, the modes or the
+    /// selection, or its closing).
+    PickerChanged {},
     /// `AppState::variables_io` changed (a dialog opening, closing or following the variables, the result of an import).
     VariablesIoChanged {},
     /// An action could not be carried out; nothing changed. A stable code such as `not_found`.
