@@ -1,7 +1,7 @@
 // The Variables manage view: what it says. The rules are the app layer's (audit finding T5): whether a name can be sent,
 // the limits, what a removal detaches, and the rename flow are `AppState.manage` and `Action.manage`; this file holds the
 // words of each code and number it is given, and what the view does with the events of a dispatch. Pure.
-import type { Action, CollectionRow, Event, ManageLimits, NameError, NameWarning, Removal, VariableEntity, VariablesPanel } from '@meldframe/protocol';
+import type { Action, CollectionRow, Event, ManageLimits, NameDraft, NameError, NameWarning, Removal, VariableEntity, VariablesPanel } from '@meldframe/protocol';
 import { nameOf } from '@meldframe/web-document/names';
 import { NAME_RULE_WORDS, noticeFor } from '@meldframe/web-document/notices';
 
@@ -37,6 +37,28 @@ export function nameError(kind: NameKind, error: NameError, limits: ManageLimits
 export function nameWarning(kind: NameKind, warning: NameWarning): string {
   const where = kind === 'mode' ? 'in this collection' : 'in this file';
   return warning === 'same' ? `A ${kind} with this name already exists ${where}. Both are kept, so tell them apart.` : '';
+}
+
+/** Whether the person typed anything into a field: only then is a refusal of the name shown in it. */
+export const typed = (text: string): boolean => text.trim() !== '';
+
+export type NoteTone = 'error' | 'warning' | 'hint';
+
+/** The line under a field: what it says and in which tone. */
+export interface Note {
+  tone: NoteTone;
+  text: string;
+}
+
+/** The classes of each tone of a note (whole class names, so that Tailwind finds them). */
+export const NOTE_CLASS: Record<NoteTone, string> = { error: 'text-danger-text', warning: 'text-text-strong', hint: 'text-text-muted' };
+
+/** What the line under a form that adds something says about its text (`AppState.manage.drafts`); null for a mode with nothing to say. */
+export function addNote(kind: NameKind, draft: NameDraft, limits: ManageLimits): Note | null {
+  const check = draft.check;
+  if (typed(draft.text) && check.error) return { tone: 'error', text: nameError(kind, check.error, limits) };
+  if (check.warning) return { tone: 'warning', text: nameWarning(kind, check.warning) };
+  return kind === 'mode' ? null : { tone: 'hint', text: NAME_RULE_WORDS };
 }
 
 export interface Summary {

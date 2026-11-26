@@ -1,6 +1,7 @@
+import type { ManageLimits, RenameField } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { renamedWords } from './manage';
-import { RENAME_HINT, movedWords, renameHint } from './rename';
+import { nameError, renamedWords } from './manage';
+import { RENAME_HINT, movedWords, renameHint, renameNote } from './rename';
 
 // What a rename is checked against, which text is no change, what a save sends and what happens to a field when another actor
 // changes or removes its target are the app layer's (crates/core/meldframe-variables-manage-tests, manage_rename.rs); these are the words.
@@ -26,5 +27,22 @@ describe('the words of a rename', () => {
     expect(movedWords('color/bg', 'color/bg')).toBeNull();
     expect(movedWords('color/bg', 'color/page')).toBe('This name changed to “color/page” while you were editing.');
     expect(movedWords('color/bg', '')).toBe('This name changed to “(no name)” while you were editing.');
+  });
+});
+
+describe('the line under the field of a rename', () => {
+  const limits: ManageLimits = { nameMax: 256, modeNameMax: 64, collections: 32, modes: 16, variables: 5000 };
+  const field = (over: Partial<RenameField> = {}): RenameField => ({ target: { kind: 'variable', id: 'v1' }, opened: 'color/bg', current: 'color/bg', text: 'color/bg', check: { name: 'color/bg' }, unchanged: true, first: false, ...over });
+  it('says what a rename does to the export, with the rule of a name for a collection and a variable', () => {
+    expect(renameNote('variable', field(), limits)).toEqual({ tone: 'hint', text: `Use lowercase letters, digits and single hyphens, with / between the parts, such as color/brand-500. ${RENAME_HINT}` });
+    expect(renameNote('mode', field({ first: true }), limits)).toEqual({ tone: 'hint', text: renameHint('mode', true) });
+  });
+  it('says a refusal only for text that is a change: text that is no change shows the hint', () => {
+    const bad = field({ text: 'Color', check: { name: 'Color', error: 'notPath' }, unchanged: false });
+    expect(renameNote('variable', bad, limits)).toEqual({ tone: 'error', text: nameError('variable', 'notPath', limits) });
+    expect(renameNote('variable', { ...bad, unchanged: true }, limits).tone).toBe('hint');
+  });
+  it('says a name that exists already as a warning', () => {
+    expect(renameNote('mode', field({ text: 'dark', check: { name: 'dark', warning: 'same' }, unchanged: false }), limits).tone).toBe('warning');
   });
 });

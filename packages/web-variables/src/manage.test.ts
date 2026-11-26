@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
-import type { CollectionRow, Event, ManageLimits, NameError, Removal, VariableRow, VariablesPanel } from '@meldframe/protocol';
+import type { CollectionRow, Event, ManageLimits, NameDraft, NameError, Removal, VariableRow, VariablesPanel } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { MAX_COLLECTIONS, MAX_MODES, MAX_VARIABLES, collectionSummary, count, nameError, nameWarning, partial, reactTo, removalWords, renamedWords } from './manage';
+import { MAX_COLLECTIONS, MAX_MODES, MAX_VARIABLES, NOTE_CLASS, addNote, collectionSummary, count, nameError, nameWarning, partial, reactTo, removalWords, renamedWords, typed } from './manage';
 
 // The rules of the manage view (the checks of a name, what a removal detaches, the rename flow) are the app layer's and are
 // tested there (crates/core/meldframe-variables-manage-tests); these are the words each code and number is given.
@@ -28,6 +28,28 @@ describe('the words of a name that cannot be sent', () => {
   it('word a name that exists already as a warning, naming where', () => {
     expect(nameWarning('collection', 'same')).toBe('A collection with this name already exists in this file. Both are kept, so tell them apart.');
     expect(nameWarning('mode', 'same')).toMatch(/in this collection/);
+  });
+});
+
+describe('the line under a form that adds a name', () => {
+  const draft = (text: string, check: Partial<NameDraft['check']> = {}): NameDraft => ({ text, check: { name: text.trim(), ...check } });
+  it('says a refusal in the words of its code once something was typed, and nothing of it for an empty field', () => {
+    expect(addNote('collection', draft('Colour', { error: 'notPath' }), limits)).toEqual({ tone: 'error', text: nameError('collection', 'notPath', limits) });
+    expect(addNote('variable', draft('', { name: '', error: 'empty' }), limits)?.tone).toBe('hint');
+    expect(addNote('variable', draft('   ', { name: '', error: 'empty' }), limits)?.tone).toBe('hint');
+    expect(typed('  ')).toBe(false);
+    expect(typed(' a ')).toBe(true);
+  });
+  it('says a name that exists already as a warning, naming where', () => {
+    expect(addNote('mode', draft('dark', { warning: 'same' }), limits)).toEqual({ tone: 'warning', text: nameWarning('mode', 'same') });
+  });
+  it('gives a collection and a variable the rule of a name as a hint, and a mode nothing', () => {
+    expect(addNote('collection', draft('ok'), limits)).toEqual({ tone: 'hint', text: nameError('collection', 'notPath', limits) });
+    expect(addNote('variable', draft('ok'), limits)?.tone).toBe('hint');
+    expect(addNote('mode', draft('ok'), limits)).toBeNull();
+  });
+  it('has a class for each tone, whole, so that Tailwind finds it', () => {
+    expect(NOTE_CLASS).toEqual({ error: 'text-danger-text', warning: 'text-text-strong', hint: 'text-text-muted' });
   });
 });
 
