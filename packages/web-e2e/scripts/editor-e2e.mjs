@@ -1,11 +1,10 @@
 // Browser check of the editor against a real server: node packages/web-e2e/scripts/editor-e2e.mjs [web-url] [server-url]
 // Needs `just dev` (server on 8080) and `just web` (Vite on 5173) running, the WASM bridge built (`just wasm-build`),
-// and Playwright from the global module path. It restarts the server (bash scripts/dev.sh) for the reconnect check, so
-// run it against the development server only. Not part of `npm test`: it needs a browser, a server and Postgres.
-// MELDFRAME_UI=react opens the page with `react=feedback,layers,variables`: the notices of its checks (a refused delete, a missing image) are then
-// drawn by the React copy of packages/web-feedback, and the Layers panel and the Variables panel with its bind picker by the React copies of
-// packages/web-panels (S5). The banners and the other states are checked by packages/web-feedback/scripts/feedback-e2e.mjs, the Layers panel by
-// packages/web-panels/scripts/layers-e2e.mjs, the Variables panel and the bind picker by packages/web-panels/scripts/variables-e2e.mjs.
+// and Playwright from the global module path. It restarts the server (bash scripts/dev.sh) for the reconnect check: run it against
+// the development server only. Not part of `npm test`: it needs a browser, a server and Postgres.
+// MELDFRAME_UI=react opens the page with `react=feedback,layers,variables,properties`: the notices of its checks are then drawn by the React copy of
+// web-feedback, and the Layers, Variables (with its bind picker) and Properties panels by the React copies of web-panels (S5, S6). The banners and the
+// other states are checked by feedback-e2e.mjs, the panels by layers-e2e.mjs, variables-e2e.mjs and properties-e2e.mjs.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { closeSync, openSync, readFileSync } from 'node:fs';
@@ -143,18 +142,19 @@ const id = `e2e_${run}`;
   browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
-  await page.goto(react ? `${web}/?react=feedback,layers,variables` : web); // MELDFRAME_UI=react: the React copies of web-feedback (the banners, the toast, the empty state) and of the Layers and Variables panels (S5)
+  await page.goto(react ? `${web}/?react=feedback,layers,variables,properties` : web); // MELDFRAME_UI=react: the React copies of web-feedback (the banners, the toast, the empty state) and of the Layers, Variables and Properties panels (S5, S6)
   await page.evaluate(() => { window.__stay = true; });
 
   await check('the page connects and shows the file that was saved before it opened', async () => {
     await until('connected', async () => (await state(page)) === 'live');
     await until('the saved frame is drawn', async () => (await count(page, A)) > 300);
   });
-  if (react) {
-    // A silent fallback to Svelte would pass every check below: ask that React drew the Layers panel (React puts a fibre on every node it makes).
-    await check('the Layers panel is drawn by React', async () => {
-      await until('the panel is drawn', async () => (await page.locator('[data-testid=layers]').count()) === 1);
-      assert.equal(await page.evaluate(() => Object.keys(document.querySelector('[data-testid=layers]') ?? {}).some((k) => k.startsWith('__reactFiber$'))), true);
+  if (react) { // A silent fallback to Svelte would pass every check below: ask that React drew the Layers panel and the Properties panel (React puts a fibre on every node it makes).
+    await check('the Layers panel and the Properties panel are drawn by React', async () => {
+      for (const id of ['layers', 'properties']) {
+        await until(`the ${id} panel is drawn`, async () => (await page.locator(`[data-testid=${id}]`).count()) === 1);
+        assert.equal(await page.evaluate((t) => Object.keys(document.querySelector(`[data-testid=${t}]`) ?? {}).some((k) => k.startsWith('__reactFiber$')), id), true, `the ${id} panel has no React fibre`);
+      }
     });
   }
   await check('a change of an agent appears without a reload', async () => {

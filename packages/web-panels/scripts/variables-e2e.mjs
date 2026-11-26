@@ -15,6 +15,9 @@ import { createRequire } from 'node:module';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const react = process.env.MELDFRAME_UI === 'react';
+// The React pages: `variables` (the Properties panel stays Svelte and draws the React picker through its switch), or `variables,properties` with
+// MELDFRAME_REACT_PANELS (S6: the picker is then drawn by the React Properties panel itself, in the same root). Both are asked the same questions.
+const panels = process.env.MELDFRAME_REACT_PANELS ?? 'variables';
 const web = process.argv[2] ?? 'http://localhost:5173';
 const server = process.argv[3] ?? 'http://127.0.0.1:8080';
 const root = new URL('../../../', import.meta.url).pathname;
@@ -87,13 +90,17 @@ async function check(name, fn) {
   browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
-  await page.goto(react ? `${web.replace(/\/?$/, '/')}?react=variables` : web);
+  await page.goto(react ? `${web.replace(/\/?$/, '/')}?react=${panels}` : web);
   await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
   await until('the frame is listed', async () => (await page.locator(`[data-testid=layer][data-id="${frame}"]`).count()) === 1);
 
   await check('the panel is drawn by the copy that was asked for', async () => {
     await until('the panel is drawn', async () => (await page.locator('[data-testid=variables]').count()) === 1); // the React side loads on demand
     assert.equal(await fibre(page, '[data-testid=variables]'), react, react ? 'the Variables panel has no React fibre: the page fell back to Svelte' : 'the Variables panel has a React fibre on the Svelte run');
+    if (react && panels.split(',').includes('properties')) {
+      await until('the Properties panel is drawn', async () => (await page.locator('[data-testid=properties]').count()) === 1);
+      assert.equal(await fibre(page, '[data-testid=properties]'), true, 'the Properties panel has no React fibre: the page fell back to Svelte');
+    }
   });
 
   await check('the panel is open at first load and lists the collection and the variable; the section folds', async () => {
@@ -285,8 +292,8 @@ async function check(name, fn) {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       const blocked = await ctx.newPage();
       blocked.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
-      await blocked.route((u) => /react\/(VariablesPanel|BindPicker|island)/.test(u.pathname), (route) => route.abort('failed'));
-      await blocked.goto(`${web.replace(/\/?$/, '/')}?react=variables`);
+      await blocked.route((u) => /react\/(VariablesPanel|PropertiesPanel|BindPicker|island)/.test(u.pathname), (route) => route.abort('failed'));
+      await blocked.goto(`${web.replace(/\/?$/, '/')}?react=${panels}`);
       await until('the editor is live', async () => (await blocked.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
       await until('the panel is drawn', async () => (await blocked.locator(`[data-testid=var-row][data-id="${bg}"]`).count()) === 1);
       assert.equal(await fibre(blocked, '[data-testid=variables]'), false, 'the panel is the Svelte copy');

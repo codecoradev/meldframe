@@ -11,8 +11,8 @@
 //   (in apps/web) MELDFRAME_WEB_TOKEN=<.dev-token> MELDFRAME_SERVER=http://127.0.0.1:8084 MELDFRAME_WEB_FILE=<file> \
 //     MELDFRAME_WEB_ACTOR=person:ada npx vite --port 5185
 //   MELDFRAME_WEB_FILE=<file> MELDFRAME_DEMO_TOKEN2=<token 2> node packages/web-panels/scripts/hostile-names-e2e.mjs http://localhost:5185 http://127.0.0.1:8084
-// With MELDFRAME_UI=react the script opens the pages that have a React copy with their switch (/?react=layers,variables for the
-// editor, so the Layers panel and the Variables panel are the React copies; /?react=export for the Export dialog;
+// With MELDFRAME_UI=react the script opens the pages that have a React copy with their switch (/?react=layers,variables,properties for the
+// editor, so the Layers panel, the Variables panel and the Properties panel are the React copies; /?react=export for the Export dialog;
 // /?react=feedback for the error page) and first asks that React drew them. Only the lanes of the Activity panel have no React
 // copy: that check runs on the Svelte copy in both runs. MELDFRAME_E2E_SHOTS=<dir> saves screenshots (2x, 1440x900).
 // Needs the WASM bridge built (`just wasm-build`) and Playwright from the global module path. The web and server URLs must be loopback.
@@ -84,17 +84,19 @@ const batch = await tool(agent, 'apply_commands', { idempotencyKey: `hostile-${r
 ] });
 assert.equal(batch.ok, true, `the agent's write: ${JSON.stringify(batch)}`);
 
-const page = await open(react ? `${web}?react=layers,variables` : web, { dsf: 2 });
+const page = await open(react ? `${web}?react=layers,variables,properties` : web, { dsf: 2 });
 await live(page);
 const layer = (id) => page.locator(`[data-testid=layer][data-id="${id}"]`);
 const fibre = (sel) => page.evaluate((s) => Object.keys(document.querySelector(s) ?? {}).some((k) => k.startsWith('__reactFiber$')), sel);
 let layerTone;
 
-await check('the Layers and the Variables panels are drawn by the copy that was asked for', async () => {
+await check('the Layers, the Variables and the Properties panels are drawn by the copy that was asked for', async () => {
   await layer(hero).waitFor({ timeout: 15000 });
   await page.waitForSelector('[data-testid=variables]', { timeout: 15000 }); // the React side loads on demand
   assert.equal(await fibre('[data-testid=layers]'), react, react ? 'the Layers panel has no React fibre: the page fell back to Svelte' : 'the Layers panel has a React fibre on the Svelte run');
   assert.equal(await fibre('[data-testid=variables]'), react, react ? 'the Variables panel has no React fibre: the page fell back to Svelte' : 'the Variables panel has a React fibre on the Svelte run');
+  await page.waitForSelector('[data-testid=properties]', { timeout: 15000 });
+  assert.equal(await fibre('[data-testid=properties]'), react, react ? 'the Properties panel has no React fibre: the page fell back to Svelte' : 'the Properties panel has a React fibre on the Svelte run');
 });
 
 await check('Variables panel: a mode name with U+202E and U+200B is drawn clean, in the switch and in the name of the value field', async () => {
