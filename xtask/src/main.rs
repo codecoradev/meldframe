@@ -1,6 +1,7 @@
 //! Repository checks: layering rules, build matrix, portability and other gates.
 
 mod args;
+mod groups;
 mod matrix;
 mod metadata;
 mod monolith;
@@ -10,6 +11,7 @@ mod rules;
 mod scan;
 mod size;
 mod ui_literals;
+mod units;
 
 use std::process::{Command, ExitCode};
 
@@ -143,9 +145,12 @@ fn licences_check() -> Result<ExitCode, String> {
 fn size_check(packages: &[rules::Package]) -> Result<ExitCode, String> {
     let root = scan::workspace_root();
     let allow = size::parse_allow(&scan::read(&root, size::ALLOW_FILE))?;
-    let sizes = size::measure(&root, packages);
+    let mut sizes = size::measure(&root, packages);
+    // Source that no package owns (`tools/*`, a `packages/*` without a manifest) counts too.
+    sizes.extend(units::unowned(&root, packages));
     let mut violations = size::check(&sizes, &allow);
     let args: Vec<String> = std::env::args().collect();
+    args::check_flags("size-check", &args, &["--base"])?;
     if let Some(base) = size::base_arg(&args)? {
         // The ref must resolve: a bad ref is an error, never an empty base.
         let resolves = |spec: &str| {
@@ -175,7 +180,7 @@ fn size_check(packages: &[rules::Package]) -> Result<ExitCode, String> {
     }
     let code = report(
         "size-check",
-        &format!("{} crates", packages.len()),
+        &format!("{} crates and units", sizes.len()),
         &violations,
     );
     if let Some(note) = size::split_note(&size::split_candidates(&sizes)) {

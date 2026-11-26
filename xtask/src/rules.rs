@@ -69,6 +69,15 @@ pub enum Violation {
         krate: String,
         kind: String,
     },
+    GroupOnWrongKind {
+        krate: String,
+        kind: String,
+        group: String,
+    },
+    UnknownComposite {
+        krate: String,
+        composite: String,
+    },
 }
 
 impl fmt::Display for Violation {
@@ -107,6 +116,15 @@ impl fmt::Display for Violation {
             Violation::UiToolkit { krate, kind } => {
                 write!(f, "{krate}: a {kind} crate may not use a UI toolkit")
             }
+            Violation::GroupOnWrongKind { krate, kind, group } => write!(
+                f,
+                "{krate}: a {kind} crate may not declare group `{group}`; only feature and \
+                 feature-ui crates have one"
+            ),
+            Violation::UnknownComposite { krate, composite } => write!(
+                f,
+                "{krate}: composite names group `{composite}`, which no feature crate declares"
+            ),
         }
     }
 }
@@ -186,7 +204,7 @@ pub fn is_ui_toolkit(name: &str) -> bool {
 /// Check every package against L1 to L4 and return all violations, sorted.
 pub fn check(packages: &[Package]) -> Vec<Violation> {
     let by_name: HashMap<&str, &Package> = packages.iter().map(|p| (p.name.as_str(), p)).collect();
-    let mut out = Vec::new();
+    let mut out = crate::groups::check(packages);
     for p in packages {
         let krate = p.name.clone();
         let kind = match p.kind.as_deref() {
@@ -397,6 +415,7 @@ mod tests {
         ] {
             let mut p = feat("x", "g", &[], &[]);
             p.kind = Some(kind.into());
+            p.group = (kind == "feature").then(|| "g".into());
             p.uses_ui_toolkit = true;
             let v = check(&[p]);
             assert_eq!(
@@ -414,6 +433,7 @@ mod tests {
         for kind in ["ui", "feature-ui", "bin"] {
             let mut p = feat("x", "g", &[], &[]);
             p.kind = Some(kind.into());
+            p.group = (kind == "feature-ui").then(|| "g".into());
             p.uses_ui_toolkit = true;
             assert_eq!(check(&[p]), vec![]);
         }
