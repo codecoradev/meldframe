@@ -20,3 +20,14 @@ meldframe-module = { path = "../../../core/meldframe-module" }
 meldframe-protocol = { path = "../../../core/meldframe-protocol" }
 meldframe-text = { path = "../../../core/meldframe-text" }
 meldframe-variables = { path = "../../../core/meldframe-variables" }
+
+[dev-dependencies]
+export = { path = "../../export/export" }
+meldframe-core = { path = "../../../core/meldframe-core" }
+serde_json = "1"
+
+# The tests run under WASM through wasm-bindgen-test (`just wasm-test`); each test file
+# imports it as `test` on wasm32 only. Keep the version in step with the `wasm-bindgen-cli` that
+# provides `wasm-bindgen-test-runner` (0.2.130 pairs with 0.3.80).
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
