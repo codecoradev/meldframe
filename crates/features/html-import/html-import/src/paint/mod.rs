@@ -21,6 +21,7 @@
 //! property names this stage has an answer for, so that another stage does not list them again.
 
 mod border;
+mod calc;
 mod fill;
 mod gradient;
 mod image;
@@ -192,8 +193,8 @@ pub fn read(style: &Style, ctx: &Ctx, at: usize, report: &mut Report) -> Paint {
         steps: 0,
     };
     fill::read(style, ctx, &mut paint, &mut k);
-    border::read(style, &mut paint, &mut k);
-    radius::read(style, ctx, &mut paint, &mut k);
+    let from_box = border::read(style, &mut paint, &mut k);
+    radius::read(style, ctx, from_box, &mut paint, &mut k);
     shadow::read(style, &mut paint, &mut k);
     misc::opacity(style, &mut paint, &mut k);
     misc::refused(style, &mut k);
