@@ -114,6 +114,19 @@ impl App {
         })
     }
 
+    /// The text of a value field: a literal as `set_variable_value` reads it, and nothing for empty text.
+    pub(crate) fn set_variable_value_text(
+        &mut self,
+        variable: String,
+        mode: String,
+        text: String,
+    ) -> Result<(), SubmitError> {
+        if text.trim().is_empty() {
+            return Ok(());
+        }
+        self.set_variable_value(variable, mode, VariableValue::Literal { text })
+    }
+
     /// Bind a field of a node to a variable, or let it go with the value that is painted.
     pub(crate) fn bind_property(
         &mut self,

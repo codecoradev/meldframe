@@ -9,6 +9,7 @@ use crate::layout::Direction;
 pub use crate::preset::{CreateKind, FramePreset};
 pub use crate::property::Property;
 use crate::state::{Panel, Tool};
+use crate::text_field::TypedText;
 use crate::variables::{BindField, VariableValue};
 use meldframe_protocol::{Command, ImageFit, Node, VarType, Variables};
 use serde::{Deserialize, Serialize};
@@ -155,6 +156,11 @@ pub enum Action {
     SetProperty {
         id: String,
         property: Property,
+    },
+    /// A text a person typed into a field, with the field (`TypedText`): the app parses it and says what it comes to
+    /// (`meldframe-app-parts`, `typed`); empty text, the value the field has and a position the layout decides send nothing.
+    Typed {
+        entry: TypedText,
     },
     /// Pick the mode a collection is shown in (`None`: its default mode). It is view state: nothing is written to
     /// the file, no op is sent and the undo history does not change; the canvas paints the resolved values

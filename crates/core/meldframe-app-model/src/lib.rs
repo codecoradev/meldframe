@@ -23,6 +23,7 @@ pub mod layout;
 pub mod preset;
 pub mod property;
 pub mod state;
+pub mod text_field;
 pub mod variables;
 pub mod variables_io;
 
@@ -42,8 +43,10 @@ pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportT
 pub use layers::LayerRow;
 pub use layout::{Axis, Direction, LayoutNote, Side, Sides};
 pub use state::{
-    AppState, Connection, FieldBinding, FillKind, History, Panel, Panels, Properties, Tool,
+    AppState, Connection, FieldBinding, FillKind, History, Panel, Panels, Properties, Sections,
+    Tool,
 };
+pub use text_field::{ShadowPart, TextField, TypedText};
 pub use variables::{
     BindField, BindOption, CollectionRow, ModeValue, Picker, PickerRow, TypeHeading, VariableRow,
     VariableValue, VariablesPanel,

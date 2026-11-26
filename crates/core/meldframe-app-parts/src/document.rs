@@ -47,6 +47,8 @@ pub fn code(e: &SubmitError) -> &'static str {
         ApplyError::DuplicateId(_) => "duplicate_id",
         ApplyError::ParentNotFound(_) | ApplyError::ParentNotFrame(_) => "bad_parent",
         ApplyError::Cycle => "cycle",
+        // One word for a colour that is not one, whichever field it was typed in (fill, border, gradient stop, shadow).
+        ApplyError::InvalidColor { .. } => "E_INVALID_COLOR",
         ApplyError::GradientOnText => "gradient_on_text",
         ApplyError::ImageOnText => "image_on_text",
         ApplyError::InvalidAssetId => "invalid_asset_id",

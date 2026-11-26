@@ -4,6 +4,7 @@ use crate::action::Action;
 use crate::app::App;
 use crate::effect::Effect;
 use crate::state::Tool;
+use meldframe_app_model::TypedText;
 use meldframe_app_parts::document::{
     Variant, apply_all, check_all, code, edit_text, make_variant, move_by, move_to, new_node,
     preset_node,
@@ -104,6 +105,16 @@ impl App {
             Action::ArrowKey { direction } => self.arrow_key(direction),
             Action::EditText { id, text } => self.replica.apply(&edit_text(&id, text)),
             Action::SetProperty { id, property } => self.set_property(&id, property),
+            Action::Typed { entry } => match entry {
+                TypedText::Property { id, field, text } => {
+                    self.set_property_text(&id, &field, &text)
+                }
+                TypedText::VariableValue {
+                    variable,
+                    mode,
+                    text,
+                } => self.set_variable_value_text(variable, mode, text),
+            },
             Action::SetImageFill { id, asset_id, fit } => self.set_image_fill(&id, asset_id, fit),
             Action::Delete { ids } => self.delete(&ids),
             Action::Reorder { id, before, after } => self.replica.apply(&Command::Reorder {

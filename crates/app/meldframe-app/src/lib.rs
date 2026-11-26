@@ -45,8 +45,9 @@ pub use meldframe_app_model::{
     CheckpointRow, CheckpointsStatus, CollectionRow, Connection, CreateKind, Direction, Effect,
     Event, ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget, FieldBinding,
     FillKind, Frame, FramePreset, History, LayoutNote, ModeValue, OutOp, Panel, Panels, Picker,
-    PickerRow, Properties, Property, RevertSkip, RevertSkipReason, Side, Sides, Tool, TypeHeading,
-    VariableEntity, VariableRow, VariableValue, VariablesPanel,
+    PickerRow, Properties, Property, RevertSkip, RevertSkipReason, Sections, ShadowPart, Side,
+    Sides, TextField, Tool, TypeHeading, TypedText, VariableEntity, VariableRow, VariableValue,
+    VariablesPanel,
 };
 pub use meldframe_app_model::{
     ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,

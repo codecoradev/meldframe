@@ -187,3 +187,5 @@ pub const CASES: [Case; 10] = [
         actor: "agent:ab",
     },
 ];
+
+pub mod prop_text;
