@@ -13,6 +13,7 @@ kind = "core"
 meldframe-layout = { path = "../meldframe-layout" }
 meldframe-order = { path = "../meldframe-order" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-text = { path = "../meldframe-text" }
 meldframe-variables = { path = "../meldframe-variables" }
 serde = { version = "1", features = ["derive"] }
 
