@@ -10,8 +10,9 @@
 
 use super::{
     AssetError, BlobStore, ImageType, Listed, MAX_LIST, Page, Stored, asset_id, check_id,
-    check_upload, is_asset_id, page_of, sniff,
+    check_upload, page_of, sniff,
 };
+use meldframe_protocol::{is_asset_id, is_lower_hex};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -129,8 +130,7 @@ impl BlobStore for DiskBlobs {
         for sub in top {
             let sub = sub.map_err(unavailable)?;
             let name = sub.file_name().to_string_lossy().into_owned();
-            let hex =
-                name.len() == 2 && name.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'));
+            let hex = name.len() == 2 && is_lower_hex(&name);
             if hex
                 && sub.file_type().map_err(unavailable)?.is_dir()
                 && after.is_none_or(|a| &a[..2] <= name.as_str())

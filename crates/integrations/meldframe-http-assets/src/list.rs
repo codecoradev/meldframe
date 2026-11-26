@@ -6,12 +6,13 @@
 //! the peer check and a call slot, and no entry in the call log (the REST asset routes make none).
 
 use super::{State_, failure};
-use assets::{AssetError, MAX_LIST, is_asset_id};
+use assets::{AssetError, MAX_LIST};
 use axum::{
     body::Body,
     extract::{Request, State},
     response::{IntoResponse, Response},
 };
+use meldframe_protocol::is_asset_id;
 use serde_json::json;
 use std::sync::Arc;
 

@@ -6,6 +6,7 @@
 
 use crate::action::Action;
 use crate::wire::MAX_SAFE_INT;
+use meldframe_protocol::is_asset_id;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -23,11 +24,6 @@ pub const ASSET_LIST_MAX: usize = 500;
 
 /// The types the server serves (SVG is refused at upload).
 const MIMES: [&str; 4] = ["image/png", "image/jpeg", "image/webp", "image/gif"];
-
-/// Whether `id` has the form of an asset id: 64 lowercase hex characters (the SHA-256 of the bytes).
-pub fn is_asset_id(id: &str) -> bool {
-    id.len() == 64 && id.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
-}
 
 /// One asset of the workspace, as `GET /v1/assets` lists it. No content.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

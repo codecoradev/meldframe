@@ -30,6 +30,7 @@ name = "assets"
 version = "0.0.0"
 dependencies = [
  "meldframe-module",
+ "meldframe-protocol",
  "sha2 0.10.9",
 ]
 
@@ -1655,6 +1656,7 @@ dependencies = [
  "meldframe-host",
  "meldframe-http",
  "meldframe-module",
+ "meldframe-protocol",
  "rmcp",
  "serde",
  "serde_json",

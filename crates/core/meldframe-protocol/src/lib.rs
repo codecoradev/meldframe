@@ -10,6 +10,7 @@
 mod command;
 mod decoration;
 mod enums;
+mod ids;
 mod node;
 mod patch;
 mod snapshot;
@@ -23,6 +24,7 @@ pub use enums::{
     Align, BorderPosition, GradientKind, ImageFit, Justify, LayoutMode, NodeKind, ShaderPreset,
     SizeMode, TextAlign,
 };
+pub use ids::{ASSET_ID_LEN, is_asset_id, is_lower_hex};
 pub use node::{DEFAULT_FILL, DEFAULT_OPACITY, DEFAULT_RADIUS, Node, Pad};
 pub use patch::NodePatch;
 pub use snapshot::{FileSnapshot, SnapshotNode};

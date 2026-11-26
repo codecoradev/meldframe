@@ -69,9 +69,14 @@ ban = [
 ]
 
 [shared.asset_id]
-home = "crates/features/assets/assets/src/lib.rs"
-use = "use assets::is_asset_id"
-ban = ["b'0'..=b'9' | b'a'..=b'f'"]
+home = "crates/core/meldframe-protocol/src/ids.rs"
+use = "use meldframe_protocol::{is_asset_id, is_lower_hex} (audit D3)"
+ban = [
+    "b'0'..=b'9' | b'a'..=b'f'",
+    "b'a'..=b'f' | b'0'..=b'9'",
+    "'0'..='9' | 'a'..='f'",
+    "'a'..='f' | '0'..='9'",
+]
 
 [shared.css_number]
 home = "crates/core/meldframe-css"
@@ -93,13 +98,6 @@ fns = [
     "crates/core/meldframe-store-contract/src/cases.rs::node",
 ]
 reason = "audit D16: one test-support module for the harness and the store contract"
-
-[[allow_copy]]
-fns = [
-    "crates/core/meldframe-app-model/src/assets.rs::is_asset_id",
-    "crates/features/assets/assets/src/lib.rs::is_asset_id",
-]
-reason = "audit D3: assets::is_asset_id is the one; the app model is a core crate and cannot depend on the assets feature, so the home moves down"
 
 [[allow_copy]]
 fns = [
@@ -194,14 +192,6 @@ fns = [
     "crates/integrations/meldframe-http/src/mcp/tools.rs::args",
 ]
 reason = "audit D12: one adapter module in the merged http crate (#315)"
-
-# MM4: files that write the `asset_id` pattern themselves today.
-[allow_shared.asset_id]
-"crates/core/meldframe-app-model/src/assets.rs" = "audit D3: core cannot depend on the assets feature, so the home moves down"
-"crates/core/meldframe-check/src/validate.rs" = "audit D3: core cannot depend on the assets feature, so the home moves down"
-"crates/features/assets/assets/src/disk.rs" = "the two-digit shard name of the disk store, in the crate that owns the id (audit D3)"
-"crates/features/export/export/src/names.rs" = "audit D3: export may depend on assets; use is_asset_id"
-"crates/features/html-import/html-import/src/paint/image.rs" = "audit D3: the importer may depend on assets; use is_asset_id"
 
 # MM4: files that write the `css_number` pattern themselves today.
 [allow_shared.css_number]

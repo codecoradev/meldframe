@@ -9,7 +9,7 @@ use super::lex::{inner, split_commas};
 use super::{Asset, Paint, Sink};
 use crate::css::Style;
 use crate::css::value::words;
-use meldframe_protocol::{ImageFill, ImageFit};
+use meldframe_protocol::{ImageFill, ImageFit, is_asset_id};
 
 /// The text inside `url(...)`, without quotes.
 fn src(layer: &str) -> &str {
@@ -25,8 +25,7 @@ fn src(layer: &str) -> &str {
 /// The asset id at the end of the url: the last path segment, 64 lower-case hex digits.
 fn asset_id(src: &str) -> Option<&str> {
     let tail = src.rsplit('/').next()?;
-    (tail.len() == 64 && tail.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')))
-        .then_some(tail)
+    is_asset_id(tail).then_some(tail)
 }
 
 /// The `i`th value of a comma list property, repeated as CSS does when the list is shorter; none when the property is

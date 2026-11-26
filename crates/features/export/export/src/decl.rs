@@ -4,11 +4,12 @@
 //! under a hug parent is a fixed size, rule G1; `safe` alignment, rule G2). Paint comes from the painted box of the
 //! render step, except where the field is bound: a bound fill, radius or opacity is `var(--...)`.
 
-use crate::names::{asset_id_ok, css_escape, escape, hex_alpha, hex_colour, num, px};
+use crate::names::{css_escape, escape, hex_alpha, hex_colour, num, px};
 use crate::report::Report;
 use meldframe_layout::{Rect, TEXT_OUTSIDE_CONTRACT_MESSAGE, TextMeasurer, text_outside_contract};
 use meldframe_protocol::{
-    Align, Bind, BorderPosition, ImageFit, Justify, LayoutMode, Node, NodeKind, SizeMode, TextAlign,
+    Align, Bind, BorderPosition, ImageFit, Justify, LayoutMode, Node, NodeKind, SizeMode,
+    TextAlign, is_asset_id,
 };
 use meldframe_render::{Paint, PaintedBox, PaintedGradient};
 use std::collections::HashMap;
@@ -359,7 +360,7 @@ fn paint(cx: &Cx, n: &Node, b: &PaintedBox, s: &mut Style, rep: &mut Report) {
     let mut layers: Vec<(String, &str)> = Vec::new();
     let mut image = b.image.as_ref();
     if let Some(img) = image
-        && !asset_id_ok(&img.asset_id)
+        && !is_asset_id(&img.asset_id)
     {
         rep.unsupported(
             "invalid_asset",
