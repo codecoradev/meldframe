@@ -106,6 +106,19 @@ describe('the field of the Import variables dialog, as a flow', () => {
     flow.imported();
     expect(flow.view()).toEqual({ text: '', note: null });
   });
+  it('says whether an applied import changed the view: not when the field and the note were empty already (Clear pressed in the gap)', async () => {
+    const { flow, r } = setup();
+    expect(flow.imported()).toBe(false);
+    flow.edit('typed');
+    expect(flow.imported()).toBe(true);
+    flow.edit('');
+    expect(flow.imported()).toBe(false);
+    const done = flow.choose(file());
+    r.finish({ ok: true, text: ':root{}' });
+    await done;
+    expect(flow.imported()).toBe(true);
+    expect(flow.imported()).toBe(false);
+  });
   it('reads the result when it acts, not when it was made (the app layer answers after the click)', async () => {
     const { flow, sent, r, hold } = setup(null);
     const done = flow.choose(file());

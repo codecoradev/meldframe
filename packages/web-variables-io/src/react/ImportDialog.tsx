@@ -37,23 +37,29 @@ export function ImportDialog({ open, onOpenChange, result, dispatch, opener }: I
   });
   // What the field holds, kept for the life of the page (this component outlives the dialog): closing keeps the text, and an import that was applied, or Clear, starts it again.
   const [flow] = useState(() => createImportFlow<File>({ dispatch: (a) => now.current.dispatch(a), result: () => now.current.result, read: readFile }));
-  // The same snapshot on the server: the component draws in Node (its test) as well as in the browser.
+  // The same stored value on the server: the component draws in Node (its test) as well as in the browser.
   const view = useSyncExternalStore(flow.subscribe, flow.view, flow.view);
 
-  // A primitive, so a new snapshot that carries the same result does not empty what the person has typed since.
+  // A primitive, so a new state of the app layer that carries the same result does not empty what the person has typed since.
   const done = result?.status === 'imported';
   const refocus = useRef(false);
+  // The field empties after an import, so Import and Clear become disabled; a focus left on one of them would leave the keyboard with nothing to
+  // act on inside the modal. It goes to Close (the next thing to do), unless it is on a control that works.
+  const keepFocus = () => {
+    if (stranded(document.activeElement as HTMLButtonElement | null, document.body)) document.querySelector<HTMLElement>('[data-testid=import-vars-done]')?.focus();
+  };
   useEffect(() => {
     if (!done) return;
-    refocus.current = true;
-    flow.imported();
+    // The emptied field is drawn by the layout effect below. When there is nothing to empty (Clear was pressed in the gap) no draw follows, so the
+    // flag must not be left set for the next change: the check runs here, on the field as it is.
+    if (flow.imported()) refocus.current = true;
+    else keepFocus();
   }, [done, flow]);
-  // The field empties after an import, so Import and Clear become disabled; a focus left on one of them would leave the keyboard with nothing to
-  // act on inside the modal. It goes to Close (the next thing to do), unless it is on a control that works. Once the emptied field is drawn.
+  // Once the emptied field is drawn.
   useLayoutEffect(() => {
     if (!refocus.current || view.text !== '') return;
     refocus.current = false;
-    if (stranded(document.activeElement as HTMLButtonElement | null, document.body)) document.querySelector<HTMLElement>('[data-testid=import-vars-done]')?.focus();
+    keepFocus();
   }, [view]);
 
   const change = (next: boolean) => {

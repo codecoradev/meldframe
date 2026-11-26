@@ -61,9 +61,14 @@ export function createImportFlow<F extends { name: string; size: number }>(deps:
       guard.cancel();
       deps.dispatch(CLOSE);
     },
-    /** An import was applied: the field and the note start again (a second press would only be refused as a duplicate). */
-    imported() {
+    /**
+     * An import was applied: the field and the note start again (a second press would only be refused as a duplicate). True when that changed
+     * what is drawn; false when the field and the note were empty already (Clear was pressed in the gap), and then nothing is told to a listener.
+     */
+    imported(): boolean {
+      if (view.text === '' && view.note === null) return false;
       set(applied());
+      return true;
     },
   };
 }
