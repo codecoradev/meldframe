@@ -1,5 +1,6 @@
 // What the panel's controls send. Pure, so the wiring of a button is a test and not a promise: the Svelte files only
-// call these (`controller.ts` puts them in sequence, with the confirmations). Nothing here decides who may do what; the app layer refuses what it must (`Event::Refused`).
+// call these. Nothing here decides who may do what or whether a question is still open; the app layer refuses what it
+// must (`Event::Refused`) and keeps the question (`AppState.confirm`).
 import type { Action, BatchRef, BatchRow, ReviewState } from '@meldframe/protocol';
 
 export const refOf = (r: Pick<BatchRow, 'actor' | 'keyPrefix'>): BatchRef => ({ actor: r.actor, keyPrefix: r.keyPrefix });
@@ -7,13 +8,21 @@ export const refOf = (r: Pick<BatchRow, 'actor' | 'keyPrefix'>): BatchRef => ({ 
 /** Show: select the batch's nodes on the canvas. */
 export const show = (r: BatchRow): Action => ({ type: 'selectBatch', batch: refOf(r) });
 
-/** The revert itself, after the person confirmed it. */
-export const revert = (r: BatchRow): Action => ({ type: 'revertBatch', actor: r.actor, keyPrefix: r.keyPrefix });
+/** Revert: ask the question first (the app selects the batch and holds the question). */
+export const askRevert = (r: BatchRow): Action => ({ type: 'activity', op: { type: 'askRevert', batch: refOf(r) } });
+
+/** The revert itself, after the person confirmed it: the app goes ahead only for the batch it asked about. */
+export const confirmRevert = (r: BatchRow): Action => ({ type: 'activity', op: { type: 'confirmRevert', batch: refOf(r) } });
+
+export const askRestore = (id: string): Action => ({ type: 'activity', op: { type: 'askRestore', id } });
+
+export const confirmRestore = (id: string): Action => ({ type: 'activity', op: { type: 'confirmRestore', id } });
+
+/** Cancel, Close and Esc. */
+export const cancel = (): Action => ({ type: 'activity', op: { type: 'cancel' } });
 
 /** Create checkpoint: the label as typed, trimmed (empty is no label); the app checks it again before anything is sent. */
 export const createCheckpoint = (label: string): Action => ({ type: 'createCheckpoint', label: label.trim() });
-
-export const restore = (id: string): Action => ({ type: 'restoreCheckpoint', id });
 
 export const older = (): Action => ({ type: 'loadOlderBatches' });
 

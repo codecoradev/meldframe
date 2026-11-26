@@ -52,7 +52,7 @@ pub use meldframe_app_model::{
     RevertSkip, RevertSkipReason, Sections, ShadowPart, Side, Sides, TextField, Tool, TypeHeading,
     TypedText, VariableEntity, VariableRow, VariableValue, VariablesPanel,
 };
-pub use meldframe_app_model::{ActivityOp, RightTab};
+pub use meldframe_app_model::{ActivityOp, BatchRef, Confirm, RightTab};
 pub use meldframe_app_model::{
     ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,
     VariablesImportResult, VariablesIo,

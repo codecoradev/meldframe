@@ -314,7 +314,8 @@ pub enum Action {
     /// Ask the server for a `manual` checkpoint at the confirmed file (`Effect::PostCheckpoint`); the list changes only
     /// when it answers. A label with a control or hidden character, over 128 characters or with more than 4 combining
     /// marks in a row is refused as `invalid` before anything is sent; an empty one is no label; `forbidden` where the
-    /// caller may not make one.
+    /// caller may not make one. `Event::CheckpointMade` says the row asked for is there; an open question of the Activity
+    /// panel closes.
     CreateCheckpoint {
         label: String,
     },
@@ -351,7 +352,7 @@ pub enum Action {
     },
     /// The Activity tab was opened: ask for the newest page of batches (heal rule (c)).
     OpenActivity {},
-    /// The tab of the right card (`ActivityOp`): `AppState::right_tab`.
+    /// The tab of the right card and the question of the Activity panel (`ActivityOp`): `AppState::right_tab` and `confirm`.
     Activity {
         op: ActivityOp,
     },

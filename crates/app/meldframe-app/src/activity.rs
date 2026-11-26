@@ -41,7 +41,10 @@ impl App {
             }
             Action::SelectBatch { batch } => {
                 match self.feed.select(&batch.actor, &batch.key_prefix) {
-                    Some(ids) => self.select(ids),
+                    Some(ids) => {
+                        self.confirm_follows_selection(&batch);
+                        self.select(ids)
+                    }
                     None => drop(refuse(&mut self.events, "unknown_batch")),
                 }
             }

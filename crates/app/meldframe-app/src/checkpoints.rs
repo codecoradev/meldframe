@@ -82,6 +82,9 @@ impl App {
         let key = self.cps.next_key(&self.prefix);
         let seq = self.replica.seq();
         let kind = CheckpointKind::Manual;
+        // The person moved on: a question that was open closes. The row that answers this request is told by its key.
+        self.state.confirm = None;
+        self.cps.asked(key.clone());
         fx.push(Effect::PostCheckpoint {
             key,
             kind,
@@ -115,6 +118,9 @@ impl App {
         row: CheckpointRow,
     ) -> Result<(), SubmitError> {
         self.join(row);
+        if self.cps.answered(key) {
+            self.events.push(Event::CheckpointMade { key: key.into() });
+        }
         let mine = match &self.cps.waiting {
             Some(Waiting::Revert { key: k, .. } | Waiting::Restore { key: k, .. }) => k == key,
             _ => false,
@@ -168,6 +174,9 @@ impl App {
     }
 
     fn checkpoint_failed(&mut self, request: CheckpointRequest, code: &str) {
+        if let CheckpointRequest::Post { key } = &request {
+            self.cps.answered(key);
+        }
         match (request, &self.cps.waiting) {
             (CheckpointRequest::List {}, _) => {
                 self.cps.listing = false;

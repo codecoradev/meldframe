@@ -10,6 +10,21 @@ const html = (a: ActivityState, extra: { checkpoints?: Checkpoint[]; self?: stri
   render(ActivityPanel as never, { props: { activity: a, checkpoints: [], canCreate: true, status: 'loaded', self: 'person:ana', dispatch: () => {}, ...extra } as never }).body.replace(/<!--.*?-->/g, '');
 const cp = (id: string, seq: number): Checkpoint => ({ id, n: seq, seq, label: id, kind: 'manual', atMs: 1 });
 
+describe('the question the app layer holds', () => {
+  const a = () => activity({ lanes: [lane({ actor: 'agent:claude', batches: ['k1', 'k2'] })], rows: [row({ n: 1, keyPrefix: 'k1' }), row({ n: 2, keyPrefix: 'k2' })] });
+  it('is drawn on the row it is about, and on no other, and only while the app layer holds it', () => {
+    expect(html(a())).not.toContain('revert-confirm');
+    const ask = (keyPrefix: string) => render(ActivityPanel as never, { props: { activity: a(), checkpoints: [], canCreate: true, status: 'loaded', self: 'person:ana', dispatch: () => {}, confirm: { kind: 'revert', actor: 'agent:claude', keyPrefix } } as never }).body.replace(/<!--.*?-->/g, '');
+    expect(ask('k1').match(/data-testid="revert-confirm"/g)).toHaveLength(1);
+    expect(ask('k9')).not.toContain('revert-confirm');
+  });
+  it('is drawn on the checkpoint it is about', () => {
+    const out = render(ActivityPanel as never, { props: { activity: activity(), checkpoints: [cp('c1', 1), cp('c2', 2)], canCreate: true, status: 'loaded', self: 'person:ana', dispatch: () => {}, confirm: { kind: 'restore', id: 'c2' } } as never }).body;
+    expect(out.match(/data-testid="restore-confirm"/g)).toHaveLength(1);
+    expect(render(ActivityPanel as never, { props: { activity: activity(), checkpoints: [cp('c1', 1)], canCreate: true, status: 'loaded', self: 'person:ana', dispatch: () => {} } as never }).body).not.toContain('restore-confirm');
+  });
+});
+
 describe('the Activity panel', () => {
   it('says what it is for when there is nothing yet', () => {
     const out = html(activity());

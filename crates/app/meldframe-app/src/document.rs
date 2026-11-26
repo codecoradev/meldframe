@@ -115,7 +115,7 @@ impl App {
                     text,
                 } => self.set_variable_value_text(variable, mode, text),
             },
-            Action::Activity { .. } => Ok(()),
+            Action::Activity { op } => self.activity_change(op, fx),
             Action::Manage { op } => match op {
                 ManageOp::ConfirmRemove {} => self.confirm_remove(),
                 ManageOp::SubmitRename {} => self.submit_rename(),
