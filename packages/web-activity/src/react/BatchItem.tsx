@@ -34,10 +34,17 @@ export function BatchItem({ row, selected, confirming, canReview, onReview, onSh
   useEffect(() => {
     if (confirming) cancelButton.current?.querySelector('button')?.focus();
   }, [confirming]);
-  // Revert is on the row before, during and after the question, so the focus can go there as soon as the action is sent.
+  // The Svelte copy waits for `tick()` and then focuses Revert; this waits for the next task. The assumption it relies on: the island draws
+  // what the dispatch changed through `flushSync` before the dispatch returns, so that draw is over by the next task; and Revert is on
+  // the row before, during and after the question, so it is there to take the focus whether the app layer cleared the question in that
+  // dispatch or keeps it until a checkpoint it waits for is made. activity-e2e.mjs asks for the focus after a confirmed revert and restore.
+  // A timer left over from a row that is gone is cleared with the row.
+  const focusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(focusTimer.current), []);
   const close = (then: () => void) => () => {
     then();
-    setTimeout(() => revertButton.current?.querySelector('button')?.focus(), 0);
+    clearTimeout(focusTimer.current);
+    focusTimer.current = setTimeout(() => revertButton.current?.querySelector('button')?.focus(), 0);
   };
 
   return (
