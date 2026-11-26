@@ -3,8 +3,9 @@
   given and reports clicks; it holds no state of its own.
 -->
 <script lang="ts">
-  import Icon, { type IconName } from '@meldframe/web-chrome/Icon.svelte';
-  import { actorLabel, actorTone, type LayerRow } from '@meldframe/web-document/layers';
+  import Icon from '@meldframe/web-chrome/Icon.svelte';
+  import type { LayerRow } from '@meldframe/web-document/layers';
+  import { KIND_ICON as icon, changedBy } from './layers';
 
   interface Props {
     rows: LayerRow[];
@@ -14,15 +15,13 @@
     onToggle: (id: string) => void;
   }
   let { rows, self, onSelect, onToggle }: Props = $props();
-  const tone = { 1: 'bg-agent-1', 2: 'bg-agent-2', 3: 'bg-agent-3' } as const;
-  const icon: Record<LayerRow['kind'], IconName> = { frame: 'frame', rect: 'rectangle', ellipse: 'ellipse', text: 'text', shader: 'layers' };
 </script>
 
 <div class="flex flex-col px-3 pb-3 text-body text-text-secondary" data-testid="layers">
   <h3 id="layers-title" class="m-0 py-2 text-body font-semibold text-text-strong">Layers</h3>
   <ul class="m-0 flex list-none flex-col gap-px p-0" aria-labelledby="layers-title">
     {#each rows as r (r.id)}
-      {@const who = r.actor && r.actor !== self ? actorLabel(r.actor) : null}
+      {@const who = changedBy(r, self)}
       <li
         class="group flex h-(--mf-size-control-md) items-center gap-2 rounded-sm pr-2 {r.selected ? 'bg-selection-bg text-selection-text font-medium' : 'hov:bg-hairline'}"
         style:padding-left="calc(var(--mf-space-2) + {r.depth} * var(--mf-space-5))"
@@ -41,7 +40,7 @@
         {#if who}
           <span class="flex min-w-0 max-w-24 shrink-0 items-center gap-1" title="Last changed by {who.name}" data-testid="actor">
             <span class="truncate text-caption {r.selected ? 'text-selection-text' : 'text-text-muted'}">{who.name}</span>
-            <span class="size-2 shrink-0 rounded-pill {who.kind === 'agent' ? tone[actorTone(r.actor ?? '')] : 'bg-person'}"></span>
+            <span class="size-2 shrink-0 rounded-pill {who.dot}"></span>
           </span>
         {/if}
       </li>
