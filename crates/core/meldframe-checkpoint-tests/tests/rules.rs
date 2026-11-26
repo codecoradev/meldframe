@@ -120,6 +120,19 @@ fn an_actor_is_not_empty_at_most_128_bytes_and_shows() {
 }
 
 #[test]
+fn an_actor_is_the_rule_of_meldframe_text_so_a_pile_of_marks_is_refused() {
+    // The row carries the actor to a screen; the rule is the one of `meldframe_text::actor`: four marks in a row at most.
+    assert!(check_actor(&format!("agent:a{}", "\u{0301}".repeat(4))).is_ok());
+    for bad in [
+        format!("agent:a{}", "\u{0301}".repeat(5)),
+        format!("agent:a{}", "\u{0301}".repeat(100)),
+        format!("agent:a{}", "\u{0301}\u{200B}".repeat(3)),
+    ] {
+        assert_eq!(check_actor(&bad).unwrap_err().code(), "invalid", "{bad:?}");
+    }
+}
+
+#[test]
 fn kinds_have_their_wire_names_and_round_trip() {
     let names = ["runStart", "beforeRevert", "beforeRestore", "manual"];
     for (kind, name) in Kind::ALL.iter().zip(names) {

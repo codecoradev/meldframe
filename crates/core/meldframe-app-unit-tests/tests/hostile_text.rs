@@ -277,3 +277,24 @@ fn the_codes_of_a_failed_request_are_cleaned_the_same_way() {
         Some("x".repeat(64).as_str())
     );
 }
+
+#[test]
+fn stacked_combining_marks_in_an_actor_a_key_and_a_code_are_capped_at_four() {
+    // A server that accepted an actor of 100 marks within 128 bytes could not have: the rule of `actor` refuses a run of
+    // more than four. A frame that carries one reaches no screen with the pile (the marks past the fourth are dropped).
+    let pile = "\u{0301}".repeat(100);
+    let four = "\u{0301}".repeat(4);
+    let l = after_op(&format!("agent:a{pile}"), &format!("k{pile}1:0"));
+    assert_eq!(lanes(&l), [format!("agent:a{four}")]);
+    assert_eq!(rows(&l)[0].1, format!("k{four}1"));
+    assert_eq!(
+        rejected_with(&format!("bad{pile}"), false),
+        [format!("bad{four}")]
+    );
+    // Marks split by a hidden character are one run once it is gone.
+    let split = "\u{0301}\u{200B}".repeat(50);
+    assert_eq!(
+        lanes(&after_op(&format!("agent:a{split}"), "k:0")),
+        [format!("agent:a{four}")]
+    );
+}

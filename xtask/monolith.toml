@@ -47,6 +47,12 @@ ban = [
     "0x00AD",
     "'\\u{AD}'",
     "'\\u{00AD}'",
+    # The controls (category Cc) as ranges: `meldframe_text::is_control_char`.
+    "'\\0'..='\\x1f'",
+    "'\\x7f'..='\\u{9f}'",
+    "'\\u{7f}'..='\\u{9f}'",
+    "0x7F..=0x9F",
+    "0x007F..=0x009F",
     # A check that is only `is_control`, however it is spelled (`any(char::is_control)`,
     # `any(|c| c.is_control() || ..)`).
     "char::is_control",
@@ -208,7 +214,7 @@ reason = "audit D12: one adapter module in the merged http crate (#315)"
 # MM4: files that write a character of the `hidden_text` set themselves today. Two are not checks.
 [allow_shared.hidden_text]
 "crates/features/design-review/design-review/src/contract.rs" = "test input of the store contract (test support kept in src): hostile characters a store must refuse, not a check"
-"crates/features/html-import/html-import-tree/src/text.rs" = "the HTML entity table maps &shy; to U+00AD, which is not a check; but the same file cleans report text with `!c.is_control()` (keeping tab and newline), a second copy of the hidden-character rule that moves to meldframe-text (U9, #311)"
+"crates/features/html-import/html-import-tree/src/text.rs" = "the HTML entity table maps &shy; to U+00AD, which is not a check; and the same file drops the controls of a numeric character reference with `!c.is_control()` (keeping tab and newline): that is the reading of the document, a content rule and not the cleaning of text to show, so it is not moved to meldframe-text (the part 2 note of #311 in docs/epics.md)"
 "crates/features/variables-import/variables-import/src/lib.rs" = "strips a leading byte order mark from the CSS text before it is read, which is not a check of hidden characters"
 
 # MM6: crates that only hold tests today. Issue #316 moves each into the crate it tests and removes

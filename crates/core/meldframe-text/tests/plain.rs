@@ -4,8 +4,8 @@
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
 use meldframe_text::{
-    MAX_ACTOR, MAX_FILE_NAME, MAX_KEY, MAX_KEY_BYTES, TextError, actor, file_name, key, plain,
-    workspace_name,
+    AGENT_PREFIX, MAX_ACTOR, MAX_FILE_NAME, MAX_KEY, MAX_KEY_BYTES, TextError, actor, file_name,
+    is_agent, key, plain, workspace_name,
 };
 
 #[test]
@@ -156,4 +156,14 @@ fn the_error_reads_as_a_phrase_after_the_thing_named() {
         TextError::Hidden('\u{202E}').to_string(),
         "holds a control or hidden character (U+202E)"
     );
+}
+
+#[test]
+fn an_agent_is_an_actor_that_starts_with_the_one_prefix() {
+    // The prefix is defined once, here: the lanes, the layer rows and the checkpoint run rule read it from this crate.
+    assert_eq!(AGENT_PREFIX, "agent:");
+    assert!(is_agent("agent:claude") && is_agent("agent:"));
+    for not in ["person:ana", "agent", "Agent:x", " agent:x", "xagent:x", ""] {
+        assert!(!is_agent(not), "{not:?}");
+    }
 }

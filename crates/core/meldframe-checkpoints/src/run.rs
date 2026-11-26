@@ -6,11 +6,11 @@ use std::collections::{BTreeMap, HashMap};
 /// The most entries a [`RunWatch`] holds: past it the oldest entry goes.
 pub const MAX_DETECTOR_ENTRIES: usize = 10_000;
 
-/// Whether an actor string is an agent's: the `agent:` prefix, the way the lanes read it for display. Until the
-/// principal has a kind (ADR-0022) this is a guess that decides nothing about access: a wrong one costs an extra
-/// automatic row or a missing one.
+/// Whether an actor string is an agent's: the `agent:` prefix, the way the lanes read it for display (the one
+/// definition is `meldframe_text::is_agent`). Until the principal has a kind (ADR-0022) this is a guess that decides
+/// nothing about access: a wrong one costs an extra automatic row or a missing one.
 pub fn is_agent(actor: &str) -> bool {
-    actor.starts_with("agent:")
+    meldframe_text::is_agent(actor)
 }
 
 /// The `seq` of a run start: the file as it was just before the first op the run wrote, given the `seq` of every

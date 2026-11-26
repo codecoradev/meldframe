@@ -1347,8 +1347,10 @@ dependencies = [
  "meldframe-app",
  "meldframe-app-model",
  "meldframe-app-parts",
+ "meldframe-check",
  "meldframe-protocol",
  "meldframe-render",
+ "meldframe-text",
  "serde_json",
  "wasm-bindgen-test",
 ]
@@ -1485,6 +1487,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-activity",
  "meldframe-revert",
+ "meldframe-text",
 ]
 
 [[package]]

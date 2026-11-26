@@ -11,8 +11,9 @@ import type { TouchRing } from "./TouchRing";
 export type ActivityState = { 
 /**
  * The server's count of headers that are not `accepted` (never recounted from the rows held). `None` while it is
- * not known: nothing has said it yet (a batch frame or a page of the list), or the list failed to load. A front end
- * words that as Unknown, never as zero or as nothing waiting (rule U9).
+ * not known: nothing has said it yet (a batch frame or a page of the list), or the first list failed to load. After
+ * a count is known, a list that fails to load keeps the number it has (the last the server said). A front end
+ * words `None` as Unknown, never as zero or as nothing waiting (rule U9).
  */
 unreviewedCount: number | null, 
 /**

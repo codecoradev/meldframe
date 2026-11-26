@@ -102,6 +102,18 @@ pub fn actor(s: &str) -> Result<(), TextError> {
     plain(s, MAX_ACTOR, MAX_ACTOR)
 }
 
+/// The prefix of the actor string of an agent, as the lanes, the layer rows and the checkpoint run rule read it. It says
+/// who an actor is for display only; it decides nothing about access.
+pub const AGENT_PREFIX: &str = "agent:";
+/// The prefix of the actor string of a person.
+pub const PERSON_PREFIX: &str = "person:";
+
+/// Whether an actor string is an agent's: it starts with [`AGENT_PREFIX`]. The one definition: the lane kind of the
+/// activity panel and the run rule of the checkpoints call it, so the two cannot read an actor differently.
+pub fn is_agent(actor: &str) -> bool {
+    actor.starts_with(AGENT_PREFIX)
+}
+
 /// An idempotency key: [`plain`] within [`MAX_KEY`] characters (and [`MAX_KEY_BYTES`] bytes).
 pub fn key(s: &str) -> Result<(), TextError> {
     plain(s, MAX_KEY, MAX_KEY_BYTES)
