@@ -1400,16 +1400,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-batch-tests"
-version = "0.0.0"
-dependencies = [
- "meldframe-batch",
- "meldframe-host",
- "meldframe-protocol",
- "serde_json",
-]
-
-[[package]]
 name = "meldframe-calls"
 version = "0.0.0"
 dependencies = [
