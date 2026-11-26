@@ -19,6 +19,10 @@
 // to the new file name:
 //   node packages/web-e2e/scripts/layout-interaction-e2e.mjs http://localhost:15174 http://127.0.0.1:18081
 // MELDFRAME_E2E_SHOTS=<dir> saves a screenshot while the pointer is down in each drag.
+// MELDFRAME_UI=react opens every page with `react=canvas` (the React copy of the canvas, E7.3 slice S11; MELDFRAME_REACT_PANELS adds switch words, such
+// as `strict` for React's strict mode in development): a first check asks that React drew the canvas (a fibre on its host, so a silent fallback to
+// Svelte fails), every other check is the same on both, and a last check blocks the module of the React canvas and asks that the Svelte canvas is
+// drawn and the layout still shows (the match is on the paths of the Vite dev server's modules: dev server only).
 // The WASM bridge must be built from this revision (`just wasm-build`) and Playwright comes from the global module path. The web
 // and server URLs must be loopback (the token is sent there).
 import assert from 'node:assert/strict';
@@ -38,6 +42,13 @@ for (const u of [web, server]) {
   if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(u).hostname)) throw new Error(`refusing to send the token to ${u}: the web and server URLs must be loopback (127.0.0.1, localhost or ::1)`);
 }
 const shots = process.env.MELDFRAME_E2E_SHOTS; // a directory: a screenshot of the pointer-down state of each drag
+const react = process.env.MELDFRAME_UI === 'react';
+/** A page of the editor, with the React copy of the canvas when MELDFRAME_UI=react. */
+const urlOf = (query = '') => {
+  const q = [query, react ? `react=${['canvas', ...(process.env.MELDFRAME_REACT_PANELS ?? '').split(',').filter(Boolean)].join(',')}` : ''].filter(Boolean).join('&');
+  return q ? `${web}/?${q}` : web;
+};
+const fibre = (p) => p.evaluate(() => Object.keys(document.querySelector('[role=application]') ?? {}).some((k) => k.startsWith('__reactFiber$')));
 const auth = { authorization: `Bearer ${token}` };
 const run = Math.random().toString(36).slice(2, 7);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -170,10 +181,14 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
   browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   page.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
-  await page.goto(`${web}/?canvaslayout=0`);
+  await page.goto(urlOf('canvaslayout=0'));
   await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
   await until('the nodes are drawn', async () => (await bbox(PURPLE)) && (await bbox(AMBER)));
   await sleep(400);
+
+  await check(`the canvas is drawn by ${react ? 'React' : 'Svelte'}`, async () => {
+    assert.equal(await fibre(page), react, react ? 'the host has no React fibre: the page fell back to Svelte' : 'the host has a React fibre on the Svelte run');
+  });
 
   await check('with the layout off a drag of a child moves its x and y by the drag, as before; one undo takes it back', async () => {
     const z = await zoomOf();
@@ -392,20 +407,54 @@ const F = `col_${run}`, A = `a_${run}`, B = `b_${run}`, C = `c_${run}`, H = `hug
     const z = async () => zoomOf();
     const laidOut = async () => { const a = await bbox(RED); const b = await bbox(GREEN); return a && b && withinReadout(70, b.y0 - a.y0, await z(), 3); };
     assert.match(await toggleLayout(), /Off/); // on again, remembered
-    await page.goto(web);
+    await page.goto(urlOf());
     await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
     await until('laid out after a reload with no parameter', laidOut);
-    await page.goto(`${web}/?canvaslayout=0`);
+    await page.goto(urlOf('canvaslayout=0'));
     await until('the editor is live again', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
     await until('the stored boxes with ?canvaslayout=0', async () => { const f = await bbox(FRAME); const b = await bbox(GREEN); return f && b && withinReadout(120, b.y0 - f.y0, await z(), 3); });
     assert.equal(await page.evaluate(() => localStorage.getItem('meldframe.autoLayoutOnCanvas')), 'on', 'a forced page does not change the choice');
     await page.evaluate(() => localStorage.setItem('meldframe.autoLayoutOnCanvas', 'off'));
-    await page.goto(`${web}/?canvaslayout=1`);
+    await page.goto(urlOf('canvaslayout=1'));
     await until('laid out with ?canvaslayout=1 over a choice of off', async () => { await sleep(150); return laidOut(); });
     await page.evaluate(() => localStorage.removeItem('meldframe.autoLayoutOnCanvas'));
-    await page.goto(web);
+    await page.goto(urlOf());
     await until('laid out with no choice at all: the default is on', async () => { await sleep(150); return laidOut(); });
   });
+
+  if (react) {
+    await check('the chunk of the React canvas does not load: the Svelte canvas is drawn instead, laid out, and a drag still reorders', async () => {
+      const blocked = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, colorScheme: 'dark' });
+      blocked.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
+      await blocked.route('**/canvas/react/Canvas.tsx*', (r) => r.abort());
+      const kept = page;
+      page = blocked; // the helpers read the page of the script
+      try {
+        await page.goto(urlOf());
+        await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
+        await until('the canvas of the fallback is drawn', async () => (await bbox(RED)) && (await bbox(GREEN)));
+        assert.equal(await fibre(page), false, 'the host has a React fibre although its module was blocked');
+        const a = await bbox(RED);
+        const b = await bbox(GREEN);
+        assert.ok(withinReadout(70, b.y0 - a.y0, await zoomOf(), 3), 'the children are drawn in the flow');
+        const before = await flowOf(F);
+        assert.deepEqual(before, [A, B, C], 'the checks before this one left the order as it was made');
+        const mid = await bbox(GREEN);
+        const first = await bbox(RED);
+        await page.mouse.move((mid.x0 + mid.x1) / 2, (mid.y0 + mid.y1) / 2);
+        await page.mouse.down();
+        await page.mouse.move((first.x0 + first.x1) / 2, first.y0 + 5, { steps: 8 });
+        await page.mouse.up();
+        await until('the order on the server', async () => (await flowOf(F)).join() !== before.join());
+        assert.deepEqual(await flowOf(F), [B, A, C]);
+        await page.keyboard.press('Control+z');
+        await until('the order undone', async () => (await flowOf(F)).join() === before.join());
+      } finally {
+        page = kept;
+        await blocked.close();
+      }
+    });
+  }
 
   assert.deepEqual(pageErrors, [], 'no page errors');
 })()

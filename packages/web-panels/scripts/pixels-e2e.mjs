@@ -25,6 +25,11 @@
 // for the server to have it) before the React page opens.
 // The Activity panel is imaged by pixels-activity-e2e.mjs: its rows are live (a batch the page watched arrive can be reverted, one that was
 // there when the page loaded cannot) and its lanes change with the clock, so it opens both copies at the same time on one file.
+// The canvas (S11, `canvas`, `canvaslight`, `canvasfailed`: the word `canvas`, the element the canvas host, which lies between the two cards, with the toolbar and the status strip over it): the file fitted, a selected node, two
+// selected nodes, zoomed in with the wheel, panned with the wheel, in the light theme, and the message of a canvas that could not start (a page with no way to
+// get a drawing context). The same Pixi code draws both, and the copies were found equal to the pixel. Not imaged: the hover outline and the touch rings of other
+// actors (a step moves the pointer away before the image), the rubber band of a create tool, the insertion line of a drag in a flow, a text that is being edited, text
+// at another zoom than these, an image fill, a 2D-canvas renderer (no WebGL), a device pixel ratio of 1.
 // Not imaged in the manage view (`manage`, the dialog's element, opened by its Manage button): the question before removing a mode, the partial-counts notice, the error and status lines and a file with no collection.
 // The Export variables and Import variables dialogs are `io-export` and `io-import` (word `io`, opened by the two buttons of the Variables section's header). Not imaged
 // there: the export of a file with no variable, of a text over the limit, of a long preview cut at 400 lines and with warnings (the file has none of those), the import
@@ -81,8 +86,46 @@ const LIST = /\/v1\/assets\?/;
 const PALETTE = ['#e91e63', '#00bcd4', '#8bc34a', '#ff9800', '#673ab7', '#009688'];
 let imageIds = [];
 
+const zoomWheel = async (p, dy) => {
+  await p.mouse.move(720, 450);
+  await p.keyboard.down('Control');
+  await p.mouse.wheel(0, dy);
+  await p.keyboard.up('Control');
+};
+/** The canvas, as the page draws it (the host element, between the two cards). Run first: the file has no image fill yet. */
+const CANVAS = {
+  canvas: {
+    word: 'canvas',
+    element: '[role=application]',
+    steps: [
+      { name: 'the file fitted', run: async () => {} },
+      { name: 'a rectangle selected (outline, handles, size)', run: (p) => layer(p, 'r1').locator('button').last().click() },
+      { name: 'a second node added to the selection with Shift', run: (p) => layer(p, 'e1').locator('button').last().click({ modifiers: ['Shift'] }) },
+      { name: 'zoomed in with the wheel', run: (p) => zoomWheel(p, -500) },
+      { name: 'panned with the wheel', run: (p) => p.mouse.wheel(160, 90) },
+    ],
+  },
+  canvaslight: {
+    word: 'canvas',
+    element: '[role=application]',
+    init: (p) => p.addInitScript(() => localStorage.setItem('meldframe.theme', 'light')),
+    steps: [
+      { name: 'the file fitted, light theme', run: async () => {} },
+      { name: 'a frame selected, light theme', run: (p) => layer(p, 'f1').locator('button').last().click() },
+    ],
+  },
+  canvasfailed: {
+    word: 'canvas',
+    element: '[role=application]',
+    // A page where no drawing context can be made: Pixi cannot start, the canvas says so and the editor shows its banner.
+    init: (p) => p.addInitScript(() => { HTMLCanvasElement.prototype.getContext = () => null; }),
+    steps: [{ name: 'the canvas could not start', run: (p) => p.locator('.canvas-failed').waitFor({ timeout: 20000 }) }],
+  },
+};
+
 /** The panels this script compares: the word of `/?react=`, the element to image, the steps. Each step leaves the page in a state to compare. */
 const PANELS = {
+  ...CANVAS,
   layers: {
     word: 'layers',
     element: '[data-testid=layers]',
@@ -311,6 +354,7 @@ async function pass(word, panel, react) {
   // copy and not on the other, which is not a difference of the copies: the pass is made again (see `images` below) rather than compared.
   const refused = [];
   page.on('response', (r) => { if (r.status() >= 500 && /^\/v1\/assets\/[0-9a-f]{64}$/.test(new URL(r.url()).pathname)) refused.push(`${r.status()} ${new URL(r.url()).pathname.slice(-8)}`); });
+  await panel.init?.(page);
   await page.goto(react ? `${web.replace(/\/?$/, '/')}?react=${word}` : web);
   await page.waitForSelector('[data-testid=connection][data-state=live]', { timeout: 20000 });
   await page.waitForSelector('[data-testid=layers]', { timeout: 20000 });
