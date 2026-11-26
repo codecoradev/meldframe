@@ -1,6 +1,19 @@
 //! The shapes of the ids the model names things with, written once. A caller that needs the answer as an error (the
 //! checks of a file, the asset store, the export, the importer) calls these and maps `false` to its own.
 
+/// Whether `id` is an id of a node, a collection, a mode or a variable: 1 to `max` ASCII letters, digits or
+/// `_`, `-`, `:` and `.`. The cap is the caller's (a file's limit, or the 64 a tool states in its schema). Only ASCII
+/// passes, so a character is a byte and the cap is a byte length, tested first: an id of any size is refused before
+/// its characters are read. The charset is the rule, so a path, a selector or a log line built from an id that passes
+/// needs no escaping.
+pub fn valid_id(id: &str, max: usize) -> bool {
+    !id.is_empty()
+        && id.len() <= max
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.'))
+}
+
 /// The length of an asset id, in characters (and bytes): the lower-case hex of a SHA-256.
 pub const ASSET_ID_LEN: usize = 64;
 

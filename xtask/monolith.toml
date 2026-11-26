@@ -78,6 +78,67 @@ ban = [
     "'a'..='f' | '0'..='9'",
 ]
 
+[shared.valid_id]
+home = "crates/core/meldframe-protocol/src/ids.rs"
+use = "use meldframe_protocol::valid_id (audit D4); map false to your own error"
+ban = [
+    # The four marks in any order inside `matches!`, as `char` and as `u8` (24 orderings each; the first is the one the
+    # three old copies had).
+    "matches!(_, '_' | '-' | ':' | '.')",
+    "matches!(_, '_' | '-' | '.' | ':')",
+    "matches!(_, '_' | ':' | '-' | '.')",
+    "matches!(_, '_' | ':' | '.' | '-')",
+    "matches!(_, '_' | '.' | '-' | ':')",
+    "matches!(_, '_' | '.' | ':' | '-')",
+    "matches!(_, '-' | '_' | ':' | '.')",
+    "matches!(_, '-' | '_' | '.' | ':')",
+    "matches!(_, '-' | ':' | '_' | '.')",
+    "matches!(_, '-' | ':' | '.' | '_')",
+    "matches!(_, '-' | '.' | '_' | ':')",
+    "matches!(_, '-' | '.' | ':' | '_')",
+    "matches!(_, ':' | '_' | '-' | '.')",
+    "matches!(_, ':' | '_' | '.' | '-')",
+    "matches!(_, ':' | '-' | '_' | '.')",
+    "matches!(_, ':' | '-' | '.' | '_')",
+    "matches!(_, ':' | '.' | '_' | '-')",
+    "matches!(_, ':' | '.' | '-' | '_')",
+    "matches!(_, '.' | '_' | '-' | ':')",
+    "matches!(_, '.' | '_' | ':' | '-')",
+    "matches!(_, '.' | '-' | '_' | ':')",
+    "matches!(_, '.' | '-' | ':' | '_')",
+    "matches!(_, '.' | ':' | '_' | '-')",
+    "matches!(_, '.' | ':' | '-' | '_')",
+    "matches!(_, b'_' | b'-' | b':' | b'.')",
+    "matches!(_, b'_' | b'-' | b'.' | b':')",
+    "matches!(_, b'_' | b':' | b'-' | b'.')",
+    "matches!(_, b'_' | b':' | b'.' | b'-')",
+    "matches!(_, b'_' | b'.' | b'-' | b':')",
+    "matches!(_, b'_' | b'.' | b':' | b'-')",
+    "matches!(_, b'-' | b'_' | b':' | b'.')",
+    "matches!(_, b'-' | b'_' | b'.' | b':')",
+    "matches!(_, b'-' | b':' | b'_' | b'.')",
+    "matches!(_, b'-' | b':' | b'.' | b'_')",
+    "matches!(_, b'-' | b'.' | b'_' | b':')",
+    "matches!(_, b'-' | b'.' | b':' | b'_')",
+    "matches!(_, b':' | b'_' | b'-' | b'.')",
+    "matches!(_, b':' | b'_' | b'.' | b'-')",
+    "matches!(_, b':' | b'-' | b'_' | b'.')",
+    "matches!(_, b':' | b'-' | b'.' | b'_')",
+    "matches!(_, b':' | b'.' | b'_' | b'-')",
+    "matches!(_, b':' | b'.' | b'-' | b'_')",
+    "matches!(_, b'.' | b'_' | b'-' | b':')",
+    "matches!(_, b'.' | b'_' | b':' | b'-')",
+    "matches!(_, b'.' | b'-' | b'_' | b':')",
+    "matches!(_, b'.' | b'-' | b':' | b'_')",
+    "matches!(_, b'.' | b':' | b'_' | b'-')",
+    "matches!(_, b'.' | b':' | b'-' | b'_')",
+    # The same set as an array or as a chain of comparisons (the order the old copies would have used).
+    "['_', '-', ':', '.'].contains(&_)",
+    "[b'_', b'-', b':', b'.'].contains(&_)",
+    "_ == '_' || _ == '-' || _ == ':' || _ == '.'",
+    "_ == b'_' || _ == b'-' || _ == b':' || _ == b'.'",
+]
+
 [shared.css_number]
 home = "crates/core/meldframe-css"
 use = "read the number with meldframe-css (one reader; D5 of docs/audits/2026-11-25-rust-modular-monolith.md)"

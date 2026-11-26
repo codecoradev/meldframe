@@ -7,7 +7,7 @@ use crate::limits::VarLimits;
 use crate::{Aliases, Binding, MAX_ALIAS_DEPTH, node_bindings, patch_bindings, users};
 use meldframe_css::color::is_hex;
 use meldframe_protocol::{
-    Bind, Collection, Command, Node, NodePatch, Value, VarType, Variable, Variables,
+    Bind, Collection, Command, Node, NodePatch, Value, VarType, Variable, Variables, valid_id,
 };
 use std::collections::HashSet;
 
@@ -66,13 +66,8 @@ fn number(field: &str, v: f64, max: f64) -> Result<(), VarError> {
 }
 
 /// An id of letters, digits and `_-:.`.
-fn valid_id(id: &str, l: &VarLimits) -> Result<(), VarError> {
-    let ok = !id.is_empty()
-        && id.chars().count() <= l.max_id
-        && id
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.'));
-    if ok {
+fn check_id(id: &str, l: &VarLimits) -> Result<(), VarError> {
+    if valid_id(id, l.max_id) {
         Ok(())
     } else {
         Err(common("E_INVALID_ID", format!("invalid id: {id:?}")))
@@ -233,7 +228,7 @@ fn check_modes(c: &Collection, l: &VarLimits) -> Result<(), VarError> {
     }
     let mut seen = HashSet::new();
     for m in &c.modes {
-        valid_id(&m.id, l)?;
+        check_id(&m.id, l)?;
         mode_name(&m.name, l)?;
         if !seen.insert(m.id.as_str()) {
             return Err(VarError::InvalidModes("two modes have the same id"));
@@ -243,7 +238,7 @@ fn check_modes(c: &Collection, l: &VarLimits) -> Result<(), VarError> {
 }
 
 fn check_collection(vars: &Variables, c: &Collection, l: &VarLimits) -> Result<(), VarError> {
-    valid_id(&c.id, l)?;
+    check_id(&c.id, l)?;
     if vars.collection(&c.id).is_some() {
         return Err(duplicate_id(&c.id));
     }
@@ -345,7 +340,7 @@ pub fn check_variable_command(
             Ok(())
         }
         Command::AddVariable { variable } => {
-            valid_id(&variable.id, l)?;
+            check_id(&variable.id, l)?;
             if vars.variable(&variable.id).is_some() {
                 return Err(duplicate_id(&variable.id));
             }
@@ -396,7 +391,7 @@ pub fn check_variables(vars: &Variables, l: &VarLimits) -> Result<(), (String, V
     }
     let mut ids = HashSet::new();
     for c in &vars.collections {
-        valid_id(&c.id, l).map_err(|e| at(&c.id, e))?;
+        check_id(&c.id, l).map_err(|e| at(&c.id, e))?;
         if !ids.insert(c.id.as_str()) {
             return Err(at(&c.id, duplicate_id(&c.id)));
         }
@@ -408,7 +403,7 @@ pub fn check_variables(vars: &Variables, l: &VarLimits) -> Result<(), (String, V
     let mut var_ids = HashSet::new();
     let mut names = HashSet::new();
     for v in &vars.variables {
-        valid_id(&v.id, l).map_err(|e| at(&v.id, e))?;
+        check_id(&v.id, l).map_err(|e| at(&v.id, e))?;
         if !var_ids.insert(v.id.as_str()) {
             return Err(at(&v.id, duplicate_id(&v.id)));
         }
