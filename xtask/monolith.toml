@@ -4,7 +4,18 @@
 # Every allow-list entry has a reason and only goes down: an entry that no longer matches fails the
 # check as not needed, and `cargo xtask mm-check --base <ref>` rejects an entry that is not on the
 # base branch. Do not add entries to make a check pass; share the code instead.
-# Against the base, an entry may follow a move (same file name in `allow_shared`); it may not grow.
+# Against the base, an entry may shrink (a group of copies that loses a member) and may follow a
+# move (same function name in `allow_copy`, same file name in `allow_shared`); it may not grow.
+# One entry of `allow_copy` covers one group of copies: two groups that have the same members need
+# two entries.
+
+[monolith]
+# A crate above this many lines (the measure of `size-check`, tests included) that has a
+# `src/lib.rs` is a monolith, and MM1, MM2 and MM5 apply to it. No crate is above 4,000 today, so
+# the three rules find nothing yet; they bite with the first merge of crates (#315). At 2,500, the
+# top of the ideal band, they would already apply to meldframe-app-model (8 modules without a
+# one-sentence doc, and a cycle between 8 of its modules).
+threshold = 4000
 
 # MM4: a pattern that belongs in one home. `ban` holds Rust source; it is compared token by token,
 # so spacing does not matter, and comments, strings and test code are not read. The digits of a hex
@@ -56,6 +67,8 @@ ban = ["b'0'..=b'9' | b'a'..=b'f'"]
 home = "crates/core/meldframe-css"
 use = "read the number with meldframe-css (one reader; D5 of docs/audits/2026-11-25-rust-modular-monolith.md)"
 ban = ["b'.' | b'-' | b'+'", "b'.' | b'+' | b'-'"]
+
+# MM3: groups of copies that exist today (the first run). Each entry goes when its copies are one.
 
 [[allow_copy]]
 fns = [
@@ -212,3 +225,51 @@ reason = "audit D12: one adapter module in the merged http crate (#315)"
 "crates/features/html-import/html-import-tree/src/text.rs" = "the HTML entity table maps &shy; to U+00AD, which is not a check; but the same file cleans report text with `!c.is_control()` (keeping tab and newline), a second copy of the hidden-character rule that moves to meldframe-text (U9, #311)"
 "crates/features/variables-import/variables-import/src/lib.rs" = "strips a leading byte order mark from the CSS text before it is read, which is not a check of hidden characters"
 
+# MM6: crates that only hold tests today. Issue #316 moves each into the crate it tests and removes
+# its entry; a shared harness with source of its own is not listed.
+[allow_test_crate]
+"meldframe-activity-app-tests" = "moves into the crate it tests (#316)"
+"meldframe-activity-pg-tests" = "moves into the crate it tests (#316)"
+"meldframe-activity-review-tests" = "moves into the crate it tests (#316)"
+"meldframe-activity-tests" = "moves into the crate it tests (#316)"
+"meldframe-batch-tests" = "moves into the crate it tests (#316); added with #312 before this rule existed"
+"meldframe-activity-tool-tests" = "moves into the crate it tests (#316)"
+"meldframe-app-export-tests" = "moves into the crate it tests (#316)"
+"meldframe-app-inspector-tests" = "moves into the crate it tests (#316)"
+"meldframe-app-layout-tests" = "moves into the crate it tests (#316)"
+"meldframe-app-review-tests" = "moves into the crate it tests (#316)"
+"meldframe-app-tests" = "moves into the crate it tests (#316)"
+"meldframe-app-unit-tests" = "moves into the crate it tests (#316)"
+"meldframe-assets-http-tests" = "moves into the crate it tests (#316)"
+"meldframe-capture-tests" = "moves into the crate it tests (#316)"
+"meldframe-checkpoint-pg-tests" = "moves into the crate it tests (#316)"
+"meldframe-checkpoint-tests" = "moves into the crate it tests (#316)"
+"meldframe-export-http-tests" = "moves into the crate it tests (#316)"
+"meldframe-export-tests" = "moves into the crate it tests (#316)"
+"meldframe-gate-tests" = "moves into the crate it tests (#316)"
+"meldframe-history-props" = "moves into the crate it tests (#316)"
+"meldframe-http-tests" = "moves into the crate it tests (#316)"
+"meldframe-import-html-css-tests" = "moves into the crate it tests (#316)"
+"meldframe-import-html-paint-tests" = "moves into the crate it tests (#316)"
+"meldframe-import-html-roundtrip-tests" = "moves into the crate it tests (#316)"
+"meldframe-import-html-style-tests" = "moves into the crate it tests (#316)"
+"meldframe-import-html-tests" = "moves into the crate it tests (#316)"
+"meldframe-layout-tests" = "moves into the crate it tests (#316)"
+"meldframe-live-slot-tests" = "moves into the crate it tests (#316)"
+"meldframe-live-tests" = "moves into the crate it tests (#316)"
+"meldframe-mcp-asset-tests" = "moves into the crate it tests (#316)"
+"meldframe-mcp-tests" = "moves into the crate it tests (#316)"
+"meldframe-review-tests" = "moves into the crate it tests (#316)"
+"meldframe-serve-tests" = "moves into the crate it tests (#316)"
+"meldframe-server-tests" = "moves into the crate it tests (#316)"
+"meldframe-snapshot-tests" = "moves into the crate it tests (#316)"
+"meldframe-sync-props" = "moves into the crate it tests (#316)"
+"meldframe-sync-scenarios" = "moves into the crate it tests (#316)"
+"meldframe-variables-import-tests" = "moves into the crate it tests (#316)"
+"meldframe-variables-limits-tests" = "moves into the crate it tests (#316)"
+"meldframe-variables-manage-tests" = "moves into the crate it tests (#316)"
+"meldframe-variables-mcp-tests" = "moves into the crate it tests (#316)"
+"meldframe-variables-panel-tests" = "moves into the crate it tests (#316)"
+"meldframe-variables-props" = "moves into the crate it tests (#316)"
+"meldframe-variables-rename-tests" = "moves into the crate it tests (#316)"
+"meldframe-variables-tests" = "moves into the crate it tests (#316)"
