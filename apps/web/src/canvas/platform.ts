@@ -2,8 +2,7 @@
 // reduced-motion setting, the Pixi application and the transport of the images of image fills. Nothing here decides anything;
 // driver.ts holds the rules and takes this object, so a test gives it a fake.
 import { Application } from 'pixi.js';
-import type { HostWatchers, Platform } from './api';
-import { ASSET_TIMEOUT_MS } from './driver';
+import { ASSET_TIMEOUT_MS, type HostWatchers, type Platform } from './api';
 
 const density = (): number => window.devicePixelRatio || 1;
 
