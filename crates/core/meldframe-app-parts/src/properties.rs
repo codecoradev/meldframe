@@ -7,6 +7,7 @@ use meldframe_app_model::{BindField, FieldBinding, FillKind, Properties};
 use meldframe_check::Limits;
 use meldframe_protocol::{Bind, GradientKind, Node, NodeKind, Variables};
 use meldframe_render::Fields;
+use meldframe_text::{MAX_LABEL, label};
 use meldframe_variables::{ModeChoice, node_bindings};
 
 /// The type of the fill a node shows: an image is on top, then a gradient, then the colour.
@@ -60,7 +61,10 @@ pub fn properties(
             let found = vars.variables.iter().find(|v| v.id == variable);
             Some(FieldBinding {
                 field,
-                name: found.map_or_else(|| variable.clone(), |v| v.name.clone()),
+                name: label(
+                    found.map_or(variable.as_str(), |v| v.name.as_str()),
+                    MAX_LABEL,
+                ),
                 missing: found.is_none(),
                 variable,
             })
@@ -76,7 +80,7 @@ pub fn properties(
     });
     Properties {
         id: n.id.clone(),
-        name: n.name.clone(),
+        name: label(&n.name, MAX_LABEL),
         kind: n.kind,
         x: at.x,
         y: at.y,

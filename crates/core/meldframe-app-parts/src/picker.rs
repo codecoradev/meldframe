@@ -3,6 +3,7 @@
 use crate::variables_panel::{bindable, field_name, value_text};
 use meldframe_app_model::{BindField, Picker, PickerRow};
 use meldframe_protocol::{Node, VarType, Variables};
+use meldframe_text::{MAX_LABEL, label};
 use meldframe_variables::{ModeChoice, Resolver, node_bindings};
 
 /// The most rows the picker lists; `Picker::total` says how many variables fit the field.
@@ -58,8 +59,8 @@ pub fn picker_view(
         if rows.len() < MAX_ROWS {
             rows.push(PickerRow {
                 id: v.id.clone(),
-                name: v.name.clone(),
-                collection,
+                name: label(&v.name, MAX_LABEL),
+                collection: label(&collection, MAX_LABEL),
                 kind: v.kind,
                 resolved,
                 bound: bound.as_deref() == Some(v.id.as_str()),

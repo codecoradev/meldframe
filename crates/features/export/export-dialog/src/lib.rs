@@ -12,6 +12,7 @@ use export::{ExportError, ExportOptions, Finding, Format, MAX_OUTPUT_BYTES};
 use meldframe_app_model::{ExportDialog, ExportFinding, ExportFormat, ExportTarget};
 use meldframe_layout::TextMeasurer;
 use meldframe_protocol::{Node, NodeKind, Variables};
+use meldframe_text::{MAX_LABEL, label};
 use meldframe_variables::ModeChoice;
 use std::collections::BTreeMap;
 
@@ -23,7 +24,7 @@ pub fn target(selection: &[String], nodes: &[Node]) -> Option<ExportTarget> {
             .find(|n| n.id == *id && n.kind == NodeKind::Frame)
             .map(|n| ExportTarget {
                 id: n.id.clone(),
-                name: n.name.clone(),
+                name: label(&n.name, MAX_LABEL),
             }),
         _ => None,
     }
@@ -39,11 +40,10 @@ pub fn dialog(
     format: ExportFormat,
     measurer: &dyn TextMeasurer,
 ) -> Option<ExportDialog> {
-    let name = nodes
+    let frame = nodes
         .iter()
-        .find(|n| n.id == id && n.kind == NodeKind::Frame)?
-        .name
-        .clone();
+        .find(|n| n.id == id && n.kind == NodeKind::Frame)?;
+    let name = label(&frame.name, MAX_LABEL);
     let mut d = ExportDialog {
         frame: id.to_string(),
         name,
@@ -100,7 +100,7 @@ fn finding(f: &Finding, nodes: &[Node]) -> ExportFinding {
             .node
             .as_deref()
             .and_then(|id| nodes.iter().find(|n| n.id == id))
-            .map(|n| n.name.clone()),
+            .map(|n| label(&n.name, MAX_LABEL)),
         message: f.message.clone(),
     }
 }

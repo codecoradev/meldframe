@@ -18,6 +18,7 @@ meldframe-order = { path = "../meldframe-order" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-revert = { path = "../meldframe-revert" }
 meldframe-sync = { path = "../meldframe-sync" }
+meldframe-text = { path = "../meldframe-text" }
 meldframe-variables = { path = "../meldframe-variables" }
 serde = { version = "1", features = ["derive"] }
 
