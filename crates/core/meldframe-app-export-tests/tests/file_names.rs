@@ -72,11 +72,13 @@ fn control_characters_and_the_characters_a_file_system_refuses_become_hyphens() 
 }
 
 #[test]
-fn leading_dots_and_spaces_go_and_the_name_is_cut_at_80_characters() {
+fn leading_dots_and_spaces_go_and_the_name_is_cut_at_80_characters_and_200_bytes() {
     assert_eq!(stem("..hidden"), "hidden");
     assert_eq!(stem("  . x"), "x");
     assert_eq!(stem(&"x".repeat(200)), "x".repeat(80));
-    assert_eq!(stem(&"\u{1F600}".repeat(100)), "\u{1F600}".repeat(80));
+    // Four-byte characters reach the byte bound first: 50 of them are 200 bytes, a name a file system takes.
+    assert_eq!(stem(&"\u{1F600}".repeat(100)), "\u{1F600}".repeat(50));
+    assert_eq!(stem(&"\u{4E2D}".repeat(100)).len(), 198);
 }
 
 #[test]
@@ -95,4 +97,7 @@ fn the_names_windows_refuses_get_a_hyphen() {
     assert_eq!(stem("con.backup.v2"), "con-.backup.v2");
     assert_eq!(stem("com1"), "com1-");
     assert_eq!(stem("com0"), "com0");
+    // Windows drops the spaces before the dot too: `CON .txt` is the device.
+    assert_eq!(stem("CON .txt"), "CON- .txt");
+    assert_eq!(stem("nul   "), "nul-");
 }

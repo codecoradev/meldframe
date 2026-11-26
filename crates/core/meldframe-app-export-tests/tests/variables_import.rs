@@ -191,6 +191,31 @@ fn text_with_no_variable_says_so_with_the_report_and_applies_nothing() {
 }
 
 #[test]
+fn the_names_and_messages_of_a_report_are_made_safe_where_they_enter_the_state() {
+    // The importer echoes text of the style sheet in a report line; the dialog makes each name and message safe once more
+    // with the display profile (rule U9): no pile of stacked marks, no no-break space, as in the export dialog.
+    let (pile, five) = ("\u{0301}".repeat(100), "\u{0301}".repeat(5));
+    let mut l = Loopback::live();
+    import(
+        &mut l,
+        &format!(".card{pile}\u{a0}\u{a0}x {{ --local: #fff; }} body {{ color: red; }}"),
+    );
+    let entries = result(&l).report.unwrap().entries;
+    assert!(
+        entries
+            .iter()
+            .any(|e| e.name.contains('\u{0301}') || e.message.contains('\u{0301}')),
+        "the selector is echoed: {entries:?}"
+    );
+    for e in entries {
+        for text in [&e.name, &e.message] {
+            assert!(!text.contains(&five), "{text:?}");
+            assert!(!text.contains('\u{a0}'), "{text:?}");
+        }
+    }
+}
+
+#[test]
 fn hostile_text_is_read_without_panic_and_nothing_it_holds_runs() {
     let mut l = Loopback::live();
     let deep = format!("{}{}", "a{".repeat(100_000), "}".repeat(100_000));

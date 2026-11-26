@@ -14,6 +14,9 @@ use meldframe_app_model::{
 use meldframe_app_rules::modes::{EditRefusal, check_edit_at};
 use meldframe_protocol::{Command, Node, Variables};
 use meldframe_text::{MAX_LABEL, label};
+
+/// The longest line of a report as the state carries it (the importer cuts its own at 240 characters).
+const MAX_MESSAGE: usize = 1024;
 use variables_import::{
     EntryKind, Import, ImportError, ImportOptions, MAX_INPUT_BYTES, import_css,
 };
@@ -158,8 +161,9 @@ fn report_of(i: &Import) -> ImportReport {
                     EntryKind::Note => ImportEntryKind::Note,
                 },
                 code: e.code.to_string(),
-                name: e.name.clone(),
-                message: e.message.clone(),
+                // The importer cleans what it echoes; the dialog makes it safe once more where it enters the state (rule U9).
+                name: label(&e.name, MAX_LABEL),
+                message: label(&e.message, MAX_MESSAGE),
             })
             .collect(),
         omitted: r.omitted,
