@@ -1,7 +1,7 @@
 //! The round trip of the importer (`docs/import-html.md` section 3.7): a file is exported (`export_frame`, in the css
 //! form and in the Tailwind form with the stylesheet it returns) and imported (`html_import::map::import`); every field
 //! of every node comes back except the losses the note lists, and an export of the imported file is the export of the
-//! first one with the ids renamed (a fixed point). Seeded random files: 300 natively, 10 under WASM; `MELDFRAME_SEEDS`
+//! first one with the ids renamed (a fixed point). Seeded random files: 300 natively, 20 under WASM; `MELDFRAME_SEEDS`
 //! sets the count and `MELDFRAME_SEED=n` replays one.
 //!
 //! The losses, each checked here and not hidden: the ids and the `pos` strings; the stored `w` and `h` of an axis
@@ -16,32 +16,10 @@ use export::{ExportOptions, Format, export_frame};
 use html_import::map::{Imported, Options, import};
 use meldframe_layout::StubMeasurer;
 use meldframe_protocol::{LayoutMode, Node, NodeKind, SizeMode, Variables};
+mod common;
+use common::{Rng, merge};
 use serde_json::{Value, json};
 use std::collections::HashMap;
-
-struct Rng(u64);
-
-impl Rng {
-    fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    }
-
-    fn below(&mut self, n: u64) -> u64 {
-        self.next() % n
-    }
-
-    fn pick<'a, T>(&mut self, of: &'a [T]) -> &'a T {
-        &of[self.below(of.len() as u64) as usize]
-    }
-
-    fn chance(&mut self, n: u64) -> bool {
-        self.below(n) == 0
-    }
-}
 
 const COLOURS: [&str; 5] = ["#ff0000", "#3366ff", "#00000080", "#abcdef", "#112233"];
 const WORDS: [&str; 5] = [
@@ -57,15 +35,19 @@ fn variables() -> Value {
         "collections": [{"id": "c1", "name": "Theme", "modes": [{"id": "m1", "name": "Light"}]}],
         "variables": [
             {"id": "v1", "collection": "c1", "name": "color/brand", "type": "color", "values": {"m1": "#336699"}},
-            {"id": "v2", "collection": "c1", "name": "radius/card", "type": "number", "values": {"m1": 3}}
+            {"id": "v2", "collection": "c1", "name": "radius/card", "type": "number", "values": {"m1": 3}},
+            {"id": "v3", "collection": "c1", "name": "opacity/muted", "type": "number", "values": {"m1": 0.5}}
         ]
     })
 }
 
-fn merge(a: &mut Value, b: Value) {
-    a.as_object_mut()
-        .unwrap()
-        .extend(b.as_object().unwrap().clone());
+/// The opacity of any node, a text included: a number or a binding to a variable.
+fn opacity(r: &mut Rng, bind: bool) -> Value {
+    if bind && r.chance(3) {
+        json!({"var": "v3"})
+    } else {
+        json!(0.5)
+    }
 }
 
 /// The paint of a box that is not a text.
@@ -112,7 +94,7 @@ fn paint(r: &mut Rng, bind: bool) -> Value {
         );
     }
     if r.chance(4) {
-        n.insert("opacity".into(), json!(0.5));
+        n.insert("opacity".into(), opacity(r, bind));
     }
     Value::Object(n)
 }
@@ -151,11 +133,17 @@ fn child(r: &mut Rng, parent: &str, i: usize, depth: usize, bind: bool, out: &mu
         merge(&mut n, json!({"absolute": true}));
     }
     match kind {
-        "text" => merge(
-            &mut n,
-            json!({"text": *r.pick(&WORDS), "fontSize": 10 + r.below(14), "fontWeight": *r.pick(&[400, 600, 700]),
-                "textAlign": *r.pick(&["left", "center", "right"]), "fill": *r.pick(&COLOURS)}),
-        ),
+        "text" => {
+            merge(
+                &mut n,
+                json!({"text": *r.pick(&WORDS), "fontSize": 10 + r.below(14), "fontWeight": *r.pick(&[400, 600, 700]),
+                    "textAlign": *r.pick(&["left", "center", "right"]), "fill": *r.pick(&COLOURS)}),
+            );
+            // A text keeps its opacity (a literal, or a binding that comes back as its value).
+            if r.chance(3) {
+                merge(&mut n, json!({"opacity": opacity(r, bind)}));
+            }
+        }
         "frame" => merge(&mut n, container(r)),
         _ => {}
     }
@@ -233,17 +221,37 @@ fn resolved(n: &Node, vars: &Value) -> Node {
     if let Some(v) = n.fill.var_id() {
         n.fill = serde_json::from_value(lit(v)).unwrap();
     }
+    if let Some(v) = n.opacity.var_id() {
+        n.opacity = serde_json::from_value(lit(v)).unwrap();
+    }
     if let Some(v) = n.radius.var_id() {
         n.radius = serde_json::from_value(lit(v)).unwrap();
     }
     n
 }
 
-fn check(seed: u64, bind: bool, format: Format, nodes: &[Node], vars: &Variables, vjson: &Value) {
+/// Export and import one file. In a layout the contract leaves unspecified (a box smaller than its padding, overflow,
+/// a fill of nothing: rule G3; the export warns of it) a box can have a negative size, and the radius of its border
+/// is then written as a negative length, which is the one thing the import may list as unreadable. `true` when the
+/// file had no such layout.
+fn check(
+    seed: u64,
+    bind: bool,
+    format: Format,
+    nodes: &[Node],
+    vars: &Variables,
+    vjson: &Value,
+) -> bool {
     let ctx =
         |what: &str| format!("seed {seed} {format:?}: {what}; replay with MELDFRAME_SEED={seed}");
     let exp = export_frame(nodes, vars, "f", &ExportOptions::new(format, &StubMeasurer))
         .unwrap_or_else(|e| panic!("{}", ctx(&e.to_string())));
+    let unspecified = ["smaller_than_padding", "overflow", "zero_fill"];
+    let degenerate = exp
+        .report
+        .warnings
+        .iter()
+        .any(|w| unspecified.contains(&w.code));
     let css = if format == Format::Tailwind {
         exp.css.as_str()
     } else {
@@ -254,15 +262,16 @@ fn check(seed: u64, bind: bool, format: Format, nodes: &[Node], vars: &Variables
         ..Options::default()
     };
     let got = import(&exp.html, css, &opts).unwrap_or_else(|e| panic!("{}", ctx(&e.to_string())));
-    assert_eq!(
-        got.unsupported_count(),
-        0,
-        "{}: {:?}\n{}",
+    let refused: Vec<_> = got
+        .nodes
+        .iter()
+        .flat_map(|n| n.unsupported.iter().map(move |l| (&n.id, l)))
+        .filter(|(_, l)| !(degenerate && l.code == "radius_unreadable"))
+        .collect();
+    assert!(
+        refused.is_empty(),
+        "{}: {refused:?}\n{}",
         ctx("an export has nothing unsupported"),
-        got.nodes
-            .iter()
-            .filter(|n| !n.unsupported.is_empty())
-            .collect::<Vec<_>>(),
         exp.html
     );
     let back = imported_nodes(&got);
@@ -347,6 +356,7 @@ fn check(seed: u64, bind: bool, format: Format, nodes: &[Node], vars: &Variables
             ctx("the export of the import is the export"),
         );
     }
+    !degenerate
 }
 
 /// An export of the imported file is the export of the first, with the ids renamed in order.
@@ -412,7 +422,8 @@ fn seeds() -> std::ops::Range<u64> {
 #[test]
 fn a_random_file_exported_and_imported_comes_back_in_both_forms() {
     // What the files of the run held, so that a run that never made a border or an ellipse says so.
-    let mut seen = [false; 9];
+    let mut seen = [false; 11];
+    let (mut checked, mut total) = (0, 0);
     for seed in seeds() {
         for bind in [false, true] {
             let nodes: Vec<Node> =
@@ -420,7 +431,8 @@ fn a_random_file_exported_and_imported_comes_back_in_both_forms() {
             let vjson = variables();
             let vars: Variables = serde_json::from_value(vjson.clone()).unwrap();
             for format in [Format::Css, Format::Tailwind] {
-                check(seed, bind, format, &nodes, &vars, &vjson);
+                checked += usize::from(check(seed, bind, format, &nodes, &vars, &vjson));
+                total += 1;
             }
             for n in &nodes {
                 let hits = [
@@ -433,6 +445,8 @@ fn a_random_file_exported_and_imported_comes_back_in_both_forms() {
                     n.image.is_some(),
                     n.absolute,
                     n.fill.var_id().is_some() || n.radius.var_id().is_some(),
+                    n.kind == NodeKind::Text && n.opacity.var_id().is_some(),
+                    n.kind == NodeKind::Text && n.opacity.lit().is_some_and(|o| *o < 1.0),
                 ];
                 for (s, h) in seen.iter_mut().zip(hits) {
                     *s |= h;
@@ -441,6 +455,11 @@ fn a_random_file_exported_and_imported_comes_back_in_both_forms() {
         }
     }
     if std::env::var("MELDFRAME_SEED").is_err() {
+        // Some files are in a layout the contract leaves unspecified; that is not most of them.
+        assert!(
+            checked * 2 >= total,
+            "only {checked} of {total} round trips were in a specified layout"
+        );
         assert!(
             seen.iter().all(|s| *s),
             "the files did not cover everything: {seen:?}"
