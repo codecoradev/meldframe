@@ -211,6 +211,19 @@ Status note, 25 Nov 2026: `AppState` carries text that is safe to draw, so a fro
 | Checkpoint label | `meldframe-app-rules` `checkpoints` | display, then the label rule | 128 characters | shown; a label with nothing left is no label and the row stays |
 | Actor, key prefix and tool of a batch header from a route or a frame | `RawHeader::check` | the refusing rule of `meldframe-text` (`actor`, `key`, `plain`) | 128 bytes; 100 characters and 400 bytes; 64 bytes | a header that fails is dropped, as before; the server's store, the `get_batches` tool and this check now count the same way |
 
+Added with #319 and #320 (26 Nov 2026):
+
+| Text or count | Where it enters | Rule |
+|---|---|---|
+| Actor of a layer row, a lane, a touch ring, a checkpoint (`about`, `by`) | `ActorView::of` (`meldframe-activity`), from the actor already made safe as an identifier | One value: kind (`agent:` is an agent, anything else a person), name (the part after `agent:` or `person:`, display profile; an actor of no known kind is named by the whole text), tone (`Person`, or one of three agent tones: `h * 31 + code point` over the whole actor, modulo 2^32, then `h % 3`). A front end maps a tone to a class or a colour and derives nothing |
+| Snapshot attribution (who changed each node before the page loaded) | `Action::Attribute` | Strict profile like any actor; a node the file has, never over a change seen live |
+| File name of an export | `file_stem` (`export-dialog`), `ExportTarget.file_stem`, `ExportDialog.file_stem` and `html_file` | Strict profile; file-system characters and controls become `-`, white space folds, 80 characters, leading dots and spaces dropped, Windows device names get a hyphen; the node's id, then `export`, when nothing is left; the scale and the extension are the front end's |
+| Name of a painted box (the label above a frame on the canvas) | `PaintedBox.name` (`meldframe-render`) | display, 256 characters |
+| Messages of an export report, the name an import refusal is about | `export-dialog`, `variables-import-dialog` | display (1,024 and 256 characters) |
+| Text of a server or the browser on the error page (no app state yet) | `displayText` of `meldframe-wasm` | `meldframe_text::label`; the page shows none of it when the WASM module did not load |
+| Count of batches nobody accepted | `ActivityState.unreviewed_count: Option<u32>` | `None` until a batch frame or a page of the list brings it; a page whose every header fails the check is a bad answer and brings nothing; a failed list leaves what was last said; a reload forgets it |
+| Counts and sizes that can be unknown | `BatchRow.commands`, `ExportDialog.html_bytes`, `css_bytes`, `counted_bytes`, `VariablesExportDialog.bytes`, `VariablesImportResult.report` | `Option`: a row made from ops alone, an export with no file (the size refused by the limit stays `Some`), text that was not read. A count known to be zero stays zero |
+
 Two profiles because an identifier has no emoji to protect and a name does: strict removes the zero-width joiner and the variation selector 16, display keeps them between emoji and removes every other hidden character. A white-space run is one space in a label (a tab or a line break too) and is left alone in an identifier, so an actor the server accepted comes back as it was. Not cleaned: node `text` (file content), the ids in a touch ring, the actor of the person's own session (given by the host to `App::new`), and the snapshot's per-node attribution that the web client keeps outside the app (finding T2 of the thin-UI audit).
 
 ## 4. Modules and seams
