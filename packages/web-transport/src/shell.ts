@@ -55,11 +55,7 @@ export const PING_MS = 15_000;
 /** How long a REST call may take before it counts as a network error. */
 export const POST_TIMEOUT_MS = 15_000;
 
-/** Most times a refused `subscribe` is sent again before the connection counts as lost. */
-export const MAX_SUBSCRIBE_RETRIES = 3;
-const RETRY_FALLBACK_MS = 1000;
-
-type Msg = { type: string; id?: string; seq?: number; actor?: string; nodeIds?: unknown; key?: unknown; requestId?: unknown; scale?: unknown; maxPixels?: unknown; minSeq?: unknown; uploadToken?: unknown; timeoutMs?: unknown; nodeId?: unknown; command?: unknown; afterSeq?: number; latestSeq?: number; code?: string; retryAfterMs?: number };
+type Msg = { type: string; id?: string; seq?: number; actor?: string; nodeIds?: unknown; key?: unknown; requestId?: unknown; scale?: unknown; maxPixels?: unknown; minSeq?: unknown; uploadToken?: unknown; timeoutMs?: unknown; nodeId?: unknown; command?: unknown; afterSeq?: number; latestSeq?: number };
 
 /** A frame of the live socket, checked: null when it is not JSON or lacks a field its type needs. */
 export function parseFrame(data: string): Msg | null {
@@ -95,8 +91,8 @@ export class Shell {
   /** Counts stops: an answer of a request made before a stop is dropped. */
   private stopped = 0;
   private subscribeId = 0;
-  private lastSub: { id: string; afterSeq: number; tries: number } | null = null;
-  private warned = false;
+  /** The id of the last `subscribe` sent on the socket: an `error` frame answers it, or it is stale. */
+  private lastSub: string | null = null;
   private warnedAnswer = false;
   private ping: number | null = null;
 
@@ -266,7 +262,7 @@ export class Shell {
     const live = this.engine.snapshot().state.connection.type === 'live';
     if (this.socket && live) {
       // A resync marker or a gap: the stream waits for a subscribe on the same socket.
-      this.resubscribe(afterSeq, 0);
+      this.resubscribe(afterSeq);
       return;
     }
     // Connecting or reconnecting: whatever socket there was is not trusted any more.
@@ -282,11 +278,11 @@ export class Shell {
     this.timers.add(this.ping);
   }
 
-  private resubscribe(afterSeq: number, tries: number): void {
+  private resubscribe(afterSeq: number): void {
     const socket = this.socket;
     if (!socket) return;
     const id = `s${++this.subscribeId}`;
-    this.lastSub = { id, afterSeq, tries };
+    this.lastSub = id;
     if (!this.send1(socket, { type: 'subscribe', id, room: this.opts.file, sinceSeq: afterSeq })) this.lost();
   }
 
@@ -334,7 +330,7 @@ export class Shell {
         // one that does not pass (a fetch heals the gap). One it cannot take goes to `lost()` (a reconnect) through `frame()`, like any frame.
         return this.dispatch({ type: 'wire', wire: { kind: 'hint', nowMs, text: data } });
       case 'error':
-        return this.refused(m);
+        return this.refused(m.id, data);
       default:
         return; // pong and ephemeral frames need no action
     }
@@ -345,27 +341,14 @@ export class Shell {
     if (this.socket) this.send1(this.socket, { type: 'captureFailed', requestId, code, message });
   }
 
-  /** An `error` frame. Only the answer to our last `subscribe` matters. */
-  private refused(m: Msg): void {
-    const sub = this.lastSub;
-    if (!sub || m.id !== sub.id) return;
-    if (m.code === 'rate_limited' || m.code === 'unavailable') {
-      if (sub.tries >= MAX_SUBSCRIBE_RETRIES) return this.lost();
-      const socket = this.socket;
-      const id = this.env.setTimer(() => {
-        this.timers.delete(id);
-        if (this.socket === socket) this.resubscribe(sub.afterSeq, sub.tries + 1);
-      }, m.retryAfterMs ?? RETRY_FALLBACK_MS);
-      this.timers.add(id);
-      return;
-    }
-    // bad_request: a subscribe before the marker. The marker is on its way; wait for it. Any other refusal
-    // (forbidden, not_found, ...) will not get better by waiting.
-    if (m.code !== 'bad_request') return this.lost();
-    if (!this.warned) {
-      this.warned = true;
-      console.warn('live: subscribe refused, waiting for the resync marker', m.code);
-    }
+  /**
+   * An `error` frame. Only the answer to our last `subscribe` matters: the ids are the shell's, so the shell matches
+   * them. The app layer reads the frame and answers with a new subscribe (after the wait), with nothing (it waits for the
+   * resync marker) or by going offline; the count, the wait and the default are its rules (`meldframe_app_rules::subscribe`).
+   */
+  private refused(id: string | undefined, data: string): void {
+    if (this.lastSub === null || id !== this.lastSub) return;
+    this.dispatch({ type: 'wire', wire: { kind: 'subscribeRefused', nowMs: this.env.now(), text: data } });
   }
 
   /** One request per op, in order (SendOps calls queue behind each other). */
