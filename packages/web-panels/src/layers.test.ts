@@ -2,6 +2,7 @@ import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
 import type { LayerRow } from '@meldframe/web-document/layers';
 import LayersPanel from './LayersPanel.svelte';
+import { KIND_ICON, changedBy } from './layers';
 
 const row = (over: Partial<LayerRow>): LayerRow => ({ id: 'a', name: 'Hero', kind: 'frame', depth: 0, hasChildren: false, collapsed: false, selected: false, actor: null, ...over });
 const html = (rows: LayerRow[], self = 'agent:dev') =>
@@ -62,5 +63,23 @@ describe('the layers panel as the Panels and EditorLight boards draw it', () => 
     const out = html([]);
     expect(out).toContain('Nothing here yet.');
     expect(out).not.toContain('text-text-faint');
+  });
+});
+
+describe('changedBy, which both copies of the panel call', () => {
+  it('names another actor and says nothing for the page itself or a node nobody changed', () => {
+    expect(changedBy(row({ actor: 'agent:a' }), 'agent:dev')?.name).toBe('a');
+    expect(changedBy(row({ actor: 'agent:dev' }), 'agent:dev')).toBeNull();
+    expect(changedBy(row({ actor: null }), 'agent:dev')).toBeNull();
+  });
+  it('gives a person the person colour and an agent one of the three agent colours, the same every time', () => {
+    expect(changedBy(row({ actor: 'person:ana' }), 'agent:dev')?.dot).toBe('bg-person');
+    const dot = (a: string) => changedBy(row({ actor: a }), 'agent:dev')?.dot;
+    expect(dot('agent:a')).toMatch(/^bg-agent-[123]$/);
+    expect(dot('agent:a')).toBe(dot('agent:a'));
+    expect(new Set(['agent:a', 'agent:b', 'agent:c', 'agent:d'].map(dot)).size).toBeGreaterThan(1);
+  });
+  it('knows an icon for every kind of node', () => {
+    expect(Object.keys(KIND_ICON).sort()).toEqual(['ellipse', 'frame', 'rect', 'shader', 'text']);
   });
 });

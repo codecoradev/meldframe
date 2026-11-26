@@ -11,6 +11,13 @@ describe('the switch of a React panel (S2)', () => {
     expect(reactFor('export', '?react=exports')).toBe(false);
     expect(reactFor('export', '?react=activity')).toBe(false);
   });
+  it('names the Layers panel with `layers`, alone or in a list, and not the word next to it (S5)', () => {
+    expect(reactFor('layers', '?react=layers')).toBe(true);
+    expect(reactFor('layers', '?react=export,layers')).toBe(true);
+    expect(reactFor('layers', '?react=layer')).toBe(false);
+    expect(reactFor('layers', '?react=export')).toBe(false);
+    expect(pilotPage('?react=layers', false)).toBeNull();
+  });
   it('does not turn the editor into the state matrix page', () => {
     expect(pilotPage('?react=export', false)).toBeNull();
   });
