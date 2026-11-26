@@ -18,6 +18,7 @@ use meldframe_host::{Principal, REPLAY_PAGE, StoredOp};
 use meldframe_http::{Failure, Reply, bearer, peer, valid_file};
 use meldframe_protocol::Doc;
 use meldframe_revert::{LoggedOp, state_at_doc};
+use meldframe_text::canonical_u32;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -173,11 +174,10 @@ fn replay(
         .map_err(|e| Stopped::Broken(e.to_string()))
 }
 
-/// A checkpoint number as a path spells it: plain ASCII digits without a leading zero, as the review route reads a
-/// batch number.
+/// A checkpoint number as a path spells it: [`canonical_u32`], as the review route reads a batch number, and from 1
+/// (a row is never numbered 0, so `0` is refused as a bad number and not looked up).
 fn number(text: &str) -> Option<u32> {
-    let plain = text.bytes().all(|b| b.is_ascii_digit()) && !text.starts_with('0');
-    plain.then(|| text.parse().ok()).flatten()
+    canonical_u32(text).filter(|&n| n >= 1)
 }
 
 async fn run(s: &Routed, who: &Principal, file: &str, n: &str) -> Result<Arc<str>, Fail> {
@@ -275,5 +275,20 @@ pub(crate) async fn state(
             (StatusCode::OK, json, text.to_string()).into_response()
         }
         Err(f) => (f.status, axum::Json(f.body)).into_response(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::number;
+
+    #[test]
+    fn a_checkpoint_number_is_one_spelling_and_starts_at_one() {
+        assert_eq!(number("1"), Some(1));
+        assert_eq!(number("4294967295"), Some(u32::MAX));
+        // Zero is a well-spelled number, but no checkpoint has it: the route answers `invalid`, not `not_found`.
+        for bad in ["0", "01", "+1", "1 ", "", "4294967296", "x"] {
+            assert_eq!(number(bad), None, "{bad:?}");
+        }
     }
 }

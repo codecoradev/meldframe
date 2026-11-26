@@ -17,6 +17,7 @@ meldframe-host = { path = "../../core/meldframe-host" }
 meldframe-module = { path = "../../core/meldframe-module" }
 meldframe-revert = { path = "../../core/meldframe-revert" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
+meldframe-text = { path = "../../core/meldframe-text" }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
