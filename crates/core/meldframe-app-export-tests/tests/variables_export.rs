@@ -51,7 +51,7 @@ fn opening_builds_every_variable_of_the_file_as_css() {
         d.css,
         ":root {\n  --appearance-color-brand: #112233;\n  --appearance-color-accent: var(--appearance-color-brand);\n}\n:root[data-mode-appearance=\"dark\"] {\n  --appearance-color-brand: #aabbcc;\n  --appearance-color-accent: #000000;\n}\n"
     );
-    assert_eq!(d.bytes, d.css.len());
+    assert_eq!(d.bytes, Some(d.css.len()));
     assert_eq!(d.limit, 256 * 1024);
     assert!(d.warnings.is_empty());
 }

@@ -51,7 +51,10 @@ fn the_cap_is_50_variables_in_at_most_55_commands_and_the_two_fit_together() {
     let p = plan(&two, &nodes, &vars);
     assert_eq!(p.result.status, ImportStatus::Imported, "{:?}", p.result);
     assert_eq!(
-        (p.result.report.collections, p.result.report.variables),
+        (
+            p.result.report.as_ref().unwrap().collections,
+            p.result.report.as_ref().unwrap().variables
+        ),
         (2, 50)
     );
     assert!(p.commands.len() <= MAX_COMMANDS);
@@ -65,7 +68,10 @@ fn a_text_of_51_variables_is_refused_with_its_own_code_and_the_counts_and_makes_
     assert_eq!(p.result.code.as_deref(), Some(TOO_MANY));
     assert_eq!(TOO_MANY, "E_IMPORT_TOO_MANY");
     assert_eq!(
-        (p.result.report.variables, p.result.max_variables),
+        (
+            p.result.report.as_ref().unwrap().variables,
+            p.result.max_variables
+        ),
         (51, 50)
     );
     assert!(p.commands.is_empty());
@@ -80,8 +86,8 @@ fn a_text_of_more_than_the_reader_counts_is_refused_with_the_count_it_made_as_a_
     let p = plan(&root(5_100), &nodes, &vars);
     assert_eq!(p.result.status, ImportStatus::Refused);
     assert_eq!(p.result.code.as_deref(), Some(TOO_MANY));
-    assert_eq!(p.result.report.variables, 5_000);
-    assert!(p.result.report.variables > p.result.max_variables);
+    assert_eq!(p.result.report.as_ref().unwrap().variables, 5_000);
+    assert!(p.result.report.as_ref().unwrap().variables > p.result.max_variables);
     assert!(p.commands.is_empty());
 }
 
@@ -163,7 +169,7 @@ fn a_byte_order_mark_in_front_of_the_text_is_not_part_of_the_first_selector() {
         with.result.status,
         ImportStatus::Imported,
         "{:?}",
-        with.result.report.entries
+        with.result.report.as_ref().unwrap().entries
     );
     assert_eq!(
         with.commands.len(),

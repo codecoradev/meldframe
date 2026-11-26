@@ -34,9 +34,10 @@ pub struct VariablesExportDialog {
     pub variables: usize,
     #[ts(type = "number")]
     pub blocks: usize,
-    /// The size of `css` in bytes, and the limit of an export. With `error` it is the size that was refused.
-    #[ts(type = "number")]
-    pub bytes: usize,
+    /// The size of `css` in bytes, and the limit of an export. With `error` it is the size that was refused when the
+    /// error is the limit, and `None` for any other error (nothing was built, so the size is not known: rule U9).
+    #[ts(type = "number | null")]
+    pub bytes: Option<usize>,
     #[ts(type = "number")]
     pub limit: usize,
     /// What could not be written as it is stored (a value missing in a mode, a colour that is not hex, an alias to a
@@ -84,8 +85,9 @@ pub struct VariablesImportResult {
     /// The most variables the dialog imports at a time (`E_IMPORT_TOO_MANY` above it).
     #[ts(type = "number")]
     pub max_variables: usize,
-    /// What the text held: the counts and the lines of the report. Empty for text that was not read.
-    pub report: ImportReport,
+    /// What the text held: the counts and the lines of the report. `None` for text that was not read (an empty text, one
+    /// over the limit): its counts are not known, and a front end must not draw them as zero (rule U9).
+    pub report: Option<ImportReport>,
 }
 
 /// The collection, mode or variable a refusal is about, by the name the text gave it.

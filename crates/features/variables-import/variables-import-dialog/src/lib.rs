@@ -53,7 +53,7 @@ fn result(status: ImportStatus, bytes: usize) -> VariablesImportResult {
         bytes,
         limit: MAX_INPUT_BYTES,
         max_variables: MAX_VARIABLES,
-        report: ImportReport::default(),
+        report: None,
     }
 }
 
@@ -79,14 +79,14 @@ pub fn plan(text: &str, nodes: &[Node], vars: &Variables) -> Plan {
     let report = report_of(&import);
     if import.commands.is_empty() {
         let mut r = result(ImportStatus::Nothing, bytes);
-        r.report = report;
+        r.report = Some(report);
         return Plan {
             result: r,
             commands: Vec::new(),
         };
     }
     let mut r = result(ImportStatus::Imported, bytes);
-    r.report = report;
+    r.report = Some(report);
     // Before the check of the file: the check is the slow part, and a text over the cap is refused whatever the file holds.
     // The count is that of the reader, which stops at the limit of a file (5,000): for a longer text it is 5,000, a lower
     // bound, so the refusal and the front end say "more than the cap" and never quote the count as the text's own.

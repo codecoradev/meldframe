@@ -211,8 +211,12 @@ fn a_frame_too_large_for_the_limit_says_so_and_has_no_document() {
     assert_eq!(d.error.as_deref(), Some("E_EXPORT_TOO_LARGE"));
     assert!(d.html.is_empty() && d.css.is_empty());
     assert_eq!(d.limit, 256 * 1024);
-    assert!(d.counted_bytes > d.limit);
-    assert_eq!((d.html_bytes, d.css_bytes), (0, 0), "none saved");
+    assert!(d.counted_bytes.unwrap() > d.limit);
+    assert_eq!(
+        (d.html_bytes, d.css_bytes),
+        (None, None),
+        "no file, so no size"
+    );
 }
 
 #[test]

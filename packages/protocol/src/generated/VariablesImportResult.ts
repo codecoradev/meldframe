@@ -25,6 +25,7 @@ bytes: number, limit: number,
  */
 maxVariables: number, 
 /**
- * What the text held: the counts and the lines of the report. Empty for text that was not read.
+ * What the text held: the counts and the lines of the report. `None` for text that was not read (an empty text, one
+ * over the limit): its counts are not known, and a front end must not draw them as zero (rule U9).
  */
-report: ImportReport, };
+report: ImportReport | null, };
