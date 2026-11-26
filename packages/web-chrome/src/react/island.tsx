@@ -3,6 +3,7 @@
 // (docs/react-web-plan.md, option B). Every file that imports React is .tsx, whatever it holds.
 import type { ComponentType, ReactNode } from 'react';
 import { createElement } from 'react';
+import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 
 export interface IslandParams<P extends object> {
@@ -20,6 +21,8 @@ export interface IslandDeps {
   createRoot(container: HTMLElement): RootLike;
   /** Runs `fn` after the current call stack, and so after any React render that is in it, has finished. */
   defer(fn: () => void): void;
+  /** Runs `fn` and draws what it asked for before it returns (`flushSync`). Without it a draw is left to React's scheduler. */
+  flush?(fn: () => void): void;
 }
 
 /**
@@ -28,7 +31,9 @@ export interface IslandDeps {
  *   <div use:island={{ component: Panel, props: { title } }}></div>
  *
  * The action draws on `use:`, again on each `update` (Svelte calls it when the params expression has another
- * value) and unmounts on `destroy`. The root belongs to the element, so two islands never share one, and an element
+ * value) and unmounts on `destroy`. Each draw is synchronous (`flush`, which is `flushSync`): a prop can be a message that the next
+ * update replaces (the events of one dispatch of the app layer), and React keeps only the last of two updates that come in one
+ * task, which happens when frames queue up on a busy page. The root belongs to the element, so two islands never share one, and an element
  * that its Svelte parent takes out of the page (an `{#if}`, an `{#each}` row) ends its root. The unmount is
  * deferred: React raises an error when a root is unmounted while another render is on the stack, and a
  * Svelte teardown can run inside a React event. A draw that follows a destroy is dropped.
@@ -38,7 +43,10 @@ export function createIsland(deps: IslandDeps) {
     const root = deps.createRoot(node);
     let alive = true;
     const draw = ({ component, props }: IslandParams<P>) => {
-      if (alive) root.render(createElement(component, props));
+      if (!alive) return;
+      const render = () => root.render(createElement(component, props));
+      if (deps.flush) deps.flush(render);
+      else render();
     };
     draw(params);
     return {
@@ -52,4 +60,4 @@ export function createIsland(deps: IslandDeps) {
   };
 }
 
-export const island = createIsland({ createRoot, defer: (fn) => queueMicrotask(fn) });
+export const island = createIsland({ createRoot, defer: (fn) => queueMicrotask(fn), flush: flushSync });
