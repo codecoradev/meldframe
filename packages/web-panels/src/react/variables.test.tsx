@@ -159,7 +159,8 @@ describe('the React bind picker', () => {
 });
 
 // The two copies draw the same elements with the same classes in the same order (a class that is not here is a visible
-// difference): the pixel check of the browser scripts finds the rest.
+// difference). What a class cannot say (the real pixels) is checked in a browser by pixels-e2e.mjs, with a tolerance of 0; the position of the
+// popover and the keys of the picker are checked by variables-e2e.mjs.
 describe('the React copies against the Svelte ones', () => {
   const svelte = (component: unknown, props: Record<string, unknown>) => render(component as never, { props: props as never }).body.replace(/<!--.*?-->/g, '');
   const classes = (out: string) => [...out.matchAll(/class="([^"]*)"/g)].map((m) => m[1]!.split(/\s+/).filter(Boolean).sort().join(' '));

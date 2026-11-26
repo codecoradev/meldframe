@@ -220,6 +220,64 @@ async function check(name, fn) {
     await page.click('[data-testid=prop-fill-detach]');
     await until('the field is a plain field again', async () => (await trigger.count()) === 1);
   });
+  await check('Tab stays inside the picker both ways, and the picker sits 8 px under its button, end aligned', async () => {
+    await trigger.click();
+    await until('the rows', async () => (await page.locator('[data-testid=picker-row]').count()) >= 1);
+    await page.locator('[data-testid=picker-row]').last().focus();
+    await page.keyboard.press('Tab');
+    await sleep(250); // the focus guards of a library hold the focus for a tick
+    assert.equal(await picker.count(), 1, 'Tab from the last row left the picker open');
+    assert.equal(await active(), 'picker-search', 'Tab from the last row goes to the search field');
+    await page.keyboard.press('Shift+Tab');
+    await sleep(250);
+    assert.equal(await picker.count(), 1, 'Shift+Tab from the search field left the picker open');
+    // Where it lands is the library's own (Bits UI puts it on its content, the React copy on the last row): inside the picker is the rule.
+    assert.equal(await page.evaluate(() => !!document.activeElement?.closest('[data-testid=picker]')), true, 'Shift+Tab from the search field leaves the picker');
+    const t = await trigger.boundingBox();
+    const b = await picker.boundingBox();
+    assert.ok(Math.abs(b.y - (t.y + t.height + 8)) <= 1.5, `the picker is 8 px under the button: ${b.y - (t.y + t.height)}`);
+    assert.ok(Math.abs(b.x + b.width - (t.x + t.width)) <= 1.5, `the picker is aligned to the end of the button: ${b.x + b.width - (t.x + t.width)}`);
+    await page.locator('[data-testid=picker-row]').first().focus(); // Escape closes from a row; in the search field the Field keeps the key
+    await page.keyboard.press('Escape');
+    await until('closed', async () => (await picker.count()) === 0);
+  });
+  if (react) {
+    // The popup of Base UI has the role of a dialog, so it needs a name (the Bits UI content has no role).
+    await check('the popover is a dialog with a name', async () => {
+      await trigger.click();
+      await until('the rows', async () => (await page.locator('[data-testid=picker-row]').count()) >= 1);
+      assert.equal(await picker.getAttribute('role'), 'dialog');
+      assert.equal(await picker.getAttribute('aria-label'), 'Bind Fill to a variable');
+      assert.equal(await page.getByRole('dialog', { name: 'Bind Fill to a variable' }).count(), 1, 'a reader finds the dialog by its name');
+      await page.locator('[data-testid=picker-row]').first().focus();
+      await page.keyboard.press('Escape');
+      await until('closed', async () => (await picker.count()) === 0);
+    });
+    // Manage, Import variables and Export variables are buttons of the React panel that open Svelte dialogs, which the switch file hosts
+    // beside the island. manage-e2e.mjs and io-e2e.mjs check those dialogs but not who drew the buttons: this asks that the React buttons open
+    // them and that the focus comes back to the button that opened each.
+    await check('through the React panel, Manage, Import variables and Export variables open their dialogs and the focus comes back to the button', async () => {
+      assert.equal(await fibre(page, '[data-testid=var-manage]'), true, 'the Manage button is drawn by React');
+      await page.fill('[data-testid=var-search]', 'zzz');
+      await until('the search narrows the list', async () => (await page.textContent('[data-testid=var-count]')).trim().startsWith('0 of '));
+      await page.click('[data-testid=var-manage]');
+      await page.locator('[data-testid=manage-dialog]').waitFor();
+      await until('the search was cleared before the view opened', async () => (await page.inputValue('[data-testid=var-search]')) === '');
+      await page.keyboard.press('Escape');
+      await page.locator('[data-testid=manage-dialog]').waitFor({ state: 'detached' });
+      await until('the focus is back on Manage', async () => (await active()) === 'var-manage');
+      await page.click('[data-testid=var-import]');
+      await page.locator('[data-testid=import-vars-dialog]').waitFor();
+      await page.keyboard.press('Escape');
+      await page.locator('[data-testid=import-vars-dialog]').waitFor({ state: 'detached' });
+      await until('the focus is back on Import variables', async () => (await active()) === 'var-import');
+      await page.click('[data-testid=var-export]');
+      await page.locator('[data-testid=export-vars-dialog]').waitFor();
+      await page.keyboard.press('Escape');
+      await page.locator('[data-testid=export-vars-dialog]').waitFor({ state: 'detached' });
+      await until('the focus is back on Export variables', async () => (await active()) === 'var-export');
+    });
+  }
 
   if (react) {
     // The React copies load on demand. A chunk that does not load must leave the Svelte panel and the Svelte picker, never a page with no variables.
