@@ -1,6 +1,7 @@
 //! The in-memory store of checkpoints.
 
 use crate::{CheckpointError, CheckpointStore, Held, Made, Plan, plan};
+use meldframe_activity::store_key;
 use meldframe_checkpoints::{Checkpoint, NewCheckpoint};
 use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
@@ -26,10 +27,6 @@ impl File {
 #[derive(Debug, Default)]
 pub struct MemoryCheckpoints {
     files: Mutex<HashMap<(String, String), File>>,
-}
-
-fn key(workspace: &str, file: &str) -> (String, String) {
-    (workspace.to_owned(), file.to_owned())
 }
 
 impl MemoryCheckpoints {
@@ -97,7 +94,7 @@ impl CheckpointStore for MemoryCheckpoints {
     ) -> Result<Made, CheckpointError> {
         let mut files = self.files.lock().unwrap_or_else(PoisonError::into_inner);
         // A file that is not there yet is made only when a row is: a refused call leaves nothing behind.
-        let k = key(workspace, file);
+        let k = store_key(workspace, file);
         let mut f = files.remove(&k).unwrap_or_else(File::new);
         let made = Self::apply(&mut f, key_of_request, new, at_ms);
         if f.next_n > 1 {
@@ -108,7 +105,7 @@ impl CheckpointStore for MemoryCheckpoints {
 
     fn list(&self, workspace: &str, file: &str) -> Result<Vec<Checkpoint>, CheckpointError> {
         let files = self.files.lock().unwrap_or_else(PoisonError::into_inner);
-        let rows = files.get(&key(workspace, file)).map(|f| &f.rows);
+        let rows = files.get(&store_key(workspace, file)).map(|f| &f.rows);
         Ok(rows.map_or_else(Vec::new, |r| {
             r.iter().rev().map(|(c, _)| c.clone()).collect()
         }))
