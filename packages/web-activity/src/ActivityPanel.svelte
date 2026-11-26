@@ -1,22 +1,23 @@
 <!--
   The Activity panel (E5.1, ADR-0021): one lane per actor with its batches, newest first, then the checkpoints. It
   draws `state.activity` and the checkpoints of the app layer and sends actions: the lanes, their order, the counts
-  and which row may be reverted are the app layer's. What it keeps itself is view state only (which lanes the person
-  folded or opened, and which confirmation is open), and every click goes through controller.ts, which is tested.
+  and which row may be reverted are the app layer's, and so is the question being asked (`AppState.confirm`: revert a
+  batch, restore a checkpoint). What it keeps itself is view state only (which lanes the person folded or opened), and
+  every control sends one of the actions of actions.ts, which is tested.
 -->
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
-  import type { Action, ActivityState, ActorTone, Checkpoint, CheckpointsStatus, Event } from '@meldframe/protocol';
+  import type { Action, ActivityState, ActorTone, Checkpoint, CheckpointsStatus, Confirm, Event } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Icon from '@meldframe/web-chrome/Icon.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
   import { ring } from '@meldframe/web-chrome/focus';
   import { duration } from '@meldframe/web-tokens/tokens';
-  import { older, setReview } from './actions';
+  import { askRestore, askRevert, cancel, confirmRestore, confirmRevert, createCheckpoint, older, setReview, show } from './actions';
   import BatchItem from './BatchItem.svelte';
   import CheckpointCreate from './CheckpointCreate.svelte';
   import CheckpointList from './CheckpointList.svelte';
-  import { askRestore, askRevert, cancel, confirmRestore, confirmRevert, createStep, laneOpen, settle, show, start, toggleLane, type Step, type Ui } from './controller';
+  import { laneOpen, start, toggleLane, type Ui } from './controller';
   import MessageLine from './MessageLine.svelte';
   import { checkpointMade, clockText, laneSummary, laneViews, messageFor, rowKey, type Message } from './view';
 
@@ -29,6 +30,8 @@
     status: CheckpointsStatus;
     /** The actor of this page: its lane is called You. */
     self: string;
+    /** The question being asked (`AppState.confirm`), or none. */
+    confirm?: Confirm | null;
     dispatch: (a: Action) => void;
     /**
      * The events of the last dispatch. A refusal, a revert or a restore that comes while the panel is open is worded
@@ -36,25 +39,19 @@
      */
     events?: readonly Event[];
   }
-  let { activity, checkpoints, canCreate, status, self, dispatch, events = [] }: Props = $props();
+  let { activity, checkpoints, canCreate, status, self, confirm = null, dispatch, events = [] }: Props = $props();
 
   const lanes = $derived(laneViews(activity, self));
   let ui = $state.raw<Ui>(start);
   // What the person asked for last decides the words of a refusal: `forbidden` means one thing for a review and another for a checkpoint.
   let about = $state.raw<'checkpoint' | undefined>(undefined);
-  const run = (s: Step) => {
-    ui = s.ui;
-    for (const a of s.actions) {
-      if (a.type === 'createCheckpoint' || a.type === 'restoreCheckpoint' || a.type === 'revertBatch') about = 'checkpoint';
-      else if (a.type === 'setBatchReview') about = undefined;
-      dispatch(a);
-    }
+  const send = (a: Action) => {
+    if (a.type === 'createCheckpoint' || (a.type === 'activity' && (a.op.type === 'confirmRevert' || a.op.type === 'confirmRestore'))) about = 'checkpoint';
+    else if (a.type === 'setBatchReview') about = undefined;
+    dispatch(a);
   };
-  // A confirmation belongs to a row that is still there and still selected, and to a checkpoint that still exists.
-  $effect(() => {
-    const next = settle(ui, activity, checkpoints);
-    if (next !== ui) ui = next;
-  });
+  // How many checkpoints this person asked for were made (the app layer says so by `Event.checkpointMade`): the name field empties.
+  let made = $state(0);
 
   let message = $state<Message | null>(null);
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -63,6 +60,11 @@
     const now = events;
     if (now === seen) return;
     seen = now;
+    if (now.some((e) => e.type === 'checkpointMade')) {
+      made += 1;
+      say(checkpointMade);
+      return;
+    }
     const m = messageFor(now, about);
     if (m) say(m);
   });
@@ -76,7 +78,7 @@
   // Presentation only: the tone is the app layer's (`ActorView.tone`), this is the class that draws it.
   const tone: Record<ActorTone, string> = { person: 'bg-person', agent1: 'bg-agent-1', agent2: 'bg-agent-2', agent3: 'bg-agent-3' };
   const changes = (n: number) => `${n} ${n === 1 ? 'change' : 'changes'}`;
-  const asking = (r: { actor: string; keyPrefix: string }) => ui.confirm?.kind === 'revert' && ui.confirm.actor === r.actor && ui.confirm.keyPrefix === r.keyPrefix;
+  const asking = (r: { actor: string; keyPrefix: string }) => confirm?.kind === 'revert' && confirm.actor === r.actor && confirm.keyPrefix === r.keyPrefix;
 </script>
 
 <div class="flex flex-col" data-testid="activity">
@@ -97,7 +99,7 @@
           type="button"
           aria-expanded={open}
           aria-controls="lane-body-{i}"
-          onclick={() => run(toggleLane(ui, l.actor, open))}
+          onclick={() => (ui = toggleLane(ui, l.actor, open))}
           class="{ring} flex min-h-(--mf-size-control-lg) w-full flex-col justify-center rounded-md py-1 text-left hov:bg-control"
         >
           <span class="flex w-full items-center gap-2">
@@ -118,10 +120,10 @@
                     confirming={asking(r)}
                     canReview={activity.canReview}
                     onReview={(state) => dispatch(setReview(r, state))}
-                    onShow={() => run(show(ui, r))}
-                    onAskRevert={() => run(askRevert(ui, r))}
-                    onRevert={() => run(confirmRevert(ui, r, activity.selected))}
-                    onCancel={() => run(cancel(ui))}
+                    onShow={() => send(show(r))}
+                    onAskRevert={() => send(askRevert(r))}
+                    onRevert={() => send(confirmRevert(r))}
+                    onCancel={() => send(cancel())}
                   />
                 {/each}
               </ul>
@@ -141,13 +143,13 @@
     {/if}
   </Section>
   <Section title="Checkpoints">
-    <CheckpointCreate {canCreate} {status} {self} {checkpoints} onCreate={(label) => run(createStep(ui, canCreate, label))} onMade={() => say(checkpointMade)} />
+    <CheckpointCreate {canCreate} {status} {made} onCreate={(label) => send(createCheckpoint(label))} />
     <CheckpointList
       {checkpoints}
-      asking={ui.confirm?.kind === 'restore' ? ui.confirm.id : null}
-      onAsk={(id) => run(askRestore(ui, id))}
-      onRestore={(id) => run(confirmRestore(ui, id))}
-      onCancel={() => run(cancel(ui))}
+      asking={confirm?.kind === 'restore' ? confirm.id : null}
+      onAsk={(id) => send(askRestore(id))}
+      onRestore={(id) => send(confirmRestore(id))}
+      onCancel={() => send(cancel())}
     />
   </Section>
 </div>

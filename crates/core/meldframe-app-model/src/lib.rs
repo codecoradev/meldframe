@@ -40,7 +40,7 @@ pub use assets::{ASSET_LIST_MAX, ASSET_PAGE, ASSET_PAGE_MAX, AssetInfo, AssetPag
 pub use checkpoint::{
     Checkpoint, CheckpointKind, CheckpointRequest, CheckpointRow, CheckpointsStatus,
 };
-pub use confirm::{ActivityOp, RightTab};
+pub use confirm::{ActivityOp, Confirm, RightTab};
 pub use effect::{Effect, OutOp};
 pub use event::{Event, RevertSkip, RevertSkipReason, VariableEntity};
 pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget};

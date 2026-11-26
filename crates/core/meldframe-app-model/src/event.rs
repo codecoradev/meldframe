@@ -60,6 +60,13 @@ pub enum Event {
     RightTabChanged {
         tab: RightTab,
     },
+    /// `AppState::confirm` changed: a question was asked, answered, cancelled or ended with its target.
+    ConfirmChanged {},
+    /// The row a `CreateCheckpoint` asked for with the request `key` is in the list: the server made it. A row an agent's run
+    /// start or another person made says nothing about this request, and a refused request makes none.
+    CheckpointMade {
+        key: String,
+    },
     /// `AppState::manage` changed (the shown collection, the question, the rename field, a form or what follows the file).
     ManageChanged {},
     /// A rename of a collection, a mode or a variable was made (`ManageOp::SubmitRename`), from `from` to `to` (both made safe

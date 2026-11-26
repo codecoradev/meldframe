@@ -154,10 +154,31 @@ pub enum Waiting {
 pub struct Checkpoints {
     pub waiting: Option<Waiting>,
     pub listing: bool,
+    /// The keys of the manual checkpoints a person asked for and the server has not answered yet, oldest first (at most
+    /// [`MAX_ASKED`]): the row that answers one is the row of that request, whatever its label is.
+    asked: Vec<String>,
     next_key: u64,
 }
 
+/// The most manual requests that are remembered while their answers are out.
+pub const MAX_ASKED: usize = 8;
+
 impl Checkpoints {
+    /// A manual request with this key is out.
+    pub fn asked(&mut self, key: String) {
+        if self.asked.len() >= MAX_ASKED {
+            self.asked.remove(0);
+        }
+        self.asked.push(key);
+    }
+
+    /// The request with this key is answered (made or failed): whether it was a manual request that was out.
+    pub fn answered(&mut self, key: &str) -> bool {
+        let before = self.asked.len();
+        self.asked.retain(|k| k != key);
+        self.asked.len() != before
+    }
+
     /// A key no earlier request of this session used; the server remembers a key, and `prefix` is the session's.
     pub fn next_key(&mut self, prefix: &str) -> String {
         self.next_key += 1;

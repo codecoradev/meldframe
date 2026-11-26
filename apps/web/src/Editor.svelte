@@ -384,6 +384,6 @@
     <PropertiesPanel properties={snap.state.properties} picker={snap.state.picker ?? null} assets={snap.state.assets} selected={snap.state.selection.length} {dispatch} {...bindParts} />
     <ExportSection {target} scale={pngScale} onScale={(s) => (pngScale = s)} plan={planOf(target)} onPng={() => exportPng(target)} onHtml={() => dispatch({ type: 'openExport' })} />
   {/snippet}
-  {#snippet activityPanel()}<ActivityPanel activity={snap.state.activity} checkpoints={snap.state.checkpoints} canCreate={snap.state.canCreateCheckpoint} status={snap.state.checkpointsStatus} self={actor} {dispatch} events={snap.events} />{/snippet}
+  {#snippet activityPanel()}<ActivityPanel activity={snap.state.activity} checkpoints={snap.state.checkpoints} canCreate={snap.state.canCreateCheckpoint} status={snap.state.checkpointsStatus} self={actor} confirm={snap.state.confirm ?? null} {dispatch} events={snap.events} />{/snippet}
 </Layout>
 <ExportDialog dialog={snap.state.export.dialog} unreviewed={snap.state.activity.unreviewedCount} scale={pngScale} onScale={(s) => (pngScale = s)} plan={planOf(dialogOf)} onPng={() => exportPng(dialogOf)} {dispatch} onReview={() => { reviewSteps().forEach(dispatch); goTab('activity'); }} />

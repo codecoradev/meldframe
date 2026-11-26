@@ -3,7 +3,7 @@
 use crate::activity::ActivityState;
 use crate::assets::AssetsState;
 use crate::checkpoint::{Checkpoint, CheckpointsStatus};
-use crate::confirm::RightTab;
+use crate::confirm::{Confirm, RightTab};
 use crate::export::ExportState;
 use crate::layers::LayerRow;
 use crate::layout::{LayoutNote, Sides};
@@ -69,6 +69,11 @@ pub struct AppState {
     /// The tab of the right card (`Action::Activity` with `ActivityOp::SetTab`).
     #[serde(default)]
     pub right_tab: RightTab,
+    /// The question the person is being asked in the Activity panel: revert a batch or restore a checkpoint
+    /// (`Action::Activity`: `AskRevert`, `AskRestore`, `Cancel` and the confirmations).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub confirm: Option<Confirm>,
     /// Export (D9): the frame an export acts on, and the dialog while it is open.
     #[serde(default)]
     pub export: ExportState,

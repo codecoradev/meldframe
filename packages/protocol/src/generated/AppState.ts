@@ -3,6 +3,7 @@ import type { ActivityState } from "./ActivityState";
 import type { AssetsState } from "./AssetsState";
 import type { Checkpoint } from "./Checkpoint";
 import type { CheckpointsStatus } from "./CheckpointsStatus";
+import type { Confirm } from "./Confirm";
 import type { Connection } from "./Connection";
 import type { ExportState } from "./ExportState";
 import type { History } from "./History";
@@ -85,6 +86,11 @@ activity: ActivityState,
  * The tab of the right card (`Action::Activity` with `ActivityOp::SetTab`).
  */
 rightTab: RightTab, 
+/**
+ * The question the person is being asked in the Activity panel: revert a batch or restore a checkpoint
+ * (`Action::Activity`: `AskRevert`, `AskRestore`, `Cancel` and the confirmations).
+ */
+confirm?: Confirm, 
 /**
  * Export (D9): the frame an export acts on, and the dialog while it is open.
  */

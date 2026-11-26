@@ -31,6 +31,7 @@ export type { ClientMsg } from './ClientMsg';
 export type { Collection } from './Collection';
 export type { CollectionRow } from './CollectionRow';
 export type { Command } from './Command';
+export type { Confirm } from './Confirm';
 export type { Connection } from './Connection';
 export type { CreateKind } from './CreateKind';
 export type { Direction } from './Direction';

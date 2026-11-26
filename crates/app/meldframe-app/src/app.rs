@@ -148,6 +148,7 @@ impl App {
         }
         self.level = level::of(&action, ui);
         let manage = self.state.manage.clone();
+        let confirm = self.state.confirm.clone();
         let mut fx = Vec::new();
         match action {
             Action::Select { ids } => self.select(ids),
@@ -212,8 +213,12 @@ impl App {
             }
             Level::Full => self.refresh(&mut fx),
         }
+        self.settle_confirm();
         if self.state.manage != manage {
             self.events.push(Event::ManageChanged {});
+        }
+        if self.state.confirm != confirm {
+            self.events.push(Event::ConfirmChanged {});
         }
         fx
     }
