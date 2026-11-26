@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
-import type { CollectionRow, Event, ManageLimits, NameDraft, NameError, Removal, VariableRow, VariablesPanel } from '@meldframe/protocol';
+import type { CollectionRow, Event, ManageLimits, ManageTarget, NameDraft, NameError, Removal, VariableRow, VariablesPanel } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { MAX_COLLECTIONS, MAX_MODES, MAX_VARIABLES, NOTE_CLASS, addNote, collectionSummary, count, nameError, nameWarning, partial, reactTo, removalWords, renamedWords, typed } from './manage';
+import { MAX_COLLECTIONS, MAX_MODES, MAX_VARIABLES, NOTE_CLASS, addNote, collectionSummary, count, nameError, nameWarning, partial, reactTo, removalKey, removalWords, renamedWords, settle, typed } from './manage';
 
 // The rules of the manage view (the checks of a name, what a removal detaches, the rename flow) are the app layer's and are
 // tested there (crates/core/meldframe-variables-manage-tests); these are the words each code and number is given.
@@ -142,6 +142,42 @@ describe('why the counts may be partial', () => {
     expect(partial(panel([col()]))).toBeNull();
     expect(partial(panel([col()], { query: ' x ' }))).toBe('search');
     expect(partial(panel([col({ matched: 300 })]))).toBe('cut');
+  });
+});
+
+describe('what the view does once the page shows the answer of a dispatch', () => {
+  const none = { error: null, added: null, renamed: null, status: null };
+  const asker: ManageTarget = { kind: 'variable', id: 'v1' };
+  const field: ManageTarget = { kind: 'collection', id: 'c1' };
+  it('says a refusal, clears the status line and uses up the words of the change that was sent', () => {
+    expect(settle({ ...none, error: 'No.' }, null, null)).toEqual({ error: 'No.', status: '', pending: true, refocused: false, focus: [] });
+  });
+  it('clears the error line and says the change that was made, or leaves the status as it is when only something was added', () => {
+    expect(settle({ ...none, status: 'Added.' }, null, null)).toMatchObject({ error: '', status: 'Added.', pending: true });
+    expect(settle({ ...none, added: { entity: 'variable', id: 'v9' } }, null, null)).toEqual({ error: '', status: null, pending: true, refocused: false, focus: [{ entity: 'v9' }] });
+  });
+  it('changes nothing for events that changed nothing', () => {
+    expect(settle(none, field, asker)).toEqual({ error: null, status: null, pending: false, refocused: false, focus: [] });
+  });
+  it('gives the focus to what was added, then back to the Rename button of the field that closed because its rename was made', () => {
+    const r = { ...none, added: { entity: 'mode' as const, id: 'm9' }, renamed: { entity: 'collection' as const, from: 'a', to: 'b' }, status: 'Renamed.' };
+    expect(settle(r, field, null).focus).toEqual([{ entity: 'm9' }, { asker: field, attr: 'rename' }]);
+    expect(settle({ ...none, renamed: r.renamed, status: 'Renamed.' }, null, null).focus).toEqual([]);
+  });
+  it('gives the focus back to the button that asked for a removal once it was answered, by a change or a refusal, and not before', () => {
+    expect(settle({ ...none, status: 'Removed.' }, null, asker)).toMatchObject({ refocused: true, focus: [{ asker, attr: 'remove' }] });
+    expect(settle({ ...none, error: 'No.' }, null, asker)).toMatchObject({ refocused: true, focus: [{ asker, attr: 'remove' }] });
+    expect(settle(none, null, asker)).toMatchObject({ refocused: false, focus: [] });
+    expect(settle({ ...none, status: 'Removed.' }, null, null).refocused).toBe(false);
+  });
+});
+
+describe('the key of a question before a removal', () => {
+  it('differs for another thing, so that a question about it starts again, and is the same for the same thing', () => {
+    const r = (target: ManageTarget): Removal => ({ target, name: 'x', detach: false, uses: 0, variables: 0 });
+    const keys = [r({ kind: 'variable', id: 'a' }), r({ kind: 'variable', id: 'b' }), r({ kind: 'collection', id: 'a' }), r({ kind: 'mode', collection: 'c1', id: 'a' }), r({ kind: 'mode', collection: 'c2', id: 'a' })].map(removalKey);
+    expect(new Set(keys).size).toBe(5);
+    expect(removalKey({ ...r({ kind: 'variable', id: 'a' }), uses: 4, detach: true })).toBe(keys[0]);
   });
 });
 

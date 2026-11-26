@@ -1,7 +1,7 @@
 // The Variables manage view: what it says. The rules are the app layer's (audit finding T5): whether a name can be sent,
 // the limits, what a removal detaches, and the rename flow are `AppState.manage` and `Action.manage`; this file holds the
 // words of each code and number it is given, and what the view does with the events of a dispatch. Pure.
-import type { Action, CollectionRow, Event, ManageLimits, NameDraft, NameError, NameWarning, Removal, VariableEntity, VariablesPanel } from '@meldframe/protocol';
+import type { Action, CollectionRow, Event, ManageLimits, ManageTarget, NameDraft, NameError, NameWarning, Removal, VariableEntity, VariablesPanel } from '@meldframe/protocol';
 import { nameOf } from '@meldframe/web-document/names';
 import { NAME_RULE_WORDS, noticeFor } from '@meldframe/web-document/notices';
 
@@ -171,6 +171,49 @@ export function reactTo(events: readonly Event[], pending: string | null, limits
     renamed,
     status: error ? null : renamed ? renamedWords(renamed) : changed ? pending : null,
   };
+}
+
+/** Where the focus goes once the page shows the answer of a dispatch: to a thing that was added, or to the button of a thing (`askers.ts`). */
+export type Focus = { entity: string } | { asker: ManageTarget; attr: 'remove' | 'rename' };
+
+export interface Settled {
+  /** The text for the error line, or null to leave it as it is. */
+  error: string | null;
+  /** The text for the status line, or null to leave it as it is. */
+  status: string | null;
+  /** The words of the change that was sent are used up (this dispatch answered it): forget them. */
+  pending: boolean;
+  /** The question's button was given the focus back: forget it. */
+  refocused: boolean;
+  /** What to give the focus to, in this order. */
+  focus: Focus[];
+}
+
+/**
+ * What a view does with `reactTo`'s reading of a dispatch: which of the two live regions to put words in (a refusal clears the status, a
+ * change clears the error), and where the focus goes: to what was added, back to the Rename button of a field that closed because its
+ * rename was made (`lastRename`, the target the field was last open on), and back to the button that asked for a removal (`refocus`) once
+ * that was answered, by a change or by a refusal. Pure; the page does it once its own state shows the answer.
+ */
+export function settle(r: Reaction, lastRename: ManageTarget | null, refocus: ManageTarget | null): Settled {
+  const answered = !!(r.error || r.status);
+  const focus: Focus[] = [];
+  if (r.added) focus.push({ entity: r.added.id });
+  if (r.renamed && lastRename) focus.push({ asker: lastRename, attr: 'rename' });
+  if (refocus && answered) focus.push({ asker: refocus, attr: 'remove' });
+  return {
+    error: r.error ? r.error : r.status || r.added ? '' : null,
+    status: r.error ? '' : r.status ? r.status : null,
+    pending: answered || !!r.added,
+    refocused: !!refocus && answered,
+    focus,
+  };
+}
+
+/** What a question before a removal is about, as one string: a question about another thing starts again (the view draws it under this key). */
+export function removalKey(r: Removal): string {
+  const t = r.target;
+  return `${t.kind}:${t.kind === 'mode' ? `${t.collection}:` : ''}${t.id}`;
 }
 
 /** Why the counts of the view may be partial: a search narrows the panel's list, or the list holds at most so many variables. */

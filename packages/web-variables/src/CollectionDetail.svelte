@@ -16,6 +16,7 @@
   import RenameField from './RenameField.svelte';
   import { nameOf } from '@meldframe/web-document/names';
   import { count, type Summary } from './manage';
+  import { isEditing } from './rename';
 
   interface Props {
     col: CollectionRow;
@@ -42,10 +43,7 @@
   const name = $derived(nameOf(col.name));
   const cut = $derived(col.matched > col.variables.length);
   /** Whether the field of a rename is open for this thing. */
-  const editing = (kind: ManageTarget['kind'], id: string) => {
-    const t = rename?.target;
-    return !!t && t.kind === kind && t.id === id && (t.kind !== 'mode' || t.collection === col.id);
-  };
+  const editing = (kind: ManageTarget['kind'], id: string) => isEditing(rename, col.id, kind, id);
   const select = `${ring} h-(--mf-size-control-md) max-w-40 rounded-md border border-divider bg-field px-2 text-small text-text hov:border-border-strong`;
 </script>
 
