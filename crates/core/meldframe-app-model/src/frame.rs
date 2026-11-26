@@ -74,6 +74,19 @@ pub enum Frame {
         #[ts(type = "number")]
         seq: u64,
     },
+    /// The server refused the `subscribe` the app sent on the live socket after a marker or a gap (`ServerMsg::Error` with
+    /// the id of that subscribe; an answer to an older one is the shell's to drop). `code` is the machine code as the
+    /// server wrote it (`rate_limited`, `unavailable`, `bad_request`, ...); it is `None` when the frame has none or is not
+    /// a readable one, and the app then gives the connection up. `retry_after_ms` is how long the server asks the client
+    /// to wait. The app decides: send it again, wait for the marker, or go offline (`meldframe_app_rules::subscribe`).
+    SubscribeRefused {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        code: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional, type = "number")]
+        retry_after_ms: Option<u64>,
+    },
     /// A checkpoint row was made (`ServerMsg::Checkpoint`, ephemeral: a hint, the list route is the truth). A row more
     /// than one `n` above the highest held makes the app fetch the list.
     Checkpoint { checkpoint: CheckpointRow },
