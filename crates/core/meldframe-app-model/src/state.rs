@@ -6,6 +6,7 @@ use crate::checkpoint::{Checkpoint, CheckpointsStatus};
 use crate::export::ExportState;
 use crate::layers::LayerRow;
 use crate::layout::{LayoutNote, Sides};
+use crate::manage::ManageState;
 use crate::variables::{BindField, Picker, VariablesPanel};
 use crate::variables_io::VariablesIo;
 use meldframe_protocol::{
@@ -59,6 +60,9 @@ pub struct AppState {
     pub modes: BTreeMap<String, String>,
     /// The Variables panel (E3.4): filled while `panels.variables` is open, empty otherwise.
     pub variables: VariablesPanel,
+    /// The Variables manage view: the collection shown, the question before a removal, the rename field and the forms.
+    #[serde(default)]
+    pub manage: ManageState,
     /// The Activity panel (E5.1): lanes, batches with their notes and review states, and touch rings.
     pub activity: ActivityState,
     /// Export (D9): the frame an export acts on, and the dialog while it is open.

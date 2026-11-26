@@ -26,7 +26,7 @@ const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
 const checkRs = read('crates/core/meldframe-variables/src/check.rs');
 const limitsRs = read('crates/core/meldframe-check/src/limits.rs');
 const limit = (field: string) => Number(new RegExp(`${field}: ([\\d_]+),`).exec(limitsRs)![1]!.replace(/_/g, ''));
-const nameRule = checkRs.slice(checkRs.indexOf('fn valid_name'), checkRs.indexOf('fn collection_of'));
+const nameRule = checkRs.slice(checkRs.indexOf('pub fn is_name_path'), checkRs.indexOf('fn collection_of'));
 
 const row = (over: Partial<VariableRow> = {}): VariableRow => ({ id: 'v1', name: 'color/bg', type: 'color', values: [], usedBy: 0, binds: [], ...over });
 const col = (over: Partial<CollectionRow> = {}): CollectionRow => ({

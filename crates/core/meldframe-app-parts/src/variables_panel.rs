@@ -219,8 +219,8 @@ fn binds_of(n: &Node, v: &Variable) -> Vec<BindOption> {
         .collect()
 }
 
-/// How many node fields and aliases use each variable, in one pass over the file.
-fn use_counts<'a>(nodes: &'a [Node], vars: &'a Variables) -> HashMap<&'a str, usize> {
+/// How many node fields and aliases use each variable, by id, on the whole file.
+pub fn use_counts<'a>(nodes: &'a [Node], vars: &'a Variables) -> HashMap<&'a str, usize> {
     let mut uses: HashMap<&str, usize> = HashMap::new();
     for v in &vars.variables {
         for b in v.values.values() {

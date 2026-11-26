@@ -10,6 +10,7 @@ pub mod image;
 pub mod layers;
 pub mod layout;
 pub mod manage;
+pub mod manage_names;
 pub mod panel;
 pub mod picker;
 pub mod properties;
