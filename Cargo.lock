@@ -2243,20 +2243,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-variables-import-tests"
-version = "0.0.0"
-dependencies = [
- "export",
- "meldframe-core",
- "meldframe-protocol",
- "meldframe-text",
- "meldframe-variables",
- "serde_json",
- "variables-import",
- "wasm-bindgen-test",
-]
-
-[[package]]
 name = "meldframe-variables-limits-tests"
 version = "0.0.0"
 dependencies = [
@@ -3813,12 +3799,16 @@ dependencies = [
 name = "variables-import"
 version = "0.0.0"
 dependencies = [
+ "export",
  "meldframe-check",
+ "meldframe-core",
  "meldframe-css",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-text",
  "meldframe-variables",
+ "serde_json",
+ "wasm-bindgen-test",
 ]
 
 [[package]]

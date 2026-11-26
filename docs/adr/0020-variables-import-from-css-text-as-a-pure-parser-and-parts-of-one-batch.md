@@ -33,7 +33,7 @@ E3.4 asks for an import of CSS custom properties and Tailwind v4 `@theme` text i
 - A media query is read with its white space made single and none inside the parentheses or around the colon, so a comment between words is white space and `screenand(...)` is not `screen and (...)`; other forms are skipped as `media_query_skipped`.
 - A rule for the light mode (`.light`, `[data-theme=light]`) inside a dark query is skipped as `light_in_dark_media`; a rule on the root there is the dark mode. A negative chroma in `oklch()` is clamped to 0 as CSS does. Text that is not text (control, format, variation-selector and tag characters) is dropped from everything a report echoes. What a scan leaves out is kept for the first 1,000 rules and counted after that.
 
-- The corpus of the tests is a representative theme written for them (`meldframe-variables-import-tests/tests/fixtures/representative-theme.css`), not the owner's Uteke Cloud theme; the real file can be put beside it and run with the same tests.
+- The corpus of the tests is a representative theme written for them (`crates/features/variables-import/variables-import/tests/fixtures/representative-theme.css`), not the owner's Uteke Cloud theme; the real file can be put beside it and run with the same tests.
 - Import then export does not give the text back: the export names a variable `--<collection>-<name>`, the import reads `--<name>`; the round trip of the design note (section 10, item 6) is open.
 - A dark mode picked by a `@custom-variant` or a config (`darkMode`) is not read; the selectors above are.
 - Bindings of layout fields, gradient stops and text, strings and shadows as variables stay open with ADR-0017.
