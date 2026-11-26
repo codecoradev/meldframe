@@ -193,7 +193,7 @@ border-radius:<rh1 rh2 rh3 rh4> / <rv1 rv2 rv3 rv4>
 - A **Sides** control beside it (a button that opens four fields, top, right, bottom and left, in the order of the padding fields, with `prop-border-top` and so on as test ids). It opens by itself while the sides differ. Each field sends the new `BorderSide {side, value}` property; the page keeps no state for it beyond whether the control is open, which is view state, as a collapsed section is.
 - The position control shows while any side is above 0 (today: while the width is above 0); the colour field is unchanged and applies to every side that has a width.
 - A width of 0 on every side is still "no border", through the same commands an agent sends. The visibility switch stays out (decision 40, item 6); the Remove button exists (#276) and sends the width command with 0, which for sides means every side 0.
-- The pure functions in `packages/web-document/src/decoration.ts` get `borderSideAction`; `borderWidthAction` compares with the uniform value, not `p.border.width`.
+- The typed width and the typed side fields are one `TextField` each in `meldframe-app-parts/src/typed.rs` (the app layer parses the text, holds it to the range and compares with the uniform value, not `p.border.width`); `packages/web-document/src/decoration.ts` keeps only the actions of the clicks and sends the text as typed (`textAction`).
 - A panel control and the tool share one command: `BorderSide` builds `UpdateNode` with `patch.border` in `meldframe-app-parts/src/property.rs`, which is the patch an agent sends with `apply_commands`.
 - `docs/ui-design.md`, the Border row of 3.1, and the 3.1a row would be rewritten when the panel slice lands (section 11, slice 4), not before.
 
