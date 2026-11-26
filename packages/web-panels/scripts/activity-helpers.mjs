@@ -1,5 +1,5 @@
 // Helpers of the Activity scripts (activity-e2e.mjs, checkpoints-e2e.mjs, hostile-names-e2e.mjs): polling, counting the pixels of a
-// screenshot that are (nearly) one of some colours, and the switch to the React copy of the panel (MELDFRAME_UI=react).
+// page image that are (nearly) one of some colours, and the switch to the React copy of the panel (MELDFRAME_UI=react).
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Whether this run asks for the React copy of the Activity panel (`MELDFRAME_UI=react`); the default is the Svelte copy. */

@@ -109,11 +109,22 @@ const skip = (name, why) => console.log(`skip ${name}: ${why}`);
     }
   };
   const openActivity = async (p = page) => { await tab(p).click(); await p.locator('[data-testid=activity]').waitFor({ timeout: 10000 }); await unfold(p); };
+  // Where the focus is: the test id of the nearest element that has one, and its text.
+  const active = () => page.evaluate(() => { const e = document.activeElement; return `${e?.closest('[data-testid]')?.getAttribute('data-testid') ?? ''}|${e?.textContent?.trim() ?? ''}`; });
   const row = (n, p = page) => p.locator(`[data-testid=batch][data-n="${n}"]`);
   // The canvas runs under the panels: count only the strip between them (the agent colours also dot the lane and the layers).
   const canvasBox = { x: 300, y: 60, width: 740, height: 740 };
   const rings = () => rgbCount(page, canvasBox, ['#FB923C', '#2DD4BF', '#C084FC', '#C2410C', '#0E7490', '#7E22CE']);
   const baseRings = await rings();
+
+  // First of all, as the header says: a silent fallback to Svelte would pass every other check. The panel is opened and the page goes back to the
+  // Design tab, which the checks that follow start from.
+  await check('the Activity panel is drawn by the copy that was asked for', async () => {
+    await tab().click();
+    await page.locator('[data-testid=activity]').waitFor({ timeout: 10000 });
+    assert.equal(await fibre(page, '[data-testid=activity]'), react, react ? 'the Activity panel has no React fibre: the page fell back to Svelte' : 'the Activity panel has a React fibre on the Svelte run');
+    await page.click('#right-tab-design');
+  });
 
   const fresh = await list(person);
   if (fresh.batches.length > 0) throw new Error(`the file ${file} already has ${fresh.batches.length} batches: start the server and the pages again on a file name that is new`);
@@ -161,12 +172,6 @@ const skip = (name, why) => console.log(`skip ${name}: ${why}`);
     await shot(page, 'design-with-ring');
   });
 
-  await check('the Activity panel is drawn by the copy that was asked for', async () => {
-    await openActivity();
-    assert.equal(await page.locator('[data-testid=activity]').count(), 1);
-    assert.equal(await fibre(page, '[data-testid=activity]'), react, react ? 'the Activity panel has no React fibre: the page fell back to Svelte' : 'the Activity panel has a React fibre on the Svelte run');
-  });
-
   await check('the Activity tab fetches and shows the agent lane with its numbered batches, newest first, and the notes as literal text', async () => {
     await openActivity();
     await until('the lane', async () => (await page.locator('[data-testid=lane][data-actor="agent:claude"]').count()) === 1);
@@ -191,7 +196,6 @@ const skip = (name, why) => console.log(`skip ${name}: ${why}`);
   });
 
   await check('the question of a revert takes the focus on Cancel, and Escape closes it and gives the focus back to Revert; so does a restore', async () => {
-    const active = () => page.evaluate(() => { const e = document.activeElement; return `${e?.closest('[data-testid]')?.getAttribute('data-testid') ?? ''}|${e?.textContent?.trim() ?? ''}`; });
     await row(B.n).locator('[data-testid=batch-revert]').click();
     await row(B.n).locator('[data-testid=revert-confirm]').waitFor();
     await until('the focus is on Cancel', async () => (await active()) === 'revert-cancel|Cancel');
@@ -286,6 +290,7 @@ const skip = (name, why) => console.log(`skip ${name}: ${why}`);
   await check("Revert of the second batch restores the fields its agent wrote last; the person's colour and the third batch stay; one undo takes it back", async () => {
     assert.deepEqual(await state(), asBefore);
     await revert(B.n);
+    await until('the focus is back on Revert of that batch after the revert was confirmed', async () => (await active()) === 'batch-revert|Revert');
     await until('the revert reached the server', async () => (await state()).text === T0);
     assert.deepEqual(await state(), reverted, 'the heading goes back, the hero keeps the green of the person');
     assert.match(await page.locator('[data-testid=activity-message]').innerText(), /Reverted/);
@@ -309,7 +314,9 @@ const skip = (name, why) => console.log(`skip ${name}: ${why}`);
     const newest = page.locator('[data-testid=checkpoint]').first();
     assert.match(await newest.innerText(), /Before reverting/);
     await newest.locator('[data-testid=checkpoint-restore] button').click();
+    const asked = await newest.getAttribute('data-checkpoint');
     await page.locator('[data-testid=restore-yes]').click();
+    await until('the focus is back on Restore of that checkpoint after the restore was confirmed', async () => (await active()) === 'checkpoint-restore|Restore' && (await page.evaluate(() => document.activeElement?.closest('[data-checkpoint]')?.getAttribute('data-checkpoint'))) === asked);
     await until('restored', async () => (await fillOf()) === '#facc15');
     assert.deepEqual(await state(), asBefore, 'the restore touched nothing but the card');
     assert.ok((await seqNow()) > seq, 'the restore wrote new changes at the end of the log');

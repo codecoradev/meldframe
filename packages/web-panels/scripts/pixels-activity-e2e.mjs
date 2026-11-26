@@ -106,7 +106,7 @@ const STEPS = [
   { name: 'the question closed with Cancel', run: async (p) => { await p.click(CANCEL); await p.locator('[data-testid=revert-confirm]').waitFor({ state: 'detached' }); } },
   { name: 'the question of a restore', run: async (p) => { await p.locator('[data-testid=checkpoint-restore] button').first().click(); await p.locator('[data-testid=restore-confirm]').waitFor(); } },
   { name: 'a name typed in Create checkpoint', run: async (p) => { await p.locator('[data-testid=restore-cancel] button').click(); await p.fill(NAME, 'Before the pitch'); } },
-  { name: 'a name refused, in the status line', run: async (p) => { await p.fill(NAME, 'pay‮now'); await p.click('[data-testid=checkpoint-create]'); await p.locator('[data-testid=activity-message] p').waitFor(); } },
+  { name: 'a name refused, in the status line', run: async (p) => { await p.fill(NAME, 'pay\u202enow'); await p.click('[data-testid=checkpoint-create]'); await p.locator('[data-testid=activity-message] p').waitFor(); } },
 ];
 
 const lanes = (p) => p.locator('[data-testid=lane]').evaluateAll((l) => l.map((x) => `${x.dataset.actor}=${x.dataset.state}`));
