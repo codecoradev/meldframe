@@ -15,6 +15,8 @@
 //   /?react=properties  the Properties panel and its sections drawn by React (E7.3, S6): PropertiesPanelSwitch.svelte, which Editor.svelte imports.
 //                        The image picker of the Fill section is Svelte until S7: the switch gives the React panel a view that mounts it
 //                        (ImagePickerHost.svelte) and the route of an asset's thumbnail, which a view package may not import.
+//   /?react=activity    the Activity panel (lanes, batches, review, Revert, the checkpoints) drawn by React (E7.3, S8):
+//                        ActivityPanelSwitch.svelte, which Editor.svelte imports.
 // packages/web-chrome/scripts/overlays-e2e.mjs asks the two fixtures the same questions; states-e2e.mjs runs on the first with MELDFRAME_UI=react.
 import { mount } from 'svelte';
 

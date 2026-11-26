@@ -11,10 +11,10 @@
 //   (in apps/web) MELDFRAME_WEB_TOKEN=<.dev-token> MELDFRAME_SERVER=http://127.0.0.1:8084 MELDFRAME_WEB_FILE=<file> \
 //     MELDFRAME_WEB_ACTOR=person:ada npx vite --port 5185
 //   MELDFRAME_WEB_FILE=<file> MELDFRAME_DEMO_TOKEN2=<token 2> node packages/web-panels/scripts/hostile-names-e2e.mjs http://localhost:5185 http://127.0.0.1:8084
-// With MELDFRAME_UI=react the script opens the pages that have a React copy with their switch (/?react=layers,variables,properties for the
-// editor, so the Layers panel, the Variables panel and the Properties panel are the React copies; /?react=export for the Export dialog;
-// /?react=feedback for the error page) and first asks that React drew them. Only the lanes of the Activity panel have no React
-// copy: that check runs on the Svelte copy in both runs. MELDFRAME_E2E_SHOTS=<dir> saves screenshots (2x, 1440x900).
+// With MELDFRAME_UI=react the script opens the pages that have a React copy with their switch (/?react=layers,variables,properties,activity
+// for the editor, so the Layers panel, the Variables panel, the Properties panel and the Activity panel with its lanes are the React copies;
+// /?react=export for the Export dialog; /?react=feedback for the error page) and first asks that React drew them.
+// MELDFRAME_E2E_SHOTS=<dir> saves page images (2x, 1440x900).
 // Needs the WASM bridge built (`just wasm-build`) and Playwright from the global module path. The web and server URLs must be loopback.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -84,7 +84,7 @@ const batch = await tool(agent, 'apply_commands', { idempotencyKey: `hostile-${r
 ] });
 assert.equal(batch.ok, true, `the agent's write: ${JSON.stringify(batch)}`);
 
-const page = await open(react ? `${web}?react=layers,variables,properties` : web, { dsf: 2 });
+const page = await open(react ? `${web}?react=layers,variables,properties,activity` : web, { dsf: 2 });
 await live(page);
 const layer = (id) => page.locator(`[data-testid=layer][data-id="${id}"]`);
 const fibre = (sel) => page.evaluate((s) => Object.keys(document.querySelector(s) ?? {}).some((k) => k.startsWith('__reactFiber$')), sel);
@@ -159,6 +159,7 @@ await check('Activity: the lane is named by the clean actor name and wears the c
   await page.locator('#right-tab-activity').click();
   const lane = page.locator('[data-testid=lane][data-actor="agent:\u{1F300}x"]');
   await lane.waitFor({ timeout: 15000 });
+  assert.equal(await fibre('[data-testid=activity]'), react, react ? 'the Activity panel has no React fibre: the page fell back to Svelte' : 'the Activity panel has a React fibre on the Svelte run');
   assert.equal((await lane.locator('bdi').first().innerText()).trim(), '\u{1F300}x');
   const dot = lane.locator('[data-tone]').first();
   assert.equal(await dot.getAttribute('data-tone'), layerTone, 'the lane and the layer row carry one tone');
