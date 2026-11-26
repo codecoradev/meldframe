@@ -224,11 +224,7 @@ impl Activity {
                 let runs = merge(points.remove(actor.as_str()).unwrap_or_default());
                 let age = self.seen.get(&actor).map(|t| self.now.saturating_sub(*t));
                 Lane {
-                    kind: if actor.starts_with("agent:") {
-                        LaneKind::Agent
-                    } else {
-                        LaneKind::Person
-                    },
+                    kind: LaneKind::of(&actor),
                     state: match age {
                         Some(a) if a < WORKING_MS => LaneState::Working,
                         Some(a) if a < IDLE_MS => LaneState::Quiet,
