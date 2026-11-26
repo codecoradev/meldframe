@@ -158,7 +158,7 @@ impl App {
                         .as_ref()
                         .is_some_and(|p| p.id == id && p.field == field)
                 {
-                    self.state.picker = None;
+                    self.close_picker();
                 }
                 done
             }

@@ -1,12 +1,22 @@
 //! A small Rust tokenizer for the source rules of `mm-check`: comments dropped, a literal or a
 //! lifetime kept as one token, every other character its own token. It is not a parser: it finds
-//! item boundaries by counting brackets, which is enough for pattern search.
+//! functions and item boundaries by counting brackets, which is enough for exact-copy detection
+//! and pattern search.
 
 /// One token with the line (from 1) where it starts.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tok {
     pub text: String,
     pub line: usize,
+}
+
+/// A function found in a token stream.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Func {
+    pub name: String,
+    pub line: usize,
+    /// Every token from `fn` to the closing brace of the body, without the name.
+    pub tokens: Vec<String>,
 }
 
 /// Split `src` into tokens. Comments (line, block and doc) are dropped.
@@ -231,6 +241,52 @@ pub fn strip_tests(toks: Vec<Tok>) -> Vec<Tok> {
         }
         out.push(toks[i].clone());
         i += 1;
+    }
+    out
+}
+
+/// Every function with a body, nested functions inside another body not counted separately.
+pub fn functions(toks: &[Tok]) -> Vec<Func> {
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i + 1 < toks.len() {
+        let named = toks[i + 1]
+            .text
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_alphabetic() || c == '_');
+        if !(is(&toks[i], "fn") && named) {
+            i += 1;
+            continue;
+        }
+        // The body is the first `{` outside parentheses; a `;` first means a declaration.
+        let mut k = i + 2;
+        let open = loop {
+            match toks.get(k).map(|t| t.text.as_str()) {
+                None | Some(";") => break None,
+                Some("(" | "[") => k = close_of(toks, k),
+                Some("{") => break Some(k),
+                _ => {}
+            }
+            k += 1;
+        };
+        let Some(open) = open else {
+            i += 2;
+            continue;
+        };
+        let close = close_of(toks, open);
+        let tokens = toks[i..=close]
+            .iter()
+            .enumerate()
+            .filter(|(n, _)| *n != 1)
+            .map(|(_, t)| t.text.clone())
+            .collect();
+        out.push(Func {
+            name: toks[i + 1].text.clone(),
+            line: toks[i].line,
+            tokens,
+        });
+        i = close + 1;
     }
     out
 }

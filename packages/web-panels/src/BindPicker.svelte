@@ -27,7 +27,7 @@
 <Popover.Root open={!!mine} onOpenChange={(o) => dispatch(o ? openPickerAction(p, field) : closePickerAction())}>
   <Popover.Trigger>
     {#snippet child({ props })}
-      <IconButton label="Bind {FIELD_LABEL[field]} to a variable" icon="variable" size={24} triggerProps={props} onclick={props.onclick as (e: MouseEvent) => void} data-testid="prop-{field}-bind" />
+      <IconButton label="Bind {FIELD_LABEL[field]} to a variable" icon="variable" size={24} triggerProps={props} data-testid="prop-{field}-bind" />
     {/snippet}
   </Popover.Trigger>
   <Popover.Portal>

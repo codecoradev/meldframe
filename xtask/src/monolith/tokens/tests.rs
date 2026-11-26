@@ -4,14 +4,6 @@ fn texts(src: &str) -> Vec<String> {
     tokenize(src).into_iter().map(|t| t.text).collect()
 }
 
-/// The name after every `fn`.
-fn fn_names(toks: &[Tok]) -> Vec<String> {
-    toks.windows(2)
-        .filter(|w| w[0].text == "fn")
-        .map(|w| w[1].text.clone())
-        .collect()
-}
-
 fn texts_of(toks: Vec<Tok>) -> Vec<String> {
     toks.into_iter().map(|t| t.text).collect()
 }
@@ -80,11 +72,42 @@ fn lines_count_from_one_through_comments_and_strings() {
 }
 
 #[test]
+fn a_function_is_its_tokens_without_the_name() {
+    let a = functions(&tokenize("pub fn one(x: u8) -> u8 { x + 1 }"));
+    let b = functions(&tokenize("fn two(x: u8) -> u8 { x + 1 }"));
+    assert_eq!(a.len(), 1);
+    assert_eq!(a[0].name, "one");
+    assert_eq!(a[0].line, 1);
+    assert_eq!(a[0].tokens, b[0].tokens);
+    assert!(!a[0].tokens.contains(&"one".to_string()));
+}
+
+#[test]
+fn declarations_without_a_body_and_function_pointers_are_skipped() {
+    let src = "trait T { fn a(&self) -> u8; fn b(&self) -> u8 { 1 } }\n\
+               type P = fn(u8) -> u8;";
+    let fns = functions(&tokenize(src));
+    let names: Vec<&str> = fns.iter().map(|f| f.name.as_str()).collect();
+    assert_eq!(names, ["b"]);
+}
+
+#[test]
+fn methods_are_found_and_a_nested_function_belongs_to_its_outer_function() {
+    let src = "impl X { fn m(&self) { fn inner() { 1 } inner(); } fn n(&self) {} }";
+    let names: Vec<String> = functions(&tokenize(src))
+        .into_iter()
+        .map(|f| f.name)
+        .collect();
+    assert_eq!(names, ["m", "n"]);
+}
+
+#[test]
 fn items_under_cfg_test_and_test_functions_are_removed() {
     let src = "fn keep() {}\n#[cfg(test)]\nmod tests { fn t() {} }\n\
                #[test]\nfn also() {}\n#[cfg(test)] use x::y;\nfn last() {}";
     let stripped = strip_tests(tokenize(src));
-    assert_eq!(fn_names(&stripped), ["keep", "last"]);
+    let names: Vec<String> = functions(&stripped).into_iter().map(|f| f.name).collect();
+    assert_eq!(names, ["keep", "last"]);
     assert!(!texts_of(stripped).contains(&"use".to_string()));
 }
 
@@ -125,7 +148,7 @@ fn a_file_that_ends_in_the_middle_of_an_attribute_does_not_panic() {
         let _ = strip_tests(tokenize(src));
     }
     let kept = strip_tests(tokenize("fn a() {}\n#["));
-    assert_eq!(fn_names(&kept).len(), 1);
+    assert_eq!(functions(&kept).len(), 1);
 }
 
 #[test]
@@ -141,7 +164,10 @@ fn cfg_all_with_test_is_test_code_and_other_cfgs_are_not() {
         ("#[cfg(feature = \"test\")]", false),
     ] {
         let src = format!("{attr}\nfn gone() {{}}\nfn kept() {{}}");
-        let names = fn_names(&strip_tests(tokenize(&src)));
+        let names: Vec<String> = functions(&strip_tests(tokenize(&src)))
+            .into_iter()
+            .map(|f| f.name)
+            .collect();
         let expect: &[&str] = if stripped {
             &["kept"]
         } else {
