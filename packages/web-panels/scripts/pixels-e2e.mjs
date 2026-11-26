@@ -20,7 +20,8 @@
 // Layers panel's empty state (the file has nodes), the icon of a shader node and, in the Properties panel, the shader node, the Text
 // section's weight select open, the chip of a variable that was removed (a binding whose variable is gone) and Absolute position
 // checked. A step only clicks and types: it never changes the file, so the second run starts from the file
-// the first one saw; the one exception is the import steps of `io-import`, which apply a style sheet and whose `finish` takes it back with one undo (and waits
+// the first one saw (the page's actor must be the token's actor: start Vite with MELDFRAME_WEB_ACTOR set to the actor of the token in .dev-token, `agent:dev` unless the server was
+// given another, or the undo of the import steps below is not the page's own); the one exception is the import steps of `io-import`, which apply a style sheet and whose `finish` takes it back with one undo (and waits
 // for the server to have it) before the React page opens.
 // The Activity panel is imaged by pixels-activity-e2e.mjs: its rows are live (a batch the page watched arrive can be reverted, one that was
 // there when the page loaded cannot) and its lanes change with the clock, so it opens both copies at the same time on one file.
