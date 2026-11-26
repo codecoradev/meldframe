@@ -75,6 +75,30 @@ fn walk(root: &Path, dir: &Path, exts: &[&str], out: &mut Vec<String>) {
     }
 }
 
+/// The text of `rel` on the git ref `base`: an error when the ref does not resolve, `None` when
+/// the file is not on it (a list that is being introduced).
+pub fn base_file(root: &Path, base: &str, rel: &str) -> Result<Option<String>, String> {
+    let git = |spec: &str, show: bool| {
+        let mut cmd = std::process::Command::new("git");
+        if show {
+            cmd.args(["show", spec]);
+        } else {
+            cmd.args(["rev-parse", "--verify", "--quiet", spec]);
+        }
+        cmd.current_dir(root)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+    };
+    if git(&format!("{base}^{{commit}}"), false).is_none() {
+        return Err(format!("--base `{base}` is not a git ref that resolves"));
+    }
+    Ok(
+        git(&format!("{base}:{rel}"), true)
+            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned()),
+    )
+}
+
 /// Read a file relative to `root`; unreadable files read as empty (a skipped file is not a
 /// finding for the checks that call this).
 pub fn read(root: &Path, rel: &str) -> String {

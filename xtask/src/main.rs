@@ -1,7 +1,9 @@
 //! Repository checks: layering rules, build matrix, portability and other gates.
 
+mod args;
 mod matrix;
 mod metadata;
+mod monolith;
 mod plan;
 mod portable;
 mod rules;
@@ -31,6 +33,9 @@ fn main() -> ExitCode {
             run_steps("portable-check", &portable::plan(p), Some(hint))
         }),
         Some("size-check") => with_packages(|p| finish(size_check(p))),
+        Some("mm-check") => {
+            with_packages(|p| finish(monolith::run(p, &std::env::args().collect::<Vec<_>>())))
+        }
         Some("licences") => finish(licences_check()),
         Some("ui-literals") => with_packages(|p| {
             let found = ui_literals::collect(&scan::workspace_root(), p);
@@ -38,7 +43,7 @@ fn main() -> ExitCode {
         }),
         other => {
             eprintln!(
-                "usage: cargo xtask <deps-check|build-matrix|portable-check|size-check|ui-literals|licences> (got {other:?})"
+                "usage: cargo xtask <deps-check|build-matrix|portable-check|size-check|mm-check|ui-literals|licences> (got {other:?})"
             );
             ExitCode::from(2)
         }
