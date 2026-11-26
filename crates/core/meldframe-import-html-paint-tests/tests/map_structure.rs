@@ -64,7 +64,8 @@ fn the_root_is_named_by_the_call_then_the_title_then_the_element_then_the_defaul
         name: name.map(Into::into),
         ..Options::default()
     };
-    let name = |h: &str, o: &Options| nodes(&import(h, "", o).unwrap())[0].name.clone();
+    // A page with no margin: one frame is the root (with the browser margin it is inside a root frame).
+    let name = |h: &str, o: &Options| nodes(&import(h, FLAT, o).unwrap())[0].name.clone();
     assert_eq!(name(doc, &o(None)), "My page");
     assert_eq!(name(doc, &o(Some("Landing"))), "Landing");
     assert_eq!(

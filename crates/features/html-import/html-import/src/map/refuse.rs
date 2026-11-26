@@ -7,7 +7,6 @@
 
 use super::notes::Notes;
 use crate::css::{Source, Style};
-use crate::html::Element;
 
 /// The properties the mapping reads (each may still refuse a value of it, where it reads it).
 const READ: &[&str] = &[
@@ -90,8 +89,7 @@ fn export_form(name: &str, v: &str) -> bool {
 }
 
 /// List the declarations of `s` that are neither read nor answered by the paint stage.
-pub(super) fn scan(s: &Style, el: &Element, n: &mut Notes) {
-    let exported = el.attr("data-node").is_some();
+pub(super) fn scan(s: &Style, exported: bool, n: &mut Notes) {
     for (name, prop) in s.declared() {
         if !matches!(prop.source, Source::Author | Source::Inline) {
             continue;

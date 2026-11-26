@@ -73,7 +73,24 @@ fn quiet(name: &str, value: &str) -> bool {
 pub(super) fn plain(s: &Style) -> bool {
     s.declared().all(|(name, p)| {
         !matches!(p.source, Source::Author | Source::Inline) || quiet(name, &p.value)
-    })
+    }) && no_room(s)
+}
+
+/// No margin and no padding, the browser's own (`ul`, `blockquote`, the `body`) as much as the author's: a wrapper
+/// that holds room is a box of the page, and so is a margin that is not a length in pixels.
+fn no_room(s: &Style) -> bool {
+    [
+        "margin-top",
+        "margin-right",
+        "margin-bottom",
+        "margin-left",
+        "padding-top",
+        "padding-right",
+        "padding-bottom",
+        "padding-left",
+    ]
+    .iter()
+    .all(|p| s.get(p).is_none() || s.len(p).is_some_and(|l| l.px == 0.0))
 }
 
 pub(super) struct Walk<'a> {
@@ -83,6 +100,8 @@ pub(super) struct Walk<'a> {
     pub(super) opts: &'a Options,
     skipped: Vec<Skipped>,
     skipped_omitted: usize,
+    /// The nodes made so far. Past the cap of a call the walk makes no more (`over`), since the call is refused.
+    made: usize,
 }
 
 impl<'a> Walk<'a> {
@@ -99,7 +118,17 @@ impl<'a> Walk<'a> {
             opts,
             skipped: Vec::new(),
             skipped_omitted: 0,
+            made: 0,
         }
+    }
+
+    /// How many nodes were made (a lower bound once the cap of a call was passed: the walk stops there).
+    pub fn made(&self) -> usize {
+        self.made
+    }
+
+    pub(super) fn over(&self) -> bool {
+        self.made > super::MAX_COMMANDS
     }
 
     pub fn into_skipped(self) -> (Vec<Skipped>, usize) {
@@ -150,11 +179,11 @@ impl<'a> Walk<'a> {
 
     /// What the declarations of a box say that no stage carried: the notes of the style stage, the properties the
     /// mapping does not read, and generated content.
-    pub(super) fn leftovers(&mut self, s: &Style, el: &Element, n: &mut Notes) {
+    pub(super) fn leftovers(&mut self, s: &Style, exported: bool, n: &mut Notes) {
         for note in &s.notes {
             n.lose(&note.property, &note.value, note.code);
         }
-        refuse::scan(s, el, n);
+        refuse::scan(s, exported, n);
         let content = |p: &crate::css::Props| p.get("content").map(|c| c.value.trim().to_owned());
         let real = |c: Option<String>, empty_ok: bool| {
             c.is_some_and(|c| {
@@ -178,6 +207,15 @@ impl<'a> Walk<'a> {
 
     /// One element as a node, or none (it is hidden, or only a wrapper).
     pub(super) fn map_el(&mut self, id: ElementId, p: &Parent) -> Option<Spec> {
+        if self.over() {
+            return None;
+        }
+        let spec = self.map_one(id, p);
+        self.made += usize::from(spec.is_some());
+        spec
+    }
+
+    fn map_one(&mut self, id: ElementId, p: &Parent) -> Option<Spec> {
         let (tree, styles) = (self.tree, self.styles);
         let (el, s) = (tree.element(id), styles.get(id));
         let source = names::source(el, id);
@@ -203,7 +241,7 @@ impl<'a> Walk<'a> {
             && names::authored(el).is_none()
             && !self.is_absolute(*c)
         {
-            return self.map_el(*c, p);
+            return self.map_one(*c, p);
         }
         let w_px = s.len("width").filter(|l| l.px >= 0.0).map(|l| l.px);
         let h_px = s.len("height").filter(|l| l.px >= 0.0).map(|l| l.px);
@@ -213,7 +251,7 @@ impl<'a> Walk<'a> {
             has_children: !items.is_empty(),
         };
         let paint = self.read_paint(s, el, &ctx, &mut n);
-        self.leftovers(s, el, &mut n);
+        self.leftovers(s, el.attr("data-node").is_some(), &mut n);
         let at = place(s, &mut n);
         let mut apad = authored_padding(s, &mut n);
         if control {
@@ -253,6 +291,7 @@ impl<'a> Walk<'a> {
             );
             let ah = axis(s, &mut n, p, false, kind);
             size_text(&mut node, aw, ah, &ts);
+            node.opacity = paint.opacity.clone();
             common(&mut node, s, p, &at, &mut n);
             node.name = names::of_text(Some(el), &text);
             return Some(Spec {

@@ -1,5 +1,5 @@
 //! Text (`docs/import-html.md` section 3.5): the pieces of a run, how a browser collapses their spaces, and the style
-//! a text node takes from its box. The text a document holds is file content: it is only collapsed and cased as the
+//! a text node takes from its box. The text the HTML holds is file content: it is only collapsed and cased as the
 //! source style asks, never cleaned of hidden characters (rule U9).
 
 use super::notes::Notes;

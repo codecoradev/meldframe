@@ -1,5 +1,5 @@
 //! The bounds of an import and hostile text: the limits, the codes, nothing fetched and nothing run, and the
-//! work staying in proportion to the text. A prefix of any document is read without a panic.
+//! work staying in proportion to the text. A prefix of any HTML is read without a panic.
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
@@ -70,32 +70,50 @@ fn nothing_to_import_is_empty() {
 
 #[test]
 fn deep_nesting_is_bounded_and_wrappers_collapse() {
-    // 3,000 bare wrappers are one node and the text: no recursion without a bound, no node for a wrapper.
+    // 3,000 bare wrappers: the tree builder cuts the depth (the content of an element it does not make goes into the
+    // deepest it made), and the wrappers that are left make no node, so the text is the one node.
     let html = format!("{}x{}", "<div>".repeat(3_000), "</div>".repeat(3_000));
     let i = run(&html);
-    assert!(i.commands.len() <= 3, "{}", i.commands.len());
+    assert!(
+        i.report.counts.get("depth_cut").is_some_and(|n| *n > 0),
+        "{:?}",
+        i.report.counts
+    );
+    assert_eq!(
+        i.commands.len(),
+        2,
+        "the page and the text: {:?}",
+        names(&nodes(&i))
+    );
 }
 
 #[test]
-fn deep_nesting_that_says_something_is_cut_by_the_depth_of_the_tree() {
+fn deep_nesting_that_says_something_is_cut_to_the_depth_of_the_tree() {
     let html = format!(
         "{}x{}",
         "<div style=\"padding:1px\">".repeat(100),
         "</div>".repeat(100)
     );
-    match import(&html, FLAT, &Options::default()) {
-        Ok(i) => assert!(i.commands.len() <= MAX_COMMANDS),
-        Err(e) => assert_eq!(e.code(), "E_IMPORT_HTML_TOO_MANY"),
-    }
+    let i = run(&html);
+    // 64 frames, the deepest holding the text of the 36 that were cut.
+    assert!(
+        i.report.counts.get("depth_cut").is_some_and(|n| *n > 0),
+        "{:?}",
+        i.report.counts
+    );
+    assert_eq!(i.commands.len(), 65);
+    assert!(i.commands.len() <= MAX_COMMANDS);
 }
 
 #[test]
-fn a_huge_attribute_is_cut_and_nothing_fails() {
+fn a_huge_attribute_is_left_out_whole_and_the_node_is_named_by_its_role() {
     let big = "x".repeat(200_000);
-    let html = format!("<div data-name=\"{big}\" style=\"width:10px;height:5px\"></div>");
+    let html = format!(
+        "<div style=\"width:30px\"><div data-name=\"{big}\" style=\"width:10px;height:5px\"></div></div>"
+    );
     let i = run(&html);
-    assert!(i.nodes[0].name.is_empty() || i.nodes[0].name.chars().count() <= 256);
-    assert!(i.report.counts.contains_key("attribute_too_long"));
+    assert_eq!(i.report.counts.get("attribute_too_long"), Some(&1));
+    assert_eq!(i.nodes[1].name, "Container", "{:?}", i.nodes);
 }
 
 #[test]
@@ -197,7 +215,20 @@ fn a_text_over_the_limit_of_the_file_is_still_one_node_the_gate_will_refuse_nami
 }
 
 #[test]
-fn every_prefix_of_a_document_is_read_without_a_panic() {
+fn a_very_long_text_is_measured_as_one_line_so_the_work_stays_small() {
+    // The stub's wrap is quadratic in the length of a line: a text of 60,000 characters in a box of 100,000 px would
+    // run for seconds. A text over 4,096 characters is measured as one line (the stored size is an estimate, the
+    // layout ignores it), so the height is that of one line.
+    let t = "a ".repeat(30_000);
+    let ns = import_nodes(&format!(
+        "<div style=\"width:300px\"><p style=\"margin:0;width:100000px\">{t}</p></div>"
+    ));
+    let n = ns.iter().find(|n| n.kind == NodeKind::Text).unwrap();
+    assert_eq!(n.h, 20.0, "one line of the stub: ceil(16 * 1.2)");
+}
+
+#[test]
+fn every_prefix_of_an_html_text_is_read_without_a_panic() {
     let doc = "<!doctype html><html><head><title>T</title><style>p{color:red}.a{width:10px}</style></head><body style=\"margin:0\"><div class=a style=\"display:flex;gap:4px\"><p style=\"margin:0\">Hello &amp; <b>world</b><br>x</p><img src=\"a.png\"><table><tr><td>1</td><td>2</td></tr></table></div></body></html>";
     for (i, _) in doc.char_indices() {
         let _ = import(&doc[..i], "", &Options::default());

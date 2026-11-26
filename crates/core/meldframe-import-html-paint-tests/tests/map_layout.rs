@@ -138,10 +138,16 @@ fn the_cross_axis_stretches_only_when_the_parent_says_so() {
 
 #[test]
 fn width_fit_content_is_hug_and_one_hundred_percent_is_fill() {
-    let ns = one(
-        "width:300px",
-        "<div id=b style=\"width:fit-content;height:5px\"></div><div id=c style=\"width:100%;height:5px\"></div><div id=d style=\"width:50%;height:5px\"></div>",
+    let i = run(
+        "<div id=a style=\"width:300px\"><div id=b style=\"width:fit-content;height:5px\"></div><div id=c style=\"width:100%;height:5px\"></div><div id=d style=\"width:50%;height:5px\"></div></div>",
     );
+    let ns = nodes(&i);
+    assert!(
+        lost(&i, "d").contains(&"width".to_string()),
+        "{:?}",
+        info(&i, "d")
+    );
+    assert!(lost(&i, "c").is_empty());
     assert_eq!(named(&ns, "b").sw, SizeMode::Hug);
     assert_eq!(named(&ns, "c").sw, SizeMode::Fill);
     assert_eq!(

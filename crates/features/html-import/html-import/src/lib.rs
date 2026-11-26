@@ -14,12 +14,7 @@
 //! kept as text or listed), and run nothing. Their work is counted so that a test can show it is bounded by the size
 //! of the text. Nothing in them reads a file, a clock or a thread, so they build for `wasm32-unknown-unknown` (L5).
 
-/// The CSS side as its callers see it: the reader and the cascade of `html-import-css` and the style stage of
-/// `html-import-style` (`value`, `vars`, `shorthand`, `defaults`, and the computed style) in one module.
-pub mod css {
-    pub use html_import_css::css::*;
-    pub use html_import_style::*;
-}
+pub mod css;
 pub use html_import_css::tw;
 pub use html_import_tree as html;
 pub mod map;

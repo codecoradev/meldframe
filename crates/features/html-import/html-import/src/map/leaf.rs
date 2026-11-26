@@ -20,6 +20,9 @@ fn attr_px(el: &Element, name: &str) -> Option<f64> {
     v.parse::<f64>().ok().filter(|n| n.is_finite() && *n >= 0.0)
 }
 
+/// The longest text, in characters, that is measured wrapped.
+const WRAP_MEASURE_MAX: usize = 4_096;
+
 fn measure(node: &Node, wrap: Option<f64>) -> (f64, f64) {
     StubMeasurer.measure(node, wrap)
 }
@@ -63,13 +66,24 @@ impl Walk<'_> {
     pub(super) fn replaced(&mut self, id: ElementId, p: &Parent, source: String) -> Spec {
         let (el, s) = (self.tree.element(id), self.styles.get(id));
         let mut n = Notes::default();
-        let size = |prop: &str, attr: &str, n: &mut Notes| match s.len(prop).filter(|l| l.px >= 0.0)
-        {
-            Some(l) => l.px,
-            None => attr_px(el, attr).unwrap_or_else(|| {
+        // A size in pixels from the CSS or the attribute; one that is not (a percentage, `auto`) is listed as refused, and
+        // the box has the model's size.
+        let size = |prop: &str, attr: &str, n: &mut Notes| {
+            if let Some(l) = s.len(prop).filter(|l| l.px >= 0.0) {
+                return l.px;
+            }
+            if let Some(v) = s
+                .get(prop)
+                .filter(|v| !v.trim().eq_ignore_ascii_case("auto"))
+            {
+                n.lose(prop, v, "refused_unreadable");
+            } else if let Some(v) = el.attr(attr).filter(|_| attr_px(el, attr).is_none()) {
+                n.lose(prop, v, "refused_unreadable");
+            }
+            attr_px(el, attr).unwrap_or_else(|| {
                 n.change(prop, "not set", "100px");
                 100.0
-            }),
+            })
         };
         let (w, h) = (
             size("width", "width", &mut n),
@@ -81,7 +95,22 @@ impl Walk<'_> {
             has_children: false,
         };
         let paint = self.read_paint(s, el, &ctx, &mut n);
-        self.leftovers(s, el, &mut n);
+        self.leftovers(s, el.attr("data-node").is_some(), &mut n);
+        // A rect has no padding.
+        for side in [
+            "padding-top",
+            "padding-right",
+            "padding-bottom",
+            "padding-left",
+        ] {
+            if s.len(side).is_some_and(|l| l.px != 0.0) {
+                n.lose(
+                    side,
+                    s.get(side).unwrap_or_default(),
+                    "refused_not_modelled",
+                );
+            }
+        }
         let mut node = blank(NodeKind::Rect);
         paint.apply(&mut node);
         let at: Place = place(s, &mut n);
@@ -130,7 +159,10 @@ pub(super) fn text_node(ts: &TextStyle, text: &str) -> Node {
 /// The stored size of a text: the authored pixels, else an estimate of the stub measure (the layout ignores it for a
 /// hug or fill axis).
 pub(super) fn size_text(node: &mut Node, aw: Axis, ah: Axis, ts: &TextStyle) {
-    let wrap = (!ts.ws.hugs()).then_some(aw.px).flatten();
+    // The stub's wrap is quadratic in the length of a line, so a long text is measured as one line (an estimate
+    // either way, and the layout ignores the stored size of a hug or fill axis).
+    let short = node.text.chars().count() <= WRAP_MEASURE_MAX;
+    let wrap = (!ts.ws.hugs() && short).then_some(aw.px).flatten();
     let (mw, mh) = measure(node, wrap);
     node.sw = aw.mode;
     node.sh = ah.mode;
@@ -164,6 +196,13 @@ pub(super) fn common(node: &mut Node, s: &Style, p: &Parent, at: &Place, n: &mut
     node.absolute = at.absolute && p.layout != LayoutMode::None;
     if p.layout != LayoutMode::None && !at.absolute {
         set_margin(node, s, n);
+    }
+    // A child of a flex container can place itself on the cross axis; the model has that on the parent only.
+    if p.flex
+        && let Some(v) = s.get("align-self").map(|v| v.trim().to_ascii_lowercase())
+        && !matches!(v.as_str(), "auto" | "normal" | "stretch")
+    {
+        n.lose("align-self", &v, "refused_not_modelled");
     }
     visible(node, s, n);
 }

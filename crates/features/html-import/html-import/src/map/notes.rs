@@ -1,10 +1,10 @@
 //! What one node could not take: the properties that were refused ([`Lost`]) and the values that were changed to the
-//! nearest the model holds ([`Change`]). Everything here comes from the document, so it is made safe to show where it
+//! nearest the model holds ([`Change`]). Everything here comes from the HTML, so it is made safe to show where it
 //! enters (rule U9): the display profile for a value, the strict one for a property name, each cut.
 
 use meldframe_text::{Profile, sanitize_clip};
 
-/// The most entries of each list a node keeps.
+/// The most entries of each list a node keeps (a starting guess, as the other bounds of the importer).
 const MAX_PER_NODE: usize = 64;
 const MAX_VALUE: usize = 80;
 
@@ -37,6 +37,16 @@ fn show(s: &str) -> String {
 }
 
 impl Notes {
+    /// Take what `other` lists.
+    pub fn merge(&mut self, other: Notes) {
+        for c in other.approx {
+            self.change(&c.property, &c.from, &c.to);
+        }
+        for l in other.lost {
+            self.lose(&l.property, &l.value, &l.code);
+        }
+    }
+
     /// `property` was read as `to` where the source said `from`.
     pub fn change(&mut self, property: &str, from: &str, to: &str) {
         let property = sanitize_clip(property, Profile::Strict, MAX_VALUE, usize::MAX);

@@ -4,10 +4,12 @@
 use super::names;
 use super::node::display;
 use super::notes::Notes;
-use super::text::Piece;
+use super::refuse;
+use super::text::{Piece, Ws, render};
 use super::walk::Walk;
-use crate::css::Style;
+use crate::css::{Report, Source, Style};
 use crate::html::{Child, Element, ElementId};
+use crate::paint::{self, Ctx};
 
 /// What an element holds, in order: a run of text (pieces of text and line breaks that flow together) or a box.
 #[derive(Debug)]
@@ -90,6 +92,7 @@ impl Walk<'_> {
                             if !*listed {
                                 *listed = differs(base, s, n);
                             }
+                            self.inline_lost(el, s, n);
                             self.collect(&el.children, base, items, n, listed);
                         }
                     }
@@ -102,7 +105,58 @@ impl Walk<'_> {
         let mut items = Vec::new();
         let mut listed = false;
         self.collect(&el.children, s, &mut items, n, &mut listed);
+        drop_blank(&mut items, Ws::of(s));
         items
+    }
+
+    /// What an inline element declares that a run of text cannot carry: a box of its own (a background, a border, a
+    /// shadow, room around it) and the properties the model has no field for. They are listed on the box that holds
+    /// the run, since the inline element makes no node.
+    fn inline_lost(&mut self, el: &Element, s: &Style, n: &mut Notes) {
+        refuse::scan(s, el.attr("data-node").is_some(), n);
+        let mut local = Report::default();
+        let p = paint::read(s, &Ctx::default(), el.at, &mut local);
+        self.absorb(local, n);
+        let first = |names: &[&str]| {
+            names
+                .iter()
+                .find_map(|k| s.get(k))
+                .unwrap_or_default()
+                .to_owned()
+        };
+        let boxes = [
+            ("background-color", p.fill.lit().is_none_or(|f| f != "none")),
+            (
+                "background-image",
+                p.gradient.is_some() || p.image.is_some(),
+            ),
+            ("border", p.border.width > 0.0 || p.border_room > 0.0),
+            ("box-shadow", !p.shadows.is_empty()),
+        ];
+        for (prop, on) in boxes {
+            if on {
+                let v = match prop {
+                    "border" => first(&["border-top-width", "border-left-width"]),
+                    other => first(&[other]),
+                };
+                n.lose(prop, &v, "refused_inline_box");
+            }
+        }
+        for prop in [
+            "padding-top",
+            "padding-right",
+            "padding-bottom",
+            "padding-left",
+            "margin-left",
+            "margin-right",
+        ] {
+            let declared = s
+                .declared()
+                .any(|(k, d)| k == prop && matches!(d.source, Source::Author | Source::Inline));
+            if declared && s.len(prop).is_some_and(|l| l.px != 0.0) {
+                n.lose(prop, s.get(prop).unwrap_or_default(), "refused_inline_box");
+            }
+        }
     }
 
     pub(super) fn is_absolute(&self, id: ElementId) -> bool {
@@ -131,7 +185,11 @@ impl Walk<'_> {
                     .trim()
                     .to_ascii_lowercase();
                 match kind.as_str() {
-                    "checkbox" | "radio" | "range" | "file" | "color" | "image" => None,
+                    "checkbox" | "radio" | "range" | "file" | "color" | "image" | "hidden" => None,
+                    // The value of a password is never copied: the placeholder is what the box shows.
+                    "password" => {
+                        Some(shown(el.attr("placeholder").unwrap_or("")).unwrap_or_default())
+                    }
                     "submit" | "button" | "reset" => {
                         Some(shown(el.attr("value").unwrap_or("")).unwrap_or_default())
                     }
@@ -143,12 +201,21 @@ impl Walk<'_> {
                 }
             }
             "select" => {
-                let options: Vec<&Element> = el
-                    .children
-                    .iter()
-                    .filter_map(|c| match c {
-                        Child::Element(e) => Some(self.tree.element(*e)),
-                        Child::Text(_) => None,
+                let elements = |e: &Element| -> Vec<&Element> {
+                    e.children
+                        .iter()
+                        .filter_map(|c| match c {
+                            Child::Element(e) => Some(self.tree.element(*e)),
+                            Child::Text(_) => None,
+                        })
+                        .collect()
+                };
+                // The options are children of the select or of an optgroup in it.
+                let options: Vec<&Element> = elements(el)
+                    .into_iter()
+                    .flat_map(|c| match c.tag.as_str() {
+                        "optgroup" => elements(c),
+                        _ => vec![c],
                     })
                     .filter(|o| o.tag == "option")
                     .collect();
@@ -209,4 +276,14 @@ fn differs(base: &Style, inline: &Style, n: &mut Notes) -> bool {
         return false;
     }
     true
+}
+
+/// Drop the runs that hold only white space (the indentation between two tags): they are nothing once rendered, and
+/// left in they stop a wrapper from being a wrapper and an empty box from being empty. Space between two pieces of
+/// text stays, as it is inside one run.
+pub(super) fn drop_blank(items: &mut Vec<Item>, ws: Ws) {
+    items.retain(|i| match i {
+        Item::Run(pieces) => !render(pieces, ws).is_empty(),
+        Item::Box(_) => true,
+    });
 }
