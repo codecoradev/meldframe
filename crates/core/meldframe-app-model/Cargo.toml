@@ -11,6 +11,7 @@ kind = "core"
 
 [dependencies]
 meldframe-activity = { path = "../meldframe-activity" }
+meldframe-check = { path = "../meldframe-check" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-revert = { path = "../meldframe-revert" }
 serde = { version = "1", features = ["derive"] }

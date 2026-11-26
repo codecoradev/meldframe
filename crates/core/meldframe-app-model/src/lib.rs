@@ -20,6 +20,7 @@ pub mod export;
 pub mod frame;
 pub mod layers;
 pub mod layout;
+pub mod manage;
 pub mod preset;
 pub mod property;
 pub mod state;
@@ -42,6 +43,10 @@ pub use event::{Event, RevertSkip, RevertSkipReason, VariableEntity};
 pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget};
 pub use layers::LayerRow;
 pub use layout::{Axis, Direction, LayoutNote, Side, Sides};
+pub use manage::{
+    MODE_NAME_MAX, ManageDrafts, ManageLimits, ManageOp, ManageState, ManageTarget, NameCheck,
+    NameDraft, NameError, NameWarning, Removal, RenameField,
+};
 pub use state::{
     AppState, Connection, FieldBinding, FillKind, History, Panel, Panels, Properties, Sections,
     Tool,

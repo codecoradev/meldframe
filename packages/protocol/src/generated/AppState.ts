@@ -7,6 +7,7 @@ import type { Connection } from "./Connection";
 import type { ExportState } from "./ExportState";
 import type { History } from "./History";
 import type { LayerRow } from "./LayerRow";
+import type { ManageState } from "./ManageState";
 import type { Panels } from "./Panels";
 import type { Picker } from "./Picker";
 import type { Properties } from "./Properties";
@@ -71,6 +72,10 @@ modes: { [key in string]: string },
  * The Variables panel (E3.4): filled while `panels.variables` is open, empty otherwise.
  */
 variables: VariablesPanel, 
+/**
+ * The Variables manage view: the collection shown, the question before a removal, the rename field and the forms.
+ */
+manage: ManageState, 
 /**
  * The Activity panel (E5.1): lanes, batches with their notes and review states, and touch rings.
  */

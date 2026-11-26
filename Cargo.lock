@@ -1276,6 +1276,7 @@ name = "meldframe-app-model"
 version = "0.0.0"
 dependencies = [
  "meldframe-activity",
+ "meldframe-check",
  "meldframe-protocol",
  "meldframe-revert",
  "serde",
@@ -2306,6 +2307,7 @@ name = "meldframe-variables-manage-tests"
 version = "0.0.0"
 dependencies = [
  "meldframe-app",
+ "meldframe-app-model",
  "meldframe-app-parts",
  "meldframe-app-rules",
  "meldframe-check",
