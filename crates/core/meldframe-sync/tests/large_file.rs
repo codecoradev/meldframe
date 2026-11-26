@@ -7,7 +7,7 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
-#[path = "../../meldframe-sync/tests/common/mod.rs"]
+#[path = "common/mod.rs"]
 mod common;
 
 use common::{node, upd, x_of};
