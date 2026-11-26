@@ -83,6 +83,8 @@ fn flatten(
                 usage,
                 src: a.src.clone(),
             }));
+        let (approx_omitted, lost_omitted) =
+            (spec.notes.approx_omitted(), spec.notes.lost_omitted());
         out.nodes.push(NodeInfo {
             id: id.clone(),
             name: spec.node.name.clone(),
@@ -90,8 +92,8 @@ fn flatten(
             source: spec.source,
             approximated: spec.notes.approx,
             unsupported: spec.notes.lost,
-            approx_omitted: spec.notes.approx_omitted,
-            lost_omitted: spec.notes.lost_omitted,
+            approx_omitted,
+            lost_omitted,
         });
         let kids = std::mem::take(&mut spec.kids);
         out.commands.push(Command::AddNode {

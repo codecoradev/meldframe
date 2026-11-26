@@ -3,6 +3,7 @@
 //! enters (rule U9): the display profile for a value, the strict one for a property name, each cut.
 
 use meldframe_text::{Profile, sanitize_clip};
+use std::collections::BTreeSet;
 
 /// The most entries of each list a node keeps (a starting guess, as the other bounds of the importer).
 const MAX_PER_NODE: usize = 32;
@@ -30,11 +31,10 @@ pub struct Lost {
 pub(crate) struct Notes {
     pub approx: Vec<Change>,
     pub lost: Vec<Lost>,
-    /// Lines left out of `approx` because it was full. A property left out twice counts twice: only the lines that
-    /// were kept are compared.
-    pub approx_omitted: usize,
+    /// The properties left out of `approx` because it was full: a property said twice is one line.
+    approx_over: BTreeSet<String>,
     /// The same for `lost`, which `strict` counts.
-    pub lost_omitted: usize,
+    lost_over: BTreeSet<String>,
 }
 
 fn show(s: &str) -> String {
@@ -50,8 +50,18 @@ impl Notes {
         for l in other.lost {
             self.lose(&l.property, &l.value, &l.code);
         }
-        self.approx_omitted += other.approx_omitted;
-        self.lost_omitted += other.lost_omitted;
+        self.approx_over.extend(other.approx_over);
+        self.lost_over.extend(other.lost_over);
+    }
+
+    /// How many lines `approx` would hold past its bound.
+    pub fn approx_omitted(&self) -> usize {
+        self.approx_over.len()
+    }
+
+    /// How many lines `lost` would hold past its bound.
+    pub fn lost_omitted(&self) -> usize {
+        self.lost_over.len()
     }
 
     /// `property` was read as `to` where the source said `from`.
@@ -61,7 +71,7 @@ impl Notes {
             return;
         }
         if self.approx.len() >= MAX_PER_NODE {
-            self.approx_omitted += 1;
+            self.approx_over.insert(property);
             return;
         }
         self.approx.push(Change {
@@ -78,7 +88,7 @@ impl Notes {
             return;
         }
         if self.lost.len() >= MAX_PER_NODE {
-            self.lost_omitted += 1;
+            self.lost_over.insert(property);
             return;
         }
         self.lost.push(Lost {

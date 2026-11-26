@@ -18,6 +18,8 @@ pub(super) struct Parent {
     pub stretch: bool,
     /// A flex container: `flex-grow` of a child counts.
     pub flex: bool,
+    /// A flex or grid container: a child is an item of it, so an inline child is blockified and stretches.
+    pub blockified: bool,
     /// The row of a table: its cells share it.
     pub cells: bool,
     /// The fixed size of the parent in pixels, for `100%`.

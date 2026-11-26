@@ -5,8 +5,8 @@ use super::items::Item;
 use super::leaf::{clip, common, size_text, text_node};
 use super::names;
 use super::node::{
-    Flow, Spec, authored_padding, blank, content_box, display, fixed, flow, parent_of, place,
-    set_padding, set_size,
+    Flow, Spec, authored_padding, blank, blockifies, content_box, display, fixed, flow, parent_of,
+    place, set_padding, set_size,
 };
 use super::notes::Notes;
 use super::refuse;
@@ -85,7 +85,7 @@ fn places_text(s: &Style) -> bool {
     if d.contains("grid") {
         return true;
     }
-    if d.contains("flex") {
+    if blockifies(s) {
         let f = flow(s, &mut scratch, false, false);
         if f.align != Align::Start || f.justify != Justify::Start || !scratch.lost.is_empty() {
             return true;
@@ -281,7 +281,7 @@ impl<'a> Walk<'a> {
         }
         let padded = apad.iter().any(|v| *v != 0.0);
         // An inline-block that is a flex item is blockified: it stretches on the cross axis like any other item.
-        let inline = display(s).starts_with("inline") && !p.flex;
+        let inline = display(s).starts_with("inline") && !p.blockified;
         let kind = Kind {
             absolute: at.absolute,
             inline,

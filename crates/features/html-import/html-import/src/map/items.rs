@@ -2,7 +2,7 @@
 //! the content of inline elements and of `display: contents` up to the element they are in.
 
 use super::names;
-use super::node::display;
+use super::node::{blockifies, display};
 use super::notes::Notes;
 use super::refuse;
 use super::text::{Piece, Ws, render};
@@ -103,20 +103,31 @@ impl<'a> Walk<'a> {
 
     /// The inline elements that hold all the content of `id` (`<li><a>text</a></li>`: the `a`), outermost first,
     /// as deep as there is one and only one inline child and no other content.
-    fn sole_chain(&self, id: ElementId) -> Vec<ElementId> {
+    ///
+    /// An element that is not drawn (`display: none`, a `script`) is not content: it does not stop the chain. The
+    /// hidden ones that are not drawn are returned second, to be said once if the chain is used.
+    fn sole_chain(&self, id: ElementId) -> (Vec<ElementId>, Vec<ElementId>) {
         let tree = self.tree;
-        let (mut cur, mut chain) = (id, Vec::new());
+        let (mut cur, mut chain, mut hidden) = (id, Vec::new(), Vec::new());
         loop {
-            let mut live = tree.element(cur).children.iter().filter(|c| match c {
-                Child::Text(t) => !t.trim().is_empty(),
-                Child::Element(_) => true,
-            });
-            let (Some(Child::Element(e)), None) = (live.next(), live.next()) else {
-                return chain;
+            let mut live = Vec::new();
+            for c in &tree.element(cur).children {
+                match c {
+                    Child::Text(t) if t.trim().is_empty() => {}
+                    Child::Text(_) => live.push(None),
+                    Child::Element(e) => match role(tree.element(*e), self.styles.get(*e)) {
+                        Role::Skip => {}
+                        Role::Hidden => hidden.push(*e),
+                        _ => live.push(Some(*e)),
+                    },
+                }
+            }
+            let [Some(e)] = live.as_slice() else {
+                return (chain, hidden);
             };
             let (el, s) = (tree.element(*e), self.styles.get(*e));
             if el.tag == "br" || !matches!(role(el, s), Role::Inline) {
-                return chain;
+                return (chain, hidden);
             }
             chain.push(*e);
             cur = *e;
@@ -128,10 +139,9 @@ impl<'a> Walk<'a> {
     pub(super) fn items_of(&mut self, id: ElementId, n: &mut Notes) -> (Vec<Item>, &'a Style) {
         let (tree, styles) = (self.tree, self.styles);
         let (el, s) = (tree.element(id), styles.get(id));
-        let d = display(s);
-        let blockify = d.contains("flex") || d.contains("grid");
-        let chain = if blockify {
-            Vec::new()
+        let blockify = blockifies(s);
+        let (chain, hidden) = if blockify {
+            (Vec::new(), Vec::new())
         } else {
             self.sole_chain(id)
         };
@@ -141,6 +151,7 @@ impl<'a> Walk<'a> {
             // the element's own content and what the attempt said is dropped.
             let (mut items, mut tmp) = (Vec::new(), Notes::default());
             let skips = (self.skipped.len(), self.skipped_omitted);
+            let said = (self.report.counts.clone(), self.report.work);
             for e in &chain {
                 self.inline_lost(tree.element(*e), styles.get(*e), &mut tmp);
             }
@@ -149,10 +160,14 @@ impl<'a> Walk<'a> {
             drop_blank(&mut items, Ws::of(os));
             if matches!(items.as_slice(), [Item::Run(_)]) {
                 n.merge(tmp);
+                for h in hidden {
+                    self.skip(names::source(tree.element(h), h), "display_none");
+                }
                 return (items, os);
             }
             self.skipped.truncate(skips.0);
             self.skipped_omitted = skips.1;
+            (self.report.counts, self.report.work) = said;
         }
         let mut items = Vec::new();
         self.collect(&el.children, s, &mut items, n, blockify);

@@ -136,7 +136,8 @@ font other than Inter, transforms and the like, each with a code; a row lists at
 tailwind form) and the nodes come back, with ids that are new. Give each import a `note`. You cannot undo an import
 yourself (undoing the creation of a frame needs the person's approval): a person reverts the batch in the Activity
 panel, which takes its texts and shapes and leaves every frame the import made, empty. The text sizes of the result are
-estimates from the stub, as in an export. Then rename the layers that carry a role and not a name, and bind what should be a variable: the import writes the values it read, never a binding.
+estimates from the stub, as in an export. Then rename the layers that carry a role and not a name, and bind what
+should be a variable: the import writes the values it read, never a binding.
 
 ## Handing a frame to code
 
