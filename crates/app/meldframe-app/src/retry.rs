@@ -6,6 +6,7 @@ use crate::app::App;
 use crate::effect::Effect;
 use crate::event::Event;
 use crate::state::Connection;
+use crate::text;
 use meldframe_app_parts::document::{out_ops, removal_of};
 use meldframe_app_rules::retry::Refusal;
 
@@ -38,7 +39,7 @@ impl App {
         }
         self.events.push(Event::OpRejected {
             key,
-            code,
+            code: text::code(&code),
             node,
             retryable,
         });

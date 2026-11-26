@@ -161,7 +161,7 @@ impl App {
                 }
             }
             Action::CheckpointRequestFailed { request, code } => {
-                self.checkpoint_failed(request, &code)
+                self.checkpoint_failed(request, &crate::text::code(&code))
             }
             _ => {}
         }

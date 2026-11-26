@@ -62,7 +62,7 @@ impl App {
                 page,
             } => self.state.assets.arrived(request, after.as_deref(), page),
             Action::AssetsRequestFailed { request, code } => {
-                self.state.assets.failed(request, code)
+                self.state.assets.failed(request, crate::text::code(&code))
             }
             _ => false,
         };

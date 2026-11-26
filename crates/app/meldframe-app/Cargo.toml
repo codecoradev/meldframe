@@ -21,6 +21,7 @@ meldframe-render = { path = "../../core/meldframe-render" }
 meldframe-revert = { path = "../../core/meldframe-revert" }
 meldframe-history = { path = "../../core/meldframe-history" }
 meldframe-sync = { path = "../../core/meldframe-sync" }
+meldframe-text = { path = "../../core/meldframe-text" }
 meldframe-app-parts = { path = "../../core/meldframe-app-parts" }
 meldframe-app-rules = { path = "../../core/meldframe-app-rules" }
 meldframe-app-model = { path = "../../core/meldframe-app-model" }
