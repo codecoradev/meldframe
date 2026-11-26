@@ -12,7 +12,7 @@ usage: tools/connect-claude.sh [--port N | --listen HOST:PORT] [--token TOKEN] [
 
 Prints the `claude mcp add` line for the MCP endpoint of a development server.
 
-Server address (--port and --listen are alternatives: both together are refused), first that is set wins:
+Server address, first that is set wins (--port and --listen are alternatives: both together are refused):
   --port N              the server listens on 127.0.0.1:N
   --listen HOST:PORT    the same value as MELDFRAME_LISTEN
   MELDFRAME_LISTEN      in the environment (0.0.0.0 or [::] is printed as 127.0.0.1)
