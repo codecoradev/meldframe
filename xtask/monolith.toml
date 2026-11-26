@@ -57,6 +57,135 @@ home = "crates/core/meldframe-css"
 use = "read the number with meldframe-css (one reader; D5 of docs/audits/2026-11-25-rust-modular-monolith.md)"
 ban = ["b'.' | b'-' | b'+'", "b'.' | b'+' | b'-'"]
 
+[[allow_copy]]
+fns = [
+    "crates/core/meldframe-activity/src/note.rs::fmt",
+    "crates/core/meldframe-checkpoints/src/label.rs::fmt",
+]
+reason = "two newtypes print their text the same way; one shared newtype or macro"
+
+[[allow_copy]]
+fns = [
+    "crates/core/meldframe-app-harness/src/lib.rs::node",
+    "crates/core/meldframe-store-contract/src/cases.rs::node",
+]
+reason = "audit D16: one test-support module for the harness and the store contract"
+
+[[allow_copy]]
+fns = [
+    "crates/core/meldframe-app-model/src/assets.rs::is_asset_id",
+    "crates/features/assets/assets/src/lib.rs::is_asset_id",
+]
+reason = "audit D3: assets::is_asset_id is the one; the app model is a core crate and cannot depend on the assets feature, so the home moves down"
+
+[[allow_copy]]
+fns = [
+    "crates/core/meldframe-app-parts/src/document.rs::update",
+    "crates/core/meldframe-app-rules/src/drop.rs::update",
+]
+reason = "the same one-command builder in two app-layer crates; goes away when the app crates are one (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/core/meldframe-app-parts/src/layout.rs::is_layout",
+    "crates/core/meldframe-layout/src/tree.rs::is_layout_frame",
+    "crates/features/export/export/src/decl.rs::is_layout",
+]
+reason = "audit D10: meldframe_layout::is_layout_frame is the one"
+
+[[allow_copy]]
+fns = [
+    "crates/core/meldframe-mcp-defs/src/lib.rs::key",
+    "crates/integrations/meldframe-http-variant/src/lib.rs::key_schema",
+]
+reason = "audit D6: meldframe-mcp-defs owns the idempotency key; meldframe-http-variant should use its schema"
+
+[[allow_copy]]
+fns = [
+    "crates/features/html-import/html-import-style/src/value.rs::number",
+    "crates/features/html-import/html-import/src/paint/lex.rs::number",
+]
+reason = "audit D5: one CSS number reader; the importers share it once they are one crate (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/integrations/meldframe-http-activity/src/lib.rs::now_ms",
+    "crates/integrations/meldframe-http-checkpoints/src/lib.rs::now_ms",
+]
+reason = "audit D12: one adapter module in the merged http crate (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/integrations/meldframe-http-activity/src/review.rs::from",
+    "crates/integrations/meldframe-http-checkpoints/src/routes.rs::from",
+]
+reason = "audit D12: one adapter module in the merged http crate (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/integrations/meldframe-http-activity/src/review.rs::invalid",
+    "crates/integrations/meldframe-http-checkpoints/src/routes.rs::invalid",
+]
+reason = "audit D12: one adapter module in the merged http crate (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/integrations/meldframe-http-activity/src/review.rs::new",
+    "crates/integrations/meldframe-http-checkpoints/src/routes.rs::new",
+]
+reason = "audit D12: one adapter module in the merged http crate (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/integrations/meldframe-http-activity/src/tool.rs::call",
+    "crates/integrations/meldframe-http-review/src/lib.rs::call",
+]
+reason = "audit D12: one adapter module in the merged http crate (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/integrations/meldframe-http-activity/src/tool.rs::tool",
+    "crates/integrations/meldframe-http-export/src/lib.rs::tool",
+]
+reason = "audit D12: one adapter module in the merged http crate (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/integrations/meldframe-http-assets/src/tool.rs::call",
+    "crates/integrations/meldframe-http-export/src/lib.rs::call",
+    "crates/integrations/meldframe-http-variables-import/src/lib.rs::call",
+]
+reason = "audit D12: one adapter module in the merged http crate (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/integrations/meldframe-http-assets/src/tool.rs::failure",
+    "crates/integrations/meldframe-http-export/src/lib.rs::failure",
+    "crates/integrations/meldframe-http-variables-import/src/lib.rs::failure",
+]
+reason = "audit D12: one adapter module in the merged http crate (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/integrations/meldframe-http-variables-import/src/lib.rs::tool",
+    "crates/integrations/meldframe-http-variant/src/lib.rs::tool",
+]
+reason = "audit D12: one adapter module in the merged http crate (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/integrations/meldframe-http-variant/src/lib.rs::args",
+    "crates/integrations/meldframe-http/src/mcp/tools.rs::args",
+]
+reason = "audit D12: one adapter module in the merged http crate (#315)"
+
+[[allow_copy]]
+fns = [
+    "crates/integrations/meldframe-http-variant/src/lib.rs::error",
+    "crates/integrations/meldframe-http/src/mcp/tools.rs::error",
+]
+reason = "audit D12: one adapter module in the merged http crate (#315)"
+
 # MM4: files that write the `hex_colour` pattern themselves today.
 [allow_shared.hex_colour]
 "crates/core/meldframe-check/src/validate.rs" = "audit D2: this crate does not depend on meldframe-css, so the home must move to or below it"

@@ -2,6 +2,8 @@
 //! The rules are pure functions over crate sources; this module holds their shared types, reads
 //! the workspace and runs them. The limits are in `xtask/monolith.toml` and are listed here.
 //!
+//! - MM3 no copies: two files with a function of the same body (25 tokens or more, tests left
+//!   out) fail, in any crate, unless `[[allow_copy]]` lists the group with a reason.
 //! - MM4 shared helpers: a banned pattern of a `[shared.<name>]` rule outside its home fails with
 //!   "use <home>", unless `[allow_shared.<name>]` lists the file with a reason. A pattern is Rust
 //!   source compared token by token: hex digits (`0x200b`, `\u{feff}`) without regard to case, and
@@ -9,14 +11,19 @@
 //!
 //! Every allow-list entry carries a reason and only goes down: an entry that no longer matches
 //! fails as not needed, and `--base <ref>` rejects an entry that is not on the base branch. An
-//! entry may shrink and a file may move: a file in `[allow_shared.<name>]` matches a base entry by
-//! path or else by file name, and each base entry covers one file.
+//! entry may shrink and a file may move: a group in `[[allow_copy]]` is accepted when each of its
+//! members matches a member of one base entry, by `path::fn` or, for a file that moved, by the
+//! function name (so deleting one copy of three is progress, and a group that gains a member is
+//! not); a file in `[allow_shared.<name>]` matches a base entry by path or else by file name; each
+//! base entry covers one group or file. Two groups with the same member ids need two entries.
 //!
-//! What it does not do. MM4 is only as good as the pattern list somebody keeps up to date. None
-//! of it checks that a shared helper is a good one, only that there is one. A crate is read as
-//! text: macros are not expanded.
+//! What it does not do. MM3 finds exact copies only: the same rule written twice with another
+//! name for a variable, another error type or another loop is not found. MM4 is only as good as
+//! the pattern list somebody keeps up to date. None of it checks that a shared helper is a good
+//! one, only that there is one. A crate is read as text: macros are not expanded.
 
 mod config;
+mod copies;
 mod shared;
 mod tokens;
 
@@ -105,7 +112,8 @@ pub(crate) fn product_tokens(file: &SrcFile) -> Vec<tokens::Tok> {
 
 /// Run the source rules over every crate and sort the findings.
 pub fn check(crates: &[CrateSrc], cfg: &Config) -> Vec<Violation> {
-    let mut out = shared::check(crates, cfg);
+    let mut out = copies::check(crates, cfg);
+    out.extend(shared::check(crates, cfg));
     out.sort();
     out
 }
