@@ -73,7 +73,8 @@ describe('the React layers panel, as the Svelte one and the Panels and EditorLig
 });
 
 // The two copies draw the same elements with the same classes in the same order (a class that is not here is a visible
-// difference): the pixel check of the browser scripts finds the rest.
+// difference). What a class cannot say (the real pixels) is checked in a browser by pixels-e2e.mjs, which compares the two copies'
+// images with a tolerance of 0; layers-e2e.mjs checks behaviour only.
 describe('the React layers panel against the Svelte one', () => {
   const rows = [
     row({ id: 'f', name: 'Frame', depth: 0, hasChildren: true }),
