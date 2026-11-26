@@ -11,8 +11,7 @@
   import type { ManageLimits, NameDraft } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
-  import { NAME_RULE_WORDS } from '@meldframe/web-document/notices';
-  import { nameError, nameWarning, type NameKind } from './manage';
+  import { NOTE_CLASS, addNote, type NameKind, typed } from './manage';
 
   interface Props {
     kind: NameKind;
@@ -34,16 +33,11 @@
   let { kind, label, submit, draft, limits, placeholder, extra, onInput, onSubmit, testId }: Props = $props();
 
   const check = $derived(draft.check);
-  const touched = $derived(draft.text.trim() !== '');
-  const note = $derived.by(() => {
-    if (touched && check.error) return { tone: 'error', text: nameError(kind, check.error, limits) };
-    if (check.warning) return { tone: 'warning', text: nameWarning(kind, check.warning) };
-    return kind === 'mode' ? null : { tone: 'hint', text: NAME_RULE_WORDS };
-  });
+  const touched = $derived(typed(draft.text));
+  const note = $derived(addNote(kind, draft, limits));
   const send = () => {
     if (!check.error) onSubmit(check.name);
   };
-  const noteClass = { error: 'text-danger-text', warning: 'text-text-strong', hint: 'text-text-muted' } as const;
 </script>
 
 <!-- Enter is read in the capture phase: the Field would otherwise end the edit and the key never reach the form. -->
@@ -61,5 +55,5 @@
     {@render extra?.()}
     <Button variant="primary" size="sm" disabled={!!check.error} onclick={send} data-testid="{testId}-add">{submit}</Button>
   </div>
-  <p class="m-0 min-h-4 text-caption {note ? noteClass[note.tone as keyof typeof noteClass] : ''}" data-testid="{testId}-note" data-tone={note?.tone}>{note?.text ?? ''}</p>
+  <p class="m-0 min-h-4 text-caption {note ? NOTE_CLASS[note.tone] : ''}" data-testid="{testId}-note" data-tone={note?.tone}>{note?.text ?? ''}</p>
 </div>

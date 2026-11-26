@@ -13,9 +13,8 @@
   import type { ManageLimits, RenameField as RenameState } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
-  import { NAME_RULE_WORDS } from '@meldframe/web-document/notices';
-  import { nameError, nameWarning, type NameKind } from './manage';
-  import { movedWords, renameHint } from './rename';
+  import { NOTE_CLASS, type NameKind } from './manage';
+  import { movedWords, renameNote } from './rename';
 
   interface Props {
     kind: NameKind;
@@ -42,12 +41,7 @@
   const check = $derived(f.check);
   const changed = $derived(!f.unchanged);
   const moved = $derived(movedWords(f.opened, f.current));
-  const note = $derived.by(() => {
-    if (changed && check.error) return { tone: 'error', text: nameError(kind, check.error, limits) };
-    if (check.warning) return { tone: 'warning', text: nameWarning(kind, check.warning) };
-    return { tone: 'hint', text: kind === 'mode' ? renameHint(kind, f.first) : `${NAME_RULE_WORDS} ${renameHint(kind, f.first)}` };
-  });
-  const noteClass = { error: 'text-danger-text', warning: 'text-text-strong', hint: 'text-text-muted' } as const;
+  const note = $derived(renameNote(kind, f, limits));
   const save = () => {
     if (!check.error) onSubmit();
   };
@@ -81,7 +75,7 @@
     <Button variant="primary" size="sm" aria-label="Save the new name of {subject}" disabled={!!check.error} onclick={save} data-testid="{testId}-save">Save</Button>
     <Button size="sm" aria-label="Cancel renaming {subject}" onclick={onCancel} data-testid="{testId}-cancel">Cancel</Button>
   </div>
-  <p class="m-0 text-caption whitespace-normal {noteClass[note.tone as keyof typeof noteClass]}" data-testid="{testId}-note" data-tone={note.tone}>{note.text}</p>
+  <p class="m-0 text-caption whitespace-normal {NOTE_CLASS[note.tone]}" data-testid="{testId}-note" data-tone={note.tone}>{note.text}</p>
   <!-- Always on the page, so the words are announced when they are put in. -->
   <p role="status" class="m-0 text-caption whitespace-normal text-text-strong" data-testid="{testId}-moved">{moved ?? ''}</p>
 </div>
