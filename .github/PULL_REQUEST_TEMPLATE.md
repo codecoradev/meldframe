@@ -3,7 +3,7 @@
 
 ## What
 
-<!-- One or two sentences: what this pull request does. Refs #<issue> -->
+<!-- One or two sentences: what this pull request does. Refs #<issue> while work is left on it; Closes #<issue> when this pull request meets every acceptance criterion of the issue. -->
 
 ## Why
 
