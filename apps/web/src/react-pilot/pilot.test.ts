@@ -119,3 +119,21 @@ describe('the switch of the Activity panel (S8)', () => {
     expect(pilotPage('?react=activity', false)).toBeNull();
   });
 });
+
+describe('the switch of the Import variables and Export variables dialogs (S10)', () => {
+  it('is the value `io`, alone or in a list with the other Variables words, and not a word next to it', () => {
+    expect(reactFor('io', '?react=io')).toBe(true);
+    expect(reactFor('io', '?react=variables,manage,io')).toBe(true);
+    expect(reactFor('io', '?react=ios')).toBe(false);
+    expect(reactFor('io', '?react=variables')).toBe(false);
+    expect(reactFor('io', '?react=manage')).toBe(false);
+    expect(reactFor('variables', '?react=io')).toBe(false);
+    expect(reactFor('io', '')).toBe(false);
+    expect(pilotPage('?react=io', false)).toBeNull();
+  });
+  it('is read by both dialogs and by no other switch file', () => {
+    const dir = new URL('.', import.meta.url);
+    const readers = readdirSync(dir).filter((f) => f.endsWith('Switch.svelte') && readFileSync(new URL(f, dir), 'utf8').includes("reactFor('io'"));
+    expect(readers.sort()).toEqual(['ExportVariablesDialogSwitch.svelte', 'ImportVariablesDialogSwitch.svelte']);
+  });
+});

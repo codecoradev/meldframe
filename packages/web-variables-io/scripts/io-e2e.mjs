@@ -17,11 +17,17 @@
 // Playwright comes from the global module path. It adds collections and variables to the file and leaves them.
 // The checks run in order and share the file: a check that fails can fail the ones after it.
 // MELDFRAME_E2E_SHOTS=<dir> saves screenshots (and one of the page when a check fails).
+// MELDFRAME_UI=react opens /?react=io (MELDFRAME_REACT_PANELS names other switch words, such as variables,manage,io): the React dialogs, E7.3 slice S10. A check
+// asks that React drew each dialog (a silent fallback to Svelte would pass every other check), and a last one, React only, blocks the chunks of the
+// React dialogs and asks that the Svelte dialogs are drawn and work. io-dialog-e2e.mjs checks what the two dialogs do as dialogs (the name, the first
+// focus, Tab, the scrim, the ways to close them, the focus coming back, the focus after an import).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
+const react = process.env.MELDFRAME_UI === 'react';
+const words = process.env.MELDFRAME_REACT_PANELS ?? 'io';
 const [web, server] = [process.argv[2], process.argv[3]];
 if (!web || !server) throw new Error('usage: node io-e2e.mjs <web-url> <server-url> (both loopback; see the header of this file)');
 const root = new URL('../../../', import.meta.url).pathname;
@@ -67,6 +73,8 @@ const $ = (sel) => page.locator(sel);
 const text = async (sel) => (await $(sel).first().textContent())?.trim() ?? '';
 const activeTestId = () => page.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? '');
 const inside = (sel) => page.evaluate((s) => document.querySelector(s)?.contains(document.activeElement) ?? false, sel);
+// Whether React drew the element: React puts a fibre on every DOM node it makes; a Svelte page has none.
+const fibre = (pg, sel) => pg.evaluate((q) => Object.keys(document.querySelector(q) ?? {}).some((k) => k.startsWith('__reactFiber$')), sel);
 const results = [];
 async function check(name, fn) {
   try {
@@ -127,13 +135,22 @@ const codeLines = async () => (await $('[data-testid=export-vars-code] > div').a
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(web).origin });
   page = await context.newPage();
   page.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
-  await page.goto(web);
+  await page.goto(react ? `${web.replace(/\/?$/, '/')}?react=${words}` : web);
   await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
   await until('the frame is listed', async () => (await $(`[data-testid=layer][data-id="${frame}"]`).count()) === 1);
 
   await check('the header of the Variables section has the two buttons, named Import variables and Export variables', async () => {
     assert.equal((await text('[data-testid=var-import]')), 'Import variables');
     assert.equal((await text('[data-testid=var-export]')), 'Export variables');
+  });
+
+  await check(react ? 'the two dialogs are drawn by React' : 'the two dialogs are drawn by Svelte', async () => {
+    for (const [open, dialog] of [[openExport, 'export-vars-dialog'], [openImport, 'import-vars-dialog']]) {
+      await open();
+      assert.equal(await fibre(page, `[data-testid=${dialog}]`), react, react ? `${dialog} has no React fibre: the page fell back to Svelte` : `${dialog} has a React fibre on the Svelte run`);
+      await page.keyboard.press('Escape');
+      await gone(dialog);
+    }
   });
 
   await check('Export on a file with no variables says so, has nothing to copy, sends nothing; Escape closes it and the focus goes back to the button', async () => {
@@ -413,6 +430,34 @@ const codeLines = async () => (await $('[data-testid=export-vars-code] > div').a
     await page.keyboard.press('Escape');
     await gone('export-vars-dialog');
   });
+
+  if (react) {
+    // The React dialogs load on demand. A chunk that does not load must leave the Svelte dialogs, never a button that opens nothing.
+    await check('with the chunks of the React dialogs blocked, the Svelte dialogs are drawn and work', async () => {
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      const blocked = await ctx.newPage();
+      blocked.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
+      await blocked.route((u) => /variables-io\/src\/react\/(Import|Export)Dialog/.test(u.pathname), (route) => route.abort('failed'));
+      await blocked.goto(`${web.replace(/\/?$/, '/')}?react=${words}`);
+      await blocked.waitForSelector('[data-testid=connection][data-state=live]');
+      for (const [button, dialog] of [['var-export', 'export-vars-dialog'], ['var-import', 'import-vars-dialog']]) {
+        await blocked.click(`[data-testid=${button}]`);
+        await blocked.locator(`[data-testid=${dialog}]`).waitFor({ timeout: 5000 });
+        assert.equal(await fibre(blocked, `[data-testid=${dialog}]`), false, `${dialog} is the Svelte copy`);
+        await blocked.keyboard.press('Escape');
+        await blocked.locator(`[data-testid=${dialog}]`).waitFor({ state: 'detached' });
+      }
+      // The Svelte Export dialog lists the variables of the file, and the Svelte Import dialog takes text.
+      await blocked.click('[data-testid=var-export]');
+      await blocked.locator('[data-testid=export-vars-summary]').waitFor({ timeout: 5000 });
+      await blocked.keyboard.press('Escape');
+      await blocked.click('[data-testid=var-import]');
+      await blocked.fill('[data-testid=import-vars-text]', ':root { --a: 1; }');
+      assert.equal(await blocked.locator('[data-testid=import-vars-import]').isDisabled(), false);
+      await blocked.keyboard.press('Escape');
+      await ctx.close();
+    });
+  }
 
   await browser.close();
   assert.deepEqual(pageErrors, [], 'no page errors');

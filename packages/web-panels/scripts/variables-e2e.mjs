@@ -11,7 +11,8 @@
 // drawn and work. The Layers panel's switch is /?react=layers (layers-e2e.mjs asks it).
 // MELDFRAME_REACT_PANELS names the switch words of the React page (default `variables`; S6 uses the same variable); `variables,manage` draws the manage view with its React dialog
 // too (E7.3 slice S9: the check that closing it with its Close button tells the app layer then asks that React drew that dialog). The panel
-// is the React one in both; `manage-e2e.mjs` runs the React dialog under the Svelte panel.
+// is the React one in both; `manage-e2e.mjs` runs the React dialog under the Svelte panel. `variables,manage,io` adds the React Import variables and Export
+// variables dialogs (E7.3 slice S10): the check of the three buttons then asks that React drew each dialog (`io-e2e.mjs` runs them under the Svelte panel).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -263,9 +264,9 @@ async function check(name, fn) {
       await page.keyboard.press('Escape');
       await until('closed', async () => (await picker.count()) === 0);
     });
-    // Manage, Import variables and Export variables are buttons of the React panel that open Svelte dialogs, which the switch file hosts
-    // beside the island. manage-e2e.mjs and io-e2e.mjs check those dialogs but not who drew the buttons: this asks that the React buttons open
-    // them and that the focus comes back to the button that opened each.
+    // Manage, Import variables and Export variables are buttons of the React panel that open dialogs, which the switch file hosts
+    // beside the island (Svelte, or React with the word `manage` or `io`). manage-e2e.mjs and io-e2e.mjs check those dialogs but not who drew the buttons: this asks that the
+    // React buttons open them, that the dialogs are drawn by the copy that was asked for, and that the focus comes back to the button that opened each.
     await check('through the React panel, Manage, Import variables and Export variables open their dialogs and the focus comes back to the button', async () => {
       assert.equal(await fibre(page, '[data-testid=var-manage]'), true, 'the Manage button is drawn by React');
       await page.fill('[data-testid=var-search]', 'zzz');
@@ -278,11 +279,13 @@ async function check(name, fn) {
       await until('the focus is back on Manage', async () => (await active()) === 'var-manage');
       await page.click('[data-testid=var-import]');
       await page.locator('[data-testid=import-vars-dialog]').waitFor();
+      assert.equal(await fibre(page, '[data-testid=import-vars-dialog]'), panels.split(',').includes('io'), 'Import variables is drawn by the copy that was asked for');
       await page.keyboard.press('Escape');
       await page.locator('[data-testid=import-vars-dialog]').waitFor({ state: 'detached' });
       await until('the focus is back on Import variables', async () => (await active()) === 'var-import');
       await page.click('[data-testid=var-export]');
       await page.locator('[data-testid=export-vars-dialog]').waitFor();
+      assert.equal(await fibre(page, '[data-testid=export-vars-dialog]'), panels.split(',').includes('io'), 'Export variables is drawn by the copy that was asked for');
       await page.keyboard.press('Escape');
       await page.locator('[data-testid=export-vars-dialog]').waitFor({ state: 'detached' });
       await until('the focus is back on Export variables', async () => (await active()) === 'var-export');
