@@ -5,10 +5,12 @@
 import type { ImportEntry, VariablesExportDialog, VariablesImportResult } from '@meldframe/protocol';
 import { nameOf } from '@meldframe/web-document/names';
 import { noticeFor } from '@meldframe/web-document/notices';
-import { sizeText } from '@meldframe/web-export/view';
+import { findingRows, previewOf, sizeText } from '@meldframe/web-export/view';
 import { MAX_COLLECTIONS, MAX_MODES, MAX_VARIABLES } from '@meldframe/web-variables/manage';
 
-export { sizeText };
+// What the export dialog draws of the web-export view (the preview with its line cap, the rows of the warnings, the words for a size)
+// comes through here, so that both copies of the body read it from one place.
+export { findingRows, previewOf, sizeText };
 
 /** The name the exported text is saved under. */
 export const EXPORT_FILE = 'variables.css';

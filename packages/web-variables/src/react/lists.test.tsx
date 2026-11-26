@@ -17,11 +17,14 @@ import { CollectionList } from './CollectionList';
 import { NameForm } from './NameForm';
 import { RemoveConfirm } from './RemoveConfirm';
 import { RenameField } from './RenameField';
-import { tokens } from './markup.testutil';
+import { tokens } from '@meldframe/web-chrome/react/markup.testutil';
 
 describe('the token list that compares the two copies', () => {
   it('reads tags with sorted attributes and classes, text by words, and drops comments and empty classes', () => {
     expect(tokens('<!--[--><p class="b  a" id="x" disabled>one\n  two &gt; <i class="">3</i></p><!--]-->')).toEqual(['<p class="a b" disabled="" id="x">', 'one two >', '<i>', '3', '</i>', '</p>']);
+  });
+  it('reads the name of an attribute without its case, as a browser does', () => {
+    expect(tokens('<textarea spellCheck="false" tabIndex="-1">')).toEqual(tokens('<textarea spellcheck="false" tabindex="-1">'));
   });
   it('tells two renders apart by a class, an attribute or a word', () => {
     const a = '<p class="a" title="t">x</p>';

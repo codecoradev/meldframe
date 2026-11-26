@@ -7,8 +7,7 @@
 <script lang="ts">
   import type { VariablesExportDialog as Model } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
-  import { findingRows, previewOf } from '@meldframe/web-export/view';
-  import { EXPORT_FILE, EXPORT_HELP, exportProblem, exportSummary } from './io';
+  import { EXPORT_FILE, EXPORT_HELP, exportProblem, exportSummary, findingRows, previewOf } from './io';
 
   interface Props {
     dialog: Model;

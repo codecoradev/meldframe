@@ -14,7 +14,8 @@ export function tokens(html: string): string[] {
     if (m[2] !== undefined) {
       const attrs: string[] = [];
       for (const a of (m[3] ?? '').matchAll(ATTR)) {
-        const name = a[1]!;
+        // HTML attribute names are case-insensitive: React writes `spellCheck`, Svelte `spellcheck`, and the browser reads one attribute.
+        const name = a[1]!.toLowerCase();
         const value = decode(a[2] ?? '');
         if (name === 'class') {
           const classes = value.split(/\s+/).filter(Boolean).sort().join(' ');

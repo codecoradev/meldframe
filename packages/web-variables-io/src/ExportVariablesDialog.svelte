@@ -10,10 +10,9 @@
   import type { Action, VariablesExportDialog as Model } from '@meldframe/protocol';
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import TooltipProvider from '@meldframe/web-chrome/TooltipProvider.svelte';
-  import { copyText, saveText } from '@meldframe/web-export/save';
   import ExportVariablesBody from './ExportVariablesBody.svelte';
   import { type Said, saidFor } from './flow';
-  import { EXPORT_FILE } from './io';
+  import { copyExport, saveExport } from './host';
 
   interface Props {
     /** `state.variablesIo.export`; null while closed. */
@@ -31,8 +30,7 @@
   const close = () => dispatch({ type: 'closeVariablesExport' });
   async function copy() {
     if (!dialog) return;
-    const css = dialog.css;
-    said = (await copyText(css)) ? { ok: true, text: 'Copied.', css } : { ok: false, text: 'Your browser did not allow copying.', css };
+    said = await copyExport(dialog.css);
   }
   // The first thing to focus is Copy (the preview when there is nothing to copy), not the Close icon: a tooltip opens on that button and takes the first Escape.
   const focusStart = (e: Event) => {
@@ -62,7 +60,7 @@
         </header>
         <Dialog.Description class="sr-only">Every variable of this file as CSS custom properties, to copy or save. Your file is not changed.</Dialog.Description>
         {#if dialog}
-          <ExportVariablesBody {dialog} said={saidFor(said, dialog.css)} onCopy={copy} onDownload={() => saveText(dialog.css, EXPORT_FILE, 'text/css')} onClose={close} />
+          <ExportVariablesBody {dialog} said={saidFor(said, dialog.css)} onCopy={copy} onDownload={() => saveExport(dialog.css)} onClose={close} />
         {/if}
       </Dialog.Content>
     </Dialog.Portal>
