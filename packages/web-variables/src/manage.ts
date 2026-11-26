@@ -3,6 +3,7 @@
 // checks again and its refusals are worded in one table (web-document `notices.ts`). The view holds no business state:
 // the collections, modes and variables are `AppState.variables`; this file only turns input into actions. Pure.
 import type { Action, CollectionRow, Event, Mode, VarType, VariableEntity, VariableRow, VariablesPanel } from '@meldframe/protocol';
+import { nameOf } from '@meldframe/web-document/names';
 import { NAME_RULE_WORDS, noticeFor } from '@meldframe/web-document/notices';
 
 /** The longest name of a variable or a collection, in characters (`max_name` of the core's limits). */
@@ -23,9 +24,6 @@ export const MAX_VARIABLES = 5000;
  * thin-UI audit); until they move, this check stays, and the test of the view packages lists it as the one exception.
  */
 const HIDDEN = new RegExp('[\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\u115F\\u1160\\u2800\\u3164\\uFFA0]|\\u034F|\\u17B4|\\u17B5|(?! )\\p{Zs}', 'u');
-
-/** A name for a label, a title or a sentence: the name the app layer gave, or a word for one that is nothing (the core takes an empty mode name, and a name of hidden characters only shows as empty). */
-export const nameOf = (s: string): string => s || '(no name)';
 
 export type NameKind = 'collection' | 'mode' | 'variable';
 

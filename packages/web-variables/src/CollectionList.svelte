@@ -6,7 +6,8 @@
   import type { CollectionRow } from '@meldframe/protocol';
   import { ring } from '@meldframe/web-chrome/focus';
   import NameForm from './NameForm.svelte';
-  import { count, nameOf } from './manage';
+  import { nameOf } from '@meldframe/web-document/names';
+  import { count } from './manage';
 
   interface Props {
     collections: CollectionRow[];

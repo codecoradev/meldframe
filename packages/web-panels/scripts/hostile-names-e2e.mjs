@@ -2,16 +2,19 @@
 // node names that hold a right-to-left override and a zero width space, and the check asks the screens that draw them.
 //   node packages/web-panels/scripts/hostile-names-e2e.mjs [web-url] [server-url]
 // The person is the browser editor (its token is the one Vite was given, actor person:ada); the agent is a second token whose
-// actor holds a character outside the BMP (agent:U+1F300 x: it made the layers panel and the canvas ring disagree on its colour).
+// actor holds a character outside the BMP (U+1F300 then an x: it made the layers panel and the canvas ring disagree on its
+// colour). Write that actor with the bytes of the character, not with its code point as text (a text would be an ASCII actor):
+//   AGENT="agent:$(printf '\xf0\x9f\x8c\x80')x"
 // Start, on ports of your own, with a file name that is new for each run of a server without Postgres:
-//   MELDFRAME_LISTEN=127.0.0.1:8084 MELDFRAME_DEV_TOKENS="<.dev-token>:ws_dev:person:ada,<token 2>:ws_dev:agent:U+1F300x" \
+//   MELDFRAME_LISTEN=127.0.0.1:8084 MELDFRAME_DEV_TOKENS="<.dev-token>:ws_dev:person:ada,<token 2>:ws_dev:$AGENT" \
 //     MELDFRAME_REVIEWERS=person:ada MELDFRAME_ALLOW_DEV_TOKENS=1 meldframe-server
 //   (in apps/web) MELDFRAME_WEB_TOKEN=<.dev-token> MELDFRAME_SERVER=http://127.0.0.1:8084 MELDFRAME_WEB_FILE=<file> \
 //     MELDFRAME_WEB_ACTOR=person:ada npx vite --port 5185
 //   MELDFRAME_WEB_FILE=<file> MELDFRAME_DEMO_TOKEN2=<token 2> node packages/web-panels/scripts/hostile-names-e2e.mjs http://localhost:5185 http://127.0.0.1:8084
-// With MELDFRAME_UI=react the script opens the pages that have a React copy with their switch (/?react=export for the Export
-// dialog, /?react=feedback for the error page) and first asks that React drew them; the Layers panel and the lanes have no React
-// copy yet, so those checks run on the Svelte page in both runs. MELDFRAME_E2E_SHOTS=<dir> saves screenshots (2x, 1440x900).
+// With MELDFRAME_UI=react the script opens the pages that have a React copy with their switch (/?react=layers,variables for the
+// editor, so the Layers panel and the Variables panel are the React copies; /?react=export for the Export dialog;
+// /?react=feedback for the error page) and first asks that React drew them. Only the lanes of the Activity panel have no React
+// copy: that check runs on the Svelte copy in both runs. MELDFRAME_E2E_SHOTS=<dir> saves screenshots (2x, 1440x900).
 // Needs the WASM bridge built (`just wasm-build`) and Playwright from the global module path. The web and server URLs must be loopback.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -51,7 +54,7 @@ async function check(name, fn) {
   }
 }
 
-const hero = `hero_${run}`, title = `title_${run}`;
+const hero = `hero_${run}`, title = `title_${run}`, col = `col_${run}`, bg = `bg_${run}`;
 const HERO = `Hero ${run}`, TITLE = `Title ${run}`;
 // The three colours of an agent in both themes, by tone (packages/web-tokens/src/tokens.ts): the ring is drawn in one of them.
 const TONES = { agent1: ['#FB923C', '#C2410C'], agent2: ['#2DD4BF', '#0E7490'], agent3: ['#C084FC', '#7E22CE'] };
@@ -76,13 +79,33 @@ assert.equal(who.actor, 'agent:\u{1F300}x', `the agent token must belong to agen
 const batch = await tool(agent, 'apply_commands', { idempotencyKey: `hostile-${run}-a`, note: 'Hostile names.', commands: [
   { type: 'addNode', node: { id: hero, type: 'frame', name: `${HERO.slice(0, 2)}${RLO}${HERO.slice(2)}${ZWSP}`, parentId: null, x: 0, y: 0, w: 480, h: 260, fill: '#1d3b6e' } },
   { type: 'addNode', node: { id: title, type: 'text', name: `Ti${ZWSP}tle ${run}${RLO}`, parentId: hero, x: 32, y: 32, w: 300, h: 40, text: 'Hello', fontSize: 24, fill: '#ffffff' } },
+  { type: 'addCollection', collection: { id: col, name: `appearance-${run}`, modes: [{ id: 'light', name: `Li${ZWSP}ght${RLO}` }, { id: 'dark', name: `Da${RLO}rk ${ZWSP}` }] } },
+  { type: 'addVariable', variable: { id: bg, collection: col, name: 'color/bg', type: 'color', values: { light: '#ffffff', dark: '#111111' } } },
 ] });
 assert.equal(batch.ok, true, `the agent's write: ${JSON.stringify(batch)}`);
 
-const page = await open(web, { dsf: 2 });
+const page = await open(react ? `${web}?react=layers,variables` : web, { dsf: 2 });
 await live(page);
 const layer = (id) => page.locator(`[data-testid=layer][data-id="${id}"]`);
+const fibre = (sel) => page.evaluate((s) => Object.keys(document.querySelector(s) ?? {}).some((k) => k.startsWith('__reactFiber$')), sel);
 let layerTone;
+
+await check('the Layers and the Variables panels are drawn by the copy that was asked for', async () => {
+  await layer(hero).waitFor({ timeout: 15000 });
+  await page.waitForSelector('[data-testid=variables]', { timeout: 15000 }); // the React side loads on demand
+  assert.equal(await fibre('[data-testid=layers]'), react, react ? 'the Layers panel has no React fibre: the page fell back to Svelte' : 'the Layers panel has a React fibre on the Svelte run');
+  assert.equal(await fibre('[data-testid=variables]'), react, react ? 'the Variables panel has no React fibre: the page fell back to Svelte' : 'the Variables panel has a React fibre on the Svelte run');
+});
+
+await check('Variables panel: a mode name with U+202E and U+200B is drawn clean, in the switch and in the name of the value field', async () => {
+  const modes = page.locator(`[data-testid=var-modes][data-id="${col}"] [role=radio]`);
+  await until('the two modes', async () => (await modes.count()) === 2);
+  assert.deepEqual((await modes.allInnerTexts()).map((t) => t.trim()), ['Light', 'Dark']);
+  const field = page.locator(`[data-testid=var-row][data-id="${bg}"] [data-testid=var-value]`);
+  assert.equal(await field.getAttribute('aria-label'), 'color/bg in Light');
+  assert.equal(hasHidden(await page.locator('[data-testid=variables]').evaluate((e) => e.outerHTML)), false, 'the markup of the Variables panel holds a hidden character');
+  await shot(page, react ? 'u9web-variables-react' : 'u9web-variables-svelte');
+});
 
 await check('Layers panel: a node name with U+202E and U+200B is drawn clean, in the row, the label and the title', async () => {
   await layer(hero).waitFor({ timeout: 15000 });

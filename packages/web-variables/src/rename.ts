@@ -4,7 +4,8 @@
 // The view holds no business state: the target is an id and `renameContext` reads it again from the panel. Pure.
 import type { Action, VariablesPanel } from '@meldframe/protocol';
 import { noticeFor } from '@meldframe/web-document/notices';
-import { checkName, nameOf, type Ask, type NameCheck, type NameKind } from './manage';
+import { nameOf } from '@meldframe/web-document/names';
+import { checkName, type Ask, type NameCheck, type NameKind } from './manage';
 
 /**
  * What a rename of a collection or a variable does to the export, said once in the field (docs/tokens-and-variables.md 9.6: export names change, the next

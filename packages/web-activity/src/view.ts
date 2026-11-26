@@ -25,11 +25,12 @@ export interface LaneView {
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const STATE: Record<LaneState, string> = { working: 'Working', quiet: 'Quiet', idle: 'Idle' };
 // A batch is its actor and its key prefix: two actors may use the same prefix.
-const id = (actor: string, keyPrefix: string) => `${actor}\u0000${keyPrefix}`;
+/** The key of a batch row: its actor and its key prefix, the two that name a batch. Unambiguous whatever characters they hold. */
+export const rowKey = (actor: string, keyPrefix: string): string => JSON.stringify([actor, keyPrefix]);
 
 /** The lanes with their rows. A prefix the lane lists but the rows do not hold (cut at the row limit) is left out. */
 export function laneViews(a: ActivityState, self: string): LaneView[] {
-  const byId = new Map(a.rows.map((r) => [id(r.actor, r.keyPrefix), r]));
+  const byId = new Map(a.rows.map((r) => [rowKey(r.actor, r.keyPrefix), r]));
   return a.lanes.map((l) => ({
     actor: l.actor,
     name: l.actor === self ? 'You' : l.view.name,
@@ -41,7 +42,7 @@ export function laneViews(a: ActivityState, self: string): LaneView[] {
     ops: l.ops,
     batches: l.batches.length,
     runs: l.runs,
-    rows: l.batches.flatMap((k) => byId.get(id(l.actor, k)) ?? []),
+    rows: l.batches.flatMap((k) => byId.get(rowKey(l.actor, k)) ?? []),
   }));
 }
 
@@ -90,7 +91,7 @@ const CHECKPOINT_REFUSALS: Record<string, string> = {
 export function checkpointWords(c: Checkpoint): string {
   const who = c.about ? c.about.name : 'an actor';
   switch (c.kind) {
-    case 'manual': return c.label?.trim() || 'Checkpoint';
+    case 'manual': return c.label || 'Checkpoint'; // the app layer made the label safe and left none for one with nothing in it
     case 'runStart': return `Before ${who}'s run`;
     case 'beforeRevert': return `Before reverting ${who}'s batch`;
     case 'beforeRestore': return 'Before a restore';

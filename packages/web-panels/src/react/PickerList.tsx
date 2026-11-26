@@ -4,6 +4,7 @@
 import type { Action, Picker } from '@meldframe/protocol';
 import { Field } from '@meldframe/web-chrome/react/Field';
 import { TYPE_LABEL } from '@meldframe/web-document/labels';
+import { nameOf } from '@meldframe/web-document/names';
 import { pickAction, pickerQueryAction } from '@meldframe/web-document/picker';
 import { FIELD_LABEL } from '../variables';
 
@@ -32,8 +33,8 @@ export function PickerList({ picker, dispatch }: PickerListProps) {
               className={`flex h-(--mf-size-control-lg) w-full items-center gap-2 rounded-sm px-2 text-left hov:bg-control ${row.bound ? 'bg-chip-bg text-chip-text' : ''}`}
             >
               {row.type === 'color' && row.resolved ? <i className="block size-4 shrink-0 rounded-sm border border-border" style={{ background: row.resolved }}></i> : null}
-              <span className="min-w-0 flex-1 truncate" title={`${row.name} · ${row.collection}`}>
-                {row.name}
+              <span className="min-w-0 flex-1 truncate" title={`${nameOf(row.name)} · ${nameOf(row.collection)}`}>
+                {nameOf(row.name)}
               </span>
               <span className="font-mono text-caption text-text-muted">{row.resolved}</span>
             </button>

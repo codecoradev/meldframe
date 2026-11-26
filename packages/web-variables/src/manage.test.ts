@@ -10,7 +10,6 @@ import {
   collectionSummary,
   createCollectionAction,
   partial,
-  nameOf,
   reactTo,
   removalPlan,
   removeCollectionAction,
@@ -103,15 +102,6 @@ describe('a name that exists already', () => {
   });
   it('is no warning while the name is invalid or empty', () => {
     expect(checkName('collection', 'Theme', ['theme']).warning).toBeNull();
-  });
-});
-
-describe('nameOf', () => {
-  it('is the name the app layer gave, or a word for a name that shows as nothing, and cleans nothing', () => {
-    expect(nameOf('dark')).toBe('dark');
-    expect(nameOf('')).toBe('(no name)');
-    // The app layer made the name safe; this only words an empty one.
-    expect(nameOf('a b')).toBe('a b');
   });
 });
 

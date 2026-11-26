@@ -6,7 +6,8 @@
 <script lang="ts">
   import Icon from '@meldframe/web-chrome/Icon.svelte';
   import type { LayerRow } from '@meldframe/protocol';
-  import { KIND_ICON as icon, changedBy, nameOf } from './layers';
+  import { nameOf } from '@meldframe/web-document/names';
+  import { KIND_ICON as icon, changedBy } from './layers';
 
   interface Props {
     rows: readonly LayerRow[];
@@ -31,12 +32,12 @@
         data-selected={r.selected}
       >
         {#if r.hasChildren}
-          <button type="button" class="flex h-full min-w-(--mf-size-control-sm) shrink-0 items-center justify-center rounded-xs text-text-muted" aria-label="{r.collapsed ? 'Expand' : 'Collapse'} {nameOf(r)}" aria-expanded={!r.collapsed} onclick={() => onToggle(r.id)}><Icon name={r.collapsed ? 'chevron-right' : 'chevron-down'} /></button>
+          <button type="button" class="flex h-full min-w-(--mf-size-control-sm) shrink-0 items-center justify-center rounded-xs text-text-muted" aria-label="{r.collapsed ? 'Expand' : 'Collapse'} {nameOf(r.name)}" aria-expanded={!r.collapsed} onclick={() => onToggle(r.id)}><Icon name={r.collapsed ? 'chevron-right' : 'chevron-down'} /></button>
         {:else}
           <span class="min-w-(--mf-size-control-sm) shrink-0"></span>
         {/if}
         <button type="button" class="flex h-full min-h-(--mf-size-control-sm) min-w-0 flex-1 items-center gap-2 truncate text-left" aria-current={r.selected ? 'true' : undefined} onclick={(e) => onSelect(r.id, e.shiftKey)}>
-          <Icon name={icon[r.kind]} /><span class="truncate">{nameOf(r)}</span>
+          <Icon name={icon[r.kind]} /><span class="truncate">{nameOf(r.name)}</span>
         </button>
         {#if who}
           <span class="flex min-w-0 max-w-24 shrink-0 items-center gap-1" title="Last changed by {who.name}" data-testid="actor" data-tone={who.tone}>

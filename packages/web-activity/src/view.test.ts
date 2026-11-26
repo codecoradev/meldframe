@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Checkpoint, Event } from '@meldframe/protocol';
 import { activity, lane, row } from './fixtures';
-import { batchHeading, checkpointBy, checkpointMade, checkpointWords, clockText, createWhyNot, laneSummary, laneViews, messageFor, reviewChoices, reviewWords, reviewedBy, statusWords, summaryWords } from './view';
+import { batchHeading, checkpointBy, checkpointMade, checkpointWords, clockText, createWhyNot, laneSummary, laneViews, messageFor, reviewChoices, rowKey, reviewWords, reviewedBy, statusWords, summaryWords } from './view';
 import { actorView } from '@meldframe/web-document/fixtures';
 
 describe('laneViews', () => {
@@ -94,6 +94,14 @@ describe('the words of a row', () => {
   it('writes the time of a batch in the local zone', () => {
     expect(clockText(new Date(2026, 10, 20, 10, 42, 31).getTime())).toBe('10:42:31');
     expect(clockText(new Date(2026, 10, 20, 9, 5, 7).getTime())).toBe('09:05:07');
+  });
+});
+
+describe('rowKey', () => {
+  it('names a batch by its actor and its key prefix, and two pairs never share a key', () => {
+    expect(rowKey('agent:a', 'k1')).toBe(rowKey('agent:a', 'k1'));
+    expect(rowKey('a', 'bc')).not.toBe(rowKey('ab', 'c'));
+    expect(rowKey('a:b', 'c')).not.toBe(rowKey('a', 'b:c'));
   });
 });
 

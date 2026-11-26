@@ -84,6 +84,16 @@ describe('the page for a file that did not open', () => {
     expect(start.detail).toBeUndefined();
   });
 
+  it('says in a development build, in its own words, that the WASM bridge may not be built', () => {
+    // Not the message of the browser (it is not made safe without the module): a fixed hint, only for a developer.
+    const hint = pageFor(new Error('x‮y'), { dev: true, safe: null }).detail;
+    expect(hint).toContain('just wasm-build');
+    expect(hint).not.toContain('‮');
+    expect(pageFor(new Error('x'), { dev: false, safe: null }).detail).toBeUndefined();
+    // With the helper there the module did load: the message is the detail, with no hint.
+    expect(pageFor(new Error('boom'), { dev: true, safe }).detail).toBe('boom');
+  });
+
   it('uses the words of GLOSSARY.md in the text and the detail: no account, no token, no team', () => {
     for (const e of [refused(403, 'no'), refused(401, 'no'), refused(500, 'x'), refused(0, 'Failed'), new TypeError('x'), new Error('y')]) {
       const p = pageFor(e, product);
