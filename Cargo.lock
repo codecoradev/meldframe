@@ -1288,8 +1288,10 @@ dependencies = [
 name = "meldframe-app-parts"
 version = "0.0.0"
 dependencies = [
+ "meldframe-activity",
  "meldframe-app-model",
  "meldframe-check",
+ "meldframe-checkpoints",
  "meldframe-order",
  "meldframe-protocol",
  "meldframe-render",

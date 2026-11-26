@@ -27,6 +27,7 @@ pub mod state;
 pub mod text_field;
 pub mod variables;
 pub mod variables_io;
+pub mod wire;
 
 pub use action::{Action, CreateKind, Frame, FramePreset, Property};
 pub use activity::{
@@ -60,3 +61,4 @@ pub use variables_io::{
     ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,
     VariablesImportResult, VariablesIo,
 };
+pub use wire::{MAX_SAFE_INT, Wire};

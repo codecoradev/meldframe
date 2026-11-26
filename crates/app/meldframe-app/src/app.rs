@@ -7,6 +7,7 @@ use crate::event::Event;
 use crate::panel::PanelCache;
 use crate::state::{AppState, Connection};
 use meldframe_activity::Feed;
+use meldframe_app_parts::answers::action_of;
 use meldframe_app_parts::document::{history_of, out_ops};
 use meldframe_app_parts::properties::selected_properties;
 use meldframe_app_parts::selection::toggled;
@@ -136,6 +137,10 @@ impl App {
     /// Applies one action and returns the work the shell has to do. The same actions in the same order
     /// always give the same state, events and effects.
     pub fn dispatch(&mut self, action: Action) -> Vec<Effect> {
+        // A raw answer or frame is checked here and carried on as the action it stands for (`meldframe_app_parts::answers`).
+        if let Action::Wire { wire } = action {
+            return action_of(wire).map_or_else(Vec::new, |a| self.dispatch(a));
+        }
         let ui = level::is_view(&action);
         let reload = matches!(action, Action::Reload { .. });
         if self.state.connection == Connection::Halted && !ui && !reload {

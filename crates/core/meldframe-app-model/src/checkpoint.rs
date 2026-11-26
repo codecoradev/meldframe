@@ -36,10 +36,11 @@ pub enum CheckpointsStatus {
 }
 
 /// A row of the list route, of the answer to a create or the body of a `checkpoint` frame, as it came off the wire:
-/// nothing in it is trusted, and the app layer checks it again before a row is made from it.
+/// nothing in it is trusted, and the app layer checks it again before a row is made from it. A field it does not know is
+/// ignored (the server may add one).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct CheckpointRow {
     pub n: u32,
     #[ts(type = "number")]
