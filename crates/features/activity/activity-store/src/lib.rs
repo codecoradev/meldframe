@@ -23,9 +23,8 @@ mod store;
 pub use store::MemoryBatches;
 
 use meldframe_activity::{
-    ACTOR_HEADERS, FILE_HEADERS, Header, MAX_ACTOR, MAX_COUNT, MAX_KEY_PREFIX, MAX_PAGE,
-    MAX_PER_ACTOR, MAX_PER_FILE, MAX_PER_WORKSPACE, MAX_TOOL, NewBatch, Review, WORKSPACE_HEADERS,
-    is_hidden_text,
+    ACTOR_HEADERS, FILE_HEADERS, Header, MAX_COUNT, MAX_PAGE, MAX_PER_ACTOR, MAX_PER_FILE,
+    MAX_PER_WORKSPACE, MAX_TOOL, NewBatch, Review, WORKSPACE_HEADERS,
 };
 
 /// Every stable code a store call can fail with. `invalid` and `unavailable` are shared with the other tools.
@@ -187,33 +186,20 @@ fn invalid(why: impl Into<String>) -> ActivityError {
     ActivityError::Invalid(why.into())
 }
 
-/// An actor string: 1 to [`MAX_ACTOR`] bytes, no control or hidden character.
+/// An actor string: the rule of `meldframe_text::actor` (1 to `MAX_ACTOR` bytes, no control or hidden character, no
+/// run of stacked marks), the one the tools, the second check of the app layer and every other entry apply.
 pub fn check_actor(actor: &str) -> Result<(), ActivityError> {
-    if actor.is_empty() || actor.len() > MAX_ACTOR || actor.chars().any(is_hidden_text) {
-        return Err(invalid(format!(
-            "an actor is 1 to {MAX_ACTOR} bytes without control or hidden characters"
-        )));
-    }
-    Ok(())
+    meldframe_text::actor(actor).map_err(|e| invalid(format!("an actor {e}")))
 }
 
 /// What a store refuses before it writes: a name that does not fit, a count out of range, sequence numbers that run
-/// backwards.
+/// backwards. The actor, the key prefix and the tool are held to the rules of `meldframe_text` (`actor`, `key`,
+/// `plain`), which count characters and bytes together.
 pub fn check_batch(b: &NewBatch) -> Result<(), ActivityError> {
     check_actor(&b.actor)?;
-    if b.key_prefix.is_empty()
-        || b.key_prefix.chars().count() > MAX_KEY_PREFIX
-        || b.key_prefix.chars().any(is_hidden_text)
-    {
-        return Err(invalid(format!(
-            "a key prefix is 1 to {MAX_KEY_PREFIX} characters without control or hidden characters"
-        )));
-    }
-    if b.tool.is_empty() || b.tool.len() > MAX_TOOL || b.tool.chars().any(is_hidden_text) {
-        return Err(invalid(format!(
-            "a tool name is 1 to {MAX_TOOL} bytes without control or hidden characters"
-        )));
-    }
+    meldframe_text::key(&b.key_prefix).map_err(|e| invalid(format!("a key prefix {e}")))?;
+    meldframe_text::plain(&b.tool, MAX_TOOL, MAX_TOOL)
+        .map_err(|e| invalid(format!("a tool name {e}")))?;
     // With `known` given the count of the call is `known` and `written` adds nothing, so it may not pass it.
     let count = b.known.unwrap_or(b.written);
     if b.commands == 0

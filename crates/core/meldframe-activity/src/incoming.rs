@@ -1,8 +1,7 @@
 //! What the reducer takes in from the wire (a header as a socket or a route sent it) and what it asks for.
 
-use crate::{
-    Header, MAX_ACTOR, MAX_COUNT, MAX_KEY_PREFIX, MAX_REV, MAX_TOOL, Note, Review, is_hidden_text,
-};
+use crate::{Header, MAX_COUNT, MAX_REV, MAX_TOOL, Note, Review};
+use meldframe_text::{actor, key, plain};
 
 /// A fetch of headers (`FetchBatches` in the app layer): the page newest first, below `before_n`, above `after_n`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,22 +54,20 @@ impl From<Header> for RawHeader {
     }
 }
 
-/// A name the rows may show: not empty, within `max` bytes, no hidden character.
-fn plain(s: &str, max: usize) -> bool {
-    !s.is_empty() && s.len() <= max && !s.chars().any(is_hidden_text)
-}
-
 impl RawHeader {
-    /// The second check. `None` when the header cannot be a row: no number, a `rev` above [`MAX_REV`], or an actor, a key prefix or a tool that is
-    /// empty, too long or holds a hidden character. Otherwise the counts are held to their bounds (`written` never
-    /// above `commands`, `last_seq` never below `first_seq`), the note is cleaned as [`Note::clean`] does (cut,
-    /// never refused), and `reviewed_by` and `reviewed_at_ms` stay only as a pair.
+    /// The second check. `None` when the header cannot be a row: no number, a `rev` above [`MAX_REV`], or an actor, a key
+    /// prefix or a tool that is empty, too long or holds a hidden character or a run of stacked marks. The rule is the
+    /// one of `meldframe_text` that the server's store and tool apply (`actor`, `key`, `plain`: characters and bytes
+    /// together), so a name that passes there is not dropped here and one that is refused there does not pass here.
+    /// Otherwise the counts are held to their bounds (`written` never above `commands`, `last_seq` never below
+    /// `first_seq`), the note is cleaned as [`Note::clean`] does (cut, never refused), and `reviewed_by` and
+    /// `reviewed_at_ms` stay only as a pair.
     pub fn check(self) -> Option<Header> {
         if self.n == 0
             || self.rev > MAX_REV
-            || !plain(&self.actor, MAX_ACTOR)
-            || !plain(&self.key_prefix, MAX_KEY_PREFIX)
-            || !plain(&self.tool, MAX_TOOL)
+            || actor(&self.actor).is_err()
+            || key(&self.key_prefix).is_err()
+            || plain(&self.tool, MAX_TOOL, MAX_TOOL).is_err()
         {
             return None;
         }
@@ -78,7 +75,7 @@ impl RawHeader {
         let commands = self.commands.clamp(1, MAX_COUNT).max(written);
         let who = self
             .reviewed_by
-            .filter(|w| plain(w, MAX_ACTOR))
+            .filter(|w| actor(w).is_ok())
             .zip(self.reviewed_at_ms);
         Some(Header {
             n: self.n,

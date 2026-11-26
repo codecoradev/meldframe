@@ -30,10 +30,10 @@ fn keys(v: &Value) -> Vec<String> {
     k
 }
 
-fn put(w: &World, actor: &str, prefix: &str) {
-    let b = NewBatch {
+fn batch_of(actor: &str) -> NewBatch {
+    NewBatch {
         actor: actor.into(),
-        key_prefix: prefix.into(),
+        key_prefix: "k".into(),
         tool: "apply_commands".into(),
         commands: 1,
         written: 1,
@@ -43,6 +43,13 @@ fn put(w: &World, actor: &str, prefix: &str) {
         last_seq: 1,
         at_ms: 1,
         note: Note::parse("n").ok(),
+    }
+}
+
+fn put(w: &World, actor: &str, prefix: &str) {
+    let b = NewBatch {
+        key_prefix: prefix.into(),
+        ..batch_of(actor)
     };
     w.store.record("ws_1", "f", &b).unwrap();
 }
@@ -158,6 +165,24 @@ async fn an_actor_of_100_two_byte_characters_is_left_out_as_over_128_bytes() {
         .collect();
     assert_eq!(kept, [json!("ok-1")]);
     assert_eq!(r.body["withheld"], 1);
+}
+
+/// U9: a key prefix is held to 100 characters and 400 bytes (`meldframe_text::key`) at the store, here and in the app
+/// layer, so 100 three-byte characters are written, shown and not withheld, and 101 are refused at the store.
+#[tokio::test]
+async fn a_key_prefix_of_100_non_ascii_characters_is_written_and_shown() {
+    let w = served().await;
+    let prefix = "\u{4E2D}".repeat(100);
+    put(&w, "agent:alpha", &prefix);
+    let c = connect(&w.h, AGENT).await;
+    let r = call(&c, "get_batches", json!({"file": "f"})).await;
+    assert_eq!(r.body["batches"][0]["keyPrefix"], prefix);
+    assert!(r.body.get("withheld").is_none());
+    let too_long = NewBatch {
+        key_prefix: "\u{4E2D}".repeat(101),
+        ..batch_of("agent:alpha")
+    };
+    assert!(w.store.record("ws_1", "f", &too_long).is_err());
 }
 
 #[tokio::test]

@@ -1,6 +1,5 @@
 //! What a batch's ops did, in counts and at most three names: the summary of a row, and the nodes its Show selects.
 
-use crate::MAX_COMBINING_RUN;
 use meldframe_protocol::Command;
 use std::collections::HashSet;
 
@@ -20,26 +19,12 @@ pub struct Summary {
     pub names: Vec<String>,
 }
 
-/// A node name as a row may show it, cleaned as a note is: hidden characters and controls gone, no more than
-/// [`MAX_COMBINING_RUN`] combining marks in a row (counted once the hidden characters are gone), trimmed, cut to
-/// [`MAX_NAME_CHARS`].
+/// A node name as a row may show it: `meldframe_text::label` (display profile: hidden characters and controls gone, a
+/// joiner kept between emoji, no more than `MAX_COMBINING_RUN` combining marks in a row, white space folded and
+/// trimmed), cut to [`MAX_NAME_CHARS`]. A name that is nothing after that is left out.
 fn clean_name(s: &str) -> Option<String> {
-    let mut run = 0;
-    let s: String = s
-        .chars()
-        .filter(|c| !crate::is_hidden_text(*c))
-        .filter(|c| {
-            run = if crate::is_combining_mark(*c) {
-                run + 1
-            } else {
-                0
-            };
-            run <= MAX_COMBINING_RUN
-        })
-        .collect();
-    let s: String = s.trim().chars().take(MAX_NAME_CHARS).collect();
-    let s = s.trim_end();
-    (!s.is_empty()).then(|| s.to_owned())
+    let s = meldframe_text::label(s, MAX_NAME_CHARS);
+    (!s.is_empty()).then_some(s)
 }
 
 /// The running tally of one batch. The counts are exact while a batch names at most [`MAX_SHOWN`] distinct nodes of a
