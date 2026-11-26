@@ -28,7 +28,7 @@
   import { bindParts, shellParts } from './react-pilot/shell'; // the palette and the shortcut sheet, Svelte or React with /?react=palette (E7.3, S4); the bind picker with /?react=variables (S5)
   import { zoomCamera } from '@meldframe/web-shell/zoom';
   import LayersPanel from './react-pilot/LayersPanelSwitch.svelte'; // LayersPanel.svelte of web-panels, or its React copy with /?react=layers (E7.3, S5)
-  import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
+  import PropertiesPanel from './react-pilot/PropertiesPanelSwitch.svelte'; // PropertiesPanel.svelte of web-panels, or its React copy with /?react=properties (E7.3, S6)
   import VariablesPanel from './react-pilot/VariablesPanelSwitch.svelte'; // VariablesPanel.svelte of web-panels, or its React copy with /?react=variables (E7.3, S5)
   import ActivityPanel from '@meldframe/web-activity/ActivityPanel.svelte';
   import { toastFor } from '@meldframe/web-activity/tab';

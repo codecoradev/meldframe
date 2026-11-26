@@ -5,12 +5,15 @@
 // Start first: the server (`MELDFRAME_DEV_TOKENS="<token>:ws_dev:agent:dev" MELDFRAME_LISTEN=127.0.0.1:<port> meldframe-server`, in memory), the
 // web client on a file that is new for each run (`MELDFRAME_SERVER=<server-url> MELDFRAME_WEB_TOKEN=<token> MELDFRAME_WEB_FILE=<file> npx vite
 // --port <port> --strictPort` in apps/web, with the WASM bridge built from this revision), and the same file name in MELDFRAME_WEB_FILE here.
+// MELDFRAME_UI=react opens the page with `/?react=properties` (the React copy of the Properties panel, E7.3 slice S6) and first asks that React drew it, so that a
+// silent fallback to Svelte cannot pass; without it the Svelte copy runs and the same checks apply.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const [web, server, token] = process.argv.slice(2);
 const file = process.env.MELDFRAME_WEB_FILE;
+const react = process.env.MELDFRAME_UI === 'react';
 if (!web || !server || !token || !file) throw new Error('usage: MELDFRAME_WEB_FILE=<new file> node ellipse-e2e.mjs <web-url> <server-url> <token>');
 const auth = { authorization: `Bearer ${token}` };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -53,9 +56,12 @@ const check = async (name, fn) => {
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 860 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => { pageErrors.push(e.message); console.log('[pageerror]', e.message); });
-  await page.goto(web);
+  await page.goto(react ? `${web.replace(/\/?$/, '/')}?react=properties` : web);
   await page.waitForSelector('[data-testid=connection][data-state=live]', { timeout: 60_000 });
   await page.waitForSelector('[data-testid=layer][data-id=page]', { timeout: 20_000 });
+  // MELDFRAME_UI=react: the page must really be the React copy of the Properties panel (a fallback to Svelte would pass every other check).
+  if (react) await page.waitForSelector('[data-testid=properties]', { timeout: 20_000 }); // the React chunk loads on demand: the panel is there a moment after the editor is live
+  if (react) assert.equal(await page.evaluate(() => Object.keys(document.querySelector('[data-testid=properties]') ?? {}).some((k) => k.startsWith('__reactFiber$'))), true, 'the Properties panel has no React fibre: the page fell back to Svelte');
   await page.waitForTimeout(2000);
 
   /** The pixels of the screen at world points of the page frame: the frame is the one pure white area, which gives the zoom and the origin. */

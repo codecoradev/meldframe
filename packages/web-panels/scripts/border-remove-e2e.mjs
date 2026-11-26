@@ -14,6 +14,8 @@
 // The WASM bridge must be built from this revision (`just wasm-build`), and Playwright comes from the global module path. Both URLs
 // must be loopback (the token is sent there). It adds a frame and four nodes to the file and leaves them: development server only.
 // The checks run in order and share the file; one that fails can fail the ones after it.
+// MELDFRAME_UI=react opens the page with `/?react=properties` (the React copy of the Properties panel, E7.3 slice S6) and first asks that React drew it, so that a
+// silent fallback to Svelte cannot pass; without it the Svelte copy runs and the same checks apply.
 // MELDFRAME_E2E_SHOTS=<dir> saves screenshots (and one of the page when a check fails).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -21,6 +23,7 @@ import { createRequire } from 'node:module';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const [web, server] = process.argv.slice(2);
+const react = process.env.MELDFRAME_UI === 'react';
 const root = new URL('../../../', import.meta.url).pathname;
 const file = process.env.MELDFRAME_WEB_FILE;
 const shots = process.env.MELDFRAME_E2E_SHOTS;
@@ -153,9 +156,12 @@ const commandsSent = () => sent.flatMap((m) => (Array.isArray(m.ops) ? m.ops.map
     if (r.method() !== 'POST' || !r.url().includes('/tools/apply_commands')) return;
     try { sent.push(JSON.parse(r.postData() ?? '')); } catch { /* not JSON */ }
   });
-  await page.goto(web);
+  await page.goto(react ? `${web.replace(/\/?$/, '/')}?react=properties` : web);
   await until('the editor is live', async () => (await page.getAttribute('[data-testid=connection]', 'data-state')) === 'live');
   await until('the nodes are listed', async () => (await $(`[data-testid=layer][data-id="${typed}"]`).count()) === 1);
+  // MELDFRAME_UI=react: the page must really be the React copy of the Properties panel (a fallback to Svelte would pass every other check).
+  if (react) await page.waitForSelector('[data-testid=properties]', { timeout: 20_000 }); // the React chunk loads on demand: the panel is there a moment after the editor is live
+  if (react) assert.equal(await page.evaluate(() => Object.keys(document.querySelector('[data-testid=properties]') ?? {}).some((k) => k.startsWith('__reactFiber$'))), true, 'the Properties panel has no React fibre: the page fell back to Svelte');
   let drawn;
   let buttonCommand; // the command the click sent, for the agent's check at the end
 

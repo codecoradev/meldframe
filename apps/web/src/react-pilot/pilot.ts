@@ -12,6 +12,9 @@
 //   /?react=variables   the Variables panel, the bind picker and its list drawn by React (E7.3, S5): VariablesPanelSwitch.svelte,
 //                        which Editor.svelte imports, and BindPickerSwitch.svelte, which `bindParts` in shell.ts hands to the Properties
 //                        panel. The three dialogs of the panel stay Svelte (S9, S10): the switch file draws them beside the island.
+//   /?react=properties  the Properties panel and its sections drawn by React (E7.3, S6): PropertiesPanelSwitch.svelte, which Editor.svelte imports.
+//                        The image picker of the Fill section is Svelte until S7: the switch gives the React panel a view that mounts it
+//                        (ImagePickerHost.svelte) and the route of an asset's thumbnail, which a view package may not import.
 // packages/web-chrome/scripts/overlays-e2e.mjs asks the two fixtures the same questions; states-e2e.mjs runs on the first with MELDFRAME_UI=react.
 import { mount } from 'svelte';
 
