@@ -10,6 +10,7 @@
 //! does not pass is ignored: it is a hint over the log, and a fetch heals the gap. The checks that follow
 //! (`RawHeader::check`, `AssetPage::is_valid`, the label rule of a row) are the app's second line and stay where they are.
 
+mod assets;
 mod batches;
 mod checkpoints;
 
@@ -43,6 +44,12 @@ pub fn action_of(wire: Wire) -> Option<Action> {
         Wire::Checkpoints { status, body } => checkpoints::list(status, &body),
         Wire::CheckpointPosted { key, status, body } => checkpoints::posted(key, status, &body),
         Wire::CheckpointState { n, status, body } => checkpoints::state(n, status, &body),
+        Wire::Assets {
+            request,
+            after,
+            status,
+            body,
+        } => assets::page(request, after, status, &body),
         Wire::Hint { now_ms, text } => {
             let frame = hint(&text)?;
             Action::Frame { now_ms, frame }
