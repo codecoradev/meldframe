@@ -16,6 +16,7 @@ use export::{ExportOptions, Format, export_frame};
 use html_import::map::{Imported, Options, import};
 use meldframe_layout::StubMeasurer;
 use meldframe_protocol::{LayoutMode, Node, NodeKind, SizeMode, Variables};
+#[path = "roundtrip_common/mod.rs"]
 mod common;
 use common::{Rng, merge};
 use serde_json::{Value, json};

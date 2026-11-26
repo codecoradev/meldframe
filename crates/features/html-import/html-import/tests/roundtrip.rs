@@ -13,6 +13,7 @@ use html_import::css::{Limits, Report, Style, style_tree};
 use html_import::html::{Tree, parse};
 use meldframe_layout::StubMeasurer;
 use meldframe_protocol::{Node, Variables};
+#[path = "roundtrip_common/mod.rs"]
 mod common;
 use common::{Rng, merge};
 use serde_json::{Value, json};

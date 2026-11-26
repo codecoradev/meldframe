@@ -2,6 +2,8 @@
 
 Status note, 26 Nov 2026: slices 1 to 5 and 7 of section 6 are built (the mapping and the tool `import_html`); slice 8, the oracle, is not. Section 0 says what exists, what was measured and where the implementation differs from this proposal. The sentence of the Status paragraph below that says nothing is built, and the "No importer exists" bullet of section 8, are the history of the proposal.
 
+Status note, 26 Nov 2026 (#316): the five test crates this note names (`meldframe-import-html-tests`, `-css-tests`, `-style-tests`, `-paint-tests` and `-roundtrip-tests`) moved into `crates/features/html-import/html-import/tests`, with their files under the same names (the helper modules of the style, paint and round trip tests are `style_common`, `paint_common` and `roundtrip_common`). The text below keeps the names it was written with, and its line counts are history.
+
 Status: **proposal, ordered by the owner on 24 Nov 2026 (decision 41)**, for GitHub issue 256 ("import HTML as editable nodes, symmetric with `export_frame`"), now tracked as epic E4.4 (issue 272, `docs/epics.md`). Written 2026-11-24 from a reading of the repository. No code was written or run for it, no number below was measured, and nothing here is built. "Spike" is the issue's word: this is a written mapping and a proposed tool signature, with no prototype, as decision 24 and D7 of `docs/standards/modular-thin-ui.md` ask (no new spikes; the first vertical slice is built in the repository with exit criteria written first). **The owner's order of 24 Nov 2026 covers the subset (decision 41).**
 
 Decision 6 (`docs/decisions.md`) said "HTML import is deferred", and `PRODUCT.md` (Capabilities and Constraints), `docs/prd.md` (the out-of-scope list) and `docs/roadmap.md` (Out of scope) repeated it. This note prepared the lifting of that decision; decision 41 lifts it for the scoped importer of this note and for nothing else, and those three files now say what stays out. The seams and limits are recorded in ADR-0024 (`docs/adr/0024-html-import-with-a-bounded-parser-of-our-own-and-a-shared-css-crate.md`).
@@ -279,7 +281,7 @@ For a File the export covers (contract section 4), `import_html` of its HTML giv
 - a rect that fills both axes or one, with no size in the CSS, is a rect again (item 4 of section 0): a frame with no children and no layout is a rect when each of its axes is fixed or fill, and stays a frame only when it hugs on an axis;
 - the radius of a border on a node whose radius is bound: the export writes `calc(min(var(--r) * 1px, Wpx, Hpx) + Npx)` on the `::after` box, and the paint stage reads that form (`paint/calc.rs`); the radius of the node itself is read as `calc(var(--r) * 1px)`. It is read except in a degenerate layout (rule G3: a box smaller than its padding, an overflow, a zero fill), where the number can be negative and the importer lists `radius_unreadable`; the round trip tolerates that code only for an export that carries one of those findings.
 
-These are the losses the round trip tests (`meldframe-import-html-roundtrip-tests/tests/import.rs`, `meldframe-mcp-tests/tests/import_html_roundtrip.rs`) allow, and they allow no other.
+These are the losses the round trip tests (`crates/features/html-import/html-import/tests/import.rs`, `meldframe-mcp-tests/tests/import_html_roundtrip.rs`) allow, and they allow no other.
 
 ### 3.8 Counts
 

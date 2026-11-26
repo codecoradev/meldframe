@@ -4,6 +4,7 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
+#[path = "paint_common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_protocol::{ImageFill, ImageFit};

@@ -2,7 +2,7 @@
 //! HTML, in both forms, through a real client against the real server. The nodes come back with the fields they had,
 //! except the losses the note lists: the ids and the `pos` strings (new), the stored `w` and `h` of a hug or fill axis,
 //! `x` and `y` of a node in a flow, and a binding to a variable (it comes back as the value). The seeded random files
-//! of `meldframe-import-html-roundtrip-tests` cover the fields one by one; this is the same through the tools.
+//! of `import.rs` and `roundtrip.rs` in `html-import` cover the fields one by one; this is the same through the tools.
 
 mod import_html;
 use import_html::*;
