@@ -211,6 +211,24 @@ await check('the Close button and a click on the scrim close it, and the focus g
   await page.waitForTimeout(300);
   assert.equal(await focusIs('export-section-html'), true, 'after the scrim');
 });
+if (react) {
+  // The React copy loads on demand. A chunk that does not load must leave the Svelte section and dialog, never nothing.
+  await check('React chunk that does not load: the Export section and the dialog are the Svelte copies and still work', async () => {
+    const p = await ctx.newPage();
+    await p.route((u) => /react\/(ExportSection|ExportDialog|island)/.test(u.pathname), (route) => route.abort('failed'));
+    await p.goto(`${web.replace(/\/?$/, '/')}?react=export`);
+    await p.waitForSelector(`text=${frame}`);
+    await p.locator('[data-testid=layers-card]').getByText(frame, { exact: true }).click();
+    const section = p.locator('[data-testid=export-section]');
+    await section.waitFor({ timeout: 10000 });
+    assert.equal(await p.evaluate(() => Object.keys(document.querySelector('[data-testid=export-section]') ?? {}).some((k) => k.startsWith('__reactFiber$'))), false, 'the section is the Svelte copy');
+    await p.locator('[data-testid=export-section-html]').click();
+    await p.locator('[data-testid=export-dialog]').waitFor({ timeout: 10000 });
+    await p.keyboard.press('Escape');
+    await p.locator('[data-testid=export-dialog]').waitFor({ state: 'detached' });
+    await p.close();
+  });
+}
 await check('the page threw no error', async () => assert.deepEqual(pageErrors, []));
 
 await browser.close();
