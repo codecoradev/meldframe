@@ -14,8 +14,8 @@
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
-  import { addStopAction, angleAction, fillTypeAction, gradientBar, removeStopAction, stopColorAction, stopPercent, stopPosAction } from '@meldframe/web-document/fills';
-  import { bindingOf, propertyAction } from '@meldframe/web-document/properties';
+  import { addStopAction, fillTypeAction, gradientBar, removeStopAction, stopPercent } from '@meldframe/web-document/fills';
+  import { bindingOf, textAction } from '@meldframe/web-document/properties';
   import BindPicker from './BindPicker.svelte';
   import ImageFillPicker from './ImageFillPicker.svelte';
   import { fillTypes, fitAction, IMAGE_FITS, openAssetsAction, shortId } from './images';
@@ -81,7 +81,7 @@
       {:else}
         <div class="flex items-center gap-2">
           <div class="min-w-0 flex-1">
-            <Field label="Fill" value={p.fill} onCommit={(raw) => send(propertyAction(p, 'fill', raw))} testId="prop-fill">
+            <Field label="Fill" value={p.fill} onCommit={(raw) => send(textAction(p, { type: 'fill' }, raw))} testId="prop-fill">
               {#snippet lead()}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={swatch}></i>{/snippet}
             </Field>
           </div>
@@ -94,7 +94,7 @@
     {#if p.fillKind === 'linear'}
       <div class="flex items-center gap-2">
         <span class="w-10 text-text-muted">Angle</span>
-        <div class="w-24"><Field label="Angle" suffix="°" mono value={String(Math.round(g.angle * 100) / 100)} onCommit={(raw) => send(angleAction(p, raw))} testId="prop-gradient-angle" /></div>
+        <div class="w-24"><Field label="Angle" suffix="°" mono value={String(Math.round(g.angle * 100) / 100)} onCommit={(raw) => send(textAction(p, { type: 'gradientAngle' }, raw))} testId="prop-gradient-angle" /></div>
       </div>
     {/if}
     <div class="h-4 rounded-sm border border-border" style:background={gradientBar(g)} data-testid="prop-gradient-bar" role="img" aria-label="Gradient, {g.stops.length} stops"></div>
@@ -102,8 +102,8 @@
       {#each g.stops as s, i (i)}
         <div class="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2" data-testid="prop-gradient-stop">
           <i class="block size-4 shrink-0 rounded-sm border border-border" style:background={s.color}></i>
-          <Field label="Stop {i + 1} colour" size="dense" mono value={s.color} onCommit={(raw) => send(stopColorAction(p, i, raw))} testId="prop-gradient-color" />
-          <div class="w-24"><Field label="Stop {i + 1} position" size="dense" mono suffix="%" value={stopPercent(s.pos)} onCommit={(raw) => send(stopPosAction(p, i, raw))} testId="prop-gradient-pos" /></div>
+          <Field label="Stop {i + 1} colour" size="dense" mono value={s.color} onCommit={(raw) => send(textAction(p, { type: 'stopColor', index: i }, raw))} testId="prop-gradient-color" />
+          <div class="w-24"><Field label="Stop {i + 1} position" size="dense" mono suffix="%" value={stopPercent(s.pos)} onCommit={(raw) => send(textAction(p, { type: 'stopPos', index: i }, raw))} testId="prop-gradient-pos" /></div>
           <IconButton label="Remove stop {i + 1}" icon="minus" size={24} disabled={g.stops.length <= p.minStops} onclick={() => send(removeStopAction(p, i))} data-testid="prop-gradient-remove" />
         </div>
       {/each}

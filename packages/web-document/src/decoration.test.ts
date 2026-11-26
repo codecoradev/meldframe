@@ -1,52 +1,27 @@
 import type { Properties } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { addShadowAction, borderColorAction, borderPositionAction, borderWidthAction, removeBorderAction, removeShadowAction, shadowAction } from './decoration';
+import { addShadowAction, borderPositionAction, removeBorderAction, removeShadowAction, shadowAction } from './decoration';
 
 const shadow = { x: 0, y: 4, blur: 8, spread: 0, color: '#00000040' };
 const p: Properties = { id: 'n', name: 'Box', kind: 'rect', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, imageAllowed: true, minStops: 2, maxStops: 8, border: { width: 1, color: '#000000', position: 'inside' }, shadows: [shadow], maxShadows: 4, radius: 0, layout: 'none', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, margin: { top: 0, right: 0, bottom: 0, left: 0 }, sw: 'fixed', sh: 'fixed', align: 'start', justify: 'start', absolute: false, inLayout: false, positionLocked: false, notes: [], sections: { radius: true, clip: false, fontSize: false, layout: false, placement: false }, text: '', fontSize: 16, opacity: 1, clip: false, bound: [], bindings: [] };
 const prop = (property: object) => ({ type: 'setProperty', id: 'n', property });
 
 describe('the border', () => {
-  it('sends a changed width, and nothing for text, a negative number or the width it has', () => {
-    expect(borderWidthAction(p, '3')).toEqual(prop({ property: 'borderWidth', value: 3 }));
-    expect(borderWidthAction(p, '1')).toBeNull();
-    expect(borderWidthAction(p, '-1')).toBeNull();
-    expect(borderWidthAction(p, 'x')).toBeNull();
-    expect(borderWidthAction(p, '')).toBeNull();
-  });
-  it('sends a colour as typed, for the app layer to take or refuse, and nothing when it is empty or unchanged', () => {
-    expect(borderColorAction(p, '#ff0000')).toEqual(prop({ property: 'borderColor', value: '#ff0000' }));
-    expect(borderColorAction(p, '#f00')).not.toBeNull();
-    expect(borderColorAction(p, '#FF000080')).not.toBeNull();
-    expect(borderColorAction(p, '#000000')).toBeNull();
-    // Text that is not a colour goes to the app layer, which refuses it with a notice; an empty field sends nothing.
-    expect(borderColorAction(p, 'red')).toEqual(prop({ property: 'borderColor', value: 'red' }));
-    expect(borderColorAction(p, ' ')).toBeNull();
-  });
   it('sends a position other than the one it has', () => {
     expect(borderPositionAction(p, 'outside')).toEqual(prop({ property: 'borderPosition', value: 'outside' }));
     expect(borderPositionAction(p, 'inside')).toBeNull();
   });
-  it('removes the border with the one command the width field and an agent send: width 0, and no colour or position', () => {
-    expect(removeBorderAction(p)).toEqual(prop({ property: 'borderWidth', value: 0 }));
-    expect(removeBorderAction(p)).toEqual(borderWidthAction(p, '0'));
+  it('removes the border with the one text the width field sends: 0, and no colour or position', () => {
+    expect(removeBorderAction(p)).toEqual({ type: 'typed', entry: { type: 'property', id: 'n', field: { type: 'borderWidth' }, text: '0' } });
     // A width that is not above 0 has no border to remove: nothing is sent.
     expect(removeBorderAction({ ...p, border: { ...p.border, width: 0 } })).toBeNull();
   });
 });
 
 describe('the shadows', () => {
-  it('sends the whole shadow with the one field changed', () => {
-    expect(shadowAction(p, 0, 'blur', '20')).toEqual(prop({ property: 'setShadow', value: { index: 0, shadow: { ...shadow, blur: 20 } } }));
-    expect(shadowAction(p, 0, 'x', '-3')).toEqual(prop({ property: 'setShadow', value: { index: 0, shadow: { ...shadow, x: -3 } } }));
-    expect(shadowAction(p, 0, 'color', '#112233')).toEqual(prop({ property: 'setShadow', value: { index: 0, shadow: { ...shadow, color: '#112233' } } }));
-  });
-  it('sends nothing for an unchanged value, a negative blur, a shadow that is not there or text that is not valid', () => {
-    expect(shadowAction(p, 0, 'y', '4')).toBeNull();
-    expect(shadowAction(p, 0, 'blur', '-1')).toBeNull();
-    expect(shadowAction(p, 1, 'x', '1')).toBeNull();
-    expect(shadowAction(p, 0, 'spread', 'a')).toBeNull();
-    expect(shadowAction(p, 0, 'color', '')).toBeNull();
+  it('sends the part of the shadow that was typed, as typed: the ranges are the app layer\'s', () => {
+    expect(shadowAction(p, 0, 'blur', '-1')).toEqual({ type: 'typed', entry: { type: 'property', id: 'n', field: { type: 'shadow', index: 0, part: { type: 'blur' } }, text: '-1' } });
+    expect(shadowAction(p, 2, 'color', ' #fff ')).toMatchObject({ entry: { field: { type: 'shadow', index: 2, part: { type: 'color' } }, text: ' #fff ' } });
   });
   it('adds and removes by index', () => {
     expect(addShadowAction(p)).toEqual(prop({ property: 'addShadow', value: {} }));

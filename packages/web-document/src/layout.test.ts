@@ -1,6 +1,6 @@
 import type { LayoutNote, Properties } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { absoluteAction, alignAction, gapAction, justifyAction, layoutAction, marginSideAction, noteText, paddingAllAction, showPlacement, paddingSideAction, sizingAction } from './layout';
+import { absoluteAction, alignAction, justifyAction, layoutAction, noteText, sizingAction } from './layout';
 
 const sides = { top: 1, right: 2, bottom: 3, left: 4 };
 const p: Properties = { id: 'n', name: 'Box', kind: 'frame', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, imageAllowed: true, minStops: 2, maxStops: 8, border: { width: 0, color: '#000000', position: 'inside' }, shadows: [], maxShadows: 4, radius: 0, layout: 'row', gap: 8, padding: sides, margin: { top: 0, right: 0, bottom: 0, left: 0 }, sw: 'fixed', sh: 'hug', align: 'start', justify: 'start', absolute: false, inLayout: true, positionLocked: false, notes: [], sections: { radius: true, clip: false, fontSize: false, layout: false, placement: false }, text: '', fontSize: 16, opacity: 1, clip: true, bound: [], bindings: [] };
@@ -20,34 +20,6 @@ describe('the choices', () => {
     expect(sizingAction(p, 'width', 'fill')).toEqual(prop({ property: 'sizing', value: { axis: 'width', mode: 'fill' } }));
     expect(sizingAction(p, 'height', 'hug')).toBeNull();
     expect(sizingAction(p, 'width', 'hug')).not.toBeNull();
-  });
-});
-
-describe('the lengths', () => {
-  it('take a number of 0 or more and refuse text, a negative number, empty text and the value they have', () => {
-    expect(gapAction(p, '12')).toEqual(prop({ property: 'gap', value: 12 }));
-    expect(gapAction(p, '0')).toEqual(prop({ property: 'gap', value: 0 }));
-    for (const bad of ['-1', 'x', '', ' ', '8']) expect(gapAction(p, bad), bad).toBeNull();
-  });
-  it('pad and margin one side', () => {
-    expect(paddingSideAction(p, 'left', '9')).toEqual(prop({ property: 'padding', value: { side: 'left', value: 9 } }));
-    expect(paddingSideAction(p, 'left', '4')).toBeNull();
-    expect(marginSideAction(p, 'top', '5')).toEqual(prop({ property: 'margin', value: { side: 'top', value: 5 } }));
-    expect(marginSideAction(p, 'top', '0')).toBeNull();
-  });
-  it('pad all sides from the uniform field, also when the sides differ', () => {
-    expect(paddingAllAction(p, '6')).toEqual(prop({ property: 'paddingAll', value: 6 }));
-    expect(paddingAllAction({ ...p, padding: { top: 6, right: 6, bottom: 6, left: 6 }, paddingUniform: 6 }, '6')).toBeNull();
-    expect(paddingAllAction(p, '-2')).toBeNull();
-  });
-});
-
-describe('showPlacement', () => {
-  it('is on in a layout, and out of one only while the node has a margin or is absolute', () => {
-    expect(showPlacement({ ...p, inLayout: true })).toBe(true);
-    expect(showPlacement({ ...p, inLayout: false })).toBe(false);
-    expect(showPlacement({ ...p, inLayout: false, absolute: true })).toBe(true);
-    expect(showPlacement({ ...p, inLayout: false, margin: { top: 0, right: 0, bottom: 2, left: 0 } })).toBe(true);
   });
 });
 

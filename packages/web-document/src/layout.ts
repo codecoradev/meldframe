@@ -1,6 +1,7 @@
-// The layout fields of the inspector: what a typed value or a click sends, and the words of a note. The rules (what
-// each field does, which settings have no effect where the node is) are the app layer's; these functions turn input into
-// the action to send, or into nothing when there is nothing to send. Pure.
+// The layout fields of the inspector: what a click sends, and the words of a note. The rules (what each field does, the
+// parse and the range of a typed length, which settings have no effect where the node is, and whether the Margin section
+// shows: `Properties.sections`) are the app layer's; a typed text goes to it as typed (`textAction`) and these functions
+// turn a click into the action to send, or into nothing when there is nothing to send. Pure.
 import type { Action, Align, Axis, Justify, LayoutMode, LayoutNote, Properties, Side, SizeMode } from '@meldframe/protocol';
 
 type Prop = Extract<Action, { type: 'setProperty' }>['property'];
@@ -29,41 +30,11 @@ export const SIDES: { side: Side; label: string }[] = [
   { side: 'left', label: 'Left' },
 ];
 
-/** A length typed in px: a number of 0 or more. */
-const length = (raw: string): number | null => {
-  const t = raw.trim();
-  if (t === '') return null;
-  const v = Number(t);
-  return Number.isFinite(v) && v >= 0 ? v : null;
-};
-
 export const layoutAction = (p: Properties, mode: LayoutMode): Action | null => (mode === p.layout ? null : set(p, { property: 'layout', value: mode }));
 export const alignAction = (p: Properties, a: Align): Action | null => (a === p.align ? null : set(p, { property: 'align', value: a }));
 export const justifyAction = (p: Properties, j: Justify): Action | null => (j === p.justify ? null : set(p, { property: 'justify', value: j }));
 export const sizingAction = (p: Properties, axis: Axis, mode: SizeMode): Action | null => ((axis === 'width' ? p.sw : p.sh) === mode ? null : set(p, { property: 'sizing', value: { axis, mode } }));
 export const absoluteAction = (p: Properties, v: boolean): Action | null => (v === p.absolute ? null : set(p, { property: 'absolute', value: v }));
-
-export function gapAction(p: Properties, raw: string): Action | null {
-  const v = length(raw);
-  return v === null || v === p.gap ? null : set(p, { property: 'gap', value: v });
-}
-export function paddingSideAction(p: Properties, side: Side, raw: string): Action | null {
-  const v = length(raw);
-  return v === null || v === p.padding[side] ? null : set(p, { property: 'padding', value: { side, value: v } });
-}
-/** The uniform field: all four sides take the value, even when some already have it. */
-export function paddingAllAction(p: Properties, raw: string): Action | null {
-  const v = length(raw);
-  return v === null || v === p.paddingUniform ? null : set(p, { property: 'paddingAll', value: v });
-}
-export function marginSideAction(p: Properties, side: Side, raw: string): Action | null {
-  const v = length(raw);
-  return v === null || v === p.margin[side] ? null : set(p, { property: 'margin', value: { side, value: v } });
-}
-
-/** The Margin section is there in an auto layout parent, and wherever the node has a margin or is absolute: a note says
- *  they have no effect where the node is, and the fields that clear them must not be hidden by it. */
-export const showPlacement = (p: Properties): boolean => p.inLayout || p.absolute || Object.values(p.margin).some((v) => v > 0);
 
 const axisWord = (a: Axis): string => (a === 'width' ? 'width' : 'height');
 

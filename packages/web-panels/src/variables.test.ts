@@ -16,22 +16,10 @@ const row = (over: Partial<VariableRow> = {}): VariableRow => ({
 });
 
 describe('valueAction', () => {
-  it('sends the typed text as a literal and leaves the checking to the app layer', () => {
-    expect(valueAction(row(), 'light', '  #eeeeee ')).toEqual({
-      type: 'setVariableValue',
-      variable: 'bg',
-      mode: 'light',
-      value: { type: 'literal', text: '#eeeeee' },
-    });
-  });
-  it('makes no action for the text the value already shows, or for no text', () => {
-    expect(valueAction(row(), 'light', '#ffffff')).toBeNull();
-    expect(valueAction(row(), 'light', '   ')).toBeNull();
-    expect(valueAction(row(), 'nope', '#fff')).toBeNull();
-  });
-  it('replaces an alias with a literal, also when the text is the name it shows', () => {
-    expect(valueAction(row(), 'dark', '#111111')).not.toBeNull();
-    expect(valueAction(row(), 'dark', 'color/ink')).not.toBeNull();
+  // Empty text, a text the value already has and the check by the type of the variable are the app layer's (property_text.rs).
+  it('sends the typed text as it is typed, for the app layer to read by the type of the variable', () => {
+    expect(valueAction(row(), 'light', '  #eeeeee ')).toEqual({ type: 'typed', entry: { type: 'variableValue', variable: 'bg', mode: 'light', text: '  #eeeeee ' } });
+    expect(valueAction(row(), 'dark', '   ')).toMatchObject({ type: 'typed', entry: { type: 'variableValue', mode: 'dark', text: '   ' } });
   });
 });
 
@@ -55,6 +43,11 @@ describe('swatch', () => {
     expect(swatch(row({ type: 'number' }), 'dark')).toBeNull();
     expect(swatch(row({ values: [{ mode: 'light', text: 'x', resolved: 'url(x)' }] }), 'light')).toBeNull();
     expect(swatch(row({ values: [{ mode: 'light', text: 'x', resolved: '' }] }), 'light')).toBeNull();
+  });
+  it('draws the hex lengths the core reads (3, 4, 6, 8) and no other', () => {
+    const of = (resolved: string) => swatch(row({ values: [{ mode: 'light', text: 'x', resolved }] }), 'light');
+    for (const hex of ['#abc', '#abcd', '#abcdef', '#abcdef12']) expect(of(hex)).toBe(hex);
+    for (const hex of ['#ab', '#abcde', '#abcdef1', '#abcdef123', '#ggg']) expect(of(hex)).toBeNull();
   });
 });
 

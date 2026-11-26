@@ -309,6 +309,8 @@ const id = `e2e_${run}`;
       assert.equal(await tool(), 'select', 'a tool letter typed on a card button changed the tool');
       // a layer row with its frame selected: Delete does not delete it
       await page.locator(`[data-testid=layer][data-id="${id}"] button`).last().click();
+      // The refusals of the typed values above (a text that is not a colour, an opacity of 140) are noticed now: wait for the toast to go, so that a notice seen below is one of this key.
+      await page.locator('[data-testid=notice]').waitFor({ state: 'detached', timeout: 10000 });
       await page.keyboard.press('Delete');
       await page.waitForTimeout(600);
       assert.equal(await page.locator('[data-testid=notice]').count(), 0, 'Delete typed on a layer row reached the editor');

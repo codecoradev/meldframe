@@ -9,7 +9,8 @@
   import Checkbox from '@meldframe/web-chrome/Checkbox.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
-  import { absoluteAction, marginSideAction, SIDES } from '@meldframe/web-document/layout';
+  import { absoluteAction, SIDES } from '@meldframe/web-document/layout';
+  import { textAction } from '@meldframe/web-document/properties';
 
   interface Props {
     properties: Properties;
@@ -24,7 +25,7 @@
 <Section title="Margin">
   <div class="grid grid-cols-2 gap-2">
     {#each SIDES as s (s.side)}
-      <Field label="Margin {s.label.toLowerCase()}" prefix={s.label[0]} mono value={String(p.margin[s.side])} onCommit={(raw) => send(marginSideAction(p, s.side, raw))} testId="prop-margin-{s.side}" />
+      <Field label="Margin {s.label.toLowerCase()}" prefix={s.label[0]} mono value={String(p.margin[s.side])} onCommit={(raw) => send(textAction(p, { type: 'margin', side: s.side }, raw))} testId="prop-margin-{s.side}" />
     {/each}
   </div>
   <Checkbox label="Absolute position" checked={p.absolute} onChange={(c) => send(absoluteAction(p, c))} data-testid="prop-absolute" />
