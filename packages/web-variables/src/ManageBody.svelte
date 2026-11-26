@@ -14,7 +14,8 @@
   import CollectionDetail from './CollectionDetail.svelte';
   import CollectionList from './CollectionList.svelte';
   import RemoveConfirm from './RemoveConfirm.svelte';
-  import { collectionSummary, partial, reactTo, removalWords } from './manage';
+  import { focusAsker as askerFocus, focusEntity as entityFocus } from './askers';
+  import { collectionSummary, partial, reactTo, removalKey, removalWords, settle } from './manage';
 
   interface Props {
     panel: VariablesPanel;
@@ -48,17 +49,9 @@
     if (manage.rename) lastRename = manage.rename.target;
   });
 
-  const q = (match: (el: HTMLElement) => boolean) => [...(root?.querySelectorAll<HTMLElement>('[data-entity-id], [data-remove], [data-rename], [data-testid=manage-title], [data-testid=manage-collection], [data-testid=manage-collections-title]') ?? [])].find(match);
-  const focusEntity = (id: string) => {
-    const el = q((e) => e.dataset.entityId === id);
-    el?.scrollIntoView({ block: 'nearest' });
-    el?.focus();
-  };
+  const focusEntity = (id: string) => entityFocus(root, id);
   /** Back to the button that asked; when that thing is gone, to the title of the collection, then to a collection, then to the heading of the list. */
-  const focusAsker = (a: ManageTarget, attr: 'remove' | 'rename' = 'remove') => {
-    const key = `${a.kind}:${a.id}`;
-    (q((e) => e.dataset[attr] === key) ?? q((e) => e.dataset.testid === 'manage-title') ?? q((e) => e.dataset.testid === 'manage-collection') ?? q((e) => e.dataset.testid === 'manage-collections-title'))?.focus();
-  };
+  const focusAsker = (a: ManageTarget, attr: 'remove' | 'rename' = 'remove') => askerFocus(root, a, attr);
 
   const op = (o: ManageOp) => dispatch({ type: 'manage', op: o });
   const send = (a: Action, done: string) => {
@@ -73,25 +66,13 @@
     if (now === seen) return;
     seen = now;
     const r = reactTo(now, untrack(() => pending), untrack(() => manage.limits), untrack(() => sent));
-    if (r.error) {
-      error = r.error;
-      status = '';
-      pending = null;
-    } else if (r.status || r.added) {
-      error = '';
-      if (r.status) status = r.status;
-      pending = null;
-    }
-    const added = r.added;
-    if (added) void tick().then(() => focusEntity(added.id));
-    // The field closed because its rename was made: the button that opened it takes the focus.
-    const back = r.renamed ? lastRename : null;
-    if (back) void tick().then(() => focusAsker(back, 'rename'));
-    if (refocus && (r.error || r.status)) {
-      const a = refocus;
-      refocus = null;
-      void tick().then(() => focusAsker(a));
-    }
+    const s = settle(r, lastRename, refocus);
+    if (s.error !== null) error = s.error;
+    if (s.status !== null) status = s.status;
+    if (s.pending) pending = null;
+    if (s.refocused) refocus = null;
+    // The page shows the answer after this: what was added takes the focus, a field closed by its rename gives it back to the button that opened it, and a removal that was answered gives it back to the button that asked.
+    if (s.focus.length) void tick().then(() => s.focus.forEach((f) => ('entity' in f ? focusEntity(f.entity) : focusAsker(f.asker, f.attr))));
   });
 
   const close = () => {
@@ -156,7 +137,7 @@
     <div class="min-w-0 flex-1 overflow-y-auto" data-testid="manage-detail">
       {#if removal && words}
         <!-- A question for another thing starts again, so it takes the focus on Cancel as the first one did. -->
-        {#key `${removal.target.kind}:${removal.target.kind === 'mode' ? `${removal.target.collection}:` : ''}${removal.target.id}`}
+        {#key removalKey(removal)}
           <div class="px-4 pt-4"><RemoveConfirm plan={words} onConfirm={confirm} onCancel={close} /></div>
         {/key}
       {/if}

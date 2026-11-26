@@ -1,7 +1,7 @@
 import type { ManageLimits, RenameField } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
 import { nameError, renamedWords } from './manage';
-import { RENAME_HINT, movedWords, renameHint, renameNote } from './rename';
+import { RENAME_HINT, isEditing, movedWords, renameHint, renameNote } from './rename';
 
 // What a rename is checked against, which text is no change, what a save sends and what happens to a field when another actor
 // changes or removes its target are the app layer's (crates/core/meldframe-variables-manage-tests, manage_rename.rs); these are the words.
@@ -44,5 +44,19 @@ describe('the line under the field of a rename', () => {
   });
   it('says a name that exists already as a warning', () => {
     expect(renameNote('mode', field({ text: 'dark', check: { name: 'dark', warning: 'same' }, unchanged: false }), limits).tone).toBe('warning');
+  });
+});
+
+describe('whether the field of a rename is open for a thing of a collection', () => {
+  const field = (target: RenameField['target']): RenameField => ({ target, opened: 'a', current: 'a', text: 'a', check: { name: 'a' }, unchanged: true, first: false });
+  it('is true only for the target the field was opened for, a mode in its own collection', () => {
+    const f = field({ kind: 'variable', id: 'v1' });
+    expect(isEditing(f, 'c1', 'variable', 'v1')).toBe(true);
+    expect(isEditing(f, 'c1', 'variable', 'v2')).toBe(false);
+    expect(isEditing(f, 'c1', 'collection', 'v1')).toBe(false);
+    expect(isEditing(null, 'c1', 'variable', 'v1')).toBe(false);
+    const m = field({ kind: 'mode', collection: 'c1', id: 'm1' });
+    expect(isEditing(m, 'c1', 'mode', 'm1')).toBe(true);
+    expect(isEditing(m, 'c2', 'mode', 'm1')).toBe(false);
   });
 });

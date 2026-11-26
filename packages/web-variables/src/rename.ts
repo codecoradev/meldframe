@@ -1,7 +1,7 @@
 // Renaming in the Variables manage view: what the field says. The rules (what a rename is checked against, which text is no
 // change, the one action a save sends, what happens when the name changes under the field or its target goes) are the app
 // layer's: `AppState.manage.rename` and `Action.manage`. Pure.
-import type { ManageLimits, RenameField } from '@meldframe/protocol';
+import type { ManageLimits, ManageTarget, RenameField } from '@meldframe/protocol';
 import { nameOf } from '@meldframe/web-document/names';
 import { NAME_RULE_WORDS } from '@meldframe/web-document/notices';
 import { type NameKind, type Note, nameError, nameWarning } from './manage';
@@ -37,4 +37,10 @@ export function renameNote(kind: NameKind, f: RenameField, limits: ManageLimits)
   if (!f.unchanged && check.error) return { tone: 'error', text: nameError(kind, check.error, limits) };
   if (check.warning) return { tone: 'warning', text: nameWarning(kind, check.warning) };
   return { tone: 'hint', text: kind === 'mode' ? renameHint(kind, f.first) : `${NAME_RULE_WORDS} ${renameHint(kind, f.first)}` };
+}
+
+/** Whether the field of a rename is open for this thing of the collection `collection` (a mode is told apart by its collection). */
+export function isEditing(field: RenameField | null, collection: string, kind: ManageTarget['kind'], id: string): boolean {
+  const t = field?.target;
+  return !!t && t.kind === kind && t.id === id && (t.kind !== 'mode' || t.collection === collection);
 }
