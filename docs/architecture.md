@@ -226,6 +226,16 @@ Added with #319 and #320 (26 Nov 2026):
 
 Two profiles because an identifier has no emoji to protect and a name does: strict removes the zero-width joiner and the variation selector 16, display keeps them between emoji and removes every other hidden character. A white-space run is one space in a label (a tab or a line break too) and is left alone in an identifier, so an actor the server accepted comes back as it was. Not cleaned: node `text` (file content), the ids in a touch ring, the actor of the person's own session (given by the host to `App::new`), and the identifiers that name a batch (`BatchRef` and the key prefixes of a lane's `batches` keep the actor and the key prefix as identifiers, strict-clean, because a batch is named by them; the row and the lane carry the actor view for display). The snapshot's per-node attribution now enters the app through `Action::Attribute` and is made safe like the actor of a frame (finding T2 of the thin-UI audit). The names go through the display profile, not through the strict parse a refusing rule does (`Label::parse` of the checkpoint rules): a name that is cleaned shows what is left of it, where a label typed by a person is refused whole.
 
+### 3d. Input and answers the front end no longer reads (rule U1, #322 and #323)
+
+Status note, 26 Nov 2026: sets of rules that lived in TypeScript are in the app layer, so a second front end sends what it has and shows what the state says. Each is an action with its own state or result, in `meldframe-app-model` (types), `meldframe-app-parts` (rules that read no `App`) and `meldframe-app` (the transitions); a row is added as its finding is fixed:
+
+| What the front end has | Action in | Where the rule is | State or result out |
+|---|---|---|---|
+| The text of a property field | `Typed { entry }` (`TypedText::Property { id, field, text }`, `TypedText::VariableValue { variable, mode, text }`) | `meldframe-app-parts` `typed`: one parser, the range of each field, no action for empty text, the value the field has or a position the layout decides; out of range or not a number is `invalid_value`; a colour that is not one is the core's `E_INVALID_COLOR` for every colour field | the document, `Properties.sections` (which sections a kind has) |
+
+The front end keeps the words, the focus, and what only it can know.
+
 ## 4. Modules and seams
 
 Using deep-module vocabulary. A module is **deep** when much behaviour sits behind a small interface.
