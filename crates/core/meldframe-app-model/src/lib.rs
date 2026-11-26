@@ -10,6 +10,7 @@
 
 pub mod action;
 pub mod activity;
+pub mod actor;
 pub mod assets;
 pub mod checkpoint;
 mod classify;
@@ -30,6 +31,7 @@ pub use activity::{
     ActivityLane, ActivityRun, ActivityState, BatchHeader, BatchPage, BatchRef, BatchRow,
     BatchStatus, BatchSummary, LaneKind, LaneState, ReviewState, TouchRing,
 };
+pub use actor::{ActorTone, ActorView};
 pub use assets::{ASSET_LIST_MAX, ASSET_PAGE, ASSET_PAGE_MAX, AssetInfo, AssetPage, AssetsState};
 pub use checkpoint::{
     Checkpoint, CheckpointKind, CheckpointRequest, CheckpointRow, CheckpointsStatus,

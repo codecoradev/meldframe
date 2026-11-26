@@ -3,7 +3,7 @@
 //! and what a revert or a restore is waiting for. The rules themselves (the label, the shape of a row, the roll) are
 //! `meldframe-checkpoints`, called here and not written again.
 
-use meldframe_app_model::{Checkpoint, CheckpointKind, CheckpointRow};
+use meldframe_app_model::{ActorView, Checkpoint, CheckpointKind, CheckpointRow};
 use meldframe_checkpoints::{self as rules, Kind, Label, NewCheckpoint};
 use meldframe_protocol::Node;
 
@@ -53,8 +53,8 @@ pub fn clean(row: CheckpointRow) -> Option<Checkpoint> {
         seq: row.seq,
         kind: row.kind,
         label: label.map(|l| l.as_str().to_owned()),
-        about: row.about,
-        by: row.by,
+        about: row.about.as_deref().map(ActorView::of),
+        by: row.by.as_deref().map(ActorView::of),
         at_ms: row.at_ms,
     })
 }
@@ -124,8 +124,8 @@ fn held(c: &Checkpoint) -> Option<rules::Checkpoint> {
         seq: c.seq,
         kind: kind_of(c.kind),
         label: Label::parse_arg(c.label.as_deref()).ok()?,
-        about: c.about.clone(),
-        by: c.by.clone(),
+        about: c.about.as_ref().map(|v| v.actor.clone()),
+        by: c.by.as_ref().map(|v| v.actor.clone()),
         at_ms: c.at_ms,
     })
 }

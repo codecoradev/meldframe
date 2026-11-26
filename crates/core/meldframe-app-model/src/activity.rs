@@ -3,6 +3,7 @@
 //! this file only converts what `Feed::view` gives into serialisable data, and decides nothing.
 
 use crate::action::Frame;
+use crate::actor::ActorView;
 use meldframe_activity as act;
 use meldframe_activity::{Feed, Fetch, InEffect, Page, ViewRing, ViewRow};
 use meldframe_protocol::Node;
@@ -240,7 +241,8 @@ pub struct ActivityRun {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ActivityLane {
     pub actor: String,
-    pub kind: LaneKind,
+    /// The kind, name and tone of the actor: the same value as on the layer rows, the touch rings and the checkpoints.
+    pub view: ActorView,
     pub state: LaneState,
     pub ops: u32,
     #[ts(type = "number")]
@@ -256,6 +258,8 @@ pub struct ActivityLane {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TouchRing {
     pub actor: String,
+    /// The kind, name and tone of the actor, as the lane of the same actor carries them.
+    pub view: ActorView,
     pub ids: Vec<String>,
     #[ts(type = "number")]
     pub at_ms: u64,
@@ -324,6 +328,7 @@ impl From<ViewRow> for BatchRow {
 impl From<ViewRing> for TouchRing {
     fn from(r: ViewRing) -> Self {
         TouchRing {
+            view: ActorView::of(&r.actor),
             actor: r.actor,
             ids: r.ids,
             at_ms: r.at_ms,
@@ -335,11 +340,8 @@ impl From<ViewRing> for TouchRing {
 impl ActivityLane {
     fn of(l: act::Lane) -> Self {
         ActivityLane {
+            view: ActorView::of(&l.actor),
             actor: l.actor,
-            kind: match l.kind {
-                act::LaneKind::Agent => LaneKind::Agent,
-                act::LaneKind::Person => LaneKind::Person,
-            },
             state: match l.state {
                 act::LaneState::Working => LaneState::Working,
                 act::LaneState::Quiet => LaneState::Quiet,

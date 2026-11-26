@@ -24,6 +24,7 @@ pub fn is_view(action: &Action) -> bool {
             | Action::SetPanel { .. }
             | Action::TogglePanel { .. }
             | Action::ToggleCollapsed { .. }
+            | Action::Attribute { .. }
             | Action::SetMode { .. }
             | Action::SetVariablesQuery { .. }
             | Action::OpenPicker { .. }

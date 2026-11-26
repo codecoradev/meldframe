@@ -1,6 +1,7 @@
 // The React copy of the Layers panel, checked as layers.test.ts checks the Svelte one: the markup of a server render, in Node.
 // Clicks, the selection and the fold are in the browser scripts (layers-e2e.mjs and editor-e2e.mjs, both with MELDFRAME_UI=react).
-import type { LayerRow } from '@meldframe/web-document/layers';
+import type { LayerRow } from '@meldframe/protocol';
+import { actorView } from '@meldframe/web-document/fixtures';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
@@ -8,6 +9,7 @@ import LayersPanelSvelte from '../LayersPanel.svelte';
 import { LayersPanel } from './LayersPanel';
 
 const row = (over: Partial<LayerRow>): LayerRow => ({ id: 'a', name: 'Hero', kind: 'frame', depth: 0, hasChildren: false, collapsed: false, selected: false, actor: null, ...over });
+const who = (actor: string, tone?: Parameters<typeof actorView>[1]) => ({ actor: actorView(actor, tone) });
 const html = (rows: LayerRow[], self = 'agent:dev') => renderToStaticMarkup(<LayersPanel rows={rows} self={self} onSelect={() => {}} onToggle={() => {}} />);
 
 describe('the React layers panel, as the Svelte one and the Panels and EditorLight boards draw it', () => {
@@ -42,18 +44,28 @@ describe('the React layers panel, as the Svelte one and the Panels and EditorLig
     expect(html([row({ hasChildren: true })])).toContain('aria-label="Collapse Hero"');
   });
   it('shows another actor as a dot in its colour with the name in text for readers, and none for the page itself', () => {
-    const other = html([row({ actor: 'agent:a' })]);
+    const other = html([row(who('agent:a'))]);
     expect(other).toContain('data-testid="actor"');
     expect(other).toContain('title="Last changed by a"');
     expect(other).toMatch(/text-text-muted[^>]*>a</); // the name is in text on an idle row, not only a colour
     expect(other).toMatch(/bg-agent-[123]/);
-    expect(html([row({ actor: 'agent:dev' })])).not.toContain('data-testid="actor"');
-    expect(html([row({ actor: 'person:ana' })])).toMatch(/rounded-pill bg-person/);
+    expect(html([row(who('agent:dev'))])).not.toContain('data-testid="actor"');
+    expect(html([row(who('person:ana'))])).toMatch(/rounded-pill bg-person/);
   });
-  it('two agents do not have to share a colour, and the selected row shows the name in plain text', () => {
-    const tones = new Set(['agent:a', 'agent:b', 'agent:c', 'agent:d'].map((a) => (html([row({ actor: a })]).match(/bg-agent-(\d)/) ?? [])[1]));
-    expect(tones.size).toBeGreaterThan(1);
-    const sel = html([row({ actor: 'agent:a', selected: true })]);
+  it('draws the tone the app layer gave the actor, a person in the person colour, and works nothing out from the id', () => {
+    const dot = (actor: string, tone: Parameters<typeof actorView>[1]) => (html([row(who(actor, tone))]).match(/rounded-pill (bg-[a-z0-9-]+)/) ?? [])[1];
+    expect([dot('agent:a', 'agent1'), dot('agent:a', 'agent2'), dot('agent:a', 'agent3'), dot('person:ana', 'person')]).toEqual(['bg-agent-1', 'bg-agent-2', 'bg-agent-3', 'bg-person']);
+    expect(dot('agent:\u{1F300}', 'agent3')).toBe('bg-agent-3');
+    expect(html([row(who('agent:\u{1F300}', 'agent3'))])).toContain('data-tone="agent3"');
+  });
+  it('draws the name of the app layer as it is, and a node with no name left in words', () => {
+    expect(html([row({ name: 'a b' })])).toContain('a b');
+    const out = html([row({ name: '', hasChildren: true })]);
+    expect(out).toContain('(no name)');
+    expect(out).toContain('aria-label="Collapse (no name)"');
+  });
+  it('the selected row shows the name in plain text', () => {
+    const sel = html([row({ ...who('agent:a'), selected: true })]);
     expect(sel).toMatch(/text-selection-text[^>]*>a</);
     expect(sel).not.toContain('sr-only');
     expect(sel).toMatch(/aria-current="true"/);
@@ -78,8 +90,8 @@ describe('the React layers panel, as the Svelte one and the Panels and EditorLig
 describe('the React layers panel against the Svelte one', () => {
   const rows = [
     row({ id: 'f', name: 'Frame', depth: 0, hasChildren: true }),
-    row({ id: 't', name: 'Title', kind: 'text', depth: 1, selected: true, actor: 'agent:a' }),
-    row({ id: 'c', name: 'Card', kind: 'ellipse', depth: 2, hasChildren: true, collapsed: true, actor: 'person:ana' }),
+    row({ id: 't', name: 'Title', kind: 'text', depth: 1, selected: true, ...who('agent:a') }),
+    row({ id: 'c', name: 'Card', kind: 'ellipse', depth: 2, hasChildren: true, collapsed: true, ...who('person:ana') }),
   ];
   const svelte = render(LayersPanelSvelte as never, { props: { rows, self: 'agent:dev', onSelect: () => {}, onToggle: () => {} } as never }).body.replace(/<!--.*?-->/g, '');
   const react = html(rows);

@@ -2,11 +2,11 @@
 // renders the rows it is given and reports clicks; it holds no state of its own. What it draws from a row apart from the markup
 // (the icon of a kind, the actor's name and dot) is `layers.ts`, which the Svelte copy calls too.
 import { Icon } from '@meldframe/web-chrome/react/Icon';
-import type { LayerRow } from '@meldframe/web-document/layers';
-import { KIND_ICON, changedBy } from '../layers';
+import type { LayerRow } from '@meldframe/protocol';
+import { KIND_ICON, changedBy, nameOf } from '../layers';
 
 export interface LayersPanelProps {
-  rows: LayerRow[];
+  rows: readonly LayerRow[];
   /** The actor of this page: its own changes carry no label. */
   self: string;
   onSelect: (id: string, additive: boolean) => void;
@@ -35,7 +35,7 @@ export function LayersPanel({ rows, self, onSelect, onToggle }: LayersPanelProps
                 <button
                   type="button"
                   className="flex h-full min-w-(--mf-size-control-sm) shrink-0 items-center justify-center rounded-xs text-text-muted"
-                  aria-label={`${r.collapsed ? 'Expand' : 'Collapse'} ${r.name}`}
+                  aria-label={`${r.collapsed ? 'Expand' : 'Collapse'} ${nameOf(r)}`}
                   aria-expanded={!r.collapsed}
                   onClick={() => onToggle(r.id)}
                 >
@@ -51,10 +51,10 @@ export function LayersPanel({ rows, self, onSelect, onToggle }: LayersPanelProps
                 onClick={(e) => onSelect(r.id, e.shiftKey)}
               >
                 <Icon name={KIND_ICON[r.kind]} />
-                <span className="truncate">{r.name}</span>
+                <span className="truncate">{nameOf(r)}</span>
               </button>
               {who ? (
-                <span className="flex min-w-0 max-w-24 shrink-0 items-center gap-1" title={`Last changed by ${who.name}`} data-testid="actor">
+                <span className="flex min-w-0 max-w-24 shrink-0 items-center gap-1" title={`Last changed by ${who.name}`} data-testid="actor" data-tone={who.tone}>
                   <span className={`truncate text-caption ${r.selected ? 'text-selection-text' : 'text-text-muted'}`}>{who.name}</span>
                   <span className={`size-2 shrink-0 rounded-pill ${who.dot}`}></span>
                 </span>

@@ -4,6 +4,7 @@ import type { ActivityState, Checkpoint } from '@meldframe/protocol';
 import ActivityPanel from './ActivityPanel.svelte';
 import MessageLine from './MessageLine.svelte';
 import { activity, lane, row } from './fixtures';
+import { actorView } from '@meldframe/web-document/fixtures';
 
 const html = (a: ActivityState, extra: { checkpoints?: Checkpoint[]; self?: string; canCreate?: boolean; status?: 'unread' | 'loaded' | 'absent' } = {}) =>
   render(ActivityPanel as never, { props: { activity: a, checkpoints: [], canCreate: true, status: 'loaded', self: 'person:ana', dispatch: () => {}, ...extra } as never }).body.replace(/<!--.*?-->/g, '');
@@ -31,7 +32,7 @@ describe('the Activity panel', () => {
   });
 
   it('draws the kind of every lane beside its name, and the full actor as the title', () => {
-    const a = activity({ lanes: [lane({ actor: 'agent:You', batches: [] }), lane({ actor: 'person:ana', kind: 'person', batches: [] })] });
+    const a = activity({ lanes: [lane({ actor: 'agent:You', batches: [] }), lane({ actor: 'person:ana', batches: [] })] });
     const out = html(a, { self: 'person:ana' });
     expect(out).toMatch(/title="agent:You"[^>]*><bdi>You<\/bdi>/);
     expect(out).toMatch(/title="person:ana"[^>]*><bdi>You<\/bdi>/);
@@ -46,7 +47,7 @@ describe('the Activity panel', () => {
 
   it('shows the runs of a lane that has no batch, as the lane of a person does', () => {
     const a = activity({
-      lanes: [lane({ actor: 'person:ana', kind: 'person', ops: 12, batches: [], runs: [{ startMs: new Date(2026, 10, 20, 10, 41, 0).getTime(), endMs: new Date(2026, 10, 20, 10, 44, 5).getTime(), ops: 12 }] })],
+      lanes: [lane({ actor: 'person:ana', ops: 12, batches: [], runs: [{ startMs: new Date(2026, 10, 20, 10, 41, 0).getTime(), endMs: new Date(2026, 10, 20, 10, 44, 5).getTime(), ops: 12 }] })],
     });
     const out = html(a, { self: 'person:ana' });
     expect(out).toContain('data-testid="lane-runs"');
@@ -268,8 +269,8 @@ describe('Create checkpoint', () => {
   });
 
   it('names who made a manual checkpoint, and nobody for the ones the server took itself', () => {
-    const run: Checkpoint = { id: '3', n: 3, seq: 5, kind: 'runStart', about: 'agent:claude', atMs: 1 };
-    const out = html(activity(), { checkpoints: [run, { ...cp('2', 2), by: 'person:bea' }] });
+    const run: Checkpoint = { id: '3', n: 3, seq: 5, kind: 'runStart', about: actorView('agent:claude'), atMs: 1 };
+    const out = html(activity(), { checkpoints: [run, { ...cp('2', 2), by: actorView('person:bea') }] });
     expect(out).toContain('Made by bea');
     expect(out).toContain("Before claude's run");
     expect(out.match(/Made by/g)).toHaveLength(1);

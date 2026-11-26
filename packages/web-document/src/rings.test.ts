@@ -1,25 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import type { TouchRing } from '@meldframe/protocol';
-import { actorColor, ringsOnCanvas } from './rings';
+import { actorView } from './fixtures';
+import { ringsOnCanvas } from './rings';
 
-const palette = { person: 1, agents: [10, 20, 30] };
+const palette = { person: 1, agent1: 10, agent2: 20, agent3: 30 };
 // The app layer stamps a ring with the epoch milliseconds of the shell's clock; the canvas fades by performance.now().
 const clock = { epochMs: 1_000_000, perfMs: 5_000 };
-const ring = (over: Partial<TouchRing> = {}): TouchRing => ({ actor: 'agent:claude', ids: ['a', 'b'], atMs: 1_000_000, persistent: false, ...over });
-
-describe('actorColor', () => {
-  it('gives a person the person colour and an agent one of the agent colours, the same one every time', () => {
-    expect(actorColor('person:ana', palette)).toBe(1);
-    const c = actorColor('agent:claude', palette);
-    expect([10, 20, 30]).toContain(c);
-    expect(actorColor('agent:claude', palette)).toBe(c);
-  });
-});
+const ring = (over: Partial<TouchRing> = {}): TouchRing => ({ actor: 'agent:claude', view: actorView('agent:claude', 'agent2'), ids: ['a', 'b'], atMs: 1_000_000, persistent: false, ...over });
 
 describe('ringsOnCanvas', () => {
-  it('draws a ring of the state in the colour of its actor, labelled with its name, on its nodes', () => {
+  it('draws a ring of the state in the colour of its actor view tone, labelled with its name, on its nodes', () => {
     const [t] = ringsOnCanvas([ring()], clock, palette);
-    expect(t).toMatchObject({ color: actorColor('agent:claude', palette), label: 'claude', nodeIds: ['a', 'b'] });
+    expect(t).toMatchObject({ color: 20, label: 'claude', nodeIds: ['a', 'b'] });
+  });
+
+  it('maps each tone to its colour and a person to the person colour, and hashes nothing', () => {
+    const out = (view: ReturnType<typeof actorView>) => ringsOnCanvas([ring({ actor: view.actor, view })], clock, palette)[0]!.color;
+    expect(out(actorView('person:ana'))).toBe(1);
+    expect([out(actorView('agent:a', 'agent1')), out(actorView('agent:a', 'agent2')), out(actorView('agent:a', 'agent3'))]).toEqual([10, 20, 30]);
+    // The colour follows the view the app layer sent, whatever the characters of the id.
+    expect(out(actorView('agent:\u{1F300}', 'agent3'))).toBe(30);
   });
 
   it('puts a ring on the canvas clock by its age, so the fade runs from when it came and not from when it is drawn', () => {

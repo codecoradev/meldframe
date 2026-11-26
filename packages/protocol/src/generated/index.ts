@@ -2,6 +2,8 @@ export type { Action } from './Action';
 export type { ActivityLane } from './ActivityLane';
 export type { ActivityRun } from './ActivityRun';
 export type { ActivityState } from './ActivityState';
+export type { ActorTone } from './ActorTone';
+export type { ActorView } from './ActorView';
 export type { Align } from './Align';
 export type { AppState } from './AppState';
 export type { AssetInfo } from './AssetInfo';

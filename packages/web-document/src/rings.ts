@@ -1,7 +1,8 @@
 // The touch rings on the canvas: the app layer keeps the rings (`state.activity.touches`: which nodes an actor is
-// changing, for how long, and none for this page's own actor); this turns them into what the canvas draws. Pure.
-import type { TouchRing } from '@meldframe/protocol';
-import { actorLabel } from './layers';
+// changing, for how long, and none for this page's own actor) and the view of each actor (its name and its tone, the
+// same value the layer rows and the lanes carry); this turns them into what the canvas draws. Pure. Nothing here derives
+// a kind, a name or a tone from an actor string: a tone is only mapped to a colour.
+import type { ActorTone, TouchRing } from '@meldframe/protocol';
 
 export interface Touched {
   id: string;
@@ -13,23 +14,13 @@ export interface Touched {
   at: number;
 }
 
-export interface Palette {
-  person: number;
-  agents: readonly number[];
-}
+/** The colour of each tone of an actor (presentation: the tokens module gives the values). */
+export type Palette = Readonly<Record<ActorTone, number>>;
 
 /** The two clocks at one instant: the shell's (epoch milliseconds, which stamps the state) and the canvas's. */
 export interface Clock {
   epochMs: number;
   perfMs: number;
-}
-
-/** A person has one colour; an agent keeps the same one of the agent colours, picked from its id. */
-export function actorColor(actor: string, palette: Palette): number {
-  if (actorLabel(actor).kind === 'person') return palette.person;
-  let h = 0;
-  for (const c of actor) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return palette.agents[h % palette.agents.length]!;
 }
 
 /** The rings to draw: each on the canvas clock by its age, so a ring fades from when it came and not from when it is drawn. */
@@ -39,8 +30,8 @@ export function ringsOnCanvas(rings: readonly TouchRing[], clock: Clock, palette
       ? []
       : [{
           id: `${r.actor}#${r.atMs}#${i}`,
-          color: actorColor(r.actor, palette),
-          label: actorLabel(r.actor).name,
+          color: palette[r.view.tone],
+          label: r.view.name,
           nodeIds: [...r.ids],
           // An age is never negative: a clock that disagrees must not keep a ring at full strength for longer.
           at: r.persistent ? Number.POSITIVE_INFINITY : Math.min(clock.perfMs, clock.perfMs - (clock.epochMs - r.atMs)),

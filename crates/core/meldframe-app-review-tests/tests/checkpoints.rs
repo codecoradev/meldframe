@@ -80,7 +80,11 @@ fn the_list_is_what_the_server_said_newest_first_with_the_text_of_n_as_the_id() 
     assert_eq!(state.checkpoints_status, CheckpointsStatus::Loaded);
     let two = &state.checkpoints[1];
     assert_eq!(
-        (two.n, two.label.as_deref(), two.by.as_deref()),
+        (
+            two.n,
+            two.label.as_deref(),
+            two.by.as_ref().map(|v| v.actor.as_str())
+        ),
         (2, Some("Before the logo"), Some("user:me"))
     );
     assert!(
@@ -270,7 +274,7 @@ fn a_new_run_start_rolls_the_oldest_of_its_share_out_as_the_server_does() {
         .state()
         .checkpoints
         .iter()
-        .filter(|c| c.about.as_deref() == Some("agent:busy"))
+        .filter(|c| c.about.as_ref().is_some_and(|v| v.actor == "agent:busy"))
         .count();
     assert_eq!((runs(&l), busy), (25, 10));
     let held = ids(&l);

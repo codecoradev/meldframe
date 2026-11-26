@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Checkpoint, Event } from '@meldframe/protocol';
 import { activity, lane, row } from './fixtures';
 import { batchHeading, checkpointBy, checkpointMade, checkpointWords, clockText, createWhyNot, laneSummary, laneViews, messageFor, reviewChoices, reviewWords, reviewedBy, statusWords, summaryWords } from './view';
+import { actorView } from '@meldframe/web-document/fixtures';
 
 describe('laneViews', () => {
   it('lists the rows of a lane in the order the lane gives, and leaves out a key prefix that has no row', () => {
@@ -23,18 +24,21 @@ describe('laneViews', () => {
   });
 
   it('names a lane by its actor, and the page of the person as You', () => {
-    const a = activity({ lanes: [lane({ actor: 'agent:claude' }), lane({ actor: 'person:ana', kind: 'person', batches: [] })] });
+    const a = activity({ lanes: [lane({ actor: 'agent:claude' }), lane({ actor: 'person:ana', batches: [] })] });
     const v = laneViews(a, 'person:ana');
     expect(v.map((l) => l.name)).toEqual(['claude', 'You']);
     expect(v.map((l) => l.self)).toEqual([false, true]);
   });
 
-  it('gives an agent one of the three agent tones, always the same one, and a person none', () => {
-    const a = activity({ lanes: [lane({ actor: 'agent:claude' }), lane({ actor: 'person:ana', kind: 'person', batches: [] })] });
-    const [agent, person] = laneViews(a, 'x');
-    expect([1, 2, 3]).toContain(agent!.tone);
-    expect(laneViews(a, 'x')[0]!.tone).toBe(agent!.tone);
-    expect(person!.tone).toBeNull();
+  it('carries the tone the app layer gave the actor, the same as its layer rows and its rings, and works none out', () => {
+    const a = activity({ lanes: [lane({ actor: 'agent:claude', view: actorView('agent:claude', 'agent3') }), lane({ actor: 'person:ana', batches: [] }), lane({ actor: 'agent:\u{1F300}', view: actorView('agent:\u{1F300}', 'agent2'), batches: [] })] });
+    expect(laneViews(a, 'x').map((l) => l.tone)).toEqual(['agent3', 'person', 'agent2']);
+    expect(laneViews(a, 'x').map((l) => l.kind)).toEqual(['agent', 'person', 'agent']);
+  });
+
+  it('names a lane from the view of the app layer, not from the actor string', () => {
+    const a = activity({ lanes: [lane({ actor: 'agent:claude', view: actorView('agent:claude', 'agent1', 'Claude Code') })] });
+    expect(laneViews(a, 'x')[0]!.name).toBe('Claude Code');
   });
 
   it('counts a lane\'s batches as the app layer lists them, not by the rows that could be joined', () => {
@@ -45,7 +49,7 @@ describe('laneViews', () => {
 
   it('draws the kind beside the name, so an agent called You is not the person and person:claude is not agent:claude', () => {
     const a = activity({
-      lanes: [lane({ actor: 'agent:You', batches: [] }), lane({ actor: 'person:ana', kind: 'person', batches: [] }), lane({ actor: 'person:claude', kind: 'person', batches: [] }), lane({ actor: 'agent:claude', batches: [] })],
+      lanes: [lane({ actor: 'agent:You', batches: [] }), lane({ actor: 'person:ana', batches: [] }), lane({ actor: 'person:claude', batches: [] }), lane({ actor: 'agent:claude', batches: [] })],
     });
     const v = laneViews(a, 'person:ana');
     expect(v.map((l) => `${l.name}/${l.kindWords}`)).toEqual(['You/Agent', 'You/Person', 'claude/Person', 'claude/Agent']);
@@ -96,8 +100,8 @@ describe('checkpointWords', () => {
   it('uses the label the person typed, and words the checkpoints the server took by itself', () => {
     expect(checkpointWords(cp({ label: 'Before the pitch' }))).toBe('Before the pitch');
     expect(checkpointWords(cp({}))).toBe('Checkpoint');
-    expect(checkpointWords(cp({ kind: 'runStart', about: 'agent:claude' }))).toBe("Before claude's run");
-    expect(checkpointWords(cp({ kind: 'beforeRevert', about: 'agent:claude' }))).toBe("Before reverting claude's batch");
+    expect(checkpointWords(cp({ kind: 'runStart', about: actorView('agent:claude') }))).toBe("Before claude's run");
+    expect(checkpointWords(cp({ kind: 'beforeRevert', about: actorView('agent:claude') }))).toBe("Before reverting claude's batch");
     expect(checkpointWords(cp({ kind: 'beforeRestore' }))).toBe('Before a restore');
   });
 });
@@ -185,11 +189,11 @@ describe('the review state of a row', () => {
 });
 
 describe('checkpoints in words', () => {
-  const made = (over: Partial<Checkpoint>): Checkpoint => ({ id: '1', n: 1, seq: 4, kind: 'manual', atMs: 1, by: 'person:ana', ...over });
+  const made = (over: Partial<Checkpoint>): Checkpoint => ({ id: '1', n: 1, seq: 4, kind: 'manual', atMs: 1, by: actorView('person:ana'), ...over });
   it('names the actor that made a manual one, and says nothing of who asked for the others', () => {
     expect(checkpointBy(made({ label: 'v1' }))).toBe('Made by ana');
     expect(checkpointBy(made({ kind: 'beforeRestore' }))).toBeNull();
-    expect(checkpointBy(made({ kind: 'runStart', by: undefined, about: 'agent:x' }))).toBeNull();
+    expect(checkpointBy(made({ kind: 'runStart', by: undefined, about: actorView('agent:x') }))).toBeNull();
     expect(checkpointBy(made({ by: undefined }))).toBeNull();
   });
   it('words what a refused checkpoint request means, in the context of a checkpoint', () => {

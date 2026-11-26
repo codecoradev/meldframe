@@ -6,7 +6,7 @@
 -->
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
-  import type { Action, ActivityState, Checkpoint, CheckpointsStatus, Event } from '@meldframe/protocol';
+  import type { Action, ActivityState, ActorTone, Checkpoint, CheckpointsStatus, Event } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Icon from '@meldframe/web-chrome/Icon.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
@@ -74,7 +74,8 @@
   onDestroy(() => clearTimeout(timer));
 
   const key = (actor: string, prefix: string) => `${actor}\u0000${prefix}`;
-  const tone = { 1: 'bg-agent-1', 2: 'bg-agent-2', 3: 'bg-agent-3' } as const;
+  // Presentation only: the tone is the app layer's (`ActorView.tone`), this is the class that draws it.
+  const tone: Record<ActorTone, string> = { person: 'bg-person', agent1: 'bg-agent-1', agent2: 'bg-agent-2', agent3: 'bg-agent-3' };
   const changes = (n: number) => `${n} ${n === 1 ? 'change' : 'changes'}`;
   const asking = (r: { actor: string; keyPrefix: string }) => ui.confirm?.kind === 'revert' && ui.confirm.actor === r.actor && ui.confirm.keyPrefix === r.keyPrefix;
 </script>
@@ -100,7 +101,7 @@
         >
           <span class="flex w-full items-center gap-2">
             <span class="text-icon-muted"><Icon name={open ? 'chevron-down' : 'chevron-right'} /></span>
-            <span class="size-2 shrink-0 rounded-pill {l.tone ? tone[l.tone] : 'bg-person'}" aria-hidden="true"></span>
+            <span class="size-2 shrink-0 rounded-pill {tone[l.tone]}" data-tone={l.tone} aria-hidden="true"></span>
             <span class="min-w-0 flex-1 truncate text-body font-semibold text-text-strong" title={l.actor}><bdi>{l.name}</bdi></span>
           </span>
           <span class="pl-12 text-caption text-text-muted" data-testid="lane-summary">{laneSummary(l)}</span>

@@ -154,6 +154,7 @@ impl App {
                 self.set_panel(panel, open);
             }
             Action::ToggleCollapsed { id } => self.toggle_collapsed(id),
+            Action::Attribute { actors } => self.attribute(actors),
             Action::SetMode { collection, mode } => self.set_mode(collection, mode, &mut fx),
             Action::SetVariablesQuery { query } => self.set_variables_query(query),
             Action::OpenPicker { id, field } => self.open_picker(id, field),
