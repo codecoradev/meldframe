@@ -10,7 +10,7 @@ const modes = [{ id: 'm1', name: 'light' }, { id: 'm2', name: 'dark' }];
 const col = (over: Partial<CollectionRow> = {}): CollectionRow => ({ id: 'c1', name: 'theme', modes, active: 'm1', matched: 2, variables: [row(), row({ id: 'v2', name: 'space/4', type: 'number', usedBy: 0 })], ...over });
 const panel = (collections: CollectionRow[] = [col(), col({ id: 'c2', name: 'brand', modes: [{ id: 'm9', name: 'default' }], matched: 0, variables: [] })], over: Partial<VariablesPanel> = {}): VariablesPanel => ({ query: '', total: 2, matched: 2, collections, ...over });
 const empty = { text: '', check: { name: '', error: 'empty' as const } };
-const manageState = (over: Partial<ManageState> = {}): ManageState => ({ shown: 'c1', limits: { nameMax: 256, modeNameMax: 64, collections: 32, modes: 16, variables: 5000 }, drafts: { collection: empty, mode: empty, variable: empty }, ...over });
+const manageState = (over: Partial<ManageState> = {}): ManageState => ({ open: false, shown: 'c1', limits: { nameMax: 256, modeNameMax: 64, collections: 32, modes: 16, variables: 5000 }, drafts: { collection: empty, mode: empty, variable: empty }, ...over });
 const body = (p: VariablesPanel, manage: ManageState = manageState()) => render(ManageBody as never, { props: { panel: p, manage, events: [], dispatch: () => {} } as never }).body;
 
 describe('the manage view', () => {

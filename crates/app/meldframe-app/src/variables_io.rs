@@ -62,7 +62,18 @@ impl App {
         }
     }
 
+    pub(crate) fn open_variables_import(&mut self) {
+        self.set_import_open(true);
+    }
+
+    /// Close the dialog; the result of the last import goes with it.
     pub(crate) fn close_variables_import(&mut self) {
+        self.clear_variables_import();
+        self.set_import_open(false);
+    }
+
+    /// Forget the result and leave the dialog as it is.
+    pub(crate) fn clear_variables_import(&mut self) {
         self.import_ids.clear();
         self.set_import(None);
     }
@@ -74,7 +85,14 @@ impl App {
         if !self.import_ids.is_empty()
             && self.import_ids.iter().any(|id| vars.variable(id).is_none())
         {
-            self.close_variables_import();
+            self.clear_variables_import();
+        }
+    }
+
+    fn set_import_open(&mut self, open: bool) {
+        if self.state.variables_io.import_open != open {
+            self.state.variables_io.import_open = open;
+            self.events.push(Event::VariablesIoChanged {});
         }
     }
 

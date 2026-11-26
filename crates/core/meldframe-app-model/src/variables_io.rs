@@ -17,6 +17,9 @@ pub struct VariablesIo {
     pub export: Option<VariablesExportDialog>,
     /// What the last import came to, `Some` from the import until the dialog is closed or an import begins again.
     pub import: Option<VariablesImportResult>,
+    /// Whether the Import variables dialog is open (`Action::OpenVariablesImport` and `CloseVariablesImport`).
+    #[serde(default)]
+    pub import_open: bool,
 }
 
 /// The open Export variables dialog: every variable of the file as CSS, as the person sees the file now (what the

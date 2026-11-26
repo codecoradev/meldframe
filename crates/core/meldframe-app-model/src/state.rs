@@ -8,6 +8,7 @@ use crate::export::ExportState;
 use crate::layers::LayerRow;
 use crate::layout::{LayoutNote, Sides};
 use crate::manage::ManageState;
+use crate::overlay::Overlay;
 use crate::text_edit::TextEdit;
 use crate::variables::{BindField, Picker, VariablesPanel};
 use crate::variables_io::VariablesIo;
@@ -75,6 +76,10 @@ pub struct AppState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub confirm: Option<Confirm>,
+    /// The overlay of the layout that is open, the shortcut sheet or the command palette (`Action::Overlay`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub overlay: Option<Overlay>,
     /// Export (D9): the frame an export acts on, and the dialog while it is open.
     #[serde(default)]
     pub export: ExportState,

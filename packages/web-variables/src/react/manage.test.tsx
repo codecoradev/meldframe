@@ -23,7 +23,7 @@ const brand = col({ id: 'c2', name: 'brand', modes: [{ id: 'm9', name: 'default'
 const panel = (collections: CollectionRow[] = [col(), brand], over: Partial<VariablesPanel> = {}): VariablesPanel => ({ query: '', total: 2, matched: 2, collections, ...over });
 const empty = { text: '', check: { name: '', error: 'empty' as const } };
 const limits = { nameMax: 256, modeNameMax: 64, collections: 32, modes: 16, variables: 5000 };
-const manageState = (over: Partial<ManageState> = {}): ManageState => ({ shown: 'c1', limits, drafts: { collection: empty, mode: empty, variable: empty }, ...over });
+const manageState = (over: Partial<ManageState> = {}): ManageState => ({ open: false, shown: 'c1', limits, drafts: { collection: empty, mode: empty, variable: empty }, ...over });
 const renaming = (target: ManageTarget, current: string, over: Partial<RenameState> = {}): RenameState => ({ target, opened: current, current, text: current, check: { name: current }, unchanged: true, first: false, ...over });
 
 const body = (p: VariablesPanel, m: ManageState = manageState()) => renderToStaticMarkup(<ManageBody panel={p} manage={m} events={[]} dispatch={noop} />);

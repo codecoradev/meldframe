@@ -36,7 +36,7 @@
     importView?: Component<ComponentProps<typeof ImportVariablesDialog>>;
     exportView?: Component<ComponentProps<typeof ExportVariablesDialog>>;
   }
-  let { panel, target, dispatch, events = [], io = { export: null, import: null }, manage, manageView: ManageView = ManageDialog, importView: ImportView = ImportVariablesDialog, exportView: ExportView = ExportVariablesDialog }: Props = $props();
+  let { panel, target, dispatch, events = [], io = { export: null, import: null, importOpen: false }, manage, manageView: ManageView = ManageDialog, importView: ImportView = ImportVariablesDialog, exportView: ExportView = ExportVariablesDialog }: Props = $props();
 
   // The manage view draws the rows of the panel, so it starts with the search cleared (the counts of a removal are the app layer's, of the whole file).
   let manageOpen = $state(false);

@@ -16,6 +16,7 @@ pub mod assets;
 pub mod checkpoint;
 mod classify;
 pub mod confirm;
+mod ctor;
 pub mod effect;
 pub mod event;
 pub mod export;
@@ -23,6 +24,7 @@ pub mod frame;
 pub mod layers;
 pub mod layout;
 pub mod manage;
+pub mod overlay;
 pub mod preset;
 pub mod property;
 pub mod state;
@@ -52,6 +54,7 @@ pub use manage::{
     MODE_NAME_MAX, ManageDrafts, ManageLimits, ManageOp, ManageState, ManageTarget, NameCheck,
     NameDraft, NameError, NameWarning, Removal, RenameField,
 };
+pub use overlay::{Overlay, OverlayOp};
 pub use state::{
     AppState, Connection, FieldBinding, FillKind, History, Panel, Panels, Properties, Sections,
     Tool,

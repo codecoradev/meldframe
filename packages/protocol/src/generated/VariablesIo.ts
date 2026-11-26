@@ -14,4 +14,8 @@ export: VariablesExportDialog | null,
 /**
  * What the last import came to, `Some` from the import until the dialog is closed or an import begins again.
  */
-import: VariablesImportResult | null, };
+import: VariablesImportResult | null, 
+/**
+ * Whether the Import variables dialog is open (`Action::OpenVariablesImport` and `CloseVariablesImport`).
+ */
+importOpen: boolean, };

@@ -27,6 +27,7 @@ mod layers;
 mod link;
 mod manage;
 mod manage_ui;
+mod overlay;
 mod panel;
 mod picker;
 mod props;
@@ -54,7 +55,9 @@ pub use meldframe_app_model::{
     RevertSkip, RevertSkipReason, Sections, ShadowPart, Side, Sides, TextField, Tool, TypeHeading,
     TypedText, VariableEntity, VariableRow, VariableValue, VariablesPanel,
 };
-pub use meldframe_app_model::{ActivityOp, BatchRef, Confirm, RightTab, TextEdit, TextEditOp};
+pub use meldframe_app_model::{
+    ActivityOp, BatchRef, Confirm, Overlay, OverlayOp, RightTab, TextEdit, TextEditOp,
+};
 pub use meldframe_app_model::{
     ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,
     VariablesImportResult, VariablesIo,

@@ -11,7 +11,9 @@ pub use crate::property::Property;
 use crate::state::{Panel, Tool};
 use crate::text_edit::TextEditOp;
 use crate::variables::{BindField, VariableValue};
-use crate::{confirm::ActivityOp, manage::ManageOp, text_field::TypedText, wire::Wire};
+use crate::{
+    confirm::ActivityOp, manage::ManageOp, overlay::OverlayOp, text_field::TypedText, wire::Wire,
+};
 use meldframe_protocol::{Command, ImageFit, Node, VarType, Variables};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -230,6 +232,10 @@ pub enum Action {
     Manage {
         op: ManageOp,
     },
+    /// The shortcut sheet or the command palette opens or closes (`OverlayOp`): `AppState::overlay`.
+    Overlay {
+        op: OverlayOp,
+    },
     /// A raw answer of the server or a raw frame (`Wire`): the app parses and checks it, then acts or ignores it.
     Wire {
         wire: Wire,
@@ -284,6 +290,8 @@ pub enum Action {
     OpenVariablesExport {},
     /// Close the Export variables dialog.
     CloseVariablesExport {},
+    /// Open the Import variables dialog (`AppState::variables_io.import_open`). View state (no op, no undo step).
+    OpenVariablesImport {},
     /// Import the variables of CSS text (custom properties of `:root`, a dark rule, `@theme`) as one undo step, the
     /// person's own edit. It only adds: text that holds a name the file has is refused whole (`E_DUPLICATE_ID`, naming
     /// the first). Also refused whole: text of more than 50 variables (`E_IMPORT_TOO_MANY`: the browser sends one
@@ -294,8 +302,11 @@ pub enum Action {
     ImportVariables {
         text: String,
     },
-    /// Forget the result of the last import (the dialog closed).
+    /// Close the Import variables dialog and forget the result of the last import.
     CloseVariablesImport {},
+    /// Forget the result of the last import and leave the dialog as it is: the text was edited or replaced, or an undo took
+    /// the import away.
+    ClearVariablesImport {},
     /// Remove the nodes with their descendants, as one undo step.
     Delete {
         ids: Vec<String>,

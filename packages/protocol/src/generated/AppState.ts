@@ -9,6 +9,7 @@ import type { ExportState } from "./ExportState";
 import type { History } from "./History";
 import type { LayerRow } from "./LayerRow";
 import type { ManageState } from "./ManageState";
+import type { Overlay } from "./Overlay";
 import type { Panels } from "./Panels";
 import type { Picker } from "./Picker";
 import type { Properties } from "./Properties";
@@ -92,6 +93,10 @@ rightTab: RightTab,
  * (`Action::Activity`: `AskRevert`, `AskRestore`, `Cancel` and the confirmations).
  */
 confirm?: Confirm, 
+/**
+ * The overlay of the layout that is open, the shortcut sheet or the command palette (`Action::Overlay`).
+ */
+overlay?: Overlay, 
 /**
  * Export (D9): the frame an export acts on, and the dialog while it is open.
  */

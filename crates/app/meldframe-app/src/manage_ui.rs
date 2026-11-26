@@ -80,6 +80,9 @@ fn rename_command(target: &ManageTarget, name: String) -> Command {
 impl App {
     /// An action of the manage view that changes the view only.
     pub(crate) fn manage_view(&mut self, op: ManageOp) {
+        if matches!(op, ManageOp::Open {}) {
+            return self.open_manage();
+        }
         let vars = self.replica.vars();
         let nodes = self.replica.nodes();
         let m = &mut self.state.manage;
@@ -140,13 +143,23 @@ impl App {
             }
             ManageOp::CancelRename {} => m.rename = None,
             ManageOp::Close {} => {
+                m.open = false;
                 m.chosen = None;
                 m.removal = None;
                 m.rename = None;
                 m.drafts = ManageDrafts::default();
             }
-            // The two that change the file are the document's (`document`).
-            ManageOp::ConfirmRemove {} | ManageOp::SubmitRename {} => {}
+            // `Open` is taken above, before the borrows; the two that change the file are the document's (`document`).
+            ManageOp::Open {} | ManageOp::ConfirmRemove {} | ManageOp::SubmitRename {} => {}
+        }
+    }
+
+    /// Open the view. The view draws the rows of the panel, so it starts with the search cleared (the counts of a removal
+    /// are of the whole file, whatever the search shows). Open already: nothing, so a search typed since stays.
+    fn open_manage(&mut self) {
+        if !self.state.manage.open {
+            self.state.manage.open = true;
+            self.set_variables_query(String::new());
         }
     }
 
