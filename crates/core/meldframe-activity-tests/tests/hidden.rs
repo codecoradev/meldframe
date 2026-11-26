@@ -1,5 +1,7 @@
-//! The hidden-text rule (ADR-0021): `is_hidden_text` is a stricter set than `meldframe_mcp_defs::is_invisible`, named
-//! in full. The set is written out here, apart from the code, and every scalar value is compared with it.
+//! The hidden-text rule (ADR-0021): `is_hidden_text`, named in full. Since #311 it is the one set of
+//! `meldframe-text`, which this crate re-exports (the set of the ADR plus the format characters the variables import
+//! held). The set is written out here, apart from the code, and every scalar value is compared with it; the same
+//! table is in `meldframe-text`'s own tests.
 
 // Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
@@ -7,11 +9,19 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 
 use meldframe_activity::{is_combining_mark, is_hidden_text};
 
-/// The ranges of the ADR, besides the controls.
-const HIDDEN: [(u32, u32); 21] = [
+/// The ranges of the ADR and of the variables import, besides the controls.
+const HIDDEN: [(u32, u32); 29] = [
     (0x00AD, 0x00AD),
     (0x034F, 0x034F),
+    (0x0600, 0x0605),
     (0x061C, 0x061C),
+    (0x06DD, 0x06DD),
+    (0x070F, 0x070F),
+    (0x0890, 0x0891),
+    (0x08E2, 0x08E2),
+    (0x110BD, 0x110BD),
+    (0x110CD, 0x110CD),
+    (0x13430, 0x1343F),
     (0x115F, 0x1160),
     (0x17B4, 0x17B5),
     (0x180B, 0x180F),
@@ -55,16 +65,6 @@ fn every_member_of_the_set_is_hidden_one_by_one() {
         }
     }
     assert!(n > 500, "the set has its members: {n}");
-}
-
-#[test]
-fn what_is_invisible_covers_is_hidden_too() {
-    // The old set is a subset: nothing a file name refuses is let through in a note.
-    for c in (0..=0x10FFFF).filter_map(char::from_u32) {
-        if meldframe_mcp_defs::is_invisible(c) {
-            assert!(is_hidden_text(c), "U+{:04X}", c as u32);
-        }
-    }
 }
 
 #[test]

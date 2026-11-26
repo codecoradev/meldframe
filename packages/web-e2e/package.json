@@ -3,5 +3,6 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Browser checks and demonstrations of the web client: the editor, the canvas harness, the M1 demonstrations. They need a browser, the development server and Playwright from the global module path, so the scripts are not part of npm test (the small helpers beside them, with their own tests, are); run the scripts from the repository root."
+  "description": "Browser checks and demonstrations of the web client: the editor, the canvas harness, the M1 demonstrations. They need a browser, the development server and Playwright from the global module path, so the scripts are not part of npm test (the small helpers beside them, with their own tests, are); run the scripts from the repository root.",
+  "meldframe": { "kind": "tool" }
 }

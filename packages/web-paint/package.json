@@ -1,0 +1,8 @@
+{
+  "name": "@meldframe/web-paint",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The paint of one box on the web canvas: border, shadow, gradient and image, each as plain data with its equality and the shapes it covers, worked out as the export writes them. Pure TypeScript with no import from another package; used as source by apps/web and the web packages.",
+  "meldframe": { "kind": "model" }
+}

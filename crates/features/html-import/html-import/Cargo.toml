@@ -1,0 +1,21 @@
+[package]
+name = "html-import"
+description = "HTML import feature module (E4.4): the facade of the importer. It re-exports its stages (the tree builder as `html`, the CSS reader, cascade and computed style as `css`, the Tailwind decoder as `tw`) under their short names and will hold the mapping to Commands and the registration of the tool. A function of the text."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "feature"
+group = "html-import"
+
+[lints]
+workspace = true
+
+[dependencies]
+html-import-css = { path = "../html-import-css" }
+html-import-style = { path = "../html-import-style" }
+html-import-tree = { path = "../html-import-tree" }
+meldframe-protocol = { path = "../../../core/meldframe-protocol" }
+meldframe-text = { path = "../../../core/meldframe-text" }

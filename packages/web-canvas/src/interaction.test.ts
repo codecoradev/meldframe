@@ -348,6 +348,18 @@ describe('create tools', () => {
     ]);
   });
 
+  // Vitest does not typecheck: this test also guards the `ToolMode` union, which `tsc` (`npm run typecheck`) checks it against.
+  it('the ellipse tool draws like the rectangle tool and names itself in the intent', () => {
+    const r = rig({ tool: 'ellipse' });
+    r.it.down(p(10, 20));
+    r.it.move(p(60, 90));
+    r.it.up(p(60, 90));
+    expect(r.log).toEqual([
+      ['create', 'ellipse', 'a', 10, 20, 50, 70, false, false],
+      ['create', 'ellipse', 'a', 10, 20, 50, 70, true, false],
+    ]);
+  });
+
   it('a click without a drag asks for a default-sized node: a final intent of size 0', () => {
     const r = rig({ tool: 'frame' });
     r.it.down(p(500, 500));

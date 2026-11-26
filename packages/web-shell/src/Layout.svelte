@@ -20,7 +20,7 @@
   import { presetItems } from './presets';
   import { zoomItems, type ZoomCommand } from './zoom';
 
-  type Tool = 'select' | 'frame' | 'rectangle' | 'text';
+  type Tool = 'select' | 'frame' | 'rectangle' | 'ellipse' | 'text';
   interface Props {
     fileName: string;
     tool: Tool;
@@ -65,10 +65,11 @@
   }
   let { fileName, tool, onTool, layersOpen, inspectorOpen, onToggleLayers, onToggleInspector, canUndo, canRedo, onUndo, onRedo, onPreset, canExport, onExport, canVariant, onVariant, zoomText, onZoom, connection, helpOpen, onHelp, paletteOpen, onPalette, canDelete, onDelete, autoLayout = false, onAutoLayout, tab, onTab, activityBadge = 0, canvasLayer, layersPanel, designPanel, activityPanel }: Props = $props();
 
-  const tools: { tool: Tool; label: string; key: string; icon: 'select' | 'frame' | 'rectangle' | 'text' }[] = [
+  const tools: { tool: Tool; label: string; key: string; icon: 'select' | 'frame' | 'rectangle' | 'ellipse' | 'text' }[] = [
     { tool: 'select', label: 'Select', key: 'V', icon: 'select' },
     { tool: 'frame', label: 'Frame', key: 'F', icon: 'frame' },
     { tool: 'rectangle', label: 'Rectangle', key: 'R', icon: 'rectangle' },
+    { tool: 'ellipse', label: 'Ellipse', key: 'E', icon: 'ellipse' },
     { tool: 'text', label: 'Text', key: 'T', icon: 'text' },
   ];
   const fileMenu = $derived(fileItems({ canExport, canVariant, onExport, onVariant }));

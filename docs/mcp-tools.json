@@ -112,7 +112,7 @@
       "tier": "read"
     },
     {
-      "description": "Change a file by applying commands in order: addNode {node}, updateNode {id, patch}, removeNode {id}, reparent {id, parentId, pos?}, reorder {id, before? | after? | pos?}, and the variable commands: addCollection {collection {id, name, modes [{id, name}]}} (at least one mode; the first is the default), removeCollection {id} (an empty collection only), renameCollection {id, name} (the name follows the rule of addCollection), addMode {collection, mode {id, name}, index?, copyFrom?} (every variable takes the value of copyFrom, or of the default mode, for it), removeMode {collection, mode} (not the default), renameMode {collection, mode, name} (any name, as in addMode), addVariable {variable {id, collection, name, type, values}} (name is lowercase segments of letters, digits and single hyphens joined by slashes, such as color/brand-500; type is color or number; values has one entry for every mode of the collection: a #hex colour or a number, or {var: id} to alias a variable of the same type), removeVariable {id} (refused while a node field is bound to it or another variable aliases it), renameVariable {id, name} (the name follows the rule of addVariable and must be free in the collection; the name it already has is accepted) and setVariableValue {id, mode, value}. A rename keeps every binding and alias, which hold the id, so rename instead of removing and adding again. A node field is bound to a variable by setting fill (a colour variable), radius or opacity (a number variable) to {var: id}, in addNode or updateNode; read the ids with get_variables. A variable or collection takes part in ifSeq as $var:<id> or $col:<id> (renameMode as the collection of the mode). One call takes 1 to 100 commands (the batch limit is 100 commands). The call is atomic by default: it is checked as a whole before anything is written, so if any command would be refused, none is written and the error names the command by index. Two rare cases can still leave the first commands written (the store fails part way, or ifSeq is older than the snapshot the file was opened from): send the same call again with the same key and check it with batch_status. Set atomic to false to keep the commands before the first failing one. Every call needs an idempotencyKey (also accepted as idempotency_key): send the same call again with the same key after a timeout and nothing is written twice. Pass ifSeq (also accepted as if_seq), the seq of your last read, to refuse the call with conflict when a node it touches changed since (ifSeq must be within 2000 changes of the file's seq, or the call is refused as invalid; with atomic false, a command that touches a node an earlier command of the call touched and also a new node is refused as invalid, because ifSeq cannot guard it); the error then lists the changes (seq and actor) and the node's current data. Removing a frame needs the owner's approval: send it as the only command of a call; it is refused as approval_required with an approvalId, and the same call sent again (same idempotencyKey, same ifSeq) after the owner approved is written once. The approval covers that exact call, not the state of the tree: a retry without ifSeq can delete a frame that gained content after the ask, so keep the ifSeq. Do not retry before the owner answered. approval_denied and approval_expired stay refused; a new idempotencyKey is a new request, so use one only to ask again. approval_limit means too many asks are open. A delete inside a larger batch is refused as forbidden. Pass note, one short plain text on what this batch does and why (at most 500 characters and 3 line breaks, no control, zero-width or other hidden characters, which includes the joiner of a combined emoji and a variation selector; a bad note refuses the whole call and writes nothing): the person sees it beside the batch, attributed to you, and the first note a batch gets is kept (a retry's note is ignored and the answer says so). Only a server run with notes keeps them; otherwise a call with a note is refused as invalid. A call that wrote answers batch {n, note}: n is the batch's number in the file and note says what became of yours (kept, kept_earlier when the batch had a note already, none when you sent none). batch is null when no header was kept (the header could not be written, no slot was free, the call timed out, or the key holds a hidden character); then send the same call again with the same key: nothing is written twice and the retry records it. A call that failed after writing some of its commands (a non-atomic call, or an atomic one whose store failed part way) answers error.batch {n, written} the same way, when a header was kept. Every command is checked against the file's limits; the error code says what to fix. Give every layer a semantic name that says what it is (Hero heading, Pricing card), not a default one (Frame 3, Rectangle, Text); a default name does not fail the call, but it comes back under warnings.",
+      "description": "Change a file by applying commands in order: addNode {node}, updateNode {id, patch}, removeNode {id}, reparent {id, parentId, pos?}, reorder {id, before? | after? | pos?}, and the variable commands: addCollection {collection {id, name, modes [{id, name}]}} (at least one mode; the first is the default), removeCollection {id} (an empty collection only), renameCollection {id, name} (the name follows the rule of addCollection), addMode {collection, mode {id, name}, index?, copyFrom?} (every variable takes the value of copyFrom, or of the default mode, for it), removeMode {collection, mode} (not the default), renameMode {collection, mode, name} (any name, as in addMode), addVariable {variable {id, collection, name, type, values}} (name is lowercase segments of letters, digits and single hyphens joined by slashes, such as color/brand-500; type is color or number; values has one entry for every mode of the collection: a #hex colour or a number, or {var: id} to alias a variable of the same type), removeVariable {id} (refused while a node field is bound to it or another variable aliases it), renameVariable {id, name} (the name follows the rule of addVariable and must be free in the collection; the name it already has is accepted) and setVariableValue {id, mode, value}. A rename keeps every binding and alias, which hold the id, so rename instead of removing and adding again. A node field is bound to a variable by setting fill (a colour variable), radius or opacity (a number variable) to {var: id}, in addNode or updateNode; read the ids with get_variables. A variable or collection takes part in ifSeq as $var:<id> or $col:<id> (renameMode as the collection of the mode). One call takes 1 to 100 commands (the batch limit is 100 commands). The call is atomic by default: it is checked as a whole before anything is written, so if any command would be refused, none is written and the error names the command by index. Two rare cases can still leave the first commands written (the store fails part way, or ifSeq is older than the snapshot the file was opened from): send the same call again with the same key and check it with batch_status. Set atomic to false to keep the commands before the first failing one. Every call needs an idempotencyKey (also accepted as idempotency_key): send the same call again with the same key after a timeout and nothing is written twice. Pass ifSeq (also accepted as if_seq), the seq of your last read, to refuse the call with conflict when a node it touches changed since (ifSeq must be within 2000 changes of the file's seq, or the call is refused as invalid; with atomic false, a command that touches a node an earlier command of the call touched and also a new node is refused as invalid, because ifSeq cannot guard it); the error then lists the changes (seq and actor) and the node's current data. Removing a frame needs the owner's approval: send it as the only command of a call; it is refused as approval_required with an approvalId, and the same call sent again (same idempotencyKey, same ifSeq) after the owner approved is written once. The approval covers that exact call, not the state of the tree: a retry without ifSeq can delete a frame that gained content after the ask, so keep the ifSeq. Do not retry before the owner answered. approval_denied and approval_expired stay refused; a new idempotencyKey is a new request, so use one only to ask again. approval_limit means too many asks are open. A delete inside a larger batch is refused as forbidden. Pass note, one short plain text on what this batch does and why (at most 500 characters and 3 line breaks, no control, zero-width or other hidden characters, which includes the joiner of a combined emoji and a variation selector; a bad note refuses the whole call and writes nothing): the person sees it beside the batch, attributed to you, and the first note a batch gets is kept (a retry's note is ignored and the answer says so). Only a server run with notes keeps them; otherwise a call with a note is refused as invalid. A call that wrote answers batch {n, note}: n is the batch's number in the file and note says what became of yours (kept, kept_earlier when the batch had a note already, none when you sent none). batch is null when no header was kept (the header could not be written, no slot was free, or the call timed out); then send the same call again with the same key: nothing is written twice and the retry records it. A call that failed after writing some of its commands (a non-atomic call, or an atomic one whose store failed part way) answers error.batch {n, written} the same way, when a header was kept. Every command is checked against the file's limits; the error code says what to fix. Give every layer a semantic name that says what it is (Hero heading, Pricing card), not a default one (Frame 3, Rectangle, Text); a default name does not fail the call, but it comes back under warnings.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -162,13 +162,13 @@
             "type": "string"
           },
           "idempotencyKey": {
-            "description": "The idempotency key of the call (1 to 100 characters). Send idempotencyKey or idempotency_key, not both.",
+            "description": "The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send idempotencyKey or idempotency_key, not both.",
             "maxLength": 100,
             "minLength": 1,
             "type": "string"
           },
           "idempotency_key": {
-            "description": "The idempotency key of the call (1 to 100 characters). Send idempotency_key or idempotencyKey, not both.",
+            "description": "The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send idempotency_key or idempotencyKey, not both.",
             "maxLength": 100,
             "minLength": 1,
             "type": "string"
@@ -216,13 +216,13 @@
             "type": "string"
           },
           "idempotencyKey": {
-            "description": "The idempotency key of the call (1 to 100 characters). Send idempotencyKey or idempotency_key, not both.",
+            "description": "The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send idempotencyKey or idempotency_key, not both.",
             "maxLength": 100,
             "minLength": 1,
             "type": "string"
           },
           "idempotency_key": {
-            "description": "The idempotency key of the call (1 to 100 characters). Send idempotency_key or idempotencyKey, not both.",
+            "description": "The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send idempotency_key or idempotencyKey, not both.",
             "maxLength": 100,
             "minLength": 1,
             "type": "string"
@@ -253,13 +253,13 @@
             "type": "string"
           },
           "idempotencyKey": {
-            "description": "The idempotency key of the call (1 to 100 characters). Send idempotencyKey or idempotency_key, not both.",
+            "description": "The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send idempotencyKey or idempotency_key, not both.",
             "maxLength": 100,
             "minLength": 1,
             "type": "string"
           },
           "idempotency_key": {
-            "description": "The idempotency key of the call (1 to 100 characters). Send idempotency_key or idempotencyKey, not both.",
+            "description": "The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send idempotency_key or idempotencyKey, not both.",
             "maxLength": 100,
             "minLength": 1,
             "type": "string"
@@ -449,13 +449,13 @@
             "type": "string"
           },
           "idempotencyKey": {
-            "description": "The idempotency key of the call (1 to 100 characters). Send this or idempotency_key, not both.",
+            "description": "The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send this or idempotency_key, not both.",
             "maxLength": 100,
             "minLength": 1,
             "type": "string"
           },
           "idempotency_key": {
-            "description": "The idempotency key of the call (1 to 100 characters). Send this or idempotencyKey, not both.",
+            "description": "The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send this or idempotencyKey, not both.",
             "maxLength": 100,
             "minLength": 1,
             "type": "string"

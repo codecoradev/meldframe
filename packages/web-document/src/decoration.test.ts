@@ -1,6 +1,6 @@
 import type { Properties } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { addShadowAction, borderColorAction, borderPositionAction, borderWidthAction, removeShadowAction, shadowAction } from './decoration';
+import { addShadowAction, borderColorAction, borderPositionAction, borderWidthAction, removeBorderAction, removeShadowAction, shadowAction } from './decoration';
 
 const shadow = { x: 0, y: 4, blur: 8, spread: 0, color: '#00000040' };
 const p: Properties = { id: 'n', name: 'Box', kind: 'rect', x: 0, y: 0, w: 10, h: 10, fill: '#112233', fillKind: 'solid', gradientAllowed: true, imageAllowed: true, minStops: 2, maxStops: 8, border: { width: 1, color: '#000000', position: 'inside' }, shadows: [shadow], maxShadows: 4, radius: 0, layout: 'none', gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 }, margin: { top: 0, right: 0, bottom: 0, left: 0 }, sw: 'fixed', sh: 'fixed', align: 'start', justify: 'start', absolute: false, inLayout: false, positionLocked: false, notes: [], text: '', fontSize: 16, opacity: 1, clip: false, bound: [], bindings: [] };
@@ -26,6 +26,12 @@ describe('the border', () => {
   it('sends a position other than the one it has', () => {
     expect(borderPositionAction(p, 'outside')).toEqual(prop({ property: 'borderPosition', value: 'outside' }));
     expect(borderPositionAction(p, 'inside')).toBeNull();
+  });
+  it('removes the border with the one command the width field and an agent send: width 0, and no colour or position', () => {
+    expect(removeBorderAction(p)).toEqual(prop({ property: 'borderWidth', value: 0 }));
+    expect(removeBorderAction(p)).toEqual(borderWidthAction(p, '0'));
+    // A width that is not above 0 has no border to remove: nothing is sent.
+    expect(removeBorderAction({ ...p, border: { ...p.border, width: 0 } })).toBeNull();
   });
 });
 

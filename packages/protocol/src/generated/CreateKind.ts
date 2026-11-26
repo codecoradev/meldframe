@@ -3,4 +3,4 @@
 /**
  * What the node tools can make.
  */
-export type CreateKind = "frame" | "rectangle" | "text";
+export type CreateKind = "frame" | "rectangle" | "ellipse" | "text";

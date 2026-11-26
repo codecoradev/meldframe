@@ -33,8 +33,9 @@
   import { layerRows } from '@meldframe/web-document/layers';
   import { presetAction } from '@meldframe/web-shell/presets';
   import type { ExportScale } from '@meldframe/web-document/export';
-  import ExportDialog from '@meldframe/web-export/ExportDialog.svelte';
-  import ExportSection from '@meldframe/web-export/ExportSection.svelte';
+  // The two switch files draw ExportDialog.svelte and ExportSection.svelte of web-export, or their React copies with /?react=export (E7.3, S2).
+  import ExportDialog from './react-pilot/ExportDialogSwitch.svelte';
+  import ExportSection from './react-pilot/ExportSectionSwitch.svelte';
   import { type Frame, pngPlan, savePng } from '@meldframe/web-export/png';
   import { saveBlob } from '@meldframe/web-export/save';
   import { dialogFrame, reviewSteps } from '@meldframe/web-export/ui';

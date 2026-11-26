@@ -3,5 +3,6 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "The chrome primitives of the web client: icons, IconButton, Button, Tooltip, Segmented, Field, Section, Tabs, Checkbox and Menu, the focus rules they share, and the state matrix page at /?states. Behaviour props only, no business state. Used as source by apps/web."
+  "description": "The chrome primitives of the web client: icons, IconButton, Button, Tooltip, Segmented, Field, Section, Tabs, Checkbox and Menu, the focus rules they share, and the state matrix page at /?states. Behaviour props only, no business state. Used as source by apps/web.",
+  "meldframe": { "kind": "kit" }
 }

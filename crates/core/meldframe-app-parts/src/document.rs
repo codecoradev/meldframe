@@ -71,6 +71,7 @@ pub fn new_node(
     let kind = match kind {
         CreateKind::Frame => "frame",
         CreateKind::Rectangle => "rect",
+        CreateKind::Ellipse => "ellipse",
         CreateKind::Text => "text",
     };
     let mut node = json!({"id": id, "type": kind, "parentId": parent, "x": x, "y": y});

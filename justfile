@@ -40,7 +40,7 @@ test:
 
 # The core crates' tests under WASM on Node (needs wasm-bindgen-test-runner; see AGENTS.md)
 wasm-test:
-    cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-core -p meldframe-layout -p meldframe-layout-tests -p meldframe-render -p meldframe-export-tests -p meldframe-history -p meldframe-revert -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-variables-tests -p meldframe-variables-limits-tests -p meldframe-variables-rename-tests -p meldframe-variables-panel-tests -p meldframe-variables-import-tests -p meldframe-activity-tests -p meldframe-app-unit-tests -p meldframe-app-layout-tests -p meldframe-app-export-tests -p meldframe-variables-manage-tests -p meldframe-variables-props -p meldframe-checkpoint-tests -p meldframe-app-review-tests
+    cargo test --target wasm32-unknown-unknown --tests -p meldframe-order -p meldframe-check -p meldframe-css -p meldframe-text -p meldframe-core -p meldframe-layout -p meldframe-layout-tests -p meldframe-render -p meldframe-export-tests -p meldframe-history -p meldframe-revert -p meldframe-sync -p meldframe-history-props -p meldframe-sync-scenarios -p meldframe-sync-props -p meldframe-variables-tests -p meldframe-variables-limits-tests -p meldframe-variables-rename-tests -p meldframe-variables-panel-tests -p meldframe-variables-import-tests -p meldframe-activity-tests -p meldframe-app-unit-tests -p meldframe-app-layout-tests -p meldframe-app-export-tests -p meldframe-variables-manage-tests -p meldframe-variables-props -p meldframe-checkpoint-tests -p meldframe-app-review-tests -p meldframe-import-html-tests -p meldframe-import-html-css-tests -p meldframe-import-html-style-tests -p meldframe-import-html-roundtrip-tests -p meldframe-import-html-paint-tests
 
 # Build the wasm bridge for the web client into apps/web/.wasm (git-ignored); needs wasm-bindgen-cli, see AGENTS.md
 wasm-build:
@@ -68,5 +68,5 @@ check:
     bash scripts/dev-seed-test.sh
     bash scripts/pg-start-test.sh
     bash scripts/mutation-check-portable-test.sh
-    @for f in scripts/pg-start.sh scripts/pg-start-test.sh scripts/portable-shell-test.sh scripts/mutation-check-portable-test.sh tools/mutation-check-sync.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh; do bash -n "$f" || exit 1; done && echo "check (scripts): syntax ok"
+    @for f in scripts/pg-start.sh scripts/pg-start-test.sh scripts/portable-shell-test.sh scripts/mutation-check-portable-test.sh tools/mutation-check-sync.sh scripts/dev-seed.sh scripts/dev.sh tools/dev-smoke.sh tools/connect-claude.sh; do bash -n "$f" || exit 1; done && echo "check (scripts): syntax ok"
     @echo "left to CI and the nightly: 'just wasm-test', 'cargo xtask licences --check', 'bash tools/check-migrations.sh' (after 'just dev-db')"

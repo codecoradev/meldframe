@@ -88,7 +88,7 @@ export function containerFor(at: string | null, nodes: readonly Node[]): string 
   return null;
 }
 
-const kindOf: Record<CreateTool, CreateKind> = { frame: 'frame', rect: 'rectangle', text: 'text' };
+const kindOf: Record<CreateTool, CreateKind> = { frame: 'frame', rect: 'rectangle', ellipse: 'ellipse', text: 'text' };
 
 /** A drawn box (or a click) as the action that makes the node, in the space of the frame it goes into (as it is drawn, with the `scene`). */
 export function createActionFor(i: CreateIntent, nodes: readonly Node[], scene?: Scene): Action | null {
@@ -203,7 +203,7 @@ export interface KeyLike {
   altKey: boolean;
 }
 
-const toolKeys: Record<string, Tool> = { v: 'select', f: 'frame', r: 'rectangle', t: 'text' };
+const toolKeys: Record<string, Tool> = { v: 'select', f: 'frame', r: 'rectangle', e: 'ellipse', t: 'text' };
 
 /** The part of an element that `ownsKeys` reads. */
 export interface KeyTarget {
@@ -270,6 +270,6 @@ export function keyAction(k: KeyLike, selection: readonly string[]): Action | nu
   return null;
 }
 
-const modes: Record<Tool, ToolMode> = { select: 'move', frame: 'frame', rectangle: 'rect', text: 'text' };
+const modes: Record<Tool, ToolMode> = { select: 'move', frame: 'frame', rectangle: 'rect', ellipse: 'ellipse', text: 'text' };
 /** The tool of the app as the mode of the canvas. */
 export const toolMode = (t: Tool): ToolMode => modes[t];

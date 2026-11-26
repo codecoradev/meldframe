@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BlurFilter, Container, Graphics, type RoundedRectangle } from 'pixi.js';
-import { MAX_BLUR, type SceneShadow } from '@meldframe/web-canvas/shadow';
+import { MAX_BLUR, type SceneShadow } from '@meldframe/web-paint/shadow';
 import { resolveScene, type Scene, type SceneNode } from '@meldframe/web-canvas/scene';
 import { WorldView } from './stage';
 

@@ -6,6 +6,19 @@ use importing::*;
 use meldframe_module::Policy;
 use serde_json::json;
 
+/// U9: the key of `import_tokens` is held to the one rule of keys, and nothing is written.
+#[tokio::test]
+async fn a_key_with_a_hidden_character_is_refused_and_nothing_is_written() {
+    let h = start().await;
+    let c = connect(&h, AGENT).await;
+    for ch in ['\u{202E}', '\u{200B}', '\u{2028}', '\u{200D}', '\u{034F}'] {
+        let r = import(&c, &format!("k{ch}"), ":root { --a: 1px; }", json!({})).await;
+        assert!(r.is_error, "U+{:04X}: {}", ch as u32, r.body);
+        assert_eq!(r.body["error"]["code"], "invalid", "U+{:04X}", ch as u32);
+    }
+    assert_eq!(variables(&c, json!({})).await["total"], 0);
+}
+
 #[tokio::test]
 async fn the_same_key_with_other_css_never_replays_part_one_and_writes_part_two() {
     let h = start().await;

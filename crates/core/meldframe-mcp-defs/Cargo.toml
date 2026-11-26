@@ -14,6 +14,7 @@ meldframe-batch = { path = "../meldframe-batch" }
 meldframe-host = { path = "../meldframe-host" }
 meldframe-module = { path = "../meldframe-module" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-text = { path = "../meldframe-text" }
 serde_json = "1"
 
 [lints]

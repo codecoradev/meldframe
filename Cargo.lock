@@ -184,6 +184,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
 ]
 
 [[package]]
@@ -351,6 +352,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-mcp-defs",
  "meldframe-module",
+ "meldframe-text",
 ]
 
 [[package]]
@@ -725,6 +727,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "html-import"
+version = "0.0.0"
+dependencies = [
+ "html-import-css",
+ "html-import-style",
+ "html-import-tree",
+ "meldframe-protocol",
+ "meldframe-text",
+]
+
+[[package]]
+name = "html-import-css"
+version = "0.0.0"
+dependencies = [
+ "html-import-tree",
+]
+
+[[package]]
+name = "html-import-style"
+version = "0.0.0"
+dependencies = [
+ "html-import-css",
+ "html-import-tree",
+ "meldframe-css",
+]
+
+[[package]]
+name = "html-import-tree"
+version = "0.0.0"
+dependencies = [
+ "meldframe-text",
+]
+
+[[package]]
 name = "http"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1071,6 +1107,7 @@ version = "0.0.0"
 dependencies = [
  "meldframe-protocol",
  "meldframe-revert",
+ "meldframe-text",
 ]
 
 [[package]]
@@ -1446,6 +1483,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-css"
+version = "0.0.0"
+dependencies = [
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-export-http-tests"
 version = "0.0.0"
 dependencies = [
@@ -1546,6 +1590,7 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-ratelimit",
+ "meldframe-text",
  "rmcp",
  "serde",
  "serde_json",
@@ -1564,6 +1609,7 @@ dependencies = [
  "meldframe-http",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
  "rmcp",
  "serde",
  "serde_json",
@@ -1603,6 +1649,7 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-stream",
+ "meldframe-text",
  "rmcp",
  "serde",
  "serde_json",
@@ -1729,6 +1776,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-import-html-css-tests"
+version = "0.0.0"
+dependencies = [
+ "html-import",
+ "wasm-bindgen-test",
+]
+
+[[package]]
+name = "meldframe-import-html-paint-tests"
+version = "0.0.0"
+dependencies = [
+ "html-import",
+ "meldframe-protocol",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
+name = "meldframe-import-html-roundtrip-tests"
+version = "0.0.0"
+dependencies = [
+ "export",
+ "html-import",
+ "meldframe-layout",
+ "meldframe-protocol",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
+name = "meldframe-import-html-style-tests"
+version = "0.0.0"
+dependencies = [
+ "html-import",
+ "wasm-bindgen-test",
+]
+
+[[package]]
+name = "meldframe-import-html-tests"
+version = "0.0.0"
+dependencies = [
+ "html-import",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-layout"
 version = "0.0.0"
 dependencies = [
@@ -1812,6 +1905,7 @@ dependencies = [
  "meldframe-host",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
  "serde_json",
 ]
 
@@ -1986,6 +2080,7 @@ dependencies = [
  "meldframe-rooms",
  "meldframe-store-pg",
  "meldframe-stream",
+ "meldframe-text",
  "serde_json",
  "tokio",
  "variables-import",
@@ -2098,6 +2193,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-text"
+version = "0.0.0"
+dependencies = [
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-ui"
 version = "0.0.0"
 
@@ -2122,6 +2224,7 @@ dependencies = [
  "export",
  "meldframe-core",
  "meldframe-protocol",
+ "meldframe-text",
  "meldframe-variables",
  "serde_json",
  "variables-import",
@@ -2303,6 +2406,10 @@ version = "0.0.0"
 
 [[package]]
 name = "meldframe-web-link"
+version = "0.0.0"
+
+[[package]]
+name = "meldframe-web-paint"
 version = "0.0.0"
 
 [[package]]
@@ -3680,8 +3787,10 @@ name = "variables-import"
 version = "0.0.0"
 dependencies = [
  "meldframe-check",
+ "meldframe-css",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
  "meldframe-variables",
 ]
 

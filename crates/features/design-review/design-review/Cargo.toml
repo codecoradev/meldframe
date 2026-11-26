@@ -16,3 +16,4 @@ workspace = true
 [dependencies]
 meldframe-mcp-defs = { path = "../../../core/meldframe-mcp-defs" }
 meldframe-module = { path = "../../../core/meldframe-module" }
+meldframe-text = { path = "../../../core/meldframe-text" }

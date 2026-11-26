@@ -33,6 +33,7 @@ export const shortcutGroups: ShortcutGroup[] = [
       { id: 'tool-select', name: 'Select', keys: [k('V')] },
       { id: 'tool-frame', name: 'Frame', keys: [k('F')] },
       { id: 'tool-rectangle', name: 'Rectangle', keys: [k('R')] },
+      { id: 'tool-ellipse', name: 'Ellipse', keys: [k('E')] },
       { id: 'tool-text', name: 'Text', keys: [k('T')] },
     ],
   },

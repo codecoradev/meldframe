@@ -121,7 +121,7 @@ describe('the Layout', () => {
   const html = (over: Record<string, unknown> = {}) => render(Layout as never, { props: { ...props, ...over } as never }).body;
   it('keeps the test ids the browser checks use', () => {
     const out = html();
-    for (const id of ['toolbar', 'tool-select', 'tool-frame', 'tool-rectangle', 'tool-text', 'undo', 'redo', 'toggle-layers', 'toggle-properties', 'connection', 'zoom', 'tool', 'file-menu', 'frame-presets']) {
+    for (const id of ['toolbar', 'tool-select', 'tool-frame', 'tool-rectangle', 'tool-ellipse', 'tool-text', 'undo', 'redo', 'toggle-layers', 'toggle-properties', 'connection', 'zoom', 'tool', 'file-menu', 'frame-presets']) {
       expect(out, id).toContain(`data-testid="${id}"`);
     }
   });
@@ -133,6 +133,14 @@ describe('the Layout', () => {
     expect(out).toMatch(/aria-label="Select"[^>]*aria-pressed="true"/);
     expect(out).toMatch(/<button[^>]*aria-label="Undo"[^>]*\sdisabled[=\s>]/);
     expect(out).not.toMatch(/<button[^>]*aria-label="Redo"[^>]*\sdisabled[=\s>]/);
+  });
+  it('the Ellipse tool sits between Rectangle and Text, is named for assistive technology and is pressed while chosen', () => {
+    const out = html({ tool: 'ellipse' });
+    expect(out).toMatch(/aria-label="Ellipse"[^>]*aria-pressed="true"/);
+    expect(out).toMatch(/aria-label="Rectangle"[^>]*aria-pressed="false"/);
+    const at = (label: string) => out.indexOf(`aria-label="${label}"`);
+    expect(at('Rectangle')).toBeLessThan(at('Ellipse'));
+    expect(at('Ellipse')).toBeLessThan(at('Text'));
   });
   it('closed panels become the two 52 px cards, each with the toggle that opens it', () => {
     const out = html({ layersOpen: false, inspectorOpen: false });
