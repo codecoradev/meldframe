@@ -4,16 +4,20 @@
 // (the script adds a frame, four nodes, a collection and three variables to it, and refuses a file that has content already: development server only). Hand-run, not in CI.
 // A second token among the server's development tokens, with another actor (MELDFRAME_E2E_TOKEN2, as editor-e2e.mjs has it), makes the last
 // node come from another actor, so that the Layers panel's marker of who changed a node is imaged; without it that is not imaged and the
-// run says SKIP. The image picker of the Properties panel is imaged open on a workspace that holds no image (a server that has just started,
-// or one that no image was uploaded to; image-fill-e2e.mjs uploads some): the step waits for the note of an empty workspace and fails without it.
+// run says SKIP. The image picker of the Fill section is imaged in two places. In the Properties panel it is imaged open on a workspace that
+// holds no image (a server that has just started, or one that no image was uploaded to; image-fill-e2e.mjs uploads some): the step waits for the
+// note of an empty workspace and fails without it. The panel `images` (the word `properties`, the element the picker itself) uploads six
+// images to the workspace of the token before it opens either copy, so it comes after the empty workspace and a second run needs a server that
+// has just started (it adds a rectangle with an image fill, `im1`): six tiles with the first focused, the cursor moved by the keyboard, the tile of
+// the image the node has marked, a preview that did not load, a failed list, Load more and Load more while the next page comes. The failed list
+// and the next page are made with the page's routes (a 503, a list that has a cursor, a request that is held), the same on both copies.
 // For each panel it opens the editor twice on the same file, once with the Svelte copy and once with the React copy (`/?react=<panel>`), puts
 // the page through the same steps, takes an image of the panel's element at 1440x900 (1440x1800 for the Properties panel, which is taller than the card) and a device scale factor of 2 after each step, and
 // compares the two images pixel by pixel. The tolerance is 0: one differing pixel fails the run. Before it compares, each React page is
 // asked that React drew the element and the Svelte page that it did not, so a silent fallback to Svelte cannot pass. A panel is a row of
 // PANELS: the switch word, the element, and the steps (each step ends in a state to compare).
 // Not covered: the other themes, other widths, a hover or focus ring that the steps do not leave on screen, text of other languages, the
-// Layers panel's empty state (the file has nodes), the icon of a shader node and, in the Properties panel, an image fill with an image (the
-// picker is imaged open on a workspace with no image; the image tiles are Svelte on both pages until S7), the shader node, the Text
+// Layers panel's empty state (the file has nodes), the icon of a shader node and, in the Properties panel, the shader node, the Text
 // section's weight select open, the chip of a variable that was removed (a binding whose variable is gone) and Absolute position
 // checked. A step only clicks and types: it never changes the file, so the second run starts from the file
 // the first one saw.
@@ -21,8 +25,9 @@
 // there when the page loaded cannot) and its lanes change with the clock, so it opens both copies at the same time on one file.
 // Not imaged in the manage view (`manage`, the dialog's element, opened by its Manage button): the question before removing a mode, the partial-counts notice, the error and status lines and a file with no collection.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { pngOf, uploadPng } from './png-helpers.mjs';
 import { fibre, makeDiffer } from './pixels-helpers.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
@@ -51,6 +56,25 @@ const pick = async (page, id) => {
   await layer(page, id).locator('button').last().click();
   await page.waitForFunction((n) => document.querySelector('[data-testid=prop-name]')?.value === n, name);
 };
+
+const imageRadio = (page) => page.locator('[data-testid=prop-fill-type]').getByRole('radio', { name: 'Image', exact: true });
+/** Waits until the tiles of the picker are there and their thumbnails have loaded (a tile that says No preview has no image to wait for). */
+const tilesLoaded = (page, n = 6) =>
+  page.waitForFunction((n) => { const t = [...document.querySelectorAll('[data-testid=image-tile]')]; return t.length === n && t.every((x) => { const i = x.querySelector('img'); return i ? i.complete && i.naturalWidth > 0 : true; }); }, n, { timeout: 20000 });
+/** Closes the picker with its button when it is open, then opens it again from the type switch of the selected node. */
+const reopen = async (page) => {
+  await sleep(1200); // the server's budget of calls refills at a rate: a picker opened at once after another asks for six more thumbnails
+  if (await page.locator('[data-testid=image-picker]').count()) await page.locator('[data-testid=image-picker-close]').click();
+  await imageRadio(page).click();
+  await page.locator('[data-testid=image-picker]').waitFor();
+};
+const routes = new WeakMap();
+/** A route of the page that the next call of `clearRoutes` takes away. */
+const routeOnce = async (page, match, handler) => { await page.route(match, handler); routes.set(page, [...(routes.get(page) ?? []), [match, handler]]); };
+const clearRoutes = async (page) => { for (const [m, h] of routes.get(page) ?? []) await page.unroute(m, h); routes.delete(page); };
+const LIST = /\/v1\/assets\?/;
+const PALETTE = ['#e91e63', '#00bcd4', '#8bc34a', '#ff9800', '#673ab7', '#009688'];
+let imageIds = [];
 
 /** The panels this script compares: the word of `/?react=`, the element to image, the steps. Each step leaves the page in a state to compare. */
 const PANELS = {
@@ -117,6 +141,83 @@ const PANELS = {
       { name: 'a search with no match', run: (p) => p.fill('[data-testid=picker-search]', 'zzz') },
     ],
   },
+  images: {
+    word: 'properties',
+    element: '[data-testid=image-picker]',
+    viewport: { width: 1440, height: 1800 },
+    // Six images that differ in their stripes, and a rectangle that has one of them as its fill; the workspace holds no other image.
+    before: async () => {
+      imageIds = [];
+      for (let i = 0; i < PALETTE.length; i++) imageIds.push(await uploadPng(server, token, pngOf(24, 24, (y) => PALETTE[(i + Math.floor(y / 8)) % PALETTE.length])));
+      imageIds.sort();
+      await post({ type: 'addNode', node: { id: 'im1', name: 'Pictured', type: 'rect', parentId: 'f1', x: 300, y: 220, w: 80, h: 60, fill: '#335577', image: { assetId: imageIds[4], fit: 'contain' } } });
+    },
+    steps: [
+      {
+        name: 'open on a rectangle: six tiles, the first focused',
+        run: async (p) => {
+          await pick(p, 'r1');
+          await sleep(1200);
+          await imageRadio(p).click();
+          await tilesLoaded(p);
+        },
+      },
+      { name: 'the cursor a row down, moved by the keyboard', run: (p) => p.keyboard.press('ArrowDown') },
+      {
+        name: 'open on a node that has an image: its tile marked as current',
+        run: async (p) => {
+          await pick(p, 'im1');
+          await sleep(1200);
+          await p.locator('[data-testid=prop-fill-image-change]').click();
+          await tilesLoaded(p);
+        },
+      },
+      {
+        name: 'a preview that did not load: No preview, the note and Retry previews',
+        run: async (p) => {
+          await pick(p, 'r1');
+          await routeOnce(p, new RegExp(`/v1/assets/${imageIds[1]}$`), (r) => r.abort());
+          await sleep(1200);
+          await imageRadio(p).click();
+          await p.locator('[data-testid=image-picker-broken]').waitFor({ timeout: 20000 });
+          await tilesLoaded(p);
+        },
+      },
+      {
+        name: 'a failed list: the alert and Try again, no tile',
+        run: async (p) => {
+          await clearRoutes(p);
+          await routeOnce(p, LIST, (r) => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'unavailable', message: 'busy', retryable: true } }) }));
+          await reopen(p);
+          await p.locator('[data-testid=image-picker-error]').waitFor({ timeout: 20000 });
+        },
+      },
+      {
+        name: 'Load more: a list that has a cursor',
+        run: async (p) => {
+          await clearRoutes(p);
+          await routeOnce(p, LIST, async (r) => {
+            const res = await r.fetch();
+            const body = await res.json();
+            await r.fulfill({ response: res, json: { ...body, next: body.assets.at(-1).id } });
+          });
+          await reopen(p);
+          await p.locator('[data-testid=image-picker-more]').waitFor({ timeout: 20000 });
+          await tilesLoaded(p);
+        },
+      },
+      {
+        name: 'Load more while the next page comes: the request is held',
+        run: async (p) => {
+          await clearRoutes(p);
+          // The next page is asked for and never answered; the page's context ends with the run.
+          await routeOnce(p, LIST, () => new Promise(() => {}));
+          await p.locator('[data-testid=image-picker-more]').click();
+          await p.getByText('Loading…', { exact: true }).waitFor({ timeout: 20000 });
+        },
+      },
+    ],
+  },
 };
 
 PANELS.manage = {
@@ -154,11 +255,15 @@ PANELS.manage = {
 
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 
-async function images(word, panel, react) {
+async function pass(word, panel, react) {
   const ctx = await browser.newContext({ viewport: panel.viewport ?? { width: 1440, height: 900 }, deviceScaleFactor: 2, reducedMotion: 'reduce' });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
+  // A busy server (a loaded machine, a budget of calls used up) answers 503 for a thumbnail, and the picker then images it as No preview on one
+  // copy and not on the other, which is not a difference of the copies: the pass is made again (see `images` below) rather than compared.
+  const refused = [];
+  page.on('response', (r) => { if (r.status() >= 500 && /^\/v1\/assets\/[0-9a-f]{64}$/.test(new URL(r.url()).pathname)) refused.push(`${r.status()} ${new URL(r.url()).pathname.slice(-8)}`); });
   await page.goto(react ? `${web.replace(/\/?$/, '/')}?react=${word}` : web);
   await page.waitForSelector('[data-testid=connection][data-state=live]', { timeout: 20000 });
   await page.waitForSelector('[data-testid=layers]', { timeout: 20000 });
@@ -178,7 +283,20 @@ async function images(word, panel, react) {
   }
   await ctx.close();
   assert.deepEqual(errors, [], `${word}: page errors`);
+  if (refused.length) throw Object.assign(new Error(`${word}: the server refused a thumbnail (${refused.join(', ')})`), { refused: true });
   return out;
+}
+
+/** One pass over the steps; made again, up to twice, when the server refused a thumbnail (the steps only click and type, so a repeat sees the same file). */
+async function images(word, panel, react) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await pass(word, panel, react);
+    } catch (e) {
+      if (!e.refused || attempt === 3) throw e;
+      console.log(`${e.message}: again (${attempt} of 3)`);
+    }
+  }
 }
 
 {
@@ -224,12 +342,16 @@ const differ = await makeDiffer(browser);
 let bad = 0;
 // MELDFRAME_PIXELS_ONLY=properties,picker compares those panels only (the file still gets every node, so the images are the same as in a full run).
 const only = process.env.MELDFRAME_PIXELS_ONLY?.split(',');
+// MELDFRAME_PIXELS_SHOTS=<an existing directory> saves the two images of every state there (`<panel>-<step>-svelte.png` and `-react.png`), to look at a difference.
+const shots = process.env.MELDFRAME_PIXELS_SHOTS;
 for (const [name, panel] of Object.entries(PANELS)) {
   if (only && !only.includes(name)) continue;
   const word = panel.word;
+  await panel.before?.();
   const svelte = await images(word, panel, false);
   const react = await images(word, panel, true);
   for (let i = 0; i < panel.steps.length; i++) {
+    if (shots) for (const [copy, img] of [['svelte', svelte[i]], ['react', react[i]]]) writeFileSync(`${shots}/${name}-${i + 1}-${copy}.png`, Buffer.from(img, 'base64'));
     const d = await differ(svelte[i], react[i]);
     const ok = !d.size && d.differing === 0;
     if (!ok) bad++;
