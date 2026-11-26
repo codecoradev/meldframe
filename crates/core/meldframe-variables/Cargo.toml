@@ -10,6 +10,7 @@ publish.workspace = true
 kind = "core"
 
 [dependencies]
+meldframe-css = { path = "../meldframe-css" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 
 [lints]

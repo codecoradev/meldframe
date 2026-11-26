@@ -10,6 +10,7 @@ publish.workspace = true
 kind = "core"
 
 [dependencies]
+meldframe-css = { path = "../meldframe-css" }
 meldframe-order = { path = "../meldframe-order" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-variables = { path = "../meldframe-variables" }
