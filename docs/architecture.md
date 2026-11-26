@@ -233,6 +233,7 @@ Status note, 26 Nov 2026: sets of rules that lived in TypeScript are in the app 
 | What the front end has | Action in | Where the rule is | State or result out |
 |---|---|---|---|
 | The text of a property field | `Typed { entry }` (`TypedText::Property { id, field, text }`, `TypedText::VariableValue { variable, mode, text }`) | `meldframe-app-parts` `typed`: one parser, the range of each field, no action for empty text, the value the field has or a position the layout decides; out of range or not a number is `invalid_value`; a colour that is not one is the core's `E_INVALID_COLOR` for every colour field | the document, `Properties.sections` (which sections a kind has) |
+| The text of a name in the manage view, a click on Rename or Remove | `Manage { op }` | `manage_names` (the name rule `is_name_path`, the display profile of `meldframe-text` for what hides a meaning (a sun with its selector 16 is a good name), the limits of `meldframe-check`, the names it is compared with, what a removal detaches and touches on the whole file) and `manage_ui` (the rename flow) | `AppState.manage`, `Event::Renamed`, `Event::ManageChanged` |
 
 The front end keeps the words, the focus, and what only it can know.
 
