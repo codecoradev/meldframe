@@ -1,6 +1,6 @@
 import type { AssetInfo, Properties } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import { closeAssetsAction, fitAction, fillTypes, gridMove, loadMoreAction, openAssetsAction, pickImageAction, retryAssetsAction, shortId, sizeText, tileLabel, typeText } from './images';
+import { FOLLOW_START, askedForMore, closeAssetsAction, fitAction, fillTypes, followPages, gridMove, loadMoreAction, openAssetsAction, pickImageAction, retryAssetsAction, shortId, sizeText, tileLabel, typeText } from './images';
 
 const ID = '3f2a91bc' + 'd'.repeat(56);
 const asset: AssetInfo = { id: ID, bytes: 12_345, mime: 'image/png' };
@@ -75,5 +75,33 @@ describe('the arrow keys of the grid', () => {
   it('ignores other keys and an empty grid', () => {
     expect(gridMove('a', 0, 7, 3)).toBeUndefined();
     expect(gridMove('ArrowRight', 0, 0, 3)).toBeUndefined();
+  });
+});
+
+describe('where the focus goes as pages of images arrive', () => {
+  it('goes to the first tile of the first page when it was parked on the picker for lack of a tile, and nowhere when it is elsewhere', () => {
+    expect(followPages(FOLLOW_START, 3, false, true)).toEqual({ next: { seen: 3, following: false }, focus: 0 });
+    expect(followPages(FOLLOW_START, 3, false, false)).toEqual({ next: { seen: 3, following: false }, focus: null });
+  });
+  it('does nothing while there is no tile, and keeps what it remembers', () => {
+    expect(followPages(FOLLOW_START, 0, false, true)).toEqual({ next: FOLLOW_START, focus: null });
+    expect(followPages(askedForMore({ seen: 24, following: false }), 24, false, false)).toEqual({ next: { seen: 24, following: true }, focus: null });
+  });
+  it('goes to the first new tile of a page that Load more asked for, once, and not for a page nobody asked for', () => {
+    const asked = askedForMore({ seen: 24, following: false });
+    expect(asked).toEqual({ seen: 24, following: true });
+    expect(followPages(asked, 48, false, false)).toEqual({ next: { seen: 48, following: false }, focus: 24 });
+    expect(followPages({ seen: 48, following: false }, 54, false, false)).toEqual({ next: { seen: 54, following: false }, focus: null });
+  });
+  it('forgets that a page was asked for when the list failed, so a later page does not take the focus', () => {
+    const asked = askedForMore({ seen: 24, following: false });
+    expect(followPages(asked, 24, true, false)).toEqual({ next: { seen: 24, following: false }, focus: null });
+    expect(followPages({ seen: 24, following: false }, 48, false, false).focus).toBeNull();
+  });
+  it('is a function of its arguments: it changes nothing it was given', () => {
+    const start = { seen: 0, following: false };
+    followPages(start, 5, false, true);
+    expect(start).toEqual({ seen: 0, following: false });
+    expect(FOLLOW_START).toEqual({ seen: 0, following: false });
   });
 });
