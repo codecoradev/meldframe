@@ -7,7 +7,7 @@
   holds its text.
 -->
 <script lang="ts">
-  import type { Action, Event, VariableRow, VariablesIo, VariablesPanel } from '@meldframe/protocol';
+  import type { Action, Event, ManageState, VariableRow, VariablesIo, VariablesPanel } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
@@ -27,10 +27,12 @@
     events?: readonly Event[];
     /** `state.variablesIo`: the text of the Export variables dialog while it is open, and the result of the last import. */
     io?: VariablesIo;
+    /** `state.manage`: what the manage view shows and asks (the shown collection, the question before a removal, the rename field, the forms). */
+    manage: ManageState;
   }
-  let { panel, target, dispatch, events = [], io = { export: null, import: null } }: Props = $props();
+  let { panel, target, dispatch, events = [], io = { export: null, import: null }, manage }: Props = $props();
 
-  // The manage view reads the whole list: it starts with the search cleared (the counts of a removal are of what is listed).
+  // The manage view draws the rows of the panel, so it starts with the search cleared (the counts of a removal are the app layer's, of the whole file).
   let manageOpen = $state(false);
   let manageButton = $state<HTMLElement | null>(null);
   const setManage = (open: boolean) => {
@@ -59,7 +61,7 @@
   </div>
   <ImportVariablesDialog open={importOpen} onOpenChange={(o) => (importOpen = o)} result={io.import ?? null} {dispatch} opener={() => importButton?.querySelector('button')} />
   <ExportVariablesDialog dialog={io.export ?? null} {dispatch} opener={() => exportButton?.querySelector('button')} />
-  <ManageDialog open={manageOpen} onOpenChange={setManage} {panel} {events} {dispatch} opener={() => manageButton?.querySelector('button')} />
+  <ManageDialog open={manageOpen} onOpenChange={setManage} {panel} {manage} {events} {dispatch} opener={() => manageButton?.querySelector('button')} />
   {#each panel.collections.filter((c) => c.modes.length > 1) as c (c.id)}
     <div class="flex flex-col gap-1">
       <span class="truncate text-caption font-semibold text-text-muted" title={nameOf(c.name)}>{nameOf(c.name)}</span>

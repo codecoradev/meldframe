@@ -12,10 +12,8 @@ import { HIDDEN_RANGES, checkText, hiddenTextLines, isProductSource } from './te
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 const SKIP = new Set(['node_modules', 'dist', '.wasm', 'target', 'rust']);
 
-/** What is allowed today: the check of a typed name, a rule of the input and not a cleaner (finding T5, #323 moves it to the app layer). */
-const ALLOW = [
-  { file: 'packages/web-variables/src/manage.ts', count: 1, reason: 'HIDDEN, the check of a name the person types; the name rules move to the app layer with T5 (#323)' },
-];
+/** What is allowed today: nothing. The check of a typed name moved to the app layer with finding T5 (#322); entries only go down. */
+const ALLOW = [];
 
 function* walk(dir) {
   for (const e of readdirSync(join(root, dir), { withFileTypes: true })) {

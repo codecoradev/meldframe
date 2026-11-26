@@ -1,15 +1,17 @@
 import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
-import type { CollectionRow, VariableRow, VariablesPanel } from '@meldframe/protocol';
+import type { CollectionRow, ManageState, Removal, VariableRow, VariablesPanel } from '@meldframe/protocol';
 import ManageBody from './ManageBody.svelte';
 import RemoveConfirm from './RemoveConfirm.svelte';
-import { removalPlan } from './manage';
+import { removalWords } from './manage';
 
 const row = (over: Partial<VariableRow> = {}): VariableRow => ({ id: 'v1', name: 'color/bg', type: 'color', values: [], usedBy: 2, binds: [], ...over });
 const modes = [{ id: 'm1', name: 'light' }, { id: 'm2', name: 'dark' }];
 const col = (over: Partial<CollectionRow> = {}): CollectionRow => ({ id: 'c1', name: 'theme', modes, active: 'm1', matched: 2, variables: [row(), row({ id: 'v2', name: 'space/4', type: 'number', usedBy: 0 })], ...over });
 const panel = (collections: CollectionRow[] = [col(), col({ id: 'c2', name: 'brand', modes: [{ id: 'm9', name: 'default' }], matched: 0, variables: [] })], over: Partial<VariablesPanel> = {}): VariablesPanel => ({ query: '', total: 2, matched: 2, collections, ...over });
-const body = (p: VariablesPanel) => render(ManageBody as never, { props: { panel: p, events: [], dispatch: () => {} } as never }).body;
+const empty = { text: '', check: { name: '', error: 'empty' as const } };
+const manageState = (over: Partial<ManageState> = {}): ManageState => ({ shown: 'c1', limits: { nameMax: 256, modeNameMax: 64, collections: 32, modes: 16, variables: 5000 }, drafts: { collection: empty, mode: empty, variable: empty }, ...over });
+const body = (p: VariablesPanel, manage: ManageState = manageState()) => render(ManageBody as never, { props: { panel: p, manage, events: [], dispatch: () => {} } as never }).body;
 
 describe('the manage view', () => {
   it('lists the collections with their variables and modes, and opens on the first', () => {
@@ -82,8 +84,34 @@ describe('the manage view', () => {
 import { readFileSync } from 'node:fs';
 const readSource = (name: string) => readFileSync(new URL(`./${name}.svelte`, import.meta.url), 'utf8');
 
+describe('the manage view as the app layer holds it', () => {
+  it('shows the collection the app layer says is shown, and nothing when it says none', () => {
+    expect(body(panel(), manageState({ shown: 'c2' }))).toMatch(/data-testid="manage-detail-body"[^>]*data-id="c2"|data-id="c2"[^>]*data-testid="manage-detail-body"/);
+    expect(body(panel(), manageState({ shown: undefined }))).not.toContain('data-testid="manage-detail-body"');
+  });
+  it('draws the question the app layer holds, with its numbers, and none otherwise', () => {
+    expect(body(panel())).not.toContain('data-testid="remove-confirm"');
+    const removal: Removal = { target: { kind: 'variable', id: 'v1' }, name: 'color/bg', detach: true, uses: 5, variables: 0 };
+    const out = body(panel(), manageState({ removal }));
+    expect(out).toContain('data-testid="remove-confirm"');
+    expect(out).toContain('5 uses');
+    expect(out).toMatch(/>Detach</);
+  });
+  it('draws the text of a form and the words of its check from the app layer, with Add on only when it can be sent', () => {
+    const typed = (text: string, error?: 'notPath') => manageState({ drafts: { collection: { text, check: { name: text, ...(error ? { error } : {}) } }, mode: empty, variable: empty } });
+    const bad = body(panel(), typed('Colour', 'notPath'));
+    expect(bad).toMatch(/<input[^>]*value="Colour"/);
+    expect(bad).toMatch(/data-testid="manage-new-collection-note"[^>]*data-tone="error"/);
+    // The attribute, not the `disabled:` variants of the class list.
+    const off = (out: string) => /\sdisabled(=|\s|>)/.test(out.match(/<button[^>]*data-testid="manage-new-collection-add"[^>]*>/)![0]);
+    expect(off(bad)).toBe(true);
+    expect(off(body(panel(), typed('colour')))).toBe(false);
+  });
+});
+
 describe('the confirmation of a removal', () => {
-  const confirm = (plan = removalPlan({ kind: 'variable', row: row({ usedBy: 3 }) })) => render(RemoveConfirm as never, { props: { plan, onConfirm: () => {}, onCancel: () => {} } as never }).body;
+  const asked = (over: Partial<Removal> = {}): Removal => ({ target: { kind: 'variable', id: 'v1' }, name: 'color/bg', detach: true, uses: 3, variables: 0, ...over });
+  const confirm = (plan = removalWords(asked())) => render(RemoveConfirm as never, { props: { plan, onConfirm: () => {}, onCancel: () => {} } as never }).body;
   it('says what will happen and offers Detach or Cancel, with Cancel first in the order of the focus', () => {
     const out = confirm();
     expect(out).toContain('3 uses');
@@ -93,7 +121,7 @@ describe('the confirmation of a removal', () => {
     expect(out).toContain('aria-label="Confirm the removal"');
   });
   it('offers Remove when nothing is let go', () => {
-    expect(confirm(removalPlan({ kind: 'variable', row: row({ usedBy: 0 }) }))).toMatch(/>Remove</);
+    expect(confirm(removalWords(asked({ detach: false, uses: 0 })))).toMatch(/>Remove</);
   });
   it('draws the Detach button as destructive', () => {
     expect(confirm()).toContain('bg-danger-strong');

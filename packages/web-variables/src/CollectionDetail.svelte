@@ -7,7 +7,7 @@
   It holds only the type and the source of the values the next additions will take.
 -->
 <script lang="ts">
-  import type { CollectionRow, VarType } from '@meldframe/protocol';
+  import type { CollectionRow, ManageDrafts, ManageLimits, ManageTarget, RenameField as RenameState, VarType, VariableEntity } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { ring } from '@meldframe/web-chrome/focus';
@@ -15,26 +15,25 @@
   import NameForm from './NameForm.svelte';
   import RenameField from './RenameField.svelte';
   import { nameOf } from '@meldframe/web-document/names';
-  import { count, type Ask, type Summary } from './manage';
-  import type { RenameContext } from './rename';
+  import { count, type Summary } from './manage';
 
   interface Props {
     col: CollectionRow;
     summary: Summary;
-    onAsk: (a: Ask) => void;
-    /** The thing whose name is being edited and what it is checked against, or none. */
-    renaming: Ask | null;
-    ctx: RenameContext | null;
-    onRename: (a: Ask) => void;
-    onRenameSubmit: (name: string) => void;
+    onAsk: (t: ManageTarget) => void;
+    /** The field a name is being edited in (`AppState.manage.rename`), or none. */
+    rename: RenameState | null;
+    drafts: ManageDrafts;
+    limits: ManageLimits;
+    onRename: (t: ManageTarget) => void;
+    onRenameInput: (text: string) => void;
+    onRenameSubmit: () => void;
     onRenameCancel: () => void;
+    onDraft: (form: VariableEntity, text: string) => void;
     onAddMode: (name: string, copyFrom: string) => void;
     onAddVariable: (name: string, kind: VarType) => void;
-    /** Change when a mode or a variable was added: the form starts again. */
-    modeKey: number;
-    variableKey: number;
   }
-  let { col, summary, onAsk, renaming, ctx, onRename, onRenameSubmit, onRenameCancel, onAddMode, onAddVariable, modeKey, variableKey }: Props = $props();
+  let { col, summary, onAsk, rename, drafts, limits, onRename, onRenameInput, onRenameSubmit, onRenameCancel, onDraft, onAddMode, onAddVariable }: Props = $props();
 
   let kind = $state<VarType>('color');
   let from = $state('');
@@ -43,15 +42,18 @@
   const name = $derived(nameOf(col.name));
   const cut = $derived(col.matched > col.variables.length);
   /** Whether the field of a rename is open for this thing. */
-  const editing = (kind: Ask['kind'], id: string) => !!ctx && renaming?.kind === kind && renaming.id === id;
+  const editing = (kind: ManageTarget['kind'], id: string) => {
+    const t = rename?.target;
+    return !!t && t.kind === kind && t.id === id && (t.kind !== 'mode' || t.collection === col.id);
+  };
   const select = `${ring} h-(--mf-size-control-md) max-w-40 rounded-md border border-divider bg-field px-2 text-small text-text hov:border-border-strong`;
 </script>
 
 <div class="flex flex-col gap-4 p-4" data-testid="manage-detail-body" data-id={col.id}>
   <header class="flex items-start justify-between gap-3">
     <div class="min-w-0 flex-1">
-      {#if ctx && editing('collection', col.id)}
-        <RenameField kind="collection" subject="collection {name}" {ctx} onSubmit={onRenameSubmit} onCancel={onRenameCancel} testId="manage-renaming-collection" />
+      {#if rename && editing('collection', col.id)}
+        <RenameField kind="collection" subject="collection {name}" field={rename} {limits} onInput={onRenameInput} onSubmit={onRenameSubmit} onCancel={onRenameCancel} testId="manage-renaming-collection" />
       {:else}
         <h3 tabindex="-1" class="m-0 truncate text-title font-semibold text-text-strong outline-none" title={name} data-testid="manage-title"><bdi>{name}</bdi></h3>
       {/if}
@@ -69,9 +71,9 @@
     <h4 class="m-0 text-body font-semibold text-text-strong">Modes</h4>
     <ul class="m-0 flex list-none flex-wrap gap-2 p-0">
       {#each col.modes as m, i (m.id)}
-        {#if ctx && editing('mode', m.id)}
+        {#if rename && editing('mode', m.id)}
           <li tabindex="-1" class="{ring} w-full rounded-md border border-divider bg-field p-2 text-small text-text" data-testid="manage-mode" data-id={m.id} data-entity-id={m.id}>
-            <RenameField kind="mode" subject="mode {nameOf(m.name)}" first={i === 0} {ctx} onSubmit={onRenameSubmit} onCancel={onRenameCancel} testId="manage-renaming-mode" />
+            <RenameField kind="mode" subject="mode {nameOf(m.name)}" field={rename} {limits} onInput={onRenameInput} onSubmit={onRenameSubmit} onCancel={onRenameCancel} testId="manage-renaming-mode" />
           </li>
         {:else}
           <li tabindex="-1" class="{ring} flex items-center gap-2 rounded-md border border-divider bg-field py-1 pr-1 pl-3 text-small text-text" data-testid="manage-mode" data-id={m.id} data-entity-id={m.id}>
@@ -87,29 +89,25 @@
         {/if}
       {/each}
     </ul>
-    {#key modeKey}
-      <NameForm kind="mode" label="New mode name" submit="Add mode" placeholder="dark" existing={col.modes.map((m) => m.name)} onSubmit={(n) => onAddMode(n, copy)} testId="manage-new-mode">
-        {#snippet extra()}
-          <label class="flex items-center gap-2 text-small text-text-muted">
-            <span aria-hidden="true">Copy from</span>
-            <select aria-label="Copy the values of the new mode from" class={select} value={copy} onchange={(e) => (from = e.currentTarget.value)} data-testid="manage-copy-from">
-              {#each col.modes as m (m.id)}<option value={m.id}>{nameOf(m.name)}</option>{/each}
-            </select>
-          </label>
-        {/snippet}
-      </NameForm>
-    {/key}
+    <NameForm kind="mode" label="New mode name" submit="Add mode" placeholder="dark" draft={drafts.mode} {limits} onInput={(t) => onDraft('mode', t)} onSubmit={(n) => onAddMode(n, copy)} testId="manage-new-mode">
+      {#snippet extra()}
+        <label class="flex items-center gap-2 text-small text-text-muted">
+          <span aria-hidden="true">Copy from</span>
+          <select aria-label="Copy the values of the new mode from" class={select} value={copy} onchange={(e) => (from = e.currentTarget.value)} data-testid="manage-copy-from">
+            {#each col.modes as m (m.id)}<option value={m.id}>{nameOf(m.name)}</option>{/each}
+          </select>
+        </label>
+      {/snippet}
+    </NameForm>
   </section>
 
   <section class="flex flex-col gap-2" aria-label="Variables of {name}">
     <h4 class="m-0 text-body font-semibold text-text-strong">Variables</h4>
-    {#key variableKey}
-      <NameForm kind="variable" label="New variable name" submit="Add variable" placeholder="color/brand-500" existing={col.variables.map((v) => v.name)} onSubmit={(n) => onAddVariable(n, kind)} testId="manage-new-variable">
-        {#snippet extra()}
-          <div class="w-40"><Segmented label="Type of the new variable" options={(['color', 'number'] as const).map((t) => ({ value: t, label: TYPE_LABEL[t] }))} value={kind} onChange={(v) => (kind = v as VarType)} data-testid="manage-new-type" /></div>
-        {/snippet}
-      </NameForm>
-    {/key}
+    <NameForm kind="variable" label="New variable name" submit="Add variable" placeholder="color/brand-500" draft={drafts.variable} {limits} onInput={(t) => onDraft('variable', t)} onSubmit={(n) => onAddVariable(n, kind)} testId="manage-new-variable">
+      {#snippet extra()}
+        <div class="w-40"><Segmented label="Type of the new variable" options={(['color', 'number'] as const).map((t) => ({ value: t, label: TYPE_LABEL[t] }))} value={kind} onChange={(v) => (kind = v as VarType)} data-testid="manage-new-type" /></div>
+      {/snippet}
+    </NameForm>
     {#if col.variables.length === 0}
       <p class="m-0 text-small text-text-muted" data-testid="manage-no-variables">{col.matched === 0 ? 'This collection has no variables yet. Add one above.' : 'No variable of this collection is listed.'}</p>
     {:else}
@@ -126,8 +124,8 @@
         <tbody>
           {#each col.variables as v (v.id)}
             <tr tabindex="-1" class="{ring} border-b border-hairline" data-testid="manage-var" data-id={v.id} data-entity-id={v.id}>
-              {#if ctx && editing('variable', v.id)}
-                <th scope="row" class="max-w-0 py-1 pr-2 text-left font-normal text-text"><RenameField kind="variable" subject={nameOf(v.name)} {ctx} onSubmit={onRenameSubmit} onCancel={onRenameCancel} testId="manage-renaming-variable" /></th>
+              {#if rename && editing('variable', v.id)}
+                <th scope="row" class="max-w-0 py-1 pr-2 text-left font-normal text-text"><RenameField kind="variable" subject={nameOf(v.name)} field={rename} {limits} onInput={onRenameInput} onSubmit={onRenameSubmit} onCancel={onRenameCancel} testId="manage-renaming-variable" /></th>
               {:else}
                 <th scope="row" class="max-w-0 truncate py-1 pr-2 text-left font-normal text-text" title={nameOf(v.name)}><bdi>{nameOf(v.name)}</bdi></th>
               {/if}

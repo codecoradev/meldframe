@@ -41,7 +41,7 @@
     ></div>
     <ImportVariablesDialog open={importOpen} onOpenChange={(o) => (importOpen = o)} result={props.io?.import ?? null} dispatch={props.dispatch} opener={button('var-import')} />
     <ExportVariablesDialog dialog={props.io?.export ?? null} dispatch={props.dispatch} opener={button('var-export')} />
-    <ManageDialog open={manageOpen} onOpenChange={(o) => (manageOpen = o)} panel={props.panel} events={props.events ?? []} dispatch={props.dispatch} opener={button('var-manage')} />
+    <ManageDialog open={manageOpen} onOpenChange={(o) => (manageOpen = o)} panel={props.panel} manage={props.manage} events={props.events ?? []} dispatch={props.dispatch} opener={button('var-manage')} />
   {:catch}
     <!-- the React chunk did not load: the Svelte panel is in the entry (it draws its own dialogs), so the variables are still there -->
     <VariablesPanel {...props} />

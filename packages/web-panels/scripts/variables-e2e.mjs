@@ -305,6 +305,22 @@ async function check(name, fn) {
     });
   }
 
+  // Closing the manage view tells the app layer (ManageOp::Close, sent by ManageDialog), so what was open in it does not come back. Both copies of
+  // the panel draw that dialog, so this runs on the Svelte page and on the React one.
+  await check('closing the manage view with its Close button forgets an open rename field: it opens again clean', async () => {
+    await page.click('[data-testid=var-manage]');
+    await page.locator('[data-testid=manage-dialog]').waitFor();
+    await page.locator('[data-rename^="collection:"]').first().click();
+    await page.locator('[data-testid=manage-renaming-collection]').waitFor();
+    await page.click('[data-testid=manage-close]');
+    await page.locator('[data-testid=manage-dialog]').waitFor({ state: 'detached' });
+    await page.click('[data-testid=var-manage]');
+    await page.locator('[data-testid=manage-dialog]').waitFor();
+    assert.equal(await page.locator('[data-testid=manage-renaming-collection]').count(), 0, 'no rename field comes back');
+    await page.keyboard.press('Escape');
+    await page.locator('[data-testid=manage-dialog]').waitFor({ state: 'detached' });
+  });
+
   await check('no uncaught error in the page', async () => assert.deepEqual(pageErrors, []));
   await browser.close();
   // Leave no variable behind (it is removable once the frame lets go of it); a failed run may leave it, and the colours of the next run differ.
