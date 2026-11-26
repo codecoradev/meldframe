@@ -188,9 +188,11 @@ export class OverlayView {
     this.nameKeys.set(t, key);
     t.text = name;
     if (t.width <= width) return;
-    let n = Math.floor((name.length * width) / t.width);
+    // Cut on characters (code points), not on UTF-16 units: a unit cut would leave half of an emoji.
+    const chars = Array.from(name);
+    let n = Math.floor((chars.length * width) / t.width);
     do {
-      t.text = `${name.slice(0, Math.max(1, n))}\u2026`;
+      t.text = `${chars.slice(0, Math.max(1, n)).join('')}\u2026`;
       n--;
     } while (t.width > width && n > 0);
   }
