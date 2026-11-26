@@ -1,0 +1,308 @@
+//! What an element holds, in order: runs of text and boxes. The walk over the children of an element, which passes
+//! the content of inline elements and of `display: contents` up to the element they are in.
+
+use super::names;
+use super::node::display;
+use super::notes::Notes;
+use super::refuse;
+use super::text::{Piece, Ws, render};
+use super::walk::Walk;
+use crate::css::{Report, Source, Style};
+use crate::html::{Child, Element, ElementId};
+use crate::paint::{self, Ctx};
+
+/// What an element holds, in order: a run of text (pieces of text and line breaks that flow together) or a box.
+#[derive(Debug)]
+pub(super) enum Item {
+    Run(Vec<Piece>),
+    Box(ElementId),
+}
+
+/// Elements that are never drawn: no node and nothing worth a line in the report.
+const NOT_DRAWN: &[&str] = &[
+    "head", "script", "style", "link", "meta", "title", "noscript", "template", "base", "area",
+    "param", "source", "track", "col", "colgroup",
+];
+
+/// How an element takes part in the flow of its parent.
+pub(super) enum Role {
+    /// Nothing is drawn for it, and nothing is listed.
+    Skip,
+    /// `display: none` or `hidden`: no node, a line under `skipped`.
+    Hidden,
+    /// Its content goes to the element it is in (`display: contents`, a table section).
+    Through,
+    /// Part of a line of text.
+    Inline,
+    /// A node.
+    Box,
+}
+
+pub(super) fn role(el: &Element, s: &Style) -> Role {
+    let d = display(s);
+    if d == "none" {
+        return if NOT_DRAWN.contains(&el.tag.as_str()) {
+            Role::Skip
+        } else {
+            Role::Hidden
+        };
+    }
+    let absolute = s
+        .get("position")
+        .is_some_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "absolute" | "fixed"));
+    match d.as_str() {
+        "contents" | "table-header-group" | "table-row-group" | "table-footer-group" => {
+            Role::Through
+        }
+        "table-column" | "table-column-group" => Role::Skip,
+        "" | "inline" if absolute => Role::Box,
+        "" | "inline" => match el.tag.as_str() {
+            "img" | "svg" | "canvas" | "video" | "audio" | "iframe" | "object" | "embed"
+            | "input" | "textarea" | "select" | "button" | "option" | "optgroup" => Role::Box,
+            _ => Role::Inline,
+        },
+        _ => Role::Box,
+    }
+}
+
+impl Walk<'_> {
+    /// Put what `children` hold into `items`, with the style of the box they are in for comparing inline styles.
+    pub(super) fn collect(
+        &mut self,
+        children: &[Child],
+        base: &Style,
+        items: &mut Vec<Item>,
+        n: &mut Notes,
+    ) {
+        let tree = self.tree;
+        for c in children {
+            match c {
+                Child::Text(t) => push(items, Piece::Text(t.clone())),
+                Child::Element(e) => {
+                    let el = tree.element(*e);
+                    let s = self.styles.get(*e);
+                    match role(el, s) {
+                        Role::Skip => {}
+                        Role::Hidden => self.skip(names::source(el, *e), "display_none"),
+                        Role::Through => self.collect(&el.children, base, items, n),
+                        Role::Box => items.push(Item::Box(*e)),
+                        Role::Inline if el.tag == "br" => push(items, Piece::Br),
+                        Role::Inline => {
+                            differs(base, s, n);
+                            self.inline_lost(el, s, n);
+                            self.collect(&el.children, base, items, n);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn items_of(&mut self, el: &Element, s: &Style, n: &mut Notes) -> Vec<Item> {
+        let mut items = Vec::new();
+        self.collect(&el.children, s, &mut items, n);
+        drop_blank(&mut items, Ws::of(s));
+        items
+    }
+
+    /// What an inline element declares that a run of text cannot carry: a box of its own (a background, a border, a
+    /// shadow, room around it) and the properties the model has no field for. They are listed on the box that holds
+    /// the run, since the inline element makes no node.
+    fn inline_lost(&mut self, el: &Element, s: &Style, n: &mut Notes) {
+        refuse::scan(s, el.attr("data-node").is_some(), n);
+        let mut local = Report::default();
+        let p = paint::read(s, &Ctx::default(), el.at, &mut local);
+        self.absorb(local, n);
+        let first = |names: &[&str]| {
+            names
+                .iter()
+                .find_map(|k| s.get(k))
+                .unwrap_or_default()
+                .to_owned()
+        };
+        let boxes = [
+            ("background-color", p.fill.lit().is_none_or(|f| f != "none")),
+            (
+                "background-image",
+                p.gradient.is_some() || p.image.is_some(),
+            ),
+            ("border", p.border.width > 0.0 || p.border_room > 0.0),
+            ("box-shadow", !p.shadows.is_empty()),
+        ];
+        for (prop, on) in boxes {
+            if on {
+                let v = match prop {
+                    "border" => first(&["border-top-width", "border-left-width"]),
+                    other => first(&[other]),
+                };
+                n.lose(prop, &v, "refused_inline_box");
+            }
+        }
+        let opacity = s.get("opacity").and_then(|v| v.trim().parse::<f64>().ok());
+        if let Some(o) = opacity.filter(|o| (o - 1.0).abs() > f64::EPSILON) {
+            n.lose("opacity", &o.to_string(), "refused_inline_box");
+        }
+        if s.get("visibility").is_some_and(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "hidden" | "collapse"
+            )
+        }) {
+            n.lose("visibility", "hidden", "refused_inline_box");
+        }
+        for prop in [
+            "padding-top",
+            "padding-right",
+            "padding-bottom",
+            "padding-left",
+            "margin-left",
+            "margin-right",
+        ] {
+            let declared = s
+                .declared()
+                .any(|(k, d)| k == prop && matches!(d.source, Source::Author | Source::Inline));
+            if declared && s.len(prop).is_some_and(|l| l.px != 0.0) {
+                n.lose(prop, s.get(prop).unwrap_or_default(), "refused_inline_box");
+            }
+        }
+    }
+
+    pub(super) fn is_absolute(&self, id: ElementId) -> bool {
+        self.styles
+            .get(id)
+            .get("position")
+            .is_some_and(|v| v.trim().eq_ignore_ascii_case("absolute"))
+    }
+
+    /// The text a control shows, as one run: `None` when the control has no model equivalent.
+    pub(super) fn control_items(
+        &mut self,
+        el: &Element,
+        s: &Style,
+        n: &mut Notes,
+    ) -> Option<Vec<Item>> {
+        let shown = |t: &str| {
+            let t = t.trim();
+            (!t.is_empty()).then(|| vec![Item::Run(vec![Piece::Text(t.to_owned())])])
+        };
+        match el.tag.as_str() {
+            "input" => {
+                let kind = el
+                    .attr("type")
+                    .unwrap_or("text")
+                    .trim()
+                    .to_ascii_lowercase();
+                match kind.as_str() {
+                    "checkbox" | "radio" | "range" | "file" | "color" | "image" | "hidden" => None,
+                    // The value of a password is never copied: the placeholder is what the box shows.
+                    "password" => {
+                        Some(shown(el.attr("placeholder").unwrap_or("")).unwrap_or_default())
+                    }
+                    "submit" | "button" | "reset" => {
+                        Some(shown(el.attr("value").unwrap_or("")).unwrap_or_default())
+                    }
+                    _ => {
+                        let v = el.attr("value").filter(|v| !v.trim().is_empty());
+                        let text = v.or_else(|| el.attr("placeholder")).unwrap_or("");
+                        Some(shown(text).unwrap_or_default())
+                    }
+                }
+            }
+            "select" => {
+                let elements = |e: &Element| -> Vec<&Element> {
+                    e.children
+                        .iter()
+                        .filter_map(|c| match c {
+                            Child::Element(e) => Some(self.tree.element(*e)),
+                            Child::Text(_) => None,
+                        })
+                        .collect()
+                };
+                // The options are children of the select or of an optgroup in it.
+                let options: Vec<&Element> = elements(el)
+                    .into_iter()
+                    .flat_map(|c| match c.tag.as_str() {
+                        "optgroup" => elements(c),
+                        _ => vec![c],
+                    })
+                    .filter(|o| o.tag == "option")
+                    .collect();
+                let pick = options
+                    .iter()
+                    .find(|o| o.attr("selected").is_some())
+                    .or(options.first());
+                let text: String = pick
+                    .map(|o| {
+                        o.children
+                            .iter()
+                            .filter_map(|c| match c {
+                                Child::Text(t) => Some(t.as_str()),
+                                Child::Element(_) => None,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                n.change("select", "the control", "the text of the chosen option");
+                Some(shown(&text).unwrap_or_default())
+            }
+            _ => Some(self.items_of(el, s, n)),
+        }
+    }
+}
+
+/// Push a piece onto the last run, or start one.
+fn push(items: &mut Vec<Item>, piece: Piece) {
+    if let Some(Item::Run(run)) = items.last_mut() {
+        run.push(piece);
+    } else {
+        items.push(Item::Run(vec![piece]));
+    }
+}
+
+/// What an inline element has other than its box: the model has one style for a text, so the text takes the box's and
+/// each difference of weight, size, colour, case and white space is listed (every one, not only the first).
+fn differs(base: &Style, inline: &Style, n: &mut Notes) {
+    let mut said = |prop: &str, inside: &str, whole: &str| {
+        n.change(
+            prop,
+            &format!("{inside} inside the text"),
+            &format!("{whole} for the whole text"),
+        );
+    };
+    if inline.font_weight != base.font_weight {
+        said(
+            "font-weight",
+            &inline.font_weight.to_string(),
+            &base.font_weight.to_string(),
+        );
+    }
+    if inline.font_size != base.font_size {
+        said(
+            "font-size",
+            &format!("{}px", inline.font_size),
+            &format!("{}px", base.font_size),
+        );
+    }
+    if inline.color != base.color {
+        said("color", &inline.color, &base.color);
+    }
+    for (prop, default) in [("text-transform", "none"), ("white-space", "normal")] {
+        let of = |s: &Style| {
+            s.get(prop)
+                .map_or_else(|| default.to_owned(), |v| v.trim().to_ascii_lowercase())
+        };
+        if of(inline) != of(base) {
+            said(prop, &of(inline), &of(base));
+        }
+    }
+}
+
+/// Drop the runs that hold only white space (the indentation between two tags): they are nothing once rendered, and
+/// left in they stop a wrapper from being a wrapper and an empty box from being empty. Space between two pieces of
+/// text stays, as it is inside one run.
+pub(super) fn drop_blank(items: &mut Vec<Item>, ws: Ws) {
+    items.retain(|i| match i {
+        Item::Run(pieces) => !render(pieces, ws).is_empty(),
+        Item::Box(_) => true,
+    });
+}
