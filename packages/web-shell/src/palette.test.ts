@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterEntries, firstEnabled, paletteEntries, paletteKey, type PaletteInput } from './palette';
+import { filterEntries, firstEnabled, highlightAt, paletteEntries, paletteKey, resultsText, type PaletteInput } from './palette';
 import { PRESET_ORDER, PRESETS } from './presets';
 import { shortcutGroups, shortcutLabels } from './shortcuts';
 
@@ -175,5 +175,25 @@ describe('the entry "Auto layout on canvas"', () => {
     const { entries } = setup({}, true);
     for (const q of ['auto layout', 'layout canvas', 'hug', 'switch']) expect(filterEntries(entries, q).some((e) => e.id === 'auto-layout'), q).toBe(true);
     expect(filterEntries(entries, 'auto layout')[0]!.id).toBe('auto-layout');
+  });
+});
+
+describe('the highlighted row', () => {
+  const rows = [{ id: 'a', enabled: false }, { id: 'b', enabled: true }, { id: 'c', enabled: true }, { id: 'd', enabled: false }];
+  it('starts on the first row that can run', () => {
+    expect(highlightAt(rows, null)).toBe(1);
+    expect(highlightAt([], null)).toBe(-1);
+    expect(highlightAt([rows[0]!, rows[3]!], null)).toBe(-1);
+  });
+  it('follows the row the pointer chose, but only while it can run and is still listed', () => {
+    expect(highlightAt(rows, 'c')).toBe(2);
+    expect(highlightAt(rows, 'd')).toBe(1);
+    expect(highlightAt(rows, 'gone')).toBe(1);
+  });
+});
+
+describe('the count read to a screen reader', () => {
+  it('says no results, one result or how many', () => {
+    expect([resultsText(0), resultsText(1), resultsText(2), resultsText(25)]).toEqual(['No results', '1 result', '2 results', '25 results']);
   });
 });

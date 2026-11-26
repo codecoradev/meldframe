@@ -14,6 +14,7 @@ meldframe-host = { path = "../../core/meldframe-host" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
 meldframe-calls = { path = "../../core/meldframe-calls" }
 meldframe-module = { path = "../../core/meldframe-module" }
+meldframe-text = { path = "../../core/meldframe-text" }
 activity-store = { path = "../../features/activity/activity-store" }
 checkpoint-store = { path = "../../features/activity/checkpoint-store" }
 meldframe-checkpoints = { path = "../../core/meldframe-checkpoints" }

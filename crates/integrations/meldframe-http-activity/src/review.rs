@@ -23,6 +23,7 @@ use meldframe_host::Principal;
 use meldframe_http::mcp::Reader;
 use meldframe_http::{Reply, Shared, bearer, peer, valid_file};
 use meldframe_module::Policy;
+use meldframe_text::canonical_u32;
 use serde_json::{Value, json};
 use std::sync::Arc;
 
@@ -180,13 +181,8 @@ async fn run(
             "a file name is 1 to 128 bytes without slashes, control or invisible formatting characters",
         ));
     }
-    // Plain ASCII digits, no sign and no leading zero: one spelling for each number, so `+1` and `01` do not alias 1.
-    let plain =
-        !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) && (n == "0" || !n.starts_with('0'));
-    let n: u32 = plain
-        .then(|| n.parse().ok())
-        .flatten()
-        .ok_or_else(|| Fail::invalid("a batch number is a whole number"))?;
+    // One spelling for each number, so `+1` and `01` do not alias 1.
+    let n = canonical_u32(n).ok_or_else(|| Fail::invalid("a batch number is a whole number"))?;
     let (store, live, p, file) = (
         s.store.clone(),
         s.setter.live.clone(),
