@@ -69,3 +69,12 @@ pub fn clip(s: &str, max_chars: usize, max_bytes: usize) -> &str {
     }
     s
 }
+
+/// `s` made safe for `profile` ([`sanitize`]) and then cut to at most `max_chars` characters and `max_bytes` bytes
+/// ([`clip`]; `usize::MAX` for a bound that does not apply). A cut can leave a joiner or a selector at the end that
+/// had something to join before the cut, so the cut text is made safe once more: no hidden character is left that
+/// joins nothing. A caller that adds a mark of its own after the cut (an ellipsis) cuts shorter first.
+pub fn sanitize_clip(s: &str, profile: Profile, max_chars: usize, max_bytes: usize) -> String {
+    let safe = sanitize(s, profile);
+    sanitize(clip(&safe, max_chars, max_bytes), profile).into_owned()
+}

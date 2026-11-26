@@ -12,3 +12,6 @@ group = "html-import"
 
 [lints]
 workspace = true
+
+[dependencies]
+meldframe-text = { path = "../../../core/meldframe-text" }

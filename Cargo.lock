@@ -734,6 +734,7 @@ dependencies = [
  "html-import-style",
  "html-import-tree",
  "meldframe-protocol",
+ "meldframe-text",
 ]
 
 [[package]]
@@ -755,6 +756,9 @@ dependencies = [
 [[package]]
 name = "html-import-tree"
 version = "0.0.0"
+dependencies = [
+ "meldframe-text",
+]
 
 [[package]]
 name = "http"
@@ -2220,6 +2224,7 @@ dependencies = [
  "export",
  "meldframe-core",
  "meldframe-protocol",
+ "meldframe-text",
  "meldframe-variables",
  "serde_json",
  "variables-import",
@@ -3785,6 +3790,7 @@ dependencies = [
  "meldframe-css",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-text",
  "meldframe-variables",
 ]
 
