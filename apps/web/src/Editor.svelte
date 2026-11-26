@@ -27,7 +27,7 @@
   import { layoutKey, paletteBlocked, readOverlays } from '@meldframe/web-shell/keys';
   import { shellParts } from './react-pilot/shell'; // the palette and the shortcut sheet, Svelte or React with /?react=palette (E7.3, S4)
   import { zoomCamera } from '@meldframe/web-shell/zoom';
-  import LayersPanel from '@meldframe/web-panels/LayersPanel.svelte';
+  import LayersPanel from './react-pilot/LayersPanelSwitch.svelte'; // LayersPanel.svelte of web-panels, or its React copy with /?react=layers (E7.3, S5)
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
   import VariablesPanel from '@meldframe/web-panels/VariablesPanel.svelte';
   import ActivityPanel from '@meldframe/web-activity/ActivityPanel.svelte';
