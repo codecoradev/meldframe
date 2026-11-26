@@ -32,7 +32,7 @@ pub fn is_asset_id(id: &str) -> bool {
 /// One asset of the workspace, as `GET /v1/assets` lists it. No content.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct AssetInfo {
     /// The lowercase hex SHA-256 of the bytes: the id `image.assetId` takes.
     pub id: String,
@@ -52,7 +52,7 @@ impl AssetInfo {
 /// A page of the list, as the server answers it (the answer of `Effect::FetchAssets`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct AssetPage {
     pub assets: Vec<AssetInfo>,
     /// The cursor of the page after this one (the last id of this page); none on the last page.
