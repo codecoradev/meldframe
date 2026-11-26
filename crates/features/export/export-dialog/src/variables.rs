@@ -12,14 +12,14 @@ pub fn variables_dialog(vars: &Variables) -> VariablesExportDialog {
         collections: 0,
         variables: 0,
         blocks: 0,
-        bytes: 0,
+        bytes: None,
         limit: MAX_OUTPUT_BYTES,
         warnings: Vec::new(),
         error: None,
     };
     match export_variables(vars) {
         Ok(e) => {
-            d.bytes = e.css.len();
+            d.bytes = Some(e.css.len());
             d.css = e.css;
             d.collections = e.collections;
             d.variables = e.variables;
@@ -28,7 +28,7 @@ pub fn variables_dialog(vars: &Variables) -> VariablesExportDialog {
         }
         Err(e) => {
             if let ExportError::TooLarge { bytes, .. } = e {
-                d.bytes = bytes;
+                d.bytes = Some(bytes);
             }
             d.error = Some(e.code().to_string());
         }

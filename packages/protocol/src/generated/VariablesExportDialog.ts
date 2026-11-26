@@ -15,9 +15,10 @@ css: string,
  */
 collections: number, variables: number, blocks: number, 
 /**
- * The size of `css` in bytes, and the limit of an export. With `error` it is the size that was refused.
+ * The size of `css` in bytes, and the limit of an export. With `error` it is the size that was refused when the
+ * error is the limit, and `None` for any other error (nothing was built, so the size is not known: rule U9).
  */
-bytes: number, limit: number, 
+bytes: number | null, limit: number, 
 /**
  * What could not be written as it is stored (a value missing in a mode, a colour that is not hex, an alias to a
  * variable that is not there). `node` is none: it is about the file.

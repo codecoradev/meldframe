@@ -54,16 +54,18 @@ pub struct ExportDialog {
     /// The name the document links the stylesheet by, and so the name to save it under (Tailwind form).
     pub css_file: String,
     /// What each file is in bytes: the document, and the stylesheet that is saved beside it in the Tailwind form (0 for
-    /// plain CSS, which has no second file). Both are 0 when `error` is set.
-    #[ts(type = "number")]
-    pub html_bytes: usize,
-    #[ts(type = "number")]
-    pub css_bytes: usize,
+    /// plain CSS, which has no second file). Both are `None` when `error` is set: there is no file, so its size is not
+    /// known, and a front end must not draw it as 0 bytes (rule U9).
+    #[ts(type = "number | null")]
+    pub html_bytes: Option<usize>,
+    #[ts(type = "number | null")]
+    pub css_bytes: Option<usize>,
     /// What the limit is checked against, and the limit. The export counts what it hands back: in the plain CSS form
     /// that is the document and the stylesheet again (it is inside the document), so this can be more than what is
-    /// saved. With `error` it is the size that was refused.
-    #[ts(type = "number")]
-    pub counted_bytes: usize,
+    /// saved. With `error` it is the size that was refused when the error is the limit (`E_EXPORT_TOO_LARGE`), and
+    /// `None` for any other error.
+    #[ts(type = "number | null")]
+    pub counted_bytes: Option<usize>,
     #[ts(type = "number")]
     pub limit: usize,
     /// The properties the export dropped or approximated, what it warns about (layout findings, bindings that do not

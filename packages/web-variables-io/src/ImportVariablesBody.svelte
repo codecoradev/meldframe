@@ -25,8 +25,8 @@
 
   let chooser = $state<HTMLInputElement | null>(null);
   const words = $derived(result ? importWords(result) : null);
-  const rows = $derived(result ? entryRows(result.report.entries) : []);
-  const omitted = $derived(result ? omittedText(result.report.omitted) : null);
+  const rows = $derived(result?.report ? entryRows(result.report.entries) : []);
+  const omitted = $derived(result?.report ? omittedText(result.report.omitted) : null);
   const tone = { ok: 'bg-field text-text-strong', neutral: 'bg-field text-text', error: 'bg-danger-bg text-danger-text' } as const;
   const badge = { converted: 'bg-warning-bg text-warning', skipped: 'bg-field text-text-muted', note: 'bg-field text-text-secondary' } as const;
 </script>

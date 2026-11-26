@@ -29,7 +29,7 @@ fn a_theme_is_added_as_the_persons_own_ops_and_the_report_counts_it() {
     let r = result(&l);
     assert_eq!(r.status, ImportStatus::Imported);
     assert_eq!(r.code, None);
-    let rep = &r.report;
+    let rep = r.report.as_ref().expect("the text was read");
     assert_eq!(
         (rep.collections, rep.modes),
         (2, 3),
@@ -181,9 +181,9 @@ fn text_with_no_variable_says_so_with_the_report_and_applies_nothing() {
     let fx = import(&mut l, ".card { --local: #fff; } body { color: red; }");
     let r = result(&l);
     assert_eq!((r.status, r.code), (ImportStatus::Nothing, None));
-    assert_eq!(r.report.variables, 0);
+    assert_eq!(r.report.as_ref().unwrap().variables, 0);
     assert!(
-        !r.report.entries.is_empty(),
+        !r.report.as_ref().unwrap().entries.is_empty(),
         "the report says what was skipped"
     );
     assert!(sent(&fx).is_empty());
@@ -282,7 +282,10 @@ fn a_text_of_51_variables_is_refused_with_the_pointer_to_the_agent_tool_and_noth
         (r.status, r.code.as_deref()),
         (ImportStatus::Refused, Some("E_IMPORT_TOO_MANY"))
     );
-    assert_eq!((r.report.variables, r.max_variables), (51, 50));
+    assert_eq!(
+        (r.report.as_ref().unwrap().variables, r.max_variables),
+        (51, 50)
+    );
     assert!(
         sent(&fx).is_empty()
             && l.app.vars().variables.is_empty()

@@ -86,6 +86,12 @@ describe('the HTML tab', () => {
     expect(out).toMatch(/data-testid="export-review"[\s\S]*<button[^>]*>Review/);
   });
 
+  it('draws no size for a dialog with no file, and not 0 bytes', () => {
+    const out = body({ dialog: dialog({ error: 'E_EXPORT_TOO_LARGE', html: '', css: '', htmlBytes: null, cssBytes: null, countedBytes: 400_000 }) });
+    expect(out).toContain('data-testid="export-error"');
+    expect(out).not.toContain('0 bytes');
+  });
+
   it('lists what the export could not carry with the node, and says the file is unchanged', () => {
     const out = body({ dialog: dialog({ unsupported: [{ code: 'on_text', node: 't1', nodeName: 'Hero Title', message: 'a text node paints no shadows' }] }) });
     expect(out).toContain('data-testid="export-unsupported"');

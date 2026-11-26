@@ -51,9 +51,9 @@ pub fn dialog(
         html: String::new(),
         css: String::new(),
         css_file: String::new(),
-        html_bytes: 0,
-        css_bytes: 0,
-        counted_bytes: 0,
+        html_bytes: None,
+        css_bytes: None,
+        counted_bytes: None,
         limit: MAX_OUTPUT_BYTES,
         unsupported: Vec::new(),
         warnings: Vec::new(),
@@ -68,8 +68,10 @@ pub fn dialog(
     match export::export_frame(nodes, vars, id, &options) {
         Ok(e) => {
             d.css_file = options.css_href;
-            d.counted_bytes = e.html.len() + e.css.len();
-            d.html_bytes = e.html.len();
+            d.counted_bytes = Some(e.html.len() + e.css.len());
+            d.html_bytes = Some(e.html.len());
+            // Plain CSS has no second file: its size is 0, not unknown.
+            d.css_bytes = Some(0);
             let names = |f: &[Finding]| f.iter().map(|f| finding(f, nodes)).collect();
             d.unsupported = names(&e.report.unsupported);
             d.warnings = names(&e.report.warnings);
@@ -77,14 +79,14 @@ pub fn dialog(
             d.html = e.html;
             // Plain CSS carries its styles inline: the stylesheet is a second file of the Tailwind form alone.
             if format == ExportFormat::Tailwind {
-                d.css_bytes = e.css.len();
+                d.css_bytes = Some(e.css.len());
                 d.css = e.css;
             }
         }
         // The dialog is opened on a frame of the document, so only the limit happens; the others keep their code.
         Err(e) => {
             if let ExportError::TooLarge { bytes, .. } = e {
-                d.counted_bytes = bytes;
+                d.counted_bytes = Some(bytes);
             }
             d.error = Some(e.code().to_string());
         }

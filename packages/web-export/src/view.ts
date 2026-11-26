@@ -16,13 +16,15 @@ export function previewOf(text: string, max = PREVIEW_LINES): { lines: string[];
  * The file the dialog shows, copies and saves: its name, its text, its media type and its size. The stylesheet of the
  * Tailwind form is saved under the name the document links, which the app layer gives (`cssFile`).
  */
-export function fileOf(d: ExportDialog, shown: 'html' | 'css'): { name: string; text: string; mime: string; bytes: number } {
+export function fileOf(d: ExportDialog, shown: 'html' | 'css'): { name: string; text: string; mime: string; bytes: number | null } {
   return shown === 'css'
     ? { name: d.cssFile, text: d.css, mime: 'text/css', bytes: d.cssBytes }
     : { name: exportFileName(d.name, d.frame, 1, 'html'), text: d.html, mime: 'text/html', bytes: d.htmlBytes };
 }
 
-export function sizeText(bytes: number): string {
+/** A size in words; `null` (the app layer does not know it: there is no file) is said, never drawn as 0 bytes. */
+export function sizeText(bytes: number | null): string {
+  if (bytes === null) return 'Unknown size';
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
   return `${bytes} bytes`;
@@ -31,7 +33,7 @@ export function sizeText(bytes: number): string {
 /** Why there is no document, in words; null when there is one. */
 export function errorText(d: ExportDialog): string | null {
   if (!d.error) return null;
-  if (d.error === 'E_EXPORT_TOO_LARGE') return `This frame is too large to export as HTML: the output would be ${sizeText(d.countedBytes)} and the limit is ${sizeText(d.limit)}. Select a smaller frame.`;
+  if (d.error === 'E_EXPORT_TOO_LARGE') return `This frame is too large to export as HTML: the output would be ${d.countedBytes === null ? 'of a size not known' : sizeText(d.countedBytes)} and the limit is ${sizeText(d.limit)}. Select a smaller frame.`;
   return `This frame could not be exported (${d.error}).`;
 }
 

@@ -23,6 +23,12 @@ describe('the Export variables words', () => {
     expect(big).toContain('256.0 KiB');
     expect(exportProblem(exp({ error: 'E_X' }))).toContain('E_X');
   });
+  it('say Unknown for a size nobody knows, and never 0 bytes', () => {
+    expect(exportSummary(exp({ bytes: null }))).toBe('5 variables in 2 collections, 3 rules, Unknown size');
+    const p = exportProblem(exp({ error: 'E_EXPORT_TOO_LARGE', bytes: null }))!;
+    expect(p).toContain('not known');
+    expect(p).not.toContain('0 bytes');
+  });
   it('save the text under variables.css and say the limits of the format', () => {
     expect(EXPORT_FILE).toBe('variables.css');
     expect(EXPORT_HELP.join(' ')).toMatch(/DTCG/);
@@ -44,6 +50,13 @@ describe('the Import variables words', () => {
     const w = importWords(result({ report: report({ skipped: 3 }) }));
     expect(w.lines.join(' ')).toMatch(/3 custom properties were left out/);
     expect(importWords(result({ report: report({ skipped: 1 }) })).lines.join(' ')).toMatch(/1 custom property was left out/);
+  });
+  it('do not draw the counts of text that was not read as zero: with no report they say they are not known', () => {
+    const w = importWords(result({ report: null }));
+    expect(w.lines.join(' ')).toContain('not known');
+    expect(w.lines.join(' ')).not.toMatch(/\b0 (collections|modes|variables)/);
+    expect(importWords(result({ status: 'nothing', report: null })).title).toBe('Nothing to import');
+    expect(importWords(result({ status: 'refused', code: 'empty_text', report: null })).tone).toBe('error');
   });
   it('say that text with no variable adds nothing', () => {
     const w = importWords(result({ status: 'nothing', report: report({ collections: 0, variables: 0 }) }));

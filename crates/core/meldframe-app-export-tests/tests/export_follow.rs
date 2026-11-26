@@ -72,17 +72,20 @@ fn the_sizes_are_what_each_format_saves_and_what_the_limit_counts() {
     open(&mut l);
     let t = l.app.state().export.dialog.clone().unwrap();
     // Tailwind: the document and the stylesheet are two files, and the limit counts both.
-    assert_eq!(t.html_bytes, t.html.len());
-    assert_eq!(t.css_bytes, t.css.len());
-    assert!(t.css_bytes > 0);
-    assert_eq!(t.counted_bytes, t.html_bytes + t.css_bytes);
+    assert_eq!(t.html_bytes, Some(t.html.len()));
+    assert_eq!(t.css_bytes, Some(t.css.len()));
+    assert!(t.css_bytes > Some(0));
+    assert_eq!(
+        t.counted_bytes,
+        Some(t.html_bytes.unwrap() + t.css_bytes.unwrap())
+    );
     l.send(Action::SetExportFormat {
         format: ExportFormat::Css,
     });
     let c = l.app.state().export.dialog.clone().unwrap();
     // Plain CSS: one file with the stylesheet inside. The export carries the stylesheet a second time for the caller,
     // and the limit counts it, but nothing of it is saved or copied.
-    assert_eq!((c.html_bytes, c.css_bytes), (c.html.len(), 0));
+    assert_eq!((c.html_bytes, c.css_bytes), (Some(c.html.len()), Some(0)));
     assert!(c.css.is_empty());
     assert!(
         c.counted_bytes > c.html_bytes,

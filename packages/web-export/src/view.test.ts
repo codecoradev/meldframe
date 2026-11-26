@@ -41,11 +41,27 @@ describe('sizes and words', () => {
   });
   it('words the refusal for a frame that is too large, with both sizes, and says nothing otherwise', () => {
     expect(errorText(dialog())).toBeNull();
-    const text = errorText(dialog({ error: 'E_EXPORT_TOO_LARGE', html: '', css: '', htmlBytes: 0, cssBytes: 0, countedBytes: 400_000 }))!;
+    const text = errorText(dialog({ error: 'E_EXPORT_TOO_LARGE', html: '', css: '', htmlBytes: null, cssBytes: null, countedBytes: 400_000 }))!;
     expect(text).toContain('too large');
     expect(text).toContain('390.6 KiB');
     expect(text).toContain('256.0 KiB');
     expect(errorText(dialog({ error: 'E_SOMETHING' }))).toContain('E_SOMETHING');
+  });
+  it('says Unknown for a size the app layer does not know, and never 0 bytes', () => {
+    expect(sizeText(null)).toBe('Unknown size');
+    expect(sizeText(0)).toBe('0 bytes');
+    const text = errorText(dialog({ error: 'E_EXPORT_TOO_LARGE', htmlBytes: null, cssBytes: null, countedBytes: null }))!;
+    expect(text).toContain('not known');
+    expect(text).not.toContain('0 bytes');
+    expect(fileOf(dialog({ htmlBytes: null }), 'html').bytes).toBeNull();
+  });
+  it('says the review state is unknown when the count of batches is unknown, and does not read it as nothing waiting', () => {
+    const unknown = reviewText(null)!;
+    expect(unknown).toContain('not known');
+    expect(unknown).toContain('Export anyway or review first');
+    expect(unknown).not.toContain('0 batches');
+    expect(reviewText(null)).not.toBeNull();
+    expect(reviewText(0)).toBeNull();
   });
   it('asks to review first only when batches wait', () => {
     expect(reviewText(0)).toBeNull();

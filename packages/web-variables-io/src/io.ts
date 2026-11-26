@@ -36,7 +36,7 @@ export function exportSummary(d: VariablesExportDialog): string | null {
 /** Why there is no text, in words; null when there is. */
 export function exportProblem(d: VariablesExportDialog): string | null {
   if (!d.error) return null;
-  if (d.error === 'E_EXPORT_TOO_LARGE') return `These variables are too many to export as one text: it would be ${sizeText(d.bytes)} and the limit is ${sizeText(d.limit)}. Remove variables you do not need.`;
+  if (d.error === 'E_EXPORT_TOO_LARGE') return `These variables are too many to export as one text: it would be ${d.bytes === null ? 'of a size not known' : sizeText(d.bytes)} and the limit is ${sizeText(d.limit)}. Remove variables you do not need.`;
   return `The variables could not be exported (${d.error}).`;
 }
 
@@ -57,15 +57,18 @@ const ENTITY: Record<string, string> = { collection: 'collection', mode: 'mode',
 export function importWords(r: VariablesImportResult): ImportWords {
   const rep = r.report;
   if (r.status === 'imported') {
+    // A report is there whenever the text was read; if it is not, the counts are not known and are not drawn as zero.
     const lines = [
-      `${plural(rep.collections, 'collection')}, ${plural(rep.modes, 'mode')} and ${plural(rep.variables, 'variable')} were added: ${plural(rep.colors, 'colour')} and ${plural(rep.numbers, 'number')}, ${plural(rep.aliases, 'alias', 'aliases')} among them.`,
+      rep === null
+        ? 'The variables were added. The counts of what was added are not known.'
+        : `${plural(rep.collections, 'collection')}, ${plural(rep.modes, 'mode')} and ${plural(rep.variables, 'variable')} were added: ${plural(rep.colors, 'colour')} and ${plural(rep.numbers, 'number')}, ${plural(rep.aliases, 'alias', 'aliases')} among them.`,
     ];
-    if (rep.skipped > 0) lines.push(`${plural(rep.skipped, 'custom property', 'custom properties')} ${rep.skipped === 1 ? 'was' : 'were'} left out, and the report below says why.`);
+    if (rep !== null && rep.skipped > 0) lines.push(`${plural(rep.skipped, 'custom property', 'custom properties')} ${rep.skipped === 1 ? 'was' : 'were'} left out, and the report below says why.`);
     lines.push('One undo takes the whole import back.');
     return { tone: 'ok', title: 'Imported', lines };
   }
   if (r.status === 'nothing') {
-    return { tone: 'neutral', title: 'Nothing to import', lines: ['No variable was found in this text that the file can hold, so nothing was added.', ...(rep.entries.length ? ['The report below says what was skipped.'] : [])] };
+    return { tone: 'neutral', title: 'Nothing to import', lines: ['No variable was found in this text that the file can hold, so nothing was added.', ...(rep && rep.entries.length ? ['The report below says what was skipped.'] : [])] };
   }
   return { tone: 'error', title: 'Nothing was imported', lines: [refusal(r)] };
 }
