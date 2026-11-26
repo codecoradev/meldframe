@@ -2,7 +2,7 @@
 // Node with no DOM library. Server rendering covers the markup. For effects (subscriptions) a real React root is
 // mounted on a stand-in container with just enough of a DOM for React to start; the probe components return null,
 // so nothing is ever written to it. What a browser alone can prove (real markup, focus) is left to the Playwright scripts.
-import { type ReactNode, act } from 'react';
+import { type ReactElement, type ReactNode, StrictMode, act, useEffect } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createRoot } from 'react-dom/client';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -249,5 +249,43 @@ describe('the island action', () => {
       Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     }
     expect(errors).not.toHaveBeenCalled();
+  });
+});
+
+// React runs every effect twice in development inside <StrictMode> (mount, cleanup, mount), which is how a component is shown to be
+// idempotent. The component must be below the StrictMode of its root: a <StrictMode> that a component returns, on the commit that
+// mounts that component, does not double the effects below it (checked on React 19.3.1, with the canvas of S11). So the island draws
+// the component inside one when `strict` is set; the switch of a panel asks for it in development only.
+describe('the island in strict mode', () => {
+  const el = () => ({}) as HTMLElement;
+  it('draws the component inside StrictMode when asked, and plain otherwise', () => {
+    const nodes: ReactNode[] = [];
+    const make = createIsland({ createRoot: () => ({ render: (n) => void nodes.push(n), unmount() {} }), defer: (fn) => fn() });
+    const Probe = (): ReactNode => null;
+    make(el(), { component: Probe, props: {}, strict: true });
+    make(el(), { component: Probe, props: {} });
+    const [strict, plain] = nodes as ReactElement<{ children: ReactElement }>[];
+    expect(strict!.type).toBe(StrictMode);
+    expect(strict!.props.children.type).toBe(Probe);
+    expect(plain!.type).toBe(Probe);
+  });
+
+  it('on a real root the effects of the component run twice with strict and once without', async () => {
+    const run = async (strict: boolean) => {
+      const log: string[] = [];
+      const Probe = (): ReactNode => {
+        useEffect(() => {
+          log.push('effect');
+          return () => void log.push('cleanup');
+        }, []);
+        return null;
+      };
+      await act(async () => {
+        island(container(), { component: Probe, props: {}, strict });
+      });
+      return log;
+    };
+    expect(await run(true)).toEqual(['effect', 'cleanup', 'effect']);
+    expect(await run(false)).toEqual(['effect']);
   });
 });

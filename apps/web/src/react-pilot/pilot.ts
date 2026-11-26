@@ -24,6 +24,9 @@
 //                        ExportVariablesDialogSwitch.svelte, which VariablesPanelSwitch.svelte draws beside the React panel and hands to the Svelte panel
 //                        as `importView` and `exportView`. One word for both dialogs; it stands alone or joins `variables` and `manage`
 //                        (/?react=variables,manage,io); they open from the two buttons of the Variables section's header.
+//   /?react=canvas     the canvas drawn by React (E7.3, S11): CanvasSwitch.svelte, which Editor.svelte and the canvas harness import. The canvas code is
+//                        the same (canvas/driver.ts); the React side is canvas/react/Canvas.tsx. `/?react=canvas,strict` (development only) draws it
+//                        inside React's strict mode.
 // packages/web-chrome/scripts/overlays-e2e.mjs asks the two fixtures the same questions; states-e2e.mjs runs on the first with MELDFRAME_UI=react.
 import { mount } from 'svelte';
 

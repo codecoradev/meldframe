@@ -10,7 +10,7 @@
   import { displayText, type Engine } from '@meldframe/web-link/engine';
   import type { LayoutSwitch } from '@meldframe/web-link/layoutswitch';
   import type { CreateIntent, MoveIntent, ResizeIntent } from '@meldframe/web-canvas/interaction';
-  import Canvas from './canvas/Canvas.svelte';
+  import Canvas from './react-pilot/CanvasSwitch.svelte'; // Canvas.svelte, or its React copy with /?react=canvas (E7.3, S11)
   import { createActionFor, deleteAction, documentChanged, drawnBox, gestureGoing, keyAction, ownsKeys, worldOrigin, moveActionsFor, movePreviewFor, originLocked, previewScene, resizeActionFor, resizePreviewFor, toolMode, type Preview } from '@meldframe/web-document/edit';
   import { perFrame } from '@meldframe/web-document/coalesce';
   import { shouldRefit } from '@meldframe/web-document/fit';
