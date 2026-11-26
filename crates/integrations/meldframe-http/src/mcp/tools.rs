@@ -208,6 +208,7 @@ impl Handler {
         let call = BatchCall {
             file: a.file.clone(),
             key: key.clone(),
+            tool: "apply_commands",
             commands: n,
             atomic,
             note,

@@ -184,6 +184,29 @@ async fn the_tool_is_listed_with_its_text_and_schema() {
 }
 
 #[tokio::test]
+async fn a_parent_id_over_the_length_of_an_id_or_with_hidden_characters_is_refused_before_it_is_hashed()
+ {
+    let w = start().await;
+    let c = connect(&w.h, AGENT).await;
+    for bad in [
+        "a".repeat(65),
+        "a\u{200b}b".to_owned(),
+        "a\u{202e}b".to_owned(),
+    ] {
+        let r = import(&c, "k", CARD, json!({"parentId": bad})).await;
+        assert_eq!(r.body["error"]["code"], "invalid", "{}", r.body);
+        assert!(
+            !r.body.to_string().contains(&"a".repeat(65)),
+            "a long id is not echoed"
+        );
+    }
+    assert_eq!(count(&tree(&c).await), 0);
+    // The longest id is still looked up, and is not found.
+    let r = import(&c, "k", CARD, json!({"parentId": "a".repeat(64)})).await;
+    assert_eq!(r.body["error"]["code"], "E_PARENT_NOT_FOUND", "{}", r.body);
+}
+
+#[tokio::test]
 async fn a_parent_id_that_cannot_be_an_id_is_not_found_by_the_gate() {
     // The schema has a pattern for it and the file refuses what is not one of its nodes: no check of the tool's own.
     let w = start().await;

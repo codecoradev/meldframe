@@ -8,6 +8,8 @@ pub struct BatchCall {
     pub file: String,
     /// The idempotency key: the ops of the call are `{key}:{i}`.
     pub key: String,
+    /// The tool that made the call (`apply_commands`, `import_html`): the header says which wrote the batch.
+    pub tool: &'static str,
     pub commands: usize,
     pub atomic: bool,
     pub note: Option<Note>,

@@ -13,7 +13,7 @@
 use meldframe_check::Limits;
 use meldframe_host::{Op, Principal};
 use meldframe_http::mcp::{
-    Extra, ExtraCall, FileView, MAX_BATCH, MAX_KEY, Reader, change_tool_listing,
+    Extra, ExtraCall, FileView, MAX_BATCH, MAX_KEY, Reader, change_tool_listing, fnv1a,
     tool_error as error, tool_failed as failed,
 };
 use meldframe_http::{Failure, Shared, valid_file};
@@ -107,12 +107,11 @@ fn check_key(key: &str) -> Result<(), Value> {
 
 /// The id of node `n` of the copy of `frame` made under `key` by `actor` in `file`.
 fn fresh_id(file: &str, actor: &str, key: &str, frame: &str, n: usize) -> String {
-    let h = [file, actor, key, frame]
-        .iter()
-        .flat_map(|s| s.bytes().chain(std::iter::once(0)))
-        .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
-            (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
-        });
+    let h = fnv1a(
+        [file, actor, key, frame]
+            .iter()
+            .flat_map(|s| s.bytes().chain(std::iter::once(0))),
+    );
     format!("v-{h:016x}-{n}")
 }
 

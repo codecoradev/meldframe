@@ -57,7 +57,7 @@ async fn another_workspace_with_the_same_key_text_and_file_name_does_not_touch_t
 }
 
 #[tokio::test]
-async fn a_parent_of_another_workspace_is_not_found_and_a_dry_run_does_not_read_its_file() {
+async fn a_parent_of_another_workspace_is_not_found_for_a_call_and_for_a_dry_run() {
     let w = start().await;
     let (a, o) = (connect(&w.h, AGENT).await, connect(&w.h, OTHER).await);
     let seed = call(
@@ -198,8 +198,12 @@ async fn the_tool_text_does_not_promise_a_whole_revert() {
     let d = t.description.as_deref().unwrap();
     assert!(!d.contains("revert it in one step"));
     assert!(
-        d.contains("empty root frame may stay"),
-        "a revert takes the contents and leaves the frame"
+        !d.contains("empty root frame may stay"),
+        "every frame the import made stays, not only the root"
+    );
+    assert!(
+        d.contains("its texts and shapes are reverted, and the frames it made stay, empty"),
+        "a revert takes the texts and shapes and leaves every frame"
     );
     assert!(d.contains("87 characters"), "the key is at most 87");
     assert!(

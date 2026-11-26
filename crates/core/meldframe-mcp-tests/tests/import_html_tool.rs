@@ -373,6 +373,10 @@ async fn the_import_is_one_numbered_batch_with_the_note_of_the_call() {
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].commands, 5);
     assert_eq!(
+        list[0].tool, "import_html",
+        "the header names the tool that wrote it"
+    );
+    assert_eq!(
         list[0].note.as_ref().map(|n| n.as_str()),
         Some("Imported the pricing card")
     );

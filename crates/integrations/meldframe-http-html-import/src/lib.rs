@@ -19,7 +19,7 @@ use html_import::{DESCRIPTION, TOOL};
 use meldframe_activity::{BatchCall, MAX_KEY_PREFIX, Note};
 use meldframe_host::{Op, Principal};
 use meldframe_http::mcp::{
-    Extra, ExtraCall, FileView, Reader, change_tool_listing, tool_error as error,
+    Extra, ExtraCall, FileView, Reader, change_tool_listing, fnv1a, tool_error as error,
     tool_failed as failed,
 };
 use meldframe_http::{Reply, Shared, valid_file};
@@ -38,6 +38,8 @@ const GAP: f64 = meldframe_variant::GAP;
 const MAX_TOOL_KEY: usize = MAX_KEY_PREFIX - 13;
 /// The widest root frame a call may ask for (the model's size limit).
 const MAX_WIDTH: f64 = 100_000.0;
+/// The longest id of a node (`meldframe-check` `Limits::max_id`): a `parentId` is looked up and hashed, so it is bounded.
+const MAX_ID: usize = 64;
 
 /// The JSON Schema of the arguments.
 pub fn input_schema() -> Value {
@@ -95,14 +97,13 @@ fn invalid(message: impl Into<String>) -> Value {
     error("invalid", message, false)
 }
 
-/// FNV-1a over the parts, 64 bits, each followed by a zero byte.
+/// FNV-1a over the parts, each followed by a zero byte.
 fn fnv(parts: &[&[u8]]) -> u64 {
-    parts
-        .iter()
-        .flat_map(|p| p.iter().copied().chain(std::iter::once(0)))
-        .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
-            (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
-        })
+    fnv1a(
+        parts
+            .iter()
+            .flat_map(|p| p.iter().copied().chain(std::iter::once(0))),
+    )
 }
 
 struct HtmlImport {
@@ -229,6 +230,13 @@ impl HtmlImport {
                 "name is 1 to 256 characters without control or invisible formatting characters",
             ));
         }
+        if let Some(p) = &args.parent_id
+            && (p.is_empty() || meldframe_text::plain(p, MAX_ID, 4 * MAX_ID).is_err())
+        {
+            return Err(invalid(format!(
+                "parentId is 1 to {MAX_ID} characters without control or invisible formatting characters"
+            )));
+        }
         if let Some(w) = args.width
             && !(w.is_finite() && w > 0.0 && w <= MAX_WIDTH)
         {
@@ -353,6 +361,7 @@ impl HtmlImport {
         let call = BatchCall {
             file: file.to_owned(),
             key: format!("{key}:{digest}"),
+            tool: TOOL,
             commands: ops.len(),
             atomic: true,
             note,
