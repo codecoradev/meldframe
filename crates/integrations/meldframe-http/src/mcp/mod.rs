@@ -170,7 +170,7 @@ impl Handler {
 
 /// The listing of a tool that another crate contributes and that writes to a file: not read-only, not destructive,
 /// idempotent (every call carries an idempotency key). `schema` is the JSON Schema of its arguments.
-pub fn change_tool(name: &'static str, description: &'static str, schema: Value) -> Tool {
+pub fn change_tool_listing(name: &'static str, description: &'static str, schema: Value) -> Tool {
     let schema = match schema {
         Value::Object(m) => m,
         _ => serde_json::Map::new(),

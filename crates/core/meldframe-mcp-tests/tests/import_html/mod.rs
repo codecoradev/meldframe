@@ -103,7 +103,7 @@ pub async fn start() -> World {
 }
 
 /// A fragment of a page: a card of 300 px with a heading, a paragraph and a button.
-pub const CARD: &str = "<div id=card style=\"width:300px;padding:16px;background:#f5f5f5\"><h2 style=\"margin:0\">Title</h2><p style=\"margin:0\">Some text</p><button style=\"padding:8px\">Go</button></div>";
+pub const CARD: &str = "<style>body{margin:0}</style><div id=card style=\"width:300px;padding:16px;background:#f5f5f5\"><h2 style=\"margin:0\">Title</h2><p style=\"margin:0\">Some text</p><button style=\"padding:8px\">Go</button></div>";
 
 pub async fn import(c: &Client, key: &str, html: &str, extra: Value) -> Called {
     let mut a = json!({"file": "f", "html": html, "idempotencyKey": key});
@@ -137,7 +137,7 @@ pub fn many(n: usize) -> String {
     let items: String = (0..n.saturating_sub(1))
         .map(|i| format!("<div data-name=\"box{i}\" style=\"width:10px;height:10px\"></div>"))
         .collect();
-    format!("<div style=\"width:200px\">{items}</div>")
+    format!("<style>body{{margin:0}}</style><div style=\"width:200px\">{items}</div>")
 }
 
 /// The number of nodes a `get_tree` answer lists.

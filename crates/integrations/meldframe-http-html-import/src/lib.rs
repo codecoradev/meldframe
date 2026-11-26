@@ -16,30 +16,34 @@ mod answer;
 
 use html_import::map::{ImportError, Imported, MAX_COMMANDS, Options, import};
 use html_import::{DESCRIPTION, TOOL};
-use meldframe_activity::{BatchCall, Note};
+use meldframe_activity::{BatchCall, MAX_KEY_PREFIX, Note};
 use meldframe_host::{Op, Principal};
 use meldframe_http::mcp::{
-    Extra, ExtraCall, FileView, MAX_KEY, Reader, change_tool, tool_error as error,
+    Extra, ExtraCall, FileView, Reader, change_tool_listing, tool_error as error,
     tool_failed as failed,
 };
 use meldframe_http::{Reply, Shared, valid_file};
 use meldframe_module::Policy;
-use meldframe_protocol::{Doc, Node, Variables};
+use meldframe_protocol::{Command, Doc, Node, Variables};
 use rmcp::model::{CallToolResult, Tool};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use std::sync::Arc;
 
 /// The room between the root and the frames beside it, as `make_variant` leaves.
-const GAP: f64 = 40.0;
+const GAP: f64 = meldframe_variant::GAP;
+/// The longest key of a call: the key and the digest (a colon and 12 hex digits) are the key prefix of the batch
+/// header, which is at most `MAX_KEY_PREFIX` bytes, and a header that is refused would leave the write with no number,
+/// no note and no revert.
+const MAX_TOOL_KEY: usize = MAX_KEY_PREFIX - 13;
 /// The widest root frame a call may ask for (the model's size limit).
 const MAX_WIDTH: f64 = 100_000.0;
 
 /// The JSON Schema of the arguments.
 pub fn input_schema() -> Value {
     let key = |other: &str| {
-        json!({"type": "string", "minLength": 1, "maxLength": MAX_KEY,
-            "description": format!("The idempotency key of the call (1 to 100 characters). Send this or {other}, not both. Not needed with dryRun.")})
+        json!({"type": "string", "minLength": 1, "maxLength": MAX_TOOL_KEY,
+            "description": format!("The idempotency key of the call (1 to {MAX_TOOL_KEY} characters, no control or hidden characters). Send this or {other}, not both. Not needed with dryRun.")})
     };
     json!({"type": "object", "required": ["file", "html"], "additionalProperties": false, "properties": {
         "file": {"type": "string", "minLength": 1, "maxLength": 128,
@@ -51,7 +55,7 @@ pub fn input_schema() -> Value {
         "parentId": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9_:.-]+$",
             "description": "The id of an existing frame to add the nodes into. Absent: a new top-level frame to the right of the others."},
         "name": {"type": "string", "minLength": 1, "maxLength": 256,
-            "description": "The name of the root frame. Absent: the title of the page, else Imported HTML."},
+            "description": "The name of the root frame, 1 to 256 characters; control and invisible formatting characters are refused. Absent: the title of the page, else Imported HTML."},
         "width": {"type": "number", "exclusiveMinimum": 0, "maximum": MAX_WIDTH, "default": 1440,
             "description": "The width of the root frame when the source gives none."},
         "idempotencyKey": key("idempotency_key"),
@@ -89,14 +93,6 @@ type Body = Result<Value, Value>;
 
 fn invalid(message: impl Into<String>) -> Value {
     error("invalid", message, false)
-}
-
-/// A node id as the file allows it (`meldframe-check`): 1 to 64 letters, digits, `_`, `-`, `:` and `.`.
-fn valid_id(id: &str) -> bool {
-    (1..=64).contains(&id.chars().count())
-        && id
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.'))
 }
 
 /// FNV-1a over the parts, 64 bits, each followed by a zero byte.
@@ -140,7 +136,7 @@ pub fn tool(
 
 impl Extra for HtmlImport {
     fn tool(&self) -> Tool {
-        change_tool(TOOL, DESCRIPTION, input_schema())
+        change_tool_listing(TOOL, DESCRIPTION, input_schema())
     }
 
     fn call(&self, who: Principal, args: Map<String, Value>) -> ExtraCall<'_> {
@@ -151,6 +147,15 @@ impl Extra for HtmlImport {
             }
         })
     }
+}
+
+/// What a write needs: the file, the key and digest of the call, its note and what the importer made.
+struct Write<'a> {
+    file: &'a str,
+    key: &'a str,
+    digest: &'a str,
+    note: Option<Note>,
+    imported: &'a Imported,
 }
 
 /// The checked arguments of a call.
@@ -205,9 +210,9 @@ impl HtmlImport {
         };
         let dry = args.dry_run.unwrap_or(false);
         match &key {
-            Some(k) if meldframe_http::mcp::check_key(k).is_err() => {
+            Some(k) if meldframe_http::mcp::check_key(k).is_err() || k.len() > MAX_TOOL_KEY => {
                 return Err(invalid(format!(
-                    "the idempotency key is 1 to {MAX_KEY} characters without control or hidden characters"
+                    "the idempotency key is 1 to {MAX_TOOL_KEY} characters (and bytes) without control or hidden characters, since the digest of the call is added to it"
                 )));
             }
             None if !dry => {
@@ -216,13 +221,6 @@ impl HtmlImport {
                 ));
             }
             _ => {}
-        }
-        if let Some(p) = &args.parent_id
-            && !valid_id(p)
-        {
-            return Err(invalid(
-                "a parentId is 1 to 64 letters, digits, `_`, `-`, `:` and `.`",
-            ));
         }
         if let Some(n) = &args.name
             && (n.is_empty() || meldframe_text::plain(n, 256, 1024).is_err())
@@ -260,31 +258,27 @@ impl HtmlImport {
                 args.parent_id.as_deref().unwrap_or("").as_bytes(),
             ]) & 0xffff_ffff_ffff
         );
+        // A dry run without a key makes its ids from the key `dry-run`: they are not the ids of a call that writes. The
+        // actor is in the hash, so two actors that send the same key and the same HTML do not make the same ids.
         let key = key.unwrap_or_else(|| "dry-run".into());
         let prefix = format!(
             "imp-{:012x}",
-            fnv(&[args.file.as_bytes(), key.as_bytes(), digest.as_bytes()]) & 0xffff_ffff_ffff
+            fnv(&[
+                who.actor.as_bytes(),
+                args.file.as_bytes(),
+                key.as_bytes(),
+                digest.as_bytes()
+            ]) & 0xffff_ffff_ffff
         );
-        // Where the root goes. A retry finds its own root in the file and keeps the place it took, so that the
-        // commands are the ones the first call wrote.
-        let view = if args.parent_id.is_none() || dry {
-            Some(self.view(who, &args.file).await?)
-        } else {
-            None
-        };
-        let origin = match (&view, &args.parent_id) {
-            (_, Some(_)) | (None, _) => (0.0, 0.0),
-            (Some((v, _)), None) => place(&v.nodes, &format!("{prefix}-0")),
-        };
         let opts = Options {
             id_prefix: prefix,
             name: args.name.clone(),
             width,
-            origin,
+            origin: (0.0, 0.0),
             parent: args.parent_id.clone(),
         };
         let html = args.html.clone();
-        let imported = match self
+        let mut imported = match self
             .shared
             .blocking(who, move || import(&html, &css, &opts))
             .await
@@ -305,31 +299,51 @@ impl HtmlImport {
             e["error"]["unsupported"] = Value::Array(answer::unsupported(&imported));
             return Err(e);
         }
+        // The file is read after the text is known to be importable. Where the root goes: beside the other top-level
+        // frames, or where the root of an earlier call stands when the file already holds it, so that a retry sends the
+        // commands the first call wrote.
+        let view = if args.parent_id.is_none() || dry {
+            Some(self.view(who, &args.file).await?)
+        } else {
+            None
+        };
+        let replay = view
+            .as_ref()
+            .is_some_and(|(v, _)| v.nodes.iter().any(|n| n.id == imported.root));
+        if let (Some((v, _)), None) = (&view, &args.parent_id)
+            && let Some(Command::AddNode { node, .. }) = imported.commands.first_mut()
+        {
+            (node.x, node.y) = place(&v.nodes, &imported.root);
+        }
         let mut out = answer::result(&imported);
         if dry {
-            if let Some((v, vars)) = view {
+            // A dry run after the call that wrote is that call again: its root is in the file, so nothing is applied.
+            if let Some((v, vars)) = view.filter(|_| !replay) {
                 preflight(&imported, v.nodes, vars)?;
             }
             out["dryRun"] = json!(true);
             out["written"] = json!(0);
-            out["replayed"] = json!(false);
+            out["replayed"] = json!(replay);
             return Ok(out);
         }
-        self.write(who, &args.file, &key, &digest, note, &imported, out)
-            .await
+        let call = Write {
+            file: &args.file,
+            key: &key,
+            digest: &digest,
+            note,
+            imported: &imported,
+        };
+        self.write(who, call, out).await
     }
 
-    #[allow(clippy::too_many_arguments)]
-    async fn write(
-        &self,
-        who: &Principal,
-        file: &str,
-        key: &str,
-        digest: &str,
-        note: Option<Note>,
-        imported: &Imported,
-        mut out: Value,
-    ) -> Body {
+    async fn write(&self, who: &Principal, w: Write<'_>, mut out: Value) -> Body {
+        let Write {
+            file,
+            key,
+            digest,
+            note,
+            imported,
+        } = w;
         let ops: Vec<Op> = imported
             .commands
             .iter()

@@ -30,7 +30,7 @@ async fn html_becomes_a_tree_of_nodes_in_one_call_and_get_tree_shows_it() {
         (rows[0]["name"].clone(), rows[0]["type"].clone()),
         (json!("card"), json!("frame"))
     );
-    assert_eq!(rows[0]["source"], "div#1");
+    assert_eq!(rows[0]["source"], "div#2");
     assert!(rows[1]["id"].as_str().unwrap().starts_with("imp-"));
     let t = tree(&c).await;
     assert_eq!(t["seq"], b["seq"]);
@@ -137,7 +137,8 @@ async fn a_retried_key_writes_nothing_twice_and_other_text_is_another_call() {
     assert!(!other.is_error, "{}", other.body);
     assert_eq!(other.body["replayed"], false);
     assert_ne!(other.body["root"], first.body["root"]);
-    assert_eq!(count(&tree(&c).await), 5 + 2);
+    // The page (the browser's 8 px of margin makes it a frame), the div and the text.
+    assert_eq!(count(&tree(&c).await), 5 + 3);
 }
 
 #[tokio::test]
@@ -152,7 +153,10 @@ async fn a_refusal_in_the_middle_writes_nothing_and_names_the_element() {
     assert!(r.is_error, "{}", r.body);
     let e = &r.body["error"];
     assert_eq!(e["code"], "E_TOO_LONG");
-    assert_eq!(e["index"], 2);
+    assert_eq!(
+        e["index"], 3,
+        "the page, the div, the first text, the long one"
+    );
     assert_eq!(e["source"], "p#3");
     assert_eq!(
         count(&tree(&c).await),
@@ -202,7 +206,7 @@ async fn a_parent_that_does_not_exist_or_is_not_a_frame_is_refused() {
         missing.body
     );
     assert_eq!(missing.body["error"]["index"], 0);
-    assert_eq!(missing.body["error"]["source"], "div#1");
+    assert_eq!(missing.body["error"]["source"], "div#2");
     let not_frame = import(&c, "k2", CARD, json!({"parentId": "r"})).await;
     assert_eq!(
         not_frame.body["error"]["code"], "E_PARENT_NOT_FRAME",
@@ -285,7 +289,7 @@ async fn a_dry_run_writes_nothing_needs_no_key_and_shows_what_the_file_would_ref
         "{}",
         refused.body
     );
-    assert_eq!(refused.body["error"]["source"], "div#1");
+    assert_eq!(refused.body["error"]["source"], "div#2");
     // A write without a key is refused, a dry run is not.
     let nokey = call(&c, "import_html", json!({"file": "f", "html": CARD})).await;
     assert_eq!(nokey.body["error"]["code"], "invalid");

@@ -32,10 +32,6 @@ async fn the_arguments_are_checked_before_anything_is_read_or_written() {
             "invalid",
         ),
         (
-            json!({"html": CARD, "idempotencyKey": "k", "parentId": "a b"}),
-            "invalid",
-        ),
-        (
             json!({"html": CARD, "idempotencyKey": "k\u{200b}"}),
             "invalid",
         ),
@@ -133,6 +129,8 @@ async fn the_call_log_has_the_tool_and_no_content() {
         .iter()
         .filter(|e| e.tool == "import_html")
         .collect();
+    // A write is logged twice, the submit of the gate (the op was admitted) and the call of the tool; a refused call once,
+    // by the tool: so two calls, one that wrote and one that was refused, make three entries.
     assert_eq!(mine.len(), 3, "{log:?}");
     assert!(mine[..2].iter().all(|e| e.file == "f" && e.outcome == "ok"));
     assert_eq!(mine[2].outcome, "E_IMPORT_HTML_TOO_MANY");
@@ -183,4 +181,14 @@ async fn the_tool_is_listed_with_its_text_and_schema() {
         t.annotations.as_ref().and_then(|a| a.read_only_hint),
         Some(false)
     );
+}
+
+#[tokio::test]
+async fn a_parent_id_that_cannot_be_an_id_is_not_found_by_the_gate() {
+    // The schema has a pattern for it and the file refuses what is not one of its nodes: no check of the tool's own.
+    let w = start().await;
+    let c = connect(&w.h, AGENT).await;
+    let r = import(&c, "k", CARD, json!({"parentId": "a b"})).await;
+    assert_eq!(r.body["error"]["code"], "E_PARENT_NOT_FOUND", "{}", r.body);
+    assert_eq!(count(&tree(&c).await), 0);
 }

@@ -3,7 +3,9 @@
 //! safe where the importer made it (rule U9), so this only lays it out.
 
 use html_import::map::{Imported, NodeInfo};
-use meldframe_layout::{StubMeasurer, layout_findings, text_outside_contract};
+use meldframe_layout::{
+    StubMeasurer, TEXT_OUTSIDE_CONTRACT_MESSAGE, layout_findings, text_outside_contract,
+};
 use meldframe_protocol::{Command, Node, NodeKind, SizeMode};
 use serde_json::{Value, json};
 
@@ -55,7 +57,7 @@ fn warnings(i: &Imported, nodes: &[Node]) -> Vec<Value> {
     for n in nodes.iter().filter(|n| n.kind == NodeKind::Text) {
         if text_outside_contract(&n.text) {
             out.push(json!({"code": "text_outside_contract", "nodeId": n.id,
-                "message": "the text has a tab, a URL or a script (CJK) that the browser breaks differently from the canvas"}));
+                "message": TEXT_OUTSIDE_CONTRACT_MESSAGE}));
         }
         if n.sw == SizeMode::Hug || n.sh == SizeMode::Hug {
             estimated.push(&n.id);
@@ -69,9 +71,12 @@ fn warnings(i: &Imported, nodes: &[Node]) -> Vec<Value> {
             String::new()
         };
         let listed = estimated[..estimated.len() - more].join(", ");
+        let what = match estimated.len() {
+            1 => "1 text box gets its size".to_owned(),
+            n => format!("{n} text boxes get their size"),
+        };
         out.push(json!({"code": "text_size_estimated", "nodeId": null, "message": format!(
-            "{} text boxes get their size from an estimate of the text (the server has no font), so the stored size may differ from the canvas: {listed}{tail}",
-            estimated.len())}));
+            "{what} from an estimate of the text (the server has no font), so the stored size may differ from the canvas: {listed}{tail}")}));
     }
     out
 }

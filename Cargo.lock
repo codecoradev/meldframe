@@ -1715,6 +1715,7 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-text",
+ "meldframe-variant",
  "rmcp",
  "serde",
  "serde_json",

@@ -9,9 +9,9 @@
 
 use meldframe_host::{Op, Principal};
 use meldframe_http::Shared;
-use meldframe_http::mcp::{Extra, ExtraCall, MAX_BATCH, MAX_KEY};
+use meldframe_http::mcp::{Extra, ExtraCall, MAX_BATCH, MAX_KEY, change_tool_listing};
 use meldframe_module::Policy;
-use rmcp::model::{CallToolResult, Tool, ToolAnnotations};
+use rmcp::model::{CallToolResult, Tool};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use std::sync::Arc;
@@ -212,16 +212,7 @@ impl ImportTool {
 
 impl Extra for ImportTool {
     fn tool(&self) -> Tool {
-        let schema = match input_schema() {
-            Value::Object(m) => m,
-            _ => Map::new(),
-        };
-        Tool::new(TOOL, DESCRIPTION, schema).annotate(
-            ToolAnnotations::new()
-                .read_only(false)
-                .destructive(false)
-                .idempotent(true),
-        )
+        change_tool_listing(TOOL, DESCRIPTION, input_schema())
     }
 
     fn call(&self, who: Principal, args: Map<String, Value>) -> ExtraCall<'_> {

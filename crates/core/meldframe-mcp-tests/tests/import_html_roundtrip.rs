@@ -220,7 +220,10 @@ async fn without_the_css_of_a_tailwind_export_the_browser_defaults_show_and_the_
     // The html alone has the browser's defaults under it: a paragraph keeps its margin (the reset is in the css).
     let imported = import(&c, "back", e.body["html"].as_str().unwrap(), json!({})).await;
     assert!(!imported.is_error, "{}", imported.body);
-    assert_eq!(imported.body["commands"], 8);
+    assert_eq!(
+        imported.body["commands"], 9,
+        "the 8 nodes of the card and the page frame that holds the margin of the body"
+    );
     let blurb = imported.body["nodes"]
         .as_array()
         .unwrap()

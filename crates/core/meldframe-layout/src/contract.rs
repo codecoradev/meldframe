@@ -1,6 +1,9 @@
 //! The text the fidelity contract does not promise (`docs/fidelity-contract.md`, section 4.3): the one rule that the
 //! export and the HTML import both warn with, here because both depend on the layout core and neither on the other.
 
+/// What `text_outside_contract` says to a person: the warning the export and the HTML import give for such a text.
+pub const TEXT_OUTSIDE_CONTRACT_MESSAGE: &str = "the text has a tab, a URL or a script (CJK) that the browser breaks differently from the canvas";
+
 /// A tab, a URL or CJK text: a browser and the canvas break it in different places, so a box that holds it is only as
 /// exact as the contract says (`text_outside_contract`).
 pub fn text_outside_contract(t: &str) -> bool {

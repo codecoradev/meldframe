@@ -12,7 +12,7 @@ mod rect;
 mod size;
 mod tree;
 
-pub use contract::text_outside_contract;
+pub use contract::{TEXT_OUTSIDE_CONTRACT_MESSAGE, text_outside_contract};
 pub use findings::{LayoutFinding, layout_findings};
 pub use measure::{StubMeasurer, TextMeasurer};
 pub use rect::Rect;
