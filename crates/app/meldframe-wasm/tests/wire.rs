@@ -90,6 +90,28 @@ fn a_hint_frame_as_raw_text_with_the_time_it_came_is_taken_and_a_bad_one_is_lost
 }
 
 #[test]
+fn a_post_answer_and_a_list_as_raw_text_are_read_into_the_state() {
+    let mut b = bridge();
+    let row = json!({"n": 1, "seq": 0, "kind": "manual", "by": "user:me", "atMs": T});
+    // The row of a post is in the list at once, read from the raw text of the answer.
+    let body = json!({"checkpoint": row, "created": true}).to_string();
+    wire(
+        &mut b,
+        json!({"kind": "checkpointPosted", "key": "k1", "status": 200, "body": body}),
+    );
+    assert_eq!(state(&b)["checkpoints"].as_array().unwrap().len(), 1);
+    // A list as raw text is read the same way, with a field it does not know ignored.
+    let second = json!({"n": 2, "seq": 0, "kind": "manual", "by": "user:me", "atMs": T});
+    let list = json!({"checkpoints": [second, row], "canCreate": true, "more": 1}).to_string();
+    wire(
+        &mut b,
+        json!({"kind": "checkpoints", "status": 200, "body": list}),
+    );
+    assert_eq!(state(&b)["checkpoints"].as_array().unwrap().len(), 2);
+    assert_eq!(state(&b)["canCreateCheckpoint"], true);
+}
+
+#[test]
 fn the_shape_of_wire_is_closed_so_a_field_it_does_not_have_or_a_kind_it_does_not_know_is_refused() {
     let mut b = bridge();
     for bad in [
