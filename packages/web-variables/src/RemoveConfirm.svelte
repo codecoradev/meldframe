@@ -1,15 +1,15 @@
 <!--
   The question before a removal: what will happen, in numbers, and two answers. The safe one (Cancel) takes the focus
   when this opens; Escape cancels from anywhere inside it and does not close the dialog around it. The words are the
-  plan's (`removalPlan`); what a click does is the parent's.
+  removal words (`removalWords`); what a click does is the parent's.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import Button from '@meldframe/web-chrome/Button.svelte';
-  import type { RemovalPlan } from './manage';
+  import type { RemovalWords } from './manage';
 
   interface Props {
-    plan: RemovalPlan;
+    plan: RemovalWords;
     onConfirm: () => void;
     onCancel: () => void;
   }

@@ -1,257 +1,140 @@
 import { readFileSync } from 'node:fs';
+import type { CollectionRow, Event, ManageLimits, NameError, Removal, VariableRow, VariablesPanel } from '@meldframe/protocol';
 import { describe, expect, it } from 'vitest';
-import type { CollectionRow, Event, VariableRow, VariablesPanel } from '@meldframe/protocol';
-import {
-  LABEL_MAX,
-  NAME_MAX,
-  addModeAction,
-  addVariableAction,
-  checkName,
-  collectionSummary,
-  createCollectionAction,
-  partial,
-  reactTo,
-  removalPlan,
-  removeCollectionAction,
-  removeModeAction,
-  removeVariableAction,
-  targetOf,
-  whereAdded,
-} from './manage';
+import { MAX_COLLECTIONS, MAX_MODES, MAX_VARIABLES, collectionSummary, count, nameError, nameWarning, partial, reactTo, removalWords, renamedWords } from './manage';
 
-// The core's rules are read from its source, so a rule changed there and not here fails these tests (as web-shell reads
-// the frame presets and web-activity the refusal codes).
-const root = new URL('../../../', import.meta.url);
-const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
-const checkRs = read('crates/core/meldframe-variables/src/check.rs');
-const limitsRs = read('crates/core/meldframe-check/src/limits.rs');
-const limit = (field: string) => Number(new RegExp(`${field}: ([\\d_]+),`).exec(limitsRs)![1]!.replace(/_/g, ''));
-const nameRule = checkRs.slice(checkRs.indexOf('pub fn is_name_path'), checkRs.indexOf('fn collection_of'));
+// The rules of the manage view (the checks of a name, what a removal detaches, the rename flow) are the app layer's and are
+// tested there (crates/core/meldframe-variables-manage-tests); these are the words each code and number is given.
+const limits: ManageLimits = { nameMax: 256, modeNameMax: 64, collections: 32, modes: 16, variables: 5000 };
+const row = (over: Partial<VariableRow> = {}): VariableRow => ({ id: 'v1', name: 'color/bg', type: 'color', values: [], usedBy: 2, binds: [], ...over });
+const col = (over: Partial<CollectionRow> = {}): CollectionRow => ({ id: 'c1', name: 'theme', modes: [{ id: 'm1', name: 'light' }], active: 'm1', matched: 2, variables: [row(), row({ id: 'v2', usedBy: 0 })], ...over });
+const panel = (c: CollectionRow[], over: Partial<VariablesPanel> = {}): VariablesPanel => ({ query: '', total: 2, matched: 2, collections: c, ...over });
+const removal = (over: Partial<Removal> = {}): Removal => ({ target: { kind: 'variable', id: 'v1' }, name: 'color/bg', detach: true, uses: 3, variables: 0, ...over });
 
-const row = (over: Partial<VariableRow> = {}): VariableRow => ({ id: 'v1', name: 'color/bg', type: 'color', values: [], usedBy: 0, binds: [], ...over });
-const col = (over: Partial<CollectionRow> = {}): CollectionRow => ({
-  id: 'c1',
-  name: 'theme',
-  modes: [{ id: 'm1', name: 'light' }, { id: 'm2', name: 'dark' }],
-  active: 'm1',
-  matched: 2,
-  variables: [row({ usedBy: 2 }), row({ id: 'v2', name: 'space/4', type: 'number', usedBy: 0 })],
-  ...over,
-});
-const panel = (collections: CollectionRow[], over: Partial<VariablesPanel> = {}): VariablesPanel => ({ query: '', total: 2, matched: 2, collections, ...over });
-
-describe('the name rule of variables and collections', () => {
-  it('is the core rule: pinned in its source and in its limit', () => {
-    for (const piece of ['split(\'/\')', '!s.is_empty()', "starts_with('-')", "ends_with('-')", 'contains("--")', 'is_ascii_lowercase', 'is_ascii_digit', "b == b'-'"]) expect(nameRule, piece).toContain(piece);
-    expect(NAME_MAX).toBe(limit('max_name'));
+describe('the words of a name that cannot be sent', () => {
+  it('say what is wrong with it, for the kind of name', () => {
+    const words = (kind: 'collection' | 'mode' | 'variable', e: NameError) => nameError(kind, e, limits);
+    expect(words('variable', 'empty')).toBe('Give the variable a name.');
+    expect(words('mode', 'empty')).toBe('Give the mode a name.');
+    expect(words('collection', 'hidden')).toMatch(/invisible characters/);
+    expect(words('variable', 'notPath')).toMatch(/lowercase letters, digits and single hyphens/);
+    expect(words('variable', 'duplicate')).toBe('A variable in this collection already has this name.');
   });
-  it('lets through lowercase ASCII slash paths', () => {
-    for (const name of ['a', 'color/brand-500', 'radius/card', 'space/4', 'a-b/c-d/e']) expect(checkName('variable', name, []).error, name).toBeNull();
+  it('say the length of the kind, as the app layer gives it', () => {
+    expect(nameError('variable', 'tooLong', limits)).toBe('Use 256 characters or fewer.');
+    expect(nameError('mode', 'tooLong', limits)).toBe('Use 64 characters or fewer.');
+    expect(nameError('mode', 'tooLong', { ...limits, modeNameMax: 10 })).toBe('Use 10 characters or fewer.');
   });
-  it('refuses what the core refuses, with the rule in words', () => {
-    for (const name of ['Brand', 'a--b', 'a b', 'color/', '/a', 'a//b', '-a', 'a-', 'a_b', 'é', 'Color/Ink']) {
-      expect(checkName('collection', name, []).error, name).toMatch(/lowercase/i);
-    }
-  });
-  it('refuses the names the app-layer tests send as bad', () => {
-    const tests = read('crates/core/meldframe-variables-manage-tests/tests/create.rs');
-    const bad = /for name in \[([^\]]*)\]/.exec(tests.slice(tests.indexOf('fn a_bad_collection_name')))![1]!;
-    const names = [...bad.matchAll(/"([^"]*)"/g)].map((m) => m[1]!);
-    expect(names.length).toBeGreaterThan(2);
-    for (const name of names) expect(checkName('collection', name, []).error, JSON.stringify(name)).not.toBeNull();
-  });
-  it('asks for a name, trims the spaces around it, and says how long it may be', () => {
-    expect(checkName('variable', '', []).error).toMatch(/name/i);
-    expect(checkName('variable', '   ', []).error).toMatch(/name/i);
-    expect(checkName('variable', '  color/bg ', []).name).toBe('color/bg');
-    expect(checkName('variable', 'a'.repeat(NAME_MAX), []).error).toBeNull();
-    expect(checkName('variable', 'a'.repeat(NAME_MAX + 1), []).error).toContain(String(NAME_MAX));
-  });
-  it('refuses control, direction and invisible characters in every kind of name, before the rule of the kind', () => {
-    for (const kind of ['collection', 'mode', 'variable'] as const) {
-      // Direction and control characters, and what is drawn as nothing: Hangul fillers, the blank braille cell, other spaces than the ASCII one.
-      for (const bad of ['dark\u202e', 'da\u200brk', 'da\u0007rk', 'a\u2066b', 'a\nb', 'dark\u3164', 'a\u115fb', 'a\u1160b', 'a\uffa0b', 'a\u2800b', 'a\u00a0b', 'a\u3000b', 'a\u2009b', 'a\u034fb', 'a\u17b4b', 'a\u17b5b']) {
-        expect(checkName(kind, bad, []).error, `${kind} ${JSON.stringify(bad)}`).toMatch(/control, direction or invisible/i);
-      }
-    }
-  });
-});
-
-describe('the name of a mode', () => {
-  it('is free text of a limited length: capital letters and spaces are fine, empty is not', () => {
-    expect(checkName('mode', 'Dark (high contrast)', []).error).toBeNull();
-    expect(checkName('mode', '  ', []).error).toMatch(/name/i);
-    expect(checkName('mode', 'x'.repeat(LABEL_MAX + 1), []).error).toContain(String(LABEL_MAX));
-    expect(LABEL_MAX).toBeLessThanOrEqual(limit('max_name'));
-  });
-});
-
-describe('a name that exists already', () => {
-  it('is an error for a variable (the core refuses it) and compares the name as sent', () => {
-    expect(checkName('variable', 'color/bg', ['color/bg']).error).toMatch(/already/i);
-    expect(checkName('variable', ' color/bg ', ['color/bg']).error).toMatch(/already/i);
-    expect(checkName('variable', 'color/bg', ['color/ink']).error).toBeNull();
-  });
-  it('is a warning for a collection or a mode (the core lets it through), ignoring case', () => {
-    for (const [kind, name, existing] of [['collection', 'theme', ['theme']], ['mode', 'Dark', ['dark', 'light']]] as const) {
-      const c = checkName(kind, name, [...existing]);
-      expect(c.error, kind).toBeNull();
-      expect(c.warning, kind).toMatch(/already/i);
-    }
-    expect(checkName('mode', 'Sepia', ['dark']).warning).toBeNull();
-  });
-  it('is no warning while the name is invalid or empty', () => {
-    expect(checkName('collection', 'Theme', ['theme']).warning).toBeNull();
-  });
-});
-
-describe('the actions of the view', () => {
-  it('are the six manage actions with the names the app layer takes', () => {
-    expect(createCollectionAction('brand')).toEqual({ type: 'createCollection', name: 'brand' });
-    expect(addModeAction('c1', 'dark', 'm1')).toEqual({ type: 'addMode', collection: 'c1', name: 'dark', copyFrom: 'm1' });
-    expect(removeModeAction('c1', 'm2')).toEqual({ type: 'removeMode', collection: 'c1', mode: 'm2' });
-    expect(addVariableAction('c1', 'color/ink', 'number')).toEqual({ type: 'addVariable', collection: 'c1', name: 'color/ink', kind: 'number' });
-    expect(removeVariableAction('v1', true)).toEqual({ type: 'removeVariable', id: 'v1', detach: true });
-    expect(removeCollectionAction('c1', false)).toEqual({ type: 'removeCollection', id: 'c1', detach: false });
-  });
-  it('leave copyFrom out when there is nothing to copy (the default mode is then copied)', () => {
-    expect('copyFrom' in addModeAction('c1', 'dark', null)).toBe(false);
-    expect('copyFrom' in addModeAction('c1', 'dark', '')).toBe(false);
-  });
-  it('send the trimmed name', () => {
-    expect(createCollectionAction('  brand ')).toEqual({ type: 'createCollection', name: 'brand' });
+  it('word a name that exists already as a warning, naming where', () => {
+    expect(nameWarning('collection', 'same')).toBe('A collection with this name already exists in this file. Both are kept, so tell them apart.');
+    expect(nameWarning('mode', 'same')).toMatch(/in this collection/);
   });
 });
 
 describe('the summary of a collection', () => {
   it('counts its variables, their uses and its modes', () => {
-    expect(collectionSummary(col(), panel([col()]))).toEqual({ variables: 2, uses: 2, modes: 2, complete: true });
+    expect(collectionSummary(col(), panel([col()]))).toEqual({ variables: 2, uses: 2, modes: 1, complete: true });
   });
   it('says the counts are partial when the list is cut or a search narrows it', () => {
-    expect(collectionSummary(col({ matched: 300 }), panel([col({ matched: 300 })])).complete).toBe(false);
+    expect(collectionSummary(col({ matched: 3 }), panel([col({ matched: 3 })])).complete).toBe(false);
     expect(collectionSummary(col(), panel([col()], { query: 'bg' })).complete).toBe(false);
   });
 });
 
-describe('the confirmation of a removal', () => {
-  it('removes a variable nothing uses plainly: no detach', () => {
-    const p = removalPlan({ kind: 'variable', row: row({ usedBy: 0 }) });
-    expect(p.action).toEqual({ type: 'removeVariable', id: 'v1', detach: false });
-    expect(p.confirm).toBe('Remove');
-    expect(p.text).toMatch(/nothing uses/i);
+describe('the words of the question before a removal', () => {
+  it('removes a variable nothing uses plainly', () => {
+    const w = removalWords(removal({ detach: false, uses: 0 }));
+    expect(w.confirm).toBe('Remove');
+    expect(w.text).toMatch(/Nothing uses it/);
+    expect(w.done).toBe('Removed “color/bg”.');
   });
   it('offers Detach for a variable that is used, says how many uses and that undo is one step', () => {
-    const p = removalPlan({ kind: 'variable', row: row({ usedBy: 3 }) });
-    expect(p.action).toEqual({ type: 'removeVariable', id: 'v1', detach: true });
-    expect(p.confirm).toBe('Detach');
-    expect(p.text).toMatch(/3 uses/);
-    expect(p.text).toMatch(/value/i);
-    expect(p.text).toMatch(/undo/i);
-    expect(removalPlan({ kind: 'variable', row: row({ usedBy: 1 }) }).text).toMatch(/1 use\b/);
+    const w = removalWords(removal({ uses: 3 }));
+    expect(w.confirm).toBe('Detach');
+    expect(w.text).toContain('3 uses');
+    expect(w.text).toMatch(/One undo puts it all back/);
+    expect(w.done).toBe('Detached 3 uses and removed “color/bg”.');
+    expect(removalWords(removal({ uses: 1 })).text).toContain('1 use ');
   });
   it('removes an empty collection plainly and detaches one that holds variables, even when nothing uses them', () => {
-    const empty = removalPlan({ kind: 'collection', col: col({ matched: 0, variables: [] }), summary: { variables: 0, uses: 0, modes: 2, complete: true } });
-    expect(empty.action).toEqual({ type: 'removeCollection', id: 'c1', detach: false });
+    const empty = removalWords(removal({ target: { kind: 'collection', id: 'c1' }, name: 'theme', detach: false, uses: 0, variables: 0 }));
     expect(empty.confirm).toBe('Remove');
-    const unused = removalPlan({ kind: 'collection', col: col(), summary: { variables: 2, uses: 0, modes: 2, complete: true } });
-    expect(unused.action).toEqual({ type: 'removeCollection', id: 'c1', detach: true });
-    expect(unused.confirm).toBe('Detach');
-    expect(unused.text).toMatch(/2 variables/);
+    expect(empty.text).toMatch(/empty collection/);
+    const held = removalWords(removal({ target: { kind: 'collection', id: 'c1' }, name: 'theme', detach: true, uses: 0, variables: 2 }));
+    expect(held.confirm).toBe('Detach');
+    expect(held.text).toMatch(/2 variables\? Nothing uses them/);
   });
-  it('does not say nothing uses a cut list of variables when no use was seen on it', () => {
-    const p = removalPlan({ kind: 'collection', col: col(), summary: { variables: 300, uses: 0, modes: 2, complete: false } });
-    expect(p.text).not.toMatch(/nothing uses them/i);
-    expect(p.text).toMatch(/listed/i);
-    expect(removalPlan({ kind: 'collection', col: col(), summary: { variables: 2, uses: 0, modes: 2, complete: true } }).text).toMatch(/nothing uses them/i);
+  it('says that aliases are uses, and counts a single use in the singular', () => {
+    const w = removalWords(removal({ target: { kind: 'collection', id: 'c1' }, name: 'theme', detach: true, uses: 1, variables: 2 }));
+    expect(w.text).toMatch(/There is 1 use in the file/);
+    expect(w.text).toMatch(/aliases among these variables count too/);
+    expect(removalWords(removal({ target: { kind: 'collection', id: 'c1' }, name: 'theme', detach: true, uses: 4, variables: 2 })).text).toMatch(/There are 4 uses/);
   });
-  it('says that aliases are uses, so a count that includes the aliases among the variables that go is not read as nodes only', () => {
-    expect(removalPlan({ kind: 'variable', row: row({ usedBy: 3 }) }).text).toMatch(/node fields and aliases/);
-    expect(removalPlan({ kind: 'collection', col: col(), summary: { variables: 2, uses: 4, modes: 2, complete: true } }).text).toMatch(/node fields and aliases/);
-  });
-  it('says "at least" when the uses were counted on a cut list', () => {
-    const p = removalPlan({ kind: 'collection', col: col(), summary: { variables: 300, uses: 7, modes: 2, complete: false } });
-    expect(p.text).toMatch(/at least 7 uses/);
-  });
-  it('removes a mode with the values it holds, and names it as plain text', () => {
-    const p = removalPlan({ kind: 'mode', collection: 'c1', mode: { id: 'm2', name: 'dark' } });
-    expect(p.action).toEqual({ type: 'removeMode', collection: 'c1', mode: 'm2' });
-    expect(p.text).toContain('“dark”');
-    expect(p.text).toMatch(/other modes keep/i);
-    expect(p.confirm).toBe('Remove');
-  });
-  it('names what goes as the app layer gave it, and a name that is nothing in words', () => {
-    expect(removalPlan({ kind: 'variable', row: row({ name: 'ab' }) }).text).toContain('“ab”');
-    expect(removalPlan({ kind: 'variable', row: row({ name: '' }) }).text).toContain('“(no name)”');
+  it('removes a mode with the values it holds, and names a name that is nothing in words', () => {
+    const w = removalWords(removal({ target: { kind: 'mode', collection: 'c1', id: 'm2' }, name: 'dark', detach: false, uses: 0 }));
+    expect(w.confirm).toBe('Remove');
+    expect(w.text).toMatch(/Its values go/);
+    expect(removalWords(removal({ name: '', detach: false, uses: 0 })).done).toBe('Removed “(no name)”.');
   });
 });
 
 describe('reacting to the events of a dispatch', () => {
-  const refused = (code: string) => ({ type: 'refused', code }) as Event;
-  const added = (entity: 'collection' | 'mode' | 'variable', id: string) => ({ type: 'entityAdded', entity, id }) as Event;
+  const refused = (code: string): Event => ({ type: 'refused', code });
   it('words a refusal and keeps the thing that was added apart', () => {
-    expect(reactTo([refused('E_VARIABLE_IN_USE')], null)).toMatchObject({ error: expect.stringMatching(/still uses/i), added: null });
-    expect(reactTo([{ type: 'documentChanged', actor: 'a', optimistic: true } as Event, added('variable', 'v9')], 'Added.')).toEqual({ error: null, added: { entity: 'variable', id: 'v9' }, status: 'Added.' });
+    expect(reactTo([refused('E_INVALID_NAME')], null, limits).error).toMatch(/lowercase/);
+    const r = reactTo([{ type: 'entityAdded', entity: 'variable', id: 'v9' }, { type: 'documentChanged', actor: 'a', optimistic: true }], 'Added.', limits);
+    expect(r).toMatchObject({ error: null, added: { entity: 'variable', id: 'v9' }, status: 'Added.' });
   });
   it('words a rejection the server sent for a removal that lost a race', () => {
-    expect(reactTo([{ type: 'opRejected', key: 'k', code: 'E_VARIABLE_IN_USE', node: null, retryable: false } as Event], 'Removed.').error).toMatch(/still uses|started using/i);
+    expect(reactTo([{ type: 'opRejected', key: 'k', code: 'E_VARIABLE_IN_USE', node: null, retryable: false }], null, limits).error).toMatch(/Detach/);
   });
-  it('words the limit of what was sent, not a limit of the file in general', () => {
-    const limits = read('crates/core/meldframe-check/src/limits.rs');
-    const n = (f: string) => Number(new RegExp(`${f}: ([\\d_]+),`).exec(limits)![1]!.replace(/_/g, ''));
-    const many = [refused('E_TOO_MANY_ENTRIES')];
-    expect(reactTo(many, null, createCollectionAction('a')).error).toContain(String(n('max_collections')));
-    expect(reactTo(many, null, addModeAction('c1', 'a', null)).error).toContain(String(n('max_modes')));
-    expect(reactTo(many, null, addVariableAction('c1', 'a', 'color')).error).toContain(n('max_variables').toLocaleString('en-US'));
-    expect(reactTo([refused('E_TOO_LONG')], null, addVariableAction('c1', 'a', 'color')).error).toMatch(new RegExp(`name is too long.*${NAME_MAX}`));
-    expect(reactTo([refused('E_DUPLICATE_ID')], null, createCollectionAction('a')).error).toMatch(/nothing was added/i);
+  it('words the limit of what was sent, from the limits of the app layer, not a limit of the file in general', () => {
+    const hit = (sent: object) => reactTo([refused('E_TOO_MANY_ENTRIES')], null, limits, sent as never).error;
+    expect(hit({ type: 'createCollection', name: 'x' })).toBe('A file holds at most 32 collections.');
+    expect(hit({ type: 'addMode', collection: 'c', name: 'x' })).toBe('A collection holds at most 16 modes.');
+    expect(hit({ type: 'addVariable', collection: 'c', name: 'x', kind: 'color' })).toBe('A file holds at most 5,000 variables.');
+    expect(reactTo([refused('E_TOO_MANY_ENTRIES')], null, { ...limits, modes: 4 }, { type: 'addMode', collection: 'c', name: 'x' } as never).error).toBe('A collection holds at most 4 modes.');
+    expect(reactTo([refused('E_TOO_LONG')], null, { ...limits, nameMax: 100 }, { type: 'createCollection', name: 'x' } as never).error).toBe('That name is too long. Use 100 characters or fewer.');
   });
   it('keeps the general words for a limit when what was sent is not known or is not an addition', () => {
-    for (const sent of [null, removeVariableAction('v1', true)]) {
-      for (const code of ['E_TOO_LONG', 'E_TOO_MANY_ENTRIES', 'E_DUPLICATE_ID']) {
-        expect(reactTo([refused(code)], null, sent).error, code).not.toMatch(/variable|collection|mode|name/i);
-      }
-    }
+    expect(reactTo([refused('E_TOO_MANY_ENTRIES')], null, limits).error).toMatch(/limit/);
+    expect(reactTo([refused('E_TOO_MANY_ENTRIES')], null, limits, { type: 'removeMode', collection: 'c', mode: 'm' } as never).error).toMatch(/limit/);
   });
   it('turns the pending words into the status of a change that was made, and into nothing for a refused one', () => {
-    expect(reactTo([{ type: 'documentChanged', actor: 'a', optimistic: true } as Event], 'Removed.').status).toBe('Removed.');
-    expect(reactTo([refused('outbox_full')], 'Removed.').status).toBeNull();
-    expect(reactTo([{ type: 'toolChanged', tool: 'select' } as Event], 'Removed.')).toEqual({ error: null, added: null, status: null });
+    const changed: Event = { type: 'documentChanged', actor: 'a', optimistic: true };
+    expect(reactTo([changed], 'Removed.', limits).status).toBe('Removed.');
+    expect(reactTo([changed, refused('E_VARIABLE_IN_USE')], 'Removed.', limits).status).toBeNull();
+    expect(reactTo([], 'Removed.', limits).status).toBeNull();
   });
-});
-
-describe('where an added thing is', () => {
-  const p = panel([col(), col({ id: 'c2', name: 'brand', modes: [{ id: 'm9', name: 'default' }], variables: [row({ id: 'v7', name: 'color/x' })] })]);
-  it('finds the collection of a variable, of a mode, and the collection itself', () => {
-    expect(whereAdded(p, { entity: 'variable', id: 'v7' })).toBe('c2');
-    expect(whereAdded(p, { entity: 'mode', id: 'm9' })).toBe('c2');
-    expect(whereAdded(p, { entity: 'mode', id: 'm2' })).toBe('c1');
-    expect(whereAdded(p, { entity: 'collection', id: 'c2' })).toBe('c2');
-  });
-  it('is nothing for what is not listed', () => {
-    expect(whereAdded(p, { entity: 'variable', id: 'gone' })).toBeNull();
+  it('says what a rename made, from the event, and names the entity that was renamed', () => {
+    const r = reactTo([{ type: 'renamed', entity: 'mode', from: 'dark', to: 'night' }, { type: 'documentChanged', actor: 'a', optimistic: true }], null, limits);
+    expect(r.renamed).toEqual({ entity: 'mode', from: 'dark', to: 'night' });
+    expect(r.status).toBe('Renamed the mode “dark” to “night”.');
+    expect(renamedWords({ entity: 'variable', from: 'a', to: 'b' })).toBe('Renamed “a” to “b”.');
+    expect(renamedWords({ entity: 'collection', from: '', to: 'b' })).toBe('Renamed the collection “(no name)” to “b”.');
   });
 });
 
 describe('why the counts may be partial', () => {
   it('is a search that narrows the list, or a list that was cut, and nothing otherwise', () => {
     expect(partial(panel([col()]))).toBeNull();
-    expect(partial(panel([col()], { query: ' bg ' }))).toBe('search');
+    expect(partial(panel([col()], { query: ' x ' }))).toBe('search');
     expect(partial(panel([col({ matched: 300 })]))).toBe('cut');
-    expect(partial(panel([col()], { query: 'x' }))).toBe('search');
   });
 });
 
-describe('what a removal is about now', () => {
-  const p = panel([col(), col({ id: 'c2', name: 'brand', variables: [row({ id: 'v7', name: 'color/x' })], matched: 1 })]);
-  it('is looked up again in the panel by id', () => {
-    expect(targetOf(p, { kind: 'variable', id: 'v7' })).toMatchObject({ kind: 'variable', row: { id: 'v7' } });
-    expect(targetOf(p, { kind: 'collection', id: 'c2' })).toMatchObject({ kind: 'collection', col: { id: 'c2' }, summary: { variables: 1 } });
-    expect(targetOf(p, { kind: 'mode', collection: 'c1', id: 'm2' })).toMatchObject({ kind: 'mode', collection: 'c1', mode: { name: 'dark' } });
+describe('count', () => {
+  it('is singular for one', () => {
+    expect([count(1, 'use', 'uses'), count(0, 'use', 'uses'), count(2, 'use', 'uses')]).toEqual(['1 use', '0 uses', '2 uses']);
   });
-  it('is nothing for what is gone (the question then closes)', () => {
-    expect(targetOf(p, { kind: 'variable', id: 'gone' })).toBeNull();
-    expect(targetOf(p, { kind: 'collection', id: 'gone' })).toBeNull();
-    expect(targetOf(p, { kind: 'mode', collection: 'c1', id: 'gone' })).toBeNull();
-    expect(targetOf(p, { kind: 'mode', collection: 'gone', id: 'm2' })).toBeNull();
+});
+
+describe('the limits copied for the import view', () => {
+  // The manage view reads `state.manage.limits`; the import view has no state, so it keeps copies, which this reads from the core (finding T3).
+  const limitsRs = readFileSync(new URL('../../../crates/core/meldframe-check/src/limits.rs', import.meta.url), 'utf8');
+  it('are the core limits', () => {
+    expect(limitsRs).toMatch(new RegExp(`max_collections: ${MAX_COLLECTIONS},`));
+    expect(limitsRs).toMatch(new RegExp(`max_modes: ${MAX_MODES},`));
+    expect(limitsRs).toMatch(new RegExp(`max_variables: ${String(MAX_VARIABLES).replace(/(\d)(?=(\d{3})+$)/, '$1_')},`));
   });
 });

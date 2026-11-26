@@ -3,7 +3,7 @@
   file's text and are drawn as text with direction characters left out. It holds no state of its own.
 -->
 <script lang="ts">
-  import type { CollectionRow } from '@meldframe/protocol';
+  import type { CollectionRow, ManageLimits, NameDraft } from '@meldframe/protocol';
   import { ring } from '@meldframe/web-chrome/focus';
   import NameForm from './NameForm.svelte';
   import { nameOf } from '@meldframe/web-document/names';
@@ -14,11 +14,13 @@
     /** The id of the collection the detail shows. */
     chosen: string | null;
     onChoose: (id: string) => void;
+    /** The text of the form that adds one and its check (`AppState.manage.drafts.collection`). */
+    draft: NameDraft;
+    limits: ManageLimits;
+    onInput: (text: string) => void;
     onAdd: (name: string) => void;
-    /** Changes when a collection was added: the form starts again. */
-    resetKey: number;
   }
-  let { collections, chosen, onChoose, onAdd, resetKey }: Props = $props();
+  let { collections, chosen, onChoose, draft, limits, onInput, onAdd }: Props = $props();
 </script>
 
 <section class="flex flex-col gap-3 p-4" aria-label="Collections">
@@ -45,7 +47,5 @@
       </li>
     {/each}
   </ul>
-  {#key resetKey}
-    <NameForm kind="collection" label="New collection name" submit="Add collection" placeholder="color" existing={collections.map((c) => c.name)} onSubmit={onAdd} testId="manage-new-collection" />
-  {/key}
+  <NameForm kind="collection" label="New collection name" submit="Add collection" placeholder="color" {draft} {limits} {onInput} onSubmit={onAdd} testId="manage-new-collection" />
 </section>

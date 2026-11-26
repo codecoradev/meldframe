@@ -1,66 +1,52 @@
 <!--
   The manage view of the Variables (D8, the VariableManagement board): the collections on the left, the chosen one on
-  the right with its modes and variables, and the question before a removal. It reads the panel the app layer gives it
-  (`AppState.variables`) and sends the six manage actions; the ids are the app layer's, so the thing that was added is
-  found by `Event::EntityAdded` and given the focus. A rename is one `EditVariables` action with one rename command
-  (`rename.ts`). What it holds is view state only: which collection is shown, the removal being asked about, the
-  thing whose name is being edited (an id; its field holds the text), the text of the last refusal or change (the live regions) and a counter for each form,
-  bumped to start the form again. The name rules are `manage.ts`; the words of a refusal are `notices.ts`.
+  the right with its modes and variables, and the question before a removal. It reads the panel and the manage state the app
+  layer gives it (`AppState.variables`, `AppState.manage`) and sends actions: the collection shown, the question before a
+  removal, the rename field and the text of the three forms are the app layer's (finding T5), and so are the checks of a name
+  and what a removal detaches. The ids are the app layer's too, so the thing that was added is found by `Event::EntityAdded` and given
+  the focus. What this holds is drawing state only: the text of the last refusal or change (the live regions), the words of the
+  change just sent, and where the focus goes back to. The words of a refusal are `notices.ts`, the others `manage.ts` and `rename.ts`.
 -->
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import type { Action, Event, VarType, VariablesPanel } from '@meldframe/protocol';
+  import type { Action, Event, ManageOp, ManageState, ManageTarget, VarType, VariableEntity, VariablesPanel } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import CollectionDetail from './CollectionDetail.svelte';
   import CollectionList from './CollectionList.svelte';
   import RemoveConfirm from './RemoveConfirm.svelte';
-  import { addModeAction, addVariableAction, collectionSummary, createCollectionAction, partial, reactTo, removalPlan, targetOf, whereAdded, type Ask } from './manage';
-  import { NO_RENAME, answerRename, closeRename, goneWords, openRename, renameAction, renameContext, renamedWords, sendRename, type RenameFlow } from './rename';
+  import { collectionSummary, partial, reactTo, removalWords } from './manage';
 
   interface Props {
     panel: VariablesPanel;
+    /** `AppState.manage`. */
+    manage: ManageState;
     /** The events of the last dispatch (`snapshot.events`). */
     events: readonly Event[];
     dispatch: (a: Action) => void;
   }
-  let { panel, events, dispatch }: Props = $props();
+  let { panel, manage, events, dispatch }: Props = $props();
 
   let root = $state<HTMLElement | null>(null);
-  let chosenId = $state<string | null>(null);
-  const current = $derived(panel.collections.find((c) => c.id === chosenId) ?? panel.collections[0] ?? null);
+  const current = $derived(panel.collections.find((c) => c.id === manage.shown) ?? null);
   const summary = $derived(current ? collectionSummary(current, panel) : null);
   const why = $derived(partial(panel));
-
-  let ask = $state<Ask | null>(null);
-  const target = $derived(ask ? targetOf(panel, ask) : null);
-  const plan = $derived(target ? removalPlan(target) : null);
-  // The question belongs to a thing that is still there: another actor may have removed it meanwhile.
-  $effect(() => {
-    if (ask && !target) ask = null;
-  });
-
-  // The rename field belongs to a thing that is still there: when another actor removed it, the field closes and says so.
-  // The flow holds the target and the rename that was sent from the field, whose answer is awaited; closing the field clears both.
-  let flow = $state<RenameFlow>(NO_RENAME);
-  const renaming = $derived(flow.field);
-  const renameCtx = $derived(renaming ? renameContext(panel, renaming) : null);
-  $effect(() => {
-    if (renaming && !renameCtx) {
-      error = goneWords(panel, renaming);
-      status = '';
-      flow = closeRename();
-    }
-  });
+  const removal = $derived(manage.removal ?? null);
+  const words = $derived(removal ? removalWords(removal) : null);
+  const rename = $derived(manage.rename ?? null);
 
   // The live regions are always on the page and the text is put into them (a region that appears with its text is not announced).
   let error = $state('');
   let status = $state('');
-  let keys = $state({ collection: 0, mode: 0, variable: 0 });
-  // The words of the change just sent, said when the document answers; and the question to give the focus back after it.
+  // The words of the change just sent, said when the document answers; and the question to give the focus back to after it.
   let pending: string | null = null;
   // What was sent last: the words of a limit depend on it (`reactTo`).
   let sent: Action | null = null;
-  let refocus: Ask | null = null;
+  let refocus: ManageTarget | null = null;
+  // The last thing a field was open on: the button that opened it gets the focus back when the field closes.
+  let lastRename: ManageTarget | null = null;
+  $effect(() => {
+    if (manage.rename) lastRename = manage.rename.target;
+  });
 
   const q = (match: (el: HTMLElement) => boolean) => [...(root?.querySelectorAll<HTMLElement>('[data-entity-id], [data-remove], [data-rename], [data-testid=manage-title], [data-testid=manage-collection], [data-testid=manage-collections-title]') ?? [])].find(match);
   const focusEntity = (id: string) => {
@@ -69,11 +55,12 @@
     el?.focus();
   };
   /** Back to the button that asked; when that thing is gone, to the title of the collection, then to a collection, then to the heading of the list. */
-  const focusAsker = (a: Ask, attr: 'remove' | 'rename' = 'remove') => {
+  const focusAsker = (a: ManageTarget, attr: 'remove' | 'rename' = 'remove') => {
     const key = `${a.kind}:${a.id}`;
     (q((e) => e.dataset[attr] === key) ?? q((e) => e.dataset.testid === 'manage-title') ?? q((e) => e.dataset.testid === 'manage-collection') ?? q((e) => e.dataset.testid === 'manage-collections-title'))?.focus();
   };
 
+  const op = (o: ManageOp) => dispatch({ type: 'manage', op: o });
   const send = (a: Action, done: string) => {
     pending = done;
     sent = a;
@@ -85,7 +72,7 @@
     const now = events;
     if (now === seen) return;
     seen = now;
-    const r = reactTo(now, untrack(() => pending), untrack(() => sent));
+    const r = reactTo(now, untrack(() => pending), untrack(() => manage.limits), untrack(() => sent));
     if (r.error) {
       error = r.error;
       status = '';
@@ -96,16 +83,9 @@
       pending = null;
     }
     const added = r.added;
-    if (added) {
-      const where = whereAdded(panel, added);
-      if (where) chosenId = where;
-      keys = { ...keys, [added.entity]: keys[added.entity] + 1 };
-      void tick().then(() => focusEntity(added.id));
-    }
-    // The field closes when its rename was made and stays, with its text, when it was refused.
-    const answered = answerRename(untrack(() => flow), r);
-    flow = answered.flow;
-    const back = answered.refocus;
+    if (added) void tick().then(() => focusEntity(added.id));
+    // The field closed because its rename was made: the button that opened it takes the focus.
+    const back = r.renamed ? lastRename : null;
     if (back) void tick().then(() => focusAsker(back, 'rename'));
     if (refocus && (r.error || r.status)) {
       const a = refocus;
@@ -115,35 +95,39 @@
   });
 
   const close = () => {
-    const a = ask;
-    ask = null;
+    const a = removal?.target;
+    op({ type: 'cancelRemove' });
     if (a) void tick().then(() => focusAsker(a));
-  };
-  const startRename = (a: Ask) => {
-    ask = null;
-    flow = openRename(a);
   };
   // A cancel is quiet: the words of an earlier change do not stay in the status line as if this had done something.
   const cancelRename = () => {
-    const a = renaming;
-    flow = closeRename();
+    const a = rename?.target;
+    op({ type: 'cancelRename' });
     status = '';
     error = '';
     if (a) void tick().then(() => focusAsker(a, 'rename'));
   };
-  const submitRename = (name: string) => {
-    const a = renaming;
-    const ctx = renameCtx;
-    if (!a || !ctx) return;
-    flow = sendRename(flow);
-    send(renameAction(a, name), renamedWords(a.kind, ctx.current, name));
+  const submitRename = () => {
+    const quiet = rename?.unchanged;
+    const a = rename?.target;
+    pending = null;
+    sent = null;
+    op({ type: 'submitRename' });
+    // A name that is no change closes the field and says nothing: a quiet cancel.
+    if (quiet) {
+      status = '';
+      error = '';
+      if (a) void tick().then(() => focusAsker(a, 'rename'));
+    }
   };
   const confirm = () => {
-    const p = plan;
-    refocus = ask;
-    ask = null;
-    if (p) send(p.action, p.done);
+    const w = words;
+    refocus = removal?.target ?? null;
+    pending = w?.done ?? null;
+    sent = null;
+    op({ type: 'confirmRemove' });
   };
+  const draft = (form: VariableEntity, text: string) => op({ type: 'setDraft', form, text });
 </script>
 
 <div bind:this={root} class="flex min-h-0 flex-1 flex-col" data-testid="manage">
@@ -159,32 +143,38 @@
   {/if}
   <div class="flex min-h-0 flex-1">
     <div class="w-64 shrink-0 overflow-y-auto border-r border-hairline">
-      <CollectionList collections={panel.collections} chosen={current?.id ?? null} onChoose={(id) => { chosenId = id; ask = null; flow = closeRename(); }} onAdd={(n) => { flow = closeRename(); send(createCollectionAction(n), `Added the collection “${n.trim()}”.`); }} resetKey={keys.collection} />
+      <CollectionList
+        collections={panel.collections}
+        chosen={current?.id ?? null}
+        onChoose={(id) => op({ type: 'choose', id })}
+        draft={manage.drafts.collection}
+        limits={manage.limits}
+        onInput={(text) => draft('collection', text)}
+        onAdd={(n) => send({ type: 'createCollection', name: n }, `Added the collection “${n}”.`)}
+      />
     </div>
     <div class="min-w-0 flex-1 overflow-y-auto" data-testid="manage-detail">
-      {#if plan && ask}
+      {#if removal && words}
         <!-- A question for another thing starts again, so it takes the focus on Cancel as the first one did. -->
-        {#key `${ask.kind}:${ask.id}`}
-          <div class="px-4 pt-4"><RemoveConfirm {plan} onConfirm={confirm} onCancel={close} /></div>
+        {#key `${removal.target.kind}:${removal.target.kind === 'mode' ? `${removal.target.collection}:` : ''}${removal.target.id}`}
+          <div class="px-4 pt-4"><RemoveConfirm plan={words} onConfirm={confirm} onCancel={close} /></div>
         {/key}
       {/if}
       {#if current && summary}
         <CollectionDetail
           col={current}
           {summary}
-          onAsk={(a) => {
-            flow = closeRename();
-            ask = a;
-          }}
-          {renaming}
-          ctx={renameCtx}
-          onRename={startRename}
+          onAsk={(t) => op({ type: 'askRemove', target: t })}
+          {rename}
+          drafts={manage.drafts}
+          limits={manage.limits}
+          onRename={(t) => op({ type: 'startRename', target: t })}
+          onRenameInput={(text) => op({ type: 'setRenameText', text })}
           onRenameSubmit={submitRename}
           onRenameCancel={cancelRename}
-          onAddMode={(n, from) => send(addModeAction(current.id, n, from), `Added the mode “${n.trim()}”.`)}
-          onAddVariable={(n, kind: VarType) => send(addVariableAction(current.id, n, kind), `Added the variable “${n.trim()}”.`)}
-          modeKey={keys.mode}
-          variableKey={keys.variable}
+          onDraft={draft}
+          onAddMode={(n, from) => send({ type: 'addMode', collection: current.id, name: n, ...(from ? { copyFrom: from } : {}) }, `Added the mode “${n}”.`)}
+          onAddVariable={(n, kind: VarType) => send({ type: 'addVariable', collection: current.id, name: n, kind }, `Added the variable “${n}”.`)}
         />
       {/if}
     </div>

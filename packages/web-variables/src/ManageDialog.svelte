@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
   import { Dialog } from 'bits-ui';
-  import type { Action, Event, VariablesPanel } from '@meldframe/protocol';
+  import type { Action, Event, ManageState, VariablesPanel } from '@meldframe/protocol';
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import TooltipProvider from '@meldframe/web-chrome/TooltipProvider.svelte';
   import ManageBody from './ManageBody.svelte';
@@ -14,12 +14,22 @@
     open: boolean;
     onOpenChange: (open: boolean) => void;
     panel: VariablesPanel;
+    /** `AppState.manage`: what the manage view shows and asks. */
+    manage: ManageState;
     events: readonly Event[];
     dispatch: (a: Action) => void;
     /** The button that opened the dialog, to give the focus back to. */
     opener: () => HTMLElement | null | undefined;
   }
-  let { open, onOpenChange, panel, events, dispatch, opener }: Props = $props();
+  let { open, onOpenChange, panel, manage, events, dispatch, opener }: Props = $props();
+
+  // Whatever closes the dialog (the Close button, the scrim, Escape) tells the app layer, which forgets the question, the
+  // rename field, the forms and the choice of a collection: nothing open before the close is open after it. Both copies of the
+  // Variables panel (Svelte and the React island) draw this dialog, so this is the one place.
+  const change = (next: boolean) => {
+    if (!next) dispatch({ type: 'manage', op: { type: 'close' } });
+    onOpenChange(next);
+  };
 
   // The first thing to focus is the collection on view, not the Close button: a tooltip opens on that button and takes the first Escape.
   const focusStart = (e: globalThis.Event) => {
@@ -39,7 +49,7 @@
 </script>
 
 <TooltipProvider>
-  <Dialog.Root {open} {onOpenChange}>
+  <Dialog.Root {open} onOpenChange={change}>
     <Dialog.Portal>
       <Dialog.Overlay class="fixed inset-0 z-40 bg-scrim" />
       <Dialog.Content data-owns-keys data-testid="manage-dialog" onOpenAutoFocus={focusStart} onCloseAutoFocus={giveBack} class="fixed inset-8 z-50 m-auto flex h-fit max-h-full min-h-96 w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-divider bg-surface font-sans text-body text-text shadow-dialog">
@@ -48,7 +58,7 @@
           <Dialog.Close>{#snippet child({ props })}<IconButton label="Close" icon="close" triggerProps={props} data-testid="manage-close" />{/snippet}</Dialog.Close>
         </header>
         <Dialog.Description class="sr-only">Add and remove collections, modes and variables. A removal asks first, and one undo takes it back.</Dialog.Description>
-        <ManageBody {panel} {events} {dispatch} />
+        <ManageBody {panel} {manage} {events} {dispatch} />
       </Dialog.Content>
     </Dialog.Portal>
   </Dialog.Root>

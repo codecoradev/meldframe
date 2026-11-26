@@ -1,54 +1,55 @@
 <!--
   The field that takes the place of a name while it is renamed (the Rename button of a collection, a mode or a variable
   opens it): prefilled with the name as stored, selected, with Save and Cancel. Enter saves and Escape cancels, and
-  only the edit: the key stops here, so the dialog around stays open. A name that is the one it has now is a quiet
-  cancel: nothing is sent. The name is checked as typed (`checkRename`: the rules of an addition, without the own name
-  among the names taken; the text it opened with is no change either, so an untouched field never undoes the rename of
-  another actor, and the field says when the name changed under it); Save is off while it cannot be sent, a duplicate collection or mode is a warning. What is
-  typed is the only state here (and the text it opened with, to tell an untouched field from an edited one); the parent keeps the target as an id and closes the field once the change was made, and
-  leaves it open (with its text) while the change is refused, so the person can correct it. A refusal is shown by the
-  parent. The text is the raw name: it is the field's value, never markup.
+  only the edit: the key stops here, so the dialog around stays open. The field is app state (`AppState.manage.rename`): its
+  text, what the name comes to (the rules of an addition, without the own name among the names taken; a text that is the name it
+  has now or the one the field opened with is no change, so an untouched field never undoes the rename of another actor), and
+  what changed under it. Save is off while the name cannot be sent; a duplicate collection or mode is a warning. The text is sent as
+  typed; the app layer closes the field once the change was made and leaves it open (with its text) while the change is refused, so the
+  person can correct it. A refusal is shown by the parent. The text is the raw name: it is the field's value, never markup.
 -->
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
+  import type { ManageLimits, RenameField as RenameState } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
   import { NAME_RULE_WORDS } from '@meldframe/web-document/notices';
-  import type { NameKind } from './manage';
-  import { checkRename, movedWords, renameHint, type RenameContext } from './rename';
+  import { nameError, nameWarning, type NameKind } from './manage';
+  import { movedWords, renameHint } from './rename';
 
   interface Props {
     kind: NameKind;
     /** What the target is called in a name of a control: `color/bg`, `collection theme`, `mode dark` (display names). */
     subject: string;
-    /** The name it has now and the names of the others, read again from the panel on every change. */
-    ctx: RenameContext;
-    /** The target is the first (default) mode of its collection: the export does not name it. */
-    first?: boolean;
-    onSubmit: (name: string) => void;
+    /** The field as the app layer holds it. */
+    field: RenameState | null;
+    limits: ManageLimits;
+    onInput: (text: string) => void;
+    onSubmit: () => void;
     onCancel: () => void;
     /** `data-testid` of the field; the buttons' are the same with `-save` and `-cancel` after it, the note's with `-note`. */
     testId: string;
   }
-  let { kind, subject, ctx, first = false, onSubmit, onCancel, testId }: Props = $props();
+  let { kind, subject, field, limits, onInput, onSubmit, onCancel, testId }: Props = $props();
 
   let root = $state<HTMLElement | null>(null);
-  // The name as the field opened: what is typed is a change only when it differs from this and from the name now.
-  const opened = untrack(() => ctx.current);
-  let text = $state(opened);
-  const check = $derived(checkRename(kind, text, ctx, opened));
-  const changed = $derived(!check.unchanged);
-  const moved = $derived(movedWords(opened, ctx));
+  // The parent draws this only while the field is open, but its prop turns null a moment before the field is torn down: keep the last one to draw until then.
+  let last = untrack(() => field) as RenameState;
+  const f = $derived.by(() => {
+    if (field) last = field;
+    return last;
+  });
+  const check = $derived(f.check);
+  const changed = $derived(!f.unchanged);
+  const moved = $derived(movedWords(f.opened, f.current));
   const note = $derived.by(() => {
-    if (changed && check.error) return { tone: 'error', text: check.error };
-    if (check.warning) return { tone: 'warning', text: check.warning };
-    return { tone: 'hint', text: kind === 'mode' ? renameHint(kind, first) : `${NAME_RULE_WORDS} ${renameHint(kind, first)}` };
+    if (changed && check.error) return { tone: 'error', text: nameError(kind, check.error, limits) };
+    if (check.warning) return { tone: 'warning', text: nameWarning(kind, check.warning) };
+    return { tone: 'hint', text: kind === 'mode' ? renameHint(kind, f.first) : `${NAME_RULE_WORDS} ${renameHint(kind, f.first)}` };
   });
   const noteClass = { error: 'text-danger-text', warning: 'text-text-strong', hint: 'text-text-muted' } as const;
   const save = () => {
-    if (check.error) return;
-    if (check.unchanged) onCancel();
-    else onSubmit(check.name);
+    if (!check.error) onSubmit();
   };
   onMount(() => {
     const input = root?.querySelector('input');
@@ -76,7 +77,7 @@
   }}
 >
   <div class="flex flex-wrap items-center gap-2">
-    <div class="min-w-40 flex-1"><Field label="New name of {subject}" size="dense" value={text} onInput={(v) => (text = v)} invalid={changed && !!check.error} {testId} /></div>
+    <div class="min-w-40 flex-1"><Field label="New name of {subject}" size="dense" value={f.text} {onInput} invalid={changed && !!check.error} {testId} /></div>
     <Button variant="primary" size="sm" aria-label="Save the new name of {subject}" disabled={!!check.error} onclick={save} data-testid="{testId}-save">Save</Button>
     <Button size="sm" aria-label="Cancel renaming {subject}" onclick={onCancel} data-testid="{testId}-cancel">Cancel</Button>
   </div>

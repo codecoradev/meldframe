@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
-import type { CollectionRow, VariableRow, VariablesPanel } from '@meldframe/protocol';
+import type { CollectionRow, ManageLimits, ManageTarget, RenameField as RenameState, VariableRow, VariablesPanel } from '@meldframe/protocol';
 import CollectionDetail from './CollectionDetail.svelte';
 import RenameField from './RenameField.svelte';
-import { collectionSummary, type Ask } from './manage';
-import { RENAME_HINT, renameContext, renameHint } from './rename';
+import { collectionSummary } from './manage';
+import { RENAME_HINT, renameHint } from './rename';
 
 const row = (over: Partial<VariableRow> = {}): VariableRow => ({ id: 'v1', name: 'color/bg', type: 'color', values: [], usedBy: 2, binds: [], ...over });
 const modes = [{ id: 'm1', name: 'light' }, { id: 'm2', name: 'dark' }];
@@ -13,14 +13,25 @@ const col = (over: Partial<CollectionRow> = {}): CollectionRow => ({ id: 'c1', n
 const panel = (c: CollectionRow = col()): VariablesPanel => ({ query: '', total: 2, matched: 2, collections: [c] });
 const noop = () => {};
 
-/** The detail pane with the field of `renaming` open, or none. */
-const detail = (c: CollectionRow, renaming: Ask | null) => {
-  const p = panel(c);
-  const props = { col: c, summary: collectionSummary(c, p), onAsk: noop, onAddMode: noop, onAddVariable: noop, modeKey: 0, variableKey: 0, renaming, ctx: renaming ? renameContext(p, renaming) : null, onRename: noop, onRenameSubmit: noop, onRenameCancel: noop };
+const limits: ManageLimits = { nameMax: 256, modeNameMax: 64, collections: 32, modes: 16, variables: 5000 };
+const empty = { text: '', check: { name: '', error: 'empty' as const } };
+const drafts = { collection: empty, mode: empty, variable: empty };
+/** The field as the app layer holds it for `target`, opened on `current` (the rules of its check are tested there). */
+const state = (target: ManageTarget, current: string, over: Partial<RenameState> = {}): RenameState => ({ target, opened: current, current, text: current, check: { name: current }, unchanged: true, first: false, ...over });
+const named = (c: CollectionRow, target: ManageTarget): string => {
+  if (target.kind === 'collection') return c.name;
+  if (target.kind === 'mode') return c.modes.find((m) => m.id === target.id)?.name ?? '';
+  return c.variables.find((v) => v.id === target.id)?.name ?? '';
+};
+
+/** The detail pane with the field of `target` open, or none. */
+const detail = (c: CollectionRow, target: ManageTarget | null) => {
+  const rename = target ? state(target, named(c, target), { first: target.kind === 'mode' && c.modes[0]?.id === target.id }) : null;
+  const props = { col: c, summary: collectionSummary(c, panel(c)), onAsk: noop, onAddMode: noop, onAddVariable: noop, rename, drafts, limits, onRename: noop, onRenameInput: noop, onRenameSubmit: noop, onRenameCancel: noop, onDraft: noop };
   return render(CollectionDetail as never, { props: props as never }).body;
 };
-const field = (kind: 'variable' | 'collection' | 'mode', current: string, others: string[] = [], subject = current, first = false) =>
-  render(RenameField as never, { props: { kind, subject, first, ctx: { current, others }, onSubmit: noop, onCancel: noop, testId: 'rename-field' } as never }).body;
+const field = (kind: 'variable' | 'collection' | 'mode', current: string, over: Partial<RenameState> = {}, subject = current, first = false) =>
+  render(RenameField as never, { props: { kind, subject, field: state({ kind, id: 'x' } as ManageTarget, current, { first, ...over }), limits, onInput: noop, onSubmit: noop, onCancel: noop, testId: 'rename-field' } as never }).body;
 
 describe('the Rename buttons', () => {
   const out = detail(col(), null);
@@ -67,7 +78,7 @@ describe('the field of a rename', () => {
     const later = field('mode', 'dark');
     expect(later).toContain(renameHint('mode', false));
     expect(later).not.toContain(RENAME_HINT);
-    const first = field('mode', 'light', [], 'light', true);
+    const first = field('mode', 'light', {}, 'light', true);
     expect(first).toContain(renameHint('mode', true));
     expect(first).toMatch(/not part of the exported names/);
     expect(first).not.toContain(renameHint('mode', false));
@@ -76,7 +87,7 @@ describe('the field of a rename', () => {
     expect(field('variable', 'color/bg')).toMatch(/<p[^>]*role="status"[^>]*data-testid="rename-field-moved"[^>]*><\/p>|<p[^>]*data-testid="rename-field-moved"[^>]*role="status"[^>]*><\/p>/);
   });
   it('shows the raw name in the field as text: markup is escaped, and the neutralised label is used for the names around it', () => {
-    const out = field('mode', '<b>da‮rk</b>', [], 'mode dark');
+    const out = field('mode', '<b>da‮rk</b>', {}, 'mode dark');
     expect(out).toContain('value="&lt;b>da');
     expect(out).not.toContain('<b>da');
     expect(out).toContain('aria-label="New name of mode dark"');
