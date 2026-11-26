@@ -78,6 +78,8 @@ describe('the words of a row', () => {
   it('says how far a batch got: applied, partial with the counts, still arriving, or without a header', () => {
     expect(statusWords(row({ status: 'applied' }))).toBe('Applied');
     expect(statusWords(row({ status: 'partial', written: 18, commands: 30 }))).toBe('18 of 30 applied');
+    // A row made from ops alone does not know how many commands the call held: it is not worded as a total.
+    expect(statusWords(row({ status: 'partial', written: 18, commands: null }))).toBe('18 applied');
     expect(statusWords(row({ status: 'building' }))).toBe('Arriving');
     expect(statusWords(row({ status: 'headerless' }))).toBe('No header: no number, note or review');
   });

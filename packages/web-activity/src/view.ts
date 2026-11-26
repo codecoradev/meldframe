@@ -57,7 +57,7 @@ export const batchHeading = (r: BatchRow): string => (r.n === null ? 'Batch with
 export function statusWords(r: BatchRow): string {
   switch (r.status) {
     case 'applied': return 'Applied';
-    case 'partial': return `${r.written} of ${r.commands} applied`;
+    case 'partial': return r.commands === null ? `${r.written} applied` : `${r.written} of ${r.commands} applied`;
     case 'building': return 'Arriving';
     case 'headerless': return 'No header: no number, note or review';
   }

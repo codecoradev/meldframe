@@ -83,7 +83,9 @@
 <div class="flex flex-col" data-testid="activity">
   <MessageLine {message} />
   <Section title="Recent work">
-    {#if activity.unreviewedCount > 0}
+    {#if activity.unreviewedCount === null}
+      <p class="m-0 text-small text-text-muted" data-testid="review-count" data-unknown="true">Batches to review: Unknown. The list of batches has not loaded.</p>
+    {:else if activity.unreviewedCount > 0}
       <p class="m-0 text-small text-text-secondary" data-testid="review-count">{activity.unreviewedCount} {activity.unreviewedCount === 1 ? 'batch' : 'batches'} to review</p>
     {/if}
     {#if lanes.length === 0}

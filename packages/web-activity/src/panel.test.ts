@@ -226,6 +226,13 @@ describe('the review of a batch', () => {
     expect(one({}, { unreviewedCount: 1 })).toContain('1 batch to review');
     expect(one({}, { unreviewedCount: 0 })).not.toContain('data-testid="review-count"');
   });
+
+  it('says Unknown when the count is unknown (the list did not load), and neither zero nor nothing waiting', () => {
+    const out = one({}, { unreviewedCount: null });
+    expect(out).toMatch(/data-testid="review-count"[^>]*data-unknown="true"[^>]*>Batches to review: Unknown/);
+    expect(out).not.toContain('0 batches');
+    expect(out).not.toContain('Nothing waiting');
+  });
 });
 
 describe('Create checkpoint', () => {

@@ -56,8 +56,8 @@
     /** The tab of the right card (Design or Activity) and the person's choice of another. */
     tab: RightTab;
     onTab: (t: RightTab) => void;
-    /** The count of batches to review, from the app layer: shown on the Activity tab when above zero. */
-    activityBadge?: number;
+    /** The count of batches to review, from the app layer: shown on the Activity tab when above zero, and as `?` when it is not known (`null`). */
+    activityBadge?: number | null;
     /** The palette and the shortcut sheet as the page draws them: the Svelte ones unless the page gives others (the React pilot, `/?react=palette`). */
     paletteView?: Component<ComponentProps<typeof Palette>>;
     hintView?: Component<ComponentProps<typeof ShortcutHint>>;
@@ -91,7 +91,7 @@
   };
   const flipLayers = $derived(toggleFrom('layers', onToggleLayers));
   const flipInspector = $derived(toggleFrom('inspector', onToggleInspector));
-  const rightTabs = $derived<{ id: RightTab; label: string; badge?: number; badgeLabel?: string }[]>([{ id: 'design', label: 'Design' }, { id: 'activity', label: 'Activity', badge: activityBadge, badgeLabel: activityBadge === 1 ? 'batch to review' : 'batches to review' }]);
+  const rightTabs = $derived<{ id: RightTab; label: string; badge?: number | null; badgeLabel?: string }[]>([{ id: 'design', label: 'Design' }, { id: 'activity', label: 'Activity', badge: activityBadge, badgeLabel: activityBadge === 1 ? 'batch to review' : 'batches to review' }]);
   const select = (id: string) => { const t = rightTabs.find((x) => x.id === id); if (t) onTab(t.id); };
   const edge = $derived(reserved({ layers: layersOpen, inspector: inspectorOpen, tab }));
   const width = $derived(rightWidth(tab));

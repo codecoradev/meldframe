@@ -8,8 +8,9 @@
   interface Tab {
     id: string;
     label: string;
-    badge?: number;
-    /** What the badge counts, for a reader who does not see its colour: read after the number. */
+    /** A count; `null` is a count that is not known, drawn as `?` and never as nothing or zero. */
+    badge?: number | null;
+    /** What the badge counts, for a reader who does not see its colour: read after the number (after `?` it says unknown). */
     badgeLabel?: string;
     /** Not available yet: it cannot be selected by click or arrow, and it has no panel (no aria-controls). */
     disabled?: boolean;
@@ -51,6 +52,6 @@
       onclick={() => { if (!t.disabled) onSelect(t.id); }}
       onkeydown={(e) => onkeydown(e, i)}
       class="{ring} flex h-(--mf-size-control-md) items-center gap-2 rounded-md px-3 text-small {on ? 'bg-hairline font-semibold text-text-strong' : t.disabled ? 'font-medium text-text-muted opacity-(--mf-opacity-disabled)' : 'font-medium text-text-muted hov:text-text'}"
-    >{t.label}{#if t.badge}<span class="rounded-pill bg-accent-strong px-2 text-caption font-bold text-on-accent">{t.badge}{#if t.badgeLabel}<span class="sr-only">{` ${t.badgeLabel}`}</span>{/if}</span>{/if}</button>
+    >{t.label}{#if t.badge === null}<span class="rounded-pill bg-accent-strong px-2 text-caption font-bold text-on-accent" data-unknown="true">?{#if t.badgeLabel}<span class="sr-only">{` ${t.badgeLabel}: unknown`}</span>{/if}</span>{:else if t.badge}<span class="rounded-pill bg-accent-strong px-2 text-caption font-bold text-on-accent">{t.badge}{#if t.badgeLabel}<span class="sr-only">{` ${t.badgeLabel}`}</span>{/if}</span>{/if}</button>
   {/each}
 </div>

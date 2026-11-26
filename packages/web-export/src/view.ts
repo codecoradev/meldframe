@@ -35,8 +35,12 @@ export function errorText(d: ExportDialog): string | null {
   return `This frame could not be exported (${d.error}).`;
 }
 
-/** The note above the buttons when agent work is waiting for a review; null when nothing is. */
-export function reviewText(unreviewed: number): string | null {
+/**
+ * The note above the buttons when agent work is waiting for a review; null when nothing is. A count the app layer does not
+ * know (the list of batches has not loaded, or failed to) is said as unknown: it is never read as nothing waiting.
+ */
+export function reviewText(unreviewed: number | null): string | null {
+  if (unreviewed === null) return 'It is not known whether agent work is waiting for a review: the list of batches has not loaded. Export anyway or review first.';
   if (unreviewed <= 0) return null;
   return `${unreviewed} ${unreviewed === 1 ? 'batch is' : 'batches are'} not reviewed yet. Export anyway or review first.`;
 }

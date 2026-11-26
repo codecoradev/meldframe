@@ -52,6 +52,15 @@ describe('sizes and words', () => {
     expect(reviewText(1)).toBe('1 batch is not reviewed yet. Export anyway or review first.');
     expect(reviewText(2)).toBe('2 batches are not reviewed yet. Export anyway or review first.');
   });
+
+  it('says the review state is unknown when the count of batches is unknown, and does not read it as nothing waiting', () => {
+    const unknown = reviewText(null)!;
+    expect(unknown).toContain('not known');
+    expect(unknown).toContain('Export anyway or review first');
+    expect(unknown).not.toContain('0 batches');
+    expect(reviewText(null)).not.toBeNull();
+    expect(reviewText(0)).toBeNull();
+  });
   it('lists findings with the name of the node, or the file when there is none', () => {
     const list: ExportFinding[] = [
       { code: 'on_text', node: 't1', nodeName: 'Hero Title', message: 'a text node paints no shadows; it was left out' },

@@ -66,6 +66,12 @@ describe('the HTML tab', () => {
     expect(html({ unreviewed: 0 })).not.toContain('data-testid="export-review"');
   });
 
+  it('shows the review note with Review when the count is unknown, and says unknown, not nothing waiting', () => {
+    const out = html({ unreviewed: null });
+    expect(out).toMatch(/data-testid="export-review"[^>]*>[\s\S]*not known whether agent work is waiting/);
+    expect(out).toMatch(/data-testid="export-review"[\s\S]*<button[^>]*>(?:<!---->)?Review/);
+  });
+
   it('lists what the export could not carry with the node, and says the file is unchanged', () => {
     const out = html({ dialog: dialog({ unsupported: [{ code: 'on_text', node: 't1', nodeName: 'Hero Title', message: 'a text node paints no shadows' }] }) });
     expect(out).toContain('data-testid="export-unsupported"');

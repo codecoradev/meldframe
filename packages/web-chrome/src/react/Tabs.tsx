@@ -7,7 +7,8 @@ import { nextIndex, requireLabel, ring } from '../focus';
 export interface TabItem {
   id: string;
   label: string;
-  badge?: number;
+  /** A count; `null` is a count that is not known, drawn as `?` and never as nothing or zero. */
+  badge?: number | null;
   /** What the badge counts, for a reader who does not see its colour: read after the number. */
   badgeLabel?: string;
   /** Not available yet: it cannot be selected by click or arrow, and it has no panel (no aria-controls). */
@@ -59,7 +60,12 @@ export function Tabs({ label, tabs, selected, onSelect, idPrefix, ...rest }: Tab
             className={`${ring} flex h-(--mf-size-control-md) items-center gap-2 rounded-md px-3 text-small ${look}`}
           >
             {t.label}
-            {t.badge ? (
+            {t.badge === null ? (
+              <span className="rounded-pill bg-accent-strong px-2 text-caption font-bold text-on-accent" data-unknown="true">
+                ?
+                {t.badgeLabel ? <span className="sr-only">{` ${t.badgeLabel}: unknown`}</span> : null}
+              </span>
+            ) : t.badge ? (
               <span className="rounded-pill bg-accent-strong px-2 text-caption font-bold text-on-accent">
                 {t.badge}
                 {t.badgeLabel ? <span className="sr-only">{` ${t.badgeLabel}`}</span> : null}

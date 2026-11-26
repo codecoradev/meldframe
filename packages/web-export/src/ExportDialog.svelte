@@ -20,7 +20,7 @@
     /** `state.export.dialog`; null while closed. */
     dialog: Model | null;
     /** `state.activity.unreviewedCount`. */
-    unreviewed: number;
+    unreviewed: number | null;
     scale: ExportScale;
     onScale: (s: ExportScale) => void;
     /** The PNG of the dialog's frame (`dialogFrame`) as the canvas would draw it now. */

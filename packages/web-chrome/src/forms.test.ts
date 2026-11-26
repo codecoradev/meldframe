@@ -59,6 +59,9 @@ describe('Tabs', () => {
     expect(out).toContain('>3<');
   });
   it('says what a badge counts to a reader, who does not see the colour', () => {
+    const unknown = [{ id: 'design', label: 'Design' }, { id: 'activity', label: 'Activity', badge: null, badgeLabel: 'batches to review' }];
+    const shown = html(Tabs, { label: 'Right panel', tabs: unknown, selected: 'design', onSelect: () => {}, idPrefix: 'rp' }).replace(/<!--.*?-->/g, '');
+    expect(shown).toMatch(/>\?<span class="sr-only"> batches to review: unknown<\/span>/);
     const named = [{ id: 'design', label: 'Design' }, { id: 'activity', label: 'Activity', badge: 3, badgeLabel: 'batches to review' }];
     const out = html(Tabs, { label: 'Right panel', tabs: named, selected: 'design', onSelect: () => {}, idPrefix: 'rp' });
     expect(out.replace(/<!--.*?-->/g, '')).toMatch(/>3<span class="sr-only"> batches to review<\/span>/);
