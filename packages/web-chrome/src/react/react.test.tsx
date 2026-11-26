@@ -225,8 +225,10 @@ describe('the island action', () => {
   });
 
   // A prop can be a one-time message, such as the events of one dispatch of the app layer: a later update must not replace it before
-  // React drew it. Without a synchronous draw React keeps only the last of two updates that come in one task (found with the Activity
-  // panel, whose line "Reverted: ..." was not shown on a loaded page: the events of the revert were replaced by the next frame's).
+  // React drew it. Without a synchronous draw React keeps only the last of two updates that come in one task, which this test shows.
+  // That this is why the Activity panel's line "Reverted: ..." was missing on one run under load is probable and not shown (the cause
+  // was inferred, not reproduced). Not covered: an `update` made while React is committing, the one failure mode of `flushSync`
+  // (React logs an error in development and draws it later); Svelte calls `update` from a microtask, so the product does not do it.
   it('draws each update when it comes: two in one task are both drawn, in order', async () => {
     const log: string[] = [];
     const Probe = ({ n }: { n: number }): ReactNode => {
