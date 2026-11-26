@@ -46,12 +46,21 @@
 //! A cap is checked in characters and in bytes together ([`plain`] takes both), because the two counts differ for
 //! text that is not ASCII, and a rule counted one way in one place and the other way in another place accepts a text
 //! that the second place refuses.
+//!
+//! # Numbers
+//!
+//! A whole number that arrives as text (a path segment, the suffix of a key) has one spelling, [`canonical_u32`]:
+//! ASCII digits, no sign, no leading zero but the single `0`. Two spellings of one number would be two names for it
+//! (`01` and `1` as a batch number), so every reader of such text calls this one function and maps `None` to its own
+//! error.
 
 mod charset;
+mod number;
 mod plain;
 mod sanitize;
 
 pub use charset::{first_hidden, is_combining_mark, is_hidden_text, mark_run_exceeds};
+pub use number::canonical_u32;
 pub use plain::{TextError, actor, file_name, key, plain, workspace_name};
 pub use sanitize::{Profile, clip, sanitize, sanitize_clip};
 
