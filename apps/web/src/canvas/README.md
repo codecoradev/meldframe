@@ -12,7 +12,10 @@ intents; it holds no document state and applies no edit (`docs/standards/modular
 | `packages/web-input/src/hostinput.ts` | the host element's DOM events turned into calls on the interaction (listeners, pointer capture, cursor, double click, wheel, keys) | no |
 | `stage.ts` | world container (render group, the camera), one display object per node, manual culling | yes |
 | `overlayview.ts` | paints the overlay (not scaled by the camera) | yes |
-| `Canvas.svelte` | props, events, resize and device pixel ratio, frame loop, cleanup | yes |
+| `driver.ts` | the canvas without markup: starts the Pixi application, keeps it in step with the props (scene, selection, camera, theme), frame loop, culling, resize and device pixel ratio, input to intents, capture, cleanup; the camera is a controlled prop with a callback; tested with a fake application (`driver.test.ts`) | yes |
+| `api.ts` | the types a host and the driver exchange (`CanvasProps`, `CanvasEvents`, `Platform`) | no |
+| `platform.ts` | the browser as the driver uses it (animation frame, element size, density, fonts, reduced motion, the Pixi application, the asset transport) | yes |
+| `Canvas.svelte`, `canvas.css` | the element and its stylesheet (one file, for every copy of the canvas), props and callbacks handed to the driver | no |
 | `../harness/` + `src/harness/` | development page `harness/canvas.html` (not in the product build) | via Canvas |
 
 Scene space: a node's `x`, `y` are relative to its parent (`'parent'`, the document model's form) or already
