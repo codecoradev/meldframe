@@ -8,7 +8,7 @@
 // Effects are idempotent, since React's strict mode runs each twice in development: the callbacks and the props are plain
 // assignments, and the effect that mounts makes a surface of its own and undoes everything it made (surface.ts, driver.test.ts).
 // `/?react=canvas,strict` draws it inside StrictMode (the island's `strict` option) to show it in a browser.
-import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref, type RefObject } from 'react';
 import { HOME } from '@meldframe/web-canvas/camera';
 import type { Scene } from '@meldframe/web-canvas/scene';
 import { CANVAS_FAILED, type CanvasEvents, type CanvasProps as Draws, type CanvasStatus } from '../api';
@@ -16,6 +16,9 @@ import { CanvasDriver, type CanvasHandle } from '../driver';
 import { browserPlatform } from '../platform';
 import { mountOn } from './surface';
 import '../canvas.css';
+
+/** What the canvas draws from, all of it (the props of the component with their defaults). */
+export type DrawProps = Draws;
 
 export interface CanvasProps extends Partial<Omit<Draws, 'scene'>>, Omit<CanvasEvents, 'onStatus'> {
   scene: Scene;
@@ -50,13 +53,12 @@ export function CanvasView({ label, renderer, failed, hostRef }: { label: string
   );
 }
 
-export function Canvas({ scene, selection = NO_IDS, camera = HOME, touches = NO_TOUCHES, indicator = null, tool = 'move', theme = 'dark', reducedMotion, label = 'Canvas', ref, ...events }: CanvasProps) {
-  const host = useRef<HTMLDivElement>(null);
-  const [driver] = useState(() => new CanvasDriver(browserPlatform()));
-  const [status, setStatus] = useState(NOT_STARTED);
-  const onStatus = useCallback((s: CanvasStatus) => setStatus(s), []);
-  useImperativeHandle(ref, () => handleOf(driver), [driver]);
-
+/**
+ * The effects of the canvas, the part of it that touches the driver (a hook of its own so that a test can run it with a fake driver).
+ * Each is idempotent: the callbacks and the props are plain assignments, and the mount makes a surface of its own and undoes it.
+ */
+export function useCanvasDriver(driver: CanvasDriver, host: RefObject<HTMLElement | null>, draws: DrawProps, events: Omit<CanvasEvents, 'onStatus'>, onStatus: (s: CanvasStatus) => void): void {
+  const { scene, selection, camera, touches, indicator, tool, theme, reducedMotion } = draws;
   // The callbacks of this render: the driver reads them when it calls them, so no render leaves an old one behind.
   useLayoutEffect(() => {
     driver.events = { ...events, onStatus };
@@ -64,7 +66,17 @@ export function Canvas({ scene, selection = NO_IDS, camera = HOME, touches = NO_
   useLayoutEffect(() => {
     driver.setProps({ scene, selection, camera, touches, indicator, tool, theme, reducedMotion });
   }, [driver, scene, selection, camera, touches, indicator, tool, theme, reducedMotion]);
-  useEffect(() => mountOn(driver, host.current!), [driver]);
+  useEffect(() => mountOn(driver, host.current!), [driver, host]);
+}
+
+export function Canvas({ scene, selection = NO_IDS, camera = HOME, touches = NO_TOUCHES, indicator = null, tool = 'move', theme = 'dark', reducedMotion, label = 'Canvas', ref, ...events }: CanvasProps) {
+  const host = useRef<HTMLDivElement>(null);
+  const [driver] = useState(() => new CanvasDriver(browserPlatform()));
+  const [status, setStatus] = useState(NOT_STARTED);
+  const onStatus = useCallback((s: CanvasStatus) => setStatus(s), []);
+  useImperativeHandle(ref, () => handleOf(driver), [driver]);
+
+  useCanvasDriver(driver, host, { scene, selection, camera, touches, indicator, tool, theme, reducedMotion }, events, onStatus);
 
   return <CanvasView label={label} renderer={status.renderer} failed={status.failed} hostRef={host} />;
 }
