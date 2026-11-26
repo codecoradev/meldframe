@@ -24,5 +24,5 @@ mod store;
 pub use gate::{Admission, Gate, NodeFacts, Permit, Principal, Report};
 pub use op::Op;
 pub use refusal::Refusal;
-pub use room::{Accepted, REPLAY_PAGE, Room, RoomError, SnapshotWarning};
+pub use room::{Accepted, REPLAY_PAGE, Room, RoomError, SnapshotWarning, touches};
 pub use store::{Appended, MemoryStore, NewOp, Snapshot, Store, StoreError, StoredOp};
