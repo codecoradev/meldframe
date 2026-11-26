@@ -21,22 +21,12 @@ export function layoutKey(e: KeyLike): LayoutKey | null {
   return e.key === '?' ? 'help' : null;
 }
 
-/** A menu or a dialog that is open on the page: its role and its test id. */
-export interface OpenOverlay {
-  role: string;
-  id: string | null;
-}
-
-/** The open menus and dialogs under `root` (Bits UI gives them `role=menu` and `role=dialog`; a closed one is not in the page). */
-export function readOverlays(root: { querySelectorAll(selector: string): Iterable<{ getAttribute(name: string): string | null }> }): OpenOverlay[] {
-  return [...root.querySelectorAll('[role=menu], [role=dialog]')].map((e) => ({ role: e.getAttribute('role') ?? '', id: e.getAttribute('data-testid') }));
-}
-
 /**
- * Whether Ctrl+K must leave the palette shut: a menu or a dialog is open, or the Export dialog is (two overlays would
- * stack and the first stays up behind the palette). The shortcut sheet is not in the way (the palette replaces it), and
- * the palette itself does not block its own key.
+ * Whether a menu is open on the page (Bits UI and Base UI give an open menu `role=menu`; a closed one is not in the page). A menu keeps its
+ * open state in the component library, so the app layer cannot know it: the page does not send Ctrl+K while one is open, as it does not send
+ * a key that a field owns (`ownsKeys`). The dialogs and the bind picker are the app layer's state, and it keeps the palette shut over them
+ * (`OverlayOp`).
  */
-export function paletteBlocked(open: readonly OpenOverlay[], exportOpen: boolean): boolean {
-  return exportOpen || open.some((o) => o.id !== 'palette' && o.id !== 'shortcut-hint');
+export function menuOpen(root: { querySelector(selector: string): unknown }): boolean {
+  return root.querySelector('[role=menu]') !== null;
 }

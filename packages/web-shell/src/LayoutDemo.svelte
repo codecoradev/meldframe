@@ -8,7 +8,7 @@
   import { HOME, formatZoom, type Camera } from '@meldframe/web-canvas/camera';
   import type { FramePreset } from '@meldframe/protocol';
   import { ownsKeys } from '@meldframe/web-document/edit';
-  import { layoutKey, paletteBlocked, readOverlays } from './keys';
+  import { layoutKey, menuOpen } from './keys';
   import { presetSize } from './presets';
   import { zoomCamera } from './zoom';
 
@@ -25,13 +25,14 @@
   const toggle = (k: 'layers' | 'inspector') => (k === 'layers' ? (layersOpen = !layersOpen) : (inspectorOpen = !inspectorOpen));
   // The frames the New frame menu and the palette make here: boxes of the preset's size, for the browser check.
   let frames = $state<{ preset: FramePreset; w: number; h: number }[]>([]);
-  // The same rules as the editor page: a key typed in a field is the field's, and the palette does not open over a menu or a dialog.
+  // The same rules as the editor page: a key typed in a field is the field's, and the palette does not open over a menu. The editor page
+  // keeps the overlays and the dialogs in the app layer's state; this page has no app layer (made-up content, no server), so its flags are its own.
   function onKey(e: KeyboardEvent) {
     if (ownsKeys(e.target as HTMLElement | null, e)) return;
     const k = layoutKey(e);
     if (!k) return;
     e.preventDefault();
-    if (k === 'palette' && paletteBlocked(readOverlays(document), false)) return;
+    if (k === 'palette' && menuOpen(document)) return;
     if (k === 'help') helpOpen = !helpOpen;
     else if (k === 'palette') paletteOpen = !paletteOpen;
     else toggle(k);
