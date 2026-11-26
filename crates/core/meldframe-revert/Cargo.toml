@@ -12,6 +12,7 @@ kind = "core"
 [dependencies]
 meldframe-history = { path = "../meldframe-history" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-text = { path = "../meldframe-text" }
 serde_json = "1"
 
 [dev-dependencies]

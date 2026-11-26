@@ -22,9 +22,24 @@ fn a_number_is_ascii_digits_and_nothing_else() {
         assert_eq!(canonical_u32(plain), plain.parse().ok(), "{plain:?}");
     }
     for other in [
-        "", "+1", "-1", "-0", "+0", "1 ", " 1", "1\n", "\t1", "1.0", "1e3", "0x10", "1_000", "1,000",
+        "",
+        "+1",
+        "-1",
+        "-0",
+        "+0",
+        "1 ",
+        " 1",
+        "1\n",
+        "\t1",
+        "1.0",
+        "1e3",
+        "0x10",
+        "1_000",
+        "1,000",
         // Digits of other scripts, which `str::parse` also refuses and `char::is_numeric` would let through.
-        "\u{0663}", "\u{FF11}", "1\u{200B}",
+        "\u{0663}",
+        "\u{FF11}",
+        "1\u{200B}",
     ] {
         assert_eq!(canonical_u32(other), None, "{other:?}");
     }

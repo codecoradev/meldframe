@@ -387,6 +387,17 @@ fn a_batch_with_only_some_of_its_ops_in_the_log_reverts_those_and_the_key_says_s
     assert_eq!(meldframe_revert::batch_index("b:x:7"), Some(("b:x", 7)));
 }
 
+#[test]
+fn only_the_one_spelling_of_an_index_belongs_to_a_batch() {
+    // `apply_commands` writes `{prefix}:{i}` with `i` in plain digits. `b1:01` is not one of its keys, so it never
+    // joins the batch `b1` as a second name of command 1 (the reader took it before `canonical_u32`).
+    let index = meldframe_revert::batch_index;
+    assert_eq!(index("b1:0"), Some(("b1", 0)));
+    for aliased in ["b1:00", "b1:01", "b1:+1", "b1:1 ", "b1:", "b1:4294967296"] {
+        assert_eq!(index(aliased), None, "{aliased:?}");
+    }
+}
+
 fn cmd(v: serde_json::Value) -> Command {
     serde_json::from_value(v).unwrap()
 }

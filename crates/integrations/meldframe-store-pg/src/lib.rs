@@ -21,6 +21,7 @@ pub use state::{snapshot_from_state, state_json};
 
 use meldframe_host::{Appended, NewOp, Snapshot, Store, StoreError, StoredOp};
 use meldframe_protocol::{Command, SCHEMA_VERSION};
+use meldframe_text::canonical_u32;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::types::Json;
 use sqlx::{PgPool, Row};
@@ -62,12 +63,9 @@ pub fn room_key(workspace: &str, file: &str) -> String {
 /// same rule.
 pub fn split_room_key(key: &str) -> Option<(&str, &str)> {
     let (len, rest) = key.split_once(':')?;
-    let canonical =
-        len == "0" || (len.len() <= 9 && len.starts_with(|c: char| ('1'..='9').contains(&c)));
-    if !canonical || !len.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    let n: usize = len.parse().ok()?;
+    // At most 9 digits, as the SQL says (`^(0|[1-9][0-9]{0,8}):`), so both sides refuse the same keys.
+    let n = canonical_u32(len).filter(|_| len.len() <= 9)?;
+    let n = usize::try_from(n).ok()?;
     rest.is_char_boundary(n).then(|| rest.split_at(n))
 }
 
