@@ -13,7 +13,7 @@ import { collectionSummary } from '../manage';
 import { CollectionDetail } from './CollectionDetail';
 import { ManageBody } from './ManageBody';
 import { ManageDialog } from './ManageDialog';
-import { tokens } from './markup';
+import { tokens } from './markup.testutil';
 
 const noop = () => {};
 const row = (over: Partial<VariableRow> = {}): VariableRow => ({ id: 'v1', name: 'color/bg', type: 'color', values: [], usedBy: 2, binds: [], ...over });

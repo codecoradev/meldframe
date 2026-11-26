@@ -74,6 +74,9 @@ export function ManageBody({ panel, manage, events, dispatch }: ManageBodyProps)
 
   // `panel` and `manage` are what a dispatch changes: when they arrive, the thing the focus was promised to is on the page. They are only
   // the trigger of this effect (it reads the ref), and no state of this component is: a re-render of its own does not run it.
+  // It runs on the next change of either, whichever snapshot brings it: that is the answer of the dispatch just made, because the engine
+  // answers a dispatch at once, so every snapshot after it already holds the answer, and `back` is only asked for when the thing to leave (an open question or field)
+  // is there, so the dispatch does change `manage`. A dispatch that changed nothing would leave the focus waiting for the next change.
   useLayoutEffect(() => {
     const f = after.current;
     after.current = null;
