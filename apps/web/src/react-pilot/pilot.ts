@@ -6,6 +6,8 @@
 //   /?react=export       the editor with the Export section and dialog drawn by React (E7.3, S2). `reactFor` reads it;
 //                        ExportSectionSwitch.svelte and ExportDialogSwitch.svelte, which Editor.svelte imports, act on it.
 //                        Further panels join the list (/?react=export,activity); the last slice deletes the whole switch.
+//   /?react=palette     the command palette and the shortcut sheet drawn by React, in the editor and on /?layout (E7.3, S4):
+//                        the Layout draws what `shell.ts` hands it (PaletteSwitch.svelte, ShortcutHintSwitch.svelte).
 // packages/web-chrome/scripts/overlays-e2e.mjs asks the two fixtures the same questions; states-e2e.mjs runs on the first with MELDFRAME_UI=react.
 import { mount } from 'svelte';
 

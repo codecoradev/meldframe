@@ -3,6 +3,7 @@
   server. The state is local to the page; nothing is read from or written to a file.
 -->
 <script lang="ts">
+  import type { ComponentProps } from 'svelte';
   import Layout from './Layout.svelte';
   import { HOME, formatZoom, type Camera } from '@meldframe/web-canvas/camera';
   import type { FramePreset } from '@meldframe/protocol';
@@ -11,6 +12,8 @@
   import { presetSize } from './presets';
   import { zoomCamera } from './zoom';
 
+  // The page that mounts this one may swap the palette and the shortcut sheet for others (the React pilot); with none, the Svelte ones.
+  let { paletteView, hintView }: Pick<ComponentProps<typeof Layout>, 'paletteView' | 'hintView'> = $props();
   let tool = $state<'select' | 'frame' | 'rectangle' | 'ellipse' | 'text'>('select');
   let layersOpen = $state(true);
   let inspectorOpen = $state(true);
@@ -66,6 +69,8 @@
   onDelete={() => (frames = frames.slice(0, -1))}
   {tab}
   onTab={(t) => (tab = t)}
+  {paletteView}
+  {hintView}
 >
   {#snippet canvasLayer()}<div class="absolute inset-0 overflow-hidden bg-canvas">{#each frames as f, i (i)}<div data-testid="demo-frame" data-preset={f.preset} style:width="{f.w}px" style:height="{f.h}px" class="absolute top-0 left-0 rounded-sm border border-border bg-surface"></div>{/each}</div>{/snippet}
   {#snippet layersPanel()}<ul class="m-0 list-none p-2">{#each rows as r (r)}<li class="rounded-sm px-2 py-1">{r}</li>{/each}</ul>{/snippet}

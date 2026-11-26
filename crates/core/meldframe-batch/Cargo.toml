@@ -13,7 +13,6 @@ kind = "core"
 meldframe-core = { path = "../meldframe-core" }
 meldframe-host = { path = "../meldframe-host" }
 meldframe-protocol = { path = "../meldframe-protocol" }
-meldframe-variables = { path = "../meldframe-variables" }
 serde_json = "1"
 
 [lints]

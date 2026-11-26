@@ -1,0 +1,19 @@
+[package]
+name = "meldframe-batch-tests"
+description = "The dry run of a batch against the room: it counts the nodes an ifSeq guard covers as Room::accept counts them, for every command. No library code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[dev-dependencies]
+meldframe-batch = { path = "../meldframe-batch" }
+meldframe-host = { path = "../meldframe-host" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+serde_json = "1"
+
+[lints]
+workspace = true
