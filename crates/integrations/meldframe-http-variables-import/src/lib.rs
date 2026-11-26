@@ -27,7 +27,7 @@ pub fn input_schema() -> Value {
     };
     json!({"type": "object", "required": ["file", "css"], "additionalProperties": false, "properties": {
         "file": {"type": "string", "minLength": 1, "maxLength": 128,
-            "description": "The name of the file: 1 to 128 characters, no slashes or control characters."},
+            "description": "The name of the file: 1 to 128 characters, no slashes, control or invisible formatting characters."},
         "css": {"type": "string", "minLength": 1, "maxLength": MAX_INPUT_BYTES,
             "description": "The CSS text to import: custom properties of :root and of a dark rule, and Tailwind v4 @theme blocks. At most 262144 bytes (256 KiB, counted in bytes, not characters)."},
         "idempotencyKey": key("idempotency_key"),
@@ -112,7 +112,7 @@ impl ImportTool {
             }
         };
         if !meldframe_http::valid_file(&args.file) {
-            let m = "a file name is 1 to 128 bytes without slashes or control characters";
+            let m = "a file name is 1 to 128 bytes without slashes, control or invisible formatting characters";
             return failure("invalid", m, false);
         }
         let key = match (args.camel, args.idempotency_key) {

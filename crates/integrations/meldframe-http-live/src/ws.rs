@@ -61,7 +61,7 @@ pub(crate) async fn upgrade(
         Err(reply) => return reply.into_response(),
     };
     let Some(from) = after(req.uri().query()).filter(|_| valid_file(&file)) else {
-        return Reply::bad_request("a file name is 1 to 128 bytes without slashes or control characters, and after is a sequence number").into_response();
+        return Reply::bad_request("a file name is 1 to 128 bytes without slashes, control or invisible formatting characters, and after is a sequence number").into_response();
     };
     let (mut parts, _) = req.into_parts();
     let Ok(ws) = WebSocketUpgrade::from_request_parts(&mut parts, &()).await else {

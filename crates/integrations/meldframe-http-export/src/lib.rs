@@ -45,7 +45,7 @@ pub trait FrameSource: Send + Sync {
 pub fn input_schema() -> Value {
     json!({"type": "object", "required": ["file", "frame"], "additionalProperties": false, "properties": {
         "file": {"type": "string", "minLength": 1, "maxLength": 128,
-            "description": "The name of the file: 1 to 128 characters, no slashes or control characters."},
+            "description": "The name of the file: 1 to 128 characters, no slashes, control or invisible formatting characters."},
         "frame": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9_:.-]+$",
             "description": "The id of the frame to export, with everything inside it: 1 to 64 letters, digits, `_`, `-`, `:` and `.`."},
         "format": {"enum": ["css", "tailwind"], "default": "css",
@@ -152,7 +152,7 @@ impl ExportTool {
         if !meldframe_http::valid_file(&args.file) {
             return failure(
                 "invalid",
-                "a file name is 1 to 128 bytes without slashes or control characters",
+                "a file name is 1 to 128 bytes without slashes, control or invisible formatting characters",
                 false,
             );
         }
