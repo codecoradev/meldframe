@@ -32,8 +32,11 @@
     manage: ManageState;
     /** What draws the manage view: the Svelte dialog unless the editor hands another (the React pilot, E7.3 S9; `bindView` of the Properties panel is the same device). */
     manageView?: Component<ComponentProps<typeof ManageDialog>>;
+    /** What draw Import variables and Export variables, as `manageView` does for the manage view (the React pilot, E7.3 S10). */
+    importView?: Component<ComponentProps<typeof ImportVariablesDialog>>;
+    exportView?: Component<ComponentProps<typeof ExportVariablesDialog>>;
   }
-  let { panel, target, dispatch, events = [], io = { export: null, import: null }, manage, manageView: ManageView = ManageDialog }: Props = $props();
+  let { panel, target, dispatch, events = [], io = { export: null, import: null }, manage, manageView: ManageView = ManageDialog, importView: ImportView = ImportVariablesDialog, exportView: ExportView = ExportVariablesDialog }: Props = $props();
 
   // The manage view draws the rows of the panel, so it starts with the search cleared (the counts of a removal are the app layer's, of the whole file).
   let manageOpen = $state(false);
@@ -62,8 +65,8 @@
     <span bind:this={importButton} class="contents"><Button size="sm" onclick={() => (importOpen = true)} data-testid="var-import">Import variables</Button></span>
     <span bind:this={exportButton} class="contents"><Button size="sm" onclick={() => dispatch({ type: 'openVariablesExport' })} data-testid="var-export">Export variables</Button></span>
   </div>
-  <ImportVariablesDialog open={importOpen} onOpenChange={(o) => (importOpen = o)} result={io.import ?? null} {dispatch} opener={() => importButton?.querySelector('button')} />
-  <ExportVariablesDialog dialog={io.export ?? null} {dispatch} opener={() => exportButton?.querySelector('button')} />
+  <ImportView open={importOpen} onOpenChange={(o) => (importOpen = o)} result={io.import ?? null} {dispatch} opener={() => importButton?.querySelector('button')} />
+  <ExportView dialog={io.export ?? null} {dispatch} opener={() => exportButton?.querySelector('button')} />
   <ManageView open={manageOpen} onOpenChange={setManage} {panel} {manage} {events} {dispatch} opener={() => manageButton?.querySelector('button')} />
   {#each panel.collections.filter((c) => c.modes.length > 1) as c (c.id)}
     <div class="flex flex-col gap-1">

@@ -11,8 +11,8 @@
 //   (in apps/web) MELDFRAME_WEB_TOKEN=<.dev-token> MELDFRAME_SERVER=http://127.0.0.1:8084 MELDFRAME_WEB_FILE=<file> \
 //     MELDFRAME_WEB_ACTOR=person:ada npx vite --port 5185
 //   MELDFRAME_WEB_FILE=<file> MELDFRAME_DEMO_TOKEN2=<token 2> node packages/web-panels/scripts/hostile-names-e2e.mjs http://localhost:5185 http://127.0.0.1:8084
-// With MELDFRAME_UI=react the script opens the pages that have a React copy with their switch (/?react=layers,variables,properties,activity,manage
-// for the editor, so the Layers panel, the Variables panel, the Properties panel, the Activity panel with its lanes and the manage view are the React copies;
+// With MELDFRAME_UI=react the script opens the pages that have a React copy with their switch (/?react=layers,variables,properties,activity,manage,io
+// for the editor, so the Layers panel, the Variables panel, the Properties panel, the Activity panel with its lanes, the manage view and the Import and Export variables dialogs are the React copies;
 // /?react=export for the Export dialog; /?react=feedback for the error page) and first asks that React drew them.
 // MELDFRAME_E2E_SHOTS=<dir> saves page images (2x, 1440x900).
 // Needs the WASM bridge built (`just wasm-build`) and Playwright from the global module path. The web and server URLs must be loopback.
@@ -84,7 +84,7 @@ const batch = await tool(agent, 'apply_commands', { idempotencyKey: `hostile-${r
 ] });
 assert.equal(batch.ok, true, `the agent's write: ${JSON.stringify(batch)}`);
 
-const page = await open(react ? `${web}?react=layers,variables,properties,activity,manage` : web, { dsf: 2 });
+const page = await open(react ? `${web}?react=layers,variables,properties,activity,manage,io` : web, { dsf: 2 });
 await live(page);
 const layer = (id) => page.locator(`[data-testid=layer][data-id="${id}"]`);
 const fibre = (sel) => page.evaluate((s) => Object.keys(document.querySelector(s) ?? {}).some((k) => k.startsWith('__reactFiber$')), sel);
@@ -125,6 +125,45 @@ await check('Manage view: two modes whose names hold U+202E and U+200B are drawn
   await shot(page, react ? 'u9web-manage-react' : 'u9web-manage-svelte');
   await page.keyboard.press('Escape');
   await dlg.waitFor({ state: 'detached' });
+});
+
+await check('Export and Import variables: the text of the export and the report of an import carry clean names, by the copy that was asked for; the file name in the note is a known gap', async () => {
+  // The markup of a dialog without what the person typed (the field) and the exported text, which is file content: the first is looked at as markup, the second as text.
+  const chrome = (sel) => page.locator(sel).evaluate((e) => { const c = e.cloneNode(true); c.querySelectorAll('textarea,[data-testid=export-vars-code]').forEach((n) => n.remove()); return c.outerHTML; });
+  await page.click('[data-testid=var-export]');
+  const ex = page.locator('[data-testid=export-vars-dialog]');
+  await ex.waitFor();
+  assert.equal(await fibre('[data-testid=export-vars-dialog]'), react, react ? 'the Export variables dialog has no React fibre: the page fell back to Svelte' : 'the Export variables dialog has a React fibre on the Svelte run');
+  // The name of a mode is in a rule of the export (the default mode of a collection is in :root): its slug has no hidden character, and nor does the collection's name.
+  const code = await ex.locator('[data-testid=export-vars-code]').innerText();
+  assert.equal(hasHidden(code), false, 'the exported text holds a hidden character');
+  assert.ok(code.includes(`--appearance-${run}-color-bg: #ffffff;`), code);
+  assert.ok(code.includes(`:root[data-mode-appearance-${run}="da-rk"] {`), code);
+  assert.equal(hasHidden(await chrome('[data-testid=export-vars-dialog]')), false, 'the markup of the Export variables dialog holds a hidden character');
+  await shot(page, react ? 'u9web-export-variables-react' : 'u9web-export-variables-svelte');
+  await page.keyboard.press('Escape');
+  await ex.waitFor({ state: 'detached' });
+  await page.click('[data-testid=var-import]');
+  const im = page.locator('[data-testid=import-vars-dialog]');
+  await im.waitFor();
+  assert.equal(await fibre('[data-testid=import-vars-dialog]'), react, react ? 'the Import variables dialog has no React fibre: the page fell back to Svelte' : 'the Import variables dialog has a React fibre on the Svelte run');
+  // Names with the overrides in rules that are not the root: nothing is imported (the file is not changed) and the report names what was skipped.
+  await page.fill('[data-testid=import-vars-text]', `.card${RLO} { --local${ZWSP}: #ffffff; }\n.x { --other${RLO}: 1; }`);
+  await page.click('[data-testid=import-vars-import]');
+  await page.locator('[data-testid=import-vars-result][data-status=nothing]').waitFor();
+  const rows = await page.locator('[data-testid=import-vars-report] li').allInnerTexts();
+  assert.ok(rows.length >= 2, `the report has its lines: ${JSON.stringify(rows)}`);
+  assert.ok(rows.some((r) => r.includes('.card')) && rows.some((r) => r.includes('.x')), JSON.stringify(rows));
+  assert.equal(hasHidden(await chrome('[data-testid=import-vars-dialog]')), false, 'the markup of the Import variables dialog holds a hidden character');
+  await shot(page, react ? 'u9web-import-variables-react' : 'u9web-import-variables-svelte');
+  // A KNOWN GAP of rule U9, the same on both copies: the note about a file the person chose is made in the page from the name the browser gives, which the
+  // app layer never sees, so it is drawn as it came. This asserts the gap, so that whoever closes it (the note worded by the app layer) is sent here to change it.
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('[data-testid=import-vars-choose]')]);
+  await chooser.setFiles({ name: `th${RLO}eme${ZWSP}.css`, mimeType: 'text/css', buffer: Buffer.from(':root { --a: 1; }') });
+  await until('the note', async () => (await page.locator('[data-testid=import-vars-note]').innerText()) !== '');
+  assert.equal(await page.locator('[data-testid=import-vars-note]').innerText(), `Read th${RLO}eme${ZWSP}.css (17 bytes). Check it, then import.`, 'the file name in the note is clean now: the gap is closed, so change this check to assert it');
+  await page.keyboard.press('Escape');
+  await im.waitFor({ state: 'detached' });
 });
 
 await check('Layers panel: a node name with U+202E and U+200B is drawn clean, in the row, the label and the title', async () => {

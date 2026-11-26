@@ -20,10 +20,15 @@
 // Layers panel's empty state (the file has nodes), the icon of a shader node and, in the Properties panel, the shader node, the Text
 // section's weight select open, the chip of a variable that was removed (a binding whose variable is gone) and Absolute position
 // checked. A step only clicks and types: it never changes the file, so the second run starts from the file
-// the first one saw.
+// the first one saw (the page's actor must be the token's actor: start Vite with MELDFRAME_WEB_ACTOR set to the actor of the token in .dev-token, `agent:dev` unless the server was
+// given another, or the undo of the import steps below is not the page's own); the one exception is the import steps of `io-import`, which apply a style sheet and whose `finish` takes it back with one undo (and waits
+// for the server to have it) before the React page opens.
 // The Activity panel is imaged by pixels-activity-e2e.mjs: its rows are live (a batch the page watched arrive can be reverted, one that was
 // there when the page loaded cannot) and its lanes change with the clock, so it opens both copies at the same time on one file.
 // Not imaged in the manage view (`manage`, the dialog's element, opened by its Manage button): the question before removing a mode, the partial-counts notice, the error and status lines and a file with no collection.
+// The Export variables and Import variables dialogs are `io-export` and `io-import` (word `io`, opened by the two buttons of the Variables section's header). Not imaged
+// there: the export of a file with no variable, of a text over the limit, of a long preview cut at 400 lines and with warnings (the file has none of those), the import
+// of a text over 256 KiB, a report cut at its cap, a refusal naming a mode or a variable, and a file that could not be read.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -253,6 +258,48 @@ PANELS.manage = {
   ],
 };
 
+// The Export variables and Import variables dialogs (S10, the word `io`). Both are opened by the buttons of the Variables section's header. The import steps apply
+// a style sheet and ask for it a second time, so `finish` takes it back with one undo before the React page opens (the only steps of this script that change the file).
+const THEME = ':root { --background: #ffffff; --foreground: #0a0a0a; --primary: var(--foreground); --radius: 8px; --shadow: 0 1px 2px rgb(0 0 0 / 0.1); }\n.dark { --background: #0a0a0a; --foreground: #fafafa; }\n@theme { --color-brand-500: oklch(0.6 0.2 250); --spacing-4: 1rem; }';
+const filed = (p, name, bytes) => p.locator('[data-testid=import-vars-file]').setInputFiles({ name, mimeType: 'text/css', buffer: bytes });
+const importing = async (p, text, status) => {
+  await p.fill('[data-testid=import-vars-text]', text);
+  await p.click('[data-testid=import-vars-import]');
+  await p.locator(`[data-testid=import-vars-result][data-status=${status}]`).waitFor();
+};
+PANELS['io-export'] = {
+  word: 'io',
+  element: '[data-testid=export-vars-dialog]',
+  steps: [
+    { name: 'open (the summary, the preview, the help)', run: async (p) => { await p.click('[data-testid=var-export]'); await p.locator('[data-testid=export-vars-code]').waitFor(); } },
+    { name: 'Copy pressed (what it said, whichever it was)', run: async (p) => { await p.click('[data-testid=export-vars-copy]'); await p.waitForFunction(() => document.querySelector('[data-testid=export-vars-said]')?.textContent !== ''); } },
+  ],
+};
+PANELS['io-import'] = {
+  word: 'io',
+  element: '[data-testid=import-vars-dialog]',
+  // The undo is local at once and reaches the server op by op: the next page must not open before the server has all of it.
+  finish: async (p) => {
+    await p.keyboard.press('Control+z');
+    for (let i = 0; ; i++) {
+      const res = await fetch(`${server}/v1/files/${file}`, { headers: { authorization: `Bearer ${token}` } });
+      if ((await res.json()).variables?.collections?.length === 1) break;
+      assert.ok(i < 100, 'the undo of the import did not reach the server');
+      await sleep(200);
+    }
+  },
+  steps: [
+    { name: 'open, the field empty and focused', run: async (p) => { await p.click('[data-testid=var-import]'); await p.locator('[data-testid=import-vars-text]').waitFor(); } },
+    { name: 'a text in the field (Import and Clear on)', run: (p) => p.fill('[data-testid=import-vars-text]', THEME) },
+    { name: 'text with no variable: nothing to import, with its report', run: (p) => importing(p, '.card { --local: #ffffff; } body { color: #ff0000; }', 'nothing') },
+    { name: 'a text of 51 variables, refused with the pointer to import_tokens', run: (p) => importing(p, `:root {${Array.from({ length: 51 }, (_, i) => ` --many-${i}: ${i}px;`).join('')} }`, 'refused') },
+    { name: 'a file read into the field (the note says so)', run: async (p) => { await filed(p, 'theme.css', Buffer.from(THEME)); await p.waitForFunction(() => /^Read theme\.css/.test(document.querySelector('[data-testid=import-vars-note]')?.textContent ?? '')); } },
+    { name: 'a file of more than 1 MiB, not read (the note in the error colour)', run: async (p) => { await filed(p, 'huge.css', Buffer.alloc(1024 * 1024 + 1, 32)); await p.waitForFunction(() => /not read here/.test(document.querySelector('[data-testid=import-vars-note]')?.textContent ?? '')); } },
+    { name: 'the style sheet imported: what was added, the report with its kinds, the focus on Close', run: async (p) => { await p.fill('[data-testid=import-vars-text]', THEME); await p.click('[data-testid=import-vars-import]'); await p.locator('[data-testid=import-vars-result][data-status=imported]').waitFor(); } },
+    { name: 'the same text again, refused as a duplicate', run: (p) => importing(p, THEME, 'refused') },
+  ],
+};
+
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 
 async function pass(word, panel, react) {
@@ -281,6 +328,7 @@ async function pass(word, panel, react) {
     await sleep(200);
     out.push((await page.locator(panel.element).first().screenshot()).toString('base64'));
   }
+  await panel.finish?.(page);
   await ctx.close();
   assert.deepEqual(errors, [], `${word}: page errors`);
   if (refused.length) throw Object.assign(new Error(`${word}: the server refused a thumbnail (${refused.join(', ')})`), { refused: true });
