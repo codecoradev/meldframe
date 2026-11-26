@@ -99,7 +99,7 @@ impl CaptureTool {
             .is_some_and(|f| !meldframe_http::valid_file(f))
         {
             return Err(CaptureError::Invalid(
-                "a file name is 1 to 128 bytes without slashes or control characters".into(),
+                "a file name is 1 to 128 bytes without slashes, control or invisible formatting characters".into(),
             ));
         }
         if args.node_id.as_deref().is_some_and(|n| {
