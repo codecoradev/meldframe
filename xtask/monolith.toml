@@ -1,0 +1,85 @@
+# Configuration of `cargo xtask mm-check` (the modular monolith rule, D1 of
+# `docs/standards/modular-thin-ui.md`; the rules and their limits are in `xtask/src/monolith.rs`).
+#
+# Every allow-list entry has a reason and only goes down: an entry that no longer matches fails the
+# check as not needed, and `cargo xtask mm-check --base <ref>` rejects an entry that is not on the
+# base branch. Do not add entries to make a check pass; share the code instead.
+# Against the base, an entry may follow a move (same file name in `allow_shared`); it may not grow.
+
+# MM4: a pattern that belongs in one home. `ban` holds Rust source; it is compared token by token,
+# so spacing does not matter, and comments, strings and test code are not read. The digits of a hex
+# literal and of a `\u{..}` escape are compared without regard to case (`0x200b` is `0x200B`), and
+# an `_` stands for any one identifier (`_.len()` reads `hex.len()` and `s.len()`).
+
+[shared.hidden_text]
+home = "crates/core/meldframe-text"
+use = "use meldframe_text (is_hidden_text, first_hidden, plain, sanitize)"
+ban = [
+    # The ranges and single characters of the set (U+200B to 200F, 2028 to 202E, 2060 to 206F, the
+    # soft hyphen, the variation selectors, the byte order mark, the tag characters), written as
+    # a number or as a character.
+    "0x200B..=0x200F",
+    "'\\u{200B}'..='\\u{200F}'",
+    "0x2028..=0x202E",
+    "'\\u{2028}'..='\\u{202E}'",
+    "0x202A..=0x202E",
+    "'\\u{202A}'..='\\u{202E}'",
+    "0x2060..=0x206F",
+    "'\\u{2060}'..='\\u{206F}'",
+    "0xFE00..=0xFE0F",
+    "'\\u{FE00}'..='\\u{FE0F}'",
+    "0xE0000..=0xE007F",
+    "'\\u{E0000}'..='\\u{E007F}'",
+    "0xFEFF",
+    "'\\u{FEFF}'",
+    "0xAD",
+    "0x00AD",
+    "'\\u{AD}'",
+    "'\\u{00AD}'",
+    # A check that is only `is_control`, however it is spelled (`any(char::is_control)`,
+    # `any(|c| c.is_control() || ..)`).
+    "char::is_control",
+    "_.is_control()",
+]
+
+[shared.hex_colour]
+home = "crates/core/meldframe-css/src/color.rs"
+use = "use meldframe_css::color::is_hex"
+ban = ["matches!(_.len(), 3 | 4 | 6 | 8)"]
+
+[shared.asset_id]
+home = "crates/features/assets/assets/src/lib.rs"
+use = "use assets::is_asset_id"
+ban = ["b'0'..=b'9' | b'a'..=b'f'"]
+
+[shared.css_number]
+home = "crates/core/meldframe-css"
+use = "read the number with meldframe-css (one reader; D5 of docs/audits/2026-11-25-rust-modular-monolith.md)"
+ban = ["b'.' | b'-' | b'+'", "b'.' | b'+' | b'-'"]
+
+# MM4: files that write the `hex_colour` pattern themselves today.
+[allow_shared.hex_colour]
+"crates/core/meldframe-check/src/validate.rs" = "audit D2: this crate does not depend on meldframe-css, so the home must move to or below it"
+"crates/core/meldframe-render/src/resolve.rs" = "audit D2: this crate does not depend on meldframe-css, so the home must move to or below it"
+"crates/core/meldframe-variables/src/check.rs" = "audit D2: this crate does not depend on meldframe-css, so the home must move to or below it"
+"crates/features/export/export/src/names.rs" = "audit D2: export may depend on meldframe-css; use is_hex"
+
+# MM4: files that write the `asset_id` pattern themselves today.
+[allow_shared.asset_id]
+"crates/core/meldframe-app-model/src/assets.rs" = "audit D3: core cannot depend on the assets feature, so the home moves down"
+"crates/core/meldframe-check/src/validate.rs" = "audit D3: core cannot depend on the assets feature, so the home moves down"
+"crates/features/assets/assets/src/disk.rs" = "the two-digit shard name of the disk store, in the crate that owns the id (audit D3)"
+"crates/features/export/export/src/names.rs" = "audit D3: export may depend on assets; use is_asset_id"
+"crates/features/html-import/html-import/src/paint/image.rs" = "audit D3: the importer may depend on assets; use is_asset_id"
+
+# MM4: files that write the `css_number` pattern themselves today.
+[allow_shared.css_number]
+"crates/features/html-import/html-import-style/src/value.rs" = "audit D5: one CSS number reader; the importers share it once they are one crate (#315)"
+"crates/features/html-import/html-import/src/paint/lex.rs" = "audit D5: one CSS number reader; the importers share it once they are one crate (#315)"
+
+# MM4: files that write a character of the `hidden_text` set themselves today. Two are not checks.
+[allow_shared.hidden_text]
+"crates/features/design-review/design-review/src/contract.rs" = "test input of the store contract (test support kept in src): hostile characters a store must refuse, not a check"
+"crates/features/html-import/html-import-tree/src/text.rs" = "the HTML entity table maps &shy; to U+00AD, which is not a check; but the same file cleans report text with `!c.is_control()` (keeping tab and newline), a second copy of the hidden-character rule that moves to meldframe-text (U9, #311)"
+"crates/features/variables-import/variables-import/src/lib.rs" = "strips a leading byte order mark from the CSS text before it is read, which is not a check of hidden characters"
+
