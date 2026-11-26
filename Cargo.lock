@@ -1825,6 +1825,7 @@ dependencies = [
 name = "meldframe-layout"
 version = "0.0.0"
 dependencies = [
+ "meldframe-order",
  "meldframe-protocol",
  "serde",
 ]

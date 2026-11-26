@@ -1,10 +1,10 @@
+use meldframe_order::sib_cmp;
 use meldframe_protocol::{
     Bind, BorderPosition, DEFAULT_FILL, DEFAULT_OPACITY, DEFAULT_RADIUS, GradientKind, ImageFit,
     Node, NodeKind, TextAlign, Value, Variables,
 };
 use meldframe_variables::{ModeChoice, Resolver};
 use serde::Serialize;
-use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 /// What a box is drawn as. An ellipse is a rounded rectangle and a shader its plain box: the canvas
@@ -133,7 +133,7 @@ pub fn resolve_with(nodes: &[Node], vars: &Variables, choice: &ModeChoice) -> Ve
         kids.entry(key).or_default().push(n);
     }
     for list in kids.values_mut() {
-        list.sort_by(|a, b| sibling_order(a, b));
+        list.sort_by(|a, b| sib_cmp(a, b));
     }
     let mut out = Vec::with_capacity(nodes.len());
     let mut seen = HashSet::new();
@@ -232,18 +232,6 @@ fn visit<'a>(
             visit(Some(n.id.as_str()), kids, seen, out, cx);
         }
     }
-}
-
-/// Sibling order is (position, id); a node without a position keeps list order and comes before
-/// every positioned node.
-fn sibling_order(a: &Node, b: &Node) -> Ordering {
-    a.pos.cmp(&b.pos).then_with(|| {
-        if a.pos.is_empty() {
-            Ordering::Equal
-        } else {
-            a.id.cmp(&b.id)
-        }
-    })
 }
 
 /// `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa` as `(0xRRGGBB, alpha byte)`; a form with no alpha has 255. Anything else is no
