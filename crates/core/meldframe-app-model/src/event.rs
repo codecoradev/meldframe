@@ -55,6 +55,9 @@ pub enum Event {
         entity: VariableEntity,
         id: String,
     },
+    /// `AppState::last_actor` took in the attribution of the snapshot (`Action::Attribute`): the layer rows name more
+    /// actors.
+    AttributionChanged {},
     /// The search text of the Variables panel changed (trimmed).
     VariablesQueryChanged {
         query: String,

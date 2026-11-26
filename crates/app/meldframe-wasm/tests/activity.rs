@@ -81,7 +81,8 @@ fn a_batch_frame_makes_a_row_with_its_note_and_only_the_panel_changes() {
     assert_eq!(a["rows"][0]["note"], "Hero");
     assert_eq!(a["rows"][0]["status"], "applied");
     assert_eq!(a["lanes"][0]["actor"], "agent:x");
-    assert_eq!(a["lanes"][0]["kind"], "agent");
+    assert_eq!(a["lanes"][0]["view"]["kind"], "agent");
+    assert_eq!(a["lanes"][0]["view"]["name"], "x");
     assert_eq!(events(&mut b), ["activityChanged"]);
     assert_eq!(b.take_events_json(), "[]");
 }

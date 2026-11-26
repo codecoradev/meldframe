@@ -100,11 +100,11 @@ fn the_selection_and_the_last_actor_are_on_the_rows() {
     let rows = &l.app.state().layers;
     let back = rows.iter().find(|r| r.id == "back").unwrap();
     assert_eq!(
-        (back.selected, back.actor.as_deref()),
+        (back.selected, back.actor.as_ref().map(|v| v.actor.as_str())),
         (true, Some("agent:x"))
     );
     let page = rows.iter().find(|r| r.id == "page").unwrap();
-    assert_eq!((page.selected, page.actor.as_deref()), (false, None));
+    assert_eq!((page.selected, page.actor.as_ref()), (false, None));
 }
 
 #[test]

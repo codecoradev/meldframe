@@ -106,7 +106,7 @@ fn a_loaded_list_and_a_frame_reach_the_state_newest_first_with_the_text_of_n_as_
     assert_eq!(ids, ["3", "2", "1"]);
     assert_eq!(
         s["checkpoints"][2],
-        json!({"id": "1", "n": 1, "seq": 0, "kind": "runStart", "about": "agent:x", "atMs": T})
+        json!({"id": "1", "n": 1, "seq": 0, "kind": "runStart", "about": {"actor": "agent:x", "kind": "agent", "name": "x", "tone": "agent2"}, "atMs": T})
     );
     let skip = json!({"type": "frame", "nowMs": T, "frame": {"type": "checkpoint", "checkpoint": row(9, 4, "manual")}});
     assert_eq!(

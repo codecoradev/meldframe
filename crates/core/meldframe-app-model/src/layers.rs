@@ -1,5 +1,6 @@
 //! The Layers panel as plain data: the rows a front end draws, with the name already made safe to show (rule U9).
 
+use crate::actor::ActorView;
 use meldframe_protocol::NodeKind;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -24,7 +25,8 @@ pub struct LayerRow {
     /// The children are hidden (`Panels::collapsed`).
     pub collapsed: bool,
     pub selected: bool,
-    /// The actor of the last change to the node as the server stamped it, made safe as a lane key is
-    /// (`AppState::last_actor`); none for a node nobody changed since the page loaded.
-    pub actor: Option<String>,
+    /// Who made the last change to the node as the server stamped it (`AppState::last_actor`, made safe as a lane key
+    /// is): the same view as the lane and the touch ring of that actor carry. None for a node nobody changed since
+    /// the page loaded.
+    pub actor: Option<ActorView>,
 }

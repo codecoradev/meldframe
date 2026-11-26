@@ -2,6 +2,7 @@
 //! failed request was. The rules (the label, the roll, the order, what makes a row valid) are in
 //! `meldframe-checkpoints` and `meldframe-app-rules`; this file only holds data.
 
+use crate::actor::ActorView;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -75,11 +76,11 @@ pub struct Checkpoint {
     /// The actor the checkpoint is about: the agent whose run started, the actor of the batch being reverted.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub about: Option<String>,
+    pub about: Option<ActorView>,
     /// The actor that asked for it (none for a run start, which the server takes by its own rule).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub by: Option<String>,
+    pub by: Option<ActorView>,
     #[ts(type = "number")]
     pub at_ms: u64,
 }

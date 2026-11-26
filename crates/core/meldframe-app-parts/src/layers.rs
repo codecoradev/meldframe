@@ -2,7 +2,7 @@
 //! the page, front node first, with every name made safe to show (rule U9), so a front end draws `AppState::layers` and
 //! never reads a name from the file.
 
-use meldframe_app_model::LayerRow;
+use meldframe_app_model::{ActorView, LayerRow};
 use meldframe_order::sib_cmp;
 use meldframe_protocol::Node;
 use meldframe_text::{MAX_LABEL, label};
@@ -45,7 +45,7 @@ pub fn layer_rows(
             has_children: below.is_some_and(|k| !k.is_empty()),
             collapsed: folded,
             selected: picked.contains(n.id.as_str()),
-            actor: last_actor.get(&n.id).cloned(),
+            actor: last_actor.get(&n.id).map(|a| ActorView::of(a)),
         });
         if let Some(below) = below.filter(|_| !folded) {
             stack.extend(below.iter().map(|c| (*c, depth + 1)));

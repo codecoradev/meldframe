@@ -12,6 +12,7 @@ use crate::state::{Panel, Tool};
 use crate::variables::{BindField, VariableValue};
 use meldframe_protocol::{Command, ImageFit, Node, VarType, Variables};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use ts_rs::TS;
 
 /// Something a person did, or something the platform reports back.
@@ -53,6 +54,13 @@ pub enum Action {
     /// Hide or show the children of a layer.
     ToggleCollapsed {
         id: String,
+    },
+    /// Who changed each node last, as the snapshot the file was loaded from says (node id to actor). View state: the
+    /// app keeps it beside the changes it sees live and never over them, makes every actor safe to show as it does the
+    /// actor of a frame (rule U9), and skips an id that is not a node and an actor with nothing left. Sent once, by the
+    /// shell that loaded the file.
+    Attribute {
+        actors: BTreeMap<String, String>,
     },
     /// Make a node at a point (in the parent's space), select it and go back to the select tool. `w` and `h`
     /// give it a size in the same op (a node made by dragging a box); without them it has the default size.

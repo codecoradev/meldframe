@@ -3,8 +3,10 @@
 use crate::app::App;
 use crate::event::Event;
 use crate::state::Panel;
+use crate::text;
 use meldframe_app_parts::panel::{is_open, set_open, toggle_listed};
 use meldframe_app_parts::selection::known;
+use std::collections::{BTreeMap, HashSet};
 
 impl App {
     pub(crate) fn set_tool(&mut self, tool: crate::state::Tool) {
@@ -30,6 +32,25 @@ impl App {
         if self.is_open(panel) != open {
             set_open(&mut self.state.panels, panel, open);
             self.events.push(Event::PanelChanged { panel, open });
+        }
+    }
+
+    /// The snapshot's attribution joins `last_actor`: a node the file has, an actor with something left of it after the
+    /// strict clean, and never over a change seen live.
+    pub(crate) fn attribute(&mut self, actors: BTreeMap<String, String>) {
+        let nodes: HashSet<&str> = self.replica.nodes().iter().map(|n| n.id.as_str()).collect();
+        let mut taken = Vec::new();
+        for (id, raw) in actors {
+            if !nodes.contains(id.as_str()) || self.state.last_actor.contains_key(&id) {
+                continue;
+            }
+            if let Some(actor) = text::actor(&raw) {
+                taken.push((id, actor));
+            }
+        }
+        if !taken.is_empty() {
+            self.state.last_actor.extend(taken);
+            self.events.push(Event::AttributionChanged {});
         }
     }
 
