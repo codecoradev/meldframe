@@ -108,3 +108,14 @@ describe('every switch file that loads React on demand falls back to Svelte', ()
     });
   }
 });
+
+describe('the switch of the Activity panel (S8)', () => {
+  it('is the value `activity`, alone or in a list, and not the word next to it', () => {
+    expect(reactFor('activity', '?react=activity')).toBe(true);
+    expect(reactFor('activity', '?react=export,activity')).toBe(true);
+    expect(reactFor('activity', '?react=activities')).toBe(false);
+    expect(reactFor('activity', '?react=export')).toBe(false);
+    expect(reactFor('activity', '')).toBe(false);
+    expect(pilotPage('?react=activity', false)).toBeNull();
+  });
+});

@@ -30,7 +30,7 @@
   import LayersPanel from './react-pilot/LayersPanelSwitch.svelte'; // LayersPanel.svelte of web-panels, or its React copy with /?react=layers (E7.3, S5)
   import PropertiesPanel from './react-pilot/PropertiesPanelSwitch.svelte'; // PropertiesPanel.svelte of web-panels, or its React copy with /?react=properties (E7.3, S6)
   import VariablesPanel from './react-pilot/VariablesPanelSwitch.svelte'; // VariablesPanel.svelte of web-panels, or its React copy with /?react=variables (E7.3, S5)
-  import ActivityPanel from '@meldframe/web-activity/ActivityPanel.svelte';
+  import ActivityPanel from './react-pilot/ActivityPanelSwitch.svelte'; // ActivityPanel.svelte of web-activity, or its React copy with /?react=activity (E7.3, S8)
   import { toastFor } from '@meldframe/web-activity/tab';
   import { presetAction } from '@meldframe/web-shell/presets';
   import type { ExportScale } from '@meldframe/web-document/export';
