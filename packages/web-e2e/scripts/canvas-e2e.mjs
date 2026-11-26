@@ -1,6 +1,10 @@
 // Browser check of the canvas through the development harness: node packages/web-e2e/scripts/canvas-e2e.mjs [base-url]
 // Needs the dev server (npm run dev) and Playwright (resolved from the global module path). Not part of
 // `npm test`: it needs a browser. Each check prints one line; a failure exits non-zero.
+// MELDFRAME_UI=react opens the harness with `?react=canvas` (the React copy of the canvas, E7.3 slice S11; MELDFRAME_REACT_PANELS adds switch words,
+// such as `strict` for React's strict mode in development): a first check asks which framework drew the canvas (a React fibre on the host, so a
+// silent fallback to Svelte fails, and on the Svelte run none), every other check is the same on both, and a last check on React blocks the module
+// of the React canvas and asks that the Svelte canvas is drawn and paints (the match is on the paths of the Vite dev server's modules: dev server only).
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
@@ -8,6 +12,14 @@ import { createRequire } from 'node:module';
 const { chromium } = createRequire(import.meta.url)('playwright');
 
 const base = process.argv[2] ?? 'http://localhost:5173';
+const react = process.env.MELDFRAME_UI === 'react';
+const words = ['canvas', ...(process.env.MELDFRAME_REACT_PANELS ?? '').split(',').filter(Boolean)].join(',');
+/** The harness page, with the React copy of the canvas when MELDFRAME_UI=react. */
+const harness = (query = '') => {
+  const q = [query.replace(/^\?/, ''), react ? `react=${words}` : ''].filter(Boolean).join('&');
+  return `${base}/harness/canvas.html${q ? `?${q}` : ''}`;
+};
+const fibre = (page) => page.evaluate(() => Object.keys(document.querySelector('[role=application]') ?? {}).some((k) => k.startsWith('__reactFiber$')));
 const GL_ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const results = [];
 const check = async (name, fn) => {
@@ -46,7 +58,7 @@ const launch = async (args) => {
   return b;
 };
 
-async function open(browser, query = '') {
+async function open(browser, query = '', blockReact = false) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => {
     pageErrors.push(e.message);
@@ -78,7 +90,8 @@ async function open(browser, query = '') {
       return out;
     };
   });
-  await page.goto(`${base}/harness/canvas.html${query}`);
+  if (blockReact) await page.route('**/canvas/react/Canvas.tsx*', (r) => r.abort());
+  await page.goto(harness(query));
   await page.waitForSelector('[data-renderer]');
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(500);
@@ -91,6 +104,9 @@ const H = (page, expr) => page.evaluate(`window.__harness.${expr}`);
   const browser = await launch(GL_ARGS);
   const page = await open(browser);
 
+  await check(`the canvas is drawn by ${react ? 'React' : 'Svelte'}`, async () => {
+    assert.equal(await fibre(page), react, react ? 'the host has no React fibre: the page fell back to Svelte' : 'the host has a React fibre on the Svelte run');
+  });
   await check('renders with WebGL and paints the frame fill and the canvas background', async () => {
     assert.equal((await H(page, 'stats()')).renderer, 'webgl');
     assert.deepEqual(await pixel(page, 523, 330), [230, 236, 232]);
@@ -222,11 +238,26 @@ const H = (page, expr) => page.evaluate(`window.__harness.${expr}`);
     assert.ok(hovers.length >= 2);
     assert.equal(hovers.at(-1), null);
   });
+
+  await check('the window is made smaller: the canvas follows the size of its host and still paints', async () => {
+    await page.setViewportSize({ width: 1000, height: 700 });
+    await page.waitForTimeout(500);
+    const s = await page.evaluate(() => {
+      const host = document.querySelector('[data-renderer]');
+      const c = host.querySelector('canvas');
+      return { hw: host.clientWidth, hh: host.clientHeight, cw: c.clientWidth, ch: c.clientHeight, bw: c.width };
+    });
+    assert.deepEqual([s.cw, s.ch], [s.hw, s.hh], `the canvas is ${s.cw} x ${s.ch} in a host of ${s.hw} x ${s.hh}`);
+    assert.equal(s.hw, 1000);
+    assert.equal(s.bw, s.hw, 'the backing store follows (device pixel ratio 1)');
+    assert.deepEqual(await pixel(page, 523, 330), [230, 236, 232]);
+    assert.deepEqual(await pixel(page, 100, 100), [22, 22, 24]);
+  });
   await page.close();
 
   const dense = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
   await check('devicePixelRatio 2: the canvas backing store is twice the CSS size', async () => {
-    await dense.goto(`${base}/harness/canvas.html`);
+    await dense.goto(harness());
     await dense.waitForSelector('[data-renderer]');
     const s = await dense.evaluate(() => {
       const c = document.querySelector('[data-renderer] canvas');
@@ -246,6 +277,18 @@ const H = (page, expr) => page.evaluate(`window.__harness.${expr}`);
     assert.deepEqual(await pixel(p2, 523, 330), [230, 236, 232]);
   });
   await soft.close();
+
+  if (react) {
+    // The chunk of the React canvas does not load: the switch draws the Svelte canvas, which starts and paints.
+    const blocked = await launch(GL_ARGS);
+    const p3 = await open(blocked, '', true);
+    await check('the chunk of the React canvas does not load: the Svelte canvas is drawn instead, and paints', async () => {
+      assert.equal(await fibre(p3), false, 'the host has a React fibre although its module was blocked');
+      assert.equal((await H(p3, 'stats()')).renderer, 'webgl');
+      assert.deepEqual(await pixel(p3, 523, 330), [230, 236, 232]);
+    });
+    await blocked.close();
+  }
 
   const failed = results.filter((r) => !r).length + pageErrors.length;
   if (pageErrors.length) console.log(`${pageErrors.length} uncaught page error(s)`);
