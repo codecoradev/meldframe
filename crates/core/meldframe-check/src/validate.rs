@@ -4,7 +4,7 @@ use crate::{ApplyError, Limits};
 use meldframe_css::color::is_hex;
 use meldframe_order::fracindex;
 use meldframe_protocol::{
-    Bind, Border, Gradient, ImageFill, Node, NodeKind, NodePatch, Shadow, is_asset_id,
+    Bind, Border, Gradient, ImageFill, Node, NodeKind, NodePatch, Shadow, is_asset_id, valid_id,
 };
 
 fn num(field: &'static str, v: f64, lo: f64, hi: f64) -> Result<(), ApplyError> {
@@ -54,14 +54,6 @@ fn bound_num(field: &'static str, b: &Bind<f64>, lo: f64, hi: f64) -> Result<(),
 fn color(field: &'static str, s: &str) -> Result<(), ApplyError> {
     strlen(field, s, 64)?;
     hex_color(field, s)
-}
-
-fn valid_id(id: &str, l: &Limits) -> bool {
-    !id.is_empty()
-        && id.chars().count() <= l.max_id
-        && id
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.'))
 }
 
 /// The canonical form of an asset id (lowercase hex SHA-256). Whether the asset exists is checked by the
@@ -175,7 +167,7 @@ pub fn check_node(n: &Node, l: &Limits) -> Result<(), ApplyError> {
             return Err(ApplyError::ImageOnText);
         }
     }
-    if !valid_id(&n.id, l) {
+    if !valid_id(&n.id, l.max_id) {
         return Err(ApplyError::InvalidId(n.id.clone()));
     }
     strlen("name", &n.name, l.max_name)?;

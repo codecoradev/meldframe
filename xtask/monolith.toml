@@ -78,6 +78,17 @@ ban = [
     "'a'..='f' | '0'..='9'",
 ]
 
+[shared.valid_id]
+home = "crates/core/meldframe-protocol/src/ids.rs"
+use = "use meldframe_protocol::valid_id (audit D4); map false to your own error"
+ban = [
+    "matches!(_, '_' | '-' | ':' | '.')",
+    "matches!(_, '_' | '-' | '.' | ':')",
+    "matches!(_, '-' | '_' | ':' | '.')",
+    "matches!(_, '.' | ':' | '_' | '-')",
+    "matches!(_, b'_' | b'-' | b':' | b'.')",
+]
+
 [shared.css_number]
 home = "crates/core/meldframe-css"
 use = "read the number with meldframe-css (one reader; D5 of docs/audits/2026-11-25-rust-modular-monolith.md)"

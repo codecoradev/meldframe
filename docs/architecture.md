@@ -75,7 +75,7 @@ apps/
   web/                    bin: Svelte 5 + PixiJS front end (renders meldframe-app state)
 crates/
   core/
-    meldframe-protocol    wire and model types (TypeScript generated from Rust), and the shapes of their ids written once (`ids.rs`: `is_asset_id`, the 64 lower-case hex digits of `image.assetId`, and `is_lower_hex`; `meldframe-check`, `meldframe-app-model`, the `assets` store, `export` and the HTML import call them, each with its own error)
+    meldframe-protocol    wire and model types (TypeScript generated from Rust), and the shapes of their ids written once (`ids.rs`: `is_asset_id`, the 64 lower-case hex digits of `image.assetId`, with `is_lower_hex`; and `valid_id(id, max)`, the charset `[A-Za-z0-9_:.-]` of a node, collection, mode or variable id with the caller's length cap; `meldframe-check`, `meldframe-variables`, `meldframe-app-model`, the `assets` store, `export`, `meldframe-http-export` and the HTML import call them, each with its own error)
     meldframe-order       fractional index and sibling order helpers
     meldframe-check       limits, ApplyError and every check on a value or a command (structure, decoration, image; variable commands and bindings through `meldframe-variables`)
     meldframe-css         CSS value readers shared by the importers (portable): a colour as hex and a length as pixels, moved out of `variables-import`; no dependency of its own, so the lowest crate every checker can call: `color::is_hex` is the one test of a hex colour (`#` and 3, 4, 6 or 8 hex digits) that `meldframe-check`, `meldframe-variables`, `meldframe-render` and `export` call, each with its own error (`cargo xtask mm-check` bans a second copy, MM4)

@@ -16,7 +16,7 @@ use meldframe_http::Shared;
 use meldframe_http::mcp::{Extra, ExtraCall};
 use meldframe_layout::StubMeasurer;
 use meldframe_module::Policy;
-use meldframe_protocol::{Node, Variables};
+use meldframe_protocol::{Node, Variables, valid_id};
 use meldframe_render::ModeChoice;
 use rmcp::model::{CallToolResult, Tool, ToolAnnotations};
 use serde::Deserialize;
@@ -46,7 +46,7 @@ pub fn input_schema() -> Value {
     json!({"type": "object", "required": ["file", "frame"], "additionalProperties": false, "properties": {
         "file": {"type": "string", "minLength": 1, "maxLength": 128,
             "description": "The name of the file: 1 to 128 characters, no slashes, control or invisible formatting characters."},
-        "frame": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9_:.-]+$",
+        "frame": {"type": "string", "minLength": 1, "maxLength": MAX_FRAME_ID, "pattern": "^[A-Za-z0-9_:.-]+$",
             "description": "The id of the frame to export, with everything inside it: 1 to 64 letters, digits, `_`, `-`, `:` and `.`."},
         "format": {"enum": ["css", "tailwind"], "default": "css",
             "description": "css: one rule per node in an inline stylesheet. tailwind: Tailwind v4 utilities on each element."},
@@ -64,14 +64,8 @@ struct Args {
     modes: Option<BTreeMap<String, String>>,
 }
 
-/// A node id as the file allows it (`meldframe-check`): checked before the id is looked up, logged or echoed.
-fn valid_frame(id: &str) -> bool {
-    !id.is_empty()
-        && id.chars().count() <= 64
-        && id
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.'))
-}
+/// The longest frame id the tool takes, as its schema says (`maxLength`).
+const MAX_FRAME_ID: usize = 64;
 
 fn failure(code: &str, message: &str, retryable: bool) -> CallToolResult {
     CallToolResult::structured_error(json!({"ok": false, "error": {
@@ -142,7 +136,9 @@ impl ExportTool {
                 );
             }
         };
-        if !valid_frame(&args.frame) {
+        // A node id as the file allows it (`meldframe_protocol::valid_id`): checked before the id is looked up, logged or
+        // echoed.
+        if !valid_id(&args.frame, MAX_FRAME_ID) {
             return failure(
                 "invalid",
                 "a frame id is 1 to 64 letters, digits, `_`, `-`, `:` and `.`",
