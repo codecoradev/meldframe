@@ -3,7 +3,9 @@
 use crate::{ApplyError, Limits};
 use meldframe_css::color::is_hex;
 use meldframe_order::fracindex;
-use meldframe_protocol::{Bind, Border, Gradient, ImageFill, Node, NodeKind, NodePatch, Shadow};
+use meldframe_protocol::{
+    Bind, Border, Gradient, ImageFill, Node, NodeKind, NodePatch, Shadow, is_asset_id,
+};
 
 fn num(field: &'static str, v: f64, lo: f64, hi: f64) -> Result<(), ApplyError> {
     if !v.is_finite() {
@@ -65,12 +67,7 @@ fn valid_id(id: &str, l: &Limits) -> bool {
 /// The canonical form of an asset id (lowercase hex SHA-256). Whether the asset exists is checked by the
 /// server, not here.
 fn check_image(im: &ImageFill) -> Result<(), ApplyError> {
-    let canonical = im.asset_id.len() == 64
-        && im
-            .asset_id
-            .bytes()
-            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'));
-    if canonical {
+    if is_asset_id(&im.asset_id) {
         Ok(())
     } else {
         Err(ApplyError::InvalidAssetId)

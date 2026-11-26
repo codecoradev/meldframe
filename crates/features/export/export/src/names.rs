@@ -93,8 +93,3 @@ pub(crate) fn css_escape(s: &str, keep: &str) -> String {
 pub(crate) fn hex_colour(s: &str) -> Option<&str> {
     is_hex(s).then_some(s)
 }
-
-/// An asset id as the file stores it: 64 lowercase hex digits.
-pub(crate) fn asset_id_ok(s: &str) -> bool {
-    s.len() == 64 && s.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
-}

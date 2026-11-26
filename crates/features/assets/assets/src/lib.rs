@@ -22,6 +22,7 @@ pub use usage::{Reservation, Reserve, Usage};
 #[cfg(not(target_arch = "wasm32"))]
 pub use disk::DiskBlobs;
 
+use meldframe_protocol::is_asset_id;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -126,11 +127,6 @@ pub fn asset_id(bytes: &[u8]) -> String {
         .iter()
         .map(|b| format!("{b:02x}"))
         .collect()
-}
-
-/// Whether `id` has the form of an asset id (64 lowercase hex characters), so a path built from it is safe.
-pub fn is_asset_id(id: &str) -> bool {
-    id.len() == 64 && id.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 /// The checks of an upload, in order: not empty, not over [`MAX_ASSET_BYTES`] (before it is hashed), a known

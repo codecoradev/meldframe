@@ -13,9 +13,7 @@
 //! An error is `{"error": {"code", "message", "retryable"}}`, as on the other routes; the codes are those of
 //! `docs/error-codes.md` ("Asset codes").
 
-use assets::{
-    AssetError, BlobStore, ImageType, MAX_ASSET_BYTES, Reserve, Usage, check_upload, is_asset_id,
-};
+use assets::{AssetError, BlobStore, ImageType, MAX_ASSET_BYTES, Reserve, Usage, check_upload};
 use axum::{
     Router,
     body::Body,
@@ -27,6 +25,7 @@ use axum::{
 use futures_util::StreamExt;
 use meldframe_host::{Principal, Refusal};
 use meldframe_http::{Failure, Reply, Shared, Slots, bearer, peer};
+use meldframe_protocol::is_asset_id;
 use serde_json::json;
 mod dir;
 mod list;

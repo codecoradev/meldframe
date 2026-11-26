@@ -15,4 +15,5 @@ workspace = true
 
 [dependencies]
 meldframe-module = { path = "../../../core/meldframe-module" }
+meldframe-protocol = { path = "../../../core/meldframe-protocol" }
 sha2 = "0.10"
