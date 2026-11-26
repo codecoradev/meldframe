@@ -67,6 +67,19 @@ const open = async () => {
   await until('the focus is in the dialog', inDialog);
 };
 const closed = () => dialog().waitFor({ state: 'detached' });
+const closeBy = async (how) => {
+  if (how === 'Escape') {
+    // Not from a field or the question: a Field keeps Escape for itself, and the question takes it to cancel only itself.
+    await $('[data-testid=manage-collections-title]').focus();
+    await page.keyboard.press('Escape');
+  } else if (how === 'Close') await $('[data-testid=manage-close]').click();
+  else {
+    await $('[data-testid=manage-new-collection]').click();
+    assert.equal(await dialog().count(), 1, 'a click inside keeps it open');
+    await page.mouse.click(4, 4);
+  }
+  await closed();
+};
 
 (async () => {
   const seen = await fetch(`${server}/v1/files/${file}`, { headers: auth });
@@ -107,17 +120,7 @@ const closed = () => dialog().waitFor({ state: 'detached' });
   });
   await check('Escape, the Close button and a click on the scrim each close it and give the focus back to the Manage button', async () => {
     for (const how of ['Escape', 'Close', 'scrim']) {
-      if (how === 'Escape') {
-        // Not from a field: a Field keeps Escape for itself (it puts its text back and leaves the field).
-        await $('[data-testid=manage-collections-title]').focus();
-        await page.keyboard.press('Escape');
-      } else if (how === 'Close') await $('[data-testid=manage-close]').click();
-      else {
-        await $('[data-testid=manage-new-collection]').click();
-        assert.equal(await dialog().count(), 1, 'a click inside keeps it open');
-        await page.mouse.click(4, 4);
-      }
-      await closed();
+      await closeBy(how);
       await until(`the focus is on Manage after ${how}`, async () => (await activeTestId()) === 'var-manage');
       await until('the page scrolls again', async () => (await bodyOverflow()) !== 'hidden');
       await open();
@@ -134,6 +137,22 @@ const closed = () => dialog().waitFor({ state: 'detached' });
     assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-current')), 'true');
     await page.keyboard.press('Escape');
     await closed();
+  });
+  await check('whichever way it closes, the app layer is told: an open rename field and an open question do not come back', async () => {
+    for (const how of ['Escape', 'Close', 'scrim']) {
+      for (const what of ['rename field', 'question']) {
+        await open();
+        if (what === 'question') await $('[data-testid=manage-remove-collection]').click();
+        else await $('[data-rename^="collection:"]').click();
+        await $(what === 'question' ? '[data-testid=remove-confirm]' : '[data-testid=manage-renaming-collection]').waitFor();
+        await closeBy(how);
+        await until(`the focus is on Manage after ${how}`, async () => (await activeTestId()) === 'var-manage');
+        await open();
+        assert.equal(await $('[data-testid=manage-renaming-collection]').count(), 0, `the rename field came back after ${how}`);
+        assert.equal(await $('[data-testid=remove-confirm]').count(), 0, `the question came back after ${how}`);
+        await closeBy('Escape');
+      }
+    }
   });
   if (react) {
     // The React dialog loads on demand. A chunk that does not load must leave the Svelte dialog, never a Manage button that opens nothing.
