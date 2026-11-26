@@ -12,15 +12,14 @@
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { BORDER_POSITIONS, borderPositionAction, removeBorderAction } from '@meldframe/web-document/decoration';
   import { textAction } from '@meldframe/web-document/properties';
+  import { round2, sender } from './fields';
 
   interface Props {
     properties: Properties;
     dispatch: (a: Action) => void;
   }
   let { properties: p, dispatch }: Props = $props();
-  const send = (a: Action | null) => {
-    if (a) dispatch(a);
-  };
+  const send = $derived(sender(dispatch));
   const on = $derived(p.border.width > 0);
   // The button goes away with the border, so focus moves first, to the width field (which stays and is what the button
   // changes), and the action is sent after: focus never falls to the page, whenever the document answers.
@@ -33,7 +32,7 @@
 
 <Section title="Border">
   <div bind:this={widths} class="grid grid-cols-2 gap-2">
-    <Field label="Border width" suffix="px" mono value={String(Math.round(p.border.width * 100) / 100)} onCommit={(raw) => send(textAction(p, { type: 'borderWidth' }, raw))} testId="prop-border-width" />
+    <Field label="Border width" suffix="px" mono value={round2(p.border.width)} onCommit={(raw) => send(textAction(p, { type: 'borderWidth' }, raw))} testId="prop-border-width" />
     <Field label="Border colour" mono value={p.border.color} onCommit={(raw) => send(textAction(p, { type: 'borderColor' }, raw))} testId="prop-border-color">
       {#snippet lead()}<i class="block size-4 shrink-0 rounded-sm border border-border" style:background={p.border.color}></i>{/snippet}
     </Field>

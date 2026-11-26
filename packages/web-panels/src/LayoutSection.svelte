@@ -10,15 +10,14 @@
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { ALIGNS, alignAction, JUSTIFIES, justifyAction, LAYOUT_MODES, layoutAction, SIDES } from '@meldframe/web-document/layout';
   import { textAction } from '@meldframe/web-document/properties';
+  import { sender } from './fields';
 
   interface Props {
     properties: Properties;
     dispatch: (a: Action) => void;
   }
   let { properties: p, dispatch }: Props = $props();
-  const send = (a: Action | null) => {
-    if (a) dispatch(a);
-  };
+  const send = $derived(sender(dispatch));
   // The app layer says the value the four sides share; when they differ the field is empty and says Mixed.
   const all = $derived(p.paddingUniform);
 </script>

@@ -10,16 +10,14 @@
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
   import { addShadowAction, removeShadowAction, SHADOW_NUMBERS, shadowAction } from '@meldframe/web-document/decoration';
+  import { round2, sender } from './fields';
 
   interface Props {
     properties: Properties;
     dispatch: (a: Action) => void;
   }
   let { properties: p, dispatch }: Props = $props();
-  const send = (a: Action | null) => {
-    if (a) dispatch(a);
-  };
-  const round = (v: number) => String(Math.round(v * 100) / 100);
+  const send = $derived(sender(dispatch));
 </script>
 
 <Section title="Shadow">
@@ -33,7 +31,7 @@
       </div>
       <div class="grid grid-cols-2 gap-2">
         {#each SHADOW_NUMBERS as n (n.field)}
-          <Field label="Shadow {i + 1} {n.label.toLowerCase()}" prefix={n.label} mono value={round(s[n.field])} onCommit={(raw) => send(shadowAction(p, i, n.field, raw))} testId="prop-shadow-{n.field}" />
+          <Field label="Shadow {i + 1} {n.label.toLowerCase()}" prefix={n.label} mono value={round2(s[n.field])} onCommit={(raw) => send(shadowAction(p, i, n.field, raw))} testId="prop-shadow-{n.field}" />
         {/each}
       </div>
     </div>
