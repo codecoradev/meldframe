@@ -11,6 +11,7 @@ kind = "core"
 
 [dependencies]
 meldframe-layout = { path = "../meldframe-layout" }
+meldframe-order = { path = "../meldframe-order" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-variables = { path = "../meldframe-variables" }
 serde = { version = "1", features = ["derive"] }

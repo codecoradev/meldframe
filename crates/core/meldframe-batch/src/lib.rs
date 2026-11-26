@@ -51,21 +51,9 @@ impl From<StoreError> for Stop {
     }
 }
 
-/// The ids of the nodes a command touches, as `Room::accept` counts them for `ifSeq`.
-pub fn touches(cmd: &Command) -> Vec<String> {
-    match cmd {
-        Command::UpdateNode { id, .. }
-        | Command::RemoveNode { id }
-        | Command::Reorder { id, .. } => vec![id.clone()],
-        Command::AddNode { node, .. } => vec![node.id.clone()],
-        Command::Reparent { id, parent_id, .. } => {
-            let mut v = vec![id.clone()];
-            v.extend(parent_id.clone());
-            v
-        }
-        other => meldframe_variables::touched(other),
-    }
-}
+/// The ids of the nodes a command touches, as `Room::accept` counts them for `ifSeq`: the room's own function,
+/// re-exported so that the callers of this crate keep one path to it.
+pub use meldframe_host::touches;
 
 /// Check `ops` of `actor` against `room` without writing. `Ok` means every check `Room::accept` would make
 /// passes for the whole batch.

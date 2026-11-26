@@ -19,6 +19,7 @@ mod note;
 mod panel;
 mod reducer;
 mod sink;
+mod store_key;
 mod summary;
 mod view;
 
@@ -33,6 +34,7 @@ pub use reducer::{
     MAX_RINGS, MAX_ROWS, MAX_TRIES, RING_MS, RUN_GAP_MS, Ring, WAIT_FOR_HEADER_MS, WORKING_MS,
 };
 pub use sink::{BatchCall, BatchSink, Marked};
+pub use store_key::store_key;
 pub use summary::{MAX_NAME_CHARS, MAX_NAMES, MAX_SHOWN, Summary};
 pub use view::{Lane, LaneKind, LaneState, MAX_RUNS, Row, Run, Status};
 
