@@ -15,7 +15,7 @@
   import ExportVariablesDialog from '@meldframe/web-variables-io/ExportVariablesDialog.svelte';
   import ImportVariablesDialog from '@meldframe/web-variables-io/ImportVariablesDialog.svelte';
   import ManageDialog from '@meldframe/web-variables/ManageDialog.svelte';
-  import { FIELD_LABEL, bindAction, display, listedCount, modeAction, modeName, shownValue, swatch, truncated, valueAction } from './variables';
+  import { FIELD_LABEL, beforeManage, bindAction, display, listedCount, modeAction, modeName, shownValue, swatch, truncated, valueAction } from './variables';
 
   interface Props {
     panel: VariablesPanel;
@@ -34,7 +34,8 @@
   let manageButton = $state<HTMLElement | null>(null);
   const setManage = (open: boolean) => {
     manageOpen = open;
-    if (open && panel.query.trim() !== '') dispatch({ type: 'setVariablesQuery', query: '' });
+    const clear = open ? beforeManage(panel) : null;
+    if (clear) dispatch(clear);
   };
 
   // Import variables is open or closed on this page; Export variables is open while the app layer holds its text.

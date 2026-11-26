@@ -5,6 +5,7 @@
   state of its own.
 -->
 <script lang="ts">
+  import type { Component, ComponentProps } from 'svelte';
   import type { Action, AssetsState, BindField, FieldBinding, NodeKind, Picker, Properties } from '@meldframe/protocol';
   import Checkbox from '@meldframe/web-chrome/Checkbox.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
@@ -31,8 +32,10 @@
     /** How many nodes are selected: the empty state says which case it is. */
     selected: number;
     dispatch: (a: Action) => void;
+    /** The bind picker as the page draws it: the Svelte one unless the page gives another (the React pilot, `/?react=variables`). */
+    bindView?: Component<ComponentProps<typeof BindPicker>>;
   }
-  let { properties, picker = null, assets, selected, dispatch }: Props = $props();
+  let { properties, picker = null, assets, selected, dispatch, bindView: BindView = BindPicker }: Props = $props();
 
   const kindIcon: Record<NodeKind, IconName> = { frame: 'frame', rect: 'rectangle', ellipse: 'ellipse', text: 'text', shader: 'layers' };
   const round = (v: number) => String(Math.round(v * 100) / 100);
@@ -95,7 +98,7 @@
             <div class="col-span-2">{@render chip('Opacity', 'opacity', opacity, percent(p.opacity) + ' %')}</div>
           {:else}
             <div class="flex flex-col gap-2">
-              <span class="flex items-center justify-between text-text-muted">Opacity<BindPicker properties={p} field="opacity" {picker} {dispatch} /></span>
+              <span class="flex items-center justify-between text-text-muted">Opacity<BindView properties={p} field="opacity" {picker} {dispatch} /></span>
               <Field label="Opacity" suffix="%" value={percent(p.opacity)} onCommit={prop(p, 'opacity')} testId="prop-opacity" />
             </div>
           {/if}
@@ -104,7 +107,7 @@
               <div class="col-span-2">{@render chip('Corner radius', 'radius', radius, round(p.radius))}</div>
             {:else}
               <div class="flex flex-col gap-2">
-                <span class="flex items-center justify-between text-text-muted">Corner radius<BindPicker properties={p} field="radius" {picker} {dispatch} /></span>
+                <span class="flex items-center justify-between text-text-muted">Corner radius<BindView properties={p} field="radius" {picker} {dispatch} /></span>
                 <Field label="Corner radius" value={round(p.radius)} onCommit={prop(p, 'radius')} testId="prop-radius" />
               </div>
             {/if}
@@ -120,7 +123,7 @@
           <TextStyle properties={p} {dispatch} />
         </Section>
       {/if}
-      <FillSection properties={p} {picker} {assets} {dispatch} {chip} />
+      <FillSection properties={p} {picker} {assets} {dispatch} {chip} bindView={BindView} />
       <BorderSection properties={p} {dispatch} />
       <ShadowSection properties={p} {dispatch} />
     {/key}
