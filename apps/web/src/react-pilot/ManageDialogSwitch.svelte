@@ -2,11 +2,10 @@
   The temporary switch of the manage view (docs/react-web-plan.md, section 7, slice S9): what draws the Variables manage view in place
   of ManageDialog.svelte, through `VariablesPanelSwitch.svelte` (the Svelte panel takes it as `manageView`; the React panel's switch draws
   it beside the island). Without `/?react=manage` it draws the Svelte dialog (Bits UI); with it, the React dialog (Base UI's Dialog) in an
-  island, loaded on demand so that the editor's bundle does not carry React. The island draws every update to its end (`syncIsland.tsx`):
-  the dialog reads the events of each snapshot, and with the shared helper the events of a snapshot were lost (inferred: React keeping the
-  last of two updates). Delete `syncIsland.tsx` and import `island` from the shared helper when the shared island flush lands (S8,
-  fix/web-island-flush). The
-  dialog portals to the body, so its host element draws nothing (`display: contents`). If the React chunk does not load, the Svelte dialog is drawn instead, and the manage view still opens.
+  island, loaded on demand so that the editor's bundle does not carry React. The shared island helper draws each update to its end (`flushSync`, S8): the
+  dialog reads the events of each snapshot, and with the helper as it was the events of a snapshot were lost with `react=variables,manage`
+  (the cause, React keeping only the last of two updates in one task, is inferred, not shown; flushing does not help if the host hands the
+  events of two frames in one update). The dialog portals to the body, so its host element draws nothing (`display: contents`). If the React chunk does not load, the Svelte dialog is drawn instead, and the manage view still opens.
   It goes with the switch when the last slice removes the Svelte shell.
 -->
 <script lang="ts">
@@ -17,7 +16,7 @@
   let props: ComponentProps<typeof ManageDialog> = $props();
   // The React side, island helper included, loads on demand: the editor's bundle does not carry react-dom.
   const react = reactFor('manage', location.search)
-    ? Promise.all([import('./syncIsland'), import('@meldframe/web-variables/react/ManageDialog')]).then(([i, m]) => ({ island: i.syncIsland, component: m.ManageDialog }))
+    ? Promise.all([import('@meldframe/web-chrome/react/island'), import('@meldframe/web-variables/react/ManageDialog')]).then(([i, m]) => ({ island: i.island, component: m.ManageDialog }))
     : null;
 </script>
 
