@@ -1,5 +1,6 @@
 <!--
-  Development only, part of the React pilot (docs/react-web-plan.md, section 7): the Svelte reference of FixtureDialog.tsx,
+  Development only, part of the React pilot (docs/react-web-plan.md, section 7), and not part of the product: only the overlay
+  fixture pages import it, and those pages exist in development only (`import.meta.env.DEV`). The Svelte reference of FixtureDialog.tsx,
   the dialog that the "Dialog…" row of the overlay fixture opens (/?overlays=svelte). A small Bits UI Dialog that gives
   the focus back as ExportDialog.svelte does (`takeFocusBack` on `onCloseAutoFocus`), so that overlays-e2e.mjs follows
   the focus from the menu button into it and back on both pages.
