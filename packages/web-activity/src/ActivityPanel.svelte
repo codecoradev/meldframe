@@ -17,9 +17,9 @@
   import BatchItem from './BatchItem.svelte';
   import CheckpointCreate from './CheckpointCreate.svelte';
   import CheckpointList from './CheckpointList.svelte';
-  import { laneOpen, start, toggleLane, type Ui } from './controller';
+  import { aboutAfter, eventsSay, laneOpen, start, toggleLane, type About, type Ui } from './controller';
   import MessageLine from './MessageLine.svelte';
-  import { checkpointMade, clockText, laneSummary, laneViews, messageFor, rowKey, type Message } from './view';
+  import { clockText, laneSummary, laneViews, rowKey, type Message } from './view';
 
   interface Props {
     activity: ActivityState;
@@ -44,10 +44,9 @@
   const lanes = $derived(laneViews(activity, self));
   let ui = $state.raw<Ui>(start);
   // What the person asked for last decides the words of a refusal: `forbidden` means one thing for a review and another for a checkpoint.
-  let about = $state.raw<'checkpoint' | undefined>(undefined);
+  let about = $state.raw<About>(undefined);
   const send = (a: Action) => {
-    if (a.type === 'createCheckpoint' || (a.type === 'activity' && (a.op.type === 'confirmRevert' || a.op.type === 'confirmRestore'))) about = 'checkpoint';
-    else if (a.type === 'setBatchReview') about = undefined;
+    about = aboutAfter(about, a);
     dispatch(a);
   };
   // How many checkpoints this person asked for were made (the app layer says so by `Event.checkpointMade`): the name field empties.
@@ -60,13 +59,9 @@
     const now = events;
     if (now === seen) return;
     seen = now;
-    if (now.some((e) => e.type === 'checkpointMade')) {
-      made += 1;
-      say(checkpointMade);
-      return;
-    }
-    const m = messageFor(now, about);
-    if (m) say(m);
+    const says = eventsSay(now, about);
+    if (says.made) made += 1;
+    if (says.message) say(says.message);
   });
   function say(m: Message) {
     message = m;
@@ -119,7 +114,7 @@
                     selected={activity.selected?.actor === r.actor && activity.selected.keyPrefix === r.keyPrefix}
                     confirming={asking(r)}
                     canReview={activity.canReview}
-                    onReview={(state) => dispatch(setReview(r, state))}
+                    onReview={(state) => send(setReview(r, state))}
                     onShow={() => send(show(r))}
                     onAskRevert={() => send(askRevert(r))}
                     onRevert={() => send(confirmRevert(r))}
@@ -139,7 +134,7 @@
       </div>
     {/each}
     {#if activity.hasOlder}
-      <Button size="sm" onclick={() => dispatch(older())} data-testid="older">Show older batches</Button>
+      <Button size="sm" onclick={() => send(older())} data-testid="older">Show older batches</Button>
     {/if}
   </Section>
   <Section title="Checkpoints">
