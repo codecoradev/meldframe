@@ -12,7 +12,7 @@ usage: tools/connect-claude.sh [--port N | --listen HOST:PORT] [--token TOKEN] [
 
 Prints the `claude mcp add` line for the MCP endpoint of a development server.
 
-Server address, first that is set wins:
+Server address (--port and --listen are alternatives: both together are refused), first that is set wins:
   --port N              the server listens on 127.0.0.1:N
   --listen HOST:PORT    the same value as MELDFRAME_LISTEN
   MELDFRAME_LISTEN      in the environment (0.0.0.0 or [::] is printed as 127.0.0.1)
@@ -38,7 +38,7 @@ EOF
 
 die() { echo "connect-claude: $1" >&2; exit 1; }
 
-listen=""; token=""; name="meldframe"; from_file=0
+listen=""; token=""; name="meldframe"; from_file=0; got_port=0; got_listen=0
 while [ $# -gt 0 ]; do
   # --option=value is read as --option value, so each option is parsed in one place
   case "$1" in
@@ -46,14 +46,15 @@ while [ $# -gt 0 ]; do
   esac
   case "$1" in
     -h | --help) usage; exit 0 ;;
-    --port) [ $# -ge 2 ] || die "--port needs a number"; listen="127.0.0.1:$2"; shift 2 ;;
-    --listen) [ $# -ge 2 ] || die "--listen needs HOST:PORT"; listen="$2"; shift 2 ;;
+    --port) [ $# -ge 2 ] || die "--port needs a number"; listen="127.0.0.1:$2"; got_port=1; shift 2 ;;
+    --listen) [ $# -ge 2 ] || die "--listen needs HOST:PORT"; listen="$2"; got_listen=1; shift 2 ;;
     --token) [ $# -ge 2 ] || die "--token needs a value"; token=$2; shift 2 ;;
     --name) [ $# -ge 2 ] || die "--name needs a value"; name="$2"; shift 2 ;;
     *) die "unknown argument (see --help)" ;;
   esac
 done
 
+[ "$got_port$got_listen" != 11 ] || die "use --port or --listen, not both"
 [ -n "$listen" ] || listen="${MELDFRAME_LISTEN:-127.0.0.1:8080}"
 case "$listen" in
   *:*) ;;
