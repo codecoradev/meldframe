@@ -43,6 +43,7 @@ const LOCAL: Record<string, string> = {
   limit: 'That is the most there can be.',
   min_stops: 'A gradient keeps at least two stops.',
   no_gradient: 'This node has no gradient.',
+  part_not_found: 'That shadow or gradient stop is not there any more.',
   no_image: 'This node has no image to show.',
   gradient_on_text: 'Text is painted with a colour: put the gradient on a frame or a shape behind it.',
   not_selected: 'Select that node first.',

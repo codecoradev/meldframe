@@ -14,6 +14,12 @@ use meldframe_protocol::{
 /// The fewest stops of a gradient (the core refuses fewer as `E_INVALID_GRADIENT`); the most is the core's limit.
 pub const MIN_STOPS: usize = 2;
 
+/// A gradient angle as the file keeps it: within one turn, 0 up to 360, and never `-0.0`. A typed 360 over 0 is no
+/// change, because both are this one value.
+pub fn within_turn(angle: f64) -> f64 {
+    angle.rem_euclid(360.0) + 0.0
+}
+
 /// The patch one `Property` makes on a node, `None` when there is nothing to change, or the code of a refusal. `painted` is
 /// the colour the fill paints now (a bound fill resolved), the first stop of a gradient made from it.
 pub fn property_patch(
@@ -73,7 +79,7 @@ pub fn property_patch(
             if !a.is_finite() {
                 return Err("invalid");
             }
-            g.angle = a.rem_euclid(360.0);
+            g.angle = within_turn(a);
             patch.gradient = Some(Some(g));
         }
         Property::GradientStop { index, pos, color } => {

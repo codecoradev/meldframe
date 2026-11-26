@@ -231,6 +231,8 @@ pub struct Properties {
     pub position_locked: bool,
     /// Settings that have no effect where the node is, in the order of the fields.
     pub notes: Vec<LayoutNote>,
+    /// Which sections of the panel this kind of node has.
+    pub sections: Sections,
     pub text: String,
     pub font_size: f64,
     /// The weight (100 to 900 in steps of 100) and the alignment of a text; none for any other kind of node.
@@ -248,6 +250,21 @@ pub struct Properties {
     pub bound: Vec<String>,
     /// The same fields with the variable each one holds, for the chip a bound field shows.
     pub bindings: Vec<FieldBinding>,
+}
+
+/// Which of the optional sections of the panel a node has: the canvas draws no corners on text and an ellipse, a frame
+/// alone clips and lays out its children, a text alone has the Text section, and the Margin section is there in a flow
+/// and wherever the node has a margin or is absolute (a note says they have no effect where it is, and the fields that
+/// clear them must not be hidden by it).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Sections {
+    pub radius: bool,
+    pub clip: bool,
+    pub font_size: bool,
+    pub layout: bool,
+    pub placement: bool,
 }
 
 /// A field of the selected node and the variable it is bound to.

@@ -68,7 +68,7 @@ fn a_bad_border_is_refused_by_the_core_and_changes_nothing() {
     open(&mut l);
     l.send(set("r1", Property::BorderWidth(-1.0)));
     l.send(set("r1", Property::BorderColor("red".into())));
-    assert_eq!(refused(&mut l), vec!["invalid", "invalid"]);
+    assert_eq!(refused(&mut l), vec!["invalid", "E_INVALID_COLOR"]);
     assert_eq!(props(&l).border.width, 0.0);
 }
 
@@ -149,6 +149,6 @@ fn a_shadow_that_is_not_there_or_not_valid_is_refused() {
             shadow: not_a_colour,
         },
     ));
-    assert_eq!(refused(&mut l), vec!["invalid"]);
+    assert_eq!(refused(&mut l), vec!["E_INVALID_COLOR"]);
     assert_eq!(props(&l).shadows[0].blur, 8.0);
 }

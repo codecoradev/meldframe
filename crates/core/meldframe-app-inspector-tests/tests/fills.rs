@@ -245,7 +245,7 @@ fn a_stop_is_edited_by_position_and_colour_and_held_between_its_neighbours() {
             color: "red".into(),
         },
     ));
-    assert_eq!(refused(&mut l), vec!["invalid"]);
+    assert_eq!(refused(&mut l), vec!["E_INVALID_COLOR"]);
     l.send(set(
         "r1",
         Property::GradientStop {

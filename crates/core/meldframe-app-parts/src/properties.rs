@@ -3,7 +3,7 @@
 use crate::layout::{is_layout, layout_notes, sides, uniform};
 use crate::panel::selected_node;
 use crate::property::MIN_STOPS;
-use meldframe_app_model::{BindField, FieldBinding, FillKind, Properties};
+use meldframe_app_model::{BindField, FieldBinding, FillKind, Properties, Sections};
 use meldframe_check::Limits;
 use meldframe_protocol::{Bind, GradientKind, Node, NodeKind, Variables};
 use meldframe_render::Fields;
@@ -72,6 +72,7 @@ pub fn properties(
         .collect();
     let flows = parent.is_some_and(is_layout);
     let is_text = n.kind == NodeKind::Text;
+    let margin = sides(n.margin());
     let at = drawn.unwrap_or(Drawn {
         x: n.x,
         y: n.y,
@@ -102,7 +103,7 @@ pub fn properties(
         gap: n.gap,
         padding: sides(n.pad()),
         padding_uniform: uniform(n.pad()),
-        margin: sides(n.margin()),
+        margin,
         sw: n.sw,
         sh: n.sh,
         align: n.align,
@@ -111,6 +112,17 @@ pub fn properties(
         in_layout: flows,
         position_locked: drawn.is_some() && flows && !n.absolute,
         notes: layout_notes(n, parent),
+        sections: Sections {
+            radius: matches!(n.kind, NodeKind::Frame | NodeKind::Rect | NodeKind::Shader),
+            clip: n.kind == NodeKind::Frame,
+            font_size: is_text,
+            layout: n.kind == NodeKind::Frame,
+            placement: flows
+                || n.absolute
+                || [margin.top, margin.right, margin.bottom, margin.left]
+                    .iter()
+                    .any(|v| *v > 0.0),
+        },
         text: n.text.clone(),
         font_size: n.font_size,
         font_weight: is_text.then_some(n.font_weight),
