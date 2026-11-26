@@ -14,6 +14,7 @@ pub mod actor;
 pub mod assets;
 pub mod checkpoint;
 mod classify;
+pub mod confirm;
 pub mod effect;
 pub mod event;
 pub mod export;
@@ -39,6 +40,7 @@ pub use assets::{ASSET_LIST_MAX, ASSET_PAGE, ASSET_PAGE_MAX, AssetInfo, AssetPag
 pub use checkpoint::{
     Checkpoint, CheckpointKind, CheckpointRequest, CheckpointRow, CheckpointsStatus,
 };
+pub use confirm::{ActivityOp, RightTab};
 pub use effect::{Effect, OutOp};
 pub use event::{Event, RevertSkip, RevertSkipReason, VariableEntity};
 pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget};

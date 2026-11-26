@@ -1,8 +1,9 @@
 // The rules of where the layout puts things, in px, from the size tokens. Pure, so the no-overlap rule is a test.
+import type { RightTab } from '@meldframe/protocol';
 import { size, space } from '@meldframe/web-tokens/tokens';
 
-/** The two sides of the right panel card: the Design side is 288 wide, the Activity tab 360 (Activity board). */
-export type RightTab = 'design' | 'activity';
+/** The two sides of the right panel card (`AppState.rightTab`, the app layer's): the Design side is 288 wide, the Activity tab 360 (Activity board). */
+export type { RightTab };
 export const rightWidth = (tab: RightTab): number => (tab === 'activity' ? size.activity : size.inspector);
 
 /** Inset of an open panel card from the window edge (Panels board), and the gap kept between a card and the tool bar. */

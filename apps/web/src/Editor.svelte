@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
   import { onDestroy, onMount, untrack } from 'svelte';
-  import type { Action } from '@meldframe/protocol';
+  import type { Action, RightTab } from '@meldframe/protocol';
   import { HOME, formatZoom, type Camera } from '@meldframe/web-canvas/camera';
   import { displayText, type Engine } from '@meldframe/web-link/engine';
   import type { LayoutSwitch } from '@meldframe/web-link/layoutswitch';
@@ -31,7 +31,7 @@
   import PropertiesPanel from '@meldframe/web-panels/PropertiesPanel.svelte';
   import VariablesPanel from './react-pilot/VariablesPanelSwitch.svelte'; // VariablesPanel.svelte of web-panels, or its React copy with /?react=variables (E7.3, S5)
   import ActivityPanel from '@meldframe/web-activity/ActivityPanel.svelte';
-  import { tabChange, toastFor, type RightTab } from '@meldframe/web-activity/tab';
+  import { toastFor } from '@meldframe/web-activity/tab';
   import { presetAction } from '@meldframe/web-shell/presets';
   import type { ExportScale } from '@meldframe/web-document/export';
   // The two switch files draw ExportDialog.svelte and ExportSection.svelte of web-export, or their React copies with /?react=export (E7.3, S2).
@@ -117,16 +117,12 @@
   let toast = $state<ToastView | null>(null);
   const toaster = new Toaster((t) => (toast = t), duration.notice);
   const showNotice = (text: string) => toaster.show(text);
-  let rightTab = $state<RightTab>('design');
-  const goTab = (t: RightTab) => {
-    const c = tabChange(rightTab, t);
-    rightTab = c.tab;
-    c.actions.forEach(dispatch);
-  };
+  // The tab of the right card is the app layer's (`state.rightTab`): choosing Activity asks for the batches there.
+  const goTab = (tab: RightTab) => dispatch({ type: 'activity', op: { type: 'setTab', tab } });
   // Only the events are tracked: a change of tab or a panel toggle must not show an old refusal again.
   $effect(() => {
     const events = snap.events;
-    const text = untrack(() => toastFor(events, rightTab === 'activity' && snap.state.panels.properties));
+    const text = untrack(() => toastFor(events, snap.state.rightTab === 'activity' && snap.state.panels.properties));
     if (text) untrack(() => showNotice(text));
   });
   onDestroy(() => toaster.destroy());
@@ -330,7 +326,7 @@
   helpOpen={overlay === 'help'} onHelp={(open) => (overlay = open ? 'help' : null)}
   paletteOpen={overlay === 'palette'} onPalette={(open) => (overlay = open ? 'palette' : null)}
   {autoLayout} onAutoLayout={layout ? () => (autoLayout = toggleWithNotice(layout, showNotice)) : undefined}
-  tab={rightTab} activityBadge={snap.state.activity.unreviewedCount}
+  tab={snap.state.rightTab} activityBadge={snap.state.activity.unreviewedCount}
   onTab={goTab}
   {...shellParts}
 >

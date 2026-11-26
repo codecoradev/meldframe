@@ -3,6 +3,7 @@
 use crate::activity::ActivityState;
 use crate::assets::AssetsState;
 use crate::checkpoint::{Checkpoint, CheckpointsStatus};
+use crate::confirm::RightTab;
 use crate::export::ExportState;
 use crate::layers::LayerRow;
 use crate::layout::{LayoutNote, Sides};
@@ -65,6 +66,9 @@ pub struct AppState {
     pub manage: ManageState,
     /// The Activity panel (E5.1): lanes, batches with their notes and review states, and touch rings.
     pub activity: ActivityState,
+    /// The tab of the right card (`Action::Activity` with `ActivityOp::SetTab`).
+    #[serde(default)]
+    pub right_tab: RightTab,
     /// Export (D9): the frame an export acts on, and the dialog while it is open.
     #[serde(default)]
     pub export: ExportState,
