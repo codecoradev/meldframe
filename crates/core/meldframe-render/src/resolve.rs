@@ -238,10 +238,7 @@ fn visit<'a>(
 /// `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa` as `(0xRRGGBB, alpha byte)`; a form with no alpha has 255. Anything else is no
 /// fill.
 fn parse_fill(css: &str) -> Option<(u32, u8)> {
-    if !is_hex(css) {
-        return None;
-    }
-    let hex = css.strip_prefix('#')?;
+    let hex = css.strip_prefix('#').filter(|_| is_hex(css))?;
     let v = u32::from_str_radix(hex, 16).ok()?;
     let short = |v: u32| {
         // One digit each, doubled: `#f80` is `#ff8800`.
@@ -253,6 +250,7 @@ fn parse_fill(css: &str) -> Option<(u32, u8)> {
         4 => Some((short(v >> 4), ((v & 15) * 17) as u8)),
         6 => Some((v, 255)),
         8 => Some((v >> 8, (v & 255) as u8)),
+        // `is_hex` let only the four lengths above through; the match still has to be total.
         _ => None,
     }
 }
