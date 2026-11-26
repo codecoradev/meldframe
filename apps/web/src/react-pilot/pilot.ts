@@ -9,6 +9,9 @@
 //   /?react=palette     the command palette and the shortcut sheet drawn by React, in the editor and on /?layout (E7.3, S4):
 //                        the Layout draws what `shell.ts` hands it (PaletteSwitch.svelte, ShortcutHintSwitch.svelte).
 //   /?react=layers      the Layers panel drawn by React (E7.3, S5): LayersPanelSwitch.svelte, which Editor.svelte imports.
+//   /?react=variables   the Variables panel, the bind picker and its list drawn by React (E7.3, S5): VariablesPanelSwitch.svelte,
+//                        which Editor.svelte imports, and BindPickerSwitch.svelte, which `bindParts` in shell.ts hands to the Properties
+//                        panel. The three dialogs of the panel stay Svelte (S9, S10): the switch file draws them beside the island.
 // packages/web-chrome/scripts/overlays-e2e.mjs asks the two fixtures the same questions; states-e2e.mjs runs on the first with MELDFRAME_UI=react.
 import { mount } from 'svelte';
 

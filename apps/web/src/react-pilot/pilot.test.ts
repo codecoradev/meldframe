@@ -21,6 +21,13 @@ describe('the switch of a React panel (S2)', () => {
   it('does not turn the editor into the state matrix page', () => {
     expect(pilotPage('?react=export', false)).toBeNull();
   });
+  it('names the Variables panel and its bind picker with one word, `variables`, and not the Layers panel (S5)', () => {
+    expect(reactFor('variables', '?react=variables')).toBe(true);
+    expect(reactFor('variables', '?react=layers,variables')).toBe(true);
+    expect(reactFor('variables', '?react=layers')).toBe(false);
+    expect(reactFor('variables', '?react=variable')).toBe(false);
+    expect(reactFor('layers', '?react=variables')).toBe(false);
+  });
 });
 
 describe('the switch of the React pilot', () => {
