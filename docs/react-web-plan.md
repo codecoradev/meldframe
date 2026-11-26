@@ -146,7 +146,7 @@ A port slice adds the React files and later deletes the Svelte ones, so its chan
 | S12 | The shell flips: `Layout`, `LayoutDemo`, `TextEditor` (312), then `Editor`, `App`, `Harness`, `main.ts` (about 640, in two); one React root; the island helper and the switch go | all scripts | S2 to S11 |
 | S13 | Svelte is gone: the plugin, `svelte`, `bits-ui`, `svelte-check`, `eslint-plugin-svelte`, the Svelte paths of `ui-literals`, the `.svelte` scans; docs (`AGENTS.md`, `docs/architecture.md`, `docs/ui-design.md`, ADR-0008 and ADR-0026 get a status note) | all scripts | S12 |
 
-The slices of `web-panels`, `web-activity` and `web-variables` wait for the audit findings that move their rules into `meldframe-app` (P1 and P2 of #307: #319 to #323), so no rule is ported twice; the findings of #324 are decided before S12. About 17 pull requests; no freeze: new web UI after S0 is written in React as an island, never as a new `.svelte` file (question 4).
+The slices of `web-panels`, `web-activity` and `web-variables` wait for the audit findings that move their rules into `meldframe-app` (P1 and P2 of #307: #319 to #323), so no rule is ported twice; the findings of #324 are decided before S12 (proposals and the questions for the owner: `docs/front-end-rules-decisions.md`). About 17 pull requests; no freeze: new web UI after S0 is written in React as an island, never as a new `.svelte` file (question 4).
 
 ## 9. Questions for the owner
 
@@ -156,6 +156,7 @@ The slices of `web-panels`, `web-activity` and `web-variables` wait for the audi
 4. A stop on new `.svelte` files once S0 is merged (recommended).
 5. Whether the audit moves (#319 to #323) strictly come first, as the table assumes, or panel by panel in parallel with the port.
 6. Accessibility lint: `eslint-plugin-jsx-a11y` needs `axe-core` (MPL-2.0) and `language-subtag-registry` (CC0-1.0), neither on the allowed set of `npm run licences`, and it declares ESLint up to 9. Allow the two licences for development tools, find another check, or keep the review checklist alone. Likewise `eslint-plugin-react-hooks` 7.x needs `caniuse-lite` (CC-BY-4.0) through Babel; S0 uses 5.2.0 until then.
+7. The lower-priority rules of the TypeScript front end (T7 to T9 and T11 to T17 of the audit, issue #324): which move into `meldframe-app` before the slices that port them, and which stay as presentation, among them the camera and the pointer state machine (T15). The note `docs/front-end-rules-decisions.md` has a recommendation, a cost in slices and a question for each.
 
 ## 10. Risks
 
