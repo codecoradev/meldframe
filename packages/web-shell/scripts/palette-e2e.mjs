@@ -242,6 +242,23 @@ if (editor) {
   await page.close();
 }
 
+if (react) {
+  // The React copy loads on demand. A chunk that does not load must leave the Svelte palette, never a page where Ctrl+K does nothing.
+  const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })).newPage();
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.route((u) => /react\/(Palette|ShortcutHint|island)/.test(u.pathname), (route) => route.abort('failed'));
+  await page.goto(`${web}/?layout&react=palette`);
+  await page.waitForSelector('[data-testid=toolbar]');
+  await page.focus('[data-testid=tool-text]');
+  await page.keyboard.press('Control+k');
+  const palette = page.locator('[data-testid=palette]');
+  await palette.waitFor({ timeout: 10000 });
+  assert.equal(await drawnByReact(page, '[data-testid=palette]'), false, 'chunk blocked: the palette is the Svelte copy');
+  await page.keyboard.press('Escape');
+  await palette.waitFor({ state: 'detached' });
+  await page.close();
+}
+
 await browser.close();
 assert.deepEqual(errors, [], `page errors: ${errors}`);
 console.log('palette-e2e: ok');

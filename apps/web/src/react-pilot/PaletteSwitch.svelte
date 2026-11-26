@@ -19,6 +19,9 @@
 {#if react}
   {#await react then r}
     <div class="contents" use:r.island={{ component: r.component, props: { ...props } }}></div>
+  {:catch}
+    <!-- the React chunk did not load: the Svelte palette is in the entry, so Ctrl+K still opens a palette -->
+    <Palette {...props} />
   {/await}
 {:else}
   <Palette {...props} />

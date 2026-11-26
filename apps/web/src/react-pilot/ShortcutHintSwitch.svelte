@@ -18,6 +18,9 @@
 {#if react}
   {#await react then r}
     <div class="contents" use:r.island={{ component: r.component, props: { ...props } }}></div>
+  {:catch}
+    <!-- the React chunk did not load: the Svelte sheet is in the entry, so ? still opens a sheet -->
+    <ShortcutHint {...props} />
   {/await}
 {:else}
   <ShortcutHint {...props} />
