@@ -2,7 +2,7 @@
 
 use super::items::drop_blank;
 use super::names;
-use super::node::{Spec, blank, flow, margins, padding, parent_of, set_padding};
+use super::node::{Spec, blank, display, flow, margins, padding, parent_of, set_padding};
 use super::notes::Notes;
 use super::size::Axis;
 use super::text::Ws;
@@ -76,7 +76,9 @@ impl Walk<'_> {
         let fl = flow(&cs, &mut local, false, false);
         self.leftovers(&cs, exported, &mut local);
         let mut items = Vec::new();
-        self.collect(children, &cs, &mut items, &mut local);
+        let d = display(&cs);
+        let blockify = d.contains("flex") || d.contains("grid");
+        self.collect(children, &cs, &mut items, &mut local, blockify);
         drop_blank(&mut items, Ws::of(&cs));
         let fixed = |px: f64| Axis {
             mode: SizeMode::Fixed,

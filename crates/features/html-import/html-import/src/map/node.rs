@@ -86,7 +86,7 @@ fn sides(s: &Style, base: &str, n: &mut Notes) -> [f64; 4] {
         };
         match s.len(&prop) {
             Some(l) if l.px >= 0.0 => {
-                converted(n, &prop, raw, l);
+                converted(s, n, &prop, raw, l);
                 out[i] = l.px;
             }
             Some(_) => n.lose(&prop, raw, "refused_negative"),
@@ -154,7 +154,7 @@ pub(super) fn place(s: &Style, n: &mut Notes) -> Place {
                 };
                 match s.len(prop) {
                     Some(l) => {
-                        converted(n, prop, raw, l);
+                        converted(s, n, prop, raw, l);
                         l.px
                     }
                     None => {
@@ -229,7 +229,11 @@ pub(super) fn flow(s: &Style, n: &mut Notes, all_absolute: bool, button: bool) -
     };
     if grid {
         n.change("display", &d, "layout column");
-        return plain;
+        let gap = s
+            .len("row-gap")
+            .filter(|l| l.px >= 0.0)
+            .map_or(0.0, |l| l.px);
+        return Flow { gap, ..plain };
     }
     if table_row {
         return Flow {
@@ -297,7 +301,7 @@ pub(super) fn flow(s: &Style, n: &mut Notes, all_absolute: bool, button: bool) -
     let len = |p: &str, n: &mut Notes| {
         let raw = s.get(p)?.trim();
         let l = s.len(p).filter(|l| l.px >= 0.0)?;
-        converted(n, p, raw, l);
+        converted(s, n, p, raw, l);
         Some(l.px)
     };
     let (col, row) = (len("column-gap", n), len("row-gap", n));

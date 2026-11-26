@@ -65,7 +65,7 @@ pub(super) fn role(el: &Element, s: &Style) -> Role {
     }
 }
 
-impl Walk<'_> {
+impl<'a> Walk<'a> {
     /// Put what `children` hold into `items`, with the style of the box they are in for comparing inline styles.
     pub(super) fn collect(
         &mut self,
@@ -73,6 +73,7 @@ impl Walk<'_> {
         base: &Style,
         items: &mut Vec<Item>,
         n: &mut Notes,
+        blockify: bool,
     ) {
         let tree = self.tree;
         for c in children {
@@ -84,13 +85,15 @@ impl Walk<'_> {
                     match role(el, s) {
                         Role::Skip => {}
                         Role::Hidden => self.skip(names::source(el, *e), "display_none"),
-                        Role::Through => self.collect(&el.children, base, items, n),
+                        Role::Through => self.collect(&el.children, base, items, n, blockify),
                         Role::Box => items.push(Item::Box(*e)),
                         Role::Inline if el.tag == "br" => push(items, Piece::Br),
+                        // A child of a flex or grid container is an item of it, whatever its display was.
+                        Role::Inline if blockify => items.push(Item::Box(*e)),
                         Role::Inline => {
                             differs(base, s, n);
                             self.inline_lost(el, s, n);
-                            self.collect(&el.children, base, items, n);
+                            self.collect(&el.children, base, items, n, false);
                         }
                     }
                 }
@@ -98,11 +101,63 @@ impl Walk<'_> {
         }
     }
 
-    pub(super) fn items_of(&mut self, el: &Element, s: &Style, n: &mut Notes) -> Vec<Item> {
+    /// The inline elements that hold all the content of `id` (`<li><a>text</a></li>`: the `a`), outermost first,
+    /// as deep as there is one and only one inline child and no other content.
+    fn sole_chain(&self, id: ElementId) -> Vec<ElementId> {
+        let tree = self.tree;
+        let (mut cur, mut chain) = (id, Vec::new());
+        loop {
+            let mut live = tree.element(cur).children.iter().filter(|c| match c {
+                Child::Text(t) => !t.trim().is_empty(),
+                Child::Element(_) => true,
+            });
+            let (Some(Child::Element(e)), None) = (live.next(), live.next()) else {
+                return chain;
+            };
+            let (el, s) = (tree.element(*e), self.styles.get(*e));
+            if el.tag == "br" || !matches!(role(el, s), Role::Inline) {
+                return chain;
+            }
+            chain.push(*e);
+            cur = *e;
+        }
+    }
+
+    /// What the element holds, and the style its text takes: the element's own, or that of the one inline element that
+    /// holds it all (a text has one style, and `<li><a style=...>` is the style of the `a`).
+    pub(super) fn items_of(&mut self, id: ElementId, n: &mut Notes) -> (Vec<Item>, &'a Style) {
+        let (tree, styles) = (self.tree, self.styles);
+        let (el, s) = (tree.element(id), styles.get(id));
+        let d = display(s);
+        let blockify = d.contains("flex") || d.contains("grid");
+        let chain = if blockify {
+            Vec::new()
+        } else {
+            self.sole_chain(id)
+        };
+        if let Some(&owner) = chain.last() {
+            let os = styles.get(owner);
+            // The attempt keeps its notes and its skips apart: if the owner holds a box after all, it is read again as
+            // the element's own content and what the attempt said is dropped.
+            let (mut items, mut tmp) = (Vec::new(), Notes::default());
+            let skips = (self.skipped.len(), self.skipped_omitted);
+            for e in &chain {
+                self.inline_lost(tree.element(*e), styles.get(*e), &mut tmp);
+            }
+            let kids = &tree.element(owner).children;
+            self.collect(kids, os, &mut items, &mut tmp, false);
+            drop_blank(&mut items, Ws::of(os));
+            if matches!(items.as_slice(), [Item::Run(_)]) {
+                n.merge(tmp);
+                return (items, os);
+            }
+            self.skipped.truncate(skips.0);
+            self.skipped_omitted = skips.1;
+        }
         let mut items = Vec::new();
-        self.collect(&el.children, s, &mut items, n);
+        self.collect(&el.children, s, &mut items, n, blockify);
         drop_blank(&mut items, Ws::of(s));
-        items
+        (items, s)
     }
 
     /// What an inline element declares that a run of text cannot carry: a box of its own (a background, a border, a
@@ -177,10 +232,18 @@ impl Walk<'_> {
     /// The text a control shows, as one run: `None` when the control has no model equivalent.
     pub(super) fn control_items(
         &mut self,
-        el: &Element,
-        s: &Style,
+        id: ElementId,
         n: &mut Notes,
-    ) -> Option<Vec<Item>> {
+    ) -> Option<(Vec<Item>, &'a Style)> {
+        let (el, s) = (self.tree.element(id), self.styles.get(id));
+        if matches!(el.tag.as_str(), "input" | "select") {
+            return self.control_text(el, n).map(|items| (items, s));
+        }
+        Some(self.items_of(id, n))
+    }
+
+    /// The text of an `input` or a `select`.
+    fn control_text(&mut self, el: &Element, n: &mut Notes) -> Option<Vec<Item>> {
         let shown = |t: &str| {
             let t = t.trim();
             (!t.is_empty()).then(|| vec![Item::Run(vec![Piece::Text(t.to_owned())])])
@@ -245,7 +308,7 @@ impl Walk<'_> {
                 n.change("select", "the control", "the text of the chosen option");
                 Some(shown(&text).unwrap_or_default())
             }
-            _ => Some(self.items_of(el, s, n)),
+            _ => Some(Vec::new()),
         }
     }
 }

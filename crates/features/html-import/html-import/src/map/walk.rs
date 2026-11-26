@@ -116,8 +116,8 @@ pub(super) struct Walk<'a> {
     pub(super) styles: &'a Styles,
     pub(super) report: &'a mut Report,
     pub(super) opts: &'a Options,
-    skipped: Vec<Skipped>,
-    skipped_omitted: usize,
+    pub(super) skipped: Vec<Skipped>,
+    pub(super) skipped_omitted: usize,
     /// The nodes made so far. Past the cap of a call the walk makes no more (`over`), since the call is refused.
     made: usize,
 }
@@ -248,7 +248,7 @@ impl<'a> Walk<'a> {
         }
         let mut n = Notes::default();
         let control = matches!(tag, "input" | "textarea" | "select" | "button");
-        let Some(items) = self.control_items(el, s, &mut n) else {
+        let Some((items, text_s)) = self.control_items(id, &mut n) else {
             self.skip(source, "no_model_equivalent");
             return None;
         };
@@ -280,7 +280,8 @@ impl<'a> Walk<'a> {
             apad = [0.0; 4];
         }
         let padded = apad.iter().any(|v| *v != 0.0);
-        let inline = display(s).starts_with("inline");
+        // An inline-block that is a flex item is blockified: it stretches on the cross axis like any other item.
+        let inline = display(s).starts_with("inline") && !p.flex;
         let kind = Kind {
             absolute: at.absolute,
             inline,
@@ -295,7 +296,7 @@ impl<'a> Walk<'a> {
             && !padded
             && !places_text(s)
         {
-            let ts = TextStyle::of(s);
+            let ts = TextStyle::of(text_s);
             let text = ts.text(pieces);
             if text.is_empty() {
                 return None;
@@ -402,7 +403,7 @@ impl<'a> Walk<'a> {
         set_size(&mut node, aw, ah, g);
         common(&mut node, s, p, &at, &mut n);
         let child_p = parent_of(&fl, aw, ah, fixed(aw, g.0), fixed(ah, g.1));
-        let kids = self.children(items, s, &child_p, &source);
+        let kids = self.children(items, text_s, &child_p, &source);
         node.name = names::of_box(el);
         Some(Spec {
             node,
