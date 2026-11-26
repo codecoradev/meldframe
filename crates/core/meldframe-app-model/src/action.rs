@@ -6,6 +6,7 @@ use crate::checkpoint::{CheckpointRequest, CheckpointRow};
 use crate::export::ExportFormat;
 pub use crate::frame::Frame;
 use crate::layout::Direction;
+use crate::manage::ManageOp;
 pub use crate::preset::{CreateKind, FramePreset};
 pub use crate::property::Property;
 use crate::state::{Panel, Tool};
@@ -220,6 +221,10 @@ pub enum Action {
     RemoveCollection {
         id: String,
         detach: bool,
+    },
+    /// Something done in the Variables manage view (`ManageOp`): `AppState::manage` is what it shows and asks.
+    Manage {
+        op: ManageOp,
     },
     /// Search the Variables panel (view state: nothing is written to the file). The text is trimmed and cut at 200
     /// characters; every word has to match (see `VariablesPanel::query`).

@@ -55,6 +55,15 @@ pub enum Event {
         entity: VariableEntity,
         id: String,
     },
+    /// `AppState::manage` changed (the shown collection, the question, the rename field, a form or what follows the file).
+    ManageChanged {},
+    /// A rename of a collection, a mode or a variable was made (`ManageOp::SubmitRename`), from `from` to `to` (both made safe
+    /// to show). Raised once the change is applied.
+    Renamed {
+        entity: VariableEntity,
+        from: String,
+        to: String,
+    },
     /// `AppState::last_actor` took in the attribution of the snapshot (`Action::Attribute`): the layer rows name more
     /// actors.
     AttributionChanged {},

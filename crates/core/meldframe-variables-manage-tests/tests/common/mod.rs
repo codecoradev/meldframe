@@ -1,7 +1,10 @@
 //! Helpers of the manage tests.
 #![allow(dead_code)]
 
-use meldframe_app::{Action, App, Effect, Event, Frame, OutOp, Panel};
+use meldframe_app::{
+    Action, App, Effect, Event, Frame, ManageOp, ManageTarget, NameError, NameWarning, OutOp,
+    Panel, VariableEntity,
+};
 use meldframe_protocol::{Bind, Command, Doc, Node, Value, Variable};
 use serde_json::{Value as Json, json};
 
@@ -143,4 +146,40 @@ pub fn snapshot(a: &App) -> String {
 
 pub fn color(s: &str) -> Bind<Value> {
     Bind::Lit(Value::Color(s.into()))
+}
+
+pub fn op(op: ManageOp) -> Action {
+    Action::Manage { op }
+}
+
+pub fn typed(a: &mut App, form: VariableEntity, text: &str) {
+    a.dispatch(op(ManageOp::SetDraft {
+        form,
+        text: text.into(),
+    }));
+}
+
+pub fn variable_target(id: &str) -> ManageTarget {
+    ManageTarget::Variable { id: id.into() }
+}
+
+pub fn collection_target(id: &str) -> ManageTarget {
+    ManageTarget::Collection { id: id.into() }
+}
+
+pub fn mode_target(collection: &str, id: &str) -> ManageTarget {
+    ManageTarget::Mode {
+        collection: collection.into(),
+        id: id.into(),
+    }
+}
+
+pub fn check(a: &App, form: VariableEntity) -> (Option<NameError>, Option<NameWarning>, String) {
+    let d = &a.state().manage.drafts;
+    let d = match form {
+        VariableEntity::Collection => &d.collection,
+        VariableEntity::Mode => &d.mode,
+        VariableEntity::Variable => &d.variable,
+    };
+    (d.check.error, d.check.warning, d.check.name.clone())
 }
