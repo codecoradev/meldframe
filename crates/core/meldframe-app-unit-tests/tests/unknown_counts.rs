@@ -81,6 +81,25 @@ fn unreviewed_count_is_unknown_after_a_failed_list() {
 }
 
 #[test]
+fn a_known_count_stays_when_a_later_list_fails_to_load() {
+    // The doc of `ActivityState::unreviewed_count`: unknown only until a count has been said; a failed list after that
+    // keeps the last number the server gave.
+    let mut l = Loopback::live();
+    l.app.dispatch(Action::Frame {
+        now_ms: T,
+        frame: Frame::Batch {
+            header: header(1, 1, 1),
+            unreviewed_count: 3,
+        },
+    });
+    l.app.dispatch(Action::OpenActivity {});
+    l.app.dispatch(Action::BatchRequestFailed {
+        code: "unavailable".into(),
+    });
+    assert_eq!(count(&l), Some(3));
+}
+
+#[test]
 fn a_batch_frame_gives_the_count_and_a_reload_forgets_it() {
     let mut l = Loopback::live();
     let frame = Frame::Batch {

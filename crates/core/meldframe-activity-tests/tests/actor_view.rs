@@ -34,10 +34,10 @@ fn a_person_has_one_tone_and_so_has_an_actor_of_no_known_kind() {
         (LaneKind::Person, "ana", Tone::Person)
     );
     // No known kind: a person, named by the whole text.
-    let v = ActorView::of("user:alice");
+    let v = ActorView::of("visitor:alice");
     assert_eq!(
         (v.kind, v.name.as_str(), v.tone),
-        (LaneKind::Person, "user:alice", Tone::Person)
+        (LaneKind::Person, "visitor:alice", Tone::Person)
     );
     let v = ActorView::of("ana");
     assert_eq!((v.kind, v.name.as_str()), (LaneKind::Person, "ana"));
