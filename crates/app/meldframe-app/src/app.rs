@@ -5,6 +5,7 @@ use crate::canvas::CanvasLayout;
 use crate::effect::Effect;
 use crate::event::Event;
 use crate::panel::PanelCache;
+use crate::scene::SceneCache;
 use crate::state::{AppState, Connection};
 use meldframe_activity::Feed;
 use meldframe_app_parts::answers::action_of;
@@ -42,6 +43,8 @@ pub struct App {
     pub(crate) import_ids: Vec<String>,
     /// The host's text measurer and the `layout_on_canvas` flag (`crate::canvas`).
     pub(crate) canvas: CanvasLayout,
+    /// The painted boxes for the last epoch (`crate::scene`).
+    pub(crate) scene_cache: SceneCache,
 }
 
 impl App {
@@ -90,6 +93,7 @@ impl App {
             export_cache: Default::default(),
             import_ids: Vec::new(),
             canvas: CanvasLayout::default(),
+            scene_cache: SceneCache::default(),
         };
         app.refresh(&mut Vec::new());
         app.events.clear();
@@ -115,8 +119,11 @@ impl App {
     /// [`App::nodes`], with the variables resolved in the modes of `AppState::modes` (E3.3). The canvas reads
     /// this and computes nothing of its own. The step is `resolve_with` (the stored boxes) unless the host turned
     /// `layout_on_canvas` on: then it is `resolve_laid_out` with the host's text measurer (`crate::canvas`).
+    ///
+    /// The boxes are kept for the [`App::scene_epoch`] they were worked out at and worked out again only when it moves; this
+    /// copies the kept ones, and [`App::with_scene`] reads them without a copy.
     pub fn scene(&self) -> Vec<PaintedBox> {
-        self.canvas.scene(self.nodes(), self.vars(), &self.choice())
+        self.with_scene(|_, boxes| boxes.to_vec())
     }
 
     /// The collections and variables of the document as the person sees them.
