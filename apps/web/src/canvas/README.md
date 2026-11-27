@@ -5,7 +5,7 @@ intents; it holds no document state and applies no edit (`docs/standards/modular
 
 | File | Role | Pixi |
 |---|---|---|
-| `scene.ts` | `Scene` of `SceneNode`s (`space: 'parent'` or `'world'`), `resolveScene` with an incremental patch, depth-ordered `hitTest` | no |
+| `scene.ts` | `Scene` of `SceneNode`s (`space: 'parent'` or `'world'`), `resolveScene` with an incremental patch (what is under a point is not decided here: the app layer answers it, `meldframe_render::HitIndex`, asked through `CanvasEvents.hitAt`) | no |
 | `camera.ts` | pan, zoom around a point, limits (2% to 6400%), fit, wheel and pinch, zoom readout | no |
 | `overlay.ts` | selection box, handle positions, size badge text and place, touch ring geometry and fade | no |
 | `interaction.ts` | pointer, wheel and key state machine: input in, intents out | no |
@@ -22,12 +22,14 @@ intents; it holds no document state and applies no edit (`docs/standards/modular
 Scene space: a node's `x`, `y` are relative to its parent (`'parent'`, the document model's form) or already
 world coordinates (`'world'`, the form of the engine's layout rects). Both resolve to the same result.
 
-Hit testing is done on the scene model (`hitTest`), not by Pixi's event system, so Pixi display objects take no
-pointer events (`eventMode = 'none'`). One pointer move costs a scan of the scene, not a Pixi traversal.
+What is under the pointer is asked of the host (`CanvasEvents.hitAt`; the editor answers with `Engine.hit`, the app layer's
+rule), not decided here and not by Pixi's event system, so Pixi display objects take no pointer events (`eventMode = 'none'`).
+One pointer move costs one call through the wasm bridge that scans the app layer's index of the scene (microseconds, see
+`docs/front-end-rules-decisions.md`, T9), not a Pixi traversal.
 
 ## Scripts (need the dev server and a global Playwright; not part of `npm test`)
 
-- `node packages/web-e2e/scripts/canvas-e2e.mjs [url]`: click, drag, cancel, resize, wheel, pinch, hover, no leaked listeners over
+- `node packages/web-e2e/scripts/canvas-e2e.mjs [url]` (the harness asks the app layer what is under a point, so the WASM bridge must be built): click, drag, cancel, resize, wheel, pinch, hover, no leaked listeners over
   three mounts, device pixel ratio 2 and the 2D canvas fallback.
 - `node packages/web-e2e/scripts/canvas-perf.mjs [url] [nodes]`: build time and frame times with generated scenes.
 - `node packages/web-e2e/scripts/shadow-perf.mjs`: frame times of a canvas of 10, 100 and 500 nodes with a blurred, a hard and no shadow (idle, pan, zoom); it starts its own server and Vite (needs the server binary and the WASM bridge) and, in a container, measures a software rasteriser: read the growth with N, not the milliseconds.
