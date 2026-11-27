@@ -365,6 +365,8 @@ Status, slice S10 of `docs/react-web-plan.md` (the Import variables and Export v
 
 Status, slice S11 of `docs/react-web-plan.md` (the canvas of `apps/web`, in four pull requests; no box above is ticked): the canvas has a React copy, `apps/web/src/canvas/react/Canvas.tsx`, reachable with `/?react=canvas` (default Svelte; `CanvasSwitch.svelte` in `apps/web/src/react-pilot/` falls back to the Svelte canvas when the React chunk does not load). The Pixi code is unchanged. What `Canvas.svelte` did that is not markup moved into one framework-free driver (`apps/web/src/canvas/driver.ts`, tested in Node with a fake application and host element) that the Svelte copy and the React copy both call, and the two share one stylesheet and one sentence for the failed state. The camera is a controlled prop with a callback. `canvas-e2e.mjs` (the harness, 13 on Svelte, 14 on React), `layout-interaction-e2e.mjs` (12 and 13) and `editor-e2e.mjs` (22 and 23, 25 and 26 with a second token) take `MELDFRAME_UI=react`, also in React's strict mode (`MELDFRAME_REACT_PANELS=strict`), and `pixels-e2e.mjs` compares eight canvas states at a tolerance of 0 pixels (0 differing). The details, the behaviours found while moving the code and what no script asks are in section 7 of the plan.
 
+Status, 27 Nov 2026 (decision 45, ADR-0027; no box above is ticked): E7.3 is paused after slice S11. Slices S1 to S11 stay merged. Slice S12 (the shell flips to React) and slice S13 (Svelte is removed) are on hold and not started, so the boxes about no Svelte being left stay open; the default page stays Svelte. The web client moves to Rune in E8.4, and the old web clients are retired in E8.6 only after the owner's OK. Meanwhile a check keeps them from growing (E8.0.3) and bug and security fixes stay possible. If the Rune track stops at a tripwire, S12 and S13 resume as the fallback.
+
 ### E7.4 Desktop spike on GPUIX + React (M, #309; blocked by E7.3 for any build)
 - [ ] Written exit criteria before any code: for the layout golden fixtures and the oracle fixtures, boxes within 0.05 px and line breaks identical to the core, text ink within 1 px, rounded clip and shadows within the contract's pixel limits, pan and zoom within a frame budget at a stated node count.
 - [ ] A spike result in `docs/` with the engine, the OS, the GPU path and the date, against those criteria; the desktop canvas paints from the core's own text measure and line breaks (the `TextMeasurer` seam) rather than from GPUI's text layout, or the result says why not.
@@ -372,6 +374,253 @@ Status, slice S11 of `docs/react-web-plan.md` (the canvas of `apps/web`, in four
 - [ ] Which forks, pins and runtime (bun or Node) the desktop build needs, with licences on the allow list of `deny.toml` and how they are pinned and updated.
 - [ ] Decision 5 is marked superseded in `docs/decisions.md` and the roadmap names the order: web client first. (Both are done by the pull request that records decision 42; the box waits for the owner.)
 
+Status, 27 Nov 2026 (decision 45, ADR-0027; no box above is ticked): replaced by E8.2, the desktop spike on native Rune. The desktop is no longer planned on GPUIX + React. The boxes above stay as the record of the plan of 25 Nov 2026; the written exit criteria are E8.2.1 and the result is E8.2.4.
+
+## Rune front end (E8, owner decision 45 of 27 Nov 2026)
+
+Ordered by the owner and recorded in ADR-0027 and decision 45. The desktop client is native Rune, which replaces the GPUIX + React plan of decision 42 and E7.4. The web client moves to Rune from the same view crates, with mobile off for now. The React web client is frozen: slices S1 to S11 of E7.3 stay merged, S12 and S13 are on hold, and Svelte and React stay in the repository until the owner retires them. The server stays central and the protocol is the only contract between a client and the product. E7.1 and E7.2 stand, and so do the moves of decision 43 that are done (T9, T11, T12, T14, T16, T17): the thin UI is why this work can start before any Rune code. The boxes below are copied from the issues and none is ticked: a box is ticked only when its whole text is proven. A size is S (a few days, one or two pull requests), M (about a week) or L (split before starting).
+
+**Exit criteria of E8:** the direction is on record and the old front ends cannot grow; every rule a second front end would copy lives in the app layer; a written desktop spike result says go, go with conditions or stop against written criteria; the native desktop alpha and the Rune web build pass their parity gates; and, only after both gates and the owner's OK, one front end codebase is left.
+
+**Principles.** (1) The brain is portable Rust: `meldframe-app` and the core hold every rule, and a Rune front end links them as libraries (the wasm bridge stays for the legacy web client). (2) One view codebase for Rune: desktop and web sit on the same `ui` and `feature-ui` crates, and only what a platform forces lives in a front end of its own. (3) Swapping the toolkit stays cheap: the diff that replaces the Rune views touches no core, engine, integration, os, feature, app or ffi crate and no protocol type (E8.1.9 proves it). (4) No rule is written twice: a new rule goes to the app layer with a test at the app seam first, and the frozen web clients are not rewired for it; each TypeScript copy it leaves is listed for retirement in E8.6.1. (5) Each milestone names its fallback: the frozen React client and the Svelte page for the web, and any other desktop front end on the same protocol. The proposed U10 to U12 of standard v1.4 (toolkit swap, one view codebase, client kind from the credential) are mirrored by E8.0.2.
+
+**Layout.** A second Cargo workspace, `frontends/rune/`, with its own `rust-toolchain.toml`, `Cargo.lock` and `deny.toml`: `crates/ui/meldframe-ui-rune` (kind `ui`: the tokens bound to Rune styles, primitives on `rune-kit`, focus rules), `crates/features/<group>-ui-rune` (kind `feature-ui`: canvas, layers, properties, variables, activity, export, shell parts), `apps/desktop` (kind `bin`: window, socket, keychain, file dialogs, clipboard) and `apps/web-rune` (kind `bin`: the wasm entry with the browser socket, download, paste and fonts). It takes path dependencies into the main workspace for the core, app, protocol and render crates only, and no main workspace crate depends on it. Toolkit imports live only in `ui`, `feature-ui` and `bin` crates (L3). The alternative, raising the toolchain of the main workspace and taking the 8 git pins into its lock, touches every crate and every CI job and is not recommended.
+
+**Milestones.**
+
+| Milestone | Epics | Exit criteria (summary) |
+|---|---|---|
+| E8-A Records and guardrails | E8.0 | ADR, decision, standard v1.4, freeze check, the git source exception and the workspace shape are merged |
+| E8-B Thin UI completion | E8.1 | A Rust test drives a pointer gesture, a key and a resize end to end with no front end |
+| E8-C Desktop spike on macOS | E8.2 | A written result: every criterion has a number or a documented gap |
+| E8-D Native desktop alpha | E8.3 | The desktop parity gate passes and the owner sees a demo |
+| E8-E Rune web | E8.4 | The web parity gate passes on Chromium and WebKit within the load and frame budgets |
+| E8-F Platforms and shipping | E8.5 | Each platform passes its own input method and accessibility checks; a signed build updates |
+| E8-G Retire the old front ends | E8.6 | The owner's OK after E8-D and E8-E; Svelte and React are removed |
+| E8-H Parked | E8.7 | Un-park triggers are recorded |
+
+Order: E8-A and E8-B start now and run in parallel; neither needs Rune. E8-C needs the workspace and the exception of E8.0.4 and the written criteria of E8.2.1. E8-D needs E8-C passed. E8-E needs the canvas and the layout of E8-D. E8-F starts per platform once E8-D is green. E8-G comes only after the gates of E8-D and E8-E and the owner's OK.
+
+**Tripwires.** These stop the Rune track at the spike or the alpha, with the fallback named and not a silent slip: input method composition fails on macOS with real input methods (C7 of E8.2.1); the frame cost of the reference scenes is not met on a real GPU (C4); the fidelity contract (`docs/fidelity-contract.md`: 0.05 px boxes, 1 px text ink) cannot be met by painting from the core's own measure (C1 to C3); a fork of Rune is needed beyond the 8 pins (C10); Rune API churn costs more than one working day a bump over three bumps in a row (E8.0.4 records each bump).
+
+**Open for the owner, with the proposed default.** Who owns Rune bumps (E8.0.4). Desktop sign-in: an authorisation code flow with PKCE and a loopback redirect through Gatehouse, the token in the system keychain, in a server ADR that extends ADR-0022 and needs Gatehouse support (E8.1.8, E8.3.9). Distribution identities (signing, update host, accounts): the owner creates them and E8.5.3 lists them. The time to interactive bar of the web build: no worse than 1.5 times that of the React client (E8.4.4). Whether the frozen web clients are rewired for new Rust rules: no (E8.6.1).
+
+**Risks.** Rune is pre-1.0 with one dominant maintainer, used by git revision with 8 patches: bounded by the pin, the scoped exception, the tripwires and the fallback front end. The fidelity contract may not hold on Rune's raster if it rounds text to whole pixels: C2 decides, and painting from the core's own measure is the fallback. Two workspaces double part of the CI cost: caches, and the Rune job stays not required until E8.2 passes. The legacy clients drift from the Rust rules: accepted, bounded by E8.0.3 and E8.6. Distributed clients bring abuse and support work: E8.1.8 and E8.5.5 come before any public build. Mobile cannot be blocked by credential, and this is stated and not hidden (E8.1.8).
+
+### E8.0 Records and guardrails (milestone E8-A)
+
+**E8.0.1 ADR-0027 and the decisions row (S, docs only).** Depends on: the owner's reading. Seam: review.
+- [ ] `docs/adr/0027-rune-front-end.md` records the direction with the options considered (GPUIX + React; React web and Rune desktop; Rune everywhere), the reasons, the gates of E8-C and E8-D, the tripwires and the fallback.
+- [ ] ADR-0026 has a status note pointing to ADR-0027 and its text is not rewritten; `docs/decisions.md` has row 45, which supersedes part 3 of decision 42 and its web framework part and decision 5 for the desktop; this file has E8 and status notes on E7.3 and E7.4.
+- [ ] `docs/roadmap.md`, `AGENTS.md` (the "Where to look" line for ADR-0026) and `docs/react-web-plan.md` (a status note at the top) name the new order; no product file changes.
+- [ ] The local Cora review verdict is in the pull request description, and `scripts/ci/message-patterns.sh` prints nothing.
+
+**E8.0.2 Mirror standard v1.4 (S, docs only).** Depends on: none. Seam: review and `size-check`.
+- [ ] `docs/standards/modular-thin-ui.md` is version 1.4: L5 (a dropped target leaves the CI list), U10 (a toolkit swap touches no rule), U11 (one view codebase for Rune), U12 (the client kind comes from the credential), the kickoff and review checklist items, the anti-patterns and the adoption row.
+- [ ] `AGENTS.md`, in its "Layers" paragraph, names U10 to U12 in one sentence each, and no rule contradicts the standard.
+- [ ] Nothing in a product crate changes.
+
+**E8.0.3 Freeze check for the old web clients (S).** Depends on: E8.0.1. Seam: a test of the check on made-up input, then CI.
+- [ ] A check (a script in `packages/web-tools` or an `xtask` command, chosen in the pull request and named in `AGENTS.md`) records the `.svelte` and `.tsx` files and their line counts per frozen package in an allow-list that only goes down, as `xtask/size-allow.toml` does. It fails on a new `.svelte` or `.tsx` file, on a frozen package that grows, and on a new file under `apps/web/src/react-pilot/`.
+- [ ] With `--base <ref>` an entry that is new or higher than on the base fails (CI passes `origin/develop`).
+- [ ] The check runs in `npm run check` and in the `checks (web)` job, and has tests: a new file fails, a smaller file passes, a bug fix that shrinks or keeps the size passes.
+- [ ] Bug and security fixes to the frozen clients stay possible within the allow-list, and `AGENTS.md` says so in one paragraph.
+
+**E8.0.4 The Rune workspace and the git source exception (M).** Depends on: the owner's decision on who bumps Rune. Seam: CI jobs.
+- [ ] `frontends/rune/` is its own Cargo workspace with `rust-toolchain.toml` (the toolchain Rune pins), its own `Cargo.lock`, the 8 `[patch.crates-io]` pins (wgpu-hal, naga, winit, sctk-adwaita, parley_engine, accesskit_windows, accesskit_atspi, accesskit_macos) at revision `048528dc35f0`, and its own `deny.toml` that lists the exact git URLs and revisions in `allow-git`. The main `deny.toml` is unchanged (`unknown-git = "deny"`).
+- [ ] CI has a job for it (caches keyed on the Rune lock) that runs `cargo fmt --check`, clippy with warnings as errors, the tests and `cargo deny check`. It is not a required check until E8.2 passes; then the owner decides.
+- [ ] `cargo xtask deps-check`, `ui-literals`, `size-check` and `mm-check` read both workspaces; each has a test with a violation in the Rune workspace that fails and a clean case that passes. `cargo xtask licences --check` lists the crates the Rune workspace reaches and every one is on the allow list.
+- [ ] A check fails a manifest that names a git source without `rev =`, and fails when a main workspace crate gains a dependency on a `frontends/rune` crate.
+- [ ] `AGENTS.md` lists the new commands and the toolchain note, the two wasm-bindgen versions are written down (the Rune lock pins 0.2.129, the main lock 0.2.130, and each workspace installs the CLI of its own lock), and the re-check triggers of the exception are written down: a tagged Rune release, a frozen API, input methods verified on each shipped platform, anomalyco/rune#2549 fixed, the 8 patches upstreamed or replaced by releases on crates.io.
+
+**E8.0.5 Glossary for the new words (S, docs only).** Depends on: E8.0.1. Seam: review.
+- [ ] `GLOSSARY.md` defines Client kind and Shell (the part of a front end that owns the window, the socket and the platform services) with `_Avoid_` lines, and its Front end entry no longer lists Shell and Client under `_Avoid_`. `docs/error-codes.md` is updated by E8.1.8 when its codes exist.
+
+### E8.1 Thin UI completion (milestone E8-B; toolkit neutral; starts now)
+
+Each issue moves a rule into the Rust app layer with a failing test first at the app seam, in under 1,000 lines. The frozen web clients are not rewired; each pull request says which TypeScript behaviour is now a legacy copy and points to E8.6.1.
+
+**E8.1.1 Key input as one app-layer action (M; T7a of decision 43, Q1).** Depends on: none. Seam: the `meldframe-app` test harness.
+- [ ] `Action::Key` carries the key, the physical code and the modifiers. The app layer decides the editor keys (tool keys V F R E T, Delete, undo and redo, arrows, Escape, Enter for a text edit) and the panel and overlay keys (Option+1, Option+2, `?`, Ctrl or Cmd+K) with the T11 state. A table-driven test covers every row of the shortcut sheet and a hostile row: a key while an input method is composing belongs to the input method and is never an action.
+- [ ] The key table is data in Rust that the shortcut sheet model reads, and a test fails when a documented key has no handler or a handler has no row.
+- [ ] A Rust harness test sends keys and reads state with no front end (U8 for keys).
+
+**E8.1.2 Creation and resize as world-space intents (M; T8, Q3).** Depends on: none. Seam: the app test harness.
+- [ ] An `Action` for draw-to-create and one for resize take world-space points and the modifiers and answer with ops and a preview query, as the drop preview does. The geometry of a drag that creates a frame, rectangle, ellipse or text, and of a handle resize (hug becomes fixed on that axis, a flow child's x and y are disabled, the drawn origin is kept) is decided in Rust.
+- [ ] Property tests: a resize never yields a negative size, a locked axis stays locked, and one gesture is one undo step.
+- [ ] A Rust harness test draws a frame and resizes a rectangle with no front end.
+
+**E8.1.3 The PNG plan and the capture decisions (M; T13, Q7).** Depends on: T16 (done, `paint_bounds`). Seam: the app test harness and the export tests.
+- [ ] The app layer decides the rectangle, the scale, the file name and the refusal of a PNG export and of a capture request; the drawing and the upload stay effects that a front end carries out.
+- [ ] The `Effect` for a raster request carries what the front end needs (the rectangle from `paint_bounds`, a scale from 0.5x to 4x, the target), the front end hands back bytes or a failure as `Action::Wire`, and a test covers the 8 MB cap and a refused scale.
+
+**E8.1.4 The camera, the viewport and the pointer state machine in Rust (L, two parts; reverses decision 43 Q9 for the second front end).** Depends on: E8.1.1, E8.1.2. Seam: the app test harness.
+- [ ] Part 1, the camera: pan, zoom (wheel, pinch, keys, and the zoom menu: in, out, 100%, fit all, zoom to selection), the viewport size and the world-to-screen mapping are `AppState` and actions. Fit and zoom to selection are pure functions with tests, and the zoom limits and the scale of overlays that do not scale are rules in Rust.
+- [ ] Part 2, the pointer: the state machine for press, drag, move selection, marquee, resize handles, drop in a flow with the insertion line, a double click for text edit and hover is `AppState` plus `Action::Pointer { phase, x, y, modifiers }`. It answers with ops, the preview, the hover id and the cursor name as data.
+- [ ] A Rust harness test performs select by click, move by drag (one undo step), marquee, resize by a handle, a drop above a sibling that reorders, a pan and a zoom to the pointer, with no front end. This closes the open point that U8 is met for keys and actions and not yet for gestures.
+- [ ] `App::hit` (T9) stays the only rule that answers what is under the pointer.
+
+**E8.1.5 The shortcut table, the palette entries and their ranking in Rust (S to M; Q2).** Depends on: E8.1.1. Seam: the app test harness.
+- [ ] The palette's entries (label, shortcut, enabled state, the "Auto layout on canvas" switch), their search and their ranking are a function of `AppState` and a query, with the TypeScript tests ported (same cases, same expected order); U9 applies to every label that carries text from a file.
+- [ ] The shortcut sheet is generated from the table of E8.1.1, and a test compares the sheet with the handlers.
+
+**E8.1.6 A cached scene and an epoch for the front end (S).** Depends on: none. Seam: the app test harness and a criterion benchmark.
+- [ ] `App::scene()` is cached per document epoch and camera and recomputed only on a change. `AppState` or the scene carries a monotonic `scene_epoch` and a `hit_index_epoch`, so a front end redraws only when an epoch moves (the spike of the Rune web target found that resolving the layout on every frame is the one thing a Rune front end must not do).
+- [ ] A test proves that two calls with no change return the same epoch and do no layout work (a counter of resolves), and that an edit and a camera change each move exactly the right epoch.
+- [ ] A benchmark records the resolve time at 1,000, 5,000 and 19,999 nodes.
+
+**E8.1.7 The text measurer seam for a native front end (S).** Depends on: none. Seam: the layout and export tests.
+- [ ] The `TextMeasurer` seam documents what a host must return (the width and the line breaks of a text for a font, size, weight and maximum width), what happens when a host answers something that is not a size (the stub's size), and that the measurer of a client and that of the exporter must be the same for the fidelity contract.
+- [ ] A conformance suite runs any measurer over the oracle fixtures and reports, for each fixture, the width difference and the line count difference; the stub passes its own baseline. The Rune measurer plugs into it in E8.2.3.
+
+**E8.1.8 Client kind in the credential and the server policy (M, server).** Depends on: E8.0.1; Gatehouse support for a native OAuth client (outside this repository). Seam: the MCP and WebSocket tests against the real server.
+- [ ] The principal's credential carries a client kind (`web`, `desktop`, `agent`) decided by what kind of credential it is (a native OAuth client registration, a web cookie, an agent grant) and never by a field the caller chose; `whoami` shows it.
+- [ ] A server setting lists the accepted kinds. A call from a refused kind gets a stable refusal code with an English message that names the reason, documented in `docs/error-codes.md`, and the app layer shows it as data (U5).
+- [ ] The honest limit is written in ADR-0027 and where the sign-in threats are written (ADR-0022): a phone browser and a desktop browser carry the same `web` credential, so mobile cannot be blocked by credential. The web build shows an unsupported-device page (a courtesy, from the user agent and the viewport), and the real controls (the token, the actor, quotas, rate limits per credential, revocation) apply to every kind.
+- [ ] A minimum client version is an optional server setting: an older desktop build is refused with a code that tells the person to update.
+- [ ] The failing tests come first: a `desktop` credential is accepted only when `desktop` is listed, and a forged kind field changes nothing.
+
+**E8.1.9 The toolkit swap test (S).** Depends on: E8.1.1 to E8.1.5. Seam: CI.
+- [ ] A check proves U10 here: `meldframe-app` and the core crates build and pass their tests for `wasm32` and native with no front end crate present, and a made-up second front end (a headless command line harness crate of kind `tool`) drives select, move, resize, undo, key, palette and export through the app layer only. The harness stays in the tree as the living proof of U8.
+
+### E8.2 Desktop spike on native Rune, macOS first (milestone E8-C; replaces E7.4)
+
+**E8.2.1 Written exit criteria (S, docs only; before any code).** Depends on: E8.0.1. Seam: review.
+- [ ] `docs/spikes/rune-desktop-spike.md` lists the criteria below, how each is measured, and fields for the machine, the OS, the GPU path, the Rune revision and the date. Every criterion ends green or as a documented gap with a cost estimate. A pass is input to the owner's decision and decides nothing.
+- [ ] The criteria, with values the owner may change before the spike starts:
+  - **C1 Fidelity of boxes.** For the layout golden fixtures and the oracle fixtures, boxes painted from the core's scene are within 0.05 px of the core's rects (they are the core's rects; the criterion proves the painter does not move them).
+  - **C2 Text.** The Rune measurer agrees with the core's line breaks on every oracle fixture and with the exporter's width within 0.05 px on single-line samples, and the ink edges of painted text are within 1 px of the exporter's output (`docs/fidelity-contract.md`). If Rune rounds text to whole device pixels, the result says plainly whether the contract survives.
+  - **C3 Paint.** Rounded clip, border per side, gradients and blurred shadows are within the contract's pixel limits against the oracle's paint probes.
+  - **C4 Frame.** Pan and zoom over 5,000 and 20,000 visible nodes on a real GPU path: no frame over 20 ms in at least 300 ticks and p95 at or under 18 ms, with input pumped continuously and a frame monitor, and a 4x CPU throttle run that stays free of dropped frames.
+  - **C5 Hit.** One `App::hit` call through the native app: p99 at or under a quarter of a frame at 60 Hz (4.17 ms) at 1,000, 5,000 and 19,999 nodes (the thresholds of `tools/hit-perf.mjs`), and a click shows its result within 120 ms.
+  - **C6 Idle.** With no input, no frame is drawn in 60 s after the first paint, and memory is flat over 180 s.
+  - **C7 Input method.** With real input methods on macOS (Japanese kana to kanji, Chinese pinyin, Korean, the emoji picker, dead keys) composition shows inline and commits once as one undo step, Escape keeps the draft out of the document, and a node deleted by someone else closes the field.
+  - **C8 Accessibility.** The AccessKit tree exposes the toolbar, the panels and the node list by name and role, and VoiceOver reads the Layers panel.
+  - **C9 Upstream defect.** Whether anomalyco/rune#2549 (the first wheel after idle presents late) occurs in the native window, recorded either way.
+  - **C10 Dependencies.** The exact pins, the licences of every crate reached, the patches that remain, the build time and the size of the binary.
+- [ ] A list of failing conditions says what stops the track (the tripwires above) and who decides.
+
+**E8.2.2 The native desktop app skeleton (M).** Depends on: E8.0.4, E8.1.6. Seam: headless render and element tree tests in the Rune workspace.
+- [ ] `frontends/rune/apps/desktop` opens a macOS window, connects to a development server with the token the existing recipes use (never on the command line), loads a file and draws `App::scene()` as one cached shape, rebuilt only when `scene_epoch` changes.
+- [ ] A click selects through `App::hit`, Move and Undo buttons dispatch real actions, and the status shows the connection state.
+- [ ] A headless test renders the window to a PNG and dumps the element tree; both are stored as goldens and are byte stable across two runs.
+- [ ] The crate kinds are declared and `deps-check` passes, the Rune toolkit is imported only in `ui`, `feature-ui` and `bin` crates, and `ui-literals` passes on the Rune crates.
+
+**E8.2.3 Measure against the criteria (M).** Depends on: E8.2.2, E8.2.1, E8.1.7. Seam: scripts committed under `frontends/rune/tools/`.
+- [ ] One script per criterion, C1 to C10, runs from a clean checkout and prints numbers, and the Rune measurer is plugged into the conformance suite of E8.1.7.
+- [ ] The results are written into `docs/spikes/rune-desktop-spike.md` with the machine, the OS, the GPU path, the revision and the date.
+
+**E8.2.4 Result and decision record (S, docs only).** Depends on: E8.2.3. Seam: review.
+- [ ] Each criterion is green or a documented gap with a cost. The note says go, go with conditions, or stop with the fallback named, and the owner's decision is recorded in `docs/decisions.md`. A stop returns the track to the fallback, and nothing in the main workspace needs to be undone because of E8.1 and the second workspace.
+
+### E8.3 Native desktop alpha, macOS (milestone E8-D)
+
+Each view issue ships element tree goldens (a headless render plus a tree dump) for every state the Svelte and React copies have, keyboard order and focus tests, the hostile names scenario of `hostile-names-e2e.mjs` (U9) and a note of which browser script questions it covers (E8.3.12). A view crate holds no business state and no rule (U2), and `ui-literals` passes. Every issue depends on E8.2.4 being a go.
+
+**E8.3.1 The Rune UI kit crate (M).** Depends on: E8.2.4. Seam: element tree goldens.
+- [ ] `meldframe-ui-rune` (kind `ui`) binds the tokens module to Rune styles (every colour, size, font and duration comes from `meldframe-ui` `tokens.rs`, and a test compares the bound set with the token table) and provides button, field, switch, tabs, tooltip, menu, dialog and popover on `rune-kit`, with the six control states of `/?states` (a golden for each, in both themes).
+- [ ] Focus rules: the focus handoff on a close (menu, dialog, palette) behaves as the tests of `createHandoff` describe; a dialog traps focus, gives it back to its opener, and closes on Escape; a test for each.
+
+**E8.3.2 Canvas (L, three pull requests).** Depends on: E8.1.4, E8.2.2. Seam: element tree goldens and frame benchmarks.
+- [ ] It draws nodes, selection, handles, guides, the insertion line, the marquee and the touch rings from the scene and the app layer's preview data, with the shape cached and rebuilt only on an epoch change.
+- [ ] Pointer, wheel and pinch map to `Action::Pointer` and the camera actions, and nothing else answers a hit.
+- [ ] The frame budget of C4 holds with the real app layer at 5,000 nodes, and idle stays at no frames (C6).
+- [ ] Image fills, gradients, shadows and clip are painted within the C3 limits, and a failed asset shows the failed state of the React canvas.
+
+**E8.3.3 The editor layout, the Layers panel and feedback (M).** Depends on: E8.3.1. Seam: goldens.
+- [ ] The editor layout (left rail, canvas, right card, tool bar, the zoom readout menu), the Layers panel (rows, actor name and dot, rename, reorder, visibility with the room rule of ADR-0025), banners, the toast, the empty state of a file with no frame, and the error page.
+- [ ] Option+1 and Option+2 fold the panels, and the focus ring, the names and a hit area of 24 px or more for every control are asserted from the tree.
+
+**E8.3.4 The Properties panel and the image fill picker (L, split).** Depends on: E8.3.1. Seam: goldens and app layer typed text tests.
+- [ ] All sections (Layout, Placement, Size modes, Text style, Border, Shadow, Fill with gradient and image, the chip of a bound field), with typed text sent only as `Action::Typed`, and the image picker with its tiles, keyboard and failed states.
+- [ ] The bind picker opens and closes by app state (`Event::PickerChanged`).
+
+**E8.3.5 The Variables panel, the manage view, Import variables and Export variables (L, split).** Depends on: E8.3.1. Seam: goldens.
+- [ ] The panel, the bind picker, and the three dialogs open by app layer state, the 50 variable import limit message, copy to the clipboard and the native file save (E8.3.8 supplies the os adapters).
+
+**E8.3.6 The Activity panel and checkpoints (M).** Depends on: E8.3.1. Seam: goldens.
+- [ ] Lanes, batches with their notes, review state, Show, Revert behind a question that takes the focus on Cancel, checkpoints with Restore, and the Unknown count state.
+
+**E8.3.7 The Export section and dialog (M).** Depends on: E8.3.1, E8.1.3. Seam: goldens and the export tests.
+- [ ] PNG at the scales, the HTML and the report, copy, save through the native file dialog behind an os trait with a null adapter (L6), and an open dialog that follows an agent's change.
+
+**E8.3.8 Text editing, clipboard, paste and drop, os adapters (M).** Depends on: E8.2.1 (C7). Seam: goldens and a manual input method script.
+- [ ] The text field (its keystrokes, caret and composition stay in the field; begin, commit and cancel are the app layer's), paste of text, images and files within the caps the server keeps, drop of files, and the native file dialogs and the clipboard behind traits with null adapters. The manual input method script of C7 runs and its result is in the pull request.
+
+**E8.3.9 Sign-in, credential storage, reconnect and offline (M).** Depends on: E8.1.8 and its server ADR. Seam: the real server and the fake provider planned in ADR-0022 (`meldframe-fake-idp`).
+- [ ] Desktop sign-in through the system browser with a loopback redirect (authorisation code with PKCE); the credential is stored in the macOS keychain and never in a file or on a command line (G4, D6); signing out and revoking close the socket.
+- [ ] Reconnect with the durable cursor (E1), the resync marker, an offline banner and the retry rules of the app layer; a refused client kind or version shows its message from the code.
+- [ ] A test with the fake provider: sign in, edit, revoke, and the socket closes within the stated time.
+
+**E8.3.10 The palette, the shortcut sheet and the command keys (S).** Depends on: E8.1.1, E8.1.5, E8.3.1. Seam: goldens.
+- [ ] The palette and the sheet are drawn from the app layer's data, and every key of the sheet works in the native window on macOS (Cmd in place of Ctrl) and is asserted.
+
+**E8.3.11 Agent-checkable UI tests as a shared harness (S).** Depends on: E8.2.2. Seam: the harness itself.
+- [ ] `frontends/rune/tools/` has a command that renders a named state headlessly, writes a PNG and the element tree dump, and replays scripted input; the dump format is documented so an agent can assert on it. It does for the native client what the browser scripts do for the web.
+
+**E8.3.12 Desktop parity gate (M).** Depends on: E8.3.2 to E8.3.10. Seam: a checklist file in the repository.
+- [ ] `docs/rune-parity.md` maps every browser script under `packages/*/scripts/` (about 30) to the Rune test that asks the same questions, or marks it not applicable with a reason; none is left unmapped. The editor, layout interaction, variables, manage view, import and export of variables, export, activity, checkpoints, image fill, border, shadow and ellipse scripts each have a Rune counterpart.
+- [ ] `cargo test` for the Rune workspace, `cargo xtask deps-check`, `ui-literals`, `size-check`, `mm-check`, the licence check and the local Cora review pass, and the 500 line and 50,000 line limits hold.
+- [ ] The owner sees a demo against a real server with a second token for an agent (the flow of the M1 demonstration) and records the decision to continue to E8-E.
+
+### E8.4 Rune web (milestone E8-E; the same crates, built for wasm)
+
+**E8.4.1 The wasm app and its build (M).** Depends on: E8.3.2, E8.3.3. Seam: a Playwright smoke test and the tree dump on wasm.
+- [ ] `frontends/rune/apps/web-rune` builds for `wasm32-unknown-unknown` with Rune's size-optimised profile, with the wasm-bindgen CLI at the version of the Rune lock, fonts served beside the script, and WebGPU with the WebGL2 and CPU fallbacks. A dev command serves it at its own entry, and no existing URL changes.
+- [ ] A smoke script opens it in Chromium, loads a file from a development server and asserts the element tree of the layout.
+
+**E8.4.2 Browser I/O (M).** Depends on: E8.4.1. Seam: Playwright and unit tests of the glue.
+- [ ] A WebSocket in Rust (`web_sys::WebSocket`) with the durable cursor and a reconnect test (the socket is killed with Playwright), and an HTTP polling fallback documented for locked proxies.
+- [ ] Download through a Blob bridge whose JavaScript glue is counted and stays under 40 lines, paste and drop of files and images within the server's caps, copy to the clipboard from a user input callback, and external links through the app's link rule (never opened from text that came from a model).
+
+**E8.4.3 Browser support and unsupported pages (S).** Depends on: E8.4.1. Seam: Playwright.
+- [ ] Supported: current Chromium and WebKit (Safari), each with a smoke run. Firefox shows an unsupported page that names the reason (in the spike of the Rune web target the Shape path stalled for about 430 ms), tested on Firefox 141 or later; a mobile user agent or a narrow touch viewport shows an unsupported-device page. Both are courtesies and the page says so; the real controls are those of E8.1.8.
+- [ ] `docs/` states the matrix and the re-check triggers (Firefox fixed upstream, an incremental Shape API landed).
+
+**E8.4.4 Load, size and frame budgets (M).** Depends on: E8.4.1, E8.3.2. Seam: committed scripts.
+- [ ] The wasm size is at most 5.0 MB gzip with the app layer linked (the spike of the Rune web target measured 4.4 MB), and a CI check fails a growth of more than 5% between pull requests unless the pull request says why.
+- [ ] The time to the first Rune frame and to an interactive editor, cold and warm cache, on throttled 4G and unthrottled, is recorded next to the React client's on the same machine. The proposed bar is no worse than 1.5 times the React client's time to interactive; the owner confirms.
+- [ ] Pan and zoom on Chromium and WebKit hold the C4 numbers. The first wheel defect (#2549) is either fixed upstream or mitigated here with a measured decision (an idle heartbeat costs the no-frames-at-rest win, and the number is in the pull request).
+
+**E8.4.5 Web accessibility and input method (M).** Depends on: E8.4.1. Seam: Playwright and a manual script.
+- [ ] The accessibility tree of the web build exposes the panels, the node list and the toolbar by name, a screen reader smoke test on Safari with VoiceOver is written down, and the input method path through the hidden text area is exercised on real Chromium and Safari with the languages of C7.
+
+**E8.4.6 Web parity gate (M).** Depends on: E8.4.2 to E8.4.5. Seam: the checklist of E8.3.12 with a web column.
+- [ ] Every row of `docs/rune-parity.md` is green on Chromium and WebKit through the Rune web build, or marked not applicable with a reason, and the owner declares the Rune web build at parity or better than the React web client. This gate and E8.3.12 are the precondition for E8.6.
+
+### E8.5 Platforms and shipping (milestone E8-F)
+
+**E8.5.1 Windows (L).** Win32 window and GPU path, the server connection as the platform needs, Credential Manager for the token, input methods (Microsoft IME, Japanese and Chinese) per C7, accessibility with Narrator, and the parity checklist on a real Windows machine.
+- [ ] C1 to C8 are re-run with numbers, and an installer builds in CI.
+
+**E8.5.2 Linux (L).** X11 and Wayland, the secret service for the token, input methods (ibus, fcitx5), AccessKit with Orca, and GPU fallbacks.
+- [ ] The same checks pass on one X11 and one Wayland machine, and the list of distributions is stated.
+
+**E8.5.3 Packaging, signing and updates (L; needs owner orders).** A signed and notarised macOS build, Windows signing, a self-update that verifies a signature and never bypasses the gate, no telemetry (D3) and a release channel. Nothing public (accounts, domains, packages, registries) is created without an owner order: the issue starts with a list of what the owner must create.
+- [ ] A build updates from the previous one on each OS, an unsigned update is refused, and the pull request names every account used.
+
+**E8.5.4 Crash handling and the flight recorder (M).** The local flight recorder of D5 (events, performance, panic and fatal-signal reports) with caps and retention, free of secrets, and a support bundle command that the person sends by choice.
+- [ ] A forced panic and a forced GPU loss each leave a report with no token and no document text, and the app recovers the document from the server.
+
+**E8.5.5 Central control for distributed clients (M, server).** Per-credential rate and quota views, revocation of a desktop credential from the account page, a visible minimum version policy (E8.1.8), and abuse limits tested with a hostile client.
+- [ ] A revoked desktop credential cannot reconnect, and a client over its limit gets the stable code and the app layer shows it.
+
+### E8.6 Retire the old front ends (milestone E8-G; needs the owner's OK)
+
+**E8.6.1 Retirement plan (S, docs only).** Depends on: E8.1 landed.
+- [ ] It lists the legacy copy of each rule that moved in E8.1 (the TypeScript camera, pointer, keys, palette, and the creation and resize geometry) and what is removed with it, in this order: the React islands, then the Svelte default page, then the consumers of the wasm bridge. It names the packages that go (`apps/web`, `packages/web-*`, and the generated TypeScript protocol if nothing reads it), and every legacy copy has a line and a removal step.
+
+**E8.6.2 Removal (L, split).** Only after E8.3.12 and E8.4.6 are green and the owner says go.
+- [ ] No `.svelte` or `.tsx` file is left, and the `npm` toolchain is removed or reduced to what is still needed (the oracle tool keeps Playwright).
+- [ ] `AGENTS.md`, `docs/architecture.md`, ADR-0008 and ADR-0026 get status notes, the freeze allow-list is empty, the `size-allow.toml` entries of the removed packages are gone, and the CI jobs are updated.
+- [ ] The way back (git history and the tag of the last release that had the web client) is written in the pull request.
+
+### E8.7 Parked (each with its status, un-park triggers and an anti-goal; D9)
+
+- **Mobile.** Un-park when Rune offers an incremental Shape or a cached layer API and the phone numbers of the spike of the Rune web target (about 10 frames per second on a mid-range phone with the Shape rebuilt every frame) are measured again at 30 frames per second or better, or when Rune ships an iOS front end. Anti-goal: no phone layout is built from this note alone.
+- **Generative UI in the agent chat of the desktop** (phase D). Un-park together with the decision on the desktop chat.
+- **A shared UI kit across repositories.** Un-park when two products have the same component written twice (one adapter is a hypothetical seam, two is a real one). Anti-goal: no third repository or published crate without an owner order.
+
 ## After W1 (not planned in detail)
 
-Carousel and slides (C1), motion (Mo1), headless capture (decision 18), components and instances (decision 19), desktop with a local agent over ACP (phase D; GPUIX + React after the web client is fixed, decision 42 and E7.4), brand memory through Uteke, PDF export, responsive export.
+Carousel and slides (C1), motion (Mo1), headless capture (decision 18), components and instances (decision 19), desktop with a local agent over ACP (phase D; native Rune since decision 45 and E8, which replaced GPUIX + React, decision 42 and E7.4), brand memory through Uteke, PDF export, responsive export.
