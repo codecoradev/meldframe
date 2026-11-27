@@ -5,8 +5,9 @@
 //
 // The three dialogs (the manage view, Import variables, Export variables) are not in this copy: each has a React copy (`/?react=manage` since S9,
 // `/?react=io` since S10), but a dialog that the default page draws as Svelte cannot be drawn inside this root, and each React one is a root of
-// its own. The switch file that hosts this panel (apps/web/src/react-pilot/VariablesPanelSwitch.svelte) draws them beside it, from the app
-// layer's state (`manage.open`, `io.importOpen`, `io.export`); this panel only has the three buttons, which send the actions that open them.
+// its own. The editor page (apps/web/src/Editor.svelte) draws them beside the Export dialog, from the app layer's state (`manage.open`,
+// `variablesIo.importOpen`, `variablesIo.export`), so that they do not go when this panel does (the right card folds); this panel only has
+// the three buttons, which send the actions that open them.
 // A text with a value in it is one string (a template), not two text nodes.
 import type { Action, VariableRow, VariablesPanel as Model } from '@meldframe/protocol';
 import { Button } from '@meldframe/web-chrome/react/Button';

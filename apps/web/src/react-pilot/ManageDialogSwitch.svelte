@@ -1,7 +1,6 @@
 <!--
   The temporary switch of the manage view (docs/react-web-plan.md, section 7, slice S9): what draws the Variables manage view in place
-  of ManageDialog.svelte, through `VariablesPanelSwitch.svelte` (the Svelte panel takes it as `manageView`; the React panel's switch draws
-  it beside the island). Without `/?react=manage` it draws the Svelte dialog (Bits UI); with it, the React dialog (Base UI's Dialog) in an
+  of ManageDialog.svelte, drawn by `Editor.svelte` beside the Export dialog (not inside the Variables panel, which goes when the right card folds). Without `/?react=manage` it draws the Svelte dialog (Bits UI); with it, the React dialog (Base UI's Dialog) in an
   island, loaded on demand so that the editor's bundle does not carry React. The shared island helper draws each update to its end (`flushSync`, S8): the
   dialog reads the events of each snapshot, and with the helper as it was the events of a snapshot were lost with `react=variables,manage`
   (the cause, React keeping only the last of two updates in one task, is inferred, not shown; flushing does not help if the host hands the

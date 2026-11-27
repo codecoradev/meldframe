@@ -12,7 +12,7 @@ const row = (over: Partial<VariableRow> = {}): VariableRow => ({
 const modes = [{ id: 'm1', name: 'Light' }, { id: 'm2', name: 'A very long mode name that cannot fit' }, { id: 'm3', name: 'Dark' }];
 const col = (over: Partial<CollectionRow> = {}): CollectionRow => ({ id: 'c', name: 'appearance', modes, active: 'm1', matched: 1, variables: [row()], ...over });
 const panel = (c: CollectionRow[]): VariablesPanel => ({ query: '', total: 1, matched: 1, collections: c });
-const html = (p: VariablesPanel, target: string | null = 'n1') => render(VariablesPanelView as never, { props: { panel: p, target, dispatch: () => {}, manage: { open: false } } as never }).body;
+const html = (p: VariablesPanel, target: string | null = 'n1') => render(VariablesPanelView as never, { props: { panel: p, target, dispatch: () => {} } as never }).body;
 
 describe('the Variables section as the boards draw it', () => {
   it('lists the rows in a container capped by a size token, with the search and the modes outside it', () => {
@@ -74,15 +74,16 @@ describe('the Import variables and Export variables buttons', () => {
     expect(out.indexOf('data-testid="var-export"')).toBeLessThan(out.indexOf('max-h-(--mf-size-variables-list)'));
     expect(out).not.toMatch(/>(Import|Export) tokens?</i);
   });
-  it('are there with no io given (a section drawn alone), and both dialogs stay closed', () => {
+  it('are there with no io given (a section drawn alone), and the panel draws no dialog', () => {
     expect(out).not.toContain('data-testid="export-vars-dialog"');
     expect(out).not.toContain('data-testid="import-vars-dialog"');
   });
 });
 
 describe('the dialogs of the Variables section are open by the state of the app layer (finding T11)', () => {
-  // The panel holds no flag: Manage and Import variables are open while `manage.open` and `io.importOpen` say so, Export variables while the
-  // app layer holds its text; the three buttons send the actions that open them. The clicks are checked in a browser (variables-e2e.mjs).
+  // The panel holds no flag and draws no dialog: Manage and Import variables are open while `manage.open` and `variablesIo.importOpen` say so,
+  // Export variables while the app layer holds its text, and the editor page draws them beside the Export dialog (apps/web/src/dialogs-host.test.ts),
+  // so that they do not go when the panel does. The three buttons send the actions that open them. The clicks are checked in a browser (variables-e2e.mjs).
   const src = readFileSync(new URL('./VariablesPanel.svelte', import.meta.url), 'utf8');
   it('sends the open actions and keeps no open flag of its own', () => {
     expect(src).toContain("dispatch({ type: 'manage', op: { type: 'open' } })");
@@ -91,8 +92,7 @@ describe('the dialogs of the Variables section are open by the state of the app 
     expect(src).not.toMatch(/\$state\((false|true)\)/);
     expect(src).not.toContain('onOpenChange');
   });
-  it('hands the dialogs the state: open from `manage.open` and `io.importOpen`', () => {
-    expect(src).toContain('<ManageView open={manage.open}');
-    expect(src).toContain('<ImportView open={io.importOpen}');
+  it('draws no dialog: none is imported, so none can go with the panel', () => {
+    expect(src).not.toMatch(/Dialog|ManageView|ImportView|ExportView/);
   });
 });
