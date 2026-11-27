@@ -1,4 +1,4 @@
-//! The search, the ranking and the keys of the command palette (issue E8.1.5): the cases of `packages/web-shell/src/palette.test.ts`
+//! The search, the ranking and the keys of the run palette (issue E8.1.5): the cases of `packages/web-shell/src/palette.test.ts`
 //! with the same expected order.
 
 // Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
@@ -8,7 +8,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 mod common;
 use common::palette::*;
 use meldframe_app_rules::palette::{
-    Command, Entry, KeyResult, filter, first_enabled, highlight_at, on_key, results_text,
+    Entry, KeyResult, Run, filter, first_enabled, highlight_at, on_key, results_text,
 };
 
 fn custom(id: &str, label: &str, keywords: &'static [&'static str]) -> Entry {
@@ -21,7 +21,7 @@ fn custom(id: &str, label: &str, keywords: &'static [&'static str]) -> Entry {
         enabled: true,
         keywords,
         opens_dialog: false,
-        command: Command::Undo,
+        run: Run::Undo,
     }
 }
 

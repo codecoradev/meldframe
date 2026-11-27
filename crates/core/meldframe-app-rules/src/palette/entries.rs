@@ -19,7 +19,7 @@ pub enum Zoom {
 
 /// What running an entry makes, as data: `plan` turns it into what the app does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Command {
+pub enum Run {
     Tool(Tool),
     Undo,
     Redo,
@@ -55,7 +55,7 @@ pub struct Entry {
     pub keywords: &'static [&'static str],
     /// It opens a dialog, which takes the focus: the palette does not give it back.
     pub opens_dialog: bool,
-    pub command: Command,
+    pub run: Run,
 }
 
 /// The first key of a row of the sheet, written for the platform.
@@ -88,7 +88,7 @@ type ZoomRow = (
 /// The entries for the state of the editor. `auto_layout` is `Some(on)` when the host has the switch "Auto layout on canvas" (the
 /// entry says what is on) and `None` for a host without it, which leaves the entry out.
 pub fn entries(state: &AppState, mac: bool, auto_layout: Option<bool>) -> Vec<Entry> {
-    let entry = |group, id: &str, label: &str, enabled, command| Entry {
+    let entry = |group, id: &str, label: &str, enabled, run| Entry {
         id: id.into(),
         label: label.into(),
         group,
@@ -97,7 +97,7 @@ pub fn entries(state: &AppState, mac: bool, auto_layout: Option<bool>) -> Vec<En
         enabled,
         keywords: &[],
         opens_dialog: false,
-        command,
+        run,
     };
     let keyed = |mut e: Entry, row: &str, words: &'static [&'static str]| {
         e.shortcut = key(row, mac);
@@ -120,19 +120,19 @@ pub fn entries(state: &AppState, mac: bool, auto_layout: Option<bool>) -> Vec<En
     ];
     for (id, label, tool, words) in tools {
         out.push(keyed(
-            entry("Tools", id, label, true, Command::Tool(tool)),
+            entry("Tools", id, label, true, Run::Tool(tool)),
             id,
             words,
         ));
     }
     let h = &state.history;
     out.push(keyed(
-        entry("Edit", "undo", "Undo", h.can_undo, Command::Undo),
+        entry("Edit", "undo", "Undo", h.can_undo, Run::Undo),
         "undo",
         &[],
     ));
     out.push(keyed(
-        entry("Edit", "redo", "Redo", h.can_redo, Command::Redo),
+        entry("Edit", "redo", "Redo", h.can_redo, Run::Redo),
         "redo",
         &[],
     ));
@@ -141,7 +141,7 @@ pub fn entries(state: &AppState, mac: bool, auto_layout: Option<bool>) -> Vec<En
         "delete",
         "Delete the selection",
         !state.selection.is_empty(),
-        Command::DeleteSelection,
+        Run::DeleteSelection,
     );
     out.push(keyed(delete, "delete", &["remove"]));
     for p in FramePreset::ALL {
@@ -152,7 +152,7 @@ pub fn entries(state: &AppState, mac: bool, auto_layout: Option<bool>) -> Vec<En
             &id,
             &format!("New frame: {}", p.name()),
             true,
-            Command::NewFrame(p),
+            Run::NewFrame(p),
         );
         e.detail = Some(format!("{w} \u{d7} {h}"));
         e.keywords = &["preset", "create", "add"];
@@ -190,7 +190,7 @@ pub fn entries(state: &AppState, mac: bool, auto_layout: Option<bool>) -> Vec<En
         ),
     ];
     for (id, label, zoom, row, words) in zooms {
-        let mut e = entry("View", id, label, true, Command::Zoom(zoom));
+        let mut e = entry("View", id, label, true, Run::Zoom(zoom));
         e.shortcut = row.and_then(|r| key(r, mac));
         e.keywords = words;
         out.push(e);
@@ -201,7 +201,7 @@ pub fn entries(state: &AppState, mac: bool, auto_layout: Option<bool>) -> Vec<En
             "auto-layout",
             "Auto layout on canvas",
             true,
-            Command::AutoLayout,
+            Run::AutoLayout,
         );
         e.detail = Some(
             if on {
@@ -221,7 +221,7 @@ pub fn entries(state: &AppState, mac: bool, auto_layout: Option<bool>) -> Vec<En
         "toggle-layers",
         &format!("{} layers panel", shown(p.layers)),
         true,
-        Command::TogglePanel(Panel::Layers),
+        Run::TogglePanel(Panel::Layers),
     );
     out.push(keyed(layers, "layers-panel", &["pages", "toggle"]));
     let right = entry(
@@ -229,20 +229,14 @@ pub fn entries(state: &AppState, mac: bool, auto_layout: Option<bool>) -> Vec<En
         "toggle-inspector",
         &format!("{} right panel", shown(p.properties)),
         true,
-        Command::TogglePanel(Panel::Properties),
+        Run::TogglePanel(Panel::Properties),
     );
     out.push(keyed(
         right,
         "right-panel",
         &["design", "inspector", "properties", "toggle"],
     ));
-    let mut export = entry(
-        "File",
-        "export",
-        "Export\u{2026}",
-        has_target,
-        Command::Export,
-    );
+    let mut export = entry("File", "export", "Export\u{2026}", has_target, Run::Export);
     export.keywords = &["png", "html", "tailwind", "image"];
     export.opens_dialog = true;
     out.push(export);
@@ -251,7 +245,7 @@ pub fn entries(state: &AppState, mac: bool, auto_layout: Option<bool>) -> Vec<En
         "variant",
         "Make a variant",
         has_target,
-        Command::Variant,
+        Run::Variant,
     );
     variant.keywords = &["copy", "duplicate"];
     out.push(variant);
@@ -261,7 +255,7 @@ pub fn entries(state: &AppState, mac: bool, auto_layout: Option<bool>) -> Vec<En
             "shortcuts",
             "Show keyboard shortcuts",
             true,
-            Command::Help,
+            Run::Help,
         ),
         "shortcuts",
         &["keys", "help"],

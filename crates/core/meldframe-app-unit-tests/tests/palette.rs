@@ -1,6 +1,6 @@
-//! The command palette as a function of the app state and a query (audit finding T7c, decision 43 clause Q2, issue E8.1.5): its
+//! The run palette as a function of the app state and a query (audit finding T7c, decision 43 clause Q2, issue E8.1.5): its
 //! entries and the switch "Auto layout on canvas" (`palette_rank.rs` has the search, the ranking and the keys). The cases are those of
-//! `packages/web-shell/src/palette.test.ts`, with the same expected order; that file stays as the legacy copy until the web clients
+//! `packages/web-shell/src/palette.test.ts`, with the same expected order; that file stays as the legacy copy until the web front ends
 //! are retired. The words are the palette's (U5): they are fixed text, and none of them carries text from a file (U9).
 
 // Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
@@ -11,7 +11,7 @@ mod common;
 use common::palette::*;
 use meldframe_app::{FramePreset, Panel, Tool};
 use meldframe_app_rules::keys::sheet::sheet;
-use meldframe_app_rules::palette::{Command, Entry, Zoom, entries};
+use meldframe_app_rules::palette::{Entry, Run, Zoom, entries};
 
 const PRESET_IDS: [&str; 7] = [
     "preset-desktop",
@@ -179,25 +179,22 @@ fn there_is_one_entry_for_each_frame_preset_with_its_name_and_size() {
 #[test]
 fn each_entry_makes_the_command_the_editor_already_has_for_it() {
     let es = list(ON, false, None);
-    let makes = |id: &str| by(&es, id).command;
-    assert_eq!(makes("tool-rectangle"), Command::Tool(Tool::Rectangle));
-    assert_eq!(makes("undo"), Command::Undo);
-    assert_eq!(makes("redo"), Command::Redo);
-    assert_eq!(makes("delete"), Command::DeleteSelection);
-    assert_eq!(makes("preset-a4"), Command::NewFrame(FramePreset::A4));
-    assert_eq!(
-        makes("zoom-fit-selection"),
-        Command::Zoom(Zoom::FitSelection)
-    );
-    assert_eq!(makes("zoom-in"), Command::Zoom(Zoom::In));
-    assert_eq!(makes("toggle-layers"), Command::TogglePanel(Panel::Layers));
+    let makes = |id: &str| by(&es, id).run;
+    assert_eq!(makes("tool-rectangle"), Run::Tool(Tool::Rectangle));
+    assert_eq!(makes("undo"), Run::Undo);
+    assert_eq!(makes("redo"), Run::Redo);
+    assert_eq!(makes("delete"), Run::DeleteSelection);
+    assert_eq!(makes("preset-a4"), Run::NewFrame(FramePreset::A4));
+    assert_eq!(makes("zoom-fit-selection"), Run::Zoom(Zoom::FitSelection));
+    assert_eq!(makes("zoom-in"), Run::Zoom(Zoom::In));
+    assert_eq!(makes("toggle-layers"), Run::TogglePanel(Panel::Layers));
     assert_eq!(
         makes("toggle-inspector"),
-        Command::TogglePanel(Panel::Properties)
+        Run::TogglePanel(Panel::Properties)
     );
-    assert_eq!(makes("export"), Command::Export);
-    assert_eq!(makes("variant"), Command::Variant);
-    assert_eq!(makes("shortcuts"), Command::Help);
+    assert_eq!(makes("export"), Run::Export);
+    assert_eq!(makes("variant"), Run::Variant);
+    assert_eq!(makes("shortcuts"), Run::Help);
 }
 
 #[test]
@@ -241,7 +238,7 @@ fn the_switch_entry_is_there_only_when_the_page_has_the_switch_in_the_view_group
         (e.label.as_str(), e.group, e.enabled),
         ("Auto layout on canvas", "View", true)
     );
-    assert_eq!(e.command, Command::AutoLayout);
+    assert_eq!(e.run, Run::AutoLayout);
     let without: Vec<&str> = ids(&es)
         .into_iter()
         .filter(|i| *i != "auto-layout")

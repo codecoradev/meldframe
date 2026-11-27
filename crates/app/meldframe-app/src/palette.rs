@@ -1,4 +1,4 @@
-//! The command palette through the app: the entries for the state and a query, and running one by its id.
+//! The run palette through the app: the entries for the state and a query, and running one by its id.
 
 use crate::app::App;
 use crate::effect::Effect;
@@ -40,7 +40,7 @@ impl App {
                 overlay: Overlay::Palette,
             },
         });
-        match plan(e.command, &self.state, on, centre) {
+        match plan(e.run, &self.state, on, centre) {
             Plan::Dispatch(action) => fx.extend(self.dispatch(action)),
             Plan::SetLayoutOnCanvas(on) => fx.extend(self.set_layout_on_canvas(on)),
             Plan::Host(zoom) => return Ran::Host(zoom),

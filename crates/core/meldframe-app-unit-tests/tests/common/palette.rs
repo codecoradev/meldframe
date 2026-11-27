@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use meldframe_app::{AppState, ExportTarget};
-use meldframe_app_rules::palette::{Command, Entry, entries, filter};
+use meldframe_app_rules::palette::{Entry, Run, entries, filter};
 
 /// What the page told the palette in the TypeScript tests: the panels and what the editor can do now.
 #[derive(Clone, Copy)]
@@ -70,6 +70,6 @@ pub fn custom(id: &str, label: &str, keywords: &'static [&'static str]) -> Entry
         enabled: true,
         keywords,
         opens_dialog: false,
-        command: Command::Undo,
+        run: Run::Undo,
     }
 }

@@ -1,6 +1,6 @@
-//! The command palette driven through the app with no front end (issue E8.1.5): a query gives the entries, an entry is run by its
+//! The run palette driven through the app with no front end (issue E8.1.5): a query gives the entries, an entry is run by its
 //! id, and what it does is what the key or the button for the same thing does. The palette closes before the entry acts, as the
-//! web palette does. Zoom is the one command the app cannot do yet (the camera is the front end's until E8.1.4): it is handed back.
+//! web palette does. PaletteZoom is the one run the app cannot do yet (the camera is the front end's until E8.1.4): it is handed back.
 
 // Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
@@ -9,7 +9,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 mod common;
 use common::keys::*;
 use common::*;
-use meldframe_app::{Action, App, Modifiers, Overlay, OverlayOp, Ran, Tool, Zoom};
+use meldframe_app::{Action, App, Modifiers, Overlay, OverlayOp, PaletteRan, PaletteZoom, Tool};
 use meldframe_app_rules::keys::{Held, TABLE};
 
 fn found(app: &App, query: &str) -> Vec<String> {
@@ -36,9 +36,9 @@ fn open_palette(app: &mut App) {
     assert_eq!(app.state().overlay, Some(Overlay::Palette));
 }
 
-fn done(r: Ran) -> Vec<meldframe_app::Effect> {
+fn done(r: PaletteRan) -> Vec<meldframe_app::Effect> {
     match r {
-        Ran::Done(fx) => fx,
+        PaletteRan::Done(fx) => fx,
         other => panic!("{other:?}"),
     }
 }
@@ -122,7 +122,7 @@ fn a_preset_makes_a_frame_centred_on_the_point_the_front_end_gives() {
     done(a.run_palette("preset-a4", (100.0, 100.0)));
     let id = a.state().selection[0].clone();
     let n = get(&a, &id);
-    // 100 - 297.5 and 100 - 421, rounded the way the web client rounds (half up), as one frame the person can undo.
+    // 100 - 297.5 and 100 - 421, rounded the way the web front end rounds (half up), as one frame the person can undo.
     assert_eq!((n.x, n.y, n.w, n.h), (-197.0, -321.0, 595.0, 842.0));
     assert_eq!(a.state().tool, Tool::Select);
 }
@@ -132,13 +132,13 @@ fn zoom_is_handed_back_to_the_front_end_and_a_refused_entry_changes_nothing() {
     let mut a = app();
     assert!(matches!(
         a.run_palette("zoom-fit", (0.0, 0.0)),
-        Ran::Host(Zoom::Fit)
+        PaletteRan::Host(PaletteZoom::Fit)
     ));
     a.take_events();
     let before = a.state().clone();
     for id in ["undo", "delete", "export", "variant", "nowhere"] {
         assert!(
-            matches!(a.run_palette(id, (0.0, 0.0)), Ran::Refused),
+            matches!(a.run_palette(id, (0.0, 0.0)), PaletteRan::Refused),
             "{id}"
         );
     }
