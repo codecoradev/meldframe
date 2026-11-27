@@ -218,7 +218,6 @@ describe('the React Variables panel opens its dialogs by the state of the app la
   it('sends the same open actions as the Svelte copy and has no open callback or flag', () => {
     expect(src).toContain("dispatch({ type: 'manage', op: { type: 'open' } })");
     expect(src).toContain("dispatch({ type: 'openVariablesImport' })");
-    expect(src).not.toMatch(/onManage|onImport|useState/);
-    expect(src).not.toMatch(/Dialog/.test(src.replace(/^\/\/.*$/gm, '')) ? /^$/ : /^$/);
+    expect(src).not.toMatch(/onManage|onImport|useState|Dialog/);
   });
 });
