@@ -160,8 +160,8 @@ pub enum RasterSink {
     Download {},
     /// Put them on the clipboard as an image.
     Clipboard {},
-    /// `POST /captures/{request_id}` with the bytes as the body and the headers `X-Capture-Token: {upload_token}`,
-    /// `X-Capture-Seq: {seq}` and `Content-Type: image/png`, as the person's own session.
+    /// `POST /captures/{request_id}` with the bytes as the body, the upload token in the header `X-Capture-Token`, the
+    /// sequence number in `X-Capture-Seq` and `Content-Type: image/png`, as the person's own session.
     Upload {
         request_id: String,
         #[ts(type = "string")]
