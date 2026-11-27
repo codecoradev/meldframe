@@ -7,6 +7,7 @@
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
 use meldframe_app::{Action, App, Effect, Event, PngOp, PngSink};
+use meldframe_app_model::RasterRect;
 use meldframe_protocol::Node;
 use serde_json::{Value, json};
 
@@ -148,6 +149,10 @@ fn a_frame_over_the_pixel_limit_says_the_size_it_would_have_and_the_largest_scal
     // 4096 by 4096 is the limit: exactly that fits, one pixel more does not.
     let mut edge = app_with(frame("Edge", 4096, 4096), "f");
     assert_eq!(plan(&edge)["type"], "ready");
+    for (w, h) in [(4097, 4096), (4096, 4097)] {
+        let over = app_with(frame("Over", w, h), "f");
+        assert_eq!(plan(&over)["code"], "too_large", "{w}x{h}");
+    }
     png(&mut edge, PngOp::SetScale { scale: 0.5 });
     assert_eq!(plan(&edge)["width"], 2048);
     let huge = app_with(frame("Huge", 20000, 20000), "f");
@@ -324,4 +329,34 @@ fn the_sinks_of_a_raster_are_closed_shapes() {
         assert!(serde_json::from_value::<RasterSink>(json!({"type": kind})).is_ok());
         assert!(serde_json::from_value::<RasterSink>(json!({"type": kind, "x": 1})).is_err());
     }
+}
+
+#[test]
+fn no_scale_makes_an_image_of_zero_pixels_or_one_that_wraps() {
+    use meldframe_app_rules::raster::{Refusal, size_of};
+    let rect = |w, h| RasterRect {
+        x: 0.0,
+        y: 0.0,
+        w,
+        h,
+    };
+    // A scale as small as a number gets (a capture may ask for any above 0) still draws one pixel, never none.
+    assert_eq!(
+        size_of(&rect(0.1, 0.1), f64::from_bits(1), 1 << 24),
+        Ok((1, 1))
+    );
+    assert_eq!(size_of(&rect(1.0, 1e-300), 1e-300, 1 << 24), Ok((1, 1)));
+    // A side that does not fit 32 bits is over the limit, whatever limit the caller gives: it never wraps or saturates.
+    assert_eq!(
+        size_of(&rect(1e10, 0.1), 1.0, u64::MAX),
+        Err(Refusal::TooLarge)
+    );
+    assert_eq!(
+        size_of(&rect(0.1, 5e9), 1.0, u64::MAX),
+        Err(Refusal::TooLarge)
+    );
+    assert_eq!(
+        size_of(&rect(4294967295.0, 1.0), 1.0, u64::MAX),
+        Ok((u32::MAX, 1))
+    );
 }

@@ -62,15 +62,22 @@ pub fn rect_of(scene: Scene, node: Option<&str>) -> Option<RasterRect> {
     })
 }
 
-/// The size in pixels of an image of `rect` at `scale`: each side rounded up, so no edge is cut and no image is 0 px.
-/// `NodeNotFound` for a rectangle with no width or height, `TooLarge` over `max_pixels`.
+/// The pixels of a length at a scale: rounded up, so no edge is cut, and at least 1, so no image is 0 px (a scale as small as a
+/// number gets, or a length that underflows with it, would round to 0).
+fn pixels(length: f64, scale: f64) -> f64 {
+    (length * scale).ceil().max(1.0)
+}
+
+/// The size in pixels of an image of `rect` at `scale`: each side rounded up, so no edge is cut, and at least 1 px.
+/// `NodeNotFound` for a rectangle with no width or height, `TooLarge` over `max_pixels` or when a side does not fit 32 bits.
 pub fn size_of(rect: &RasterRect, scale: f64, max_pixels: u64) -> Result<(u32, u32), Refusal> {
     if !(rect.w > 0.0 && rect.h > 0.0) {
         return Err(Refusal::NodeNotFound);
     }
-    let (w, h) = ((rect.w * scale).ceil(), (rect.h * scale).ceil());
-    // The sides are numbers above 0 (the rectangle and the scale are checked), so the product is one or infinite.
-    if w * h > max_pixels as f64 {
+    let (w, h) = (pixels(rect.w, scale), pixels(rect.h, scale));
+    // The sides are numbers from 1 up (the rectangle and the scale are checked), so the product is one or infinite.
+    let max_side = f64::from(u32::MAX);
+    if w * h > max_pixels as f64 || w > max_side || h > max_side {
         return Err(Refusal::TooLarge);
     }
     Ok((w as u32, h as u32))
@@ -131,8 +138,8 @@ pub fn png_plan(scene: Scene, id: &str, stem: &str, scale: f64) -> PngPlan {
         Err(Refusal::TooLarge) => {
             let side = |s: f64| RasterSize {
                 scale: s,
-                width: (rect.w * s).ceil() as u32,
-                height: (rect.h * s).ceil() as u32,
+                width: pixels(rect.w, s) as u32,
+                height: pixels(rect.h, s) as u32,
             };
             let fits = SCALES
                 .iter()
