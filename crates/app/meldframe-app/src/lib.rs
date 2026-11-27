@@ -64,8 +64,8 @@ pub use meldframe_app_model::{
     TextEdit, TextEditOp,
 };
 pub use meldframe_app_model::{
-    EXPORT_MAX_PIXELS, MAX_SCALE, MIN_SCALE, PngOp, PngPlan, PngSink, PngState, RasterRect,
-    RasterSink, RasterSize, SCALES,
+    EXPORT_MAX_PIXELS, MAX_SCALE, MIN_SCALE, PNG_MIN_BYTES, PngOp, PngPlan, PngSink, PngState,
+    RasterRect, RasterSink, RasterSize, SCALES, Wire,
 };
 pub use meldframe_app_model::{
     ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,

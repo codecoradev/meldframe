@@ -1,11 +1,17 @@
 //! The PNG export of a frame as state transitions (finding T13 of the thin UI audit, decision 43): the scale, the plan for the
 //! frame of the section and of the open dialog (the rectangle with the reach of its paint, the size in pixels, the file name,
-//! or why there is none) and the export itself as an `Effect::Raster`. View state: nothing is written to the file and the undo
+//! or why there is none), the export itself as an `Effect::Raster` and what comes of it: the shell reports the image it drew
+//! (`Wire::Drawn`), the app checks it against the plan and the limits and the node as it is now, and the shell is told to
+//! deliver the bytes or to drop them (`Effect::FinishRaster`); a request is answered once. View state: nothing is written to the file and the undo
 //! history does not change. `meldframe-app` hands each step the scene, the state of the export and where the effects and the
 //! events go (`Env`); the pure rules are in `raster`, and the drawing and the save are the shell's.
 
-use crate::raster::{Scene, is_export_scale, png_plan};
-use meldframe_app_model::{Effect, Event, ExportState, PngOp, PngPlan, PngSink, RasterSink};
+use crate::code::code as safe;
+use crate::jobs::{Job, Jobs, Kind, Stage};
+use crate::raster::{Planned, Refusal, Scene, drawn_refusal, is_export_scale, plan, png_plan};
+use meldframe_app_model::{
+    EXPORT_MAX_PIXELS, Effect, Event, ExportState, PngOp, PngPlan, PngSink, RasterSink,
+};
 
 /// What the plans of the export were worked out from: the epoch of the scene (the document, the measurer, the flag and the
 /// modes), the scale and the two frames. While it is the same, so are the plans.
@@ -48,10 +54,11 @@ impl Env<'_> {
     }
 }
 
-/// The plans of the PNG export, and (below) the requests for an image that are out.
+/// The plans of the PNG export, and the requests for an image that are out.
 #[derive(Debug, Default)]
 pub struct Rasters {
     key: Option<PlanKey>,
+    jobs: Jobs,
 }
 
 impl Rasters {
@@ -89,6 +96,23 @@ impl Rasters {
                 }
             }
             PngOp::Export { id, to } => self.export(&id, to, scene, env),
+            PngOp::Drawn {
+                request,
+                width,
+                height,
+                bytes,
+            } => self.drawn(request, (width, height, bytes), scene, env),
+            PngOp::DrawFailed { request, code } => {
+                if let Some(job) = self.jobs.take(request, Stage::Drawing) {
+                    close(job, &safe(&code), false, env);
+                }
+            }
+            PngOp::Delivered { request } => drop(self.jobs.take(request, Stage::Delivering)),
+            PngOp::DeliveryFailed { request, code } => {
+                if let Some(job) = self.jobs.take(request, Stage::Delivering) {
+                    close(job, &safe(&code), false, env);
+                }
+            }
         }
     }
 
@@ -109,27 +133,115 @@ impl Rasters {
             None => return env.refuse("not_exportable"),
             Some(stem) => png_plan(scene, id, stem, export.png.scale),
         };
-        match plan {
-            PngPlan::Ready {
-                rect,
-                scale,
-                width,
-                height,
-                file,
-            } => env.fx.push(Effect::Raster {
-                rect,
-                scale,
-                width,
-                height,
-                file,
-                to: match to {
-                    PngSink::Download => RasterSink::Download {},
-                    PngSink::Clipboard => RasterSink::Clipboard {},
-                },
-            }),
-            PngPlan::Refused { code, .. } => env.refuse(&code),
+        let PngPlan::Ready {
+            rect,
+            scale,
+            width,
+            height,
+            file,
+        } = plan
+        else {
+            let PngPlan::Refused { code, .. } = plan else {
+                unreachable!("a plan is ready or refused")
+            };
+            return env.refuse(&code);
+        };
+        // A new export replaces the one still being made; the shell drops the bytes it holds for it.
+        for old in (self.jobs).take_where(|j| matches!(j.kind, Kind::Export { .. })) {
+            env.fx.push(Effect::FinishRaster {
+                request: old.request,
+                deliver: false,
+            });
         }
+        let job = Job {
+            request: self.jobs.number(),
+            kind: Kind::Export { sink: to, file },
+            node: Some(id.to_owned()),
+            scale,
+            planned: Planned {
+                rect,
+                width,
+                height,
+            },
+            max_pixels: EXPORT_MAX_PIXELS,
+            stage: Stage::Waiting,
+        };
+        self.draw(job, env.fx);
     }
+
+    /// Ask the shell to draw the job's image (`Effect::Raster`) and wait for its report.
+    fn draw(&mut self, mut job: Job, fx: &mut Vec<Effect>) {
+        let Kind::Export { sink, file } = &job.kind;
+        fx.push(Effect::Raster {
+            request: job.request,
+            rect: job.planned.rect,
+            scale: job.scale,
+            width: job.planned.width,
+            height: job.planned.height,
+            file: Some(file.clone()),
+            to: match sink {
+                PngSink::Download => RasterSink::Download {},
+                PngSink::Clipboard => RasterSink::Clipboard {},
+            },
+        });
+        job.stage = Stage::Drawing;
+        self.jobs.push(job);
+    }
+
+    /// The shell drew the image of `request` and holds `bytes`. It goes on only when the app is not halted, the report meets the
+    /// plan and the limits, and the node is still there as it was planned; otherwise the request ends here, once.
+    fn drawn(&mut self, request: u32, drawn: (u32, u32, u64), scene: Scene, env: Env) {
+        let Some(mut job) = self.jobs.take(request, Stage::Drawing) else {
+            return;
+        };
+        let planned = (job.planned.width, job.planned.height);
+        let code = if env.halted {
+            // The view of a halted app is out of date (as for `export`): what the shell drew is not delivered.
+            "out_of_sync"
+        } else if let Some(code) = drawn_refusal(drawn, planned, job.max_pixels, None) {
+            code
+        } else {
+            match replan(&job, scene) {
+                Err(refusal) => refusal.code(),
+                Ok(now) if now.rect != job.planned.rect => "node_changed",
+                Ok(_) => {
+                    job.stage = Stage::Delivering;
+                    self.jobs.push(job);
+                    env.fx.push(Effect::FinishRaster {
+                        request,
+                        deliver: true,
+                    });
+                    return;
+                }
+            }
+        };
+        close(job, code, true, env);
+    }
+}
+
+/// The plan of the job on the document as it is now.
+fn replan(job: &Job, scene: Scene) -> Result<Planned, Refusal> {
+    plan(
+        scene,
+        job.node.as_deref(),
+        job.scale,
+        is_export_scale,
+        EXPORT_MAX_PIXELS,
+    )
+}
+
+/// End the request with `code`, which the person gets as `Event::Refused`. `discard` when the shell holds the bytes, so it
+/// drops them. The job is already out of the table.
+fn close(job: Job, code: &str, discard: bool, env: Env) {
+    if discard {
+        env.fx.push(Effect::FinishRaster {
+            request: job.request,
+            deliver: false,
+        });
+    }
+    env.events.push(Event::Refused {
+        code: code.to_owned(),
+    });
 }
 
 /// One `ExportChanged` among the events from `from` on, however many parts of `AppState::export` a dispatch changed (the

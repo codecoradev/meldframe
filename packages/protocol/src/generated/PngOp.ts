@@ -4,4 +4,4 @@ import type { PngSink } from "./PngSink";
 /**
  * A step of the PNG export (`Action::Png`). Every one is view state: nothing is written to the file.
  */
-export type PngOp = { "type": "setScale", scale: number, } | { "type": "export", id: string, to: PngSink, };
+export type PngOp = { "type": "setScale", scale: number, } | { "type": "export", id: string, to: PngSink, } | { "type": "drawn", request: number, width: number, height: number, bytes: number, } | { "type": "drawFailed", request: number, code: string, } | { "type": "delivered", request: number, } | { "type": "deliveryFailed", request: number, code: string, };

@@ -1,7 +1,7 @@
-//! The PNG of a frame as plain data (finding T13 of the thin UI audit, decision 43). The app layer decides the rectangle (from
+//! The PNG of a frame, as plain data (finding T13 of the thin UI audit, decision 43). The app layer decides the rectangle (from
 //! `PaintedBox::paint_bounds`), the scale, the size in pixels, the file name and the refusal; the drawing and the delivery of
-//! the bytes (a download, the clipboard) are an effect the shell carries out. The rules are in `meldframe-app-rules`
-//! (`raster`, `png`).
+//! the bytes (a download, the clipboard) are effects the shell carries out, and what it reports comes back as a `Wire` answer
+//! that the app layer reads (`meldframe-app-parts`, `answers`). The rules are in `meldframe-app-rules` (`raster`, `png`).
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -17,6 +17,9 @@ pub const SCALES: [f64; 5] = [0.5, 1.0, 2.0, 3.0, 4.0];
 /// `apps/server/src/main.rs` (1 << 24), the area limit the server puts on a capture, so that an export and a capture of one
 /// node agree; keep the two in step.
 pub const EXPORT_MAX_PIXELS: u64 = 4096 * 4096;
+
+/// The smallest a PNG can be: the signature, the header chunk and the end chunk. Less is not an image.
+pub const PNG_MIN_BYTES: u64 = 33;
 
 /// A rectangle in world space.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
@@ -137,4 +140,19 @@ pub enum PngOp {
     /// `Effect::Raster` when the plan is ready, else `Event::Refused` with the plan's code (`out_of_sync` while the app is
     /// halted, `not_exportable` for another frame).
     Export { id: String, to: PngSink },
+    /// The shell drew the image of `request` and holds the bytes: their size. The app checks it against the plan and the
+    /// limits and answers with `Effect::FinishRaster`.
+    Drawn {
+        request: u32,
+        width: u32,
+        height: u32,
+        #[ts(type = "number")]
+        bytes: u64,
+    },
+    /// The shell could not draw the image of `request`.
+    DrawFailed { request: u32, code: String },
+    /// The bytes of `request` reached their sink.
+    Delivered { request: u32 },
+    /// The sink refused the bytes of `request` (`code` is what its answer said).
+    DeliveryFailed { request: u32, code: String },
 }

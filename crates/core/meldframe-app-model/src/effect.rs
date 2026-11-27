@@ -88,16 +88,22 @@ pub enum Effect {
     /// `Action::CheckpointStateLoaded`, a failure as `Action::CheckpointRequestFailed`.
     FetchCheckpointState { n: u32 },
     /// Draw `rect` (world space) at `scale` as a PNG of `width` by `height` pixels, offscreen and without the overlay, and
-    /// hand the bytes to `to`. `file` is the name to save a download under, safe to use as it is (the app layer made it from
-    /// the frame's name with `meldframe-text`).
+    /// hold the bytes for `to`. The shell reports the size it drew as `Wire::Drawn` (or a failure) with this `request`; the
+    /// bytes go nowhere until `Effect::FinishRaster`. `file` is the name to save a download under, safe to use as it is.
     Raster {
+        request: u32,
         rect: RasterRect,
         scale: f64,
         width: u32,
         height: u32,
-        file: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        file: Option<String>,
         to: RasterSink,
     },
+    /// What the app decided about the image it holds for `request`: `deliver` it to its sink (the answer comes back as
+    /// `Wire::Delivered`) or drop it (it was refused after drawing).
+    FinishRaster { request: u32, deliver: bool },
     /// Redraw. The nodes named changed; an empty list means everything.
     Render { nodes: Vec<String> },
 }

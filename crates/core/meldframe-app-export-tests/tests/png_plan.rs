@@ -169,7 +169,7 @@ fn an_export_is_one_effect_with_the_rectangle_the_scale_the_size_the_file_and_wh
     let fx = export(&mut app);
     assert_eq!(
         effects_json(&fx),
-        vec![json!({"type": "raster",
+        vec![json!({"type": "raster", "request": 1,
             "rect": {"x": 100.0, "y": 50.0, "w": 200.0, "h": 100.0}, "scale": 3.0,
             "width": 600, "height": 300, "file": "Hero@3x.png", "to": {"type": "download"}})]
     );

@@ -1,8 +1,11 @@
 //! What a PNG export comes to (and, later, a capture), decided from the scene (finding T13 of the thin UI audit, decision 43): the
 //! rectangle (the box with the reach of its paint, `meldframe_render::capture_rect`), the scale, the size in pixels, the file
-//! name and the refusal. Pure functions of the boxes and the numbers: the state and the effects are `png`'s.
+//! name and the refusal, and what the shell's report of a drawn image has to meet before its bytes go anywhere. Pure functions
+//! of the boxes and the numbers: the state and the effects are `png`'s.
 
-use meldframe_app_model::{EXPORT_MAX_PIXELS, PngPlan, RasterRect, RasterSize, SCALES};
+use meldframe_app_model::{
+    EXPORT_MAX_PIXELS, PNG_MIN_BYTES, PngPlan, RasterRect, RasterSize, SCALES,
+};
 use meldframe_render::{HitIndex, PaintedBox, capture_bounds_in, capture_rect_in};
 
 /// The scene a plan reads: the painted boxes and the index of them (`HitIndex::from_boxes`), which the app keeps for as long
@@ -148,5 +151,24 @@ pub fn png_plan(scene: Scene, id: &str, stem: &str, scale: f64) -> PngPlan {
             refused(Refusal::TooLarge, Some(side(scale)), fits.map(|s| side(*s)))
         }
         Err(other) => refused(other, None, None),
+    }
+}
+
+/// What the shell reported of the image it drew, against the plan and the limits: the code to refuse it with, or none when
+/// it may go on. `max_bytes` is the cap of the sink (none for a download; a capture's upload has one later).
+/// Over a limit is `too_large`; a size that is not the planned one, or bytes that cannot be a PNG, is `render_failed`.
+pub fn drawn_refusal(
+    drawn: (u32, u32, u64),
+    planned: (u32, u32),
+    max_pixels: u64,
+    max_bytes: Option<u64>,
+) -> Option<&'static str> {
+    let (width, height, bytes) = drawn;
+    if u64::from(width) * u64::from(height) > max_pixels || max_bytes.is_some_and(|m| bytes > m) {
+        Some("too_large")
+    } else if (width, height) != planned || bytes < PNG_MIN_BYTES {
+        Some("render_failed")
+    } else {
+        None
     }
 }
