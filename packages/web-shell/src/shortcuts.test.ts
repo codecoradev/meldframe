@@ -3,9 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { wheelAction } from '@meldframe/web-canvas/camera';
 import { Interaction, type Env, type Intents, type Mods, type PointerIn } from '@meldframe/web-canvas/interaction';
 import { keyAction } from '@meldframe/web-document/edit';
-import { editKeyTarget } from '@meldframe/web-document/textedit';
+import { isEditKey } from '@meldframe/web-document/textedit';
 import { attachInput, type InputHooks } from '@meldframe/web-input/hostinput';
-import type { Node } from '@meldframe/protocol';
 import { layoutKey } from './keys';
 import { labels } from './platform';
 import { comboLabel, sheetGroups, shortcutGroups, shortcutLabels, type Combo } from './shortcuts';
@@ -89,7 +88,6 @@ const point = (x: number, y: number, mods: Mods = NONE): PointerIn => ({ id: 1, 
 const zoomOf = (r: ReturnType<typeof rig>) => (r.log.find((e) => e[0] === 'camera')![1] as { zoom: number }).zoom;
 const viewport = { w: 800, h: 600 };
 const editor = () => readFileSync(new URL('../../../apps/web/src/TextEditor.svelte', import.meta.url), 'utf8');
-const textNode = { id: 't', type: 'text' } as unknown as Node;
 
 const checks: Record<string, (c: Combo) => void> = {
   ...Object.fromEntries((['select', 'frame', 'rectangle', 'ellipse', 'text'] as const).map((tool) => [`tool-${tool}`, (c: Combo) => expect(keyAction(eventOf(c), [])).toEqual({ type: 'setTool', tool })])),
@@ -97,7 +95,7 @@ const checks: Record<string, (c: Combo) => void> = {
   redo: (c) => expect(keyAction(eventOf(c), [])).toEqual({ type: 'redo' }),
   delete: (c) => expect(keyAction(eventOf(c), ['a'])).toEqual({ type: 'delete', ids: ['a'] }),
   'move-in-flow': (c) => expect(keyAction(eventOf(c), ['a'])).toEqual({ type: 'arrowKey', direction: c.key.slice('Arrow'.length).toLowerCase() }),
-  'edit-text': (c) => expect(editKeyTarget(eventOf(c), ['t'], [textNode])).toBe('t'),
+  'edit-text': (c) => expect(isEditKey(eventOf(c))).toBe(true),
   // The field of `apps/web/src/TextEditor.svelte` is a view with no pure part: its keys are read from its source.
   'commit-text': () => expect(editor()).toMatch(/e\.key === 'Enter' && \(e\.ctrlKey \|\| e\.metaKey\)/),
   cancel: (c) => {
