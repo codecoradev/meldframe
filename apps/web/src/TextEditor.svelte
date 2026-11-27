@@ -1,18 +1,22 @@
 <!--
-  The field laid over a text node while its text is edited. It holds the draft and nothing else: a commit (blur or
-  Ctrl/Cmd+Enter) reports the text, Escape reports a cancel. The editor page turns a commit into one editText action.
+  The field laid over a text node while its text is edited. It holds the draft and nothing else (the keystrokes, the caret and
+  the composition of an input method stay here): a commit (blur or Ctrl/Cmd+Enter) reports the text, Escape reports a cancel. The
+  editor page sends each as an action of the app layer, which decides what a commit comes to (`Action.textEdit`).
 -->
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import type { TextBoxStyle } from '@meldframe/web-document/textedit';
 
   interface Props {
+    /** The node being edited: reported back with the text, so a field that is being replaced cannot commit to the next node. */
+    id: string;
     text: string;
     box: TextBoxStyle;
-    onCommit: (text: string) => void;
-    onCancel: () => void;
+    onCommit: (id: string, text: string) => void;
+    onCancel: (id: string) => void;
   }
-  let { text, box, onCommit, onCancel }: Props = $props();
+  let { id, text, box, onCommit, onCancel }: Props = $props();
+  const editedId = untrack(() => id);
 
   let field: HTMLTextAreaElement;
   let draft = $state(untrack(() => text));
@@ -37,8 +41,8 @@
   function finish(commit: boolean) {
     if (done) return;
     done = true;
-    if (commit) onCommit(draft);
-    else onCancel();
+    if (commit) onCommit(editedId, draft);
+    else onCancel(editedId);
   }
 
   function onKey(e: KeyboardEvent) {

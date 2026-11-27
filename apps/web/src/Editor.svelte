@@ -15,7 +15,7 @@
   import { perFrame } from '@meldframe/web-document/coalesce';
   import { shouldRefit } from '@meldframe/web-document/fit';
   import { toggleWithNotice } from '@meldframe/web-link/layoutswitch';
-  import { commitText, editKeyTarget, textBoxStyle, textTarget } from '@meldframe/web-document/textedit';
+  import { isEditKey, textBoxStyle } from '@meldframe/web-document/textedit';
   import TextEditor from './TextEditor.svelte';
   import Layout from '@meldframe/web-shell/Layout.svelte';
   import Section from '@meldframe/web-chrome/Section.svelte';
@@ -127,36 +127,22 @@
   });
   onDestroy(() => toaster.destroy());
 
-  // The text being edited: the node and the text it had when the field opened (an unchanged commit makes no step).
-  let editing = $state<{ id: string; before: string } | null>(null);
-  const editedNode = $derived(editing ? textTarget(editing.id, nodes) : null);
+  // The text being edited is the app layer's (`state.textEdit`: the node, and the text it had when the field opened; it begins on a
+  // double click or Enter, and closes when the node goes). The field holds the draft, and reports it once, on a commit.
+  const textEdit = $derived(snap.state.textEdit ?? null);
   // The box comes from the document (not from what the canvas drew last), so it follows a change of the node at once: the
   // box the node is drawn at (with the layout on the canvas, the laid-out one; else the stored one).
   const editBox = $derived.by(() => {
-    const n = editedNode;
+    const n = textEdit ? nodes.find((x) => x.id === textEdit.id) : undefined;
     if (!n) return null;
     const o = worldOrigin(nodes, n.parentId, scene);
     const b = drawnBox(scene, n.id) ?? n;
     // The weight and the alignment are those the canvas draws the text with (the scene's, resolved).
     return textBoxStyle(camera, { x: o.x + b.x, y: o.y + b.y, w: b.w, h: b.h }, n.fontSize, scene.nodes.find((x) => x.id === n.id));
   });
-  // The node is gone (someone deleted it): the field closes with nothing to commit.
-  $effect(() => {
-    if (editing && !editedNode) editing = null;
-  });
-  function startEdit(id: string) {
-    const n = textTarget(id, nodes);
-    if (!n) return;
-    dispatch({ type: 'select', ids: [id] });
-    editing = { id, before: n.text };
-  }
-  function endEdit(text: string | null) {
-    const e = editing;
-    editing = null;
-    if (e && text !== null) {
-      const a = commitText(e.id, e.before, text);
-      if (a) dispatch(a);
-    }
+  const startEdit = (id: string) => dispatch({ type: 'textEdit', op: { type: 'begin', id } });
+  function endEdit(id: string, text: string | null) {
+    dispatch({ type: 'textEdit', op: text === null ? { type: 'cancel' } : { type: 'commit', id, text } });
     canvas?.focus();
   }
 
@@ -276,11 +262,13 @@
       else dispatch({ type: 'togglePanel', panel: key === 'layers' ? 'layers' : 'properties' });
       return;
     }
-    const edit = editKeyTarget(e, snap.state.selection, nodes, e.target as HTMLElement | null);
-    if (edit) {
-      e.preventDefault();
-      startEdit(edit);
-      return;
+    if (isEditKey(e, e.target as HTMLElement | null)) {
+      // The key is the editor's only when it began an edit (one text node is selected); any other time it goes on.
+      dispatch({ type: 'textEdit', op: { type: 'beginSelected' } });
+      if (engine.snapshot().state.textEdit) {
+        e.preventDefault();
+        return;
+      }
     }
     const a = keyAction(e, snap.state.selection);
     if (a?.type === 'arrowKey') {
@@ -351,8 +339,10 @@
       onError={(e) => (canvasError = safeMessage(e))}
       {onAssetProblem}
     />
-    {#if editing && editBox}
-      <TextEditor text={editing.before} box={editBox} onCommit={endEdit} onCancel={() => endEdit(null)} />
+    {#if textEdit && editBox}
+      {#key textEdit.id}
+        <TextEditor id={textEdit.id} text={textEdit.text} box={editBox} onCommit={endEdit} onCancel={(id) => endEdit(id, null)} />
+      {/key}
     {/if}
     {#if reactFeedback}
       {#await import('./react-pilot/FeedbackLayerHost.svelte') then host}
