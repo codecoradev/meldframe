@@ -159,7 +159,49 @@ dump for ten fixed labels.
 - **E4 full contract, real-GPU numbers, IME, canvas hit-test** remain open; the harness
   now carries all the hooks they need.
 
-## Results (session 1)
+## Results — session 3 (28 Nov 2026, later the same day)
+
+Headed Chromium on this Mac (Apple M2): the Playwright build exposes no `navigator.gpu`, but
+its **WebGL2 runs on ANGLE Metal** — so the GPU numbers below are the WebGL2 path on a real
+GPU, the first non-software-rasterizer run of this spike. Methodology fix: the session-2
+"66 ms during pan" numbers were an input-pacing artefact (`waitForTimeout` between synthetic
+moves); with input pumped continuously and an in-page rAF monitor, the truth is different.
+
+- **Pan and zoom keep vsync on the GPU path.** Pan at fit with 5,000–20,000 nodes visible
+  (Shape): rAF p50 16.7 ms / p95 17.7 ms, **0 frames over 20 ms** across 125 ticks. Worst
+  case, everything drawn after zoom-out to 5%: same p50 16.7, p95 17.7–18.8, max 19.3 ms —
+  the **< 8 ms budget is not yet met** (vsync-pacing hides the true cost; a rAF-budget
+  probe with 2 moves per frame is the honest next measurement), but nothing drops frames.
+  The els path under the same zoom-out: p50 33.5 ms / p95 101 ms, 177 frames over 20 ms,
+  130 over 50 — the Shape architecture wins by a wide margin where it matters.
+- **A real defect found: the first wheel after idle presents ~2 s late, once.** Frame gaps
+  after the first wheel: 2.1 → 8.3 → 32.4 ms (the pan applies fast — the screenshot changes
+  within 300 ms) → then one **2,100 ms** hole → a 61 ms frame → idle. `tx.instant()` does
+  not change it; it reproduces on the CPU canvas and WebGL2, at any scene size, and the
+  bare-canvas control page shows max 21 ms gaps under the same dispatch. It reads as a
+  deferred present inside Rune's web wheel path (its issue #2470 documents sibling
+  mechanics: CPU→GPU handover freezes and WebGL2 polling on an 8 ms `setTimeout`). Every
+  wheel after the first is clean. Upstream issue is due; a Meldframe-side mitigation would
+  be keeping a display-linked idle heartbeat, at the cost of the zero-idle-CPU win.
+- **IME through Rune's web text bridge: works for real input.** A per-field hidden
+  `<textarea>` (aria-label = the field's label) takes focus on click; typed Latin
+  ("hello editor", 12 chars), CJK (`こんにちは世界`, 7 chars), and emoji + RTL
+  (`🎨 مرحبا`, 7 chars) all commit through `on_edit`/Add and count correctly in state
+  (12 → 19 → 26); Escape leaves the draft uncommitted; synthetic `compositionstart/update/
+  end` events deliver the full textarea value (19 chars — the un-committed draft rides
+  along, matching Rune's read-the-value-on-composition-end design). Real device IME still
+  pending, but the browser-side transport is proven.
+- **Pixi baseline, same machine, same kind of scene** (`canvas-perf.mjs`, WebGL renderer,
+  5,000 nodes at 12% fit-zoom, all drawn): pan p50 16.8 / p95 83.3 / max 116.7 ms;
+  zoom-in-out p50 16.7 / p95 33.4 / max 50; pan at 100% (769 drawn) p50 16.8 / p95 66.8 /
+  max 100. Rune's Shape path on the same document and viewport: pan p50 16.7 / p95 18.4 /
+  max 19.3; zoom p50 16.7 / p95 18.8. The spike harness is not instrumented per-stage like
+  the meldframe one (render-call ms vs interval), so read as frame-interval comparison
+  only: **Rune drops no frames where Pixi's p95 hits 66–83 ms.** Hover/hit (T9): Pixi's
+  harness measures 0.02 ms per hit through the wasm bridge — a Rune client must match that
+  with its own HitIndex (not yet measured here).
+
+## Results (session 2)
 
 First session, 27 Nov 2026, macOS arm64, headless Chromium 140 (Playwright, `--enable-unsafe-webgpu`, so likely a software WebGPU adapter — numbers are indicative, not production). Harness: `../rune-web-spike/` (own git repo, commit `4bb3a60`), Rune pinned at `048528dc35f0`.
 
