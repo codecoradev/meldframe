@@ -130,14 +130,14 @@ Where the contract is silent today and this proposal would have to decide it: th
 
 ## 6. The canvas form
 
-`packages/web-paint/src/border.ts` is pure and is where the change is. Today `SceneBorder` has one `width`, `borderRing` returns two `RingShape`s with one radius `r`, `borderReach` returns one number and `sameBorder` compares one width. For option A:
+`packages/web-paint/src/border.ts` is pure and is where the change is. Today `SceneBorder` has one `width`, `borderRing` returns two `RingShape`s with one radius `r` and `sameBorder` compares one width (the reach of the border is no longer in this file: since T16 `meldframe-render` works it out, see the bullet on the reach below). For option A:
 
 - `SceneBorder` carries the four widths (`top`, `right`, `bottom`, `left`) instead of `width`; `sameBorder` compares four; `packages/web-link/src/scene.ts` (`toSceneNode`) copies them from `PaintedBorder`, which `meldframe-render` fills from the effective widths (the canvas never sees the fallback rule).
 - `borderRing(w, h, radius, b)` returns `outer` and `inner` with rules 1 and 2: a `RingShape` with a horizontal and a vertical radius per corner (`rx` and `ry`, four each) instead of one `r`, and rule 5 for the sizes. With equal sides it returns today's shapes, so the unit tests in `border.test.ts` that pin them stay.
-- `borderReach(b)` becomes per side (the reach on each of the four sides: the width for outside, half for center, none inside). It is used by `paintedRect` in `packages/web-canvas/src/scene.ts` to size a capture, so a capture of a node is the node grown by its own reach on each side, no longer a square band. The tool text says "larger than the node by the band of its outside border" and stays true.
+- The reach of the border becomes per side (on each of the four sides: the width for outside, half for center, none inside). It is `PaintBounds::of` in `crates/core/meldframe-render/src/paint_bounds.rs` (T16; it was `borderReach` here), already a rectangle with a number for each side, so only its border part changes: `paintedRect` in `packages/web-canvas/src/scene.ts` reads it as `paintBounds` to size a capture, so a capture of a node is the node grown by its own reach on each side, no longer a square band. The tool text says "larger than the node by the band of its outside border" and stays true.
 - `stage.ts` (`updateBorder`) draws the two shapes. Pixi `roundRect(x, y, w, h, r)` takes one circular radius, so a shape whose radii are not all equal needs a path of four lines and four quarter ellipses (`moveTo`, `lineTo` and `bezierCurveTo` with the usual quarter-ellipse constant 0.5523; a cubic in place of an exact ellipse, a standard approximation off by a few hundredths of a percent of the radius, not measured here). When all eight radii are equal the code keeps `roundRect`, so the uniform border is pixel for pixel what it is today. Whether Pixi's fill and `cut()` handle the path as they handle `roundRect` is not verified (section 12).
 - Interaction, hit testing and the selection overlay do not read the border and are unchanged. The border still lies over the node and its children and is not cut by the node's own `clip`; opacity still fades it part by part. All differences listed in the row `border` stay.
-- Size: `border.ts` is 61 lines and `stage.ts` 370; the change is inside the 500 line ceiling of both.
+- Size: `border.ts` is 55 lines and `stage.ts` 370; the change is inside the 500 line ceiling of both.
 
 ## 7. The export form, HTML and Tailwind
 
