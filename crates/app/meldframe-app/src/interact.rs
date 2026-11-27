@@ -178,14 +178,13 @@ impl App {
             return None;
         }
         let id = &selected_node(&self.state.selection, self.replica.nodes())?.id;
-        self.scene()
-            .into_iter()
-            .find(|b| b.id == *id)
-            .map(|b| Drawn {
+        self.with_scene(|_, boxes| {
+            boxes.iter().find(|b| b.id == *id).map(|b| Drawn {
                 x: b.x,
                 y: b.y,
                 w: b.w,
                 h: b.h,
             })
+        })
     }
 }
