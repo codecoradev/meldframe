@@ -3,15 +3,13 @@
 use crate::app::App;
 use crate::effect::Effect;
 use meldframe_app_model::{Action, Overlay, OverlayOp};
-use meldframe_app_rules::palette::{Entry, Plan, Zoom, entries, filter, plan};
+use meldframe_app_rules::palette::{Entry, Plan, entries, filter, plan};
 
 /// What running an entry came to.
 #[derive(Debug)]
 pub enum Ran {
     /// The app did it; these are the effects to carry out.
     Done(Vec<Effect>),
-    /// The camera is the front end's: it does this zoom itself.
-    Host(Zoom),
     /// No such entry, or it cannot run in this state: nothing changed.
     Refused,
 }
@@ -50,7 +48,6 @@ impl App {
         match plan(e.run, &self.state, on, centre) {
             Plan::Dispatch(action) => fx.extend(self.dispatch(action)),
             Plan::SetLayoutOnCanvas(on) => fx.extend(self.set_layout_on_canvas(on)),
-            Plan::Host(zoom) => return Ran::Host(zoom),
             Plan::Nothing => {}
         }
         Ran::Done(fx)

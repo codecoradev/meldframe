@@ -7,15 +7,8 @@ use crate::keys::sheet::combo_label;
 use crate::keys::table::TABLE;
 use meldframe_app_model::{AppState, FramePreset, Panel, Tool};
 
-/// A change to the zoom. Fitting needs the content and the viewport, which the front end holds until the camera moves into the app layer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Zoom {
-    In,
-    Out,
-    Reset,
-    Fit,
-    FitSelection,
-}
+/// A change to the zoom: the commands of the zoom menu, which the camera runs (`Action::Camera`).
+pub use meldframe_app_model::ZoomCommand as Zoom;
 
 /// What running an entry makes, as data: `plan` turns it into what the app does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

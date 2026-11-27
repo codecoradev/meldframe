@@ -14,7 +14,8 @@ impl Combo {
             return false;
         }
         match self.code {
-            Some(code) => input.code == code,
+            Some(code) if self.typed.is_none() || !input.code.is_empty() => input.code == code,
+            Some(_) => input.key == self.key || self.typed == Some(input.key.as_str()),
             None if self.key.chars().count() == 1 => input.key.eq_ignore_ascii_case(self.key),
             None => input.key == self.key,
         }
@@ -36,7 +37,7 @@ fn owned(input: &KeyInput) -> bool {
 /// What the key press makes, or `None` when it is not an editor key the app layer answers: a repeat of a held key, a key of an
 /// input method that is composing, a key the focus owns, a key the front end answers (`Makes::Host`) and a key that is in no row.
 pub fn decide(input: &KeyInput) -> Option<Makes> {
-    if input.repeat || input.composing || owned(input) {
+    if input.composing || owned(input) {
         return None;
     }
     TABLE
@@ -44,5 +45,6 @@ pub fn decide(input: &KeyInput) -> Option<Makes> {
         .flat_map(|g| g.rows)
         .flat_map(|r| r.bindings)
         .find(|b| b.makes != Makes::Host && b.combo.matches(input))
+        .filter(|b| b.repeats || !input.repeat)
         .map(|b| b.makes)
 }

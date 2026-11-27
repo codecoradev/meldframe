@@ -63,7 +63,11 @@ fn prepared(makes: Makes) -> App {
         app.dispatch(Action::Select { ids: ids(&[id]) });
     };
     match makes {
-        Makes::SetTool(_) | Makes::TogglePanel(_) | Makes::ToggleOverlay(_) | Makes::Host => {}
+        Makes::SetTool(_)
+        | Makes::TogglePanel(_)
+        | Makes::ToggleOverlay(_)
+        | Makes::Zoom(_)
+        | Makes::Host => {}
         Makes::Undo | Makes::Redo => {
             app.dispatch(Action::Move {
                 id: "r1".into(),
@@ -106,6 +110,7 @@ fn every_row_of_the_table_that_the_app_answers_is_a_key_that_does_something() {
             command,
             alt,
             shift,
+            ..
         } = b.combo;
         let m = Modifiers {
             ctrl: command,
@@ -132,7 +137,7 @@ fn every_row_of_the_table_that_the_app_answers_is_a_key_that_does_something() {
     }
     assert_eq!(
         seen,
-        5 + 1 + 2 + 2 + 4 + 1 + 1 + 2 + 2,
+        5 + 1 + 2 + 2 + 4 + 1 + 1 + 2 + 2 + 5,
         "the count of the bindings the app answers"
     );
 }

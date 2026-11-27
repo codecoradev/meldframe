@@ -50,6 +50,7 @@ impl App {
             Makes::ToggleOverlay(overlay) => Action::Overlay {
                 op: OverlayOp::Toggle { overlay },
             },
+            Makes::Zoom(command) => Action::zoom(command),
             Makes::DeleteSelection if !s.selection.is_empty() => Action::Delete {
                 ids: s.selection.clone(),
             },
