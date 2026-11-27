@@ -91,6 +91,21 @@ assert.equal(JSON.parse(sub.stateJson()).connection.type, 'live');
 runSub(refusal('forbidden'));
 assert.equal(JSON.parse(sub.stateJson()).connection.type, 'offline', 'any other refusal gives the connection up');
 
+// An op the server refused (finding T14): the shell hands over the status and the text of the body; the app reads the code and the flag, and a body that is not the server's is retried by its own rule.
+const opApp = new WasmApp('usr_me', 'web', 11, '[]', 0);
+const runOp = (action) => JSON.parse(opApp.dispatch(JSON.stringify(action)));
+runOp({ type: 'start', nowMs: T });
+runOp({ type: 'connected', nowMs: T });
+const opKey = () => runOp({ type: 'createNode', kind: 'rectangle', x: 1, y: 2, parent: null }).find((e) => e.type === 'sendOps').ops[0].key;
+const k1 = opKey();
+assert.deepEqual(runOp({ type: 'wire', wire: { kind: 'opRefused', nowMs: T, key: k1, status: 502, body: '<html>bad gateway</html>' } }), [{ type: 'wakeAfter', afterMs: 1000 }], 'no error body: unavailable, and retryable');
+assert.ok(JSON.parse(opApp.takeEventsJson()).some((e) => e.type === 'opRetry' && e.key === k1));
+assert.equal(JSON.parse(opApp.nodesJson()).length, 1, 'the view keeps the node while the op waits');
+runOp({ type: 'wire', wire: { kind: 'opRefused', nowMs: T + 1, key: k1, status: 400, body: JSON.stringify({ error: { code: 'E_TOO_LONG', message: 'm', retryable: false } }) } });
+assert.ok(JSON.parse(opApp.takeEventsJson()).some((e) => e.type === 'opRejected' && e.code === 'E_TOO_LONG' && e.retryable === false), 'a refusal for good keeps the code the server wrote');
+assert.equal(JSON.parse(opApp.nodesJson()).length, 0, 'and rolls the node back');
+assert.deepEqual(runOp({ type: 'wire', wire: { kind: 'opRefused', nowMs: T, key: opKey(), status: 200, body: '{"accepted":[]}' } }), [], 'a 200 is nothing');
+
 // The Export dialog (D9): the HTML of the selected frame is built in the state while the dialog is open.
 const exp = new WasmApp('usr_me', 'web', 8, JSON.stringify([{ id: 'f', type: 'frame', pos: 'a0', name: 'Landing', w: 300, h: 200 }]), 0);
 const runExp = (action) => JSON.parse(exp.dispatch(JSON.stringify(action)));

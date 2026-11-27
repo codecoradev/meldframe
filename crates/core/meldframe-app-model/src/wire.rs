@@ -59,4 +59,16 @@ pub enum Wire {
         now_ms: u64,
         text: String,
     },
+    /// The answer of the REST call that sent the op with this `key`, when its status is not 200 (the live event confirms an
+    /// accepted op, so the shell reports nothing for a 200; the app takes a 200 as nothing too): `Action::Frame` with
+    /// `Frame::Rejected`, whose code and retry flag the app reads from the body. A body that is not the server's (a proxy's
+    /// page, no `error`, a code or a flag of the wrong type) is the code `unavailable`, and a missing or mistyped flag
+    /// counts as retryable, so the app sends the op again by its own rule (audit finding T14, issue 324).
+    OpRefused {
+        #[ts(type = "number")]
+        now_ms: u64,
+        key: String,
+        status: u16,
+        body: String,
+    },
 }
