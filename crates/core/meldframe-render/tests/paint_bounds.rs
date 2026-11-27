@@ -125,6 +125,25 @@ fn an_offset_and_a_spread_count_for_at_most_the_cap_and_so_does_a_blur() {
 }
 
 #[test]
+fn a_spread_that_takes_a_whole_side_leaves_no_shadow_even_when_it_is_moved_out() {
+    // 40 by 20 box. A spread of -30 leaves nothing on either side, and one of -10 leaves 20 by 0: a shadow with no area paints
+    // nothing, wherever the offset puts it. Without the skip these would reach 70 and 90 to the right.
+    assert_eq!(
+        rect_of(json!({"shadows": [shadow(100.0, 0.0, 0.0, -30.0)]})),
+        BOX
+    );
+    assert_eq!(
+        rect_of(json!({"shadows": [shadow(100.0, 0.0, 0.0, -10.0)]})),
+        BOX
+    );
+    // A spread of -9 leaves 22 by 2: that one paints and reaches (x 109 to 131 in the box's own terms, 91 past its right edge at 40).
+    assert_eq!(
+        rect_of(json!({"shadows": [shadow(100.0, 0.0, 0.0, -9.0)]})),
+        (100.0, 50.0, 40.0 + 91.0, 20.0)
+    );
+}
+
+#[test]
 fn a_blur_below_zero_is_a_hard_edge() {
     // The model refuses it; a bad file still gives the box the reach of a hard shadow.
     assert_eq!(
