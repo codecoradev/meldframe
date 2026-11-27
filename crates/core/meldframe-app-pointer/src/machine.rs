@@ -1,15 +1,12 @@
 //! The modes of the pointer and what each event does in each.
 
-use crate::{DRAG_THRESHOLD, Env};
-use meldframe_app_model::camera::{rect_to_screen, to_world};
+use crate::screen::{Screen, dist, handle_under, kind_of, resize_cursor, travel, world};
+use crate::{DOUBLE_CLICK_MS, DOUBLE_CLICK_PX, DRAG_THRESHOLD, Env};
 use meldframe_app_model::{
     Action, CameraOp, CreateKind, GestureOp, Handle, Point, PointerButton, PointerCursor,
-    PointerGesture, PointerInput, PointerPhase, PointerState, Tool,
+    PointerGesture, PointerInput, PointerPhase, PointerState, TextEditOp, Tool,
 };
-use meldframe_app_rules::canvas_overlay::handle_at;
 use meldframe_layout::Rect;
-
-type Screen = (f64, f64);
 
 #[derive(Debug, Default)]
 enum Mode {
@@ -61,6 +58,16 @@ struct Press {
     /// The world point of the press: a drag is measured from it, so a zoom in the middle of the drag moves nothing.
     from: Point,
     touch: bool,
+    /// The clock at the press, for a double click.
+    at_ms: Option<u64>,
+}
+
+/// A click that may be the first of a double click: where, when and on which node.
+#[derive(Debug)]
+struct Click {
+    at: Screen,
+    ms: u64,
+    id: String,
 }
 
 /// The state machine. One per app; `view` is what a front end reads.
@@ -73,51 +80,8 @@ pub struct Machine {
     handle: Option<Handle>,
     /// Where the pointer was at the last event, none once it left.
     pos: Option<Screen>,
-}
-
-fn world(env: &Env, (x, y): Screen) -> Option<Point> {
-    let p = to_world(&env.camera, Point { x, y });
-    (p.x.is_finite() && p.y.is_finite()).then_some(p)
-}
-
-fn dist(a: Screen, b: Screen) -> f64 {
-    (a.0 - b.0).hypot(a.1 - b.1)
-}
-
-/// The travel in the world from the point of the press to where the pointer is now.
-fn travel(from: Point, at: Point) -> Point {
-    Point {
-        x: at.x - from.x,
-        y: at.y - from.y,
-    }
-}
-
-/// The handle of the selection box at a screen point, none for no selection.
-fn handle_under(env: &Env, (x, y): Screen) -> Option<Handle> {
-    if env.selection.is_empty() {
-        return None;
-    }
-    let b = rect_to_screen(&env.camera, &(env.selection_rect)()?);
-    handle_at(&b, x, y)
-}
-
-fn resize_cursor(h: Handle) -> PointerCursor {
-    match h {
-        Handle::Nw | Handle::Se => PointerCursor::NwseResize,
-        Handle::Ne | Handle::Sw => PointerCursor::NeswResize,
-        Handle::N | Handle::S => PointerCursor::NsResize,
-        Handle::E | Handle::W => PointerCursor::EwResize,
-    }
-}
-
-fn kind_of(tool: Tool) -> Option<CreateKind> {
-    match tool {
-        Tool::Select => None,
-        Tool::Frame => Some(CreateKind::Frame),
-        Tool::Rectangle => Some(CreateKind::Rectangle),
-        Tool::Ellipse => Some(CreateKind::Ellipse),
-        Tool::Text => Some(CreateKind::Text),
-    }
+    /// The last click, until it is a double click or something else happens.
+    click: Option<Click>,
 }
 
 impl Machine {
@@ -134,6 +98,7 @@ impl Machine {
         if matches!(i.phase, PointerPhase::Cancel | PointerPhase::Leave) {
             self.mode = Mode::Idle;
             self.handle = None;
+            self.click = None;
             self.view.hover = None;
             if i.phase == PointerPhase::Leave {
                 self.pos = None;
@@ -153,6 +118,12 @@ impl Machine {
         acts
     }
 
+    /// Whether a press is down: from the press, before the drag has begun, to the release. What Escape and an arrow key ask: the
+    /// gesture of `view` is `Idle` until a press has moved past the threshold, and a press can be abandoned before that.
+    pub fn busy(&self) -> bool {
+        !matches!(self.mode, Mode::Idle)
+    }
+
     /// The event that shows the hover, the handle and the cursor again at the last point, for a change the pointer did not make
     /// (the tool or the selection): none while a gesture goes on, and none while the pointer is outside the canvas.
     pub fn refresh(&self) -> Option<PointerInput> {
@@ -165,6 +136,7 @@ impl Machine {
             button: PointerButton::Primary,
             touch: false,
             space: self.space,
+            at_ms: None,
         })
     }
 
@@ -247,6 +219,8 @@ impl Machine {
         self.mode = Mode::Idle;
         self.view = PointerState::default();
         self.handle = None;
+        // Only a press that stays a click can be the second of a double click: the others forget the first.
+        let click = self.click.take();
         let here = (i.x, i.y);
         let Some(w) = world(env, here) else { return };
         if env.editing || i.button == PointerButton::Secondary {
@@ -294,6 +268,7 @@ impl Machine {
                 }
             });
         }
+        self.click = click;
         self.mode = Mode::Press(Press {
             id,
             was_selected,
@@ -301,6 +276,7 @@ impl Machine {
             start: here,
             from: w,
             touch: i.touch,
+            at_ms: i.at_ms,
         });
     }
 
@@ -319,6 +295,7 @@ impl Machine {
                     return;
                 }
                 let start = p.start;
+                self.click = None;
                 let Some(id) = p.id.clone() else {
                     // A finger that drags on empty canvas pans; a mouse draws a marquee.
                     self.mode = if p.touch {
@@ -377,19 +354,52 @@ impl Machine {
         }
     }
 
+    /// A press let go without a drag: the second of a double click begins a text edit on the node, any other is remembered as the
+    /// first. A click with no clock, or on empty canvas, is nobody's first.
+    fn clicked(&mut self, p: Press, acts: &mut Vec<Action>) {
+        let (Some(id), Some(ms)) = (p.id, p.at_ms) else {
+            self.click = None;
+            return;
+        };
+        let double = self.click.take().is_some_and(|c| {
+            c.id == id
+                && ms >= c.ms
+                && ms - c.ms <= DOUBLE_CLICK_MS
+                && dist(c.at, p.start) <= DOUBLE_CLICK_PX
+        });
+        if double {
+            acts.push(Action::TextEdit {
+                op: TextEditOp::Begin { id },
+            });
+        } else {
+            self.click = Some(Click {
+                at: p.start,
+                ms,
+                id,
+            });
+        }
+    }
+
     fn up(&mut self, here: Screen, i: &PointerInput, env: &Env, acts: &mut Vec<Action>) {
         let mode = std::mem::take(&mut self.mode);
         self.view.hover = None;
         let mods = i.modifiers;
         match mode {
-            Mode::Press(p) => match p.id {
-                None if !p.additive => acts.push(Action::Select { ids: Vec::new() }),
-                Some(id) if p.was_selected && p.additive => acts.push(Action::ToggleSelect { id }),
-                Some(id) if p.was_selected && env.selection.len() > 1 => {
-                    acts.push(Action::Select { ids: vec![id] });
+            Mode::Press(p) => {
+                match &p.id {
+                    None if !p.additive => acts.push(Action::Select { ids: Vec::new() }),
+                    Some(id) if p.was_selected && p.additive => {
+                        acts.push(Action::ToggleSelect { id: id.clone() });
+                    }
+                    Some(id) if p.was_selected && env.selection.len() > 1 => {
+                        acts.push(Action::Select {
+                            ids: vec![id.clone()],
+                        });
+                    }
+                    _ => {}
                 }
-                _ => {}
-            },
+                self.clicked(p, acts);
+            }
             Mode::Move { ids, from, .. } => {
                 if let Some(at) = world(env, here) {
                     let by = travel(from, at);

@@ -16,6 +16,8 @@ pub struct Rig {
     pub log: Vec<Action>,
     /// The world box of the selection, for the handles.
     pub rect: Option<Rect>,
+    /// The clock of the next events, in milliseconds.
+    pub now: Option<u64>,
 }
 
 pub fn rig(camera: Camera, selection: &[&str]) -> Rig {
@@ -26,6 +28,7 @@ pub fn rig(camera: Camera, selection: &[&str]) -> Rig {
         tool: Tool::Select,
         log: Vec::new(),
         rect: None,
+        now: None,
     }
 }
 
@@ -55,6 +58,7 @@ impl Rig {
             button: PointerButton::Primary,
             touch: false,
             space: false,
+            at_ms: self.now,
         };
         self.event(i);
     }
