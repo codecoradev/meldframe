@@ -8,7 +8,9 @@ import type { ImportStatus } from "./ImportStatus";
  */
 export type VariablesImportResult = { status: ImportStatus, 
 /**
- * Why it was refused: `empty_text`, `E_IMPORT_TOO_LARGE`, `E_IMPORT_TOO_MANY`, `outbox_full`, or the `E_` code of the first command the
+ * Why it was refused: `empty_text`, `E_IMPORT_TOO_LARGE` (over 256 KiB), `E_IMPORT_TOO_MANY` (more than 50 variables: the browser
+ * sends one request for each op, and a longer style sheet goes through the agent tool `import_tokens`), `outbox_full` (the list
+ * does not fit the queue), or the `E_` code of the first command the
  * file refused (`E_DUPLICATE_ID` for a name that is already there, `E_DUPLICATE_NAME`, `E_TOO_MANY_ENTRIES`...).
  */
 code?: string, 
