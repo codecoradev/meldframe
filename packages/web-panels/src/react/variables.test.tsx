@@ -198,7 +198,7 @@ describe('the React copies against the Svelte ones', () => {
   const names = ['id', 'role', 'data-testid', 'data-id', 'data-field', 'aria-label', 'aria-pressed', 'aria-checked', 'title'];
   it('the Variables panel has the same classes, roles, names, test ids and titles', () => {
     const many = panel([col(), col({ id: 'd', name: 'spacing', modes: [modes[0]!], active: 'm1', variables: [row({ id: 'gap', name: 'space/gap', type: 'number', values: [{ mode: 'm1', text: '4', resolved: '4' }], binds: [{ field: 'radius', bound: true }] })] })], { total: 2, matched: 3 });
-    const a = svelte(VariablesPanelSvelte, { panel: many, target: 'n1', dispatch: () => {}, manage: { open: false } });
+    const a = svelte(VariablesPanelSvelte, { panel: many, target: 'n1', dispatch: () => {} });
     const b = html(many);
     // The Svelte copy wraps the three buttons that open a dialog in `span.contents` (for `bind:this`, to give the focus back); the
     // React copy has no use for the wrapper, and `display: contents` draws nothing, so they are the one difference.
@@ -218,6 +218,6 @@ describe('the React Variables panel opens its dialogs by the state of the app la
   it('sends the same open actions as the Svelte copy and has no open callback or flag', () => {
     expect(src).toContain("dispatch({ type: 'manage', op: { type: 'open' } })");
     expect(src).toContain("dispatch({ type: 'openVariablesImport' })");
-    expect(src).not.toMatch(/onManage|onImport|useState/);
+    expect(src).not.toMatch(/onManage|onImport|useState|Dialog/);
   });
 });

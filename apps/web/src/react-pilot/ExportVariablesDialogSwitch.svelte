@@ -1,7 +1,6 @@
 <!--
   The temporary switch of the Export variables dialog (docs/react-web-plan.md, section 7, slice S10): what draws the dialog in place of
-  ExportVariablesDialog.svelte, through `VariablesPanelSwitch.svelte` (the Svelte panel takes it as `exportView`; the React panel's switch
-  draws it beside the island). Without `/?react=io` it draws the Svelte dialog (Bits UI); with it, the React dialog (Base UI's Dialog) in an
+  ExportVariablesDialog.svelte, drawn by `Editor.svelte` beside the Export dialog (not inside the Variables panel, which goes when the right card folds). Without `/?react=io` it draws the Svelte dialog (Bits UI); with it, the React dialog (Base UI's Dialog) in an
   island, loaded on demand so that the editor's bundle does not carry React. The dialog is open while the app layer holds its text, and it
   portals to the body, so its host element draws nothing (`display: contents`). If the React chunk does not load, the Svelte dialog is drawn
   instead, and Export variables still opens. It goes with the switch when the last slice removes the Svelte shell.

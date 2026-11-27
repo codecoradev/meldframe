@@ -2,21 +2,18 @@
   The Variables section of the inspector, as the Variables, ModeSwitch and Inspector boards draw it: a search, the
   collections with their mode switch, and the variables listed by type with a swatch, the name and the value of the mode
   on view in the mono face (an alias as a chip with the name it points at). It draws the rows the app layer gives it
-  (order, headings, checks) and reports input as actions (see variables.ts). It holds no state of its own: the manage view
-  (ManageDialog), Import variables and Export variables are open by the app layer's state (`manage.open`, `io.importOpen`, `io.export`),
-  and the three buttons send the actions that open them.
+  (order, headings, checks) and reports input as actions (see variables.ts). It holds no state of its own, and it does not draw the
+  three dialogs its buttons open (the manage view, Import variables, Export variables): they are open by the app layer's state
+  (`manage.open`, `variablesIo.importOpen`, `variablesIo.export`), and the editor page draws them beside the Export dialog, so that they do not
+  go when this panel does (the right card folds, or the tab changes) while one is open. The buttons only send the actions that open them.
 -->
 <script lang="ts">
-  import type { Component, ComponentProps } from 'svelte';
-  import type { Action, Event, ManageState, VariableRow, VariablesIo, VariablesPanel } from '@meldframe/protocol';
+  import type { Action, VariableRow, VariablesPanel } from '@meldframe/protocol';
   import Button from '@meldframe/web-chrome/Button.svelte';
   import Field from '@meldframe/web-chrome/Field.svelte';
   import Segmented from '@meldframe/web-chrome/Segmented.svelte';
   import { TYPE_LABEL } from '@meldframe/web-document/labels';
   import { nameOf } from '@meldframe/web-document/names';
-  import ExportVariablesDialog from '@meldframe/web-variables-io/ExportVariablesDialog.svelte';
-  import ImportVariablesDialog from '@meldframe/web-variables-io/ImportVariablesDialog.svelte';
-  import ManageDialog from '@meldframe/web-variables/ManageDialog.svelte';
   import { FIELD_LABEL, bindAction, display, listedCount, modeAction, modeName, shownValue, swatch, truncated, valueAction } from './variables';
 
   interface Props {
@@ -24,24 +21,8 @@
     /** The id of the one selected node, which the bind buttons act on; none for no selection or several. */
     target: string | null;
     dispatch: (a: Action) => void;
-    /** The events of the last dispatch: the manage view words a refusal and finds what it added from them. */
-    events?: readonly Event[];
-    /** `state.variablesIo`: the text of the Export variables dialog while it is open, and the result of the last import. */
-    io?: VariablesIo;
-    /** `state.manage`: what the manage view shows and asks (the shown collection, the question before a removal, the rename field, the forms). */
-    manage: ManageState;
-    /** What draws the manage view: the Svelte dialog unless the editor hands another (the React pilot, E7.3 S9; `bindView` of the Properties panel is the same device). */
-    manageView?: Component<ComponentProps<typeof ManageDialog>>;
-    /** What draw Import variables and Export variables, as `manageView` does for the manage view (the React pilot, E7.3 S10). */
-    importView?: Component<ComponentProps<typeof ImportVariablesDialog>>;
-    exportView?: Component<ComponentProps<typeof ExportVariablesDialog>>;
   }
-  let { panel, target, dispatch, events = [], io = { export: null, import: null, importOpen: false }, manage, manageView: ManageView = ManageDialog, importView: ImportView = ImportVariablesDialog, exportView: ExportView = ExportVariablesDialog }: Props = $props();
-
-  // The buttons the dialogs give the focus back to.
-  let manageButton = $state<HTMLElement | null>(null);
-  let importButton = $state<HTMLElement | null>(null);
-  let exportButton = $state<HTMLElement | null>(null);
+  let { panel, target, dispatch }: Props = $props();
 
   const commit = (row: VariableRow, mode: string) => (raw: string) => dispatch(valueAction(row, mode, raw));
 </script>
@@ -49,16 +30,13 @@
 <div class="flex flex-col gap-2 text-small text-text" data-testid="variables">
   <Field label="Search variables" prefix="Search" size="dense" value={panel.query} onInput={(q) => dispatch({ type: 'setVariablesQuery', query: q })} testId="var-search" />
   <div class="flex items-center justify-between gap-2">
-    <span bind:this={manageButton} class="contents"><Button size="sm" onclick={() => dispatch({ type: 'manage', op: { type: 'open' } })} data-testid="var-manage">Manage</Button></span>
+    <Button size="sm" onclick={() => dispatch({ type: 'manage', op: { type: 'open' } })} data-testid="var-manage">Manage</Button>
     <p class="m-0 text-right text-caption text-text-muted" data-testid="var-count">{panel.matched} of {panel.total}</p>
   </div>
   <div class="flex flex-wrap items-center gap-2">
-    <span bind:this={importButton} class="contents"><Button size="sm" onclick={() => dispatch({ type: 'openVariablesImport' })} data-testid="var-import">Import variables</Button></span>
-    <span bind:this={exportButton} class="contents"><Button size="sm" onclick={() => dispatch({ type: 'openVariablesExport' })} data-testid="var-export">Export variables</Button></span>
+    <Button size="sm" onclick={() => dispatch({ type: 'openVariablesImport' })} data-testid="var-import">Import variables</Button>
+    <Button size="sm" onclick={() => dispatch({ type: 'openVariablesExport' })} data-testid="var-export">Export variables</Button>
   </div>
-  <ImportView open={io.importOpen} result={io.import ?? null} {dispatch} opener={() => importButton?.querySelector('button')} />
-  <ExportView dialog={io.export ?? null} {dispatch} opener={() => exportButton?.querySelector('button')} />
-  <ManageView open={manage.open} {panel} {manage} {events} {dispatch} opener={() => manageButton?.querySelector('button')} />
   {#each panel.collections.filter((c) => c.modes.length > 1) as c (c.id)}
     <div class="flex flex-col gap-1">
       <span class="truncate text-caption font-semibold text-text-muted" title={nameOf(c.name)}>{nameOf(c.name)}</span>
