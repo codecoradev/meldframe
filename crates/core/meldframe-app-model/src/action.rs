@@ -132,11 +132,7 @@ pub enum Action {
         dx: f64,
         dy: f64,
     },
-    /// An arrow key was pressed with the selection (no modifier). With the host flag `layout_on_canvas` on, the selected
-    /// children of one auto layout frame move one place along its main axis, as one undo step: up or down in a column,
-    /// left or right in a row, towards the start or the end of the flow (`meldframe-app-rules`, `arrow`); the other
-    /// two keys, a selection with no such child, and one that mixes children of different frames do nothing. With the flag
-    /// off it does nothing at all: no step, no event, no effect.
+    /// An arrow key was pressed with the selection, no modifier: what it does is on `Direction`.
     ArrowKey {
         direction: Direction,
     },
@@ -238,6 +234,10 @@ pub enum Action {
     /// Something done in the Variables manage view (`ManageOp`): `AppState::manage` is what it shows and asks.
     Manage {
         op: ManageOp,
+    },
+    /// Pan, zoom or fit the canvas, or report its size (`CameraOp`): `AppState::camera` and `AppState::viewport`. View state.
+    Camera {
+        op: crate::camera::CameraOp,
     },
     /// The shortcut sheet or the command palette opens or closes (`OverlayOp`): `AppState::overlay`.
     Overlay {

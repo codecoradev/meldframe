@@ -60,7 +60,7 @@ pub fn capture_bounds_in(index: &HitIndex, boxes: &[PaintedBox]) -> Option<Rect>
     out
 }
 
-fn union(a: Rect, b: Rect) -> Rect {
+pub(crate) fn union(a: Rect, b: Rect) -> Rect {
     let (x, y) = (a.x.min(b.x), a.y.min(b.y));
     Rect {
         x,
