@@ -243,8 +243,7 @@ pub enum Action {
     Overlay {
         op: OverlayOp,
     },
-    /// A key was pressed (`KeyInput`): the app layer decides whether it is an editor key and what it does (`meldframe-app-rules`,
-    /// `keys`) and dispatches that action. One it answers raises `Event::KeyHandled`; the rest is on `KeyInput`.
+    /// A key was pressed: the app layer decides what it makes (`meldframe-app-rules`, `keys`); the rest is on `KeyInput`.
     Key {
         input: KeyInput,
     },
@@ -309,9 +308,7 @@ pub enum Action {
     /// Open the Import variables dialog (`AppState::variables_io.import_open`). View state (no op, no undo step).
     OpenVariablesImport {},
     /// Import the variables of CSS text (custom properties of `:root`, a dark rule, `@theme`) as one undo step, the
-    /// person's own edit. It only adds: text that holds a name the file has is refused whole, and every refusal applies
-    /// nothing (`VariablesImportResult::code`). The result, report included, is `AppState::variables_io.import`; it goes
-    /// when the file no longer holds the variables the import added (an undo).
+    /// person's own edit: what it adds, refuses and reports is on `VariablesImportResult`.
     ImportVariables {
         text: String,
     },
@@ -341,9 +338,7 @@ pub enum Action {
         key_prefix: String,
     },
     /// Ask the server for a `manual` checkpoint at the confirmed file (`Effect::PostCheckpoint`); the list changes only
-    /// when it answers. A label with a control or hidden character, over 128 characters or with more than 4 combining marks in
-    /// a row is refused as `invalid` before anything is sent; an empty one is no label; `forbidden` where the caller may not
-    /// make one. `Event::CheckpointMade` says the row asked for is there; an open question of the Activity panel closes.
+    /// when it answers (`Event::CheckpointMade`). What a label may be is on `CheckpointKind::Manual`.
     CreateCheckpoint {
         label: String,
     },

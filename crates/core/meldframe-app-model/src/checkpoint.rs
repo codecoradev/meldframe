@@ -17,7 +17,10 @@ pub enum CheckpointKind {
     BeforeRevert,
     /// The person's, before a restore.
     BeforeRestore,
-    /// The person made it, with a label.
+    /// The person made it, with a label (`Action::CreateCheckpoint`). A label with a control or hidden character, over 128
+    /// characters or with more than 4 combining marks in a row is refused as `invalid` before anything is sent; an empty one is
+    /// no label; `forbidden` where the caller may not make one. The row asked for being there closes an open question of the
+    /// Activity panel.
     Manual,
 }
 
