@@ -7,10 +7,10 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
-mod layout_fixture;
-use layout_fixture::*;
+mod scene_fixture;
 use meldframe_app::{Action, App, Panel, Tool};
 use meldframe_protocol::{Doc, Node};
+use scene_fixture::*;
 use serde_json::json;
 
 fn mode_app() -> App {
@@ -74,7 +74,11 @@ fn an_edit_moves_both_epochs_and_the_scene_is_resolved_again_once() {
     a.scene();
     assert_eq!(a.scene_epoch(), moved);
     assert_eq!(a.scene_resolves(), 2, "one for each document");
-    assert_eq!(box_of(&a, "c").3, 90.0, "the new scene, not the kept one");
+    assert_eq!(
+        drawn_height(&a, "c"),
+        90.0,
+        "the new scene, not the kept one"
+    );
 }
 
 #[test]
@@ -126,6 +130,49 @@ fn what_is_not_the_document_the_measurer_the_flag_or_a_mode_moves_nothing() {
     assert_eq!(a.hit_builds(), 1);
 }
 
+#[test]
+fn a_read_may_ask_for_the_epoch_the_scene_and_a_hit_again() {
+    // With the index not built yet, and built.
+    for built in [false, true] {
+        let a = app(true);
+        if built {
+            a.hit(30.0, 12.0);
+        }
+        let hits = a.hit_builds();
+        a.with_scene(|epoch, boxes| {
+            assert_eq!(a.scene_epoch(), epoch);
+            assert_eq!(a.hit_index_epoch(), a.hit_index_epoch());
+            assert_eq!(a.scene(), boxes);
+            a.with_scene(|inner, again| {
+                assert_eq!(inner, epoch);
+                assert_eq!(again, boxes);
+            });
+            assert_eq!(a.hit(30.0, 12.0).as_deref(), Some("a"), "built {built}");
+        });
+        assert_eq!(a.scene_resolves(), 1, "built {built}: one resolve in all");
+        assert_eq!(a.hit_builds(), hits.max(1));
+    }
+}
+
+#[test]
+fn a_new_measurer_with_the_flag_off_changes_no_box_so_it_moves_no_epoch() {
+    let mut a = app(false);
+    a.scene();
+    a.hit(30.0, 12.0);
+    let (scene, hits, resolves, builds) = (
+        a.scene_epoch(),
+        a.hit_index_epoch(),
+        a.scene_resolves(),
+        a.hit_builds(),
+    );
+    a.set_measurer(Box::new(meldframe_app::StubMeasurer));
+    a.scene();
+    a.hit(30.0, 12.0);
+    assert_eq!(a.scene_epoch(), scene);
+    assert_eq!(a.hit_index_epoch(), hits);
+    assert_eq!((a.scene_resolves(), a.hit_builds()), (resolves, builds));
+}
+
 /// A file of `n` nodes for the timing: one root, then frames of 99 rectangles each.
 #[cfg(not(target_arch = "wasm32"))]
 fn big(n: usize) -> App {
@@ -144,7 +191,7 @@ fn big(n: usize) -> App {
     app_of(serde_json::from_value(list.into()).unwrap(), true)
 }
 
-/// Run by hand: `cargo test --release -p meldframe-app-layout-tests --test scene_epoch -- --ignored --nocapture`. It prints
+/// Run by hand: `cargo test --release -p meldframe-app-export-tests --test scene_epoch -- --ignored --nocapture`. It prints
 /// the milliseconds to resolve the scene (layout on, stub measurer) after an edit, and to read the held scene again.
 #[test]
 #[ignore = "prints timings; run by hand in a release build"]

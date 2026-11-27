@@ -127,13 +127,14 @@ impl CanvasLayout {
         self.hit_builds.get()
     }
 
-    /// The measurer generation: it goes up each time the host gives a measurer.
-    pub(crate) fn generation(&self) -> u64 {
-        self.generation
+    /// The measurer generation as far as the scene and the hit index depend on it: with the flag off the boxes are the stored
+    /// ones and no measurer is asked, so a new measurer changes nothing there.
+    pub(crate) fn scene_generation(&self) -> u64 {
+        if self.enabled { self.generation } else { 0 }
     }
 
     fn hit_key(&self, revision: (u64, u64)) -> HitKey {
-        (revision, self.generation, self.enabled)
+        (revision, self.scene_generation(), self.enabled)
     }
 
     /// The number that names the index for `revision`, the measurer and the flag. The mode choice and the variables are not in
