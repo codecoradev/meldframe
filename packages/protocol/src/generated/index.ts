@@ -22,6 +22,7 @@ export type { BindField } from './BindField';
 export type { BindOption } from './BindOption';
 export type { Border } from './Border';
 export type { BorderPosition } from './BorderPosition';
+export type { CaptureAsk } from './CaptureAsk';
 export type { Checkpoint } from './Checkpoint';
 export type { CheckpointKind } from './CheckpointKind';
 export type { CheckpointRequest } from './CheckpointRequest';

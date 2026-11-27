@@ -3,4 +3,4 @@
 /**
  * Where the bytes of a raster go (`Effect::Raster`).
  */
-export type RasterSink = { "type": "download", } | { "type": "clipboard", };
+export type RasterSink = { "type": "download", } | { "type": "clipboard", } | { "type": "upload", requestId: string, uploadToken: string, seq: number, };
