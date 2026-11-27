@@ -3,6 +3,6 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Tooling of the web client: the npm licence check and the UI literal check (run from apps/web by its npm scripts) and the guarded dev proxy that Vite loads. Tested by the apps/web test run.",
+  "description": "Tooling of the web client: the npm licence check, the UI literal check, the boundary check and the freeze check (run from apps/web by its npm scripts) and the guarded dev proxy that Vite loads. Tested by the apps/web test run.",
   "meldframe": { "kind": "tool" }
 }
