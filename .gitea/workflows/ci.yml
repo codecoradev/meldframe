@@ -125,6 +125,13 @@ jobs:
           # The allow-list may not grow against the pull request's base branch (`--base`), so fetch it.
           git fetch --no-tags --depth=1 origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
           npm run boundaries --prefix apps/web -- --base "origin/${BASE_REF}"
+      - name: Web freeze (the legacy web clients do not grow)
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          # The allow-list may not grow against the pull request's base branch (`--base`), so fetch it.
+          git fetch --no-tags --depth=1 origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          npm run frozen --prefix apps/web -- --base "origin/${BASE_REF}"
       - name: Web unit tests
         run: npm test --prefix apps/web
       - name: Web UI literals (colours, fonts and sizes come from the tokens)
