@@ -156,6 +156,7 @@ export class Shell {
         return; // the views redraw from every snapshot
       case 'raster':
       case 'finishRaster':
+      case 'failCapture':
         return; // the legacy client never starts these: it never dispatches `png` or sends the wires they answer
       default: {
         const unhandled: never = e; // a new effect must be carried out here, or this stops compiling

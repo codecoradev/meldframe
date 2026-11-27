@@ -18,6 +18,7 @@ mod raster;
 mod subscribe;
 
 use meldframe_app_model::{Action, Frame, Wire};
+pub use raster::ask_is_safe;
 use serde_json::Value;
 
 /// The code of an error answer: a short snake_case word, else `unavailable`. The body may come from a proxy, so it is
@@ -53,6 +54,7 @@ pub fn action_of(wire: Wire) -> Option<Action> {
             status,
             body,
         } => assets::page(request, after, status, &body),
+        Wire::Capture { now_ms, text } => raster::capture(now_ms, text.expose())?,
         Wire::Drawn {
             request,
             status,

@@ -104,6 +104,13 @@ pub enum Effect {
     /// What the app decided about the image it holds for `request`: `deliver` it to its sink (the answer comes back as
     /// `Wire::Delivered`) or drop it (it was refused after drawing).
     FinishRaster { request: u32, deliver: bool },
+    /// Answer the capture request `request_id` with `ClientMsg::CaptureFailed` (`code` is `node_not_found`, `too_large`,
+    /// `stale_client`, `invalid_scale`, ...: the server maps one it does not know to `render_failed`).
+    FailCapture {
+        request_id: String,
+        code: String,
+        message: String,
+    },
     /// Redraw. The nodes named changed; an empty list means everything.
     Render { nodes: Vec<String> },
 }
