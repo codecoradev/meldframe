@@ -40,6 +40,25 @@ type Cached = (Key, Vec<(String, Rect)>);
 /// the laid-out ones). The mode choice and the variables are not in it: they change what is painted, never where a box is.
 type HitKey = ((u64, u64), u64, bool);
 
+/// The index of what is under a point, the key it is for and its epoch (see `crate::scene`). The epoch moves when the key
+/// does, whether or not anyone has asked for the index since, so a shell can read it without building anything.
+#[derive(Default)]
+struct HitCache {
+    key: Option<HitKey>,
+    epoch: u64,
+    index: Option<HitIndex<'static>>,
+}
+
+impl HitCache {
+    fn touch(&mut self, key: HitKey) {
+        if self.key != Some(key) {
+            self.key = Some(key);
+            self.epoch += 1;
+            self.index = None;
+        }
+    }
+}
+
 /// The flag and the measurer, held by the [`App`], and the boxes of the last layout.
 pub(crate) struct CanvasLayout {
     pub(crate) enabled: bool,
@@ -52,7 +71,7 @@ pub(crate) struct CanvasLayout {
     /// How many times the whole file was laid out for `rects` (a test reads it through `App::layout_runs`).
     runs: Cell<u64>,
     /// What is under a point, for the scene of the key it was built for (`App::hit`; the hover asks on every frame).
-    hits: RefCell<Option<(HitKey, HitIndex<'static>)>>,
+    hits: RefCell<HitCache>,
     /// How many times the index was built (a test reads it through `App::hit_builds`).
     hit_builds: Cell<u64>,
 }
@@ -65,7 +84,7 @@ impl Default for CanvasLayout {
             generation: 0,
             cache: RefCell::new(None),
             runs: Cell::new(0),
-            hits: RefCell::new(None),
+            hits: RefCell::new(HitCache::default()),
             hit_builds: Cell::new(0),
         }
     }
@@ -108,23 +127,40 @@ impl CanvasLayout {
         self.hit_builds.get()
     }
 
+    /// The measurer generation as far as the scene and the hit index depend on it: with the flag off the boxes are the stored
+    /// ones and no measurer is asked, so a new measurer changes nothing there.
+    pub(crate) fn scene_generation(&self) -> u64 {
+        if self.enabled { self.generation } else { 0 }
+    }
+
+    fn hit_key(&self, revision: (u64, u64)) -> HitKey {
+        (revision, self.scene_generation(), self.enabled)
+    }
+
+    /// The number that names the index for `revision`, the measurer and the flag. The mode choice and the variables are not in
+    /// it, so a mode switch leaves it alone.
+    pub(crate) fn hit_epoch(&self, revision: (u64, u64)) -> u64 {
+        let mut cache = self.hits.borrow_mut();
+        cache.touch(self.hit_key(revision));
+        cache.epoch
+    }
+
     /// Reads the index of what is under a point for the scene of `revision`, the measurer and the flag. The scene is worked
     /// out and indexed only when one of them is not the one of the last call, so the questions that follow while the pointer
     /// moves over a file that has not changed read the index and nothing else.
     pub(crate) fn with_hits<R>(
         &self,
         revision: (u64, u64),
-        scene: impl FnOnce() -> Vec<PaintedBox>,
+        build: impl FnOnce() -> HitIndex<'static>,
         read: impl FnOnce(&HitIndex) -> R,
     ) -> R {
-        let key = (revision, self.generation, self.enabled);
         let mut cache = self.hits.borrow_mut();
-        if cache.as_ref().is_none_or(|(k, _)| *k != key) {
+        cache.touch(self.hit_key(revision));
+        if cache.index.is_none() {
             self.hit_builds.set(self.hit_builds.get() + 1);
-            *cache = Some((key, HitIndex::from_boxes(&scene())));
+            cache.index = Some(build());
         }
-        let (_, index) = cache.as_ref().expect("just filled");
-        read(index)
+        read(cache.index.as_ref().expect("just filled"))
     }
 
     pub(crate) fn scene(

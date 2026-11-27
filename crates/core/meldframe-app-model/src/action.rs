@@ -5,6 +5,7 @@ use crate::assets::AssetPage;
 use crate::checkpoint::{CheckpointRequest, CheckpointRow};
 use crate::export::ExportFormat;
 pub use crate::frame::Frame;
+use crate::key::KeyInput;
 use crate::layout::Direction;
 pub use crate::preset::{CreateKind, FramePreset};
 pub use crate::property::Property;
@@ -235,6 +236,14 @@ pub enum Action {
     /// The shortcut sheet or the command palette opens or closes (`OverlayOp`): `AppState::overlay`.
     Overlay {
         op: OverlayOp,
+    },
+    /// A key was pressed (`KeyInput`): the app layer decides whether it is an editor key and what it does (the tool letters, Delete,
+    /// undo and redo, the arrow keys, Enter and Escape, the panel keys, `?` and Ctrl or Command+K; `meldframe-app-rules`, `keys`),
+    /// and dispatches that action. A key it does not answer, a key of an input method that is composing, a repeat, and a key the
+    /// focus owns (a field, a menu, a dialog) make no action and no event; one it answers raises `Event::KeyHandled`. What the host
+    /// still does (no arrow key during a drag, no palette key with a menu open, the camera keys) is on `KeyInput`.
+    Key {
+        input: KeyInput,
     },
     /// A raw answer of the server or a raw frame (`Wire`): the app parses and checks it, then acts or ignores it.
     Wire {

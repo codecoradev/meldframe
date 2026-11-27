@@ -162,6 +162,45 @@ idiomatic; token-based classes arrive with decision 17.
 7. Break opportunities: space and explicit newline only are guaranteed. Hyphens match (tested), slash tokens, URLs, CJK and
    tabs do not (section 8.3, pattern 4).
 
+## 6a. The text measurer of a host
+
+The measurer is the seam through which a host brings its text engine (`TextMeasurer` in `meldframe-layout`; the rustdoc
+there is the full statement). A browser host plugs in a JavaScript function (`setMeasurer`), a front end with a text
+engine of its own implements the trait. What the contract needs from it:
+
+1. **The answer.** For a text node (text, font size, weight; the one family of section 6; an empty text measures as one
+   space) and a wrap width, `(width, height)` in pixels, each finite and from 0 to 1,000,000. No wrap width: the whole text
+   on one line and the height of one line. A wrap width: the widest line, and about the number of lines times the height of
+   one line (up to the host's rounding: the browser host rounds the whole height up). Lines break at a space, an explicit
+   newline or a hyphen; nothing else is promised (rule 7). The `line-height` the export writes is the height of a single
+   measured `M` of the same font.
+2. **Rounding is the host's.** The layout core takes the answer as it is and does not round; the host rounds the width and
+   the height up to whole pixels (the browser host does, `Math.ceil` of Pixi's answer), and the export rounds the width up
+   again when it pins `min-width`.
+3. **An answer that is not a size.** The browser bridge refuses it per question and the stub's size is used instead (an
+   exception, a result that is not an array, or a width or height that is not finite or is outside 0 to 1,000,000; a longer
+   array is read at its first two elements), so the layout is provisional and never broken. A front end that gives the app
+   a measurer of its own gets no such refusal and must give only sizes. With no measurer given, the stub measures.
+4. **One measurer for the canvas and for the export.** The core sizes boxes with the measurer and the export pins
+   `min-width` and `line-height` from it; the claim of section 7 that the export reproduces the core's boxes holds for a
+   front end only when it draws and exports with the same measurer, and a browser that opens the export draws text as the
+   engine behind that measurer does (the "text table is Chromium's measurer" point of section 7). The MCP export tool is
+   the case where it is not so: it measures with the stub and warns `text_size_estimated`.
+5. **The conformance suite.** `meldframe_layout::conformance` puts a measurer through the questions the layout asks about
+   the texts of the oracle fixtures (the fixtures that hold text, `crates/core/meldframe-layout/tests/fixtures/oracle_texts.json`,
+   written from `tools/fidelity-oracle/fixtures.mjs` by `export-text-fixtures.mjs`, with a drift test in `npm test`
+   there) and reports, per fixture and per question, the width difference, the line count difference, the difference in
+   the height of one line and whether the answers were sizes, against a reference measurer; a tolerance has a limit for each
+   of the three. The reference is any measurer: the stub for the baseline (it has no difference from itself, which
+   `tests/measurer_conformance.rs` asserts, together with measurers that are wider, wrap differently, have taller
+   lines or answer a number that is not a size, which fail), or a table recorded in a browser for a real check of a native
+   engine. Texts outside section 4.3 (a tab, a URL, CJK) are reported and never count as a failure. Limits of the suite: it
+   runs no browser and holds no recorded table of Pixi's answers (there is none in the repository; the oracle records its
+   table at run time), so no gate compares a native engine with Chromium yet and the tolerance to ask of one is the
+   owner's to set (the oracle holds boxes to 0.05 px); it does not check that widths are whole pixels; the line count is a
+   derived number (height over the height of one line), exact up to rounding, which is why the height of one line is
+   compared on its own; and a measurer that panics takes the suite down with it.
+
 ## 7. Running the oracle in CI
 
 The oracle is `tools/fidelity-oracle/` (README there), run by the `oracle` job of `ci.yml` on every pull request and by
