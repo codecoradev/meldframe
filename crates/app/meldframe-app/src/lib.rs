@@ -33,6 +33,7 @@ mod picker;
 mod props;
 mod retry;
 mod review;
+mod scene;
 mod text;
 mod text_edit;
 mod variables;
