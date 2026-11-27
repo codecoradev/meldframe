@@ -14,9 +14,6 @@ export interface Rect extends Point, Size {}
 
 export const rectsEqual = (a: Rect, b: Rect): boolean => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 
-export const containsPoint = (r: Rect, x: number, y: number): boolean =>
-  x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
-
 /** The smallest rectangle holding all of `rects`, or null for none. */
 export function unionRects(rects: readonly Rect[]): Rect | null {
   let out: Rect | null = null;
