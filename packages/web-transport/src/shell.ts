@@ -29,8 +29,8 @@ export interface SocketLike {
 export interface Env {
   now(): number;
   openSocket(path: string): SocketLike;
-  /** A POST that rejects after `timeoutMs` (a hung request must not hold up the ops behind it). */
-  post(path: string, body: unknown, timeoutMs?: number): Promise<{ status: number; body: unknown }>;
+  /** A POST that rejects after `timeoutMs` (a hung request must not hold up the ops behind it). The answer is the status and the text of the body, not read: the app layer reads the refusal of an op (its code, whether it may be sent again). */
+  post(path: string, body: unknown, timeoutMs?: number): Promise<{ status: number; text: string }>;
   /** A request of the routes the app layer reads the answer of (batches, checkpoints, assets); rejects after `timeoutMs`. The answer is the status and the text of the body, not read: the app layer parses and checks it. */
   request(method: 'GET' | 'PUT' | 'POST', path: string, body?: unknown, timeoutMs?: number): Promise<{ status: number; text: string }>;
   setTimer(fn: () => void, ms: number, repeat?: boolean): number;
@@ -370,7 +370,7 @@ export class Shell {
     for (const op of ops) {
       if (epoch !== this.epoch) return; // the connection was lost: the app sends everything again
       const path = `/v1/files/${encodeURIComponent(this.opts.file)}/tools/${this.opts.tool ?? 'apply_commands'}`;
-      let res: { status: number; body: unknown };
+      let res: { status: number; text: string };
       try {
         res = await this.env.post(path, { ops: [{ key: op.key, command: op.command, deps: op.deps }] }, POST_TIMEOUT_MS);
       } catch {
@@ -384,11 +384,9 @@ export class Shell {
         return;
       }
       if (res.status === 200) continue; // the live event confirms it
-      const error = (res.body as { error?: { code?: unknown; retryable?: unknown } } | null)?.error;
-      // The body may come from a proxy or a gateway: take only what has the right type.
-      const code = typeof error?.code === 'string' ? error.code : 'unavailable';
-      const retryable = typeof error?.retryable === 'boolean' ? error.retryable : true;
-      this.dispatch({ type: 'frame', nowMs: this.env.now(), frame: { type: 'rejected', key: op.key, code, retryable } });
+      // Anything else is a refusal. The app layer reads the body (it may come from a proxy or a gateway): the code, whether
+      // the op may be sent again, and that a body that is not the server's means "for now, try again".
+      this.dispatch({ type: 'wire', wire: { kind: 'opRefused', nowMs: this.env.now(), key: op.key, status: res.status, body: res.text } });
     }
   }
 }
@@ -415,7 +413,8 @@ export function browserEnv(): Env {
         body: JSON.stringify(body),
         signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
       });
-      return { status: res.status, body: await res.json().catch(() => null) };
+      // The text of the body, not read (as `request` does): a body that is not text, or fails halfway, is an empty one.
+      return { status: res.status, text: await res.text().catch(() => '') };
     },
     async request(method, path, body, timeoutMs) {
       const res = await fetch(path, {

@@ -1,6 +1,10 @@
 // Getting the file the editor opens, and what the page does when it cannot start.
 import type { Node, Variables } from '@meldframe/protocol';
 
+// The guard stays here, in the host, on purpose (audit finding T14, decision 43). Its counter has to survive the page reload
+// it limits, so it lives in `sessionStorage`, which only the page can reach; the app layer is rebuilt by a reload and holds
+// nothing across it. What a person sees does not depend on it: when it says no, the app is already halted
+// (`Connection::Halted`, set on `Event::Diverged`) and the page shows the banner with its Reload button.
 export const RELOAD_LIMIT = 3;
 export const RELOAD_WINDOW_MS = 60_000;
 

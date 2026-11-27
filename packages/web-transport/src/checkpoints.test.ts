@@ -57,7 +57,7 @@ class FakeEnv implements Env {
   reply: () => Promise<{ status: number; text: string }> = async () => ({ status: 200, text: '' });
   now = () => 1000;
   openSocket = () => { const s = new FakeSocket(); this.sockets.push(s); return s; };
-  post = async () => ({ status: 200, body: {} });
+  post = async () => ({ status: 200, text: '{}' });
   request = async (method: 'GET' | 'PUT' | 'POST', path: string, body?: unknown, timeoutMs?: number) => { this.calls.push({ method, path, body, timeoutMs }); return this.reply(); };
   setTimer = () => 1;
   clearTimer = () => {};

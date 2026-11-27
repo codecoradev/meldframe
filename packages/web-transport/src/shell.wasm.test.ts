@@ -45,7 +45,7 @@ class FakeEnv implements Env {
   clock = 1_000;
   sockets: FakeSocket[] = [];
   posts: { path: string; body: { ops: { key: string; command: Command }[] }; token?: string }[] = [];
-  reply: (n: number) => Promise<{ status: number; body: unknown }> = async () => ({ status: 200, body: { accepted: [] } });
+  reply: (n: number) => Promise<{ status: number; text: string }> = async () => ({ status: 200, text: '{"accepted":[]}' });
   timers: { at: number; fn: () => void; every?: number; id: number }[] = [];
   private next = 1;
   now = () => this.clock;
@@ -228,7 +228,7 @@ describe.skipIf(!built)('Shell: ops over REST', () => {
 
   it('reports a refusal back to the app, which rolls the view back', async () => {
     const { env, engine } = setup();
-    env.reply = async () => ({ status: 409, body: { error: { code: 'conflict', message: 'm', retryable: false } } });
+    env.reply = async () => ({ status: 409, text: JSON.stringify({ error: { code: 'conflict', message: 'm', retryable: false } }) });
     const shell = new Shell(engine, env, { file: 'file_dev' });
     shell.start();
     env.socket.serve(hello);
@@ -242,7 +242,7 @@ describe.skipIf(!built)('Shell: ops over REST', () => {
     const { env, engine, seen } = live();
     env.reply = async (n) => {
       if (n === 1) throw new Error('network down');
-      return { status: 200, body: { accepted: [] } };
+      return { status: 200, text: '{"accepted":[]}' };
     };
     create(engine);
     create(engine);
@@ -266,7 +266,7 @@ describe.skipIf(!built)('Shell: ops over REST', () => {
 
   it('an op of the person comes back as an event with its key, which confirms it', async () => {
     const { env, engine } = live();
-    env.reply = async () => ({ status: 200, body: { accepted: [] } });
+    env.reply = async () => ({ status: 200, text: '{"accepted":[]}' });
     create(engine);
     await flush();
     const [key] = engine.snapshot().state.pending;
@@ -280,7 +280,7 @@ describe.skipIf(!built)('Shell: ops over REST', () => {
 
   it('an event with the same actor and command but another key is not my op: it is applied and my undo step is gone', async () => {
     const { env, engine } = live();
-    env.reply = async () => ({ status: 200, body: { accepted: [] } });
+    env.reply = async () => ({ status: 200, text: '{"accepted":[]}' });
     create(engine);
     await flush();
     const sent = env.posts[0]!.body.ops[0]!;
@@ -293,15 +293,15 @@ describe.skipIf(!built)('Shell: ops over REST', () => {
     const real = engine.dispatch.bind(engine);
     let refuse = true;
     engine.dispatch = (a) => {
-      if (refuse && a.type === 'frame' && a.frame.type === 'rejected') throw new Error('the app refused the action');
+      if (refuse && a.type === 'wire' && a.wire.kind === 'opRefused') throw new Error('the app refused the action');
       return real(a);
     };
-    env.reply = async () => ({ status: 409, body: { error: { code: 'conflict', retryable: false } } });
+    env.reply = async () => ({ status: 409, text: '{"error":{"code":"conflict","retryable":false}}' });
     create(engine);
     await flush();
     expect(env.posts).toHaveLength(1);
     refuse = false;
-    env.reply = async () => ({ status: 200, body: { accepted: [] } });
+    env.reply = async () => ({ status: 200, text: '{"accepted":[]}' });
     env.advance(60_000); // the connection was counted as lost: it comes back and everything goes out again
     env.socket.serve(hello);
     await flush();

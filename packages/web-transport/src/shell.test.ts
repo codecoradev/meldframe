@@ -57,7 +57,7 @@ class FakeEnv implements Env {
   clock = 1000;
   sockets: FakeSocket[] = [];
   posts: { path: string; body: unknown }[] = [];
-  reply: () => Promise<{ status: number; body: unknown }> = async () => ({ status: 200, body: {} });
+  reply: () => Promise<{ status: number; text: string }> = async () => ({ status: 200, text: '{}' });
   timers: { at: number; fn: () => void; every?: number; id: number }[] = [];
   private next = 1;
   now = () => this.clock;
@@ -346,22 +346,25 @@ describe('Shell with a scripted engine', () => {
     expect(env.posts[0]!.path).toBe('/v1/files/file_dev/tools/apply_commands');
   });
 
-  it.each(['approval_required', 'approval_denied', 'approval_expired', 'approval_limit'])('%s is reported as rejected and not retryable', async (code) => {
+  it.each(['approval_required', 'approval_denied', 'approval_expired', 'approval_limit'])('%s is handed to the app as it came: the status and the text (the code and the flag are read in answers_ops.rs)', async (code) => {
     const { engine, env, shell } = setup();
     shell.start();
-    env.reply = async () => ({ status: code === 'approval_limit' ? 429 : 403, body: { error: { code, retryable: false } } });
+    const text = JSON.stringify({ error: { code, retryable: false } });
+    const status = code === 'approval_limit' ? 429 : 403;
+    env.reply = async () => ({ status, text });
     engine.effect({ type: 'sendOps', ops: [op('k1')] });
     await settle();
-    expect(engine.dispatched.at(-1)).toMatchObject({ type: 'frame', frame: { type: 'rejected', key: 'k1', code, retryable: false } });
+    expect(engine.dispatched.at(-1)).toEqual({ type: 'wire', wire: { kind: 'opRefused', nowMs: 1000, key: 'k1', status, body: text } });
   });
 
-  it('a refused op is reported as rejected with the server code; a network error stops the rest and loses a live connection', async () => {
+  it('a refused op goes to the app as the status and the text; a network error stops the rest and loses a live connection', async () => {
     const { engine, env, shell } = setup();
     shell.start();
-    env.reply = async () => ({ status: 409, body: { error: { code: 'conflict', retryable: false } } });
+    const text = '{"error":{"code":"conflict","retryable":false}}';
+    env.reply = async () => ({ status: 409, text });
     engine.effect({ type: 'sendOps', ops: [op('k1')] });
     await settle();
-    expect(engine.dispatched.at(-1)).toMatchObject({ type: 'frame', frame: { type: 'rejected', key: 'k1', code: 'conflict', retryable: false } });
+    expect(engine.dispatched.at(-1)).toEqual({ type: 'wire', wire: { kind: 'opRefused', nowMs: 1000, key: 'k1', status: 409, body: text } });
 
     engine.connection = 'live';
     env.reply = async () => {
@@ -386,8 +389,8 @@ describe('Shell with a scripted engine', () => {
   it('an exception while reporting a refusal does not stop the ops that come later', async () => {
     const { engine, env, shell } = setup();
     shell.start();
-    env.reply = async () => ({ status: 409, body: { error: { code: 'conflict', retryable: false } } });
-    engine.throwOn = (a) => a.type === 'frame' && a.frame.type === 'rejected';
+    env.reply = async () => ({ status: 409, text: '{"error":{"code":"conflict","retryable":false}}' });
+    engine.throwOn = (a) => a.type === 'wire' && a.wire.kind === 'opRefused';
     engine.effect({ type: 'sendOps', ops: [op('k1')] });
     await settle();
     expect(env.posts).toHaveLength(1);
@@ -397,17 +400,36 @@ describe('Shell with a scripted engine', () => {
     expect(env.posts.map((p) => (p.body as { ops: { key: string }[] }).ops[0]!.key)).toEqual(['k1', 'k2']);
   });
 
-  it('an error body that is not what the server writes cannot make the report invalid', async () => {
+  it('an error body that is not what the server writes is handed over as it came: the shell reads none of it, the app layer does (answers_ops.rs)', async () => {
     const { engine, env, shell } = setup();
     shell.start();
-    env.reply = async () => ({ status: 502, body: { error: { code: 5, retryable: 'x' } } });
-    engine.effect({ type: 'sendOps', ops: [op('k1')] });
+    for (const [i, text] of ['{"error":{"code":5,"retryable":"x"}}', '<html>bad gateway</html>', ''].entries()) {
+      env.reply = async () => ({ status: 502, text });
+      engine.effect({ type: 'sendOps', ops: [op(`k${i}`)] });
+      await settle();
+      expect(engine.dispatched.at(-1)).toEqual({ type: 'wire', wire: { kind: 'opRefused', nowMs: 1000, key: `k${i}`, status: 502, body: text } });
+    }
+  });
+
+  it('a 200 is an accepted op: the shell reports nothing, the live event confirms it, and the next op goes on', async () => {
+    const { engine, env, shell } = setup();
+    shell.start();
+    env.reply = async () => ({ status: 200, text: '{"accepted":[]}' });
+    const before = engine.dispatched.length;
+    engine.effect({ type: 'sendOps', ops: [op('k1'), op('k2')] });
     await settle();
-    expect(engine.dispatched.at(-1)).toMatchObject({ type: 'frame', frame: { type: 'rejected', key: 'k1', code: 'unavailable', retryable: true } });
-    env.reply = async () => ({ status: 502, body: '<html>bad gateway</html>' });
-    engine.effect({ type: 'sendOps', ops: [op('k2')] });
+    expect(env.posts).toHaveLength(2);
+    expect(engine.dispatched).toHaveLength(before);
+  });
+
+  it('a refusal does not stop the ops after it: each one is answered', async () => {
+    const { engine, env, shell } = setup();
+    shell.start();
+    env.reply = async () => ({ status: 409, text: '{"error":{"code":"conflict","retryable":false}}' });
+    engine.effect({ type: 'sendOps', ops: [op('k1'), op('k2')] });
     await settle();
-    expect(engine.dispatched.at(-1)).toMatchObject({ frame: { type: 'rejected', key: 'k2', code: 'unavailable', retryable: true } });
+    expect(env.posts).toHaveLength(2);
+    expect(engine.dispatched.filter((a) => a.type === 'wire').map((a) => (a as { wire: { key: string } }).wire.key)).toEqual(['k1', 'k2']);
   });
 
   it('an event frame keeps the idempotency key the server names, so the app knows its own op', () => {
