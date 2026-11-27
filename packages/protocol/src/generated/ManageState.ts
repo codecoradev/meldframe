@@ -7,7 +7,11 @@ import type { RenameField } from "./RenameField";
 /**
  * The Variables manage view: view state with its rules (`Action::Manage`).
  */
-export type ManageState = { limits: ManageLimits, 
+export type ManageState = { 
+/**
+ * Whether the view is open (`ManageOp::Open` and `Close`).
+ */
+open: boolean, limits: ManageLimits, 
 /**
  * The collection the person chose; `None` (or one that is gone) shows the first. A front end reads `shown`.
  */

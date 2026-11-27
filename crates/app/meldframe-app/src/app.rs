@@ -182,7 +182,10 @@ impl App {
             Action::CloseExport {} => self.close_export(),
             Action::OpenVariablesExport {} => self.open_variables_export(),
             Action::CloseVariablesExport {} => self.close_variables_export(),
+            Action::OpenVariablesImport {} => self.open_variables_import(),
             Action::CloseVariablesImport {} => self.close_variables_import(),
+            Action::ClearVariablesImport {} => self.clear_variables_import(),
+            Action::Overlay { op } => self.overlay_action(op),
             Action::Start { now_ms } => self.start(now_ms, &mut fx),
             Action::Connected { now_ms } => self.connected(now_ms, &mut fx),
             Action::Disconnected {} => self.disconnected(&mut fx),
@@ -223,6 +226,7 @@ impl App {
             Level::Full => self.refresh(&mut fx),
         }
         self.settle_confirm();
+        self.settle_overlay();
         self.settle_text_edit();
         self.text_edit_changed(&text_edit);
         if self.state.manage != manage {

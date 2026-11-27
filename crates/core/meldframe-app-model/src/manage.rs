@@ -170,6 +170,9 @@ impl Default for ManageLimits {
 #[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ManageState {
+    /// Whether the view is open (`ManageOp::Open` and `Close`).
+    #[serde(default)]
+    pub open: bool,
     pub limits: ManageLimits,
     /// The collection the person chose; `None` (or one that is gone) shows the first. A front end reads `shown`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -198,6 +201,9 @@ pub struct ManageState {
     deny_unknown_fields
 )]
 pub enum ManageOp {
+    /// Open the view, with the search of the Variables panel cleared (the view draws the rows of the panel). Nothing, and no
+    /// second clearing, when it is open already.
+    Open {},
     /// Show a collection. A question or a field that was open ends. An unknown id is refused as `E_COLLECTION_NOT_FOUND`.
     Choose { id: String },
     /// The text of a form that adds something changed; its check follows. Adding is `CreateCollection`, `AddMode` and

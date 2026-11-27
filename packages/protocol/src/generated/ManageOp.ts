@@ -5,4 +5,4 @@ import type { VariableEntity } from "./VariableEntity";
 /**
  * What a person does in the manage view.
  */
-export type ManageOp = { "type": "choose", id: string, } | { "type": "setDraft", form: VariableEntity, text: string, } | { "type": "askRemove", target: ManageTarget, } | { "type": "cancelRemove", } | { "type": "confirmRemove", } | { "type": "startRename", target: ManageTarget, } | { "type": "setRenameText", text: string, } | { "type": "submitRename", } | { "type": "cancelRename", } | { "type": "close", };
+export type ManageOp = { "type": "open", } | { "type": "choose", id: string, } | { "type": "setDraft", form: VariableEntity, text: string, } | { "type": "askRemove", target: ManageTarget, } | { "type": "cancelRemove", } | { "type": "confirmRemove", } | { "type": "startRename", target: ManageTarget, } | { "type": "setRenameText", text: string, } | { "type": "submitRename", } | { "type": "cancelRename", } | { "type": "close", };

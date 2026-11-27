@@ -84,6 +84,20 @@ impl App {
         let nodes = self.replica.nodes();
         let m = &mut self.state.manage;
         match op {
+            // The view draws the rows of the panel, so it starts with the search cleared (the counts of a removal are of the whole
+            // file, whatever the search shows). Open already: nothing, so a search typed since stays.
+            ManageOp::Open {} => {
+                if !m.open {
+                    m.open = true;
+                    let v = &mut self.state.variables;
+                    if !v.query.is_empty() {
+                        v.query.clear();
+                        self.events.push(Event::VariablesQueryChanged {
+                            query: String::new(),
+                        });
+                    }
+                }
+            }
             ManageOp::Choose { id } => {
                 if vars.collection(&id).is_none() {
                     return drop(refuse(&mut self.events, "E_COLLECTION_NOT_FOUND"));
@@ -140,6 +154,7 @@ impl App {
             }
             ManageOp::CancelRename {} => m.rename = None,
             ManageOp::Close {} => {
+                m.open = false;
                 m.chosen = None;
                 m.removal = None;
                 m.rename = None;

@@ -79,6 +79,8 @@ export type { Node } from './Node';
 export type { NodeKind } from './NodeKind';
 export type { NodePatch } from './NodePatch';
 export type { OutOp } from './OutOp';
+export type { Overlay } from './Overlay';
+export type { OverlayOp } from './OverlayOp';
 export type { Panel } from './Panel';
 export type { Panels } from './Panels';
 export type { Picker } from './Picker';

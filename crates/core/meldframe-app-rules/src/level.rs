@@ -35,7 +35,10 @@ pub fn is_view(action: &Action) -> bool {
             | Action::CloseExport {}
             | Action::OpenVariablesExport {}
             | Action::CloseVariablesExport {}
+            | Action::OpenVariablesImport {}
             | Action::CloseVariablesImport {}
+            | Action::ClearVariablesImport {}
+            | Action::Overlay { .. }
     ) || action.is_assets()
         || matches!(action, Action::Manage { op } if op.is_view())
         || matches!(action, Action::TextEdit { op } if op.is_view())

@@ -1,6 +1,7 @@
 //! Changes of [`AppState`](crate::AppState), one per change, for a front end that redraws only what moved.
 
 use crate::confirm::RightTab;
+use crate::overlay::Overlay;
 use crate::state::{Connection, Panel, Tool};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -59,6 +60,10 @@ pub enum Event {
     /// The tab of the right card changed (`Action::Activity` with `SetTab`).
     RightTabChanged {
         tab: RightTab,
+    },
+    /// The overlay of the layout that is open changed (`Action::Overlay`): `None` when none is.
+    OverlayChanged {
+        overlay: Option<Overlay>,
     },
     /// `AppState::confirm` changed: a question was asked, answered, cancelled or ended with its target.
     ConfirmChanged {},
