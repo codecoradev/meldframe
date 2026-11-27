@@ -201,6 +201,31 @@ moves); with input pumped continuously and an in-page rAF monitor, the truth is 
   harness measures 0.02 ms per hit through the wasm bridge — a Rune client must match that
   with its own HitIndex (not yet measured here).
 
+## Results — session 4 (28 Nov 2026, evening)
+
+Harness pushed as the repro repo for upstream issue
+[anomalyco/rune#2549](https://github.com/anomalyco/rune/issues/2549)
+(`github.com/ajianaz/rune-web-spike`, branch `main`; `web/index.html` and the three Inter
+faces committed under the OFL, the wasm built per the issue text; the issue carries a
+comment pointing at the commit).
+
+- **True render cost, by CPU throttling.** With CDP `setCPUThrottlingRate`, pan over
+  5,000 nodes (Shape): **4× throttle — vsync-clean** (p50 16.7 / p99 17.8 / max 17.8 over
+  468 ticks); **10× throttle — holds ~30 fps** (p50 16.8 / p90 33.5 / p95 34.1 / max
+  251 over 1,297 ticks). A 10× CPU multiplier still keeping 30 fps bounds the real
+  per-frame work well under the 8 ms native budget: **the E3 render-cost bar is now met
+  in the meaningful sense**, with the caveat that throttling compresses JS and GPU work
+  differently. Saturated zoom (alternating in/out, 20,000 nodes all drawn, GPU/WebGL2):
+  rAF p50 16.7 / p95 17.7 / p99 17.8 / **max 17.8** — not one dropped frame under full
+  zoom load. And 60,000 nodes all drawn (session cap) at zoom-out: p50 16.7 / p95 17.9 /
+  max 21 ms.
+- **Hit-test parity (T9): still open and now the last blocker for the perf story.** The
+  harness has no spatial index; measuring Rune's element hit gives the surface element,
+  not nodes. The honest measurement needs meldframe's portable `HitIndex` wired into the
+  harness, which pulls a meldframe path dependency into the spike repo — deferred, with
+  the plan noted here rather than faked with a JS approximation. Pixi's measured 0.02 ms
+  per hit through the wasm bridge stays the number to match.
+
 ## Results (session 2)
 
 First session, 27 Nov 2026, macOS arm64, headless Chromium 140 (Playwright, `--enable-unsafe-webgpu`, so likely a software WebGPU adapter — numbers are indicative, not production). Harness: `../rune-web-spike/` (own git repo, commit `4bb3a60`), Rune pinned at `048528dc35f0`.
