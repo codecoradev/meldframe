@@ -10,7 +10,7 @@ Design canvas for humans and AI agents. Pre-alpha; docs first, no product code y
 - Structure and seams, before adding a module or changing an interface: `docs/architecture.md`.
 - Why a hard-to-reverse choice was made, before reopening it: `docs/adr/`.
 - Open decisions and order of work: `docs/roadmap.md`. Milestones, epics, acceptance and exit criteria, before starting any work item: `docs/epics.md`. Owner decisions: `docs/decisions.md`.
-- Layering, detachable modules, the app layer, the gate and live events, before adding a crate, module or transport: `docs/standards/modular-thin-ui.md` and ADR-0007 to ADR-0010. The front end stack and the order of work (a thin UI audit, then React for the web, then a GPUIX + React desktop spike): ADR-0026 and E7 in `docs/epics.md`.
+- Layering, detachable modules, the app layer, the gate and live events, before adding a crate, module or transport: `docs/standards/modular-thin-ui.md` and ADR-0007 to ADR-0010. The front end stack and the order of work (a thin UI audit, then React for the web, then a GPUIX + React desktop spike): ADR-0026 and E7 in `docs/epics.md`; the Rune front end that replaces its web framework and desktop parts (native desktop, web from the same view crates, the React web client frozen): ADR-0027 and E8 in `docs/epics.md`.
 
 ## Workflow
 

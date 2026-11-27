@@ -3,6 +3,8 @@ status: accepted
 ---
 # Front end stack and order of work: a thin UI first, React for the web, GPUIX with React for the desktop after the web client is fixed
 
+> Status note, 27 Nov 2026: parts 2 and 3 of the decision below are superseded by ADR-0027 (decision 45). The desktop client is native Rune, the web client moves to Rune from the same view crates, the React web client is frozen after slice S11, and Svelte and React stay until the owner retires them. Parts 1 and 4 (a thin UI enforced by tools, standard v1.3 and the modular monolith) stand, and so does the text below as the record of 25 Nov 2026.
+
 Accepted by owner decision on 25 Nov 2026 (decision 42 in `docs/decisions.md`; tracking issues #305 to #309). The date of the decision is the date of this record; nothing here was proposed first.
 
 ## Context
