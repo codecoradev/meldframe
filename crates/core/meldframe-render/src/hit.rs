@@ -134,6 +134,12 @@ impl<'a> HitIndex<'a> {
         }
     }
 
+    /// Every box in paint order with its rectangle in world space and the clip it inherits (none when nothing clips it).
+    /// What a capture reads (`crate::capture`).
+    pub(crate) fn placed(&self) -> impl Iterator<Item = (&str, Rect, Option<Rect>)> {
+        self.slots.iter().map(|s| (s.id.as_ref(), s.rect, s.clip))
+    }
+
     /// How many boxes the index holds.
     pub fn len(&self) -> usize {
         self.slots.len()
@@ -184,7 +190,7 @@ pub fn contains_point(r: Rect, x: f64, y: f64) -> bool {
 }
 
 /// The overlap of two rectangles; one with no width and no height at the nearer edge when they do not meet.
-fn overlap(a: Rect, b: Rect) -> Rect {
+pub(crate) fn overlap(a: Rect, b: Rect) -> Rect {
     // `f64::max` and `min` pass over a NaN, which would make half of a bad rectangle the overlap; a number that is not one cuts
     // everything away (no check lets one through today, so this is for a caller that does not go through the check).
     if [a.x, a.y, a.w, a.h, b.x, b.y, b.w, b.h]
