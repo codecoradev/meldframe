@@ -152,6 +152,11 @@ impl App {
             .with_rects(self.replica.revision(), self.replica.nodes(), read)
     }
 
+    /// The box the layout gives `id`, none with the flag off or for a node the layout holds no box of: what `resize` reads.
+    pub(crate) fn layout_box(&self, id: &str) -> Option<Rect> {
+        self.with_rects(|rects| rects.iter().find(|(i, _)| i == id).map(|(_, r)| *r))
+    }
+
     /// `Action::Resize`: the size, the origin, and with laid-out boxes the side that becomes fixed.
     pub(crate) fn resize_node(
         &mut self,
@@ -159,17 +164,27 @@ impl App {
         size: (f64, f64),
         origin: (Option<f64>, Option<f64>),
     ) -> Result<(), SubmitError> {
+        let cmd = self.resize_command(id, size, origin)?;
+        self.replica.apply(&cmd)
+    }
+
+    /// The command `Action::Resize` makes, worked out and not applied (a preview checks it as the release would be).
+    pub(crate) fn resize_command(
+        &self,
+        id: &str,
+        size: (f64, f64),
+        origin: (Option<f64>, Option<f64>),
+    ) -> Result<meldframe_protocol::Command, ApplyError> {
         let nodes = self.replica.nodes();
         let Some(n) = nodes.iter().find(|n| n.id == id) else {
-            return Err(ApplyError::NotFound(id.to_string()).into());
+            return Err(ApplyError::NotFound(id.to_string()));
         };
-        let drawn = self.with_rects(|rects| rects.iter().find(|(i, _)| i == id).map(|(_, r)| *r));
+        let drawn = self.layout_box(id);
         let parent = n
             .parent_id
             .as_deref()
             .and_then(|p| nodes.iter().find(|x| x.id == p));
-        let cmd = resize(n, drawn, parent, size, origin);
-        self.replica.apply(&cmd)
+        Ok(resize(n, drawn, parent, size, origin))
     }
 
     /// The box the canvas draws the one selected node at, when the canvas reads laid-out boxes (the panel shows it).
