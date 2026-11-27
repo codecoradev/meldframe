@@ -226,6 +226,7 @@ impl App {
             Level::Full => self.refresh(&mut fx),
         }
         self.settle_confirm();
+        self.settle_overlay();
         self.settle_text_edit();
         self.text_edit_changed(&text_edit);
         if self.state.manage != manage {

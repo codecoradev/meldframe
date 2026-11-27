@@ -32,6 +32,15 @@ impl App {
             || s.picker.is_some()
     }
 
+    /// The palette is never open with a dialog: one that opens over it (from an action of another front end, or an agent; the
+    /// palette closes itself first when a command of its own opens a dialog) closes it. The sheet may stay beside a dialog.
+    /// Run once per dispatch, so it holds whichever action opened the dialog.
+    pub(crate) fn settle_overlay(&mut self) {
+        if self.state.overlay == Some(Overlay::Palette) && self.dialog_open() {
+            self.set_overlay(None);
+        }
+    }
+
     fn set_overlay(&mut self, overlay: Option<Overlay>) {
         if self.state.overlay != overlay {
             self.state.overlay = overlay;

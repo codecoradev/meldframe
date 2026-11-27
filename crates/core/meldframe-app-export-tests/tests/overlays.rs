@@ -174,11 +174,57 @@ fn every_dialog_and_the_bind_picker_keep_the_palette_shut_and_the_sheet_is_not_i
 }
 
 #[test]
-fn an_open_palette_stays_open_when_a_dialog_opens() {
-    // Nothing couples the two: the palette closes itself before a command that opens a dialog runs.
+fn opening_a_dialog_closes_the_palette_and_leaves_the_sheet() {
+    // The other half of "never two at once": a dialog that opens over an open palette closes it (the palette closes itself first when
+    // a command of its own opens the dialog, so a person does not see this; another front end, or an agent, might).
+    let manage = |op| Action::Manage { op };
+    let rows: Vec<(&str, Vec<Action>)> = vec![
+        (
+            "export",
+            vec![
+                Action::Select {
+                    ids: ids(&["root"]),
+                },
+                Action::OpenExport {},
+            ],
+        ),
+        ("export variables", vec![Action::OpenVariablesExport {}]),
+        ("import variables", vec![Action::OpenVariablesImport {}]),
+        ("manage", vec![manage(ManageOp::Open {})]),
+        (
+            "bind picker",
+            vec![
+                Action::Select { ids: ids(&["r1"]) },
+                Action::OpenPicker {
+                    id: "r1".into(),
+                    field: BindField::Fill,
+                },
+            ],
+        ),
+    ];
+    for (name, opening) in rows {
+        let mut l = Loopback::live();
+        // The selection does not matter to the palette: the actions that select run first, and then it opens.
+        for a in &opening[..opening.len() - 1] {
+            l.send(a.clone());
+        }
+        toggle(&mut l, Overlay::Palette);
+        l.events.clear();
+        l.send(opening.last().unwrap().clone());
+        assert_eq!(overlay(&l), None, "{name}: the palette closes");
+        assert_eq!(changes(&mut l), vec![None], "{name}: and says so once");
+        // The sheet is allowed beside a dialog, on purpose.
+        toggle(&mut l, Overlay::Help);
+        assert_eq!(overlay(&l), Some(Overlay::Help), "{name}");
+    }
+}
+
+#[test]
+fn a_dialog_that_is_refused_leaves_the_palette_open() {
     let mut l = Loopback::live();
     toggle(&mut l, Overlay::Palette);
-    l.send(Action::OpenVariablesExport {});
+    // Nothing is selected, so there is no frame to export.
+    l.send(Action::OpenExport {});
     assert_eq!(overlay(&l), Some(Overlay::Palette));
 }
 

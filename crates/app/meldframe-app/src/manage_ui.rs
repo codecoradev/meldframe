@@ -80,13 +80,24 @@ fn rename_command(target: &ManageTarget, name: String) -> Command {
 impl App {
     /// An action of the manage view that changes the view only.
     pub(crate) fn manage_view(&mut self, op: ManageOp) {
-        if matches!(op, ManageOp::Open {}) {
-            return self.open_manage();
-        }
         let vars = self.replica.vars();
         let nodes = self.replica.nodes();
         let m = &mut self.state.manage;
         match op {
+            // The view draws the rows of the panel, so it starts with the search cleared (the counts of a removal are of the whole
+            // file, whatever the search shows). Open already: nothing, so a search typed since stays.
+            ManageOp::Open {} => {
+                if !m.open {
+                    m.open = true;
+                    let v = &mut self.state.variables;
+                    if !v.query.is_empty() {
+                        v.query.clear();
+                        self.events.push(Event::VariablesQueryChanged {
+                            query: String::new(),
+                        });
+                    }
+                }
+            }
             ManageOp::Choose { id } => {
                 if vars.collection(&id).is_none() {
                     return drop(refuse(&mut self.events, "E_COLLECTION_NOT_FOUND"));
@@ -149,17 +160,8 @@ impl App {
                 m.rename = None;
                 m.drafts = ManageDrafts::default();
             }
-            // `Open` is taken above, before the borrows; the two that change the file are the document's (`document`).
-            ManageOp::Open {} | ManageOp::ConfirmRemove {} | ManageOp::SubmitRename {} => {}
-        }
-    }
-
-    /// Open the view. The view draws the rows of the panel, so it starts with the search cleared (the counts of a removal
-    /// are of the whole file, whatever the search shows). Open already: nothing, so a search typed since stays.
-    fn open_manage(&mut self) {
-        if !self.state.manage.open {
-            self.state.manage.open = true;
-            self.set_variables_query(String::new());
+            // The two that change the file are the document's (`document`).
+            ManageOp::ConfirmRemove {} | ManageOp::SubmitRename {} => {}
         }
     }
 
