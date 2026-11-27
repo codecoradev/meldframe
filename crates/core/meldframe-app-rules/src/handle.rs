@@ -13,9 +13,10 @@ use serde::Serialize;
 pub const MIN_SIZE: f64 = 1.0;
 
 /// The box `b` after `handle` moved by `(dx, dy)` (world units, which are the units of the box's own space too: a space is
-/// only offset, never scaled). Every number is finite and each side is at least [`MIN_SIZE`] in the answer; a side that is
-/// below it already comes out as `MIN_SIZE`, even when the handle does not touch it. Refused as `NotFinite` for a number that
-/// is not one, and for a drag so long that the box would not be a number.
+/// only offset, never scaled). Every number is finite, and a side the handle holds and moves is at least [`MIN_SIZE`] in the
+/// answer. A side it does not hold, or holds with no travel, is as it was, whatever its size (a frame that hugs nothing is
+/// drawn 0 wide, and dragging its south handle leaves the width alone). Refused as `NotFinite` for a number that is not one, and for a drag so long that the box would
+/// not be a number.
 pub fn resized_box(b: Rect, handle: Handle, dx: f64, dy: f64) -> Result<Rect, ApplyError> {
     if ![b.x, b.y, b.w, b.h].iter().all(|v| v.is_finite()) {
         return Err(ApplyError::NotFinite("box"));
@@ -44,13 +45,16 @@ pub fn resized_box(b: Rect, handle: Handle, dx: f64, dy: f64) -> Result<Rect, Ap
         y = b.y + dy;
         h = b.h - dy;
     }
-    if w < MIN_SIZE {
+    // Only a side the handle holds, and moves, is kept from getting too small: a side it does not touch, or touches by
+    // nothing, stays as it is drawn (a hug frame that is drawn 0 wide, a text 0.5 wide), so a drag that moves nothing
+    // changes nothing.
+    if (west || east) && dx != 0.0 && w < MIN_SIZE {
         if west {
             x = b.x + b.w - MIN_SIZE;
         }
         w = MIN_SIZE;
     }
-    if h < MIN_SIZE {
+    if (north || south) && dy != 0.0 && h < MIN_SIZE {
         if north {
             y = b.y + b.h - MIN_SIZE;
         }

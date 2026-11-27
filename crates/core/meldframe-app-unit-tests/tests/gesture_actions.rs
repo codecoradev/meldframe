@@ -7,7 +7,9 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod common;
 use common::*;
-use meldframe_app::{Action, Connection, CreateKind, Event, GestureOp, Handle, TextEditOp};
+use meldframe_app::{
+    Action, Connection, CreateKind, Event, GestureOp, Handle, Modifiers, Point, TextEditOp,
+};
 use meldframe_protocol::{Command, NodePatch};
 use serde_json::json;
 
@@ -138,6 +140,19 @@ fn a_halted_app_does_nothing_for_a_gesture() {
     }
     assert_eq!(serde_json::to_value(l.app.nodes()).unwrap(), before);
     assert!(l.events.is_empty(), "no event: {:?}", l.events);
+    // A preview is what a release would make, and a release does nothing now: so there is none.
+    let (from, to) = (Point { x: 2000.0, y: 0.0 }, Point { x: 2040.0, y: 30.0 });
+    let by = Point { x: 5.0, y: 5.0 };
+    assert!(
+        l.app
+            .draw_preview(CreateKind::Rectangle, from, to, Modifiers::default())
+            .is_none()
+    );
+    assert!(
+        l.app
+            .resize_preview("r1", Handle::Se, by, Modifiers::default())
+            .is_none()
+    );
 }
 
 #[test]

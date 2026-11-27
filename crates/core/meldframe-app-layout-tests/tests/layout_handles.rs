@@ -55,14 +55,118 @@ fn each_handle_moves_its_edges_and_keeps_the_opposite_ones() {
     }
 }
 
+/// The edges a handle holds, `(west, east, north, south)`, from its name (not from `Handle::edges`, which the rule uses).
+fn held(handle: Handle) -> (bool, bool, bool, bool) {
+    let name = format!("{handle:?}").to_lowercase();
+    (
+        name.contains('w'),
+        name.contains('e'),
+        name.contains('n'),
+        name.contains('s'),
+    )
+}
+
+const ALL: [Handle; 8] = [
+    Handle::Nw,
+    Handle::N,
+    Handle::Ne,
+    Handle::E,
+    Handle::Se,
+    Handle::S,
+    Handle::Sw,
+    Handle::W,
+];
+
 #[test]
-fn a_drag_below_the_smallest_size_keeps_the_opposite_edge() {
-    let mut a = app(false);
-    drag_handle(&mut a, "fg", Handle::W, (100.0, 0.0));
-    // The right edge was at 50: the box is 1 wide and ends there.
-    assert_eq!(local(&a, "fg"), (49.0, 20.0, 1.0, 30.0));
-    drag_handle(&mut a, "fg", Handle::N, (0.0, 100.0));
-    assert_eq!(local(&a, "fg"), (49.0, 49.0, 1.0, 1.0));
+fn a_drag_below_the_smallest_size_keeps_the_opposite_edge_for_every_handle() {
+    // `fg` is a free rectangle at (20, 20), 30 x 30: its edges are at 20 and 50 on both axes.
+    for on in [false, true] {
+        for handle in ALL {
+            let (west, east, north, south) = held(handle);
+            // Each held edge is dragged past the opposite one, a side that is not held is dragged by nothing at all.
+            let by = (
+                if west {
+                    100.0
+                } else if east {
+                    -100.0
+                } else {
+                    0.0
+                },
+                if north {
+                    100.0
+                } else if south {
+                    -100.0
+                } else {
+                    0.0
+                },
+            );
+            let mut a = app(on);
+            drag_handle(&mut a, "fg", handle, by);
+            // A held side is 1 long and ends at the edge that stayed; a side that is not held is as it was.
+            let x = if west {
+                (49.0, 1.0)
+            } else if east {
+                (20.0, 1.0)
+            } else {
+                (20.0, 30.0)
+            };
+            let y = if north {
+                (49.0, 1.0)
+            } else if south {
+                (20.0, 1.0)
+            } else {
+                (20.0, 30.0)
+            };
+            assert_eq!(
+                local(&a, "fg"),
+                (x.0, y.0, x.1, y.1),
+                "{handle:?}, layout {on}"
+            );
+            assert_eq!(steps(&a), 1);
+        }
+    }
+}
+
+#[test]
+fn a_side_the_handle_does_not_hold_is_never_clamped() {
+    // An empty hug frame is drawn 0 x 0 with the layout on: a drag that holds one side changes that side only.
+    let mut list = nodes();
+    list.extend(
+        serde_json::from_value::<Vec<meldframe_protocol::Node>>(serde_json::json!([
+            {"id": "emp", "type": "frame", "pos": "a8", "x": 2000, "y": 0, "w": 1, "h": 1,
+             "sw": "hug", "sh": "hug", "layout": "column", "padding": 0},
+            {"id": "thin", "type": "rect", "pos": "a9", "x": 2100, "y": 0, "w": 0.5, "h": 40},
+        ]))
+        .unwrap(),
+    );
+    let mut a = app_of(list, true);
+    assert_eq!(box_of(&a, "emp").2, 0.0, "drawn 0 wide");
+    for (id, handle, by) in [
+        ("emp", Handle::S, (0.0, 0.0)),
+        ("emp", Handle::E, (0.0, 0.0)),
+        ("emp", Handle::Se, (0.0, 0.0)),
+        ("thin", Handle::W, (0.0, 0.0)),
+        ("thin", Handle::Nw, (0.0, 0.0)),
+        ("thin", Handle::S, (0.0, 0.0)),
+    ] {
+        drag_handle(&mut a, id, handle, by);
+        assert_eq!(steps(&a), 0, "{id} {handle:?}: a drag that changes nothing");
+        assert!(a.take_events().is_empty(), "{id} {handle:?}");
+    }
+    assert_eq!(
+        (node(&a, "emp").sw, node(&a, "emp").sh),
+        (SizeMode::Hug, SizeMode::Hug)
+    );
+    assert_eq!(local(&a, "thin"), (2100.0, 0.0, 0.5, 40.0));
+    // A drag that moves the held side leaves the other side as drawn: the south handle of the empty frame by 10.
+    drag_handle(&mut a, "emp", Handle::S, (0.0, 10.0));
+    let e = node(&a, "emp");
+    assert_eq!((e.sh, e.h, e.sw), (SizeMode::Fixed, 10.0, SizeMode::Hug));
+    assert_eq!(box_of(&a, "emp").2, 0.0, "the width is still the hug width");
+    // The west handle of the thin one by 0.25 would make it 0.75 wide: that is a side the handle holds and moves, so it is 1
+    // wide and ends at the right edge that stayed (2100.5); the height is as it was.
+    drag_handle(&mut a, "thin", Handle::W, (-0.25, 0.0));
+    assert_eq!(local(&a, "thin"), (2099.5, 0.0, 1.0, 40.0));
 }
 
 #[test]

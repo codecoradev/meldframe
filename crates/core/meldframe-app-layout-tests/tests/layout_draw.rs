@@ -306,6 +306,12 @@ fn a_node_made_in_a_flow_is_placed_by_the_layout_only_with_the_layout_on() {
         assert_eq!(p.parent.as_deref(), Some("f"));
         assert_eq!(p.placed_by_layout, on);
         let id = draw(&mut a, CreateKind::Rectangle, from, to).unwrap();
+        // What is stored is the preview's box, flow or not; where it is drawn is the flow's when the layout is on.
+        let n = node(&a, &id);
+        assert_eq!(
+            (n.x, n.y, n.w, n.h),
+            (p.local.x, p.local.y, p.local.w, p.local.h)
+        );
         let drawn = box_of(&a, &id);
         let at = (p.local.x, p.local.y, p.local.w, p.local.h);
         if p.placed_by_layout {

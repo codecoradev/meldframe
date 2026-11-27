@@ -11,6 +11,7 @@ use crate::action::Action;
 use crate::app::App;
 use crate::document::refuse;
 use crate::effect::Effect;
+use crate::state::Connection;
 use meldframe_app_model::{CreateKind, GestureOp, Handle, Modifiers, Point};
 use meldframe_app_parts::document::{code, new_node};
 use meldframe_app_rules::draw::{DrawPreview, container_for, drawn_box};
@@ -65,7 +66,7 @@ impl App {
     }
 
     /// What drawing a node of `kind` from `from` to `to` (world points) would make: its frame, its box in the frame's space
-    /// and on the canvas, and whether it is a click. None where the release is refused: a point that is not a number, a node
+    /// and on the canvas, and whether it is a click. None where the release is refused or dropped: a halted app, a point that is not a number, a node
     /// outside the limits of the file or a full queue of ops. Reads and changes nothing, and no state of the editor (not the
     /// selection, not the tool). Cost: the index of the scene is kept for a revision of the document, so a call while the
     /// pointer moves over a file that has not changed is a few passes over the boxes (`App::hit`), and the file is checked
@@ -77,6 +78,9 @@ impl App {
         to: Point,
         _mods: Modifiers,
     ) -> Option<DrawPreview> {
+        if self.halted() {
+            return None;
+        }
         let p = self.plan_draw(kind, from, to).ok()?;
         let draft = new_node(
             &self.spare_id(),
@@ -96,8 +100,8 @@ impl App {
     }
 
     /// What dragging `handle` of node `id` by `by` (world units) would draw: the box the node is left at and whether its origin
-    /// is the layout's (then the box keeps it). None for an unknown node and where the release is refused (a number that is
-    /// not one, a size outside the limits of the file). Reads and changes nothing. It is the box `GestureOp::ResizeHandle`
+    /// is the layout's (then the box keeps it). None for an unknown node and where the release is refused or dropped (a halted app, a number that
+    /// is not one, a size outside the limits of the file). Reads and changes nothing. It is the box `GestureOp::ResizeHandle`
     /// writes, and the cost is that of [`App::draw_preview`].
     pub fn resize_preview(
         &self,
@@ -106,12 +110,20 @@ impl App {
         by: Point,
         _mods: Modifiers,
     ) -> Option<ResizePreview> {
+        if self.halted() {
+            return None;
+        }
         let p = self.plan_resize(id, handle, by).ok()?;
         if let Some((w, h, x, y)) = p.change {
             let cmd = self.resize_command(id, (w, h), (x, y)).ok()?;
             self.validate(&[cmd]).ok()?;
         }
         Some(p.preview)
+    }
+
+    /// A halted app drops every action that writes (`App::dispatch`), so what a release would make is nothing.
+    fn halted(&self) -> bool {
+        self.state.connection == Connection::Halted
     }
 
     /// A node id that no node of the file has, for a draft that is checked and never applied.

@@ -50,7 +50,9 @@ impl Handle {
 /// What a person does with the pointer on the canvas that makes or sizes a node (`Action::Gesture`). One undo step each.
 /// `mods` are the keys held (`Modifiers`, the type of a key press). They are part of the intent so that a rule that needs one (a
 /// square with Shift, a resize from the centre with Alt) has it without a new action; no modifier changes the geometry today,
-/// because the web editor never used one for a draw or a resize and these rules are that editor's, moved.
+/// because the web editor never used one for a draw or a resize and these rules are that editor's, moved. The JSON may leave
+/// `mods` out (no key held), but the generated TypeScript type has it required (`#[ts(optional)]` is for `Option` fields only),
+/// so a TypeScript caller sends `mods: {}` when no key is held: every key of `Modifiers` defaults to false.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(
