@@ -1,3 +1,4 @@
+use crate::PaintBounds;
 use meldframe_css::color::is_hex;
 use meldframe_order::sib_cmp;
 use meldframe_protocol::{
@@ -105,6 +106,10 @@ pub struct PaintedBox {
     /// round for CSS); left out when empty, and always empty on a text, which paints none.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub shadows: Vec<PaintedShadow>,
+    /// How far the box paints beyond its own rectangle (outside and centred borders, shadows with their offset, spread and
+    /// blur), on each side; left out when it does not. Read by the capture box of the canvas, so a capture covers the paint.
+    #[serde(skip_serializing_if = "PaintBounds::is_flush")]
+    pub paint_bounds: PaintBounds,
 }
 
 impl PaintedBox {
@@ -284,7 +289,7 @@ fn paint(n: &Node, parent: Option<&str>, cx: &Fields) -> PaintedBox {
         NodeKind::Ellipse => (Paint::Rect, n.w.min(n.h) / 2.0),
         NodeKind::Rect | NodeKind::Shader => (Paint::Rect, radius),
     };
-    PaintedBox {
+    let mut b = PaintedBox {
         id: n.id.clone(),
         parent: parent.map(str::to_owned),
         paint,
@@ -319,7 +324,10 @@ fn paint(n: &Node, parent: Option<&str>, cx: &Fields) -> PaintedBox {
         } else {
             painted_shadows(n)
         },
-    }
+        paint_bounds: PaintBounds::default(),
+    };
+    b.fit_paint_bounds();
+    b
 }
 
 /// The shadows of a box that is not text, in model order. One whose colour is not hex or whose numbers are not finite is
