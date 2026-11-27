@@ -18,7 +18,6 @@ mod classify;
 pub mod confirm;
 pub mod effect;
 pub mod event;
-pub mod export;
 pub mod frame;
 pub mod gesture;
 pub mod key;
@@ -28,13 +27,14 @@ pub mod manage;
 pub mod overlay;
 pub mod preset;
 pub mod property;
-pub mod raster;
 pub mod state;
 pub mod text_edit;
 pub mod text_field;
 pub mod variables;
 pub mod variables_io;
 pub mod wire;
+
+pub use meldframe_app_export_model::{export, raster};
 
 pub use action::{Action, CreateKind, Frame, FramePreset, Property};
 pub use activity::{

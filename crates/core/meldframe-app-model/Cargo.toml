@@ -11,6 +11,7 @@ kind = "core"
 
 [dependencies]
 meldframe-activity = { path = "../meldframe-activity" }
+meldframe-app-export-model = { path = "../meldframe-app-export-model" }
 meldframe-camera = { path = "../meldframe-camera" }
 meldframe-check = { path = "../meldframe-check" }
 meldframe-protocol = { path = "../meldframe-protocol" }
