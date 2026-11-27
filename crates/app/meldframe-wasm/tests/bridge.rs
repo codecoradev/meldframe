@@ -285,7 +285,10 @@ fn the_export_dialog_is_state_and_its_actions_are_json() {
     let mut b = Bridge::new("usr_me", "web", 7, &nodes, 0, None).expect("the file loads");
     let state = |b: &Bridge| -> Value { serde_json::from_str(&b.state_json()).unwrap() };
     // Nothing selected: no target and no dialog. A frame selected: a target, still no dialog.
-    assert_eq!(state(&b)["export"], json!({"target": null, "dialog": null}));
+    assert_eq!(
+        state(&b)["export"],
+        json!({"target": null, "dialog": null, "png": {"scale": 1.0, "target": null, "dialog": null}})
+    );
     run(&mut b, json!({"type": "select", "ids": ["f"]}));
     assert_eq!(
         state(&b)["export"]["target"],
