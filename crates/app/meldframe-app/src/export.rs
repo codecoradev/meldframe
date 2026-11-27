@@ -63,6 +63,11 @@ impl App {
     /// frame is gone or the app halts; nothing is built while it is closed, and nothing again while what the export reads
     /// is as it was.
     pub(crate) fn refresh_export(&mut self) {
+        self.refresh_export_dialog();
+        self.refresh_png();
+    }
+
+    fn refresh_export_dialog(&mut self) {
         let target = target(&self.state.selection, self.nodes());
         if self.state.export.target != target {
             self.state.export.target = target;

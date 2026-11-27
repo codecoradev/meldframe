@@ -154,6 +154,8 @@ export class Shell {
         return this.checkpoint(checkpointCall(this.opts.file, e));
       case 'render':
         return; // the views redraw from every snapshot
+      case 'raster':
+        return; // the legacy client never starts these: it never dispatches `png`, so the app never asks it to draw
       default: {
         const unhandled: never = e; // a new effect must be carried out here, or this stops compiling
         return unhandled;

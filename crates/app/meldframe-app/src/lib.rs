@@ -34,6 +34,7 @@ mod palette;
 mod panel;
 mod picker;
 mod props;
+mod raster;
 mod retry;
 mod review;
 mod scene;
@@ -61,6 +62,10 @@ pub use meldframe_app_model::{
 pub use meldframe_app_model::{
     ActivityOp, BatchRef, Confirm, GestureOp, Handle, Overlay, OverlayOp, Point, RightTab,
     TextEdit, TextEditOp,
+};
+pub use meldframe_app_model::{
+    EXPORT_MAX_PIXELS, MAX_SCALE, MIN_SCALE, PngOp, PngPlan, PngSink, PngState, RasterRect,
+    RasterSink, RasterSize, SCALES,
 };
 pub use meldframe_app_model::{
     ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,

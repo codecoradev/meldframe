@@ -4,6 +4,7 @@
 use crate::app::App;
 use crate::effect::Effect;
 use meldframe_app_rules::canvas::MeasurerBox;
+use meldframe_app_rules::png::one_export_event;
 
 impl App {
     /// Whether the canvas reads laid-out boxes (see `meldframe_app_rules::canvas`). Off until the host turns it on.
@@ -14,13 +15,18 @@ impl App {
     /// Turn the laid-out scene on or off. Returns the effect the host carries out: `Effect::Render` with an empty
     /// list (everything) when the flag changed, nothing when it did not. No event is raised, so a front end that reads the
     /// scene on events must read it again itself after this call. The only state it changes is the properties of the
-    /// selected node: they show the box the canvas draws (`Properties::position_locked`), so they are brought up to date.
+    /// selected node: they show the box the canvas draws (`Properties::position_locked`), so they are brought up to date; so are
+    /// the plans of the PNG export (`AppState::export.png`), with `Event::ExportChanged` when one changed.
     pub fn set_layout_on_canvas(&mut self, on: bool) -> Vec<Effect> {
         if self.canvas.enabled == on {
             return Vec::new();
         }
+        let raised = self.events.len();
         self.canvas.enabled = on;
         self.refresh_properties();
+        // The plan of the PNG export reads the scene, so it moves with the flag (`ExportChanged` when it did).
+        self.refresh_png();
+        one_export_event(&mut self.events, raised);
         redraw()
     }
 
@@ -32,11 +38,13 @@ impl App {
 
     /// Replace the text measurer (the default is `StubMeasurer`). The canvas lays text out with it while the flag is on,
     /// so the redraw is asked for only then. The Export dialog measures with it whatever the flag is, so a hug text exports
-    /// the width the canvas draws: an open dialog is built again (`Event::ExportChanged` when it changed), and nothing is
-    /// built while it is closed. No measurer given, the stub measures, as it always did.
+    /// the width the canvas draws: an open dialog is built again (one `Event::ExportChanged` when it or a plan changed), and
+    /// nothing is built while it is closed. No measurer given, the stub measures, as it always did.
     pub fn set_measurer(&mut self, measurer: MeasurerBox) -> Vec<Effect> {
+        let raised = self.events.len();
         self.canvas.set_measurer(measurer);
         self.measurer_changed();
+        one_export_event(&mut self.events, raised);
         if self.canvas.enabled {
             self.refresh_properties();
             redraw()

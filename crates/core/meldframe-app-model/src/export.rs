@@ -1,6 +1,7 @@
 //! The Export dialog as plain data (D9): which frame an export acts on, and the document built for it while the
 //! dialog is open. The rules that fill it are in `meldframe-app`; a front end draws it and sends the actions.
 
+use crate::raster::PngState;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -14,6 +15,9 @@ pub struct ExportState {
     pub target: Option<ExportTarget>,
     /// The dialog, `Some` only while it is open. It keeps its own frame when the selection moves on.
     pub dialog: Option<ExportDialog>,
+    /// The PNG export: its scale and what it would be for the frame of the section and of the dialog.
+    #[serde(default)]
+    pub png: PngState,
 }
 
 /// A frame that can be exported.

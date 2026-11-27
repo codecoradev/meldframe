@@ -198,7 +198,8 @@ impl World {
             | Effect::PutBatchReview { .. }
             | Effect::FetchCheckpoints {}
             | Effect::PostCheckpoint { .. }
-            | Effect::FetchCheckpointState { .. } => vec![],
+            | Effect::FetchCheckpointState { .. }
+            | Effect::Raster { .. } => vec![],
         }
     }
 

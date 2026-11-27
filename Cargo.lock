@@ -1241,6 +1241,7 @@ dependencies = [
  "meldframe-app-model",
  "meldframe-app-rules",
  "meldframe-protocol",
+ "meldframe-text",
  "serde_json",
  "variables-import-dialog",
  "wasm-bindgen-test",
