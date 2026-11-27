@@ -4,7 +4,9 @@ import type { ImportReport } from "./ImportReport";
 import type { ImportStatus } from "./ImportStatus";
 
 /**
- * What the last import came to.
+ * What the last import came to (`Action::ImportVariables`). An import only adds: text that holds a name the file has is refused
+ * whole, and every refusal applies nothing (`code`). The result, report included, is `AppState::variables_io.import`; it goes
+ * when the file no longer holds the variables the import added (an undo).
  */
 export type VariablesImportResult = { status: ImportStatus, 
 /**
