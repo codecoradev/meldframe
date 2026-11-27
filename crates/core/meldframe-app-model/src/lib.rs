@@ -26,6 +26,7 @@ pub mod layers;
 pub mod layout;
 pub mod manage;
 pub mod overlay;
+pub mod pointer;
 pub mod preset;
 pub mod property;
 pub mod state;
@@ -61,6 +62,9 @@ pub use manage::{
 };
 pub use meldframe_camera::{Camera, CameraOp, Viewport, Wheel, WheelUnit, ZoomCommand};
 pub use overlay::{Overlay, OverlayOp};
+pub use pointer::{
+    PointerButton, PointerCursor, PointerGesture, PointerInput, PointerPhase, PointerState,
+};
 pub use raster::{
     CAPTURE_MAX_BYTES, CaptureAsk, EXPORT_MAX_PIXELS, MAX_SCALE, MIN_SCALE, PNG_MIN_BYTES, PngOp,
     PngPlan, PngSink, PngState, RasterRect, RasterSink, RasterSize, SCALES, Secret,
