@@ -1234,6 +1234,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-app-export-model"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "ts-rs",
+]
+
+[[package]]
 name = "meldframe-app-export-tests"
 version = "0.0.0"
 dependencies = [
@@ -1288,6 +1296,7 @@ name = "meldframe-app-model"
 version = "0.0.0"
 dependencies = [
  "meldframe-activity",
+ "meldframe-app-export-model",
  "meldframe-camera",
  "meldframe-check",
  "meldframe-protocol",
