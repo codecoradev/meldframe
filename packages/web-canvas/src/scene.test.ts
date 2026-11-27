@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { captureBounds, captureRectOf, contentBounds, hitTest, rectsOf, resolveScene, type Scene, type SceneNode, type ScenePaintBounds } from './scene';
+import { captureBounds, captureRectOf, contentBounds, rectsOf, resolveScene, type Scene, type SceneNode, type ScenePaintBounds } from './scene';
 
 const node = (o: Partial<SceneNode> & Pick<SceneNode, 'id'>): SceneNode => ({
   parent: null, kind: 'rect', x: 0, y: 0, w: 10, h: 10, fill: 1, ...o,
@@ -166,35 +166,6 @@ describe('incremental diff', () => {
     const first = resolveScene(base);
     const second = resolveScene(parentScene(...base.nodes.map((n) => (n.id === 'a' ? { ...n, fill: 7 } : n))), first.scene);
     expect(second.patch.changed).toEqual(['a']);
-  });
-});
-
-describe('hitTest', () => {
-  const rs = resolveScene(parentScene(
-    node({ id: 'f', kind: 'frame', x: 0, y: 0, w: 100, h: 100, clip: true }),
-    node({ id: 'back', parent: 'f', x: 10, y: 10, w: 50, h: 50 }),
-    node({ id: 'front', parent: 'f', x: 30, y: 30, w: 50, h: 50 }),
-    node({ id: 'out', parent: 'f', x: 90, y: 90, w: 50, h: 50 }),
-    node({ id: 'hidden', parent: 'f', x: 0, y: 0, w: 100, h: 100, visible: false }),
-    node({ id: 'other', kind: 'frame', x: 200, y: 0, w: 50, h: 50 }),
-  )).scene;
-
-  it('returns the front-most node (later siblings and deeper nodes win)', () => {
-    expect(hitTest(rs, 40, 40)).toBe('front');
-    expect(hitTest(rs, 15, 15)).toBe('back');
-    expect(hitTest(rs, 95, 5)).toBe('f');
-    expect(hitTest(rs, 210, 10)).toBe('other');
-  });
-
-  it('misses empty canvas, hidden nodes and the clipped-away part of a child', () => {
-    expect(hitTest(rs, 500, 500)).toBeNull();
-    expect(hitTest(rs, 120, 120)).toBeNull(); // inside "out", outside the clipping frame
-    expect(hitTest(rs, 95, 95)).toBe('out');
-  });
-
-  it('slop widens the target', () => {
-    expect(hitTest(rs, 203, -2, 0)).toBeNull();
-    expect(hitTest(rs, 198, -2, 3)).toBe('other');
   });
 });
 

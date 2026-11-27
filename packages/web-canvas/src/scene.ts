@@ -5,11 +5,12 @@
 //  - 'world': x and y are already resolved world coordinates (the form the layout rects of the WASM
 //    engine will arrive in).
 // Either way `resolveScene` produces one resolved form with both the world rect and the offset in the
-// parent, so the drawing code and the hit test never care which one came in. Array order is paint
+// parent, so the drawing code never cares which one came in. What is under a point is not decided here: the app layer
+// answers it (`meldframe_render::HitIndex`, asked through the host, T9), so a click and a drop read one rule. Array order is paint
 // order among siblings (first is at the back); a parent is painted before its children.
 //
 // The canvas draws what it is given: no layout, no editor rules (clamping, snapping, constraints) live here.
-import { containsPoint, intersectRects, rectsEqual, unionRects, type Rect } from './geometry';
+import { intersectRects, rectsEqual, unionRects, type Rect } from './geometry';
 import { sameBorder, type SceneBorder } from '@meldframe/web-paint/border';
 import { sameGradient, type SceneGradient } from '@meldframe/web-paint/gradient';
 import { sameImage, type SceneImage } from '@meldframe/web-paint/image';
@@ -228,19 +229,6 @@ export function resolveScene(scene: Scene, prev: ResolvedScene = EMPTY_SCENE): {
   });
   for (const o of prev.items) if (!byId.has(o.id)) patch.removed.push(o.id);
   return { scene: { items, byId }, patch };
-}
-
-/** The front-most visible node under the world point, or null. Clipped-away parts do not hit. */
-export function hitTest(rs: ResolvedScene, x: number, y: number, slop = 0): string | null {
-  for (let i = rs.items.length - 1; i >= 0; i--) {
-    const n = rs.items[i]!;
-    if (!n.visible) continue;
-    if (n.clipRect && !containsPoint(n.clipRect, x, y)) continue;
-    if (
-      x >= n.x - slop && x <= n.x + n.w + slop && y >= n.y - slop && y <= n.y + n.h + slop
-    ) return n.id;
-  }
-  return null;
 }
 
 /** World rectangles of the given ids (unknown ids are skipped). */
