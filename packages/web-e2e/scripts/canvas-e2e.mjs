@@ -1,5 +1,5 @@
 // Browser check of the canvas through the development harness: node packages/web-e2e/scripts/canvas-e2e.mjs [base-url]
-// Needs the dev server (npm run dev) and Playwright (resolved from the global module path). Not part of
+// Needs the dev server (npm run dev), the WASM bridge built (`just wasm-build`: the harness asks the app layer what is under a point, T9) and Playwright (resolved from the global module path). Not part of
 // `npm test`: it needs a browser. Each check prints one line; a failure exits non-zero.
 // MELDFRAME_UI=react opens the harness with `?react=canvas` (the React copy of the canvas, E7.3 slice S11; MELDFRAME_REACT_PANELS adds switch words,
 // such as `strict` for React's strict mode in development): a first check asks which framework drew the canvas (a React fibre on the host, so a

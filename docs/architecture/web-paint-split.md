@@ -12,7 +12,7 @@ Status, 27 Nov 2026 (T16, decision 43): since T16 the reach is computed in `meld
 
 The package holds two kinds of code:
 
-- **The scene and the host input.** `scene.ts` (the scene as plain data, its resolution, the diff, hit testing, the capture rectangles), `camera.ts`, `overlay.ts`, `interaction.ts` (gestures), `textstyle.ts` and `geometry.ts` (points and rectangles). They know the scene, the camera and the pointer.
+- **The scene and the host input.** `scene.ts` (the scene as plain data, its resolution, the diff, the capture rectangles; what is under a point is not decided here since T9: `meldframe_render::HitIndex` answers it through `Engine.hit`), `camera.ts`, `overlay.ts`, `interaction.ts` (gestures), `textstyle.ts` and `geometry.ts` (points and rectangles). They know the scene, the camera and the pointer.
 - **The paint of one box.** `border.ts`, `shadow.ts`, `gradient.ts` and `image.ts`. Each defines the plain-data description of one kind of paint (`SceneBorder`, `SceneShadow`, `SceneGradient`, `SceneImage`), its equality (`sameBorder` and so on) and the shapes it covers worked out as CSS and the export do (`borderRing`, `borderReach`, `shadowShape`, `shadowBounds`, `blurFilterSettings`, `gradientLine`, `radialRadius`, `fitRect`). They are pure, take numbers and give numbers, and import nothing but one rectangle type.
 
 The second kind is the seam. It is the part that grows with E3.1 (the fidelity contract adds paint, not gestures), the part the export has to agree with, and the part no other code in the package reaches into: the scene only compares and measures it.
