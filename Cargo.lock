@@ -1288,6 +1288,7 @@ name = "meldframe-app-model"
 version = "0.0.0"
 dependencies = [
  "meldframe-activity",
+ "meldframe-camera",
  "meldframe-check",
  "meldframe-protocol",
  "meldframe-revert",
@@ -1418,6 +1419,14 @@ version = "0.0.0"
 dependencies = [
  "meldframe-host",
  "meldframe-module",
+]
+
+[[package]]
+name = "meldframe-camera"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "ts-rs",
 ]
 
 [[package]]

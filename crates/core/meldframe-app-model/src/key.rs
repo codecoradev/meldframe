@@ -6,29 +6,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-/// The modifier keys held with a key.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Modifiers {
-    #[serde(default)]
-    pub ctrl: bool,
-    /// Command on a Mac, the Windows key elsewhere.
-    #[serde(default)]
-    pub meta: bool,
-    /// Option on a Mac.
-    #[serde(default)]
-    pub alt: bool,
-    #[serde(default)]
-    pub shift: bool,
-}
-
-impl Modifiers {
-    /// Ctrl or Command: the key of shortcuts. Either one counts on every platform, as the editor has always taken it.
-    pub fn command(&self) -> bool {
-        self.ctrl || self.meta
-    }
-}
+pub use meldframe_camera::Modifiers;
 
 /// Who owns the keys at the place the focus is. The page knows this from its DOM; the app layer cannot, so the front end
 /// says it, and the app layer applies the rule: what the focus owns is not an editor key.
