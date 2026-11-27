@@ -132,9 +132,17 @@ assert.equal(lay.takeEventsJson(), '[]', 'the flag raises no event');
 assert.deepEqual(JSON.parse(lay.dropPreviewJson('["b"]', 30, 5, 0, 0)), { slot: { frame: 'f', index: 0, line: { x: 10, y: 10, w: 180, h: 0 } }, follow: [] }, 'the preview of a drop: the slot, as data, and nothing follows the pointer');
 assert.deepEqual(JSON.parse(lay.dropPreviewJson('["b"]', 900, 900, 0, 0)), { slot: null, follow: ['b'] }, 'a drop out of the flow has no slot and the node follows the pointer');
 assert.equal(lay.dropPreviewJson('b', 900, 900, 0, 0), 'null', 'ids that are not a JSON array have no preview');
+// What is under a point (T9): the front-most node as a plain id, `undefined` for nothing, whatever the tool, and no event.
+assert.equal(lay.hit(150, 20), 'b', 'b fills the width: the laid-out box, not the stored one (1 wide)');
+assert.equal(lay.hit(150, 50), 'f', 'below b, inside the frame');
+assert.equal(lay.hit(5, 5), 'f', 'the padding of the frame');
+assert.equal(lay.hit(900, 900), undefined, 'nothing there');
+assert.equal(lay.hit(Number.NaN, 5), undefined, 'a point that is not a number is over nothing');
+assert.equal(lay.takeEventsJson(), '[]', 'asking raises no event');
 lay.setLayoutOnCanvas(false);
 assert.deepEqual([boxB().x, boxB().w], [0, 1]);
 assert.equal(lay.dropPreviewJson('["b"]', 30, 5, 0, 0), 'null', 'no preview with the flag off');
+assert.equal(lay.hit(0.5, 0.5), 'b', 'the stored boxes with the flag off: b at its stored (0, 0) is front-most');
 
 // The text measurer (host configuration): a JavaScript function `(text, fontSize, fontWeight, wrapWidth | null) => [w, h]`
 // sizes the hug texts of the laid-out scene; whatever else it does, the stub answers, so the scene never holds a NaN.

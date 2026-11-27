@@ -1272,7 +1272,10 @@ name = "meldframe-app-layout-tests"
 version = "0.0.0"
 dependencies = [
  "meldframe-app",
+ "meldframe-app-rules",
+ "meldframe-layout",
  "meldframe-protocol",
+ "meldframe-render",
  "serde_json",
  "wasm-bindgen-test",
 ]
@@ -1330,6 +1333,7 @@ dependencies = [
  "meldframe-layout",
  "meldframe-order",
  "meldframe-protocol",
+ "meldframe-render",
  "meldframe-revert",
  "meldframe-sync",
  "meldframe-text",

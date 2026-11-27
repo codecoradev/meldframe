@@ -11,10 +11,12 @@
 //! host turns `layout_on_canvas` on, and `resolve_with` otherwise.
 
 pub mod coverage;
+mod hit;
 mod laid_out;
 mod paint_bounds;
 mod resolve;
 
+pub use hit::{HitBox, HitIndex, contains_point, hit_test};
 pub use laid_out::resolve_laid_out;
 pub use meldframe_variables::ModeChoice;
 pub use paint_bounds::PaintBounds;

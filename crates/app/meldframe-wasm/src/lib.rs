@@ -90,6 +90,13 @@ impl Bridge {
         }
     }
 
+    /// The id of the front-most node under the world point `(x, y)`, or `None` (T9, decision 43): the one rule of
+    /// `meldframe_render::HitIndex` over the scene the canvas draws, for a press, the tool that creates and the hover. A plain
+    /// id and not JSON, so the hover pays for no parse. It changes nothing and raises no event.
+    pub fn hit(&self, x: f64, y: f64) -> Option<String> {
+        self.app.hit(x, y)
+    }
+
     /// The events since the last call (JSON array); empties the queue.
     pub fn take_events_json(&mut self) -> String {
         to_json(&self.app.take_events())
@@ -230,6 +237,11 @@ impl WasmApp {
     #[wasm_bindgen(js_name = dropPreviewJson)]
     pub fn drop_preview_json(&self, ids_json: &str, x: f64, y: f64, dx: f64, dy: f64) -> String {
         self.bridge.drop_preview_json(ids_json, (x, y), (dx, dy))
+    }
+
+    /// `bridge.hit` for the browser: the id, or `undefined` for nothing under the point.
+    pub fn hit(&self, x: f64, y: f64) -> Option<String> {
+        self.bridge.hit(x, y)
     }
 
     #[wasm_bindgen(js_name = takeEventsJson)]

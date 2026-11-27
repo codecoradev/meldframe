@@ -69,6 +69,19 @@ About 745 lines would move and about 945 stay if every recommendation is taken (
 
 **Owner decision needed:** Q4, one definition of "under the pointer" in Rust, with the hover measured before it is final (the recommendation: yes)?
 
+**Done and measured, 27 Nov 2026 (T9, the query).** The rule is `HitIndex` in `meldframe-render` (`hit.rs`); the drop's `frame_under` reads it (part 1); `App::hit(x, y)` answers from the scene the canvas draws and the bridge hands it over as `hit(x, y)`, a plain id or `undefined` (part 2). The index of the scene is kept for a revision of the document, the measurer and the layout flag (`App::hit_builds` counts the builds), so a hover that asks on every pointer move reads it and builds nothing. What it costs, from `tools/hit-perf.mjs` (release wasm through the real glue under Node 22, one container of 4 cores that was shared and loaded, load average 7 to 9, so the numbers are noisy; two runs, 4,000 calls a row; a file of one page frame, cards that clip, and 100 rectangles in each card):
+
+| nodes | layout on canvas | a call over a box, mean (p99) | a call over nothing, mean (p99) | first call after an edit |
+|---|---|---|---|---|
+| 910 | on | 0.003 ms (0.005) | 0.001 ms (0.002) | 2 to 9 ms |
+| 910 | off | 0.002 ms (0.003) | 0.001 ms (0.001) | 0.8 ms |
+| 4,950 | on | 0.003 to 0.005 ms (0.007 to 0.008) | 0.005 to 0.008 ms (0.010 to 0.012) | 13 to 21 ms |
+| 4,950 | off | 0.003 ms (0.007) | 0.005 ms (0.009) | 4 ms |
+| 19,999 (the file limit is 20,000) | on | 0.02 to 0.04 ms (0.07) | 0.07 to 0.08 ms (0.10 to 0.18) | 34 to 40 ms |
+| 19,999 | off | 0.02 to 0.03 ms (0.06 to 0.08) | 0.07 to 0.08 ms (0.10 to 0.11) | 21 to 22 ms |
+
+So a call that finds the index costs microseconds at 20,000 nodes, far under a frame (16.7 ms at 60 Hz), and the hover asks per pointer move with no once-per-frame coalescing. The one cost that is a frame or more is the first call after the document changes, which works the scene out and indexes it again (13 to 21 ms with the layout on at 5,000 nodes, about the cost of the scene the editor already reads after each change: `App::scene` is not cached, so a change pays for the layout twice, once for the scene read and once for the first hover). Not measured: a browser, the old TypeScript scan at these sizes, and a phone. Not done, as a follow-up if it is felt: share one scene between `sceneJson` and the hit index.
+
 ### T11. Open state of dialogs and overlays (U1, U8)
 
 **Today.** Some open states are the app's and some are the page's. The app owns the Export dialog (`state.export.dialog`, `Action::OpenExport` and `CloseExport`, `action.rs` :248, :254), the Export variables dialog (`state.variablesIo.export`, `OpenVariablesExport` and `CloseVariablesExport`, :257, :259), the bind picker and the image picker. The page owns the Manage view and the Import variables dialog (`packages/web-panels/src/VariablesPanel.svelte`: `manageOpen` at :33 with the rule that opening it clears the search, :35 to :38, and `importOpen` at :41) and the help sheet and the palette (`Editor.svelte` :81, `overlay`). `Action::CloseVariablesImport` (:271) exists with no matching open action, so the open and the close of one dialog are on two sides. The palette key is blocked by `paletteBlocked(readOverlays(document), snap.state.export.dialog !== null)` (`Editor.svelte` :272, `keys.ts` :31 to :42), which mixes a scan of the DOM with one flag of app state.

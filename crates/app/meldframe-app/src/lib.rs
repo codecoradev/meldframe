@@ -21,6 +21,7 @@ mod confirm_ui;
 mod document;
 mod export;
 mod frames;
+mod hit;
 mod interact;
 mod layers;
 mod link;
