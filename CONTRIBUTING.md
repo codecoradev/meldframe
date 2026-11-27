@@ -31,7 +31,7 @@ git log origin/develop..HEAD --format=%B | sh scripts/ci/message-patterns.sh
 
 ## Checks
 
-Run all of these yourself before you open a pull request. Pull request CI runs only the fast set (format, lint, tests, `deps-check`, `mm-check`, the protocol and migrations checks, and the pull request checks); the heavier ones (`build-matrix`, `portable-check`, `size-check`, `ui-literals`, `licences`, and `mm-check` again) run nightly, so a gap in local checking is caught within a day:
+Run all of these yourself before you open a pull request. Pull request CI runs only the fast set (format, lint, tests, `deps-check`, `toolkit-swap --graph-only`, `mm-check`, the protocol and migrations checks, and the pull request checks); the heavier ones (`build-matrix`, `portable-check`, `toolkit-swap`, `size-check`, `ui-literals`, `licences`, and `mm-check` again) run nightly, so a gap in local checking is caught within a day:
 
 ```sh
 cargo fmt --all --check
@@ -40,6 +40,7 @@ cargo test --workspace
 cargo xtask deps-check        # kind and group rules, UI toolkit usage
 cargo xtask build-matrix      # the product builds with no features and with each feature alone, and tests run with defaults off
 cargo xtask portable-check    # portable kinds compile for each planned target
+cargo xtask toolkit-swap      # the app layer and the core build and pass with no front end crate in the graph; the headless harness uses them only (U10)
 cargo xtask size-check        # 500 lines per file, 50,000 per crate (ideal 1,500 to 2,500); the allow-list only shrinks
 cargo xtask mm-check          # no copied functions, shared helpers, shape of a monolith, tests in the crate they test; the allow-lists only shrink
 cargo xtask ui-literals       # no colour, font, size or duration literals in UI crates

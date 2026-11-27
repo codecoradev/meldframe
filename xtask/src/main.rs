@@ -14,6 +14,7 @@ mod portable;
 mod rules;
 mod scan;
 mod size;
+mod toolkit_swap;
 mod ui_literals;
 mod units;
 mod workspaces;
@@ -38,6 +39,9 @@ fn main() -> ExitCode {
         Some("mm-check") => with_packages("mm-check", |p| {
             finish(monolith::run(p, &std::env::args().collect::<Vec<_>>()))
         }),
+        Some("toolkit-swap") => with_packages("toolkit-swap", |p| {
+            finish(toolkit_swap::run(p, &std::env::args().collect::<Vec<_>>()))
+        }),
         Some("licences") => finish(licences_check()),
         Some("ui-literals") => with_packages("ui-literals", |p| {
             let found = ui_literals::collect(&scan::workspace_root(), p);
@@ -45,7 +49,7 @@ fn main() -> ExitCode {
         }),
         other => {
             eprintln!(
-                "usage: cargo xtask <deps-check|build-matrix|portable-check|size-check|mm-check|ui-literals|licences> (got {other:?})"
+                "usage: cargo xtask <deps-check|build-matrix|portable-check|size-check|mm-check|toolkit-swap|ui-literals|licences> (got {other:?})"
             );
             ExitCode::from(2)
         }
