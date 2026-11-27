@@ -113,7 +113,53 @@ spike #309 next). A fail names which criterion failed and why.
 - No commitment that a Rune client would replace the React client; the React migration
   (E7.3 slices) continues regardless of this spike's outcome.
 
-## Results
+## Results — session 2 (28 Nov 2026, same machine)
+
+The harness gained `?mode=shape` (all nodes drawn into one `canvas(Shape)` per frame, els
+only for chrome — the architecture the session-1 E3 finding pointed to) against the v1
+`?mode=els` (nodes as keyed els), a web-sys WebSocket in pure Rust (the official
+`examples/fetch` pattern: `spawn_local` + `AppHandle::update`), an HTTP-polling fallback
+(`?poll=ms`, `rune::task::spawn_after`), an ElementInfo rect dump, and a `rune::text::measure`
+dump for ten fixed labels.
+
+- **Shape path (the E3 answer): the constant-cost claim holds.** Worst case, every node
+  drawn (zoom 0.05), software WebGPU: 5,000 nodes p50 66.4 ms / p95 68.9 ms; 20,000 nodes
+  p50 68 ms / p95 71.9 ms — frame cost is flat in node count, as predicted. The els path on
+  the same run: 173 ms / 195 ms at 5,000 (206/258 at 20,000), and it degrades with count.
+  The el path's session-1 114 ms and session-2 173 ms also show its run-to-run variance.
+  Against the < 8 ms bar: not met yet on a software adapter — the remaining cost is the
+  per-frame Shape rebuild plus the GPU upload, both to attack next (draw only dirty
+  regions, skip borders under 24 px — already gated, batch strokes) and then judge on a
+  real GPU. Also confirmed: in Shape mode the mirror holds only the chrome (3 buttons);
+  node cards are pixels, so a real client exposes selection/layers through its own
+  accessible panels (meldframe already has them).
+- **E4-lite (text): measure and drawn boxes agree exactly.** For ten labels across the
+  width range 11–106 pt: `rune::text::measure` vs the drawn rect — 0.00 px difference on
+  every width; height differs by a constant 3.75 pt because the element slot carries
+  line-height padding (16.25 ink vs 20.0 slot), a semantic difference, not drift. This
+  makes `rune::text::measure` a credible shared truth for a Rune client and the exporter;
+  the full 0.05 px contract against the export crate's raster stays for the next session.
+- **WebSocket, two bridges proven, no inline-JS needed for transport.** (1) `web_sys::
+  WebSocket` built in Rust, events through `Closure` + `AppHandle::update` — server push
+  3/3 received and rendered; this is Rune's own recommended async pattern
+  (`examples/fetch`). (2) HTTP polling fallback (`?poll=300` + `fetch` + `spawn_after`) —
+  25 ticks received; the answer for locked-down proxies. Rune has no ws API of its own;
+  both bridges cost tens of lines, all in our crate. For meldframe's protocol, the
+  Shape-mode finding matters more: the transport is a solved detail either way.
+- **Idle and memory: exactly as claimed.** 180 s idle soak (Shape, 2,000 nodes): 4 frames
+  total, all at startup, 0 frames in the second half; JS heap 23 MB → 23 MB. Rune requests
+  frames only while work is pending — a canvas app that stops moving costs nothing.
+- **Size with Rune's build profile** (`opt-level=s`, thin LTO, codegen-units 1):
+  14.95 MB raw / **3.89 MB gzip** (target ≤ 4 MB gzip: met, before wasm-opt). Default
+  release profile for comparison: 13.3 MB raw / 4.3 MB gzip.
+- **A11y mirror gap from session 1: closed — it was our query, not Rune.** The mirror
+  emits native tags (`<button>`, `<p>`, `<a>`), not `role` attributes; querying by tag
+  finds 129 real buttons including every visible node card (`node-0`…), the toolbar
+  buttons with names, and text paragraphs. IME composition still untested.
+- **E4 full contract, real-GPU numbers, IME, canvas hit-test** remain open; the harness
+  now carries all the hooks they need.
+
+## Results (session 1)
 
 First session, 27 Nov 2026, macOS arm64, headless Chromium 140 (Playwright, `--enable-unsafe-webgpu`, so likely a software WebGPU adapter — numbers are indicative, not production). Harness: `../rune-web-spike/` (own git repo, commit `4bb3a60`), Rune pinned at `048528dc35f0`.
 
