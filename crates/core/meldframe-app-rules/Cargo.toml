@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-app-rules"
-description = "Rules of the app layer that hold a little state of their own and are given what they need: the connection timing and backoff, the retries of a refused op, the review record and the plans of a revert and a restore, the checkpoint list as the server sent it, the mode picks, the level of an action, and the commands of a drop and of a resize on a laid-out canvas. Split from meldframe-app for the size ceiling; no AppState, no events."
+description = "Rules of the app layer that hold a little state of their own and are given what they need: the connection timing and backoff, the retries of a refused op, the review record and the plans of a revert and a restore, the checkpoint list as the server sent it, the mode picks, the level of an action, the commands of a drop and of a resize on a laid-out canvas, and the key table with the rule that turns a key press into what it makes. Split from meldframe-app for the size ceiling; no AppState, no events."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
