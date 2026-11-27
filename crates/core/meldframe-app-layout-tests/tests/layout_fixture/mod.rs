@@ -2,6 +2,8 @@
 //! `layout_handles.rs` and the others of this crate).
 #![allow(dead_code)]
 
+pub mod pointer;
+
 use meldframe_app::{
     Action, App, CreateKind, Effect, Event, GestureOp, Handle, Modifiers, Point, Properties,
 };
