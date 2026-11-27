@@ -8,7 +8,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod common;
 use common::*;
-use meldframe_app::{Action, App, Connection, Effect, Event, TextEdit, TextEditOp};
+use meldframe_app::{Action, App, Connection, CreateKind, Effect, Event, TextEdit, TextEditOp};
 use meldframe_protocol::{Command, NodePatch};
 use serde_json::json;
 
@@ -147,6 +147,19 @@ fn commit_with_a_changed_text_is_one_op_and_one_undo_step() {
 }
 
 #[test]
+fn commit_with_an_emptied_text_is_one_op_and_one_undo_step() {
+    // The node stays and its text is empty: an empty text is a text like another.
+    let mut l = live("hello");
+    l.send(begin("t1"));
+    let fx = l.send(commit(""));
+    assert_eq!(sent(&fx).len(), 1);
+    assert_eq!(get(&l.app, "t1").text, "");
+    assert_eq!(l.app.state().history.undo_steps, 1);
+    l.send(Action::Undo {});
+    assert_eq!(get(&l.app, "t1").text, "hello");
+}
+
+#[test]
 fn commit_with_an_unchanged_text_makes_no_op_and_no_undo_step() {
     let mut l = live("hello");
     l.send(begin("t1"));
@@ -183,27 +196,62 @@ fn commit_and_cancel_with_no_edit_open_do_nothing_and_raise_nothing() {
 }
 
 #[test]
-fn deleting_the_edited_node_closes_the_edit_with_nothing_to_commit() {
+fn deleting_the_edited_node_closes_the_edit_and_says_so_once_with_nothing_to_commit() {
     let mut l = live("hello");
     l.send(begin("t1"));
     l.events.clear();
     remote(&mut l, Command::RemoveNode { id: "t1".into() });
     assert_eq!(edit_of(&l), None);
     assert_eq!(changed(&l.events), 1);
+    // The page told the person ("That node no longer exists") when the field of a node that was gone reported its text.
+    assert_eq!(refused(&mut l), vec!["not_found".to_string()]);
     let fx = l.send(commit("typed meanwhile"));
     assert!(
         sent(&fx).is_empty(),
         "nothing is written for a node that is gone"
     );
+    assert!(
+        refused(&mut l).is_empty(),
+        "the blur that follows says nothing more"
+    );
+    l.send(op(TextEditOp::Cancel {}));
     assert!(refused(&mut l).is_empty());
 }
 
 #[test]
-fn the_persons_own_delete_closes_the_edit_too() {
+fn the_persons_own_delete_closes_the_edit_and_says_so_once() {
     let mut l = live("hello");
     l.send(begin("t1"));
     l.send(Action::Delete { ids: ids(&["t1"]) });
     assert_eq!(edit_of(&l), None);
+    assert_eq!(refused(&mut l), vec!["not_found".to_string()]);
+}
+
+#[test]
+fn an_undo_that_removes_the_edited_node_closes_the_edit_and_says_so_once() {
+    let mut l = live("hello");
+    l.send(Action::create_node(CreateKind::Text, 0.0, 0.0, None));
+    let made = l.app.state().selection[0].clone();
+    l.send(begin(&made));
+    assert!(edit_of(&l).is_some());
+    l.events.clear();
+    l.send(Action::Undo {});
+    assert!(l.app.nodes().iter().all(|n| n.id != made));
+    assert_eq!(edit_of(&l), None);
+    assert_eq!(refused(&mut l), vec!["not_found".to_string()]);
+}
+
+#[test]
+fn closing_an_edit_by_cancel_or_commit_says_nothing() {
+    let mut l = live("hello");
+    l.send(begin("t1"));
+    l.events.clear();
+    l.send(op(TextEditOp::Cancel {}));
+    l.send(begin("t1"));
+    l.send(commit("changed"));
+    l.send(begin("t1"));
+    l.send(commit("changed"));
+    assert!(refused(&mut l).is_empty());
 }
 
 #[test]
@@ -334,6 +382,7 @@ fn a_reload_without_the_node_closes_the_edit() {
         applied: vec![],
     });
     assert_eq!(l.app.state().text_edit, None);
+    assert_eq!(refused(&mut l), vec!["not_found".to_string()]);
 }
 
 #[test]

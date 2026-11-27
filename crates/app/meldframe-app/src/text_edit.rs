@@ -4,6 +4,7 @@
 //! when an unchanged text makes no step are the rules the page kept in TypeScript before this.
 
 use crate::app::App;
+use crate::document::refuse;
 use crate::event::Event;
 use meldframe_app_model::{TextEdit, TextEditOp};
 use meldframe_app_parts::text_edit::{commit_command, selected_text, text_node};
@@ -58,14 +59,18 @@ impl App {
     }
 
     /// An edit belongs to a text node that is still in the document: when it is gone (another actor, or the person, removed
-    /// it, or a reload brought a file without it) the edit closes with nothing to commit. Whatever else happens to the node
-    /// meanwhile (a new text from another actor) leaves it open on the text it began with.
+    /// it, an undo took it away, or a reload brought a file without it) the edit closes with nothing to commit, and the
+    /// person is told once (`Refused`, `not_found`: "That node no longer exists"). The page said so when the field of the
+    /// missing node reported its text; the app says it now, so it does not depend on a blur that browsers fire differently
+    /// when a field is removed. It says so also when nothing was typed. Whatever else happens to the node meanwhile (a new text
+    /// from another actor) leaves the edit open on the text it began with.
     pub(crate) fn settle_text_edit(&mut self) {
         let Some(edit) = &self.state.text_edit else {
             return;
         };
         if text_node(self.replica.nodes(), &edit.id).is_none() {
             self.state.text_edit = None;
+            drop(refuse(&mut self.events, "not_found"));
         }
     }
 

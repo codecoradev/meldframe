@@ -16,7 +16,7 @@ use ts_rs::TS;
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TextEdit {
     /// The text node being edited. It is a text node of the document for as long as the edit is open: an edit whose node is
-    /// gone (another actor removed it) is closed by the app, with nothing to commit.
+    /// gone (another actor removed it) is closed by the app, with nothing to commit and a `Refused` `not_found` event.
     pub id: String,
     /// The text of the node when the edit began.
     pub text: String,
