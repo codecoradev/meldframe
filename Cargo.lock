@@ -1343,6 +1343,7 @@ name = "meldframe-app-rules"
 version = "0.0.0"
 dependencies = [
  "meldframe-app-model",
+ "meldframe-camera",
  "meldframe-check",
  "meldframe-checkpoints",
  "meldframe-layout",
