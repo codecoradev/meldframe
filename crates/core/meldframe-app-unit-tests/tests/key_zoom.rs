@@ -76,6 +76,16 @@ fn zoom_out_is_the_minus_key_with_or_without_shift_and_the_fit_keys_fall_back_to
     );
     assert_eq!(decide(&input("_", "", SHIFT)), zoom(Out));
     assert_eq!(decide(&input("-", "", SHIFT)), zoom(Out));
+    // the character decides, not the physical key: the numpad minus and a layout that puts `-` elsewhere (German: Slash)
+    assert_eq!(
+        decide(&input("-", "NumpadSubtract", Modifiers::default())),
+        zoom(Out)
+    );
+    assert_eq!(
+        decide(&input("-", "Slash", Modifiers::default())),
+        zoom(Out)
+    );
+    assert_eq!(decide(&input("_", "Slash", SHIFT)), zoom(Out));
     // a front end that has no physical code gives the character: `1` and `!` (and `2`, `@`) with Shift held
     for (key, want) in [
         ("1", Fit),

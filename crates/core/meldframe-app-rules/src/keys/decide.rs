@@ -16,7 +16,9 @@ impl Combo {
         match self.code {
             Some(code) if self.typed.is_none() || !input.code.is_empty() => input.code == code,
             Some(_) => input.key == self.key || self.typed == Some(input.key.as_str()),
-            None if self.key.chars().count() == 1 => input.key.eq_ignore_ascii_case(self.key),
+            None if self.key.chars().count() == 1 => {
+                input.key.eq_ignore_ascii_case(self.key) || self.typed == Some(input.key.as_str())
+            }
             None => input.key == self.key,
         }
     }

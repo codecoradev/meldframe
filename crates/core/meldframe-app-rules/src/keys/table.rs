@@ -34,9 +34,9 @@ pub struct Combo {
     pub key: &'static str,
     /// When set, the physical key decides (`Digit1`), and `key` is what the sheet shows.
     pub code: Option<&'static str>,
-    /// What the key types with Shift held on a US layout (`!` for `1`). Set, the combo also answers a front end that gives no
-    /// physical code (`KeyInput::code` may be empty): the character `key` or this one decides then. A press with a code is still
-    /// decided by the code.
+    /// What the key types with Shift held on a US layout (`!` for `1`, `_` for `-`). Set, the combo also answers this character:
+    /// with a `code`, when the front end gives no physical code (`KeyInput::code` may be empty; a press with a code is still
+    /// decided by the code), and without a `code`, always, as the character `key` does.
     pub typed: Option<&'static str>,
     pub command: bool,
     pub alt: Held,
@@ -249,8 +249,10 @@ pub static TABLE: &[Group] = &[
             row(
                 "zoom-out",
                 "Zoom out",
+                // Read by the character, as the zoom in rows are: the numpad minus and a layout that puts `-` on another
+                // physical key (German) zoom out too, and Shift and the minus key types `_` on a US layout.
                 &[zoom_step(
-                    Combo::key("-").code("Minus").typed("_").shift(Held::Either),
+                    Combo::key("-").typed("_").shift(Held::Either),
                     ZoomCommand::Out,
                 )],
             ),
