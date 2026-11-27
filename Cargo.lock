@@ -1334,6 +1334,7 @@ dependencies = [
  "meldframe-app-model",
  "meldframe-app-rules",
  "meldframe-layout",
+ "meldframe-protocol",
  "serde",
 ]
 
@@ -1391,6 +1392,7 @@ dependencies = [
  "meldframe-app-pointer",
  "meldframe-app-rules",
  "meldframe-check",
+ "meldframe-layout",
  "meldframe-protocol",
  "meldframe-render",
  "meldframe-text",

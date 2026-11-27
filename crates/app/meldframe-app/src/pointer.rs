@@ -1,13 +1,14 @@
 //! `Action::Pointer`: the machine of `meldframe_app_pointer` decides, and what it decides is dispatched like any other action.
 
 use crate::{app::App, effect::Effect, event::Event};
-use meldframe_app_model::{PointerGesture, PointerInput};
-use meldframe_app_pointer::{Env, PointerPreview, move_preview};
+use meldframe_app_model::{Modifiers, PointerInput};
+use meldframe_app_pointer::{Env, PointerPreview, Queries, preview, top_level};
 
 impl App {
     pub(crate) fn pointer(&mut self, input: PointerInput) -> Vec<Effect> {
         let mut machine = std::mem::take(&mut self.pointer);
         let (hit, rect) = (|x, y| self.hit(x, y), || self.selection_rect());
+        let within = |r| self.on_index(|i| top_level(self.replica.nodes(), i.overlapping(r)));
         let (s, halted) = (&self.state, self.halted());
         let env = Env {
             tool: s.tool,
@@ -17,6 +18,7 @@ impl App {
             halted,
             hit: &hit,
             selection_rect: &rect,
+            within: &within,
         };
         let acts = machine.step(&input, &env);
         self.pointer = machine;
@@ -58,12 +60,15 @@ impl App {
     }
 
     /// What the gesture that is going on would do if it ended now (`AppState::pointer.gesture`), from the same decision as the
-    /// release; none while nothing is going on. Reads and changes nothing. Cost: that of [`App::drop_preview_many`].
+    /// release; none while nothing is going on. Reads and changes nothing. Cost: that of the query it asks
+    /// (`drop_preview_many`, `resize_preview`, `draw_preview`); a marquee is the rectangle alone. Modifiers change no preview.
     pub fn pointer_preview(&self) -> Option<PointerPreview> {
-        let PointerGesture::Move { ids, at, by } = &self.state.pointer.gesture else {
-            return None;
+        let m = Modifiers::default();
+        let q = Queries {
+            drop: &|ids, at, by| self.drop_preview_many(ids, (at.x, at.y), (by.x, by.y)),
+            resize: &|id, h, by| self.resize_preview(id, h, by, m),
+            draw: &|kind, from, to| self.draw_preview(kind, from, to, m),
         };
-        let drop = self.drop_preview_many(ids, (at.x, at.y), (by.x, by.y));
-        Some(move_preview(ids, *by, drop))
+        preview(&self.state.pointer.gesture, &q)
     }
 }
