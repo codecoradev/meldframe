@@ -71,4 +71,19 @@ pub enum Wire {
         status: u16,
         body: String,
     },
+    /// The answer of `Effect::Raster` with this `request`: `status` 200 and a body `{"width", "height", "bytes"}` (what the
+    /// shell drew and holds) is `PngOp::Drawn`, anything else `PngOp::DrawFailed` with the code of `{"error": {"code"}}` (else
+    /// `render_failed`).
+    Drawn {
+        request: u32,
+        status: u16,
+        body: String,
+    },
+    /// The answer of the sink of `Effect::FinishRaster` with this `request`: `status` 200 is `PngOp::Delivered`, anything else
+    /// `PngOp::DeliveryFailed` (the upload's status and body as the network gave them).
+    Delivered {
+        request: u32,
+        status: u16,
+        body: String,
+    },
 }

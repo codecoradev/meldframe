@@ -14,6 +14,7 @@ mod assets;
 mod batches;
 mod checkpoints;
 mod ops;
+mod raster;
 mod subscribe;
 
 use meldframe_app_model::{Action, Frame, Wire};
@@ -52,6 +53,16 @@ pub fn action_of(wire: Wire) -> Option<Action> {
             status,
             body,
         } => assets::page(request, after, status, &body),
+        Wire::Drawn {
+            request,
+            status,
+            body,
+        } => raster::drawn(request, status, &body),
+        Wire::Delivered {
+            request,
+            status,
+            body,
+        } => raster::delivered(request, status, &body),
         Wire::Hint { now_ms, text } => {
             let frame = hint(&text)?;
             Action::Frame { now_ms, frame }

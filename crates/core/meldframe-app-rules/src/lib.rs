@@ -14,9 +14,11 @@
 pub mod arrow;
 pub mod canvas;
 pub mod checkpoints;
+pub mod code;
 pub mod draw;
 pub mod drop;
 pub mod handle;
+pub mod jobs;
 pub mod keys;
 pub mod level;
 pub mod link;

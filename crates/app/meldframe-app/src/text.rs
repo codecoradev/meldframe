@@ -11,13 +11,6 @@
 
 use meldframe_text::{MAX_ACTOR, MAX_KEY, MAX_KEY_BYTES, identifier};
 
-/// The longest refusal code kept, in bytes (and so in characters): the codes of the server are words of a few
-/// characters (`quota_exceeded`, `E_INVALID_ID`).
-pub(crate) const MAX_CODE: usize = 64;
-
-/// The code a refusal that cleans to nothing is kept as, so an event never carries an empty code.
-pub(crate) const UNKNOWN_CODE: &str = "unknown";
-
 /// The key of the lane, the layer's last actor and the actor of a change event: the actor of a frame as an identifier.
 /// `None` when nothing is left of it; the op is still applied to the file, and no lane, row or attribution is made
 /// for an actor with no name.
@@ -31,12 +24,4 @@ pub(crate) fn op_key(raw: &str) -> String {
     identifier(raw, MAX_KEY, MAX_KEY_BYTES)
 }
 
-/// A refusal code from the server: an identifier cut to [`MAX_CODE`] bytes, or [`UNKNOWN_CODE`] when nothing is left.
-pub(crate) fn code(raw: &str) -> String {
-    let clean = identifier(raw, MAX_CODE, MAX_CODE);
-    if clean.is_empty() {
-        UNKNOWN_CODE.to_owned()
-    } else {
-        clean
-    }
-}
+pub(crate) use meldframe_app_rules::code::code;
