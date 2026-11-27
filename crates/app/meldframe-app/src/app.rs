@@ -148,6 +148,10 @@ impl App {
         if let Action::Wire { wire } = action {
             return action_of(wire).map_or_else(Vec::new, |a| self.dispatch(a));
         }
+        // A key is decided here and carried on as the action it makes (`crate::keys`).
+        if let Action::Key { input } = action {
+            return self.key(input);
+        }
         let ui = level::is_view(&action);
         let reload = matches!(action, Action::Reload { .. });
         if self.state.connection == Connection::Halted && !ui && !reload {

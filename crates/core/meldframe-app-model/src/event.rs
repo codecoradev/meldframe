@@ -101,6 +101,10 @@ pub enum Event {
     PickerChanged {},
     /// `AppState::variables_io` changed (a dialog opening, closing or following the variables, the result of an import).
     VariablesIoChanged {},
+    /// A key (`Action::Key`) was an editor key and the app layer took it: the front end keeps the browser from also acting on it
+    /// (`preventDefault`). It is raised in the same dispatch, after the events of what the key did. A key that did nothing the
+    /// editor owns (Delete with no selection, an arrow key that moved nothing, Enter with no one text selected) raises none.
+    KeyHandled {},
     /// An action could not be carried out; nothing changed. A stable code such as `not_found`.
     Refused {
         code: String,
