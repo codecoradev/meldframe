@@ -332,6 +332,32 @@ and the changelog at rev `main` on 29 Nov; nothing here was built):
   `wasm32` and linked into the Rune harness), so a native shell later would reuse it; what is
   missing is the shell, not the product logic.
 
+## Owner direction (29 Nov 2026): personal use, Rune full, desktop only
+
+Stated by the owner after session 7; a leaning to test, not an accepted decision (the decision
+record stays `docs/decisions.md` and ADR-0026 until the owner writes it there).
+
+- **If Meldframe stays a personal tool, shared with no one, Rune full on the desktop is the
+  realistic path.** Most of the risks that weighed against Rune in the sessions above are the
+  risks of a public product: a pre-1.0 dependency with one main maintainer, Firefox and Windows
+  or Linux coverage, IME on every platform, store packaging. For one person on one Mac they
+  shrink to "pin the rev and live with it".
+- **The central server stays.** It is the control and anti-abuse point, reached over the
+  WebSocket the app already uses; the Rune client is one more client of it, through the same
+  protocol and token rules as any other.
+- **No mobile web.** A design canvas is hard to use on a phone anyway, and session 6 shows the
+  Shape path at about 10 fps there. Close the web client to mobile instead of building for it.
+  Note: a user-agent or viewport check is a courtesy, not control, because it is trivially
+  spoofed; the control is server-side (the token and the actor, or a refusal for a client kind
+  the server does not accept).
+- **What this makes unnecessary:** the React web client for the public, the Capacitor or Tauri
+  wrapper, the PWA, and the APK or IPA question. **What it does not remove:** the web client is
+  still the cheaper way to let another person or an agent in later, so keep React alive while
+  E7.3 stands, and keep the server protocol the only contract between clients.
+- Open questions this direction leaves: whether the existing React work (E7.3 S1-S11) is kept
+  as the shared-use client or frozen; which Rune rev to pin and who owns bumping it; and the
+  Windows or Linux need, if any, because Rune's desktop shell is verified here on macOS only.
+
 ## Results (session 2)
 
 First session, 27 Nov 2026, macOS arm64, headless Chromium 140 (Playwright, `--enable-unsafe-webgpu`, so likely a software WebGPU adapter — numbers are indicative, not production). Harness: `../rune-web-spike/` (own git repo, commit `4bb3a60`), Rune pinned at `048528dc35f0`.
