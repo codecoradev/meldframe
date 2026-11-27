@@ -198,10 +198,72 @@ fn a_refusal_is_read_with_the_fields_it_has_and_the_ones_the_app_does_not_know_a
     let mut app = live();
     marker(&mut app, 2_000, 0);
     let frame = json!({"type": "error", "id": "s9", "message": "m", "retryable": false, "code": "rate_limited", "retryAfterMs": 9_007_199_254_740_991u64, "extra": [1]});
+    assert_eq!(wakes(&app.dispatch(refused(2_100, frame))), [30_000]);
+}
+
+#[test]
+fn a_second_refusal_while_a_retry_waits_is_nothing() {
+    let mut app = live();
+    marker(&mut app, 2_000, 0);
     assert_eq!(
-        wakes(&app.dispatch(refused(2_100, frame))),
-        [9_007_199_254_740_991]
+        wakes(&app.dispatch(refused(2_000, error_frame("unavailable", Some(500))))),
+        [500]
     );
+    // the same subscribe answered again, or the answer of a frame that crossed it: no second wait, no count, no effect
+    for code in ["unavailable", "rate_limited", "forbidden"] {
+        let fx = app.dispatch(refused(2_100, error_frame(code, Some(500))));
+        assert!(fx.is_empty(), "{code}: {fx:?}");
+        assert_eq!(app.state().connection, Connection::Live, "{code}");
+    }
+    assert!(subscribes(&tick(&mut app, 2_499)).is_empty());
+    assert_eq!(
+        subscribes(&tick(&mut app, 2_500)),
+        [0],
+        "exactly one subscribe goes out"
+    );
+    assert!(subscribes(&tick(&mut app, 9_000)).is_empty());
+    // the refusals that were ignored did not count: two retries are left, then the app goes offline
+    let mut now = 10_000;
+    for _ in 0..2 {
+        assert_eq!(
+            wakes(&app.dispatch(refused(now, error_frame("unavailable", Some(100))))),
+            [100]
+        );
+        now += 100;
+        assert_eq!(subscribes(&tick(&mut app, now)), [0]);
+    }
+    let fx = app.dispatch(refused(now, error_frame("unavailable", Some(100))));
+    assert_eq!(app.state().connection, Connection::Offline);
+    assert_eq!(reconnects(&fx), 1);
+}
+
+#[test]
+fn a_wait_the_server_names_is_cut_at_thirty_seconds() {
+    // the reader takes a wait up to 2^53 - 1; the rule never waits longer than 30 s
+    for (named, waited) in [
+        (9_007_199_254_740_991u64, 30_000u64),
+        (u64::from(u32::MAX), 30_000),
+        (30_001, 30_000),
+        (30_000, 30_000),
+        (5_000, 5_000),
+        (0, 0),
+    ] {
+        let mut app = live();
+        marker(&mut app, 2_000, 0);
+        let fx = app.dispatch(refused(2_000, error_frame("rate_limited", Some(named))));
+        assert_eq!(wakes(&fx), [waited], "{named}");
+        if waited > 0 {
+            assert!(
+                subscribes(&tick(&mut app, 2_000 + waited - 1)).is_empty(),
+                "{named}: not before"
+            );
+        }
+        assert_eq!(
+            subscribes(&tick(&mut app, 2_000 + waited)),
+            [0],
+            "{named}: on time"
+        );
+    }
 }
 
 #[test]
