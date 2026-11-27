@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-camera"
-description = "The small inputs of the app layer that the camera is made of, a point and the modifier keys held, with their TypeScript types. A leaf crate of its own so that the camera can sit below meldframe-app-model."
+description = "The camera of the canvas: its data, the action that moves it and the pure rules (zoom limits, the world to screen mapping, pan, zoom around a point, fit, wheel and pinch). Split out of meldframe-app-model and meldframe-app-rules for the size ceiling."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,6 +10,8 @@ publish.workspace = true
 kind = "core"
 
 [dependencies]
+meldframe-layout = { path = "../meldframe-layout" }
+meldframe-render = { path = "../meldframe-render" }
 serde = { version = "1", features = ["derive"] }
 ts-rs = { version = "12.0.1", features = ["no-serde-warnings"] }
 

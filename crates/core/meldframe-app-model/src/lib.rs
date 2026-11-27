@@ -13,6 +13,7 @@ mod action_new;
 pub mod activity;
 pub mod actor;
 pub mod assets;
+pub use meldframe_camera as camera;
 pub mod checkpoint;
 mod classify;
 pub mod confirm;
@@ -58,6 +59,7 @@ pub use manage::{
     MODE_NAME_MAX, ManageDrafts, ManageLimits, ManageOp, ManageState, ManageTarget, NameCheck,
     NameDraft, NameError, NameWarning, Removal, RenameField,
 };
+pub use meldframe_camera::{Camera, CameraOp, Viewport, Wheel, WheelUnit, ZoomCommand};
 pub use overlay::{Overlay, OverlayOp};
 pub use raster::{
     CAPTURE_MAX_BYTES, CaptureAsk, EXPORT_MAX_PIXELS, MAX_SCALE, MIN_SCALE, PNG_MIN_BYTES, PngOp,

@@ -12,12 +12,14 @@
 
 mod capture;
 pub mod coverage;
+mod extent;
 mod hit;
 mod laid_out;
 mod paint_bounds;
 mod resolve;
 
 pub use capture::{capture_bounds, capture_bounds_in, capture_rect, capture_rect_in};
+pub use extent::{content_extent, extent_of};
 pub use hit::{HitBox, HitIndex, contains_point, hit_test};
 pub use laid_out::resolve_laid_out;
 pub use meldframe_variables::ModeChoice;

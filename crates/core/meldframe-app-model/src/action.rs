@@ -235,6 +235,10 @@ pub enum Action {
     Manage {
         op: ManageOp,
     },
+    /// Pan, zoom or fit the canvas, or report its size (`CameraOp`): `AppState::camera` and `AppState::viewport`. View state.
+    Camera {
+        op: crate::camera::CameraOp,
+    },
     /// The shortcut sheet or the command palette opens or closes (`OverlayOp`): `AppState::overlay`.
     Overlay {
         op: OverlayOp,

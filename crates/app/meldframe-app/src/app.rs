@@ -156,6 +156,10 @@ impl App {
         if let Action::Key { input } = action {
             return self.key(input);
         }
+        // A view action that touches none of the derived state, so it skips the refresh of every panel (a wheel sends many).
+        if let Action::Camera { op } = action {
+            return self.camera_op(op);
+        }
         let ui = level::is_view(&action);
         let reload = matches!(action, Action::Reload { .. });
         if self.state.connection == Connection::Halted && !ui && !reload {
