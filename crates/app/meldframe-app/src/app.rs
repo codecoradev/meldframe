@@ -208,7 +208,8 @@ impl App {
             Action::Reconnect { now_ms } => self.reconnect(now_ms, &mut fx),
             Action::Tick { now_ms } => self.tick(now_ms, &mut fx),
             Action::Frame { now_ms, frame } => {
-                self.raster.tick(now_ms);
+                // Any frame brings the time: a capture that is out of time ends before the frame is read.
+                self.captures_moved(Some(now_ms), &mut fx);
                 self.frame(now_ms, frame, &mut fx)
             }
             Action::Activity { op } if op.is_view() => self.activity_view(op, &mut fx),

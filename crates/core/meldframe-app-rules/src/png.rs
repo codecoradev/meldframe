@@ -54,6 +54,17 @@ pub struct Env<'a> {
 }
 
 impl Env<'_> {
+    /// The same environment for a step that is not the last of the call.
+    fn again(&mut self) -> Env<'_> {
+        Env {
+            halted: self.halted,
+            seq: self.seq,
+            export: &mut *self.export,
+            fx: &mut *self.fx,
+            events: &mut *self.events,
+        }
+    }
+
     fn refuse(&mut self, code: &str) {
         self.events.push(Event::Refused {
             code: code.to_owned(),
@@ -203,17 +214,15 @@ impl Rasters {
         self.jobs.push(job);
     }
 
-    /// The clock moved on (it never goes back): a capture past its deadline is not drawn.
-    pub fn tick(&mut self, now_ms: u64) {
-        self.jobs.tick(now_ms);
-    }
-
     /// An agent's request for an image (`now_ms` is the shell's clock). It is ignored when it is a request already held
     /// (the same one again is the same one), refused at once when the app is halted (`stale_client`), when too many are
     /// being made (`busy`) or when it cannot be drawn (`invalid_scale`, `node_not_found`, `too_large`); it waits while the file
     /// is behind `min_seq`, up to the timeout, else the shell is asked to draw it.
-    fn capture(&mut self, now_ms: u64, ask: CaptureAsk, scene: Scene, env: Env) {
-        self.jobs.tick(now_ms);
+    fn capture(&mut self, now_ms: u64, ask: CaptureAsk, scene: Scene, mut env: Env) {
+        // The clock is the latest the app has seen (a shell's clock that went back changes nothing), and a request that is
+        // out of time ends before a new one is taken.
+        self.expire(now_ms, env.again());
+        let now = self.jobs.clock();
         if self.jobs.has_capture(&ask.request_id) {
             return;
         }
@@ -231,7 +240,9 @@ impl Rasters {
             return fail(env, "busy");
         }
         let node = ask.node_id.as_deref();
-        let planned = match plan(scene, node, ask.scale, is_capture_scale, ask.max_pixels) {
+        // The request's own limit may be lower; it is never above what an export of the same node is allowed.
+        let max_pixels = ask.max_pixels.min(EXPORT_MAX_PIXELS);
+        let planned = match plan(scene, node, ask.scale, is_capture_scale, max_pixels) {
             Ok(p) => p,
             Err(refusal) => return fail(env, refusal.code()),
         };
@@ -246,9 +257,9 @@ impl Rasters {
             node: ask.node_id,
             scale: ask.scale,
             planned,
-            max_pixels: ask.max_pixels,
+            max_pixels,
             stage: Stage::Waiting,
-            deadline: Some(now_ms.saturating_add(wait)),
+            deadline: Some(now.saturating_add(wait)),
         };
         if env.seq >= ask.min_seq {
             self.draw(job, env.seq, env.fx);
@@ -281,12 +292,15 @@ impl Rasters {
         }
     }
 
-    /// The captures past their deadline end: `stale_client` while waiting for the file, else `render_failed` (the bytes dropped).
+    /// The clock moved on (`now_ms` is the shell's; the app keeps the latest it has seen, so a clock that goes back changes
+    /// nothing): the captures past their deadline end, `stale_client` while waiting for the file, else `render_failed` (the
+    /// bytes dropped). Every call that brings a time ends them, so none is drawn or delivered after its time.
     pub fn expire(&mut self, now_ms: u64, env: Env) {
         self.jobs.tick(now_ms);
+        let now = self.jobs.clock();
         for job in self
             .jobs
-            .take_where(|j| j.deadline.is_some_and(|d| d <= now_ms))
+            .take_where(|j| j.deadline.is_some_and(|d| d <= now))
         {
             let (code, held) = match job.stage {
                 Stage::Waiting => ("stale_client", false),
