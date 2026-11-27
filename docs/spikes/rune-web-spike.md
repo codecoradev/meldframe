@@ -1,0 +1,118 @@
+# Spike: the Rune web target as a Meldframe canvas client
+
+Status: proposed, exit criteria written before any code (the rule for a desktop spike in
+ADR-0026, applied here to a web-target spike). Owner direction on 27 Nov 2026: the web client
+stays React (ADR-0026, decision 42); this spike asks a separate question — **could a Meldframe
+client be built on Rune's web target at all**, and what would it cost. The desktop client is
+out of scope here; it is assumed safe later and is a different spike (#309).
+
+Everything in this document cites the state of `anomalyco/rune` at git rev
+`048528dc35f0` (branch `dev`, committed 27 Nov 2026). Rune is pre-release, pinned by rev, and
+does not accept pull requests; every fact below can change under us. MIT licence.
+
+## The three questions
+
+1. **Canvas.** Can a Rune web app be the editor surface: pan and zoom over thousands of
+   nodes, pointer and pinch input, hit testing, text that stays crisp under scale?
+2. **Import and export.** Can it do the web things the editor needs: pick files, paste
+   images and files, copy to the clipboard, save an export as a download?
+3. **A web citizen.** Accessibility, text editing with IME, links, sockets and fetch to a
+   server, page load and bundle size — is the result something a browser user can live in?
+
+## What the documentation already says (read, not yet run)
+
+Answers found in Rune's `crates/rune/README.md`, `WEB.md` and `PLAN.md` at the pinned rev:
+
+- **Canvas**: `.scale(f)` with `.origin(x, y)` composes with nested scales; text under a
+  still scale rasterizes at the scaled size (crisp), and hit boxes and carets follow the
+  transform — the exact capability GPUIX 0.11 lacked in the 20 Nov spike (ADR-0026, Risks).
+  Pinch gestures report phased `Began`/`Moved`/`Ended` and Ctrl+wheel reaches `on_magnify`;
+  `.scroll()` viewports and `.virtual_rows(..)` exist for long lists.
+- **Import**: paste of browser files exists — `ClipboardContent::web_files`, up to
+  `rune::clipboard::MAX_WEB_FILES` `File` handles with name, type and size (`WebFile::read(max)`
+  reads bytes; `WebFile::js_file` for the JS handle). Text and image paste exist
+  (`on_input_paste`, `on_paste_content`, `read_clipboard`, image paste capped at 32 MiB PNG).
+  `Tx::copy` uses the browser clipboard and must run from a user input callback; clipboard
+  revision is `None` on the web (browsers expose no history).
+- **Export**: `Tx::save_file` is **unsupported on wasm32** (the README's Save Image As… path
+  is native only). A download must go through JS (`Blob` + object URL + click), which means a
+  wasm-bindgen extern of our own or a Rune API added upstream. This is a known cost to
+  measure, not a blocker to assume.
+- **Web citizen**: a semantic DOM accessibility mirror sits above the canvas (landmarks,
+  headings, links, buttons, roles, `dir` handling); IME on the web arrives through a
+  sliding-window hidden `<textarea>` (desktop through winit); `Tx::open_url` opens external
+  links; text can be `.selectable(true)`; HTTP fetch exists with two web runtimes — JSPI
+  fibers on Chromium 137+ (`wasm-bindgen` 0.2.129+) or main-thread timer slices without it.
+- **Gaps to prove, not assume**: `WebSocket` appears **nowhere** in the full README
+  (368 KB). Meldframe's live sync rides `/v1/ws`. The spike must connect a real socket
+  (JS extern via `wasm-bindgen`, since Rune's own app layer may use `wasm-bindgen` on wasm)
+  or fall back to HTTP fetch polling and say what that costs.
+- **Build**: `scripts/web-build.sh` outputs a static folder (WebGPU, WebGL2 fallback, CPU
+  canvas), `--dev` rebuilds a one-line change in ~2 s on their example, no
+  SharedArrayBuffer/COOP/COEP needed. Toolchain and `wasm-bindgen`-cli are pinned by their
+  `Cargo.lock` (0.2.129 in their docs; our workspace lock has 0.2.130, installed locally).
+
+## Exit criteria (all measured, all written down in this file's results section)
+
+E1. **It builds and runs.** A harness crate builds for `wasm32` and opens in Chromium
+    (WebGPU or its WebGL2/CPU fallback), from a scaffold that mirrors Rune's
+    `examples/web-hello` (cdylib + `AppSpec` + `rune::App::new(...).spawn()`), with the
+    workspace `[patch.crates-io]` git pins at one rev and Rune's pinned toolchain in the
+    harness only (meldframe stays on 1.97.0; Rune pins 1.99.x).
+E2. **Socket.** The harness connects to a real WebSocket endpoint (the dev server's `/v1/ws`
+    or an echo) and renders received frames; if it goes through JS externs, the amount of
+    glue is counted and recorded. If only polling works, the measured message latency and
+    request rate are recorded.
+E3. **Canvas behaviour.** A scene of 5,000 elements inside a scroll viewport pans and zooms
+    (wheel + pinch) without per-frame layout thrash: frame time p50/p95 recorded from
+    Chromium tracing or `performance.now()` sampling across ≥ 300 frames, against the same
+    scene rendered by the current Pixi canvas driver in the web client (`/?layout` harness),
+    same machine, same document. Numbers, not adjectives.
+E4. **Text fidelity.** One label set rendered by Rune web at scale 1.0 and at 0.5/2.0:
+    the export crate's rect for the same text (the `0.05 px` contract of
+    `docs/fidelity-contract.md`) is compared against Rune's drawn box via a headless run;
+    differences recorded. Rune rounds text to whole device pixels by design — the spike
+    states plainly whether the fidelity contract survives that.
+E5. **Import/export.** In Chromium: paste a PNG (clipboard), paste files
+    (`web_files`), copy text and image out, and produce a download (via the JS-extern
+    route if `Tx::save_file` stays unsupported); each works or is logged as a gap with the
+    glue it needs.
+E6. **Web citizen.** The accessibility mirror is inspected in the DOM tree (roles and names
+    for buttons, list, toolbar); IME composition is exercised through the hidden textarea
+    path (Playwright `insertText` plus a composition event); external link opens; WASM
+    size (raw and gzip) and time to first Rune frame are recorded and compared with the
+    React client's numbers on the same connection.
+
+**Pass** means E1 to E3 pass with numbers and E4 to E6 are each either green or a
+documented gap with a cost estimate. A pass does **not** decide anything: it produces the
+input for an owner decision against ADR-0026's standing order (React web first, desktop
+spike #309 next). A fail names which criterion failed and why.
+
+## Method
+
+- Harness lives **outside** the meldframe workspace:
+  `../rune-web-spike/` (its own git repo), so the 8-crate `[patch.crates-io]` block and
+  Rune's toolchain never enter meldframe's `Cargo.toml` — the same dependency-matrix
+  reasoning as `docs/architecture.md` section 3b.
+- One pinned rev of Rune (`dev` never rewrites history; record the rev here when bumped);
+  one `CARGO_TARGET_DIR` of its own (disk note: the SSD had ~15 GiB free on 27 Nov; a Rune
+  build needs several GB — clean before starting).
+- Measurements run in Chromium via Playwright (already a dev dependency of this repo's
+  scripts) against `scripts/web-build.sh --dev` output; the React/Pixi baseline is the
+  existing `/?layout` harness page.
+- Time-box: the questions are answered by one person in roughly three working days of
+  build-and-measure, not by product work in this repository. The repo rule "no new spikes;
+  build the vertical slice" is satisfied because this spike's exit criteria were written
+  first and its code lives outside the product workspace.
+
+## Non-goals
+
+- No product code in meldframe changes. No Svelte or React panel is rewritten on Rune.
+- No desktop evaluation (that is #309's GPUIX-vs-Rune question, with its own exit
+  criteria; this spike's E1–E6 numbers will feed it).
+- No commitment that a Rune client would replace the React client; the React migration
+  (E7.3 slices) continues regardless of this spike's outcome.
+
+## Results
+
+(filled when the spike runs; every criterion gets its numbers or its gap)
