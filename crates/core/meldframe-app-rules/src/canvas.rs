@@ -1,0 +1,182 @@
+//! The canvas's way to its boxes: the host's text measurer, the `layout_on_canvas` flag and what is kept per revision (finding
+//! of the thin UI audit, the cached scene of #440). With the flag off the scene is the stored boxes, `resolve_with`, to the bit;
+//! with it on it is `resolve_laid_out` with the measurer the host gave. Both are host configuration: the shell of a platform
+//! sets them once and when its facts change, and they are neither `AppState` (the UI never reads them) nor the file.
+//!
+//! The measurer is a seam of the portable layer: the browser host injects one backed by Pixi's `CanvasTextMetrics`, a desktop
+//! host a native one, and `StubMeasurer` stays the default for tests and for hosts that give none. On a native target the
+//! measurer must be `Send`, so that a desktop shell can keep the app behind a mutex; under WASM there is one thread, and a
+//! measurer that calls into JavaScript cannot be `Send` (see [`MeasurerBox`]). `meldframe-app` holds one [`CanvasLayout`].
+
+use meldframe_layout::{Rect, StubMeasurer, TextMeasurer, compute_rects};
+use meldframe_protocol::{Node, Variables};
+use meldframe_render::{HitIndex, ModeChoice, PaintedBox, resolve_laid_out, resolve_with};
+use std::cell::{Cell, RefCell};
+use std::fmt;
+
+/// The measurer a host hands over. Native hosts need it `Send` (a desktop shell keeps the app behind a mutex);
+/// under WASM there is a single thread and a JavaScript-backed measurer cannot be `Send`.
+#[cfg(target_arch = "wasm32")]
+pub type MeasurerBox = Box<dyn TextMeasurer>;
+/// The measurer a host hands over. Native hosts need it `Send` (a desktop shell keeps the app behind a mutex);
+/// under WASM there is a single thread and a JavaScript-backed measurer cannot be `Send`.
+#[cfg(not(target_arch = "wasm32"))]
+pub type MeasurerBox = Box<dyn TextMeasurer + Send>;
+
+/// What the boxes of the layout depend on: the revision of the document (the nodes with the pending ops, see
+/// `Replica::revision`) and which measurer answered. Nothing else reaches them: `compute_rects` takes the nodes and the
+/// measurer and no variables, so a mode switch changes no box (the painted colours, which do read the mode, are the
+/// scene's and not cached here), and the flag only decides whether anyone asks.
+type Key = ((u64, u64), u64);
+
+/// The boxes of the layout in world space, in drawing order, with the key they were worked out for.
+type Cached = (Key, Vec<(String, Rect)>);
+
+/// What the hit index depends on: the revision of the document, the measurer and the flag (the scene is the stored boxes or
+/// the laid-out ones). The mode choice and the variables are not in it: they change what is painted, never where a box is.
+type HitKey = ((u64, u64), u64, bool);
+
+/// The index of what is under a point, the key it is for and its epoch (see `meldframe-app`'s `scene`). The epoch moves when the key
+/// does, whether or not anyone has asked for the index since, so a shell can read it without building anything.
+#[derive(Default)]
+struct HitCache {
+    key: Option<HitKey>,
+    epoch: u64,
+    index: Option<HitIndex<'static>>,
+}
+
+impl HitCache {
+    fn touch(&mut self, key: HitKey) {
+        if self.key != Some(key) {
+            self.key = Some(key);
+            self.epoch += 1;
+            self.index = None;
+        }
+    }
+}
+
+/// The flag and the measurer, held by the app, and the boxes of the last layout.
+pub struct CanvasLayout {
+    pub enabled: bool,
+    measurer: MeasurerBox,
+    /// Goes up each time the host gives a measurer (even the same function again: its answers may have changed).
+    generation: u64,
+    /// The boxes of the layout for the key they were worked out at: a preview asks for them on every pointer move, and
+    /// the file has not changed between two of those. Interior, because a preview reads the app and changes nothing.
+    cache: RefCell<Option<Cached>>,
+    /// How many times the whole file was laid out for `rects` (a test reads it through `App::layout_runs`).
+    runs: Cell<u64>,
+    /// What is under a point, for the scene of the key it was built for (`App::hit`; the hover asks on every frame).
+    hits: RefCell<HitCache>,
+    /// How many times the index was built (a test reads it through `App::hit_builds`).
+    hit_builds: Cell<u64>,
+}
+
+impl Default for CanvasLayout {
+    fn default() -> Self {
+        CanvasLayout {
+            enabled: false,
+            measurer: Box::new(StubMeasurer),
+            generation: 0,
+            cache: RefCell::new(None),
+            runs: Cell::new(0),
+            hits: RefCell::new(HitCache::default()),
+            hit_builds: Cell::new(0),
+        }
+    }
+}
+
+impl fmt::Debug for CanvasLayout {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CanvasLayout")
+            .field("enabled", &self.enabled)
+            .finish_non_exhaustive()
+    }
+}
+
+impl CanvasLayout {
+    /// The host's measurer (the stub when it gave none): the canvas lays text out with it and so does the Export dialog.
+    pub fn measurer(&self) -> &dyn TextMeasurer {
+        self.measurer.as_ref()
+    }
+
+    /// Reads the boxes of the layout in world space, in drawing order, with the host's measurer (the rules of a drop and a
+    /// resize read these). They are laid out again only when `revision` (that of the document `nodes` is read from) or the
+    /// measurer is not the one of the last call.
+    pub fn with_rects<R>(
+        &self,
+        revision: (u64, u64),
+        nodes: &[Node],
+        read: impl FnOnce(&[(String, Rect)]) -> R,
+    ) -> R {
+        let key = (revision, self.generation);
+        let mut cache = self.cache.borrow_mut();
+        if cache.as_ref().is_none_or(|(k, _)| *k != key) {
+            self.runs.set(self.runs.get() + 1);
+            *cache = Some((key, compute_rects(nodes, self.measurer.as_ref())));
+        }
+        let (_, rects) = cache.as_ref().expect("just filled");
+        read(rects)
+    }
+
+    pub fn hit_builds(&self) -> u64 {
+        self.hit_builds.get()
+    }
+
+    /// The measurer generation as far as the scene and the hit index depend on it: with the flag off the boxes are the stored
+    /// ones and no measurer is asked, so a new measurer changes nothing there.
+    pub fn scene_generation(&self) -> u64 {
+        if self.enabled { self.generation } else { 0 }
+    }
+
+    fn hit_key(&self, revision: (u64, u64)) -> HitKey {
+        (revision, self.scene_generation(), self.enabled)
+    }
+
+    /// The number that names the index for `revision`, the measurer and the flag. The mode choice and the variables are not in
+    /// it, so a mode switch leaves it alone.
+    pub fn hit_epoch(&self, revision: (u64, u64)) -> u64 {
+        let mut cache = self.hits.borrow_mut();
+        cache.touch(self.hit_key(revision));
+        cache.epoch
+    }
+
+    /// Reads the index of what is under a point for the scene of `revision`, the measurer and the flag. The scene is worked
+    /// out and indexed only when one of them is not the one of the last call, so the questions that follow while the pointer
+    /// moves over a file that has not changed read the index and nothing else.
+    pub fn with_hits<R>(
+        &self,
+        revision: (u64, u64),
+        build: impl FnOnce() -> HitIndex<'static>,
+        read: impl FnOnce(&HitIndex) -> R,
+    ) -> R {
+        let mut cache = self.hits.borrow_mut();
+        cache.touch(self.hit_key(revision));
+        if cache.index.is_none() {
+            self.hit_builds.set(self.hit_builds.get() + 1);
+            cache.index = Some(build());
+        }
+        read(cache.index.as_ref().expect("just filled"))
+    }
+
+    pub fn scene(&self, nodes: &[Node], vars: &Variables, choice: &ModeChoice) -> Vec<PaintedBox> {
+        if self.enabled {
+            resolve_laid_out(nodes, vars, choice, self.measurer.as_ref())
+        } else {
+            resolve_with(nodes, vars, choice)
+        }
+    }
+}
+
+impl CanvasLayout {
+    /// Replace the measurer; the generation goes up, so what was laid out with the old one is laid out again.
+    pub fn set_measurer(&mut self, measurer: MeasurerBox) {
+        self.measurer = measurer;
+        self.generation += 1;
+    }
+
+    /// How many times the whole file was laid out for [`CanvasLayout::with_rects`].
+    pub fn runs(&self) -> u64 {
+        self.runs.get()
+    }
+}

@@ -304,11 +304,8 @@ pub enum Action {
     /// Open the Import variables dialog (`AppState::variables_io.import_open`). View state (no op, no undo step).
     OpenVariablesImport {},
     /// Import the variables of CSS text (custom properties of `:root`, a dark rule, `@theme`) as one undo step, the
-    /// person's own edit. It only adds: text that holds a name the file has is refused whole (`E_DUPLICATE_ID`, naming
-    /// the first). Also refused whole: text of more than 50 variables (`E_IMPORT_TOO_MANY`: the browser sends one
-    /// request for each op, and a longer style sheet goes through the agent tool `import_tokens`), text over 256 KiB
-    /// (`E_IMPORT_TOO_LARGE`), empty text (`empty_text`) and a list that does not fit the queue (`outbox_full`).
-    /// The result, report included, is `AppState::variables_io.import`; a refusal applies nothing. The result goes
+    /// person's own edit. It only adds: text that holds a name the file has is refused whole, and every refusal applies
+    /// nothing (`VariablesImportResult::code`). The result, report included, is `AppState::variables_io.import`; it goes
     /// when the file no longer holds the variables the import added (an undo).
     ImportVariables {
         text: String,
@@ -339,18 +336,15 @@ pub enum Action {
         key_prefix: String,
     },
     /// Ask the server for a `manual` checkpoint at the confirmed file (`Effect::PostCheckpoint`); the list changes only
-    /// when it answers. A label with a control or hidden character, over 128 characters or with more than 4 combining
-    /// marks in a row is refused as `invalid` before anything is sent; an empty one is no label; `forbidden` where the
-    /// caller may not make one. `Event::CheckpointMade` says the row asked for is there; an open question of the Activity
-    /// panel closes.
+    /// when it answers. A label with a control or hidden character, over 128 characters or with more than 4 combining marks in
+    /// a row is refused as `invalid` before anything is sent; an empty one is no label; `forbidden` where the caller may not
+    /// make one. `Event::CheckpointMade` says the row asked for is there; an open question of the Activity panel closes.
     CreateCheckpoint {
         label: String,
     },
     /// Bring the file back to a checkpoint as new ops of the person (one undo step; the log is not rewritten): the app
     /// fetches the file at the checkpoint (`Effect::FetchCheckpointState`), works the commands out on its own replica,
-    /// posts a `beforeRestore` row and applies them on `CheckpointPosted`. Refused with `unknown_checkpoint`,
-    /// `forbidden`, `nothing_to_restore`, `log_mismatch`, `checkpoint_pending`, `checkpoint_failed` or the code of the
-    /// failed fetch (`too_far`: further back than the server replays).
+    /// posts a `beforeRestore` row and applies them on `CheckpointPosted`. The refusals are on `CheckpointRequest::State`.
     RestoreCheckpoint {
         id: String,
     },
