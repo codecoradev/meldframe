@@ -1,5 +1,5 @@
 // Frame-time measurement of the canvas with generated scenes: node packages/web-e2e/scripts/canvas-perf.mjs [base-url] [nodes]
-// Needs the dev server (npm run dev) and Playwright. Headless Chromium on the software renderer (SwiftShader),
+// Needs the dev server (npm run dev), the WASM bridge built (the harness asks the app layer what is under a point) and Playwright. Headless Chromium on the software renderer (SwiftShader),
 // so the numbers are an upper bound for a machine with a GPU and say nothing about one. Prints one JSON object.
 import { createRequire } from 'node:module';
 
@@ -8,6 +8,7 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 
 const base = process.argv[2] ?? 'http://localhost:5173';
 const nodes = Number(process.argv[3] ?? 5000);
+const HOVER_MOVES = 400;
 const GL_ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 
 const pct = (xs, p) => {
@@ -53,6 +54,28 @@ const report = ({ intervals, timing }) => ({
   result.fitZoomPercent = Math.round(fitted.zoom * 100);
   result.drawnAtFit = (await page.evaluate(() => window.__harness.stats())).drawn;
 
+  // The hover (T9, decision 43): each pointer move over the idle canvas asks the app layer what is under the pointer, through the wasm
+  // bridge. The time of one `pointermove` dispatched on the host element (the handler runs inside the call: the hit, and the hover
+  // that follows it) over `HOVER_MOVES` points across the view. The first move after the scene changed builds the index (the harness
+  // builds an app layer from the scene when it is asked about a scene it has not seen), so it is told apart.
+  const hover = () => page.evaluate(async (moves) => {
+    const host = document.querySelector('[role=application]');
+    const r = host.getBoundingClientRect();
+    const at = (k) => ({ clientX: r.left + ((k * 7919) % 1000) / 1000 * r.width, clientY: r.top + ((k * 104729) % 1000) / 1000 * r.height });
+    const send = (k) => {
+      const t0 = performance.now();
+      host.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, pointerType: 'mouse', bubbles: true, ...at(k) }));
+      return performance.now() - t0;
+    };
+    const first = send(0);
+    const each = [];
+    for (let k = 1; k <= moves; k++) each.push(send(k));
+    return { first, each };
+  }, HOVER_MOVES);
+  const h1 = await hover();
+  result.hoverFirstMoveMs = +h1.first.toFixed(1);
+  result.hoverAtFit = { moves: h1.each.length, ...summary(h1.each), meanMs: +(h1.each.reduce((a, b) => a + b, 0) / h1.each.length).toFixed(3) };
+
   const pan = await page.evaluate(async () => window.__harness.animate(120, (i, c) => ({ ...c, x: c.x - 6, y: c.y - 3 })));
   result.panAtFit = report(pan);
 
@@ -69,6 +92,9 @@ const report = ({ intervals, timing }) => ({
   result.drawnAtZoom100 = (await page.evaluate(() => window.__harness.stats())).drawn;
   const pan100 = await page.evaluate(async () => window.__harness.animate(120, (i, c) => ({ ...c, x: c.x - 8, y: c.y - 4 })));
   result.panAt100 = report(pan100);
+
+  const h2 = await hover();
+  result.hoverAtZoom100 = { moves: h2.each.length, ...summary(h2.each), meanMs: +(h2.each.reduce((a, b) => a + b, 0) / h2.each.length).toFixed(3) };
 
   console.log(JSON.stringify(result, null, 2));
   await browser.close();
