@@ -1,0 +1,3 @@
+open nodes.json
+move nope 1 2
+expect refused not_found
