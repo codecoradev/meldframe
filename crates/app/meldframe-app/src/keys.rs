@@ -53,6 +53,8 @@ impl App {
             Makes::DeleteSelection if !s.selection.is_empty() => Action::Delete {
                 ids: s.selection.clone(),
             },
+            // With no selection the action is a no-op (no step, no event, no effect): the key raises nothing and the browser
+            // keeps it.
             Makes::Nudge(direction) => {
                 return Some((Action::ArrowKey { direction }, Used::IfDocumentChanged));
             }

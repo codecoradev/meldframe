@@ -195,6 +195,8 @@ pub static TABLE: &[Group] = &[
                 "Finish editing the text",
                 &[on_row(Combo::key("Enter").command())],
             ),
+            // The words are the sheet's: the app layer answers Escape for a text edit and an overlay (with no modifier held),
+            // and the canvas keeps the Escape that abandons a drag, so "a drag" is the front end's half of the row.
             row(
                 "cancel",
                 "Cancel a drag or a text edit",
