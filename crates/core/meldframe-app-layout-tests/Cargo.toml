@@ -11,7 +11,10 @@ kind = "tool"
 
 [dev-dependencies]
 meldframe-app = { path = "../../app/meldframe-app" }
+meldframe-app-rules = { path = "../meldframe-app-rules" }
+meldframe-layout = { path = "../meldframe-layout" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-render = { path = "../meldframe-render" }
 serde_json = "1"
 
 # See meldframe-order/Cargo.toml: the tests run under WASM through wasm-bindgen-test.

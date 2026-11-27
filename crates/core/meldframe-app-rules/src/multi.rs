@@ -25,14 +25,14 @@
 //! shown is what a release does. A drag of one node is exactly `drop_commands` and `drop_slot`.
 
 use crate::drop::{
-    Drag, Slot, contains, drop_commands, drop_slot, flow_siblings, index_at, moved, out_of_flow,
-    slot_bounds, slot_line,
+    Drag, Slot, contains, drop_commands, drop_slot, flow_siblings, frame_under_in, index_at, moved,
+    out_of_flow, slot_bounds, slot_line,
 };
 use meldframe_check::ApplyError;
 use meldframe_layout::{Rect, is_layout_frame};
 use meldframe_order::fracindex;
 use meldframe_order::sib_cmp;
-use meldframe_protocol::{Command, Node, NodeKind};
+use meldframe_protocol::{Command, Node};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
@@ -122,7 +122,7 @@ pub fn drop_many_commands(
         );
     }
     let ix = Index::new(nodes, rects);
-    let dec = decide(&ix, nodes, rects, tops, d.at);
+    let dec = decide(&ix, rects, tops, d.at);
     let mut out = match dec.aim {
         Block::None => Vec::new(),
         Block::Reorder(frame) => reorder_block(nodes, rects, &dec.block, frame, d.at),
@@ -172,7 +172,7 @@ pub fn drop_many_preview(
         return Some(Preview { slot, follow });
     }
     let ix = Index::new(nodes, rects);
-    let dec = decide(&ix, nodes, rects, tops, d.at);
+    let dec = decide(&ix, rects, tops, d.at);
     let slot = match dec.aim {
         Block::Reorder(frame) | Block::Into(frame) => {
             let skip: HashSet<&str> = dec.block.iter().map(|n| n.id.as_str()).collect();
@@ -239,7 +239,6 @@ pub fn top_nodes<'a>(nodes: &'a [Node], ids: &[String]) -> Result<Vec<&'a Node>,
 /// What a drop of these top nodes does, before the commands are worked out.
 fn decide<'a>(
     ix: &Index<'a>,
-    nodes: &'a [Node],
     rects: &[(String, Rect)],
     tops: Vec<&'a Node>,
     at: (f64, f64),
@@ -272,7 +271,8 @@ fn decide<'a>(
     {
         Block::Reorder(frame)
     } else {
-        match frame_under(ix, nodes, rects, &tops, at) {
+        let dragged: HashSet<&str> = tops.iter().map(|t| t.id.as_str()).collect();
+        match frame_under_in(&ix.by_id, rects, at, &dragged) {
             Some(t) if is_layout_frame(t) && t.id != frame.id => Block::Into(t),
             under => Block::Out(under),
         }
@@ -282,36 +282,6 @@ fn decide<'a>(
         aim,
         free,
     }
-}
-
-/// The front-most frame under the pointer that is not one of the dragged nodes or inside one (the last box drawn wins).
-fn frame_under<'a>(
-    ix: &Index<'a>,
-    nodes: &[Node],
-    rects: &[(String, Rect)],
-    tops: &[&Node],
-    at: (f64, f64),
-) -> Option<&'a Node> {
-    let top_ids: HashSet<&str> = tops.iter().map(|t| t.id.as_str()).collect();
-    let inside_a_top = |n: &Node| {
-        let mut cur = Some(n);
-        for _ in 0..=nodes.len() {
-            match cur {
-                Some(c) if top_ids.contains(c.id.as_str()) => return true,
-                Some(c) => cur = ix.parent(c),
-                None => return false,
-            }
-        }
-        false
-    };
-    rects.iter().rev().find_map(|(id, r)| {
-        let n = ix
-            .by_id
-            .get(id.as_str())
-            .copied()
-            .filter(|n| n.kind == NodeKind::Frame && contains(*r, at))?;
-        (!inside_a_top(n)).then_some(n)
-    })
 }
 
 /// The block put at the pointer within its own frame, in one piece; nothing when it is there already.

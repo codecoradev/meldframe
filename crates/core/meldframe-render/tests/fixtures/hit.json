@@ -1,0 +1,171 @@
+[
+  {
+    "name": "an empty scene hits nothing",
+    "nodes": [],
+    "probes": [{"at": [0, 0], "hit": null}, {"at": [-5, 12.5], "hit": null}]
+  },
+  {
+    "name": "the front-most sibling wins",
+    "nodes": [
+      {"id": "a", "type": "rect", "pos": "a0", "x": 0, "y": 0, "w": 100, "h": 100},
+      {"id": "b", "type": "rect", "pos": "a1", "x": 50, "y": 50, "w": 100, "h": 100}
+    ],
+    "probes": [
+      {"at": [10, 10], "hit": "a"},
+      {"at": [60, 60], "hit": "b"},
+      {"at": [140, 140], "hit": "b"},
+      {"at": [160, 160], "hit": null},
+      {"at": [-1, 10], "hit": null}
+    ]
+  },
+  {
+    "name": "a child is in front of its parent",
+    "nodes": [
+      {"id": "f", "type": "frame", "pos": "a0", "x": 0, "y": 0, "w": 200, "h": 200, "clip": false},
+      {"id": "c", "type": "rect", "parentId": "f", "pos": "a0", "x": 20, "y": 20, "w": 50, "h": 50}
+    ],
+    "probes": [
+      {"at": [30, 30], "hit": "c"},
+      {"at": [100, 100], "hit": "f"},
+      {"at": [250, 250], "hit": null}
+    ]
+  },
+  {
+    "name": "the offset of a child is inside its parent",
+    "nodes": [
+      {"id": "g", "type": "frame", "pos": "a0", "x": 100, "y": 100, "w": 200, "h": 200, "clip": false},
+      {"id": "c", "type": "rect", "parentId": "g", "pos": "a0", "x": 10, "y": 10, "w": 20, "h": 20}
+    ],
+    "probes": [
+      {"at": [115, 115], "hit": "c"},
+      {"at": [15, 15], "hit": null},
+      {"at": [200, 200], "hit": "g"}
+    ]
+  },
+  {
+    "name": "a part clipped away by the parent does not hit",
+    "nodes": [
+      {"id": "f", "type": "frame", "pos": "a0", "x": 0, "y": 0, "w": 100, "h": 100, "clip": true},
+      {"id": "c", "type": "rect", "parentId": "f", "pos": "a0", "x": 80, "y": 80, "w": 50, "h": 50, "clip": false}
+    ],
+    "probes": [
+      {"at": [10, 10], "hit": "f"},
+      {"at": [90, 90], "hit": "c"},
+      {"at": [99, 99], "hit": "c"},
+      {"at": [120, 120], "hit": null}
+    ]
+  },
+  {
+    "name": "a parent that does not clip lets a child hit outside it",
+    "nodes": [
+      {"id": "f", "type": "frame", "pos": "a0", "x": 0, "y": 0, "w": 100, "h": 100, "clip": false},
+      {"id": "c", "type": "rect", "parentId": "f", "pos": "a0", "x": 80, "y": 80, "w": 50, "h": 50, "clip": false}
+    ],
+    "probes": [
+      {"at": [90, 90], "hit": "c"},
+      {"at": [120, 120], "hit": "c"},
+      {"at": [140, 140], "hit": null}
+    ]
+  },
+  {
+    "name": "a clip is the overlap of every clipping ancestor, not the nearest one",
+    "nodes": [
+      {"id": "o", "type": "frame", "pos": "a0", "x": 0, "y": 0, "w": 100, "h": 100, "clip": true},
+      {"id": "i", "type": "frame", "parentId": "o", "pos": "a0", "x": 50, "y": 50, "w": 100, "h": 100, "clip": true},
+      {"id": "c", "type": "rect", "parentId": "i", "pos": "a0", "x": 0, "y": 0, "w": 200, "h": 200, "clip": false}
+    ],
+    "probes": [
+      {"at": [40, 40], "hit": "o"},
+      {"at": [60, 60], "hit": "c"},
+      {"at": [75, 75], "hit": "c"},
+      {"at": [120, 120], "hit": null},
+      {"at": [200, 200], "hit": null}
+    ]
+  },
+  {
+    "name": "a frame clipped by its parent does not hit outside the parent either",
+    "nodes": [
+      {"id": "o", "type": "frame", "pos": "a0", "x": 0, "y": 0, "w": 100, "h": 100, "clip": true},
+      {"id": "i", "type": "frame", "parentId": "o", "pos": "a0", "x": 50, "y": 50, "w": 100, "h": 100, "clip": false}
+    ],
+    "probes": [
+      {"at": [75, 75], "hit": "i"},
+      {"at": [120, 120], "hit": null}
+    ]
+  },
+  {
+    "name": "the left and top edges are in, the right and bottom edges are out",
+    "nodes": [
+      {"id": "a", "type": "rect", "pos": "a0", "x": 0, "y": 0, "w": 100, "h": 100},
+      {"id": "b", "type": "rect", "pos": "a1", "x": 100, "y": 0, "w": 100, "h": 100}
+    ],
+    "probes": [
+      {"at": [100, 50], "hit": "b"},
+      {"at": [99.999, 50], "hit": "a"},
+      {"at": [0, 0], "hit": "a"},
+      {"at": [50, 0], "hit": "a"},
+      {"at": [200, 50], "hit": null},
+      {"at": [50, 100], "hit": null}
+    ]
+  },
+  {
+    "name": "a box with no width or no height is never under a point",
+    "nodes": [
+      {"id": "z", "type": "rect", "pos": "a0", "x": 10, "y": 10, "w": 0, "h": 20},
+      {"id": "y", "type": "rect", "pos": "a1", "x": 40, "y": 10, "w": 20, "h": 0}
+    ],
+    "probes": [
+      {"at": [10, 15], "hit": null},
+      {"at": [50, 10], "hit": null}
+    ]
+  },
+  {
+    "name": "a node whose parent is not in the file is a root",
+    "nodes": [
+      {"id": "o", "type": "rect", "parentId": "gone", "pos": "a0", "x": 5, "y": 5, "w": 10, "h": 10}
+    ],
+    "probes": [
+      {"at": [7, 7], "hit": "o"},
+      {"at": [20, 20], "hit": null}
+    ]
+  },
+  {
+    "name": "a parent is drawn with its children before the next sibling, so the next sibling covers them",
+    "nodes": [
+      {"id": "p1", "type": "frame", "pos": "a0", "x": 0, "y": 0, "w": 100, "h": 100, "clip": false},
+      {"id": "c1", "type": "rect", "parentId": "p1", "pos": "a0", "x": 0, "y": 0, "w": 50, "h": 50},
+      {"id": "p2", "type": "frame", "pos": "a1", "x": 0, "y": 0, "w": 100, "h": 100, "clip": false}
+    ],
+    "probes": [
+      {"at": [10, 10], "hit": "p2"},
+      {"at": [200, 200], "hit": null}
+    ]
+  },
+  {
+    "name": "an ellipse and a text are their boxes",
+    "nodes": [
+      {"id": "e", "type": "ellipse", "pos": "a0", "x": 0, "y": 0, "w": 100, "h": 50},
+      {"id": "t", "type": "text", "pos": "a1", "text": "Hi", "x": 200, "y": 0, "w": 40, "h": 20}
+    ],
+    "probes": [
+      {"at": [1, 1], "hit": "e"},
+      {"at": [205, 5], "hit": "t"},
+      {"at": [150, 5], "hit": null}
+    ]
+  },
+  {
+    "name": "a child of an auto layout row is where the flow puts it, not where it is stored",
+    "layout": true,
+    "nodes": [
+      {"id": "f", "type": "frame", "pos": "a0", "x": 0, "y": 0, "w": 300, "h": 100, "layout": "row", "gap": 10, "padding": 10, "clip": false},
+      {"id": "a", "type": "rect", "parentId": "f", "pos": "a0", "x": 200, "y": 200, "w": 50, "h": 50},
+      {"id": "b", "type": "rect", "parentId": "f", "pos": "a1", "x": 100, "y": 100, "w": 50, "h": 50}
+    ],
+    "probes": [
+      {"at": [20, 20], "hit": "a"},
+      {"at": [80, 20], "hit": "b"},
+      {"at": [65, 20], "hit": "f"},
+      {"at": [210, 210], "hit": null}
+    ]
+  }
+]
