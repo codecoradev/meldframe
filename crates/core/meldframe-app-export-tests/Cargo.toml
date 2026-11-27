@@ -12,6 +12,7 @@ kind = "tool"
 [dev-dependencies]
 meldframe-app = { path = "../../app/meldframe-app" }
 meldframe-app-model = { path = "../meldframe-app-model" }
+meldframe-app-rules = { path = "../meldframe-app-rules" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 variables-import-dialog = { path = "../../features/variables-import/variables-import-dialog" }
 serde_json = "1"
