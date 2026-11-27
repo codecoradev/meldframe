@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { resolveScene } from '@meldframe/web-canvas/scene';
+import { captureBounds, captureRectOf, resolveScene } from '@meldframe/web-canvas/scene';
+import { MAX_BLUR } from '@meldframe/web-paint/shadow';
 import { describe, expect, it } from 'vitest';
 import { type PaintedBox, sceneFromBoxes } from './scene';
 
@@ -60,6 +61,33 @@ describe('sceneFromBoxes', () => {
     expect(nodes.find((n) => n.id === 'e')?.shadows).toEqual([{ x: 3, y: 3, blur: 0, spread: -2, color: 0xff8800, alpha: 1 }]);
     expect(nodes.find((n) => n.id === 't')).not.toHaveProperty('shadows');
     expect(sceneFromBoxes(byName('border')).nodes.every((n) => !('shadows' in n))).toBe(true);
+  });
+  it('carries what a box paints beyond its rectangle, as the render step worked it out, and none for a box that paints inside it', () => {
+    const border = sceneFromBoxes(byName('border')).nodes;
+    expect(border.find((n) => n.id === 'r')?.paintBounds).toEqual({ left: 6, top: 6, right: 6, bottom: 6 });
+    expect(border.find((n) => n.id === 'e')?.paintBounds).toEqual({ left: 3, top: 3, right: 3, bottom: 3 });
+    for (const id of ['f', 't', 'z']) expect(border.find((n) => n.id === id), id).not.toHaveProperty('paintBounds');
+    const shadows = sceneFromBoxes(byName('shadows')).nodes;
+    expect(shadows.find((n) => n.id === 'f')?.paintBounds).toEqual({ left: 12, top: 8, right: 12, bottom: 16 });
+    expect(shadows.find((n) => n.id === 't')).not.toHaveProperty('paintBounds');
+    expect(sceneFromBoxes(byName('opacity')).nodes.every((n) => !('paintBounds' in n))).toBe(true);
+  });
+  it('the capture box of the fixtures is the one the TypeScript reach gave before it moved to the render step', () => {
+    const rs = resolveScene(sceneFromBoxes(byName('paint reach'))).scene;
+    // The numbers the capture tests of web-canvas and the TypeScript reach (`borderReach` and `shadowBounds`, now removed from
+    // web-paint) gave before the reach moved to the render step: a shadow with a blur, a border and a shadow together, a shadow
+    // that leaves nothing, a shadow with no alpha, a shadow of a child that goes out of its parent.
+    expect(captureRectOf(rs, 'a')).toEqual({ x: 90, y: 94, w: 70, h: 60 });
+    expect(captureRectOf(rs, 'b')).toEqual({ x: 294, y: 94, w: 78, h: 52 });
+    expect(captureRectOf(rs, 'c')).toEqual({ x: 500, y: 100, w: 50, h: 40 });
+    expect(captureRectOf(rs, 'z')).toEqual({ x: 500, y: 400, w: 10, h: 10 });
+    expect(captureRectOf(rs, 'k')).toEqual({ x: 890, y: 100, w: 50, h: 20 });
+    // The cap of the reach is the cap of the blur the canvas draws: a blur of 1e9 reaches MAX_BLUR on every side.
+    expect(captureRectOf(rs, 'h')).toEqual({ x: 500 - MAX_BLUR, y: 300 - MAX_BLUR, w: 10 + 2 * MAX_BLUR, h: 10 + 2 * MAX_BLUR });
+    // The page: `h` is the widest, on both sides.
+    const page = captureBounds(rs)!;
+    expect(page.x).toBe(500 - MAX_BLUR);
+    expect(page.x + page.w).toBe(500 + 10 + MAX_BLUR);
   });
   it('a missing parent and a cycle arrive as the Rust step ordered them', () => {
     expect(sceneFromBoxes(byName('a missing parent makes a root')).nodes[0]).toMatchObject({ id: 'a', parent: null });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { borderReach, borderRing, sameBorder, type SceneBorder } from './border';
+import { borderRing, sameBorder, type SceneBorder } from './border';
 
 const border = (o: Partial<SceneBorder> = {}): SceneBorder => ({ width: 6, color: 0xff0000, alpha: 1, position: 'inside', ...o });
 
@@ -62,14 +62,5 @@ describe('sameBorder', () => {
     expect(sameBorder(undefined, undefined)).toBe(true);
     expect(sameBorder(border(), undefined)).toBe(false);
     for (const o of [{ width: 7 }, { color: 1 }, { alpha: 0.5 }, { position: 'outside' as const }]) expect(sameBorder(border(), border(o))).toBe(false);
-  });
-});
-
-describe('borderReach', () => {
-  it('is how far the border lies outside the box: all of the width outside, half of it centred, none inside', () => {
-    expect(borderReach(border({ position: 'outside' }))).toBe(6);
-    expect(borderReach(border({ position: 'center' }))).toBe(3);
-    expect(borderReach(border({ position: 'inside' }))).toBe(0);
-    expect(borderReach(undefined)).toBe(0);
   });
 });
