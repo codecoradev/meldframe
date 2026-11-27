@@ -456,7 +456,7 @@ Each issue moves a rule into the Rust app layer with a failing test first at the
 
 **E8.1.3 The PNG plan and the capture decisions (M; T13, Q7).** Depends on: T16 (done, `paint_bounds`). Seam: the app test harness and the export tests.
 - [ ] The app layer decides the rectangle, the scale, the file name and the refusal of a PNG export and of a capture request; the drawing and the upload stay effects that a front end carries out.
-- [ ] The `Effect` for a raster request carries what the front end needs (the rectangle from `paint_bounds`, a scale from 0.5x to 4x, the target), the front end hands back bytes or a failure as `Action::Wire`, and a test covers the 8 MB cap and a refused scale.
+- [ ] The `Effect` for a raster request carries what the front end needs (the rectangle from `paint_bounds`, a scale from 0.5x to 4x, the target), the front end hands back bytes or a failure as `Action::Wire`, and a test covers the 4 MiB cap of a capture's upload (an export has no byte cap, only 4096 by 4096 pixels) and a refused scale.
 
 **E8.1.4 The camera, the viewport and the pointer state machine in Rust (L, two parts; reverses decision 43 Q9 for the second front end).** Depends on: E8.1.1, E8.1.2. Seam: the app test harness.
 - [ ] Part 1, the camera: pan, zoom (wheel, pinch, keys, and the zoom menu: in, out, 100%, fit all, zoom to selection), the viewport size and the world-to-screen mapping are `AppState` and actions. Fit and zoom to selection are pure functions with tests, and the zoom limits and the scale of overlays that do not scale are rules in Rust.
