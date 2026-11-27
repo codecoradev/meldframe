@@ -2,7 +2,7 @@ import { createRawSnippet } from 'svelte';
 import { render } from 'svelte/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { barClear, fileItems, PANEL_INSET, reserved, rightWidth } from './layout';
-import { layoutKey, paletteBlocked, readOverlays } from './keys';
+import { layoutKey, menuOpen } from './keys';
 import { composeProps } from '@meldframe/web-chrome/compose';
 import { isMac, labels } from './platform';
 import Layout from './Layout.svelte';
@@ -39,23 +39,17 @@ describe('the keys of the layout', () => {
   });
 });
 
-describe('Ctrl+K over another overlay', () => {
-  const el = (role: string, testId?: string) => ({ getAttribute: (n: string) => (n === 'role' ? role : n === 'data-testid' ? (testId ?? null) : null) });
-  const root = (...els: ReturnType<typeof el>[]) => ({ querySelectorAll: () => els });
+// A menu keeps its open state in the component library, so the page asks the DOM and does not send Ctrl+K while one is open. Whether a dialog
+// is open is the app layer's state, and its rule (the palette stays shut over a dialog) is tested there (`overlays.rs`).
+describe('Ctrl+K over a menu', () => {
+  const root = (...selectors: string[]) => ({ querySelector: (s: string) => (selectors.some((x) => s.includes(x)) ? {} : null) });
 
-  it('reads the menus and dialogs that are open, by role and test id', () => {
-    expect(readOverlays(root(el('menu'), el('dialog', 'export-dialog')))).toEqual([{ role: 'menu', id: null }, { role: 'dialog', id: 'export-dialog' }]);
-    expect(readOverlays(root())).toEqual([]);
+  it('sees an open menu by its role', () => {
+    expect(menuOpen(root('role=menu'))).toBe(true);
   });
-  it('does not open over an open menu or a dialog of its own, and not while the Export dialog is open', () => {
-    expect(paletteBlocked([{ role: 'menu', id: null }], false)).toBe(true);
-    expect(paletteBlocked([{ role: 'dialog', id: 'export-dialog' }], false)).toBe(true);
-    expect(paletteBlocked([], true)).toBe(true);
-  });
-  it('opens over nothing, over the shortcut sheet, and closes from itself', () => {
-    expect(paletteBlocked([], false)).toBe(false);
-    expect(paletteBlocked([{ role: 'dialog', id: 'shortcut-hint' }], false)).toBe(false);
-    expect(paletteBlocked([{ role: 'dialog', id: 'palette' }], false)).toBe(false);
+  it('sees nothing else: a dialog, the shortcut sheet and the palette are not menus', () => {
+    expect(menuOpen(root())).toBe(false);
+    expect(menuOpen(root('role=dialog'))).toBe(false);
   });
 });
 

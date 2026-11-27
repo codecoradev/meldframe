@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
   import { onDestroy, onMount, untrack } from 'svelte';
-  import type { Action, RightTab } from '@meldframe/protocol';
+  import type { Action, Overlay, RightTab } from '@meldframe/protocol';
   import { HOME, formatZoom, type Camera } from '@meldframe/web-canvas/camera';
   import { displayText, type Engine } from '@meldframe/web-link/engine';
   import type { LayoutSwitch } from '@meldframe/web-link/layoutswitch';
@@ -24,7 +24,7 @@
   import Toast from '@meldframe/web-feedback/Toast.svelte';
   import NoFrames from '@meldframe/web-feedback/NoFrames.svelte';
   import { Toaster, type ToastView } from '@meldframe/web-feedback/toaster';
-  import { layoutKey, paletteBlocked, readOverlays } from '@meldframe/web-shell/keys';
+  import { layoutKey, menuOpen } from '@meldframe/web-shell/keys';
   import { bindParts, shellParts } from './react-pilot/shell'; // the palette and the shortcut sheet, Svelte or React with /?react=palette (E7.3, S4); the bind picker with /?react=variables (S5)
   import { zoomCamera } from '@meldframe/web-shell/zoom';
   import LayersPanel from './react-pilot/LayersPanelSwitch.svelte'; // LayersPanel.svelte of web-panels, or its React copy with /?react=layers (E7.3, S5)
@@ -82,10 +82,9 @@
   const shown = $derived(previewScene(scene, preview));
   // The line of the slot in a flow that a dragged node would land in (a drag of a child of an auto layout frame).
   const indicator = $derived(preview?.kind === 'slot' ? preview.line : null);
-  // The one overlay of the layout that can be open: the shortcut sheet or the command palette.
-  let overlay = $state<'help' | 'palette' | null>(null);
-
   const dispatch = (a: Action) => void engine.dispatch(a);
+  // The one overlay of the layout that is open, the shortcut sheet or the command palette, is the app layer's (`state.overlay`).
+  const setOverlay = (overlay: Overlay, open: boolean) => dispatch({ type: 'overlay', op: { type: open ? 'open' : 'close', overlay } });
 
   // The touch rings of other actors are the app layer's (`state.activity.touches`); the canvas draws them on its own clock.
   const noRings: Touched[] = [];
@@ -264,8 +263,9 @@
     const key = layoutKey(e);
     if (key) {
       e.preventDefault();
-      if (key === 'palette' && paletteBlocked(readOverlays(document), snap.state.export.dialog !== null)) return;
-      if (key === 'help' || key === 'palette') overlay = overlay === key ? null : key;
+      // A menu is the library's: the key is not sent while one is open. The dialogs are the app layer's, and it keeps the palette shut over them.
+      if (key === 'palette' && menuOpen(document)) return;
+      if (key === 'help' || key === 'palette') dispatch({ type: 'overlay', op: { type: 'toggle', overlay: key } });
       else dispatch({ type: 'togglePanel', panel: key === 'layers' ? 'layers' : 'properties' });
       return;
     }
@@ -318,8 +318,8 @@
   zoomText={formatZoom(camera.zoom)}
   onZoom={(c) => (c === 'fit' ? canvas?.fitAll() : c === 'fit-selection' ? canvas?.fitSelection() : canvas && (camera = zoomCamera(c, camera, canvas.centre())))}
   connection={{ state: snap.state.connection.type, text: connectionLabel(snap.state.connection) }}
-  helpOpen={overlay === 'help'} onHelp={(open) => (overlay = open ? 'help' : null)}
-  paletteOpen={overlay === 'palette'} onPalette={(open) => (overlay = open ? 'palette' : null)}
+  helpOpen={snap.state.overlay === 'help'} onHelp={(open) => setOverlay('help', open)}
+  paletteOpen={snap.state.overlay === 'palette'} onPalette={(open) => setOverlay('palette', open)}
   {autoLayout} onAutoLayout={layout ? () => (autoLayout = toggleWithNotice(layout, showNotice)) : undefined}
   tab={snap.state.rightTab} activityBadge={snap.state.activity.unreviewedCount}
   onTab={goTab}
