@@ -4,6 +4,16 @@ import type { Modifiers } from "./Modifiers";
 
 /**
  * A key pressed (`Action::Key`).
+ *
+ * What the host still does, because the app layer has no state for it:
+ *
+ * - It does not send an arrow key while a drag is going on (the TypeScript returned before dispatching one). The app layer has
+ *   no gesture state. An arrow key with no selection may be sent: it is a no-op there.
+ * - It does not send Ctrl or Command+K while a menu is open (a menu keeps its open state in the component library, and
+ *   `KeyFocus` cannot say that one is open elsewhere), and it still calls `preventDefault` on that key itself, as the
+ *   TypeScript did.
+ * - It keeps the keys of the camera and of a gesture: zoom, fit, Space, and the Escape that abandons a drag. Escape here is
+ *   the app's own, for a text edit or an overlay, and only without a modifier.
  */
 export type KeyInput = { 
 /**
@@ -25,6 +35,7 @@ repeat: boolean,
  */
 composing: boolean, 
 /**
- * Where the focus is.
+ * Where the focus is. Required: a host that leaves it out would let a key typed in a field act on the selection, so there
+ * is no default, and a key with no `focus` is refused when the action is read.
  */
 focus: KeyFocus, };
