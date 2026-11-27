@@ -14,13 +14,16 @@ impl App {
     /// Turn the laid-out scene on or off. Returns the effect the host carries out: `Effect::Render` with an empty
     /// list (everything) when the flag changed, nothing when it did not. No event is raised, so a front end that reads the
     /// scene on events must read it again itself after this call. The only state it changes is the properties of the
-    /// selected node: they show the box the canvas draws (`Properties::position_locked`), so they are brought up to date.
+    /// selected node: they show the box the canvas draws (`Properties::position_locked`), so they are brought up to date; so are
+    /// the plans of the PNG export (`AppState::export.png`), with `Event::ExportChanged` when one changed.
     pub fn set_layout_on_canvas(&mut self, on: bool) -> Vec<Effect> {
         if self.canvas.enabled == on {
             return Vec::new();
         }
         self.canvas.enabled = on;
         self.refresh_properties();
+        // The plan of the PNG export reads the scene, so it moves with the flag (`ExportChanged` when it did).
+        self.refresh_png();
         redraw()
     }
 

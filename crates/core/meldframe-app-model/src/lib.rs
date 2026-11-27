@@ -28,6 +28,7 @@ pub mod manage;
 pub mod overlay;
 pub mod preset;
 pub mod property;
+pub mod raster;
 pub mod state;
 pub mod text_edit;
 pub mod text_field;
@@ -58,6 +59,10 @@ pub use manage::{
     NameDraft, NameError, NameWarning, Removal, RenameField,
 };
 pub use overlay::{Overlay, OverlayOp};
+pub use raster::{
+    EXPORT_MAX_PIXELS, MAX_SCALE, MIN_SCALE, PngOp, PngPlan, PngSink, PngState, RasterRect,
+    RasterSink, RasterSize, SCALES,
+};
 pub use state::{
     AppState, Connection, FieldBinding, FillKind, History, Panel, Panels, Properties, Sections,
     Tool,

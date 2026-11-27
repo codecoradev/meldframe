@@ -15,6 +15,7 @@ use meldframe_app_rules::canvas::CanvasLayout;
 use meldframe_app_rules::checkpoints::Checkpoints;
 use meldframe_app_rules::level::{self, Level};
 use meldframe_app_rules::link::Link;
+use meldframe_app_rules::png::{Rasters, one_export_event};
 use meldframe_app_rules::retry::Retries;
 use meldframe_app_rules::review::Review;
 use meldframe_protocol::{Doc, Node, Variables};
@@ -45,6 +46,8 @@ pub struct App {
     pub(crate) canvas: CanvasLayout,
     /// The painted boxes for the last epoch (`crate::scene`).
     pub(crate) scene_cache: SceneCache,
+    /// The images being made for a PNG export and for agents' captures, and the plans of the export (`crate::raster`).
+    pub(crate) raster: Rasters,
 }
 
 impl App {
@@ -94,6 +97,7 @@ impl App {
             import_ids: Vec::new(),
             canvas: CanvasLayout::default(),
             scene_cache: SceneCache::default(),
+            raster: Rasters::default(),
         };
         app.refresh(&mut Vec::new());
         app.events.clear();
@@ -165,6 +169,7 @@ impl App {
             return Vec::new();
         }
         self.level = level::of(&action, ui);
+        let raised = self.events.len();
         let manage = self.state.manage.clone();
         let confirm = self.state.confirm.clone();
         let text_edit = self.state.text_edit.clone();
@@ -204,6 +209,7 @@ impl App {
             Action::Tick { now_ms } => self.tick(now_ms, &mut fx),
             Action::Frame { now_ms, frame } => self.frame(now_ms, frame, &mut fx),
             Action::Activity { op } if op.is_view() => self.activity_view(op, &mut fx),
+            Action::Png { op } => self.png_action(op, &mut fx),
             a if a.is_assets() => self.assets_action(a, &mut fx),
             a if a.is_activity() => self.activity_action(a, &mut fx),
             a if a.is_checkpoint() => self.checkpoint_action(a, &mut fx),
@@ -237,6 +243,7 @@ impl App {
             Level::Full => self.refresh(&mut fx),
         }
         self.settle_confirm();
+        one_export_event(&mut self.events, raised);
         self.settle_overlay();
         self.settle_text_edit();
         self.text_edit_changed(&text_edit);

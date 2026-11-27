@@ -2,6 +2,7 @@
 
 use crate::activity::ReviewState;
 use crate::checkpoint::CheckpointKind;
+use crate::raster::{RasterRect, RasterSink};
 use meldframe_protocol::Command;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -86,6 +87,17 @@ pub enum Effect {
     /// `GET /v1/files/{file}/checkpoints/{n}/state`. The file at the checkpoint comes back as
     /// `Action::CheckpointStateLoaded`, a failure as `Action::CheckpointRequestFailed`.
     FetchCheckpointState { n: u32 },
+    /// Draw `rect` (world space) at `scale` as a PNG of `width` by `height` pixels, offscreen and without the overlay, and
+    /// hand the bytes to `to`. `file` is the name to save a download under, safe to use as it is (the app layer made it from
+    /// the frame's name with `meldframe-text`).
+    Raster {
+        rect: RasterRect,
+        scale: f64,
+        width: u32,
+        height: u32,
+        file: String,
+        to: RasterSink,
+    },
     /// Redraw. The nodes named changed; an empty list means everything.
     Render { nodes: Vec<String> },
 }

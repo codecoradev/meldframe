@@ -14,7 +14,8 @@ use crate::state::{Panel, Tool};
 use crate::text_edit::TextEditOp;
 use crate::variables::{BindField, VariableValue};
 use crate::{
-    confirm::ActivityOp, manage::ManageOp, overlay::OverlayOp, text_field::TypedText, wire::Wire,
+    confirm::ActivityOp, manage::ManageOp, overlay::OverlayOp, raster::PngOp,
+    text_field::TypedText, wire::Wire,
 };
 use meldframe_protocol::{Command, ImageFit, Node, VarType, Variables};
 use serde::{Deserialize, Serialize};
@@ -246,6 +247,10 @@ pub enum Action {
     /// `keys`) and dispatches that action. One it answers raises `Event::KeyHandled`; the rest is on `KeyInput`.
     Key {
         input: KeyInput,
+    },
+    /// A step of the PNG export or of an agent's capture (`PngOp`): `AppState::export.png` is the plan.
+    Png {
+        op: PngOp,
     },
     /// A raw answer of the server or a raw frame (`Wire`): the app parses and checks it, then acts or ignores it.
     Wire {
