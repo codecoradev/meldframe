@@ -1,6 +1,6 @@
-//! What running an entry makes: the action the app dispatches, the host switch, or the part the front end still owns.
+//! What running an entry makes: the action the app dispatches, or the host switch.
 
-use super::entries::{Run, Zoom};
+use super::entries::Run;
 use meldframe_app_model::{Action, AppState, Overlay, OverlayOp};
 
 /// What a run comes to in a state.
@@ -15,8 +15,6 @@ pub enum Plan {
     /// Turn "Auto layout on canvas" on or off: a host setting of the app, not an action. Remembering the choice and the notice stay
     /// with the host.
     SetLayoutOnCanvas(bool),
-    /// The front end does it (the camera is not in the app layer yet).
-    Host(Zoom),
     /// There is nothing for it to act on in this state.
     Nothing,
 }
@@ -46,7 +44,7 @@ pub fn plan(run: Run, state: &AppState, auto_layout: bool, centre: (f64, f64)) -
                 parent: None,
             })
         }
-        Run::Zoom(zoom) => Plan::Host(zoom),
+        Run::Zoom(command) => Plan::Dispatch(Action::zoom(command)),
         Run::AutoLayout => Plan::SetLayoutOnCanvas(!auto_layout),
         Run::TogglePanel(panel) => Plan::Dispatch(Action::TogglePanel { panel }),
         Run::Export if target.is_some() => Plan::Dispatch(Action::OpenExport {}),

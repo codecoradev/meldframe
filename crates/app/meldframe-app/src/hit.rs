@@ -24,7 +24,7 @@ impl App {
 
     /// The number that names the index `hit` reads: it goes up when the document, the measurer or the `layout_on_canvas` flag
     /// changed, which are the things a box's place depends on, and stays when only the modes picked change (a mode changes
-    /// what is painted, never where a box is) and for a camera, which the app layer does not hold. Asking builds nothing.
+    /// what is painted, never where a box is) and for a camera, which is no input of the scene. Asking builds nothing.
     pub fn hit_index_epoch(&self) -> u64 {
         self.canvas.hit_epoch(self.replica.revision())
     }

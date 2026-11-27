@@ -6,7 +6,7 @@
 //! The rows are the ones the TypeScript editor answered to (`packages/web-shell/src/shortcuts.ts`, `web-document/src/edit.ts`,
 //! `web-shell/src/keys.ts`), with the modifiers each handler asked for.
 
-use meldframe_app_model::{Direction, Overlay, Panel, Tool};
+use meldframe_app_model::{Direction, Overlay, Panel, Tool, ZoomCommand};
 
 /// Whether a modifier has to be held, has to be free, or does not matter for a combo.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,6 +34,10 @@ pub struct Combo {
     pub key: &'static str,
     /// When set, the physical key decides (`Digit1`), and `key` is what the sheet shows.
     pub code: Option<&'static str>,
+    /// What the key types with Shift held on a US layout (`!` for `1`, `_` for `-`). Set, the combo also answers this character:
+    /// with a `code`, when the front end gives no physical code (`KeyInput::code` may be empty; a press with a code is still
+    /// decided by the code), and without a `code`, always, as the character `key` does.
+    pub typed: Option<&'static str>,
     pub command: bool,
     pub alt: Held,
     pub shift: Held,
@@ -45,6 +49,7 @@ impl Combo {
         Combo {
             key,
             code: None,
+            typed: None,
             command: false,
             alt: Held::Not,
             shift: Held::Not,
@@ -61,6 +66,12 @@ impl Combo {
     }
     pub const fn shift(self, shift: Held) -> Combo {
         Combo { shift, ..self }
+    }
+    pub const fn typed(self, typed: &'static str) -> Combo {
+        Combo {
+            typed: Some(typed),
+            ..self
+        }
     }
     pub const fn code(self, code: &'static str) -> Combo {
         Combo {
@@ -86,7 +97,9 @@ pub enum Makes {
     Cancel,
     TogglePanel(Panel),
     ToggleOverlay(Overlay),
-    /// The front end answers it (a gesture, the camera, the field of a text edit): the app layer makes nothing of it.
+    /// A zoom key: the camera runs the command (`Action::Camera`). The wheel, the pinch and a drag with Space held are gestures.
+    Zoom(ZoomCommand),
+    /// The front end answers it (a gesture, the field of a text edit): the app layer makes nothing of it.
     Host,
 }
 
@@ -95,6 +108,9 @@ pub enum Makes {
 pub struct Binding {
     pub combo: Combo,
     pub makes: Makes,
+    /// The key goes on making it while it is held (a repeat is no editor key for any other binding: a held Delete or undo key
+    /// does not delete or undo a step for each repeat). The zoom keys `+`, `=` and `-` do, as they always did.
+    pub repeats: bool,
 }
 
 /// One row of the sheet: a thing to do, and the ways to do it.
@@ -116,7 +132,11 @@ pub struct Group {
 }
 
 const fn bind(combo: Combo, makes: Makes) -> Binding {
-    Binding { combo, makes }
+    Binding {
+        combo,
+        makes,
+        repeats: false,
+    }
 }
 const fn row(id: &'static str, name: &'static str, bindings: &'static [Binding]) -> Row {
     Row {
@@ -129,6 +149,16 @@ const fn row(id: &'static str, name: &'static str, bindings: &'static [Binding])
 /// A tool letter: Shift is free (Caps Lock and a Shift held by habit still pick the tool).
 const fn tool(letter: &'static str, tool: Tool) -> Binding {
     bind(Combo::key(letter).shift(Held::Either), Makes::SetTool(tool))
+}
+const fn zoom_key(combo: Combo, command: ZoomCommand) -> Binding {
+    bind(combo, Makes::Zoom(command))
+}
+/// A zoom step: a held key goes on zooming.
+const fn zoom_step(combo: Combo, command: ZoomCommand) -> Binding {
+    Binding {
+        repeats: true,
+        ..zoom_key(combo, command)
+    }
 }
 const fn on_row(combo: Combo) -> Binding {
     bind(combo, Makes::Host)
@@ -212,20 +242,36 @@ pub static TABLE: &[Group] = &[
                 "zoom-in",
                 "Zoom in",
                 &[
-                    on_row(Combo::key("+").shift(Held::Either)),
-                    on_row(Combo::key("=")),
+                    zoom_step(Combo::key("+").shift(Held::Either), ZoomCommand::In),
+                    zoom_step(Combo::key("="), ZoomCommand::In),
                 ],
             ),
-            row("zoom-out", "Zoom out", &[on_row(Combo::key("-"))]),
+            row(
+                "zoom-out",
+                "Zoom out",
+                // Read by the character, as the zoom in rows are: the numpad minus and a layout that puts `-` on another
+                // physical key (German) zoom out too, and Shift and the minus key types `_` on a US layout.
+                &[zoom_step(
+                    Combo::key("-").typed("_").shift(Held::Either),
+                    ZoomCommand::Out,
+                )],
+            ),
+            // Shift and a digit, by the physical key: the character it types depends on the layout (`!` on a US one).
             row(
                 "fit-all",
                 "Fit all",
-                &[on_row(Combo::key("1").shift(Held::Yes))],
+                &[zoom_key(
+                    Combo::key("1").code("Digit1").typed("!").shift(Held::Yes),
+                    ZoomCommand::Fit,
+                )],
             ),
             row(
                 "fit-selection",
                 "Zoom to selection",
-                &[on_row(Combo::key("2").shift(Held::Yes))],
+                &[zoom_key(
+                    Combo::key("2").code("Digit2").typed("@").shift(Held::Yes),
+                    ZoomCommand::FitSelection,
+                )],
             ),
             row("scroll", "Pan", &[on_row(Combo::key("Scroll"))]),
             row(

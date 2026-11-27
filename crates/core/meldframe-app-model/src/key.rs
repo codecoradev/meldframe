@@ -37,8 +37,9 @@ pub enum KeyFocus {
 /// - It does not send Ctrl or Command+K while a menu is open (a menu keeps its open state in the component library, and
 ///   `KeyFocus` cannot say that one is open elsewhere), and it still calls `preventDefault` on that key itself, as the
 ///   TypeScript did.
-/// - It keeps the keys of the camera and of a gesture: zoom, fit, Space, and the Escape that abandons a drag. Escape here is
-///   the app's own, for a text edit or an overlay, and only without a modifier.
+/// - It keeps the keys of a gesture: Space and the Escape that abandons a drag. Escape here is the app's own, for a text edit
+///   or an overlay, and only without a modifier. The zoom keys (`+`, `=`, `-`, Shift+1 and Shift+2) are the app's: they run the
+///   camera (`Action::Camera`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

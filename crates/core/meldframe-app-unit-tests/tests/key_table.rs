@@ -5,7 +5,7 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
-use meldframe_app::{Direction, KeyFocus, KeyInput, Modifiers, Overlay, Panel, Tool};
+use meldframe_app::{Direction, KeyFocus, KeyInput, Modifiers, Overlay, Panel, Tool, ZoomCommand};
 use meldframe_app_rules::keys::{Binding, Combo, Makes, TABLE, decide};
 
 fn bindings() -> Vec<(&'static str, Binding)> {
@@ -107,6 +107,10 @@ fn every_makes() -> Vec<Makes> {
         Makes::TogglePanel(Panel::Properties),
         Makes::ToggleOverlay(Overlay::Help),
         Makes::ToggleOverlay(Overlay::Palette),
+        Makes::Zoom(ZoomCommand::In),
+        Makes::Zoom(ZoomCommand::Out),
+        Makes::Zoom(ZoomCommand::Fit),
+        Makes::Zoom(ZoomCommand::FitSelection),
     ];
     for m in &all {
         match m {
@@ -119,6 +123,7 @@ fn every_makes() -> Vec<Makes> {
             | Makes::Cancel
             | Makes::TogglePanel(_)
             | Makes::ToggleOverlay(_)
+            | Makes::Zoom(_)
             | Makes::Host => {}
         }
     }
@@ -324,15 +329,8 @@ fn enter_and_escape_are_plain_keys() {
 
 #[test]
 fn the_keys_the_front_end_answers_make_nothing() {
-    for key in ["+", "=", "-", " ", "Tab", "Shift"] {
+    for key in [" ", "Tab", "Shift"] {
         assert_eq!(decide(&plain(key)), None, "{key}");
-    }
-    for digit in ["1", "2"] {
-        assert_eq!(
-            decide(&input(digit, "Digit1", SHIFT)),
-            None,
-            "Shift+{digit} fits the view"
-        );
     }
     for word in ["Scroll", "Click", "Double-click", "Space + drag"] {
         assert_eq!(decide(&plain(word)), None, "{word} is a gesture, not a key");
@@ -347,7 +345,8 @@ fn a_key_during_composition_a_repeat_or_in_a_field_is_never_an_editor_key() {
             assert_eq!(decide(&key), None, "{id} while composing");
             key.composing = false;
             key.repeat = true;
-            assert_eq!(decide(&key), None, "{id} repeating");
+            // a held key is no editor key, but the zoom steps (`+`, `=`, `-`), which go on zooming
+            assert_eq!(decide(&key), b.repeats.then_some(b.makes), "{id} repeating");
             key.repeat = false;
             key.focus = KeyFocus::TextField;
             assert_eq!(decide(&key), None, "{id} in a text field");

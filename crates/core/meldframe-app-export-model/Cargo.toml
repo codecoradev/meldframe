@@ -1,0 +1,17 @@
+[package]
+name = "meldframe-app-export-model"
+description = "The plain data of the exports of the app layer: the PNG of a frame (the plan, the scales, the sink, the steps of its action) and the Export dialog (its target, format and findings). A leaf of meldframe-app-model, which re-exports it, split off to keep that crate under the monolith threshold. Data only."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+ts-rs = { version = "12.0.1", features = ["no-serde-warnings"] }
+
+[lints]
+workspace = true

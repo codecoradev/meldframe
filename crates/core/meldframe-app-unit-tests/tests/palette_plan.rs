@@ -1,5 +1,4 @@
-//! What running each palette entry makes (issue E8.1.5): every entry id against the action it dispatches, the host switch or the
-//! part the front end keeps, and the states in which there is nothing for it to act on.
+//! What running each palette entry makes (issue E8.1.5): every entry id against the action it dispatches, the host switch, and the states in which there is nothing for it to act on.
 
 // Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
@@ -15,7 +14,6 @@ fn said(p: &Plan) -> Value {
     match p {
         Plan::Dispatch(a) => serde_json::to_value(a).unwrap(),
         Plan::SetLayoutOnCanvas(on) => json!({"layoutOnCanvas": on}),
-        Plan::Host(z) => json!({"host": format!("{z:?}")}),
         Plan::Nothing => json!("nothing"),
     }
 }
@@ -50,11 +48,26 @@ fn every_entry_makes_what_the_button_or_the_key_for_it_makes() {
         ("preset-phoneSmall", frame("phoneSmall", -187.0, -333.0)),
         ("preset-a4", frame("a4", -297.0, -421.0)),
         ("preset-letter", frame("letter", -306.0, -396.0)),
-        ("zoom-in", json!({"host": "In"})),
-        ("zoom-out", json!({"host": "Out"})),
-        ("zoom-reset", json!({"host": "Reset"})),
-        ("zoom-fit", json!({"host": "Fit"})),
-        ("zoom-fit-selection", json!({"host": "FitSelection"})),
+        (
+            "zoom-in",
+            json!({"type": "camera", "op": {"type": "zoom", "command": "in"}}),
+        ),
+        (
+            "zoom-out",
+            json!({"type": "camera", "op": {"type": "zoom", "command": "out"}}),
+        ),
+        (
+            "zoom-reset",
+            json!({"type": "camera", "op": {"type": "zoom", "command": "reset"}}),
+        ),
+        (
+            "zoom-fit",
+            json!({"type": "camera", "op": {"type": "zoom", "command": "fit"}}),
+        ),
+        (
+            "zoom-fit-selection",
+            json!({"type": "camera", "op": {"type": "zoom", "command": "fitSelection"}}),
+        ),
         ("auto-layout", json!({"layoutOnCanvas": true})),
         (
             "toggle-layers",
