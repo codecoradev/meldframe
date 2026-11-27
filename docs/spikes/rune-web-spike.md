@@ -289,6 +289,49 @@ WebGPU is available on Android Chrome 158 — and the screen is 393×873 @2.75.
   produced frames within 120 ms at the 60 Hz rate (7–8 frames per click window, 0
   delayed) — the hit → action → rerun loop is not a latency problem on desktop.
 
+## Results — session 7 (29 Nov 2026): other browsers, and the road to APK / IPA
+
+**Other engines** (same Mac, Playwright 1.55: Firefox 141, WebKit = Safari 26 engine, headed,
+scene 2,000, wheel pan pumped for 4 s, in-page rAF monitor; script `xbrowser.mjs` in the
+harness). `navigator.gpu` is false in all three here, so Rune ran its WebGL2/2D path.
+
+| engine | mode | rAF p50 | p95 | max | frames in 4 s |
+|---|---|---|---|---|---|
+| Chromium | shape | 16.7 | 17.6 | 17.7 | 241 |
+| Chromium | els | 16.7 | 17.6 | 34.4 | 241 |
+| WebKit | shape | 17 | 24 | 42 | 235 |
+| WebKit | els | 17 | 18 | 26 | 240 |
+| Firefox | shape | 17.3 | **435** | **485** | **32** |
+| Firefox | els | 16.7 | **100** | **200** | 142 |
+
+- Rune boots and draws on all three, with no page error on Firefox or WebKit. **WebKit is
+  fine**, which matters because every iOS browser is WebKit.
+- **Firefox is not usable on the Shape path** (stalls of about 430 ms, 32 frames in 4 s) and
+  poor on els (p95 100 ms). Cause not investigated; the same harness is clean on Chromium, so
+  treat it as a Rune-on-Firefox finding to report upstream next to #2549, not a harness bug.
+  Not measured: Windows and Linux, a Firefox with WebGPU, Safari on a real iPhone.
+
+**Road to APK / IPA** (read from Rune's `PLAN.md`, `ARCHITECTURE.md`, `crates/rune/src/platform`
+and the changelog at rev `main` on 29 Nov; nothing here was built):
+
+- **iOS native: partial, no shell yet.** Rune lists iOS as a target. What exists is
+  `LayerHost` (attach a `Runtime` to a `CAMetalLayer`, `platform/embed.rs`, changelog
+  `2026-10-30-ios-embed`) and wgpu by default on iOS. The plan puts the iOS shell, `UITextInput`
+  and `RuneView` for SwiftUI embedding in milestone M6; there is no iOS shell in
+  `platform/` today (macOS, Win32, X11, Wayland and web only). So an IPA is a research job
+  on Rune's side, not a build flag, and IME on iOS is named by Rune as its riskiest area.
+- **Android native: nothing.** Milestone M7, after iOS, with `InputConnection` mentioned and no
+  code. No path today.
+- **What works today for both stores is a web wrapper:** the wasm build inside a WebView
+  (Capacitor or Tauri mobile for APK and IPA). That inherits the session 6 result: on a mid-range
+  phone the Shape path is about 10 fps, so it needs the incremental-shape work first, or the els
+  path (about 15-20 fps), or the Pixi canvas.
+- **The mobile route that needs no Rune work is the React web client in the same wrapper**, or
+  an installable PWA, which also covers both stores' users without a store.
+- **Meldframe-side readiness is good:** `meldframe-app` is portable (checked for
+  `wasm32` and linked into the Rune harness), so a native shell later would reuse it; what is
+  missing is the shell, not the product logic.
+
 ## Results (session 2)
 
 First session, 27 Nov 2026, macOS arm64, headless Chromium 140 (Playwright, `--enable-unsafe-webgpu`, so likely a software WebGPU adapter — numbers are indicative, not production). Harness: `../rune-web-spike/` (own git repo, commit `4bb3a60`), Rune pinned at `048528dc35f0`.
