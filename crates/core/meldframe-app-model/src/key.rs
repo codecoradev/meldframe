@@ -47,7 +47,10 @@ pub enum KeyFocus {
     TextField,
 }
 
-/// A key pressed (`Action::Key`).
+/// A key pressed (`Action::Key`). A key the app layer does not answer, a key of an input method that is composing, a repeat, and
+/// a key the focus owns (a field, a menu, a dialog) make no action and no event; one it answers raises `Event::KeyHandled`. The
+/// keys it answers are the tool letters, Delete, undo and redo, the arrow keys, Enter and Escape, the panel keys, `?` and Ctrl or
+/// Command+K (`meldframe-app-rules`, `keys`).
 ///
 /// What the host still does, because the app layer has no state for it:
 ///

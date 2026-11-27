@@ -23,6 +23,9 @@ pub(crate) fn refuse(events: &mut Vec<crate::Event>, code: &str) -> Result<(), S
 
 impl App {
     pub(crate) fn document(&mut self, action: Action, fx: &mut Vec<Effect>) {
+        if let Action::Gesture { op } = action {
+            return self.gesture(op, fx);
+        }
         let before = self.replica.pending_len();
         let mut select = None;
         let result = match action {

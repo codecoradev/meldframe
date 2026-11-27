@@ -172,6 +172,56 @@ fn every_binding_makes_what_its_row_says_for_each_way_of_pressing_it() {
 }
 
 #[test]
+fn no_two_rows_answer_the_same_press() {
+    let all = bindings();
+    for (id, b) in &all {
+        for key in presses(&b.combo) {
+            let hits: Vec<&str> = all
+                .iter()
+                .filter(|(_, o)| o.combo.matches(&key))
+                .map(|(i, _)| *i)
+                .collect();
+            assert_eq!(hits, vec![*id], "{key:?}");
+        }
+    }
+}
+
+#[test]
+fn command_is_ctrl_or_meta_on_every_platform_and_is_never_free() {
+    for (id, b) in bindings()
+        .iter()
+        .filter(|(_, b)| b.combo.command && b.makes != Makes::Host)
+    {
+        for mut key in presses(&b.combo) {
+            assert!(key.modifiers.command(), "{id}");
+            key.modifiers.ctrl = false;
+            key.modifiers.meta = false;
+            assert_eq!(decide(&key), None, "{id} without Ctrl or Command");
+        }
+    }
+    let both = Modifiers {
+        ctrl: true,
+        meta: true,
+        ..Modifiers::default()
+    };
+    assert_eq!(decide(&with("z", both)), Some(Makes::Undo));
+    assert_eq!(decide(&with("z", CTRL)), decide(&with("Z", META)));
+}
+
+#[test]
+fn a_letter_matches_in_either_case_and_a_named_key_only_as_it_is_named() {
+    assert_eq!(decide(&plain("v")), Some(Makes::SetTool(Tool::Select)));
+    assert_eq!(decide(&plain("V")), Some(Makes::SetTool(Tool::Select)));
+    assert_eq!(
+        decide(&with("V", SHIFT)),
+        Some(Makes::SetTool(Tool::Select))
+    );
+    assert_eq!(decide(&plain("Delete")), Some(Makes::DeleteSelection));
+    assert_eq!(decide(&plain("delete")), None);
+    assert_eq!(decide(&plain("arrowup")), None);
+}
+
+#[test]
 fn undo_and_redo_have_their_variants_and_no_others() {
     for m in [CTRL, META] {
         assert_eq!(decide(&with("z", m)), Some(Makes::Undo));
@@ -257,4 +307,118 @@ fn the_sheet_key_and_the_palette_key() {
     );
     assert_eq!(decide(&with("k", Modifiers { alt: true, ..CTRL })), None);
     assert_eq!(decide(&plain("k")), None);
+}
+
+#[test]
+fn enter_and_escape_are_plain_keys() {
+    assert_eq!(decide(&plain("Enter")), Some(Makes::BeginTextEdit));
+    assert_eq!(
+        decide(&with("Enter", CTRL)),
+        None,
+        "Ctrl+Enter finishes a text edit: the field's"
+    );
+    assert_eq!(decide(&with("Enter", SHIFT)), None);
+    assert_eq!(decide(&plain("Escape")), Some(Makes::Cancel));
+    assert_eq!(decide(&with("Escape", ALT)), None);
+}
+
+#[test]
+fn the_keys_the_front_end_answers_make_nothing() {
+    for key in ["+", "=", "-", " ", "Tab", "Shift"] {
+        assert_eq!(decide(&plain(key)), None, "{key}");
+    }
+    for digit in ["1", "2"] {
+        assert_eq!(
+            decide(&input(digit, "Digit1", SHIFT)),
+            None,
+            "Shift+{digit} fits the view"
+        );
+    }
+    for word in ["Scroll", "Click", "Double-click", "Space + drag"] {
+        assert_eq!(decide(&plain(word)), None, "{word} is a gesture, not a key");
+    }
+}
+
+#[test]
+fn a_key_during_composition_a_repeat_or_in_a_field_is_never_an_editor_key() {
+    for (id, b) in bindings() {
+        for mut key in presses(&b.combo) {
+            key.composing = true;
+            assert_eq!(decide(&key), None, "{id} while composing");
+            key.composing = false;
+            key.repeat = true;
+            assert_eq!(decide(&key), None, "{id} repeating");
+            key.repeat = false;
+            key.focus = KeyFocus::TextField;
+            assert_eq!(decide(&key), None, "{id} in a text field");
+        }
+    }
+}
+
+#[test]
+fn a_region_keeps_the_plain_keys_and_lets_command_and_option_combinations_through() {
+    let region = |mut k: KeyInput| {
+        k.focus = KeyFocus::Region;
+        k
+    };
+    for key in [
+        "v",
+        "Delete",
+        "Backspace",
+        "ArrowUp",
+        "Enter",
+        "Escape",
+        "?",
+    ] {
+        assert_eq!(
+            decide(&region(plain(key))),
+            None,
+            "{key} in a menu or a dialog"
+        );
+    }
+    assert_eq!(decide(&region(with("V", SHIFT))), None);
+    assert_eq!(decide(&region(with("z", CTRL))), Some(Makes::Undo));
+    assert_eq!(
+        decide(&region(with("k", META))),
+        Some(Makes::ToggleOverlay(Overlay::Palette))
+    );
+    assert_eq!(
+        decide(&region(input("1", "Digit1", ALT))),
+        Some(Makes::TogglePanel(Panel::Layers))
+    );
+}
+
+#[test]
+fn a_control_keeps_enter_and_nothing_else() {
+    let control = |mut k: KeyInput| {
+        k.focus = KeyFocus::Control;
+        k
+    };
+    assert_eq!(decide(&control(plain("Enter"))), None);
+    assert_eq!(
+        decide(&control(plain("v"))),
+        Some(Makes::SetTool(Tool::Select))
+    );
+    assert_eq!(
+        decide(&control(plain("Delete"))),
+        Some(Makes::DeleteSelection)
+    );
+}
+
+#[test]
+fn an_unknown_key_is_no_editor_key() {
+    let long = "v".repeat(10_000);
+    for key in [
+        "",
+        "F13",
+        "Dead",
+        "Unidentified",
+        "\u{202e}",
+        "vv",
+        long.as_str(),
+        "\u{1F300}",
+    ] {
+        assert_eq!(decide(&plain(key)), None, "{key:?}");
+        assert_eq!(decide(&with(key, CTRL)), None, "{key:?} with Ctrl");
+    }
 }

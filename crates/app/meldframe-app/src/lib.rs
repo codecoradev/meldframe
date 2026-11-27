@@ -21,6 +21,7 @@ mod confirm_ui;
 mod document;
 mod export;
 mod frames;
+mod gesture;
 mod hit;
 mod interact;
 mod keys;
@@ -29,6 +30,7 @@ mod link;
 mod manage;
 mod manage_ui;
 mod overlay;
+mod palette;
 mod panel;
 mod picker;
 mod props;
@@ -58,16 +60,23 @@ pub use meldframe_app_model::{
     TypedText, VariableEntity, VariableRow, VariableValue, VariablesPanel,
 };
 pub use meldframe_app_model::{
-    ActivityOp, BatchRef, Confirm, Overlay, OverlayOp, RightTab, TextEdit, TextEditOp,
+    ActivityOp, BatchRef, Confirm, GestureOp, Handle, Overlay, OverlayOp, Point, RightTab,
+    TextEdit, TextEditOp,
 };
 pub use meldframe_app_model::{
     ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,
     VariablesImportResult, VariablesIo,
 };
 pub use meldframe_app_model::{KeyFocus, KeyInput, Modifiers};
+pub use meldframe_app_rules::draw::DrawPreview;
 pub use meldframe_app_rules::drop::Slot as DropSlot;
+pub use meldframe_app_rules::handle::ResizePreview;
 pub use meldframe_app_rules::multi::Preview as DropPreview;
+pub use meldframe_app_rules::palette::{
+    Entry as PaletteEntry, KeyResult as PaletteKeyResult, Run as PaletteRun, Zoom as PaletteZoom,
+};
 pub use meldframe_layout::{StubMeasurer, TextMeasurer};
 pub use meldframe_protocol::ImageFit;
 pub use meldframe_protocol::VarType;
 pub use meldframe_sync::LoadError;
+pub use palette::Ran as PaletteRan;

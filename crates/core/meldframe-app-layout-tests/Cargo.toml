@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-app-layout-tests"
-description = "The tests of the interaction on a laid-out canvas of meldframe-app: a drop, the preview of a drop and a resize with the host flag layout_on_canvas on and off, and that the preview and the drop agree. Split from meldframe-app-unit-tests for the size band. No library code."
+description = "The tests of the interaction on a laid-out canvas of meldframe-app: a drop, the preview of a drop, a resize, and drawing a node and sizing one by a handle as world-space intents with their previews and random drags, with the host flag layout_on_canvas on and off, and that the previews and the releases agree. Split from meldframe-app-unit-tests for the size band. No library code."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
