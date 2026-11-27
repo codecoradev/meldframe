@@ -12,6 +12,8 @@ members = [
     "xtask",
     "xtask-licences",
 ]
+# The Rune front end is a workspace of its own with its own toolchain and lock (E8.0.4, ADR-0027).
+exclude = ["frontends/rune"]
 
 [workspace.package]
 version = "0.0.0"

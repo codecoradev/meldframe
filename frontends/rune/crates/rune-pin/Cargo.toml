@@ -1,0 +1,15 @@
+[package]
+name = "meldframe-rune-pin"
+description = "The Rune revision the front end workspace is built against, and a check that the crate links against it."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "ui"
+
+[lints]
+workspace = true
+
+[dependencies]
+rune = { workspace = true }
