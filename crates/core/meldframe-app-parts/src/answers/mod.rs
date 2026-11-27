@@ -54,7 +54,7 @@ pub fn action_of(wire: Wire) -> Option<Action> {
             status,
             body,
         } => assets::page(request, after, status, &body),
-        Wire::Capture { now_ms, text } => raster::capture(now_ms, &text)?,
+        Wire::Capture { now_ms, text } => raster::capture(now_ms, text.expose())?,
         Wire::Drawn {
             request,
             status,

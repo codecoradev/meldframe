@@ -86,7 +86,7 @@ impl Job {
                 request_id, token, ..
             } => RasterSink::Upload {
                 request_id: request_id.clone(),
-                upload_token: token.clone(),
+                upload_token: token.as_str().into(),
                 seq,
             },
         }

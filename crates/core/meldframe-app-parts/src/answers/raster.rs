@@ -40,7 +40,7 @@ fn is_safe(s: &str) -> bool {
 /// as an action.
 pub fn ask_is_safe(ask: &CaptureAsk) -> bool {
     is_safe(&ask.request_id)
-        && is_safe(&ask.upload_token)
+        && is_safe(ask.upload_token.expose())
         && ask.node_id.as_ref().is_none_or(|n| n.len() <= MAX_NODE_REF)
         && ask.scale.is_finite()
         && [ask.max_pixels, ask.min_seq, ask.timeout_ms]
@@ -61,7 +61,7 @@ pub(super) fn capture(now_ms: u64, text: &str) -> Option<Action> {
         scale: r.scale,
         max_pixels: r.max_pixels,
         min_seq: r.min_seq,
-        upload_token: r.upload_token,
+        upload_token: r.upload_token.into(),
         timeout_ms: r.timeout_ms,
     };
     ask_is_safe(&ask).then_some(Action::Png {

@@ -61,7 +61,7 @@ pub use manage::{
 pub use overlay::{Overlay, OverlayOp};
 pub use raster::{
     CAPTURE_MAX_BYTES, CaptureAsk, EXPORT_MAX_PIXELS, MAX_SCALE, MIN_SCALE, PNG_MIN_BYTES, PngOp,
-    PngPlan, PngSink, PngState, RasterRect, RasterSink, RasterSize, SCALES,
+    PngPlan, PngSink, PngState, RasterRect, RasterSink, RasterSize, SCALES, Secret,
 };
 pub use state::{
     AppState, Connection, FieldBinding, FillKind, History, Panel, Panels, Properties, Sections,

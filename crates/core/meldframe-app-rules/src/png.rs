@@ -240,7 +240,7 @@ impl Rasters {
             request: self.jobs.number(),
             kind: Kind::Capture {
                 request_id: ask.request_id.clone(),
-                token: ask.upload_token.clone(),
+                token: ask.upload_token.expose().to_owned(),
                 min_seq: ask.min_seq,
             },
             node: ask.node_id,

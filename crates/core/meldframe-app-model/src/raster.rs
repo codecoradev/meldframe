@@ -5,6 +5,7 @@
 //! rules are in `meldframe-app-rules` (`raster`, `png`).
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use ts_rs::TS;
 
 /// The smallest and the largest scale of a PNG export.
@@ -26,6 +27,38 @@ pub const CAPTURE_MAX_BYTES: u64 = 4 << 20;
 
 /// The smallest a PNG can be: the signature, the header chunk and the end chunk. Less is not an image.
 pub const PNG_MIN_BYTES: u64 = 33;
+
+/// A string that is a secret (an upload token, a frame that holds one): it prints as `<redacted>` in `Debug`, so a log of an
+/// action, an effect or the app never carries it, and it is the plain string it holds on the wire (serde and the TypeScript
+/// types see a string). Its text is read with [`Secret::expose`].
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Secret(String);
+
+impl Secret {
+    /// The text, to put where it has to go (a header, a parse).
+    pub fn expose(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for Secret {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("<redacted>")
+    }
+}
+
+impl From<String> for Secret {
+    fn from(s: String) -> Self {
+        Secret(s)
+    }
+}
+
+impl From<&str> for Secret {
+    fn from(s: &str) -> Self {
+        Secret(s.to_owned())
+    }
+}
 
 /// A rectangle in world space.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
@@ -131,7 +164,8 @@ pub enum RasterSink {
     /// `X-Capture-Seq: {seq}` and `Content-Type: image/png`, as the person's own session.
     Upload {
         request_id: String,
-        upload_token: String,
+        #[ts(type = "string")]
+        upload_token: Secret,
         #[ts(type = "number")]
         seq: u64,
     },
@@ -153,7 +187,8 @@ pub struct CaptureAsk {
     /// The image must show the file at this sequence number or later.
     #[ts(type = "number")]
     pub min_seq: u64,
-    pub upload_token: String,
+    #[ts(type = "string")]
+    pub upload_token: Secret,
     #[ts(type = "number")]
     pub timeout_ms: u64,
 }

@@ -4,6 +4,7 @@
 //! checks nothing of its own. An answer that is not what the server sends (a proxy's page, a body of the wrong shape or
 //! out of bound) is the failure of its request, with the code `unavailable`.
 
+use crate::raster::Secret;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -76,7 +77,9 @@ pub enum Wire {
     Capture {
         #[ts(type = "number")]
         now_ms: u64,
-        text: String,
+        // The frame holds the upload token, so it is a `Secret`: it is not in a `Debug` output.
+        #[ts(type = "string")]
+        text: Secret,
     },
     /// The answer of `Effect::Raster` with this `request`: `status` 200 and a body `{"width", "height", "bytes"}` (what the
     /// shell drew and holds) is `PngOp::Drawn`, anything else `PngOp::DrawFailed` with the code of `{"error": {"code"}}` (else

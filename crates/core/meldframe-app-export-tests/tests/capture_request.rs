@@ -40,7 +40,7 @@ fn ask(node: Option<&str>, scale: f64, min_seq: u64) -> Value {
 fn request(app: &mut App, now_ms: u64, frame: Value) -> Vec<Value> {
     let wire = Wire::Capture {
         now_ms,
-        text: frame.to_string(),
+        text: frame.to_string().into(),
     };
     json_of(&app.dispatch(Action::Wire { wire }))
 }
@@ -86,6 +86,9 @@ fn remote(app: &mut App, seq: u64, command: Value) {
         },
     });
 }
+
+#[path = "capture_request/limits.rs"]
+mod limits;
 
 #[test]
 fn a_request_for_a_node_asks_the_shell_to_draw_it_with_its_shadow_and_upload_it() {
