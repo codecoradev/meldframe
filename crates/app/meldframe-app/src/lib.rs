@@ -23,6 +23,7 @@ mod export;
 mod frames;
 mod hit;
 mod interact;
+mod keys;
 mod layers;
 mod link;
 mod manage;
@@ -62,6 +63,7 @@ pub use meldframe_app_model::{
     ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,
     VariablesImportResult, VariablesIo,
 };
+pub use meldframe_app_model::{KeyFocus, KeyInput, Modifiers};
 pub use meldframe_app_rules::drop::Slot as DropSlot;
 pub use meldframe_app_rules::multi::Preview as DropPreview;
 pub use meldframe_layout::{StubMeasurer, TextMeasurer};
