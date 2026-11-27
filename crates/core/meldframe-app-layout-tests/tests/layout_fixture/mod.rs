@@ -1,7 +1,10 @@
-//! The fixtures and helpers of the layout interaction tests (`layout_drop.rs`, `layout_resize.rs`).
+//! The fixtures and helpers of the layout interaction tests (`layout_drop.rs`, `layout_resize.rs`, `layout_draw.rs`,
+//! `layout_handles.rs` and the others of this crate).
 #![allow(dead_code)]
 
-use meldframe_app::{Action, App, Effect, Event, Properties};
+use meldframe_app::{
+    Action, App, CreateKind, Effect, Event, GestureOp, Handle, Modifiers, Point, Properties,
+};
 use meldframe_protocol::{Command, Node};
 use serde_json::json;
 
@@ -140,6 +143,74 @@ pub fn cards() -> Vec<Node> {
         {"id": "x", "type": "frame", "parentId": "tree", "pos": "a0", "x": 20, "y": 20, "w": 200, "h": 200},
         {"id": "m", "type": "frame", "parentId": "x", "pos": "a0", "x": 10, "y": 10, "w": 150, "h": 150},
         {"id": "y", "type": "frame", "parentId": "m", "pos": "a0", "x": 5, "y": 5, "w": 100, "h": 100, "layout": "column"},
+    ]))
+    .unwrap()
+}
+
+/// A world point.
+pub fn pt(x: f64, y: f64) -> Point {
+    Point { x, y }
+}
+
+/// Draws a node of `kind` from `from` to `to` (world points, no key held); returns the id of the node it made, if any.
+pub fn draw(a: &mut App, kind: CreateKind, from: (f64, f64), to: (f64, f64)) -> Option<String> {
+    draw_with(a, kind, from, to, Modifiers::default())
+}
+
+/// [`draw`] with the keys held.
+pub fn draw_with(
+    a: &mut App,
+    kind: CreateKind,
+    from: (f64, f64),
+    to: (f64, f64),
+    mods: Modifiers,
+) -> Option<String> {
+    let before: Vec<String> = a.nodes().iter().map(|n| n.id.clone()).collect();
+    a.dispatch(Action::Gesture {
+        op: GestureOp::Draw {
+            kind,
+            from: pt(from.0, from.1),
+            to: pt(to.0, to.1),
+            mods,
+        },
+    });
+    a.nodes()
+        .iter()
+        .map(|n| n.id.clone())
+        .find(|id| !before.contains(id))
+}
+
+/// Drags `handle` of `id` by `by` (world units, no key held).
+pub fn drag_handle(a: &mut App, id: &str, handle: Handle, by: (f64, f64)) {
+    a.dispatch(Action::Gesture {
+        op: GestureOp::ResizeHandle {
+            id: id.into(),
+            handle,
+            by: pt(by.0, by.1),
+            mods: Modifiers::default(),
+        },
+    });
+}
+
+/// The nodes as JSON, to compare two files (a node has no equality of its own).
+pub fn snapshot(nodes: &[Node]) -> serde_json::Value {
+    serde_json::to_value(nodes).unwrap()
+}
+
+/// How many events of the kind `DocumentChanged` the app raised since the last call (the others are dropped).
+pub fn document_changes(a: &mut App) -> usize {
+    a.take_events()
+        .iter()
+        .filter(|e| matches!(e, Event::DocumentChanged { .. }))
+        .count()
+}
+
+/// A free frame at a place that is not a whole number, with a rectangle in it at its own fractional offset: the offset of
+/// the rectangle is not what the difference of the two world boxes gives back.
+pub fn fractional() -> Vec<Node> {
+    serde_json::from_value(json!([
+        {"id": "fp", "type": "frame", "pos": "a0", "x": 1234.5678, "y": 8765.4321, "w": 400, "h": 300},
+        {"id": "fc", "type": "rect", "parentId": "fp", "pos": "a0", "x": 10.1, "y": 20.3, "w": 30.7, "h": 40.9},
     ]))
     .unwrap()
 }
