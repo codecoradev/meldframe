@@ -46,7 +46,6 @@ mod view;
 pub(crate) use meldframe_app_model::{action, effect, event, state};
 
 pub use app::App;
-pub use canvas::MeasurerBox;
 pub use link::{ATTEMPT_MS, SILENT_MS};
 pub use meldframe_app_model::{
     ASSET_LIST_MAX, ASSET_PAGE, ASSET_PAGE_MAX, Action, AppState, AssetInfo, AssetPage,
@@ -68,6 +67,7 @@ pub use meldframe_app_model::{
     VariablesImportResult, VariablesIo,
 };
 pub use meldframe_app_model::{KeyFocus, KeyInput, Modifiers};
+pub use meldframe_app_rules::canvas::MeasurerBox;
 pub use meldframe_app_rules::draw::DrawPreview;
 pub use meldframe_app_rules::drop::Slot as DropSlot;
 pub use meldframe_app_rules::handle::ResizePreview;

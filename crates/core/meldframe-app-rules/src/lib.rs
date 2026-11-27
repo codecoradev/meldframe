@@ -5,13 +5,14 @@
 //! changes (`level`), and, for a laid-out canvas, the commands of a drop (`drop`) and of a resize (`resize`), the geometry of
 //! a drag that draws a node (`draw`) or moves a handle (`handle`): all pure functions of the nodes and the boxes, the key
 //! table and the rule that turns a key press into what it makes (`keys`), and the command palette's entries, search and
-//! ranking (`palette`).
+//! ranking (`palette`), and the canvas's measurer, flag and per-revision caches (`canvas`).
 //!
 //! None of it holds an `AppState`, an event list or a replica, and nothing reads a clock or does I/O: time comes in
 //! as a number. The state machine that owns the state, the replica and the events stays in `meldframe-app`, and calls
 //! these.
 
 pub mod arrow;
+pub mod canvas;
 pub mod checkpoints;
 pub mod draw;
 pub mod drop;
