@@ -15,7 +15,11 @@ import type { PointerPhase } from "./PointerPhase";
  * sends `Down`, and the machine ignores a press that still finds the edit open. While the app is halted a press still selects
  * and pans, and nothing that writes begins.
  *
- * What the front end keeps: the pointer capture, because `Leave` abandons a drag that goes on (the document is left as it was);
+ * A double click is two clicks (a press let go without a drag) on nodes, at most 500 ms and 4 CSS pixels apart, with the
+ * select tool, by `at_ms`; it begins a text edit on the node (`TextEditOp::Begin`, which does nothing for a node that is not a
+ * text), as the browser's `dblclick` did. A drag, a cancel, a leave and a third click start the count again.
+ *
+ * What the front end keeps: the pointer capture, because `Leave` abandons a drag that goes on (the file is left as it was);
  * `space` is read on each event, so `space: false` has to be sent to let go of it; and the cursor and the hover are as of the
  * last pointer event, except that a change of the tool or of the selection, and the removal of the hovered node, are seen at
  * once (`AppState::pointer`), and any other change of the file shows at the next `Move`.
@@ -28,4 +32,9 @@ touch: boolean,
 /**
  * Space is held: the primary button pans. The front end keeps the key (`KeyInput` says it keeps Space).
  */
-space: boolean, };
+space: boolean, 
+/**
+ * The front end's clock in milliseconds at the event: the app layer reads none, and a double click is two clicks close in
+ * time. Left out, no double click is recognised (the front end can send `Action::TextEdit` itself).
+ */
+atMs?: number, };
