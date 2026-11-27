@@ -10,12 +10,14 @@
 //! `resolve_with` with the boxes of the layout core (hug, fill, auto layout); the app layer calls it for the scene when the
 //! host turns `layout_on_canvas` on, and `resolve_with` otherwise.
 
+mod capture;
 pub mod coverage;
 mod hit;
 mod laid_out;
 mod paint_bounds;
 mod resolve;
 
+pub use capture::{capture_bounds, capture_bounds_in, capture_rect, capture_rect_in};
 pub use hit::{HitBox, HitIndex, contains_point, hit_test};
 pub use laid_out::resolve_laid_out;
 pub use meldframe_variables::ModeChoice;
