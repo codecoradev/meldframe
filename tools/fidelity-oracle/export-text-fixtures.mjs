@@ -1,5 +1,5 @@
 // Writes the oracle fixtures that hold text as JSON for the text measurer conformance suite of `meldframe-layout`
-// (E8.1.7, `docs/fidelity-contract.md` section 6a). The suite lays each file out with a reference measurer and asks a
+// (`docs/fidelity-contract.md` section 6a). The suite lays each file out with a reference measurer and asks a
 // measurer under test the same questions, so it needs the nodes and nothing else; no browser runs.
 //
 //   node export-text-fixtures.mjs           rewrite crates/core/meldframe-layout/tests/fixtures/oracle_texts.json

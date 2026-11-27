@@ -15,7 +15,7 @@ mod tree;
 
 pub use contract::{TEXT_OUTSIDE_CONTRACT_MESSAGE, text_outside_contract};
 pub use findings::{LayoutFinding, layout_findings};
-pub use measure::{StubMeasurer, TextMeasurer};
+pub use measure::{MAX_MEASURE, StubMeasurer, TextMeasurer, is_size};
 pub use rect::Rect;
 pub use tree::is_layout_frame;
 
