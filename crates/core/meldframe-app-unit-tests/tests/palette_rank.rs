@@ -53,6 +53,17 @@ fn a_label_that_starts_with_the_word_beats_a_word_that_does_then_any_match_then_
 }
 
 #[test]
+fn the_scores_of_the_words_add_up() {
+    // "text" and "tool" score 4 + 1 for the first (a label that starts with the one, a keyword for the other) and 3 + 3 for the
+    // second (a word of the label for each): the sum puts the second first, the best single word would put the first.
+    let es = [
+        custom("box", "Text box", &["tool"]),
+        custom("draw", "Draw text tool", &[]),
+    ];
+    assert_eq!(found(&es, "text tool"), ["draw", "box"]);
+}
+
+#[test]
 fn the_entry_of_the_same_name_comes_first_for_a_word_of_its_label() {
     let es = list(ON, false, None);
     assert_eq!(found(&es, "fit"), ["zoom-fit", "zoom-fit-selection"]);
@@ -137,6 +148,24 @@ fn the_arrows_move_over_what_can_run_and_wrap_round() {
     assert_eq!(on_key("ArrowDown", Some(2), &r), Some(KeyResult::Move(0)));
     assert_eq!(on_key("ArrowUp", Some(0), &r), Some(KeyResult::Move(2)));
     assert_eq!(on_key("ArrowUp", Some(2), &r), Some(KeyResult::Move(0)));
+}
+
+#[test]
+fn down_goes_to_the_next_row_and_up_to_the_one_before() {
+    let r = rows(&[true, true, true, true]);
+    assert_eq!(on_key("ArrowDown", Some(1), &r), Some(KeyResult::Move(2)));
+    assert_eq!(on_key("ArrowUp", Some(1), &r), Some(KeyResult::Move(0)));
+    assert_eq!(on_key("ArrowUp", Some(0), &r), Some(KeyResult::Move(3)));
+    assert_eq!(on_key("ArrowDown", Some(3), &r), Some(KeyResult::Move(0)));
+}
+
+/// The TypeScript counts "no row highlighted" as -1, so Down goes to the first row and Up to the one before the last (-1 minus one,
+/// round the ends). The Rust keeps it: the same keys give the same row in both front ends until the TypeScript is retired.
+#[test]
+fn with_no_row_highlighted_down_goes_to_the_first_and_up_to_the_one_before_the_last() {
+    let r = rows(&[true, true, true, true]);
+    assert_eq!(on_key("ArrowDown", None, &r), Some(KeyResult::Move(0)));
+    assert_eq!(on_key("ArrowUp", None, &r), Some(KeyResult::Move(2)));
 }
 
 #[test]

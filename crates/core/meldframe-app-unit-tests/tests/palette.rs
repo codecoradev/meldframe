@@ -158,21 +158,17 @@ fn there_is_one_entry_for_each_frame_preset_with_its_name_and_size() {
         .filter(|e| e.group == "Frames")
         .map(|e| (e.label.as_str(), e.detail.as_deref().unwrap()))
         .collect();
-    let want: Vec<(String, String)> = FramePreset::ALL
-        .iter()
-        .map(|p| {
-            let (w, h) = p.size();
-            (
-                format!("New frame: {}", p.name()),
-                format!("{w} \u{d7} {h}"),
-            )
-        })
-        .collect();
     assert_eq!(
         frames,
-        want.iter()
-            .map(|(a, b)| (a.as_str(), b.as_str()))
-            .collect::<Vec<_>>()
+        [
+            ("New frame: Desktop", "1440 \u{d7} 900"),
+            ("New frame: Desktop HD", "1920 \u{d7} 1080"),
+            ("New frame: Tablet", "768 \u{d7} 1024"),
+            ("New frame: Mobile", "390 \u{d7} 844"),
+            ("New frame: Phone small", "375 \u{d7} 667"),
+            ("New frame: A4", "595 \u{d7} 842"),
+            ("New frame: Letter", "612 \u{d7} 792"),
+        ]
     );
 }
 

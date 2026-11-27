@@ -168,6 +168,13 @@ fn an_entry_does_what_the_key_shown_beside_it_does() {
             a.dispatch(Action::Undo {});
         }
         a.dispatch(Action::Select { ids: ids(&["r1"]) });
+        if id == "tool-select" {
+            // From the select tool the key and the entry would both change nothing: start from another one (after the
+            // selection, which goes back to the select tool).
+            a.dispatch(Action::SetTool {
+                tool: Tool::Rectangle,
+            });
+        }
         a
     };
     let shown: Vec<String> = app()
@@ -192,13 +199,75 @@ fn an_entry_does_what_the_key_shown_beside_it_does() {
             shift: combo.shift == Held::Yes,
         };
         let (mut by_entry, mut by_key) = (prepared(id), prepared(id));
+        let before = by_entry.state().clone();
         done(by_entry.run_palette(id, (0.0, 0.0)));
         by_key.dispatch(press(combo.key, combo.code.unwrap_or(""), m));
+        assert_ne!(*by_entry.state(), before, "{id}: the entry changed nothing");
         assert_eq!(by_entry.state(), by_key.state(), "{id}");
         assert_eq!(
             serde_json::to_value(by_entry.nodes()).unwrap(),
             serde_json::to_value(by_key.nodes()).unwrap(),
             "{id}"
         );
+    }
+}
+
+#[test]
+fn a_point_that_is_not_a_number_refuses_the_entry_before_the_palette_closes() {
+    for centre in [
+        (f64::NAN, 0.0),
+        (0.0, f64::INFINITY),
+        (f64::NEG_INFINITY, 1.0),
+    ] {
+        let mut a = app();
+        open_palette(&mut a);
+        a.take_events();
+        let before = a.state().clone();
+        assert!(matches!(
+            a.run_palette("preset-a4", centre),
+            PaletteRan::Refused
+        ));
+        assert_eq!(*a.state(), before);
+        assert!(a.take_events().is_empty());
+    }
+}
+
+#[test]
+fn each_entry_that_runs_does_what_it_says() {
+    let mut a = app();
+    a.dispatch(Action::Connected { now_ms: 0 });
+    a.dispatch(Action::Move {
+        id: "r1".into(),
+        x: 40.0,
+        y: 0.0,
+    });
+    a.dispatch(Action::Select {
+        ids: ids(&["root"]),
+    });
+    // Redo after an undo; the right panel closes and opens; a variant is a copy of the selected frame, selected.
+    done(a.run_palette("undo", (0.0, 0.0)));
+    assert_eq!(get(&a, "r1").x, 0.0);
+    done(a.run_palette("redo", (0.0, 0.0)));
+    assert_eq!(get(&a, "r1").x, 40.0);
+    assert!(a.state().panels.properties);
+    done(a.run_palette("toggle-inspector", (0.0, 0.0)));
+    assert!(!a.state().panels.properties);
+    done(a.run_palette("toggle-inspector", (0.0, 0.0)));
+    assert!(a.state().panels.properties);
+    let count = a.nodes().len();
+    done(a.run_palette("variant", (0.0, 0.0)));
+    assert!(a.nodes().len() > count);
+    assert_ne!(a.state().selection, ids(&["root"]));
+    for (id, zoom) in [
+        ("zoom-in", PaletteZoom::In),
+        ("zoom-out", PaletteZoom::Out),
+        ("zoom-reset", PaletteZoom::Reset),
+        ("zoom-fit", PaletteZoom::Fit),
+        ("zoom-fit-selection", PaletteZoom::FitSelection),
+    ] {
+        match a.run_palette(id, (0.0, 0.0)) {
+            PaletteRan::Host(z) => assert_eq!(z, zoom, "{id}"),
+            other => panic!("{id}: {other:?}"),
+        }
     }
 }
