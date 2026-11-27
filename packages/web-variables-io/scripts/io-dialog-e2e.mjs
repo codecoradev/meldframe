@@ -113,6 +113,28 @@ const closeBy = async (d, how) => {
       await closeBy(d, 'Escape');
     }
   });
+  // The dialogs are drawn beside the Export dialog and do not live in the Variables panel: Option+2 folds the right card (an Alt key is not owned by a
+  // dialog) and the dialog stays; a dialog that went with its card left its state set, so Ctrl+K was refused with nothing on the screen.
+  await check('Option+2 with a dialog open folds the right card and leaves the dialog; Ctrl+K opens nothing over it; closed, the keys work again', async () => {
+    for (const d of Object.values(DIALOGS)) {
+      await open(d);
+      await $(`[data-testid=${d.close}]`).focus(); // a field keeps every key, Alt ones too; a button of the dialog keeps only the plain keys
+      await page.keyboard.press('Alt+Digit2');
+      await until('the right card is folded', async () => (await $(`[data-testid=${d.button}]`).count()) === 0);
+      assert.equal(await $(`[data-testid=${d.id}]`).count(), 1, `${d.id} went with the right card`);
+      await page.keyboard.press('Control+KeyK');
+      await sleep(300);
+      assert.equal(await $('[data-testid=palette]').count(), 0, `the palette opened over ${d.id}`);
+      assert.equal(await $(`[data-testid=${d.id}]`).count(), 1, `Ctrl+K took ${d.id} away`);
+      await closeBy(d, 'Close'); // the Close button shows a tooltip, which takes the first Escape
+      await page.keyboard.press('Control+KeyK');
+      await until('the palette opens once the dialog is closed', async () => (await $('[data-testid=palette]').count()) === 1);
+      await page.keyboard.press('Escape');
+      await until('the palette is closed', async () => (await $('[data-testid=palette]').count()) === 0);
+      await page.keyboard.press('Alt+Digit2');
+      await until('the right card is back', async () => (await $(`[data-testid=${d.button}]`).count()) === 1);
+    }
+  });
   await check('the first focus: Close in an export with nothing in it, the field in the import, never the Close icon', async () => {
     await open(DIALOGS.export);
     assert.equal(await activeTestId(), 'export-vars-done', 'with nothing to copy the focus starts on the Close button of the footer');

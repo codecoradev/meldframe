@@ -36,6 +36,10 @@
   import type { ExportScale } from '@meldframe/web-document/export';
   // The two switch files draw ExportDialog.svelte and ExportSection.svelte of web-export, or their React copies with /?react=export (E7.3, S2).
   import ExportDialog from './react-pilot/ExportDialogSwitch.svelte';
+  // The three dialogs the Variables buttons open are drawn here, beside the Export dialog, so that they do not go with the panel (the right card folds, the tab changes).
+  import ManageDialog from './react-pilot/ManageDialogSwitch.svelte';
+  import ImportVariablesDialog from './react-pilot/ImportVariablesDialogSwitch.svelte';
+  import ExportVariablesDialog from './react-pilot/ExportVariablesDialogSwitch.svelte';
   import ExportSection from './react-pilot/ExportSectionSwitch.svelte';
   import { type Frame, pngPlan, savePng } from '@meldframe/web-export/png';
   import { saveBlob } from '@meldframe/web-export/save';
@@ -373,7 +377,7 @@
   {/snippet}
   {#snippet designPanel()}
     <Section title="Variables" open={snap.state.panels.variables} onToggle={() => dispatch({ type: 'togglePanel', panel: 'variables' })} toggleId="toggle-variables">
-      <VariablesPanel panel={snap.state.variables} io={snap.state.variablesIo} manage={snap.state.manage} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} events={snap.events} />
+      <VariablesPanel panel={snap.state.variables} target={snap.state.selection.length === 1 ? (snap.state.selection[0] ?? null) : null} {dispatch} />
     </Section>
     <PropertiesPanel properties={snap.state.properties} picker={snap.state.picker ?? null} assets={snap.state.assets} selected={snap.state.selection.length} {dispatch} {...bindParts} />
     <ExportSection {target} scale={pngScale} onScale={(s) => (pngScale = s)} plan={planOf(target)} onPng={() => exportPng(target)} onHtml={() => dispatch({ type: 'openExport' })} />
@@ -381,3 +385,6 @@
   {#snippet activityPanel()}<ActivityPanel activity={snap.state.activity} checkpoints={snap.state.checkpoints} canCreate={snap.state.canCreateCheckpoint} status={snap.state.checkpointsStatus} self={actor} confirm={snap.state.confirm ?? null} {dispatch} events={snap.events} />{/snippet}
 </Layout>
 <ExportDialog dialog={snap.state.export.dialog} unreviewed={snap.state.activity.unreviewedCount} scale={pngScale} onScale={(s) => (pngScale = s)} plan={planOf(dialogOf)} onPng={() => exportPng(dialogOf)} {dispatch} onReview={() => { reviewSteps().forEach(dispatch); goTab('activity'); }} />
+<ManageDialog open={snap.state.manage.open} panel={snap.state.variables} manage={snap.state.manage} events={snap.events} {dispatch} opener={() => document.querySelector<HTMLElement>('[data-testid=var-manage]')} />
+<ImportVariablesDialog open={snap.state.variablesIo.importOpen} result={snap.state.variablesIo.import ?? null} {dispatch} opener={() => document.querySelector<HTMLElement>('[data-testid=var-import]')} />
+<ExportVariablesDialog dialog={snap.state.variablesIo.export ?? null} {dispatch} opener={() => document.querySelector<HTMLElement>('[data-testid=var-export]')} />

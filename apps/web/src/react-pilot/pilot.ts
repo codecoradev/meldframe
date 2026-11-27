@@ -11,18 +11,17 @@
 //   /?react=layers      the Layers panel drawn by React (E7.3, S5): LayersPanelSwitch.svelte, which Editor.svelte imports.
 //   /?react=variables   the Variables panel, the bind picker and its list drawn by React (E7.3, S5): VariablesPanelSwitch.svelte,
 //                        which Editor.svelte imports, and BindPickerSwitch.svelte, which `bindParts` in shell.ts hands to the Properties
-//                        panel. The three dialogs of the panel are drawn by the switch file beside the island (the manage view with `manage`, Import and Export variables with `io`).
+//                        panel. The three dialogs of the panel are drawn by Editor.svelte beside the Export dialog (the manage view with `manage`, Import and Export variables with `io`).
 //   /?react=properties  the Properties panel and its sections drawn by React (E7.3, S6): PropertiesPanelSwitch.svelte, which Editor.svelte imports.
 //                        The image picker of the Fill section is a React component of the panel (S7); the switch gives the panel the
 //                        route of an asset's thumbnail, which a view package may not import.
 //   /?react=activity    the Activity panel (lanes, batches, review, Revert, the checkpoints) drawn by React (E7.3, S8):
 //                        ActivityPanelSwitch.svelte, which Editor.svelte imports.
 //   /?react=manage     the Variables manage view (the dialog, its body, the detail pane, the lists and forms) drawn by React (E7.3, S9): ManageDialogSwitch.svelte,
-//                        which VariablesPanelSwitch.svelte draws beside the React panel and hands to the Svelte panel as `manageView`. It stands alone or joins
+//                        which Editor.svelte draws beside the Export dialog. It stands alone or joins
 //                        `variables` (/?react=variables,manage); the dialog opens from the Manage button of either panel.
 //   /?react=io         the Import variables and Export variables dialogs drawn by React (E7.3, S10): ImportVariablesDialogSwitch.svelte and
-//                        ExportVariablesDialogSwitch.svelte, which VariablesPanelSwitch.svelte draws beside the React panel and hands to the Svelte panel
-//                        as `importView` and `exportView`. One word for both dialogs; it stands alone or joins `variables` and `manage`
+//                        ExportVariablesDialogSwitch.svelte, which Editor.svelte draws beside the Export dialog. One word for both dialogs; it stands alone or joins `variables` and `manage`
 //                        (/?react=variables,manage,io); they open from the two buttons of the Variables section's header.
 //   /?react=canvas     the canvas drawn by React (E7.3, S11): CanvasSwitch.svelte, which Editor.svelte and the canvas harness import. The canvas code is
 //                        the same (canvas/driver.ts); the React side is canvas/react/Canvas.tsx. `/?react=canvas,strict` (development only) draws it

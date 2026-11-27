@@ -126,6 +126,27 @@ const closeBy = async (how) => {
       await open();
     }
   });
+  // The dialog is drawn beside the Export dialog and does not live in the Variables panel: Option+2 folds the right card (an Alt key is not owned
+  // by a dialog), and the dialog stays; a dialog that went with its card left `manage.open` set, so Ctrl+K was refused with nothing on the screen.
+  await check('Option+2 with the dialog open folds the right card and leaves the dialog; Ctrl+K opens nothing over it; closed, the keys work again', async () => {
+    if ((await dialog().count()) === 0) await open(); // the check before leaves it open
+    await $('[data-testid=manage-close]').focus(); // a field keeps every key, Alt ones too; a button of the dialog keeps only the plain keys
+    await page.keyboard.press('Alt+Digit2');
+    await until('the right card is folded', async () => (await $('[data-testid=var-manage]').count()) === 0);
+    assert.equal(await dialog().count(), 1, 'the dialog went with the right card');
+    await page.keyboard.press('Control+KeyK');
+    await sleep(300);
+    assert.equal(await $('[data-testid=palette]').count(), 0, 'the palette opened over the dialog');
+    assert.equal(await dialog().count(), 1, 'Ctrl+K took the dialog away');
+    await closeBy('Escape');
+    await page.keyboard.press('Control+KeyK');
+    await until('the palette opens once the dialog is closed', async () => (await $('[data-testid=palette]').count()) === 1);
+    await page.keyboard.press('Escape');
+    await until('the palette is closed', async () => (await $('[data-testid=palette]').count()) === 0);
+    await page.keyboard.press('Alt+Digit2');
+    await until('the right card is back', async () => (await $('[data-testid=var-manage]').count()) === 1);
+    await open(); // the next check starts with the dialog open, as the one before this left it
+  });
   await check('opened again in a file that has a collection, the first focus is the collection on view', async () => {
     await $('[data-testid=manage-collections-title]').focus(); // not a field: a Field keeps Escape for itself
     await page.keyboard.press('Escape');
