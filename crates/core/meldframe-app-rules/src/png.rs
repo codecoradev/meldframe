@@ -1,16 +1,21 @@
-//! The PNG export of a frame as state transitions (finding T13 of the thin UI audit, decision 43): the scale, the plan for the
+//! The PNG export of a frame and an agent's capture as state transitions (finding T13 of the thin UI audit, decision 43): the scale, the plan for the
 //! frame of the section and of the open dialog (the rectangle with the reach of its paint, the size in pixels, the file name,
 //! or why there is none), the export itself as an `Effect::Raster` and what comes of it: the shell reports the image it drew
 //! (`Wire::Drawn`), the app checks it against the plan and the limits and the node as it is now, and the shell is told to
-//! deliver the bytes or to drop them (`Effect::FinishRaster`); a request is answered once. View state: nothing is written to the file and the undo
+//! deliver the bytes or to drop them (`Effect::FinishRaster`); a request is answered once. A capture request is decided at
+//! once (the scale, the node, the pixel limit), waits for the file to reach `min_seq` until its timeout, plans again when the
+//! wait ends and ends in the upload or in `Effect::FailCapture`, never in silence. View state: nothing is written to the file and the undo
 //! history does not change. `meldframe-app` hands each step the scene, the state of the export and where the effects and the
 //! events go (`Env`); the pure rules are in `raster`, and the drawing and the save are the shell's.
 
 use crate::code::code as safe;
-use crate::jobs::{Job, Jobs, Kind, Stage};
-use crate::raster::{Planned, Refusal, Scene, drawn_refusal, is_export_scale, plan, png_plan};
+use crate::jobs::{Job, Jobs, Kind, MAX_CAPTURES, MAX_WAIT_MS, Stage, message};
+use crate::raster::{
+    Planned, Refusal, Scene, drawn_refusal, is_capture_scale, is_export_scale, plan, png_plan,
+};
 use meldframe_app_model::{
-    EXPORT_MAX_PIXELS, Effect, Event, ExportState, PngOp, PngPlan, PngSink, RasterSink,
+    CAPTURE_MAX_BYTES, CaptureAsk, EXPORT_MAX_PIXELS, Effect, Event, ExportState, PngOp, PngPlan,
+    PngSink,
 };
 
 /// What the plans of the export were worked out from: the epoch of the scene (the document, the measurer, the flag and the
@@ -41,6 +46,8 @@ impl PlanKey {
 #[derive(Debug)]
 pub struct Env<'a> {
     pub halted: bool,
+    /// The file number the app has confirmed.
+    pub seq: u64,
     pub export: &'a mut ExportState,
     pub fx: &'a mut Vec<Effect>,
     pub events: &'a mut Vec<Event>,
@@ -62,6 +69,16 @@ pub struct Rasters {
 }
 
 impl Rasters {
+    /// How many captures wait or are being made.
+    pub fn captures(&self) -> usize {
+        self.jobs.captures()
+    }
+
+    /// Whether a capture waits for the file to reach its number.
+    pub fn waits(&self) -> bool {
+        self.jobs.waits()
+    }
+
     /// Whether the plans are not the ones the scene of `epoch`, the scale, the target and the open dialog call for. Asking
     /// costs a comparison, and nothing is worked out while no frame is the target and no dialog is open.
     pub fn is_stale(&self, epoch: u64, export: &ExportState) -> bool {
@@ -96,6 +113,7 @@ impl Rasters {
                 }
             }
             PngOp::Export { id, to } => self.export(&id, to, scene, env),
+            PngOp::Capture { now_ms, ask } => self.capture(now_ms, ask, scene, env),
             PngOp::Drawn {
                 request,
                 width,
@@ -104,13 +122,13 @@ impl Rasters {
             } => self.drawn(request, (width, height, bytes), scene, env),
             PngOp::DrawFailed { request, code } => {
                 if let Some(job) = self.jobs.take(request, Stage::Drawing) {
-                    close(job, &safe(&code), false, env);
+                    close(job, &safe(&code), false, env.fx, env.events);
                 }
             }
             PngOp::Delivered { request } => drop(self.jobs.take(request, Stage::Delivering)),
             PngOp::DeliveryFailed { request, code } => {
                 if let Some(job) = self.jobs.take(request, Stage::Delivering) {
-                    close(job, &safe(&code), false, env);
+                    close(job, &safe(&code), false, env.fx, env.events);
                 }
             }
         }
@@ -165,27 +183,125 @@ impl Rasters {
             },
             max_pixels: EXPORT_MAX_PIXELS,
             stage: Stage::Waiting,
+            deadline: None,
         };
-        self.draw(job, env.fx);
+        self.draw(job, env.seq, env.fx);
     }
 
     /// Ask the shell to draw the job's image (`Effect::Raster`) and wait for its report.
-    fn draw(&mut self, mut job: Job, fx: &mut Vec<Effect>) {
-        let Kind::Export { sink, file } = &job.kind;
+    fn draw(&mut self, mut job: Job, seq: u64, fx: &mut Vec<Effect>) {
         fx.push(Effect::Raster {
             request: job.request,
             rect: job.planned.rect,
             scale: job.scale,
             width: job.planned.width,
             height: job.planned.height,
-            file: Some(file.clone()),
-            to: match sink {
-                PngSink::Download => RasterSink::Download {},
-                PngSink::Clipboard => RasterSink::Clipboard {},
-            },
+            file: job.file(),
+            to: job.sink(seq),
         });
         job.stage = Stage::Drawing;
         self.jobs.push(job);
+    }
+
+    /// The clock moved on (it never goes back): a capture past its deadline is not drawn.
+    pub fn tick(&mut self, now_ms: u64) {
+        self.jobs.tick(now_ms);
+    }
+
+    /// An agent's request for an image (`now_ms` is the shell's clock). It is ignored when it is a request already held
+    /// (the same one again is the same one), refused at once when the app is halted (`stale_client`), when too many are
+    /// being made (`busy`) or when it cannot be drawn (`invalid_scale`, `node_not_found`, `too_large`); it waits while the file
+    /// is behind `min_seq`, up to the timeout, else the shell is asked to draw it.
+    fn capture(&mut self, now_ms: u64, ask: CaptureAsk, scene: Scene, env: Env) {
+        self.jobs.tick(now_ms);
+        if self.jobs.has_capture(&ask.request_id) {
+            return;
+        }
+        let fail = |env: Env, code: &str| {
+            env.fx.push(Effect::FailCapture {
+                request_id: ask.request_id.clone(),
+                code: code.to_owned(),
+                message: message(code).to_owned(),
+            })
+        };
+        if env.halted {
+            return fail(env, "stale_client");
+        }
+        if self.jobs.captures() >= MAX_CAPTURES {
+            return fail(env, "busy");
+        }
+        let node = ask.node_id.as_deref();
+        let planned = match plan(scene, node, ask.scale, is_capture_scale, ask.max_pixels) {
+            Ok(p) => p,
+            Err(refusal) => return fail(env, refusal.code()),
+        };
+        let wait = ask.timeout_ms.min(MAX_WAIT_MS);
+        let job = Job {
+            request: self.jobs.number(),
+            kind: Kind::Capture {
+                request_id: ask.request_id.clone(),
+                token: ask.upload_token.clone(),
+                min_seq: ask.min_seq,
+            },
+            node: ask.node_id,
+            scale: ask.scale,
+            planned,
+            max_pixels: ask.max_pixels,
+            stage: Stage::Waiting,
+            deadline: Some(now_ms.saturating_add(wait)),
+        };
+        if env.seq >= ask.min_seq {
+            self.draw(job, env.seq, env.fx);
+        } else {
+            self.jobs.push(job);
+            env.fx.push(Effect::WakeAfter { after_ms: wait });
+        }
+    }
+
+    /// The file moved: the captures that waited for it plan again on what is there now and go on, or end (one whose time was
+    /// up while it waited is not drawn).
+    pub fn resume(&mut self, scene: Scene, env: Env) {
+        let (seq, clock) = (env.seq, self.jobs.clock());
+        let ready = |j: &Job| {
+            j.stage == Stage::Waiting
+                && matches!(j.kind, Kind::Capture { min_seq, .. } if min_seq <= seq)
+        };
+        for mut job in self.jobs.take_where(ready) {
+            if job.deadline.is_some_and(|d| d <= clock) {
+                close(job, "stale_client", false, &mut *env.fx, &mut *env.events);
+                continue;
+            }
+            match replan(&job, scene) {
+                Ok(planned) => {
+                    job.planned = planned;
+                    self.draw(job, seq, &mut *env.fx);
+                }
+                Err(refusal) => close(job, refusal.code(), false, &mut *env.fx, &mut *env.events),
+            }
+        }
+    }
+
+    /// The captures past their deadline end: `stale_client` while waiting for the file, else `render_failed` (the bytes dropped).
+    pub fn expire(&mut self, now_ms: u64, env: Env) {
+        self.jobs.tick(now_ms);
+        for job in self
+            .jobs
+            .take_where(|j| j.deadline.is_some_and(|d| d <= now_ms))
+        {
+            let (code, held) = match job.stage {
+                Stage::Waiting => ("stale_client", false),
+                _ => ("render_failed", true),
+            };
+            close(job, code, held, &mut *env.fx, &mut *env.events);
+        }
+    }
+
+    /// The app halted (its view no longer fits the server's): every capture ends as `stale_client`, the bytes dropped.
+    pub fn halt(&mut self, env: Env) {
+        for job in (self.jobs).take_where(|j| matches!(j.kind, Kind::Capture { .. })) {
+            let held = job.stage != Stage::Waiting;
+            close(job, "stale_client", held, &mut *env.fx, &mut *env.events);
+        }
     }
 
     /// The shell drew the image of `request` and holds `bytes`. It goes on only when the app is not halted, the report meets the
@@ -194,11 +310,12 @@ impl Rasters {
         let Some(mut job) = self.jobs.take(request, Stage::Drawing) else {
             return;
         };
+        let max_bytes = matches!(job.kind, Kind::Capture { .. }).then_some(CAPTURE_MAX_BYTES);
         let planned = (job.planned.width, job.planned.height);
         let code = if env.halted {
             // The view of a halted app is out of date (as for `export`): what the shell drew is not delivered.
             "out_of_sync"
-        } else if let Some(code) = drawn_refusal(drawn, planned, job.max_pixels, None) {
+        } else if let Some(code) = drawn_refusal(drawn, planned, job.max_pixels, max_bytes) {
             code
         } else {
             match replan(&job, scene) {
@@ -215,33 +332,35 @@ impl Rasters {
                 }
             }
         };
-        close(job, code, true, env);
+        close(job, code, true, env.fx, env.events);
     }
 }
 
 /// The plan of the job on the document as it is now.
 fn replan(job: &Job, scene: Scene) -> Result<Planned, Refusal> {
-    plan(
-        scene,
-        job.node.as_deref(),
-        job.scale,
-        is_export_scale,
-        EXPORT_MAX_PIXELS,
-    )
+    let (scale_ok, max) = job.limits();
+    plan(scene, job.node.as_deref(), job.scale, scale_ok, max)
 }
 
-/// End the request with `code`, which the person gets as `Event::Refused`. `discard` when the shell holds the bytes, so it
-/// drops them. The job is already out of the table.
-fn close(job: Job, code: &str, discard: bool, env: Env) {
+/// End the request with `code`: an agent is told (`Effect::FailCapture`), a person gets `Event::Refused`. `discard` when the
+/// shell holds the bytes, so it drops them. The job is already out of the table.
+fn close(job: Job, code: &str, discard: bool, fx: &mut Vec<Effect>, events: &mut Vec<Event>) {
     if discard {
-        env.fx.push(Effect::FinishRaster {
+        fx.push(Effect::FinishRaster {
             request: job.request,
             deliver: false,
         });
     }
-    env.events.push(Event::Refused {
-        code: code.to_owned(),
-    });
+    match job.kind {
+        Kind::Capture { request_id, .. } => fx.push(Effect::FailCapture {
+            request_id,
+            code: code.to_owned(),
+            message: message(code).to_owned(),
+        }),
+        Kind::Export { .. } => events.push(Event::Refused {
+            code: code.to_owned(),
+        }),
+    }
 }
 
 /// One `ExportChanged` among the events from `from` on, however many parts of `AppState::export` a dispatch changed (the

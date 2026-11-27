@@ -1,10 +1,10 @@
-//! What a PNG export comes to (and, later, a capture), decided from the scene (finding T13 of the thin UI audit, decision 43): the
+//! What a PNG export or a capture comes to, decided from the scene (finding T13 of the thin UI audit, decision 43): the
 //! rectangle (the box with the reach of its paint, `meldframe_render::capture_rect`), the scale, the size in pixels, the file
 //! name and the refusal, and what the shell's report of a drawn image has to meet before its bytes go anywhere. Pure functions
 //! of the boxes and the numbers: the state and the effects are `png`'s.
 
 use meldframe_app_model::{
-    EXPORT_MAX_PIXELS, PNG_MIN_BYTES, PngPlan, RasterRect, RasterSize, SCALES,
+    EXPORT_MAX_PIXELS, MAX_SCALE, PNG_MIN_BYTES, PngPlan, RasterRect, RasterSize, SCALES,
 };
 use meldframe_render::{HitIndex, PaintedBox, capture_bounds_in, capture_rect_in};
 
@@ -40,6 +40,11 @@ impl Refusal {
 /// A scale of the PNG export: one of the steps the section offers ([`SCALES`], 0.5 to 4).
 pub fn is_export_scale(scale: f64) -> bool {
     SCALES.contains(&scale)
+}
+
+/// A scale an agent's capture may ask for, as the capture relay holds it: above 0 and at most [`MAX_SCALE`].
+pub fn is_capture_scale(scale: f64) -> bool {
+    scale > 0.0 && scale <= MAX_SCALE
 }
 
 /// The image a plan comes to.

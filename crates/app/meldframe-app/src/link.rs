@@ -97,6 +97,7 @@ impl App {
 
     /// The shell's timer: a silent connection or a stuck attempt counts as dropped; due retries go out.
     pub(crate) fn tick(&mut self, now_ms: u64, fx: &mut Vec<Effect>) {
+        self.captures_moved(Some(now_ms), fx);
         self.fetched(|f, live| f.tick(now_ms, live), fx);
         let silent = self.link.silent_for(now_ms);
         let limit = match self.state.connection {

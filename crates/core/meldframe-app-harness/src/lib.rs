@@ -200,7 +200,8 @@ impl World {
             | Effect::PostCheckpoint { .. }
             | Effect::FetchCheckpointState { .. }
             | Effect::Raster { .. }
-            | Effect::FinishRaster { .. } => vec![],
+            | Effect::FinishRaster { .. }
+            | Effect::FailCapture { .. } => vec![],
         }
     }
 

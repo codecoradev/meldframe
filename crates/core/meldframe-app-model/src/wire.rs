@@ -71,6 +71,13 @@ pub enum Wire {
         status: u16,
         body: String,
     },
+    /// A `captureRequest` frame of the live socket, as the socket sent it: `Action::Png` with `PngOp::Capture` made of it. A
+    /// text that is not one, or has an id or a token that is not safe to put in a path and a header, is nothing.
+    Capture {
+        #[ts(type = "number")]
+        now_ms: u64,
+        text: String,
+    },
     /// The answer of `Effect::Raster` with this `request`: `status` 200 and a body `{"width", "height", "bytes"}` (what the
     /// shell drew and holds) is `PngOp::Drawn`, anything else `PngOp::DrawFailed` with the code of `{"error": {"code"}}` (else
     /// `render_failed`).

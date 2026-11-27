@@ -207,7 +207,10 @@ impl App {
             Action::Disconnected {} => self.disconnected(&mut fx),
             Action::Reconnect { now_ms } => self.reconnect(now_ms, &mut fx),
             Action::Tick { now_ms } => self.tick(now_ms, &mut fx),
-            Action::Frame { now_ms, frame } => self.frame(now_ms, frame, &mut fx),
+            Action::Frame { now_ms, frame } => {
+                self.raster.tick(now_ms);
+                self.frame(now_ms, frame, &mut fx)
+            }
             Action::Activity { op } if op.is_view() => self.activity_view(op, &mut fx),
             Action::Png { op } => self.png_action(op, &mut fx),
             a if a.is_assets() => self.assets_action(a, &mut fx),
@@ -242,6 +245,7 @@ impl App {
             }
             Level::Full => self.refresh(&mut fx),
         }
+        self.captures_moved(None, &mut fx);
         self.settle_confirm();
         one_export_event(&mut self.events, raised);
         self.settle_overlay();
