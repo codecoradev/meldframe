@@ -277,6 +277,66 @@ describe('Shell with a scripted engine', () => {
     expect(engine.dispatched.at(-1)).toEqual({ type: 'disconnected' });
   });
 
+  describe('a refused subscribe', () => {
+    const resubscribed = () => {
+      const c = setup();
+      c.shell.start();
+      c.engine.effect({ type: 'subscribe', afterSeq: 0 });
+      c.engine.connection = 'live';
+      c.engine.effect({ type: 'subscribe', afterSeq: 3 });
+      const socket = c.env.sockets[0]!;
+      expect(socket.sent.map((x) => JSON.parse(x))).toEqual([{ type: 'subscribe', id: 's1', room: 'file_dev', sinceSeq: 3 }]);
+      return { ...c, socket };
+    };
+
+    it('is handed to the app as the text of the frame and the clock of that moment: the retry, the wait and the count are the app layer rules (subscribe_retry.rs)', () => {
+      const { engine, env, socket } = resubscribed();
+      const text = '{"type":"error","id":"s1","message":"m","retryable":true,"code":"rate_limited","retryAfterMs":2000}';
+      env.advance(40);
+      socket.onmessage(text);
+      expect(engine.dispatched.at(-1)).toEqual({ type: 'wire', wire: { kind: 'subscribeRefused', nowMs: 1040, text } });
+    });
+
+    it('is not decided by the shell: it sets no timer and sends no second subscribe until the app asks for one', () => {
+      const { engine, env, socket } = resubscribed();
+      const timers = env.timers.length;
+      socket.onmessage('{"type":"error","id":"s1","message":"m","retryable":true,"code":"rate_limited","retryAfterMs":2000}');
+      env.advance(60_000);
+      expect(socket.sent).toHaveLength(1 + 4); // the first subscribe, and the pings
+      expect(env.timers.length).toBe(timers);
+      engine.effect({ type: 'subscribe', afterSeq: 3 });
+      expect(JSON.parse(socket.sent.at(-1)!)).toEqual({ type: 'subscribe', id: 's2', room: 'file_dev', sinceSeq: 3 });
+    });
+
+    it('is the shell correlation only: a frame that answers an older subscribe, or none, is dropped', () => {
+      const { engine, socket } = resubscribed();
+      const before = engine.dispatched.length;
+      socket.onmessage('{"type":"error","id":"s0","message":"m","retryable":true,"code":"rate_limited"}');
+      socket.onmessage('{"type":"error","message":"m","retryable":false,"code":"bad_request"}');
+      expect(engine.dispatched).toHaveLength(before);
+      engine.effect({ type: 'subscribe', afterSeq: 3 }); // s2 is now the last one
+      socket.onmessage('{"type":"error","id":"s1","message":"m","retryable":true,"code":"rate_limited"}');
+      expect(engine.dispatched).toHaveLength(before);
+    });
+
+    it('is nothing when no subscribe was sent on the socket (the first one is the HTTP upgrade, which refuses with a status)', () => {
+      const { engine, env, shell } = setup();
+      shell.start();
+      engine.effect({ type: 'subscribe', afterSeq: 0 });
+      const before = engine.dispatched.length;
+      env.sockets[0]!.onmessage('{"type":"error","id":"s1","message":"m","retryable":true,"code":"rate_limited"}');
+      expect(engine.dispatched).toHaveLength(before);
+    });
+
+    it('that the app cannot take is a lost connection, like any frame it cannot take', () => {
+      const { engine, socket } = resubscribed();
+      engine.throwOn = (a) => a.type === 'wire';
+      socket.onmessage('{"type":"error","id":"s1","message":"m","retryable":true,"code":"rate_limited"}');
+      expect(engine.dispatched.at(-1)).toEqual({ type: 'disconnected' });
+      expect(socket.closed).toBe(true);
+    });
+  });
+
   it('sendOps posts one request per op, in order', async () => {
     const { engine, env, shell } = setup();
     shell.start();

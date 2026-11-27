@@ -330,19 +330,25 @@ describe.skipIf(!built)('Shell: error and malformed frames', () => {
     expect(seen).toContain('offline');
   });
 
-  it('waits for the marker after a premature resubscribe (bad_request) and logs it once', () => {
+  it('waits one second to subscribe again when the server names no time', () => {
+    const { env } = live();
+    const socket = env.socket;
+    socket.serve({ type: 'resync', room: 'file_dev', afterSeq: 0, latestSeq: 3 });
+    socket.serve(errorFrame({ id: 's1', code: 'unavailable' }));
+    env.advance(999);
+    expect(sentTypes(socket).filter((t) => t === 'subscribe')).toHaveLength(1);
+    env.advance(1);
+    expect(sentTypes(socket).filter((t) => t === 'subscribe')).toHaveLength(2);
+  });
+
+  it('waits for the marker after a premature resubscribe (bad_request): nothing is sent again, and the connection stays', () => {
     const { env, seen } = live();
-    const warn: unknown[] = [];
-    const orig = console.warn;
-    console.warn = (...a: unknown[]) => void warn.push(a);
-    try {
-      env.socket.serve({ type: 'resync', room: 'file_dev', afterSeq: 0, latestSeq: 3 });
-      env.socket.serve(errorFrame({ id: 's1', code: 'bad_request', retryable: false }));
-      env.socket.serve(errorFrame({ id: 's1', code: 'bad_request', retryable: false }));
-    } finally {
-      console.warn = orig;
-    }
-    expect(warn).toHaveLength(1);
+    const socket = env.socket;
+    socket.serve({ type: 'resync', room: 'file_dev', afterSeq: 0, latestSeq: 3 });
+    socket.serve(errorFrame({ id: 's1', code: 'bad_request', retryable: false }));
+    socket.serve(errorFrame({ id: 's1', code: 'bad_request', retryable: false }));
+    env.advance(30_000);
+    expect(sentTypes(socket).filter((t) => t === 'subscribe')).toHaveLength(1);
     expect(seen).toEqual(['connecting', 'live']);
   });
 
