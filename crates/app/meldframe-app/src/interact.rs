@@ -109,9 +109,12 @@ impl App {
     ///
     /// Cost: the file is laid out once for a revision of the document and a measurer, and the app keeps the boxes, so the
     /// calls that follow while the pointer moves and nothing else changes read them (`layout_runs` counts the layouts).
-    /// What is left on each call is the rule itself, a few passes over the nodes. Under WASM (Node, release, a column of
-    /// 5,000 children): about 2.6 ms a call with a layout on every call, about 1.0 ms with the cache (0.46 and 0.17 ms for
-    /// 1,000 nodes).
+    /// What is left on each call is the rule itself, a few passes over the nodes. When the pointer is not inside the
+    /// node's own flow parent the rule builds a `HitIndex` (`meldframe_render`: a hash map and a vector over the boxes) on
+    /// each call. Under WASM (Node, release, a column of 5,000 children) it was about 2.6 ms a call with a layout on every
+    /// call and about 1.0 ms with the cache (0.46 and 0.17 ms for 1,000 nodes); that was measured before the rule read the
+    /// hit index and has not been measured again under WASM. Natively (release, 5,000 boxes) the index costs 0.45 ms for
+    /// `HitIndex::new` plus one query, against 0.10 ms for the by-id map the rule built before.
     pub fn drop_preview(&self, id: &str, at: (f64, f64), by: (f64, f64)) -> Option<Slot> {
         if !self.canvas.enabled {
             return None;

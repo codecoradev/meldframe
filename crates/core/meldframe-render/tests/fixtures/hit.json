@@ -121,6 +121,7 @@
   },
   {
     "name": "a node whose parent is not in the file is a root",
+    "renderOnly": true,
     "nodes": [
       {"id": "o", "type": "rect", "parentId": "gone", "pos": "a0", "x": 5, "y": 5, "w": 10, "h": 10}
     ],
