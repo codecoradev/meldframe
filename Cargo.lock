@@ -1361,6 +1361,7 @@ dependencies = [
  "meldframe-app",
  "meldframe-app-model",
  "meldframe-app-parts",
+ "meldframe-app-rules",
  "meldframe-check",
  "meldframe-protocol",
  "meldframe-render",

@@ -15,9 +15,7 @@
 use meldframe_layout::{StubMeasurer, TextMeasurer};
 use meldframe_protocol::Node;
 
-/// The largest width or height, in pixels, a host answer may have. Past it the answer is taken for a bug (no text a
-/// design holds is a million pixels wide), not for a size.
-pub const MAX_MEASURE: f64 = 1_000_000.0;
+pub use meldframe_layout::{MAX_MEASURE, is_size};
 
 /// What the host is asked: the facts of a text that decide how large it is, and nothing else of the node.
 #[derive(Debug, Clone, PartialEq)]
@@ -27,11 +25,6 @@ pub struct MeasureQuery<'a> {
     pub font_weight: u16,
     /// `None`: one line, no wrapping.
     pub wrap_width: Option<f64>,
-}
-
-/// Whether `(w, h)` is a size a host may answer with: both numbers finite, from 0 to [`MAX_MEASURE`].
-pub fn is_size((w, h): (f64, f64)) -> bool {
-    (0.0..=MAX_MEASURE).contains(&w) && (0.0..=MAX_MEASURE).contains(&h)
 }
 
 /// A measurer that asks `ask` and falls back to [`StubMeasurer`] when it answers `None` or something that is not a size.
