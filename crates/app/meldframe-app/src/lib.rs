@@ -80,7 +80,7 @@ pub use meldframe_app_rules::drop::Slot as DropSlot;
 pub use meldframe_app_rules::handle::ResizePreview;
 pub use meldframe_app_rules::multi::Preview as DropPreview;
 pub use meldframe_app_rules::palette::{
-    Entry as PaletteEntry, KeyResult as PaletteKeyResult, Run as PaletteRun, Zoom as PaletteZoom,
+    Entry as PaletteEntry, KeyResult as PaletteKeyResult, Run as PaletteRun,
 };
 pub use meldframe_layout::{StubMeasurer, TextMeasurer};
 pub use meldframe_protocol::{ImageFit, VarType};

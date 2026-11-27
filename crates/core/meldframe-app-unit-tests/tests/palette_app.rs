@@ -1,6 +1,6 @@
 //! The run palette driven through the app with no front end (issue E8.1.5): a query gives the entries, an entry is run by its
 //! id, and what it does is what the key or the button for the same thing does. The palette closes before the entry acts, as the
-//! web palette does. PaletteZoom is the one run the app cannot do yet (the camera is the front end's until E8.1.4): it is handed back.
+//! web palette does. The zoom rows run the camera action (E8.1.4).
 
 // Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
@@ -9,7 +9,7 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 mod common;
 use common::keys::*;
 use common::*;
-use meldframe_app::{Action, App, Modifiers, Overlay, OverlayOp, PaletteRan, PaletteZoom, Tool};
+use meldframe_app::{Action, App, CameraOp, Modifiers, Overlay, OverlayOp, PaletteRan, Tool};
 use meldframe_app_rules::keys::{Held, TABLE};
 
 fn found(app: &App, query: &str) -> Vec<String> {
@@ -128,12 +128,8 @@ fn a_preset_makes_a_frame_centred_on_the_point_the_front_end_gives() {
 }
 
 #[test]
-fn zoom_is_handed_back_to_the_front_end_and_a_refused_entry_changes_nothing() {
+fn a_refused_entry_changes_nothing() {
     let mut a = app();
-    assert!(matches!(
-        a.run_palette("zoom-fit", (0.0, 0.0)),
-        PaletteRan::Host(PaletteZoom::Fit)
-    ));
     a.take_events();
     let before = a.state().clone();
     for id in ["undo", "delete", "export", "variant", "nowhere"] {
@@ -258,16 +254,27 @@ fn each_entry_that_runs_does_what_it_says() {
     done(a.run_palette("variant", (0.0, 0.0)));
     assert!(a.nodes().len() > count);
     assert_ne!(a.state().selection, ids(&["root"]));
-    for (id, zoom) in [
-        ("zoom-in", PaletteZoom::In),
-        ("zoom-out", PaletteZoom::Out),
-        ("zoom-reset", PaletteZoom::Reset),
-        ("zoom-fit", PaletteZoom::Fit),
-        ("zoom-fit-selection", PaletteZoom::FitSelection),
-    ] {
-        match a.run_palette(id, (0.0, 0.0)) {
-            PaletteRan::Host(z) => assert_eq!(z, zoom, "{id}"),
-            other => panic!("{id}: {other:?}"),
-        }
-    }
+    // The zoom rows move the camera (the rules are tested in `camera_rules.rs`): in by a step, out by one, 100%, and the fits.
+    a.dispatch(Action::Camera {
+        op: CameraOp::SetViewport {
+            w: 1000.0,
+            h: 600.0,
+        },
+    });
+    let zoom = |a: &mut App, id: &str| {
+        done(a.run_palette(id, (0.0, 0.0)));
+        a.state().camera.zoom
+    };
+    assert_eq!(zoom(&mut a, "zoom-in"), 1.25);
+    assert!((zoom(&mut a, "zoom-out") - 1.0).abs() < 1e-12);
+    assert_eq!(zoom(&mut a, "zoom-in"), 1.25);
+    assert_eq!(zoom(&mut a, "zoom-reset"), 1.0);
+    let home = a.state().camera;
+    zoom(&mut a, "zoom-fit");
+    let fitted = a.state().camera;
+    assert_ne!(fitted, home);
+    // With nothing selected, zoom to selection shows all the content: the same camera.
+    a.dispatch(Action::ClearSelection {});
+    done(a.run_palette("zoom-fit-selection", (0.0, 0.0)));
+    assert_eq!(a.state().camera, fitted);
 }

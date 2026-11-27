@@ -340,21 +340,75 @@ fn an_unknown_key_makes_no_action_and_no_event() {
         nothing(&mut l, key(k));
         nothing(&mut l, ctrl(k));
     }
-    for k in ["+", "-", "=", " ", "Tab"] {
-        nothing(&mut l, key(k)); // the front end's: the camera
+    for k in [" ", "Tab"] {
+        nothing(&mut l, key(k)); // the front end's: a drag with Space held
     }
-    nothing(
-        &mut l,
-        press(
-            "1",
-            "Digit1",
-            Modifiers {
-                shift: true,
-                ..NONE
-            },
-        ),
-    );
     assert_eq!(l.app.take_events(), vec![]);
+}
+
+#[test]
+fn the_zoom_keys_move_the_camera_and_say_the_key_was_used() {
+    let mut l = live();
+    l.send(Action::Camera {
+        op: meldframe_app::CameraOp::SetViewport { w: 800.0, h: 600.0 },
+    });
+    l.events.clear();
+    for (k, zoom) in [("+", 1.25), ("=", 1.5625)] {
+        let fx = l.send(key(k));
+        assert!(fx.is_empty());
+        assert_eq!(l.app.state().camera.zoom, zoom, "{k}");
+        assert!(handled(&l.events), "{k}");
+        l.events.clear();
+    }
+    l.send(key("-"));
+    assert_eq!(l.app.state().camera.zoom, 1.25);
+    // Shift+1 fits all the content: the camera moves, whatever the character it types
+    let before = l.app.state().camera;
+    l.send(press(
+        "!",
+        "Digit1",
+        Modifiers {
+            shift: true,
+            ..NONE
+        },
+    ));
+    assert_ne!(l.app.state().camera, before);
+    assert!(
+        l.events
+            .iter()
+            .any(|e| matches!(e, Event::CameraChanged {}))
+    );
+}
+
+#[test]
+fn a_held_zoom_key_goes_on_zooming_and_a_fit_key_waits_for_the_size_of_the_canvas() {
+    let mut l = live();
+    // before the canvas has a size there is nothing to fit in: the key is the editor's and nothing moves
+    l.send(press(
+        "!",
+        "Digit1",
+        Modifiers {
+            shift: true,
+            ..NONE
+        },
+    ));
+    assert_eq!(l.app.state().camera, meldframe_app::Camera::default());
+    assert!(
+        !l.events
+            .iter()
+            .any(|e| matches!(e, Event::CameraChanged {}))
+    );
+    l.send(Action::Camera {
+        op: meldframe_app::CameraOp::SetViewport { w: 800.0, h: 600.0 },
+    });
+    for _ in 0..2 {
+        let mut k = key("+");
+        if let Action::Key { input } = &mut k {
+            input.repeat = true;
+        }
+        l.send(k);
+    }
+    assert_eq!(l.app.state().camera.zoom, 1.5625, "two repeats, two steps");
 }
 
 #[test]
