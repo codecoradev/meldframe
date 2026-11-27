@@ -34,6 +34,7 @@ fn score(e: &Entry, words: &[String]) -> Option<u32> {
 /// is first and an entry that cannot run comes after those that can; equals keep the order of the list. A blank query keeps the
 /// list as it is.
 pub fn filter(entries: &[Entry], query: &str) -> Vec<Entry> {
+    // Rust splits on U+0085 and JavaScript's `\s` on U+FEFF, and neither splits on the other's: a difference no query meets.
     let words: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
     if words.is_empty() {
         return entries.to_vec();

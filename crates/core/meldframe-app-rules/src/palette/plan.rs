@@ -12,7 +12,8 @@ use meldframe_app_model::{Action, AppState, Overlay, OverlayOp};
 pub enum Plan {
     /// The app dispatches this action: the one the button or the key for the same thing sends.
     Dispatch(Action),
-    /// Turn "Auto layout on canvas" on or off: a host setting of the app, not an action.
+    /// Turn "Auto layout on canvas" on or off: a host setting of the app, not an action. Remembering the choice and the notice stay
+    /// with the host.
     SetLayoutOnCanvas(bool),
     /// The front end does it (the camera is not in the app layer yet).
     Host(Zoom),
