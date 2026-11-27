@@ -3,7 +3,8 @@ import type { KeyFocus } from "./KeyFocus";
 import type { Modifiers } from "./Modifiers";
 
 /**
- * A key pressed (`Action::Key`).
+ * A key pressed (`Action::Key`). A key the app layer does not answer, a key of an input method that is composing, a repeat, and
+ * a key the focus owns (a field, a menu, a dialog) make no action and no event; one it answers raises `Event::KeyHandled`.
  *
  * What the host still does, because the app layer has no state for it:
  *
