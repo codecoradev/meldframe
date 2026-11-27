@@ -13,6 +13,7 @@ import type { ManageState } from "./ManageState";
 import type { Overlay } from "./Overlay";
 import type { Panels } from "./Panels";
 import type { Picker } from "./Picker";
+import type { PointerState } from "./PointerState";
 import type { Properties } from "./Properties";
 import type { RightTab } from "./RightTab";
 import type { TextEdit } from "./TextEdit";
@@ -128,4 +129,8 @@ camera: Camera,
 /**
  * The size of the canvas in CSS pixels, as the front end reported it.
  */
-viewport: Viewport, };
+viewport: Viewport, 
+/**
+ * The pointer (`Action::Pointer`): the node under it, the cursor and the gesture that is going on. View state.
+ */
+pointer: PointerState, };

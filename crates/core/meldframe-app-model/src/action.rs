@@ -8,6 +8,7 @@ pub use crate::frame::Frame;
 use crate::gesture::GestureOp;
 use crate::key::KeyInput;
 use crate::layout::Direction;
+use crate::pointer::PointerInput;
 pub use crate::preset::{CreateKind, FramePreset};
 pub use crate::property::Property;
 use crate::state::{Panel, Tool};
@@ -242,6 +243,10 @@ pub enum Action {
     /// The shortcut sheet or the command palette opens or closes (`OverlayOp`): `AppState::overlay`.
     Overlay {
         op: OverlayOp,
+    },
+    /// The pointer pressed, moved, was let go, cancelled or left the canvas (`PointerInput`): `AppState::pointer` is what it shows.
+    Pointer {
+        input: PointerInput,
     },
     /// A key was pressed: the app layer decides what it makes (`meldframe-app-rules`, `keys`); the rest is on `KeyInput`.
     Key {

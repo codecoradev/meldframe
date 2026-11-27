@@ -10,6 +10,7 @@ use crate::layers::LayerRow;
 use crate::layout::{LayoutNote, Sides};
 use crate::manage::ManageState;
 use crate::overlay::Overlay;
+use crate::pointer::PointerState;
 use crate::text_edit::TextEdit;
 use crate::variables::{BindField, Picker, VariablesPanel};
 use crate::variables_io::VariablesIo;
@@ -106,6 +107,9 @@ pub struct AppState {
     /// The size of the canvas in CSS pixels, as the front end reported it.
     #[serde(default)]
     pub viewport: Viewport,
+    /// The pointer (`Action::Pointer`): the node under it, the cursor and the gesture that is going on. View state.
+    #[serde(default)]
+    pub pointer: PointerState,
 }
 
 /// The tool that decides what a press on the canvas does.
