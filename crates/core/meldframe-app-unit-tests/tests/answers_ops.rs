@@ -106,6 +106,28 @@ fn a_body_that_is_not_what_the_server_writes_is_unavailable_and_retryable() {
     );
 }
 
+/// The two edges where `serde_json` and the `JSON.parse` the shell used to read the body with disagree: it refuses a lone
+/// surrogate escape and a nesting over 128 levels, `JSON.parse` takes both. A server or a proxy sends neither in practice;
+/// such a body is not read, so it is `unavailable` and retryable instead of carrying its own code.
+#[test]
+fn a_body_that_only_javascript_reads_is_unavailable_and_retryable() {
+    let lone_surrogate = r#"{"error":{"code":"conflict\ud800","retryable":false}}"#;
+    assert_eq!(read(409, lone_surrogate), rejected("unavailable", true));
+    let deep = format!(
+        r#"{{"error":{{"code":"conflict","retryable":false,"x":{}{}}}}}"#,
+        "[".repeat(200),
+        "]".repeat(200)
+    );
+    assert_eq!(read(409, &deep), rejected("unavailable", true));
+    // a nesting inside the limit is read
+    let shallow = format!(
+        r#"{{"error":{{"code":"conflict","retryable":false,"x":{}{}}}}}"#,
+        "[".repeat(50),
+        "]".repeat(50)
+    );
+    assert_eq!(read(409, &shallow), rejected("conflict", false));
+}
+
 #[test]
 fn a_field_the_app_does_not_know_is_ignored() {
     let body = json!({"error": {"code": "conflict", "retryable": false, "message": "m", "details": [1, 2], "retryAfterMs": 5}, "extra": true});
