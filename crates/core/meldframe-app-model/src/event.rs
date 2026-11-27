@@ -72,6 +72,8 @@ pub enum Event {
     CheckpointMade {
         key: String,
     },
+    /// `AppState::camera` or `AppState::viewport` changed (`Action::Camera`): the front end draws the world through the new camera.
+    CameraChanged {},
     /// `AppState::text_edit` changed (an edit began, was committed or cancelled, or closed because its node went).
     TextEditChanged {},
     /// `AppState::manage` changed (the shown collection, the question, the rename field, a form or what follows the file).

@@ -2,6 +2,7 @@
 
 use crate::activity::ActivityState;
 use crate::assets::AssetsState;
+use crate::camera::{Camera, Viewport};
 use crate::checkpoint::{Checkpoint, CheckpointsStatus};
 use crate::confirm::{Confirm, RightTab};
 use crate::export::ExportState;
@@ -99,6 +100,12 @@ pub struct AppState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub text_edit: Option<TextEdit>,
+    /// The camera of the canvas (`Action::Camera`): pan and zoom. View state: it is never written to the file.
+    #[serde(default)]
+    pub camera: Camera,
+    /// The size of the canvas in CSS pixels, as the front end reported it.
+    #[serde(default)]
+    pub viewport: Viewport,
 }
 
 /// The tool that decides what a press on the canvas does.

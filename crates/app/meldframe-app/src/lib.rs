@@ -15,6 +15,7 @@
 mod activity;
 mod app;
 mod assets;
+mod camera;
 mod canvas;
 mod checkpoints;
 mod confirm_ui;
@@ -67,6 +68,7 @@ pub use meldframe_app_model::{
     CAPTURE_MAX_BYTES, CaptureAsk, EXPORT_MAX_PIXELS, MAX_SCALE, MIN_SCALE, PNG_MIN_BYTES, PngOp,
     PngPlan, PngSink, PngState, RasterRect, RasterSink, RasterSize, SCALES, Wire,
 };
+pub use meldframe_app_model::{Camera, CameraOp, Viewport, Wheel, WheelUnit, ZoomCommand};
 pub use meldframe_app_model::{
     ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,
     VariablesImportResult, VariablesIo,
@@ -81,7 +83,6 @@ pub use meldframe_app_rules::palette::{
     Entry as PaletteEntry, KeyResult as PaletteKeyResult, Run as PaletteRun, Zoom as PaletteZoom,
 };
 pub use meldframe_layout::{StubMeasurer, TextMeasurer};
-pub use meldframe_protocol::ImageFit;
-pub use meldframe_protocol::VarType;
+pub use meldframe_protocol::{ImageFit, VarType};
 pub use meldframe_sync::LoadError;
 pub use palette::Ran as PaletteRan;
