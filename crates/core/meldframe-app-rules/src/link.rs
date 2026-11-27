@@ -1,6 +1,9 @@
 //! The timing of the live connection: what the app remembers beyond the public state (failed attempts, when the shell
 //! last heard from the server, since when the connection is live, whether a subscribe for a gap is out) and the
-//! backoff. Time arrives as a number (`now_ms`, the shell's clock); nothing here reads a clock.
+//! backoff, and the retries of a subscribe the server refused (`crate::subscribe`). Time arrives as a number (`now_ms`, the
+//! shell's clock); nothing here reads a clock.
+
+use crate::subscribe::{Resubscribe, SubscribeRefusal};
 
 /// A live connection that has been silent this long is dropped. The server sends a heartbeat when it has
 /// said nothing for 15 seconds, so three are missed by then.
@@ -23,6 +26,8 @@ pub struct Link {
     live_since: Option<u64>,
     /// A subscribe for a gap is out; no second one until a frame is applied or the connection is new.
     resub: bool,
+    /// The retries of that subscribe, when the server refuses it.
+    retry: Resubscribe,
 }
 
 /// How long to wait before attempt number `step + 1`: 1 s, doubling, up to 30 s.
@@ -36,6 +41,7 @@ impl Link {
     pub fn attempt(&mut self, now_ms: u64) {
         self.heard_ms = now_ms;
         self.resub = false;
+        self.retry.clear();
     }
 
     /// The transport is subscribed.
@@ -43,18 +49,21 @@ impl Link {
         self.heard_ms = now_ms;
         self.live_since = Some(now_ms);
         self.resub = false;
+        self.retry.clear();
     }
 
     /// The connection dropped or an attempt failed: how long to wait before the next one.
     pub fn failed(&mut self) -> u64 {
         self.failures = self.failures.saturating_add(1);
         self.live_since = None;
+        self.retry.clear();
         backoff(self.failures)
     }
 
     /// The file was loaded again: the connection is no longer live.
     pub fn reloaded(&mut self) {
         self.live_since = None;
+        self.retry.clear();
     }
 
     /// Failed attempts since the connection was last stable.
@@ -83,9 +92,32 @@ impl Link {
         }
     }
 
-    /// A subscribe for a gap goes out.
-    pub fn resubscribing(&mut self) {
+    /// A subscribe for a gap or a marker goes out, asking from `after_seq`: it is not a retry, so the count starts again.
+    pub fn resubscribing(&mut self, after_seq: u64) {
         self.resub = true;
+        self.retry.start(after_seq);
+    }
+
+    /// The server refused the subscribe that is out, with `code` and a wait of `retry_after_ms`: what to do. `None` when no
+    /// subscribe is out (it was answered, a frame was applied, or the connection is new): such a refusal is stale.
+    pub fn subscribe_refused(
+        &mut self,
+        code: Option<&str>,
+        retry_after_ms: Option<u64>,
+        now_ms: u64,
+    ) -> Option<SubscribeRefusal> {
+        self.resub
+            .then(|| self.retry.on_refused(code, retry_after_ms, now_ms))
+    }
+
+    /// The number a refused subscribe asks from again, once its wait is over; the retry is the same subscribe, so the
+    /// count goes on.
+    pub fn take_due_subscribe(&mut self, now_ms: u64) -> Option<u64> {
+        if self.resub {
+            self.retry.take_due(now_ms)
+        } else {
+            None
+        }
     }
 
     /// Whether a subscribe for a gap is out.
@@ -96,5 +128,6 @@ impl Link {
     /// A frame was applied: the subscribe for a gap did its work.
     pub fn gap_closed(&mut self) {
         self.resub = false;
+        self.retry.clear();
     }
 }

@@ -3,4 +3,4 @@
 /**
  * A raw answer or frame. `body` and `text` are the text of what was received, not parsed.
  */
-export type Wire = { "kind": "batches", status: number, body: string, } | { "kind": "batchReview", status: number, body: string, } | { "kind": "checkpoints", status: number, body: string, } | { "kind": "checkpointPosted", key: string, status: number, body: string, } | { "kind": "checkpointState", n: number, status: number, body: string, } | { "kind": "assets", request: number, after: string | null, status: number, body: string, } | { "kind": "hint", nowMs: number, text: string, };
+export type Wire = { "kind": "batches", status: number, body: string, } | { "kind": "batchReview", status: number, body: string, } | { "kind": "checkpoints", status: number, body: string, } | { "kind": "checkpointPosted", key: string, status: number, body: string, } | { "kind": "checkpointState", n: number, status: number, body: string, } | { "kind": "assets", request: number, after: string | null, status: number, body: string, } | { "kind": "hint", nowMs: number, text: string, } | { "kind": "subscribeRefused", nowMs: number, text: string, };

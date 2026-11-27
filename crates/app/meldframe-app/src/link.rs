@@ -8,6 +8,7 @@ use crate::state::Connection;
 use meldframe_app_parts::document::out_ops;
 use meldframe_app_rules::level::Level;
 use meldframe_app_rules::retry::Retries;
+use meldframe_app_rules::subscribe::SubscribeRefusal;
 use meldframe_protocol::Doc;
 
 pub use meldframe_app_rules::link::{ATTEMPT_MS, SILENT_MS};
@@ -110,6 +111,7 @@ impl App {
             self.disconnected(fx);
         } else {
             self.send_due_retries(now_ms, fx);
+            self.send_due_subscribe(now_ms, fx);
         }
     }
 
@@ -122,8 +124,37 @@ impl App {
 
     /// Frames after `after_seq` are lost: subscribe again from there.
     pub(crate) fn resubscribe(&mut self, after_seq: u64, fx: &mut Vec<Effect>) {
-        self.link.resubscribing();
+        self.link.resubscribing(after_seq);
         fx.push(Effect::Subscribe { after_seq });
+    }
+
+    /// The server refused the subscribe sent after a marker or a gap (audit finding T14): send it again after the wait,
+    /// wait for the marker, or give the connection up (`meldframe_app_rules::subscribe`). A refusal that answers no subscribe
+    /// that is out, or arrives when the connection is not live, is stale and changes nothing.
+    pub(crate) fn subscribe_refused(
+        &mut self,
+        now_ms: u64,
+        code: Option<&str>,
+        retry_after_ms: Option<u64>,
+        fx: &mut Vec<Effect>,
+    ) {
+        if self.state.connection != Connection::Live {
+            return;
+        }
+        match self.link.subscribe_refused(code, retry_after_ms, now_ms) {
+            Some(SubscribeRefusal::Retry { after_ms, .. }) => {
+                fx.push(Effect::WakeAfter { after_ms })
+            }
+            Some(SubscribeRefusal::Lost) => self.disconnected(fx),
+            Some(SubscribeRefusal::Wait) | None => {}
+        }
+    }
+
+    /// A refused subscribe whose wait is over goes out again from the number it first asked from.
+    fn send_due_subscribe(&mut self, now_ms: u64, fx: &mut Vec<Effect>) {
+        if let Some(after_seq) = self.link.take_due_subscribe(now_ms) {
+            fx.push(Effect::Subscribe { after_seq });
+        }
     }
 
     /// A gap in the numbers: subscribe again from the last applied number, once until a frame applies.

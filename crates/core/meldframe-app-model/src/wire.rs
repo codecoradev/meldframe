@@ -50,4 +50,13 @@ pub enum Wire {
         now_ms: u64,
         text: String,
     },
+    /// An `error` frame of the live socket that answers the last `subscribe` the shell sent (the shell matches the id of
+    /// that subscribe, which the app does not know): `Action::Frame` with `Frame::SubscribeRefused`, which the app answers
+    /// with a new subscribe, a wait or `Disconnected` (audit finding T14, issue 324). A text that is not an `error` frame
+    /// is nothing.
+    SubscribeRefused {
+        #[ts(type = "number")]
+        now_ms: u64,
+        text: String,
+    },
 }

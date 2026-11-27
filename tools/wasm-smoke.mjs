@@ -77,6 +77,20 @@ app.takeEventsJson();
 run({ type: 'wire', wire: { kind: 'batches', status: 200, body: '<html>' } });
 assert.deepEqual(JSON.parse(app.takeEventsJson()), [{ type: 'refused', code: 'unavailable' }]);
 
+// A subscribe the server refused (finding T14): the app layer reads the text of the `error` frame and decides; the shell keeps no count.
+const sub = new WasmApp('usr_me', 'web', 10, '[]', 0);
+const runSub = (action) => JSON.parse(sub.dispatch(JSON.stringify(action)));
+runSub({ type: 'start', nowMs: T });
+runSub({ type: 'connected', nowMs: T });
+assert.deepEqual(runSub({ type: 'frame', nowMs: T, frame: { type: 'resync', afterSeq: 0, latestSeq: 3 } }).filter((e) => e.type === 'subscribe'), [{ type: 'subscribe', afterSeq: 0 }]);
+const refusal = (code, extra = {}) => ({ type: 'wire', wire: { kind: 'subscribeRefused', nowMs: T, text: JSON.stringify({ type: 'error', id: 's1', message: 'm', retryable: true, code, ...extra }) } });
+assert.deepEqual(runSub(refusal('rate_limited', { retryAfterMs: 2000 })), [{ type: 'wakeAfter', afterMs: 2000 }]);
+assert.deepEqual(runSub({ type: 'tick', nowMs: T + 2000 }), [{ type: 'subscribe', afterSeq: 0 }], 'sent again after the wait the server named');
+assert.deepEqual(runSub(refusal('bad_request')), [], 'a subscribe before the marker waits for it');
+assert.equal(JSON.parse(sub.stateJson()).connection.type, 'live');
+runSub(refusal('forbidden'));
+assert.equal(JSON.parse(sub.stateJson()).connection.type, 'offline', 'any other refusal gives the connection up');
+
 // The Export dialog (D9): the HTML of the selected frame is built in the state while the dialog is open.
 const exp = new WasmApp('usr_me', 'web', 8, JSON.stringify([{ id: 'f', type: 'frame', pos: 'a0', name: 'Landing', w: 300, h: 200 }]), 0);
 const runExp = (action) => JSON.parse(exp.dispatch(JSON.stringify(action)));

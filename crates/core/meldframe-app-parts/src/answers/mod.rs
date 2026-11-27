@@ -13,6 +13,7 @@
 mod assets;
 mod batches;
 mod checkpoints;
+mod subscribe;
 
 use meldframe_app_model::{Action, Frame, Wire};
 use serde_json::Value;
@@ -52,6 +53,10 @@ pub fn action_of(wire: Wire) -> Option<Action> {
         } => assets::page(request, after, status, &body),
         Wire::Hint { now_ms, text } => {
             let frame = hint(&text)?;
+            Action::Frame { now_ms, frame }
+        }
+        Wire::SubscribeRefused { now_ms, text } => {
+            let frame = subscribe::refused(&text)?;
             Action::Frame { now_ms, frame }
         }
     })

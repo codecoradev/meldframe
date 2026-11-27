@@ -22,6 +22,10 @@ impl App {
                 self.fetched(|f, _| f.connected(now_ms), fx);
                 self.checkpoints_connected(fx);
             }
+            Frame::SubscribeRefused {
+                code,
+                retry_after_ms,
+            } => self.subscribe_refused(now_ms, code.as_deref(), retry_after_ms, fx),
             Frame::Checkpoint { checkpoint } => self.checkpoint_frame(checkpoint, fx),
             Frame::Batch { .. } => self.activity_frame(now_ms, frame, fx),
             // The actor of a touch is a lane key, so it is made safe here; an actor with nothing left draws nothing.

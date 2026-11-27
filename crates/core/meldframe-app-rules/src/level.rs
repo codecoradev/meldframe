@@ -53,6 +53,7 @@ pub fn of(action: &Action, ui: bool) -> Level {
         | Action::Frame {
             frame:
                 Frame::Heartbeat {}
+                | Frame::SubscribeRefused { .. }
                 | Frame::Batch { .. }
                 | Frame::Touch { .. }
                 | Frame::Checkpoint { .. },
