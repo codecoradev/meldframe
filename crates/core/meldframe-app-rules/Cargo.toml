@@ -16,6 +16,7 @@ meldframe-checkpoints = { path = "../meldframe-checkpoints" }
 meldframe-layout = { path = "../meldframe-layout" }
 meldframe-order = { path = "../meldframe-order" }
 meldframe-protocol = { path = "../meldframe-protocol" }
+meldframe-render = { path = "../meldframe-render" }
 meldframe-revert = { path = "../meldframe-revert" }
 meldframe-sync = { path = "../meldframe-sync" }
 meldframe-text = { path = "../meldframe-text" }

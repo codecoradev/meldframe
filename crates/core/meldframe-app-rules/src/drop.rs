@@ -35,6 +35,7 @@ use meldframe_check::ApplyError;
 use meldframe_layout::{Rect, is_layout_frame};
 use meldframe_order::{children_map, fracindex, sib_cmp};
 use meldframe_protocol::{Command, LayoutMode, Node, NodeKind, NodePatch, SizeMode};
+use meldframe_render::{HitBox, HitIndex, contains_point};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
@@ -135,7 +136,7 @@ fn aim<'a>(nodes: &'a [Node], rects: &[(String, Rect)], n: &'a Node, d: &Drag) -
             return Aim::Reorder(frame);
         }
     }
-    let under = frame_under(nodes, rects, d);
+    let under = frame_under(nodes, rects, d.at, &HashSet::from([d.id]));
     let same = under.map(|t| t.id.as_str()) == parent.map(|p| p.id.as_str());
     let top_frame = parent.is_none() && n.kind == NodeKind::Frame;
     match under {
@@ -226,34 +227,63 @@ pub(crate) fn update(id: &str, patch: NodePatch) -> Command {
     }
 }
 
-/// Whether `id` is `start` or one of its ancestors.
-fn is_self_or_above(nodes: &[Node], id: &str, start: &Node) -> bool {
-    let mut cur = Some(start);
-    for _ in 0..=nodes.len() {
-        match cur {
-            Some(n) if n.id == id => return true,
-            Some(n) => cur = n.parent_id.as_deref().and_then(|p| find(nodes, p)),
-            None => return false,
-        }
-    }
-    false
-}
-
-/// Whether the point is in the box (the left and top edges are in, the right and bottom ones are out).
+/// Whether the point is in the box (the left and top edges are in, the right and bottom ones are out): the edges of a hit
+/// (`meldframe_render::contains_point`), so what a drop calls "inside" is what a click does.
 pub(crate) fn contains(r: Rect, (x, y): (f64, f64)) -> bool {
-    x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h
+    contains_point(r, x, y)
 }
 
-/// The front-most frame under the pointer that is not the dragged node or inside it (the last box drawn wins).
-fn frame_under<'a>(nodes: &'a [Node], rects: &[(String, Rect)], d: &Drag) -> Option<&'a Node> {
+/// The front-most frame under `at` that is none of the nodes in `skip` and not inside one of them (what a drop may nest into;
+/// the last box drawn wins). "Under" is the one definition of a hit, `meldframe_render::HitIndex`: a frame that a clipping
+/// ancestor cuts away at the point is not under it, as it is not under a click. A box that is not a frame is passed over, so a
+/// rectangle on a frame does not take the drop from it. `rects` are the boxes of the layout in world space, in drawing
+/// order; a node the layout holds no box of is under nothing.
+pub fn frame_under<'a>(
+    nodes: &'a [Node],
+    rects: &[(String, Rect)],
+    at: (f64, f64),
+    skip: &HashSet<&str>,
+) -> Option<&'a Node> {
     // Indexed by id: a lookup for every box of the file would make this quadratic.
     let by_id: HashMap<&str, &Node> = nodes.iter().map(|n| (n.id.as_str(), n)).collect();
-    rects.iter().rev().find_map(|(id, r)| {
+    frame_under_in(&by_id, rects, at, skip)
+}
+
+/// [`frame_under`] for a caller that has the nodes by id already.
+pub(crate) fn frame_under_in<'a>(
+    by_id: &HashMap<&'a str, &'a Node>,
+    rects: &[(String, Rect)],
+    at: (f64, f64),
+    skip: &HashSet<&str>,
+) -> Option<&'a Node> {
+    let boxes = rects.iter().filter_map(|(id, rect)| {
+        let n = by_id.get(id.as_str())?;
+        Some(HitBox {
+            id,
+            parent: n.parent_id.as_deref(),
+            rect: *rect,
+            clip: n.clip,
+            // A node has no visibility yet (ADR-0025 is proposed); the hit rule reads it once it has.
+            visible: true,
+        })
+    });
+    let inside_a_skipped = |n: &Node| {
+        let mut cur = Some(n);
+        for _ in 0..=by_id.len() {
+            match cur {
+                Some(c) if skip.contains(c.id.as_str()) => return true,
+                Some(c) => cur = c.parent_id.as_deref().and_then(|p| by_id.get(p).copied()),
+                None => return false,
+            }
+        }
+        false
+    };
+    HitIndex::new(boxes).under(at.0, at.1).find_map(|id| {
         let n = by_id
-            .get(id.as_str())
+            .get(id)
             .copied()
-            .filter(|n| n.kind == NodeKind::Frame && contains(*r, d.at))?;
-        (!is_self_or_above(nodes, d.id, n)).then_some(n)
+            .filter(|n| n.kind == NodeKind::Frame)?;
+        (!inside_a_skipped(n)).then_some(n)
     })
 }
 
