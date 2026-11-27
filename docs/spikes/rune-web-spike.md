@@ -226,6 +226,42 @@ comment pointing at the commit).
   the plan noted here rather than faked with a JS approximation. Pixi's measured 0.02 ms
   per hit through the wasm bridge stays the number to match.
 
+## Results — session 5 (28 Nov 2026, night): the app layer drives the Rune canvas
+
+The deepest test of the "full Rune" direction: the harness gained `?mode=doc`, where the
+scene is no longer generated paint data but a **real `meldframe-app::App`** built over a
+generated document (path deps into this checkout, wasm32 target — the app layer is
+portable as designed). The view paints `App::scene()` (the portable `PaintedBox` list) as
+one `Shape`; clicks hit-test through `meldframe_render::HitIndex::front_most` and
+dispatch real `Action`s; toolbar buttons dispatch `Action::MoveBy` and `Action::Undo`.
+No JSON, no wasm bridge, no glue layer — Rust view to Rust app directly.
+
+- **End to end, all real:** click a node → `HitIndex` hit → `Action::Select` →
+  status shows `selected n0`; Move+10 → `Action::MoveBy` → 1 effect (one undo step);
+  Undo → 1 effect; click empty space → `ClearSelection`. Works identically at 2,000 and
+  5,000 nodes. (Two wiring bugs found and fixed on the way: Drag coordinates are element
+  local, not window; and `scene()` must be cached per camera — resolving the layout
+  every frame is the one thing a Rune client must not do. The cached version keeps rAF
+  clean; quads rebuild only on document or camera change.)
+- **Frame behaviour with the real app layer:** rAF p50 16.7 / p95 17.7, 0 frames over
+  20 ms, pan and zoom-out at 2,000 and 5,000 nodes — the app layer's scene resolve is
+  off the hot path once cached, and `HitIndex::from_boxes` rebuilds only on document
+  change. Numbers match the synthetic scene; the app layer adds no visible cost.
+- **Wasm size with the app layer linked in:** 17.4 MB raw / **4.4 MB gzip** (Rune
+  profile), up from 3.89 MB — the whole app layer, protocol, sync and layout core cost
+  ~0.55 MB gzip. Acceptable for the capability.
+- **The picture this completes:** a Rune client of Meldframe is not a rewrite of the
+  product's brain — the brain (`meldframe-app`) links as-is, and only the chrome
+  (±4,800 lines of Svelte→Rune `el` views) plus a Shape canvas surface and a small JS
+  bridge (sockets, download) would be written. What a full migration buys vs the React
+  client: one language end to end, the app layer called directly, Rune's per-field text
+  system, and idle at zero CPU. What it costs: the React component ecosystem (Base UI,
+  react-aria), the existing React migration investment (E7.3 slices S1–S11), a UI kit
+  re-implementation on `el` views, and dependence on a pre-1.0 framework with the
+  open #2549 present bug. The remaining unmeasured pieces before any owner decision:
+  real-IME device runs, the full text raster contract, HitIndex latency vs Pixi's
+  0.02 ms, and Rune's API stability over time.
+
 ## Results (session 2)
 
 First session, 27 Nov 2026, macOS arm64, headless Chromium 140 (Playwright, `--enable-unsafe-webgpu`, so likely a software WebGPU adapter — numbers are indicative, not production). Harness: `../rune-web-spike/` (own git repo, commit `4bb3a60`), Rune pinned at `048528dc35f0`.
