@@ -13,6 +13,7 @@ kind = "tool"
 meldframe-app = { path = "../../app/meldframe-app" }
 meldframe-app-model = { path = "../meldframe-app-model" }
 meldframe-app-parts = { path = "../meldframe-app-parts" }
+meldframe-app-pointer = { path = "../meldframe-app-pointer" }
 meldframe-app-rules = { path = "../meldframe-app-rules" }
 meldframe-check = { path = "../meldframe-check" }
 meldframe-protocol = { path = "../meldframe-protocol" }

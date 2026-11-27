@@ -11,6 +11,7 @@ use meldframe_app_parts::answers::action_of;
 use meldframe_app_parts::document::{history_of, out_ops};
 use meldframe_app_parts::properties::selected_properties;
 use meldframe_app_parts::selection::toggled;
+use meldframe_app_pointer::Machine;
 use meldframe_app_rules::canvas::CanvasLayout;
 use meldframe_app_rules::checkpoints::Checkpoints;
 use meldframe_app_rules::level::{self, Level};
@@ -46,6 +47,8 @@ pub struct App {
     pub(crate) canvas: CanvasLayout,
     /// The painted boxes for the last epoch (`crate::scene`).
     pub(crate) scene_cache: SceneCache,
+    /// The pointer state machine (`crate::pointer`).
+    pub(crate) pointer: Machine,
     /// The images being made for a PNG export and for agents' captures, and the plans of the export (`crate::raster`).
     pub(crate) raster: Rasters,
 }
@@ -98,6 +101,7 @@ impl App {
             canvas: CanvasLayout::default(),
             scene_cache: SceneCache::default(),
             raster: Rasters::default(),
+            pointer: Machine::default(),
         };
         app.refresh(&mut Vec::new());
         app.events.clear();
@@ -155,6 +159,9 @@ impl App {
         // A key is decided here and carried on as the action it makes (`crate::keys`).
         if let Action::Key { input } = action {
             return self.key(input);
+        }
+        if let Action::Pointer { input } = action {
+            return self.pointer(input);
         }
         // A view action that touches none of the derived state, so it skips the refresh of every panel (a wheel sends many).
         if let Action::Camera { op } = action {
@@ -262,6 +269,7 @@ impl App {
         if self.state.confirm != confirm {
             self.events.push(Event::ConfirmChanged {});
         }
+        self.pointer_settle(raised);
         fx
     }
 

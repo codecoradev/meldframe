@@ -19,7 +19,6 @@ use meldframe_app_rules::handle::{ResizePreview, resize_plan};
 use meldframe_check::ApplyError;
 use meldframe_layout::{Rect, is_layout_frame};
 use meldframe_protocol::{Command, Node};
-use meldframe_render::HitIndex;
 use meldframe_sync::SubmitError;
 
 /// A draw worked out: the frame, the position in its space and the size (none: the default of the kind).
@@ -122,7 +121,7 @@ impl App {
     }
 
     /// A halted app drops every action that writes (`App::dispatch`), so what a release would make is nothing.
-    fn halted(&self) -> bool {
+    pub(crate) fn halted(&self) -> bool {
         self.state.connection == Connection::Halted
     }
 
@@ -217,11 +216,7 @@ impl App {
     /// The box of `id` on the canvas, as the scene draws it (the laid-out box with the flag on): the rectangle the hit rule
     /// reads, from the index `App::hit` keeps.
     fn world_rect(&self, id: &str) -> Option<Rect> {
-        self.canvas.with_hits(
-            self.replica.revision(),
-            || self.with_scene(|_, boxes| HitIndex::from_boxes(boxes)),
-            |index| index.rect_of(id),
-        )
+        self.on_index(|index| index.rect_of(id))
     }
 
     /// The box of `id` in the space of its parent, as the scene holds it (the numbers of the painted box, not a difference of

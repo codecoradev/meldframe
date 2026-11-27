@@ -34,6 +34,7 @@ mod overlay;
 mod palette;
 mod panel;
 mod picker;
+mod pointer;
 mod props;
 mod raster;
 mod retry;
@@ -74,6 +75,10 @@ pub use meldframe_app_model::{
     VariablesImportResult, VariablesIo,
 };
 pub use meldframe_app_model::{KeyFocus, KeyInput, Modifiers};
+pub use meldframe_app_model::{
+    PointerButton, PointerCursor, PointerGesture, PointerInput, PointerPhase, PointerState,
+};
+pub use meldframe_app_pointer::PointerPreview;
 pub use meldframe_app_rules::canvas::MeasurerBox;
 pub use meldframe_app_rules::draw::DrawPreview;
 pub use meldframe_app_rules::drop::Slot as DropSlot;
