@@ -240,7 +240,8 @@ pub enum Action {
     /// A key was pressed (`KeyInput`): the app layer decides whether it is an editor key and what it does (the tool letters, Delete,
     /// undo and redo, the arrow keys, Enter and Escape, the panel keys, `?` and Ctrl or Command+K; `meldframe-app-rules`, `keys`),
     /// and dispatches that action. A key it does not answer, a key of an input method that is composing, a repeat, and a key the
-    /// focus owns (a field, a menu, a dialog) make no action and no event; one it answers raises `Event::KeyHandled`.
+    /// focus owns (a field, a menu, a dialog) make no action and no event; one it answers raises `Event::KeyHandled`. What the host
+    /// still does (no arrow key during a drag, no palette key with a menu open, the camera keys) is on `KeyInput`.
     Key {
         input: KeyInput,
     },

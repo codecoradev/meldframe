@@ -32,12 +32,11 @@ impl Modifiers {
 
 /// Who owns the keys at the place the focus is. The page knows this from its DOM; the app layer cannot, so the front end
 /// says it, and the app layer applies the rule: what the focus owns is not an editor key.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub enum KeyFocus {
     /// Nothing owns the keys: the canvas, or no element in particular.
-    #[default]
     Page,
     /// A button, a link or another control that Enter activates: Enter is the control's, the other keys are the editor's.
     Control,
@@ -49,6 +48,16 @@ pub enum KeyFocus {
 }
 
 /// A key pressed (`Action::Key`).
+///
+/// What the host still does, because the app layer has no state for it:
+///
+/// - It does not send an arrow key while a drag is going on (the TypeScript returned before dispatching one). The app layer has
+///   no gesture state. An arrow key with no selection may be sent: it is a no-op there.
+/// - It does not send Ctrl or Command+K while a menu is open (a menu keeps its open state in the component library, and
+///   `KeyFocus` cannot say that one is open elsewhere), and it still calls `preventDefault` on that key itself, as the
+///   TypeScript did.
+/// - It keeps the keys of the camera and of a gesture: zoom, fit, Space, and the Escape that abandons a drag. Escape here is
+///   the app's own, for a text edit or an overlay, and only without a modifier.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -68,7 +77,7 @@ pub struct KeyInput {
     /// An input method is composing text: the key is the input method's, never an action.
     #[serde(default)]
     pub composing: bool,
-    /// Where the focus is.
-    #[serde(default)]
+    /// Where the focus is. Required: a host that leaves it out would let a key typed in a field act on the selection, so there
+    /// is no default, and a key with no `focus` is refused when the action is read.
     pub focus: KeyFocus,
 }
