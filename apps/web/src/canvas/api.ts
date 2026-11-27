@@ -32,8 +32,14 @@ export interface CanvasProps {
   reducedMotion?: boolean;
 }
 
-/** What the canvas tells the host. Read when it is called, so the host may replace the object at any time. */
+/** What the canvas tells the host, and the one thing it asks. Read when it is called, so the host may replace the object at any time. */
 export interface CanvasEvents {
+  /**
+   * What is under a world point: the id of the front-most node, or null. The canvas holds no hit rule (T9, decision 43): the host
+   * answers from the app layer (`Engine.hit`), for a press, the tool that creates, a double click and the hover. A host that
+   * gives none has nothing under any point.
+   */
+  hitAt?: (x: number, y: number) => string | null;
   /** `additive` is true with Shift held: the host decides whether that adds or toggles. */
   onSelect?: (ids: string[], additive: boolean) => void;
   onMove?: (i: MoveIntent) => void;

@@ -269,18 +269,40 @@ describe('input becomes intents of the host', () => {
     const t = setup();
     const onSelect = vi.fn();
     const onActivate = vi.fn();
-    t.driver.events = { ...t.events, onSelect, onActivate };
+    // What is under the pointer is the host's answer (the app layer's rule): the canvas asks with the world point and holds none.
+    const hitAt = vi.fn((x: number, y: number) => (x === 50 && y === 50 ? 'a' : null));
+    t.driver.events = { ...t.events, onSelect, onActivate, hitAt };
     t.driver.setProps(props({ scene: scene(rect('a', 0)) }));
     await t.mount();
     const down = { pointerId: 1, clientX: 50, clientY: 50, button: 0, pointerType: 'mouse', shiftKey: false, altKey: false, ctrlKey: false, metaKey: false };
     t.host.emit('pointerdown', down);
     t.host.emit('pointerup', down);
+    expect(hitAt).toHaveBeenCalledWith(50, 50);
     expect(onSelect).toHaveBeenCalledWith(['a'], false);
     t.host.emit('dblclick', { clientX: 50, clientY: 50 });
     expect(onActivate).toHaveBeenCalledWith('a');
     t.driver.setProps(props({ scene: scene(rect('a', 0)), tool: 'rect' }));
     t.host.emit('dblclick', { clientX: 50, clientY: 50 });
     expect(onActivate).toHaveBeenCalledTimes(1);
+  });
+
+  it('has no hit rule of its own: with no answer from the host nothing is under the pointer, even over a drawn node', async () => {
+    const t = setup();
+    const onSelect = vi.fn();
+    const onActivate = vi.fn();
+    const onHover = vi.fn();
+    t.driver.events = { ...t.events, onSelect, onActivate, onHover };
+    t.driver.setProps(props({ scene: scene(rect('a', 0)) }));
+    await t.mount();
+    const down = { pointerId: 1, clientX: 50, clientY: 50, button: 0, pointerType: 'mouse', shiftKey: false, altKey: false, ctrlKey: false, metaKey: false };
+    t.host.emit('pointermove', down);
+    t.host.emit('pointerdown', down);
+    t.host.emit('pointerup', down);
+    t.host.emit('dblclick', { clientX: 50, clientY: 50 });
+    expect(onHover).not.toHaveBeenCalled();
+    expect(onActivate).not.toHaveBeenCalled();
+    // A click on nothing clears the selection: the only thing a press with no node under it asks for.
+    expect(onSelect).toHaveBeenCalledWith([], false);
   });
 
   it('after the cleanup the element no longer answers', async () => {

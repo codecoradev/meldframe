@@ -35,6 +35,8 @@
     reducedMotion?: boolean;
     /** Accessible name of the canvas. */
     label?: string;
+    /** What is under a world point: the id of the front-most node, or null (the app layer's rule; see `CanvasEvents.hitAt`). */
+    hitAt?: (x: number, y: number) => string | null;
     /** `additive` is true with Shift held: the host decides whether that adds or toggles. */
     onSelect?: (ids: string[], additive: boolean) => void;
     onMove?: (i: MoveIntent) => void;
@@ -62,7 +64,7 @@
     theme = 'dark',
     reducedMotion,
     label = 'Canvas',
-    onSelect, onMove, onResize, onCreate, onCameraChange, onHover, onActivate, onReady, onError, onAssetProblem,
+    hitAt, onSelect, onMove, onResize, onCreate, onCameraChange, onHover, onActivate, onReady, onError, onAssetProblem,
   }: Props = $props();
 
   let host: HTMLDivElement;
@@ -73,6 +75,7 @@
   const driver = new CanvasDriver(browserPlatform());
   // Each callback is read when the driver calls it, so a new prop replaces the old one.
   driver.events = {
+    hitAt: (x, y) => hitAt?.(x, y) ?? null,
     onSelect: (ids, additive) => onSelect?.(ids, additive),
     onMove: (i) => onMove?.(i),
     onResize: (i) => onResize?.(i),

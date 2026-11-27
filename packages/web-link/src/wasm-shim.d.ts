@@ -10,6 +10,8 @@ declare module '@meldframe/wasm' {
     variablesJson(): string;
     sceneJson(): string;
     dropPreviewJson(idsJson: string, x: number, y: number, dx: number, dy: number): string;
+    /** The id of the front-most node under a world point; `undefined` for nothing (T9). */
+    hit(x: number, y: number): string | undefined;
     takeEventsJson(): string;
     setLayoutOnCanvas(on: boolean): string;
     setMeasurer(measure: (text: string, fontSize: number, fontWeight: number, wrapWidth: number | null) => [number, number]): string;

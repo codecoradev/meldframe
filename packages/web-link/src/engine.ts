@@ -74,6 +74,16 @@ export class Engine {
     return JSON.parse(this.app.dropPreviewJson(JSON.stringify(ids), at.x, at.y, by.dx, by.dy));
   }
 
+  /**
+   * The id of the front-most node under the world point `(x, y)`, or null (T9, decision 43). The rule is the app layer's
+   * (`meldframe_render::HitIndex`, the one a drop reads too): a click, the tool that creates and the hover all ask here, and
+   * the web holds no hit test of its own. It reads the scene the canvas draws, changes nothing and raises no event; a call that
+   * finds the index kept for the document costs microseconds (`tools/hit-perf.mjs`).
+   */
+  hit(x: number, y: number): string | null {
+    return this.app.hit(x, y) ?? null;
+  }
+
   subscribe(fn: (s: Snapshot) => void): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
