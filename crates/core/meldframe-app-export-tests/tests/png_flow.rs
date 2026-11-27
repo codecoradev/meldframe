@@ -6,8 +6,8 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
-use meldframe_app::{Action, App, Effect, Event, PngOp, PngSink, Wire};
-use meldframe_protocol::Node;
+use meldframe_app::{Action, App, Connection, Effect, Event, Frame, PngOp, PngSink, Wire};
+use meldframe_protocol::{Command, Node};
 use serde_json::{Value, json};
 
 fn nodes(list: Value) -> Vec<Node> {
@@ -257,4 +257,32 @@ fn a_frame_moved_or_restyled_while_the_shell_draws_is_not_delivered_either() {
         );
         assert_eq!(refusals(&mut app), ["node_changed"], "{edit:?}");
     }
+}
+
+#[test]
+fn an_export_in_flight_when_the_app_halts_is_dropped_and_never_delivered() {
+    let mut app = app_with(frame("Hero", 200, 100), "f");
+    export(&mut app);
+    // An event for a node the file does not hold: the view no longer fits the server's.
+    let command: Command =
+        serde_json::from_value(json!({"type": "updateNode", "id": "ghost", "patch": {"x": 1.0}}))
+            .unwrap();
+    app.dispatch(Action::Frame {
+        now_ms: 0,
+        frame: Frame::Event {
+            seq: 1,
+            actor: "agent:other".into(),
+            key: Some("k1".into()),
+            command,
+        },
+    });
+    assert_eq!(app.state().connection, Connection::Halted);
+    app.take_events();
+    // The shell's report of the drawing finds a halted app: the bytes are dropped, the person is told, once.
+    assert_eq!(
+        drawn(&mut app, 1, size(200, 100, 5000)),
+        vec![json!({"type": "finishRaster", "request": 1, "deliver": false})]
+    );
+    assert_eq!(refusals(&mut app), ["out_of_sync"]);
+    assert!(drawn(&mut app, 1, size(200, 100, 5000)).is_empty());
 }

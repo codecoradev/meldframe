@@ -188,14 +188,17 @@ impl Rasters {
         self.jobs.push(job);
     }
 
-    /// The shell drew the image of `request` and holds `bytes`. It goes on only when the report meets the plan and the limits,
-    /// and the node is still there as it was planned; otherwise the request ends here, once.
+    /// The shell drew the image of `request` and holds `bytes`. It goes on only when the app is not halted, the report meets the
+    /// plan and the limits, and the node is still there as it was planned; otherwise the request ends here, once.
     fn drawn(&mut self, request: u32, drawn: (u32, u32, u64), scene: Scene, env: Env) {
         let Some(mut job) = self.jobs.take(request, Stage::Drawing) else {
             return;
         };
         let planned = (job.planned.width, job.planned.height);
-        let code = if let Some(code) = drawn_refusal(drawn, planned, job.max_pixels, None) {
+        let code = if env.halted {
+            // The view of a halted app is out of date (as for `export`): what the shell drew is not delivered.
+            "out_of_sync"
+        } else if let Some(code) = drawn_refusal(drawn, planned, job.max_pixels, None) {
             code
         } else {
             match replan(&job, scene) {
