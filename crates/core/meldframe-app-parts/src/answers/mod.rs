@@ -13,6 +13,7 @@
 mod assets;
 mod batches;
 mod checkpoints;
+mod ops;
 mod subscribe;
 
 use meldframe_app_model::{Action, Frame, Wire};
@@ -55,6 +56,12 @@ pub fn action_of(wire: Wire) -> Option<Action> {
             let frame = hint(&text)?;
             Action::Frame { now_ms, frame }
         }
+        Wire::OpRefused {
+            now_ms,
+            key,
+            status,
+            body,
+        } => ops::refused(now_ms, key, status, &body)?,
         Wire::SubscribeRefused { now_ms, text } => {
             let frame = subscribe::refused(&text)?;
             Action::Frame { now_ms, frame }
