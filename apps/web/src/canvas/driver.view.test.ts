@@ -119,11 +119,14 @@ describe('the images of image fills', () => {
     const t = setup();
     const onAssetProblem = vi.fn();
     t.driver.events = { ...t.events, onAssetProblem };
-    t.platform.assets = { fetch: async () => missing, decode: async () => ({ width: 1, height: 1 }) };
+    const assets = { fetch: async () => missing, decode: async () => ({ width: 1, height: 1 }) };
+    let caches = 0; // the driver reads `platform.assets` once for each cache it makes
+    Object.defineProperty(t.platform, 'assets', { get: () => (caches++, assets) });
     t.driver.setProps(props({ scene: pictured() }));
     t.driver.mount(asHost(t.host), surface)(); // the first effect, undone before `init` has answered
     await t.mount(); // the second
     await vi.advanceTimersByTimeAsync(10);
+    expect(caches).toBe(1);
     expect(onAssetProblem).toHaveBeenCalledTimes(1);
   });
 

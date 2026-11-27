@@ -180,6 +180,7 @@
   // An image that is missing or cannot be loaded is said once, with its code; the node shows its fill meanwhile.
   // The cache's own once-per-id rule dies with the cache, and the driver makes a new one each time a started canvas is mounted again,
   // so this set is what keeps that second mount from saying it twice (driver.view.test.ts; audit T17).
+  // It is never cleared, which is right while an asset id is the SHA-256 of immutable bytes and the Editor is mounted once for a file.
   // (a plain Set: it is read only here, not by the template, so it needs no reactivity)
   // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const shownAssets = new Set<string>();
