@@ -100,6 +100,8 @@ pub enum CheckpointRequest {
     List {},
     /// `Effect::PostCheckpoint` with this key.
     Post { key: String },
-    /// `Effect::FetchCheckpointState` for this number.
+    /// `Effect::FetchCheckpointState` for this number. A restore is refused with `unknown_checkpoint`, `forbidden`,
+    /// `nothing_to_restore`, `log_mismatch`, `checkpoint_pending`, `checkpoint_failed` or the code of this failed fetch
+    /// (`too_far`: further back than the server replays).
     State { n: u32 },
 }
