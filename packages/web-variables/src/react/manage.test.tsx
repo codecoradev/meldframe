@@ -159,7 +159,7 @@ describe('the React detail pane', () => {
 describe('the React dialog', () => {
   const props = { panel: panel(), manage: manageState(), events: [], dispatch: noop, opener: () => null };
   it('draws nothing while it is closed, so the page holds no manage view', () => {
-    expect(renderToStaticMarkup(<ManageDialog open={false} onOpenChange={noop} {...props} />)).toBe('');
+    expect(renderToStaticMarkup(<ManageDialog open={false} {...props} />)).toBe('');
   });
   it('keeps the keys typed in it out of the editor, as every portaled popup does (ownskeys.test.ts)', () => {
     expect(readFileSync(new URL('./ManageDialog.tsx', import.meta.url), 'utf8')).toMatch(/<Dialog\.Popup[^>]*data-owns-keys/);

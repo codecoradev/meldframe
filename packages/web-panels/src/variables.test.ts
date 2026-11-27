@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CollectionRow, VariableRow, VariablesPanel } from '@meldframe/protocol';
-import { beforeManage, bindAction, display, modeName, listedCount, shownValue, modeAction, swatch, truncated, valueAction } from './variables';
+import { bindAction, display, modeName, listedCount, shownValue, modeAction, swatch, truncated, valueAction } from './variables';
 
 const row = (over: Partial<VariableRow> = {}): VariableRow => ({
   id: 'bg',
@@ -83,14 +83,5 @@ describe('modeName', () => {
   it('is the name of a mode, not its id, and the id for a mode that is not in the collection', () => {
     expect(modeName(c, 'm2')).toBe('Dark');
     expect(modeName(c, 'gone')).toBe('gone');
-  });
-});
-
-describe('beforeManage', () => {
-  const panel = (query: string) => ({ query, total: 0, matched: 0, collections: [] }) as VariablesPanel;
-  it('clears a search before the manage view opens, and sends nothing when there is none', () => {
-    expect(beforeManage(panel('bg'))).toEqual({ type: 'setVariablesQuery', query: '' });
-    expect(beforeManage(panel('  '))).toBeNull();
-    expect(beforeManage(panel(''))).toBeNull();
   });
 });

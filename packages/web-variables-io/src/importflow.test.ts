@@ -19,6 +19,8 @@ function setup(current: VariablesImportResult | null = null) {
   flow.subscribe(() => seen.push(flow.view().text));
   return { flow, sent, r, seen, hold: (x: VariablesImportResult | null) => (held = x) };
 }
+// A text that changes puts the result away and leaves the dialog open; closing the dialog closes it (the app layer forgets the result with it).
+const CLEAR = { type: 'clearVariablesImport' };
 const CLOSE = { type: 'closeVariablesImport' };
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -36,7 +38,7 @@ describe('the field of the Import variables dialog, as a flow', () => {
     expect(none.sent).toEqual([]);
     const shown = setup(result());
     shown.flow.edit('a');
-    expect(shown.sent).toEqual([CLOSE]);
+    expect(shown.sent).toEqual([CLEAR]);
   });
   it('Clear empties the field and the note, puts the result away, and ends a file that is being read', async () => {
     const { flow, sent, r } = setup(result());
@@ -45,7 +47,7 @@ describe('the field of the Import variables dialog, as a flow', () => {
     const done = flow.choose(file());
     flow.clear();
     expect(flow.view()).toEqual({ text: '', note: null });
-    expect(sent).toEqual([CLOSE]);
+    expect(sent).toEqual([CLEAR]);
     r.finish({ ok: true, text: 'late' });
     await done;
     expect(flow.view().text).toBe('');
@@ -56,7 +58,7 @@ describe('the field of the Import variables dialog, as a flow', () => {
     r.finish({ ok: true, text: ':root{}' });
     await done;
     expect(flow.view()).toEqual({ text: ':root{}', note: { ok: true, text: 'Read theme.css (12 bytes). Check it, then import.' } });
-    expect(sent).toEqual([CLOSE]);
+    expect(sent).toEqual([CLEAR]);
   });
   it('a file that is not read leaves the text of the field as it was, with the reason (the result goes, as for any file, as the Svelte dialog does)', async () => {
     const { flow, sent, r } = setup(result());
@@ -66,7 +68,7 @@ describe('the field of the Import variables dialog, as a flow', () => {
     r.finish({ ok: false, error: 'This file could not be read.' });
     await done;
     expect(flow.view()).toEqual({ text: 'mine', note: { ok: false, text: 'This file could not be read.' } });
-    expect(sent).toEqual([CLOSE]);
+    expect(sent).toEqual([CLEAR]);
   });
   it('what is typed while a file is being read stays: the file never replaces it', async () => {
     const { flow, r } = setup();
@@ -125,7 +127,7 @@ describe('the field of the Import variables dialog, as a flow', () => {
     hold(result());
     r.finish({ ok: true, text: 'x' });
     await done;
-    expect(sent).toEqual([CLOSE]);
+    expect(sent).toEqual([CLEAR]);
   });
   it('stops telling a listener that left', async () => {
     const { flow, seen } = setup();

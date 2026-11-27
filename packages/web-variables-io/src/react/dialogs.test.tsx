@@ -36,7 +36,7 @@ describe('the React Export variables dialog', () => {
 
 describe('the React Import variables dialog', () => {
   it('draws nothing while it is closed', () => {
-    expect(renderToStaticMarkup(<ImportDialog open={false} onOpenChange={noop} result={null} dispatch={noop} opener={() => null} />)).toBe('');
+    expect(renderToStaticMarkup(<ImportDialog open={false} result={null} dispatch={noop} opener={() => null} />)).toBe('');
   });
   it('keeps the keys typed in it out of the editor, as every portaled popup does (ownskeys.test.ts)', () => {
     expect(source('./ImportDialog.tsx')).toMatch(/<Dialog\.Popup[^>]*data-owns-keys/);
@@ -52,6 +52,7 @@ describe('the React Import variables dialog', () => {
   it('sends the close and the import actions that the Svelte dialog sends, and reads the file through read.ts', () => {
     const flow = source('../importflow.ts');
     expect(flow).toContain("type: 'closeVariablesImport'");
+    expect(flow).toContain("type: 'clearVariablesImport'");
     expect(source('./ImportDialog.tsx')).toMatch(/type: 'importVariables', text: /);
     expect(source('./ImportDialog.tsx')).toContain("from '../read'");
   });

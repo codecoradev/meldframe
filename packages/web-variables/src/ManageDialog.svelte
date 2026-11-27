@@ -1,7 +1,7 @@
 <!--
   The manage view in a dialog (Bits UI: the scrim, the focus, Escape, the title and the close button) around
   `ManageBody`. It is opened from the Variables panel and gives the focus back to the button that opened it. Open
-  or closed is the page's view state (the caller owns it); the content is the app state.
+  or closed, and the content, are the app state (`state.manage`: `open` is set by `ManageOp::Open` and cleared by `Close`).
 -->
 <script lang="ts">
   import { Dialog } from 'bits-ui';
@@ -11,8 +11,8 @@
   import ManageBody from './ManageBody.svelte';
 
   interface Props {
+    /** `state.manage.open`. */
     open: boolean;
-    onOpenChange: (open: boolean) => void;
     panel: VariablesPanel;
     /** `AppState.manage`: what the manage view shows and asks. */
     manage: ManageState;
@@ -21,14 +21,13 @@
     /** The button that opened the dialog, to give the focus back to. */
     opener: () => HTMLElement | null | undefined;
   }
-  let { open, onOpenChange, panel, manage, events, dispatch, opener }: Props = $props();
+  let { open, panel, manage, events, dispatch, opener }: Props = $props();
 
-  // Whatever closes the dialog (the Close button, the scrim, Escape) tells the app layer, which forgets the question, the
+  // Whatever closes the dialog (the Close button, the scrim, Escape) tells the app layer, which closes it and forgets the question, the
   // rename field, the forms and the choice of a collection: nothing open before the close is open after it. Both copies of the
   // Variables panel (Svelte and the React island) draw this dialog, so this is the one place.
   const change = (next: boolean) => {
     if (!next) dispatch({ type: 'manage', op: { type: 'close' } });
-    onOpenChange(next);
   };
 
   // The first thing to focus is the collection on view, not the Close button: a tooltip opens on that button and takes the first Escape.

@@ -47,5 +47,3 @@ export const modeName = (c: CollectionRow, id: string): string => {
   return found ? nameOf(found.name) : id;
 };
 
-/** What opening the manage view sends first: the view draws the rows of the panel, so a search that narrowed them is cleared. (The counts of a removal are the app layer's, of the whole file, whatever the search shows.) */
-export const beforeManage = (p: VariablesPanel): Action | null => (p.query.trim() === '' ? null : { type: 'setVariablesQuery', query: '' });

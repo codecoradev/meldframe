@@ -28,7 +28,7 @@ const row = (over: Partial<VariableRow> = {}): VariableRow => ({
 const modes = [{ id: 'm1', name: 'Light' }, { id: 'm2', name: 'A very long mode name that cannot fit' }, { id: 'm3', name: 'Dark' }];
 const col = (over: Partial<CollectionRow> = {}): CollectionRow => ({ id: 'c', name: 'appearance', modes, active: 'm1', matched: 1, variables: [row()], ...over });
 const panel = (c: CollectionRow[], over: Partial<Model> = {}): Model => ({ query: '', total: 1, matched: 1, collections: c, ...over });
-const html = (p: Model, target: string | null = 'n1') => renderToStaticMarkup(<VariablesPanel panel={p} target={target} dispatch={() => {}} onManage={() => {}} onImport={() => {}} />);
+const html = (p: Model, target: string | null = 'n1') => renderToStaticMarkup(<VariablesPanel panel={p} target={target} dispatch={() => {}} />);
 
 describe('the React Variables panel as the boards draw it', () => {
   it('lists the rows in a container capped by a size token, with the search and the modes outside it', () => {
@@ -198,7 +198,7 @@ describe('the React copies against the Svelte ones', () => {
   const names = ['id', 'role', 'data-testid', 'data-id', 'data-field', 'aria-label', 'aria-pressed', 'aria-checked', 'title'];
   it('the Variables panel has the same classes, roles, names, test ids and titles', () => {
     const many = panel([col(), col({ id: 'd', name: 'spacing', modes: [modes[0]!], active: 'm1', variables: [row({ id: 'gap', name: 'space/gap', type: 'number', values: [{ mode: 'm1', text: '4', resolved: '4' }], binds: [{ field: 'radius', bound: true }] })] })], { total: 2, matched: 3 });
-    const a = svelte(VariablesPanelSvelte, { panel: many, target: 'n1', dispatch: () => {} });
+    const a = svelte(VariablesPanelSvelte, { panel: many, target: 'n1', dispatch: () => {}, manage: { open: false } });
     const b = html(many);
     // The Svelte copy wraps the three buttons that open a dialog in `span.contents` (for `bind:this`, to give the focus back); the
     // React copy has no use for the wrapper, and `display: contents` draws nothing, so they are the one difference.
@@ -210,5 +210,14 @@ describe('the React copies against the Svelte ones', () => {
     const b = list(picker());
     expect(classes(b).map((c) => c.trim())).toEqual(classes(a).map((c) => c.trim()));
     for (const name of names) expect(attrs(b, name), name).toEqual(attrs(a, name));
+  });
+});
+
+describe('the React Variables panel opens its dialogs by the state of the app layer (finding T11)', () => {
+  const src = readFileSync(new URL('./VariablesPanel.tsx', import.meta.url), 'utf8');
+  it('sends the same open actions as the Svelte copy and has no open callback or flag', () => {
+    expect(src).toContain("dispatch({ type: 'manage', op: { type: 'open' } })");
+    expect(src).toContain("dispatch({ type: 'openVariablesImport' })");
+    expect(src).not.toMatch(/onManage|onImport|useState/);
   });
 });
