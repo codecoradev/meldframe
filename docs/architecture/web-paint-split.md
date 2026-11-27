@@ -2,6 +2,8 @@
 
 Plan for issue #251 (E3.1, the render model and the canvas). The owner has agreed to carry it out: this page is the plan, and the move follows in the next commit of the same pull request. `AGENTS.md` and `docs/standards/modular-thin-ui.md` (D1) set the size rule it answers: a crate or package aims for 1,500 to 2,500 lines, may pass 2,500 only as a candidate for a planned split, and never passed 4,000 (the ceiling of the time; it is 50,000 since decision 42).
 
+Status, 27 Nov 2026 (T16, decision 43): since T16 the reach is computed in `meldframe-render` (`PaintedBox.paint_bounds`, read by the capture rectangles as the scene's `paintBounds`); `borderReach`, `shadowBounds`, `blurReach` and the `PaintBox` type named below are gone from `web-paint`, whose shapes stay here. The rest of this page is the history of the split and is not changed.
+
 ## Why now
 
 `meldframe-web-canvas` is 2,716 lines on `develop` at 61727f8 (`cargo xtask size-check`), 216 above the ideal band. The package grew by the border and shadow slices; the next E3.1 slices (more paint on a node) would grow it again at the same place. No file is over 500 lines, so only the package is split, not a file.
