@@ -401,3 +401,33 @@ fn the_layout_fields_and_their_notes_are_state_and_actions_in_json() {
     );
     assert_eq!(state(&b)["properties"]["padding"]["top"], 3.0);
 }
+
+#[test]
+fn the_pointer_is_an_action_and_its_hover_cursor_and_gesture_are_state_in_json() {
+    let nodes = json!([{"id": "a", "type": "rect", "pos": "a0", "w": 100, "h": 100}]).to_string();
+    let mut b = Bridge::new("usr_me", "web", 7, &nodes, 0, None).expect("a file loads");
+    run(&mut b, json!({"type": "connected", "nowMs": 2}));
+    // Only the phase and the point are needed: the rest has its defaults.
+    run(
+        &mut b,
+        json!({"type": "pointer", "input": {"phase": "move", "x": 50.0, "y": 50.0}}),
+    );
+    let state: Value = serde_json::from_str(&b.state_json()).unwrap();
+    assert_eq!(
+        state["pointer"],
+        json!({"hover": "a", "cursor": "default", "gesture": {"type": "idle"}})
+    );
+    let events: Value = serde_json::from_str(&b.take_events_json()).unwrap();
+    assert!(
+        events
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["type"] == "pointerChanged")
+    );
+    let bad = json!({"type": "pointer", "input": {"phase": "move", "x": 1, "y": 1, "pressure": 1}});
+    assert!(
+        b.dispatch(&bad.to_string()).is_err(),
+        "an unknown field is an error"
+    );
+}
