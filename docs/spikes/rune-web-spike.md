@@ -332,31 +332,39 @@ and the changelog at rev `main` on 29 Nov; nothing here was built):
   `wasm32` and linked into the Rune harness), so a native shell later would reuse it; what is
   missing is the shell, not the product logic.
 
-## Owner direction (29 Nov 2026): personal use, Rune full, desktop only
+## Owner direction (29 Nov 2026): individual desktop app, Rune full, no shared web
 
 Stated by the owner after session 7; a leaning to test, not an accepted decision (the decision
-record stays `docs/decisions.md` and ADR-0026 until the owner writes it there).
+record stays `docs/decisions.md` and ADR-0026 until the owner writes it there). **Correction
+the same day:** the first version of this note read it as "a personal tool for the owner
+alone". That was wrong. The owner means **individual use**: each person runs their own native
+app, there is no shared web product, and a central server keeps control and stops abuse. So
+there are other users, and the risks of a distributed app stay.
 
-- **If Meldframe stays a personal tool, shared with no one, Rune full on the desktop is the
-  realistic path.** Most of the risks that weighed against Rune in the sessions above are the
-  risks of a public product: a pre-1.0 dependency with one main maintainer, Firefox and Windows
-  or Linux coverage, IME on every platform, store packaging. For one person on one Mac they
-  shrink to "pin the rev and live with it".
-- **The central server stays.** It is the control and anti-abuse point, reached over the
-  WebSocket the app already uses; the Rune client is one more client of it, through the same
+- **Shape of the product:** a native desktop client (Rune full), one person per install, no
+  shared web editor. The central server is the control and anti-abuse point, reached over the
+  WebSocket the app already uses; the Rune client is one more client of it, with the same
   protocol and token rules as any other.
 - **No mobile web.** A design canvas is hard to use on a phone anyway, and session 6 shows the
   Shape path at about 10 fps there. Close the web client to mobile instead of building for it.
-  Note: a user-agent or viewport check is a courtesy, not control, because it is trivially
-  spoofed; the control is server-side (the token and the actor, or a refusal for a client kind
-  the server does not accept).
-- **What this makes unnecessary:** the React web client for the public, the Capacitor or Tauri
-  wrapper, the PWA, and the APK or IPA question. **What it does not remove:** the web client is
-  still the cheaper way to let another person or an agent in later, so keep React alive while
-  E7.3 stands, and keep the server protocol the only contract between clients.
-- Open questions this direction leaves: whether the existing React work (E7.3 S1-S11) is kept
-  as the shared-use client or frozen; which Rune rev to pin and who owns bumping it; and the
-  Windows or Linux need, if any, because Rune's desktop shell is verified here on macOS only.
+  A user-agent or viewport check is a courtesy, not control, because it is trivially spoofed;
+  the control is server-side (the token and the actor, or a refusal for a client kind the
+  server does not accept).
+- **What this removes:** the public React web client as a product, the Capacitor or Tauri
+  wrapper, the PWA, and the APK or IPA question.
+- **What this does not remove, and the first reading hid:** because other people install the
+  app, the Rune risks of the sessions above count in full. Rune is pre-1.0 with one main
+  maintainer and 8 git pins; a desktop shell is verified here on macOS only, so Windows and
+  Linux are a real gap if those users exist; IME on each platform is unverified and is the
+  riskiest area by Rune's own plan; the #2549 present hole is open; and an app shipped to others
+  needs signing, an updater and crash handling that nothing here measures. Firefox and mobile
+  stop mattering only because there is no web client.
+- **What stays useful:** the React work (E7.3) is the cheaper way to let an agent or a
+  reviewer in without installing the native app, so keep it alive while E7.3 stands, and keep
+  the server protocol the only contract between clients.
+- Open questions: which operating systems the first users run; whether the React client stays
+  as a thin or internal client or is frozen; which Rune rev to pin and who owns bumping it; how
+  the server tells a native client from any other (a client kind in the token, or none).
 
 ## Results (session 2)
 
