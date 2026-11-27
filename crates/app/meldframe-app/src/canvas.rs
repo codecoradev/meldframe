@@ -14,7 +14,7 @@ use crate::app::App;
 use crate::effect::Effect;
 use meldframe_layout::{Rect, StubMeasurer, TextMeasurer, compute_rects};
 use meldframe_protocol::{Node, Variables};
-use meldframe_render::{ModeChoice, PaintedBox, resolve_laid_out, resolve_with};
+use meldframe_render::{HitIndex, ModeChoice, PaintedBox, resolve_laid_out, resolve_with};
 use std::cell::{Cell, RefCell};
 use std::fmt;
 
@@ -36,6 +36,10 @@ type Key = ((u64, u64), u64);
 /// The boxes of the layout in world space, in drawing order, with the key they were worked out for.
 type Cached = (Key, Vec<(String, Rect)>);
 
+/// What the hit index depends on: the revision of the document, the measurer and the flag (the scene is the stored boxes or
+/// the laid-out ones). The mode choice and the variables are not in it: they change what is painted, never where a box is.
+type HitKey = ((u64, u64), u64, bool);
+
 /// The flag and the measurer, held by the [`App`], and the boxes of the last layout.
 pub(crate) struct CanvasLayout {
     pub(crate) enabled: bool,
@@ -47,6 +51,10 @@ pub(crate) struct CanvasLayout {
     cache: RefCell<Option<Cached>>,
     /// How many times the whole file was laid out for `rects` (a test reads it through `App::layout_runs`).
     runs: Cell<u64>,
+    /// What is under a point, for the scene of the key it was built for (`App::hit`; the hover asks on every frame).
+    hits: RefCell<Option<(HitKey, HitIndex<'static>)>>,
+    /// How many times the index was built (a test reads it through `App::hit_builds`).
+    hit_builds: Cell<u64>,
 }
 
 impl Default for CanvasLayout {
@@ -57,6 +65,8 @@ impl Default for CanvasLayout {
             generation: 0,
             cache: RefCell::new(None),
             runs: Cell::new(0),
+            hits: RefCell::new(None),
+            hit_builds: Cell::new(0),
         }
     }
 }
@@ -92,6 +102,29 @@ impl CanvasLayout {
         }
         let (_, rects) = cache.as_ref().expect("just filled");
         read(rects)
+    }
+
+    pub(crate) fn hit_builds(&self) -> u64 {
+        self.hit_builds.get()
+    }
+
+    /// Reads the index of what is under a point for the scene of `revision`, the measurer and the flag. The scene is worked
+    /// out and indexed only when one of them is not the one of the last call, so the questions that follow while the pointer
+    /// moves over a file that has not changed read the index and nothing else.
+    pub(crate) fn with_hits<R>(
+        &self,
+        revision: (u64, u64),
+        scene: impl FnOnce() -> Vec<PaintedBox>,
+        read: impl FnOnce(&HitIndex) -> R,
+    ) -> R {
+        let key = (revision, self.generation, self.enabled);
+        let mut cache = self.hits.borrow_mut();
+        if cache.as_ref().is_none_or(|(k, _)| *k != key) {
+            self.hit_builds.set(self.hit_builds.get() + 1);
+            *cache = Some((key, HitIndex::from_boxes(&scene())));
+        }
+        let (_, index) = cache.as_ref().expect("just filled");
+        read(index)
     }
 
     pub(crate) fn scene(
