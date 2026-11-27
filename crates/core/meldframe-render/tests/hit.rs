@@ -176,6 +176,29 @@ fn a_point_that_is_not_a_number_is_over_nothing() {
 }
 
 #[test]
+fn a_clip_that_is_not_a_number_cuts_everything_away() {
+    // The overlap of two clips is only worked out under another clip; `max` and `min` would pass over the NaN.
+    let index = HitIndex::new([
+        hb("outer", None, rect(0.0, 0.0, 100.0, 100.0), true, true),
+        hb(
+            "inner",
+            Some("outer"),
+            rect(10.0, 10.0, f64::NAN, 20.0),
+            true,
+            true,
+        ),
+        hb(
+            "kid",
+            Some("inner"),
+            rect(10.0, 10.0, 20.0, 20.0),
+            false,
+            true,
+        ),
+    ]);
+    assert_eq!(under(&index, 15.0, 15.0), ["outer"]);
+}
+
+#[test]
 fn the_first_of_two_boxes_with_one_id_is_the_one_that_counts() {
     let index = HitIndex::new([
         hb("a", None, rect(0.0, 0.0, 10.0, 10.0), false, true),

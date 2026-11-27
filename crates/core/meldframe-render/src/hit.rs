@@ -178,6 +178,19 @@ pub fn contains_point(r: Rect, x: f64, y: f64) -> bool {
 
 /// The overlap of two rectangles; one with no width and no height at the nearer edge when they do not meet.
 fn overlap(a: Rect, b: Rect) -> Rect {
+    // `f64::max` and `min` pass over a NaN, which would make half of a bad rectangle the overlap; a number that is not one cuts
+    // everything away (no check lets one through today, so this is for a caller that does not go through the check).
+    if [a.x, a.y, a.w, a.h, b.x, b.y, b.w, b.h]
+        .iter()
+        .any(|v| v.is_nan())
+    {
+        return Rect {
+            x: 0.0,
+            y: 0.0,
+            w: 0.0,
+            h: 0.0,
+        };
+    }
     let x = a.x.max(b.x);
     let y = a.y.max(b.y);
     let right = (a.x + a.w).min(b.x + b.w);
