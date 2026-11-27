@@ -7,17 +7,9 @@
 
 use crate::key::Modifiers;
 use crate::preset::CreateKind;
+pub use meldframe_camera::Point;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
-
-/// A point of the canvas in world space.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Point {
-    pub x: f64,
-    pub y: f64,
-}
 
 /// One of the eight handles of a selection box, named by the compass point it sits at.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

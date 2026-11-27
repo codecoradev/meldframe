@@ -1,0 +1,17 @@
+[package]
+name = "meldframe-camera"
+description = "The small inputs of the app layer that the camera is made of, a point and the modifier keys held, with their TypeScript types. A leaf crate of its own so that the camera can sit below meldframe-app-model."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "core"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+ts-rs = { version = "12.0.1", features = ["no-serde-warnings"] }
+
+[lints]
+workspace = true
