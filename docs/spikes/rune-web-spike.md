@@ -262,6 +262,33 @@ No JSON, no wasm bridge, no glue layer — Rust view to Rust app directly.
   real-IME device runs, the full text raster contract, HitIndex latency vs Pixi's
   0.02 ms, and Rune's API stability over time.
 
+## Results — session 6 (28 Nov 2026, late): the phone — where the plan changes
+
+A real device joined the spike: Redmi Note 10 Pro (M2101K6G), Android 13, Brave 158
+(Chrome/158), driven over adb-forwarded CDP (Playwright `connectOverCDP`; the phone
+reaches the harness through `adb reverse tcp:8123`). `navigator.gpu` **exists** on it —
+WebGPU is available on Android Chrome 158 — and the screen is 393×873 @2.75.
+
+- **The Shape path is too slow on the phone.** Pan at zoom 1: frame p50 92–107 ms
+  (~10 fps effective) at 500 *and* 2,000 nodes — scene size is irrelevant, so the cost is
+  the fixed per-frame Shape rebuild (grid lines + quads) on a ~8–10× slower CPU, not the
+  node count. The els path on the same device: frame p50 39–42 ms / p95 59–85
+  (~15–20 fps) — culled element count beats shape rebuild here. rAF itself keeps p50
+  16.7 on both paths (the browser loop never stalls; Rune simply draws fewer frames).
+- **Consequence for the plan, stated plainly:** a Rune canvas client that rebuilds a
+  `Shape` every frame is a desktop-only story. For mobile (and for desktop parity), the
+  shape must be built once and updated incrementally — static node quads in one cached
+  shape or a texture atlas, the grid as a repeating pattern or shader, and only the
+  changed region re-uploaded — or the canvas stays els-with-culling on mobile. Rune
+  currently offers no incremental-shape API, so this is either an upstream request or a
+  reason to keep the Pixi canvas on mobile.
+- **The #2549 first-wheel hole on the phone: 291 ms to the first frame, one 270 ms gap**
+  — smaller than desktop's 2.1 s, consistent with a timer-based deferred present rather
+  than a compute-bound one.
+- **Click-to-frame on desktop (doc mode, HitIndex + Select + view rerun):** 20/20 clicks
+  produced frames within 120 ms at the 60 Hz rate (7–8 frames per click window, 0
+  delayed) — the hit → action → rerun loop is not a latency problem on desktop.
+
 ## Results (session 2)
 
 First session, 27 Nov 2026, macOS arm64, headless Chromium 140 (Playwright, `--enable-unsafe-webgpu`, so likely a software WebGPU adapter — numbers are indicative, not production). Harness: `../rune-web-spike/` (own git repo, commit `4bb3a60`), Rune pinned at `048528dc35f0`.
