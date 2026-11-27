@@ -4,8 +4,10 @@
 // MELDFRAME_WEB_FILE, which must be new for each run (it adds a frame, two texts and a rectangle to it), the WASM bridge built
 // from this revision (`just wasm-build`) and Playwright from the global module path (NODE_PATH). It asks the page what a person
 // sees (the field, the notice, the undo button) and the server what was written. The begin, commit and cancel are the app
-// layer's (`state.textEdit`); the field keeps the keystrokes. Run it before and after a change of the text edit: the results are
-// the same. MELDFRAME_UI=react opens the page with the React copies of the panels (`react=feedback,layers,variables,properties,canvas`).
+// layer's (`state.textEdit`); the field keeps the keystrokes. It guards the notice of a node that
+// someone else deleted while its field was open (the app raises `Refused` `not_found`, so the notice does not depend on the
+// blur of a field that is removed); it shows also when nothing was typed (accepted).
+// MELDFRAME_UI=react opens the page with the React copies of the panels (`react=feedback,layers,variables,properties,canvas`).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -166,14 +168,19 @@ async function bbox(page) {
     await page.keyboard.press('Escape');
     await closed();
   });
-  await check('when the node is deleted by someone else the field closes and nothing is written', async () => {
+  await check('when the node is deleted by someone else the field closes, nothing is written and the notice says the node is gone', async () => {
+    assert.equal(await page.locator('[data-testid=notice]').count(), 0, 'a notice is up before the deletion');
     await open(p3);
     await field.fill('typed for a node that is going');
     await post({ type: 'removeNode', id: T3 });
     await until('the node is gone', async () => !(await nodeOf(T3)));
     await closed();
+    const notice = page.locator('[data-testid=notice]');
+    await notice.waitFor({ state: 'visible', timeout: 5000 });
+    assert.match((await notice.textContent()) ?? '', /That node no longer exists\./);
     await sleep(500);
-    assert.equal(await page.locator('[data-testid=notice]').count(), 0, 'a notice was shown');
+    assert.equal(await notice.count(), 1, 'one notice');
+    assert.equal(await nodeOf(T3), undefined, 'the text typed for the deleted node was not written');
   });
   await check('an input method composition stays in the field: nothing is sent while composing, and the composed text is what a commit writes', async () => {
     await open(p1);
