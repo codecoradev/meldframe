@@ -13,7 +13,7 @@ pub enum Level {
     Full,
 }
 
-/// An action that changes the view only (selection, tool, panels, modes, search, picker, export dialog, the image picker and its list).
+/// An action that changes the view only (selection, tool, panels, modes, search, picker, export dialog, the image picker and its list, beginning or cancelling a text edit).
 pub fn is_view(action: &Action) -> bool {
     matches!(
         action,
@@ -38,6 +38,7 @@ pub fn is_view(action: &Action) -> bool {
             | Action::CloseVariablesImport {}
     ) || action.is_assets()
         || matches!(action, Action::Manage { op } if op.is_view())
+        || matches!(action, Action::TextEdit { op } if op.is_view())
         || matches!(action, Action::Activity { op } if op.is_view())
 }
 

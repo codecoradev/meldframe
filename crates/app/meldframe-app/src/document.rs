@@ -4,7 +4,7 @@ use crate::action::Action;
 use crate::app::App;
 use crate::effect::Effect;
 use crate::state::Tool;
-use meldframe_app_model::{ManageOp, TypedText};
+use meldframe_app_model::{ManageOp, TextEditOp, TypedText};
 use meldframe_app_parts::document::{
     Variant, apply_all, check_all, code, edit_text, make_variant, move_by, move_to, new_node,
     preset_node,
@@ -104,6 +104,9 @@ impl App {
             Action::DropNodes { ids, x, y, dx, dy } => self.drop_nodes(&ids, (x, y), (dx, dy)),
             Action::ArrowKey { direction } => self.arrow_key(direction),
             Action::EditText { id, text } => self.replica.apply(&edit_text(&id, text)),
+            Action::TextEdit {
+                op: TextEditOp::Commit { id, text },
+            } => self.text_edit_commit(&id, text),
             Action::SetProperty { id, property } => self.set_property(&id, property),
             Action::Typed { entry } => match entry {
                 TypedText::Property { id, field, text } => {

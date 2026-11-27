@@ -9,6 +9,7 @@
 //! `meldframe-app-rules`.
 
 pub mod action;
+mod action_new;
 pub mod activity;
 pub mod actor;
 pub mod assets;
@@ -25,6 +26,7 @@ pub mod manage;
 pub mod preset;
 pub mod property;
 pub mod state;
+pub mod text_edit;
 pub mod text_field;
 pub mod variables;
 pub mod variables_io;
@@ -54,6 +56,7 @@ pub use state::{
     AppState, Connection, FieldBinding, FillKind, History, Panel, Panels, Properties, Sections,
     Tool,
 };
+pub use text_edit::{TextEdit, TextEditOp};
 pub use text_field::{ShadowPart, TextField, TypedText};
 pub use variables::{
     BindField, BindOption, CollectionRow, ModeValue, Picker, PickerRow, TypeHeading, VariableRow,

@@ -101,6 +101,8 @@ export type { Sides } from './Sides';
 export type { SizeMode } from './SizeMode';
 export type { SnapshotNode } from './SnapshotNode';
 export type { TextAlign } from './TextAlign';
+export type { TextEdit } from './TextEdit';
+export type { TextEditOp } from './TextEditOp';
 export type { TextField } from './TextField';
 export type { Tool } from './Tool';
 export type { TouchRing } from './TouchRing';

@@ -32,6 +32,7 @@ mod props;
 mod retry;
 mod review;
 mod text;
+mod text_edit;
 mod variables;
 mod variables_io;
 mod view;
@@ -52,7 +53,7 @@ pub use meldframe_app_model::{
     RevertSkip, RevertSkipReason, Sections, ShadowPart, Side, Sides, TextField, Tool, TypeHeading,
     TypedText, VariableEntity, VariableRow, VariableValue, VariablesPanel,
 };
-pub use meldframe_app_model::{ActivityOp, BatchRef, Confirm, RightTab};
+pub use meldframe_app_model::{ActivityOp, BatchRef, Confirm, RightTab, TextEdit, TextEditOp};
 pub use meldframe_app_model::{
     ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,
     VariablesImportResult, VariablesIo,

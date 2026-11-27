@@ -17,6 +17,7 @@ pub mod picker;
 pub mod properties;
 pub mod property;
 pub mod selection;
+pub mod text_edit;
 pub mod touched;
 pub mod typed;
 pub mod variables_panel;
