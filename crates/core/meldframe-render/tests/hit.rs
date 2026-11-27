@@ -256,3 +256,56 @@ fn rect_of_is_the_world_box_the_scene_draws() {
     assert_eq!((r.x, r.y, r.w, r.h), (110.0, 70.0, 30.0, 40.0));
     assert!(index.rect_of("ghost").is_none());
 }
+
+#[test]
+fn a_rectangle_overlaps_the_boxes_that_share_some_area_with_it_back_to_front() {
+    let index = HitIndex::new([
+        hb("back", None, rect(0.0, 0.0, 100.0, 100.0), false, true),
+        hb(
+            "kid",
+            Some("back"),
+            rect(10.0, 10.0, 50.0, 50.0),
+            false,
+            true,
+        ),
+        hb("far", None, rect(300.0, 0.0, 50.0, 50.0), false, true),
+        hb("hidden", None, rect(20.0, 20.0, 10.0, 10.0), false, false),
+        hb("flat", None, rect(20.0, 20.0, 0.0, 10.0), false, true),
+    ]);
+    let over = |r: Rect| index.overlapping(r).collect::<Vec<_>>();
+    assert_eq!(over(rect(20.0, 20.0, 5.0, 5.0)), ["back", "kid"]);
+    assert_eq!(over(rect(0.0, 0.0, 400.0, 400.0)), ["back", "kid", "far"]);
+    // A shared edge is no overlap, and a rectangle with no area has none.
+    assert!(over(rect(100.0, 0.0, 50.0, 50.0)).is_empty());
+    assert!(over(rect(20.0, 20.0, 0.0, 0.0)).is_empty());
+    assert!(over(rect(f64::NAN, 0.0, 50.0, 50.0)).is_empty());
+}
+
+#[test]
+fn what_a_clipping_ancestor_cuts_away_is_not_overlapped() {
+    let index = HitIndex::new([
+        hb("frame", None, rect(0.0, 0.0, 100.0, 100.0), true, true),
+        hb(
+            "in",
+            Some("frame"),
+            rect(50.0, 50.0, 100.0, 100.0),
+            false,
+            true,
+        ),
+        hb(
+            "out",
+            Some("frame"),
+            rect(120.0, 0.0, 30.0, 30.0),
+            false,
+            true,
+        ),
+    ]);
+    let over = |r: Rect| index.overlapping(r).collect::<Vec<_>>();
+    // `in` reaches to 150 but only the part inside the frame is there.
+    assert_eq!(over(rect(110.0, 60.0, 30.0, 30.0)), Vec::<&str>::new());
+    assert_eq!(over(rect(90.0, 60.0, 30.0, 30.0)), ["frame", "in"]);
+    assert!(
+        over(rect(125.0, 5.0, 10.0, 10.0)).is_empty(),
+        "`out` is cut away whole"
+    );
+}

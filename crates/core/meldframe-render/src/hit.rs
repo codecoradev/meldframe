@@ -169,6 +169,27 @@ impl<'a> HitIndex<'a> {
             .map(|s| s.id.as_ref())
     }
 
+    /// The ids of the boxes a rectangle (a marquee) overlaps, back to front, as painted. The same boxes as [`HitIndex::under`]
+    /// sees: a hidden box, and one that a clipping ancestor cuts away, is not here; and what counts is the part of the box that is
+    /// left, which the rectangle has to share some area with (the edges alone do not overlap, and a box with no area has no
+    /// part). A rectangle that is not a number overlaps nothing.
+    pub fn overlapping(&self, r: Rect) -> impl Iterator<Item = &str> {
+        let meets = move |a: Rect| {
+            r.w > 0.0
+                && r.h > 0.0
+                && a.w > 0.0
+                && a.h > 0.0
+                && a.x < r.x + r.w
+                && r.x < a.x + a.w
+                && a.y < r.y + r.h
+                && r.y < a.y + a.h
+        };
+        self.slots
+            .iter()
+            .filter(move |s| s.shown && meets(s.clip.map_or(s.rect, |c| overlap(s.rect, c))))
+            .map(|s| s.id.as_ref())
+    }
+
     /// The front-most box under the point.
     pub fn front_most(&self, x: f64, y: f64) -> Option<&str> {
         self.under(x, y).next()
