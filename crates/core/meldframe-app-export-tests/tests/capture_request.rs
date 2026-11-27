@@ -14,12 +14,16 @@ use serde_json::{Value, json};
 const TOKEN: &str = "0123456789abcdef0123";
 
 fn app() -> App {
-    let list = json!([
+    app_of(json!([
         {"id": "page", "type": "frame", "x": 100, "y": 50, "w": 200, "h": 100,
          "shadows": [{"x": 10, "y": 6, "blur": 8, "spread": 2, "color": "#000000"}]},
         {"id": "flat", "type": "rect", "x": 0, "y": 0, "w": 0, "h": 10},
         {"id": "extra", "type": "rect", "x": 0, "y": 0, "w": 5, "h": 5},
-    ]);
+    ]))
+}
+
+/// An app whose file is the nodes of `list`.
+fn app_of(list: Value) -> App {
     let nodes: Vec<Node> = serde_json::from_value(list).unwrap();
     App::new("user:me", "c0", 1, nodes, 0).unwrap()
 }
@@ -374,6 +378,11 @@ fn a_halted_app_ends_every_capture_as_stale_client_and_drops_what_the_shell_hold
         ]
     );
     assert!(fx.contains(&json!({"type": "finishRaster", "request": 2, "deliver": false})));
+    // The request that waited holds no bytes: only the failure, no drop of bytes the shell does not have.
+    assert!(
+        !fx.iter()
+            .any(|e| e["type"] == "finishRaster" && e["request"] == 1)
+    );
     // Answered once: the shell's late report of the drawing, and the clock, say nothing more.
     assert!(drawn(&mut app, 2, 220, 120, 5000).is_empty());
     assert!(json_of(&app.dispatch(Action::Tick { now_ms: 99_000 })).is_empty());
