@@ -330,6 +330,7 @@
       {touches}
       {indicator}
       label={`File ${file}`}
+      hitAt={(x, y) => engine.hit(x, y)}
       {onSelect}
       {onMove}
       {onResize}

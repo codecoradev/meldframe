@@ -13,6 +13,7 @@
   import { contentBounds, resolveScene, type Scene, type SceneNode } from '@meldframe/web-canvas/scene';
   import { DESIGN_ZOOM, SELECTED_ID, designScene, manyScene } from './sample';
   import { pixiColors } from '@meldframe/web-tokens/tokens';
+  import { hitOf } from './hit';
 
   const q = new URLSearchParams(location.search);
   const kind = q.get('scene') ?? 'design';
@@ -27,6 +28,8 @@
   let mounted = $state(true);
   const events: unknown[] = [];
 
+  // What is under a point is the app layer's rule, asked through the wasm bridge (hit.ts); the canvas holds none.
+  const hitFor = hitOf();
   const reduced = q.get('rm') === '1' ? true : undefined;
   const agent = pixiColors('dark')['agent-1'];
 
@@ -138,6 +141,7 @@
       {touches}
       {tool}
       reducedMotion={reduced}
+      hitAt={hitFor(scene)}
       {onSelect}
       {onMove}
       {onResize}

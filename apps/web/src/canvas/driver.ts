@@ -16,7 +16,7 @@ import { containsRect, unionRects, type Rect, type Size } from '@meldframe/web-c
 import { Interaction, type Env, type Intents } from '@meldframe/web-canvas/interaction';
 import { attachInput } from '@meldframe/web-input/hostinput';
 import { selectionBox } from '@meldframe/web-canvas/overlay';
-import { EMPTY_SCENE, captureBounds, captureRectOf, contentBounds, hitTest, rectsOf, resolveScene, type Scene } from '@meldframe/web-canvas/scene';
+import { EMPTY_SCENE, captureBounds, captureRectOf, contentBounds, rectsOf, resolveScene, type Scene } from '@meldframe/web-canvas/scene';
 import { AssetCache } from '@meldframe/web-assets/assets';
 import { duration, pixiColors } from '@meldframe/web-tokens/tokens';
 import { ASSET_RETRY_EVERY_MS, ASSET_TIMEOUT_MS, type CanvasEvents, type CanvasProps, type CanvasStatus, type FrameTiming, type Platform } from './api';
@@ -68,7 +68,7 @@ export class CanvasDriver {
     selection: () => this.props.selection,
     tool: () => this.props.tool,
     viewport: () => this.viewport,
-    hit: (x, y) => hitTest(this.resolved, x, y),
+    hit: (x, y) => this.hitAt(x, y),
     selectionBox: () => selectionBox(this.camera, rectsOf(this.resolved, this.props.selection)),
   };
 
@@ -93,6 +93,11 @@ export class CanvasDriver {
   private readonly interaction = new Interaction(this.env, this.intents);
 
   constructor(private readonly platform: Platform) {}
+
+  /** What is under a world point, as the host says (the app layer's rule; the canvas has none). */
+  private hitAt(x: number, y: number): string | null {
+    return this.events.hitAt?.(x, y) ?? null;
+  }
 
   private get reduced(): boolean {
     return this.props.reducedMotion ?? this.systemReduced;
@@ -311,7 +316,7 @@ export class CanvasDriver {
       interaction: this.interaction,
       tool: () => this.props.tool,
       camera: () => this.camera,
-      hit: (x, y) => hitTest(this.resolved, x, y),
+      hit: (x, y) => this.hitAt(x, y),
       schedule: this.schedule,
       dropDraft: () => (this.draft = null),
       settleSoon: this.settleSoon,

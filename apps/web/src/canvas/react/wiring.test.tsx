@@ -84,6 +84,16 @@ describe('the effects of the React canvas', () => {
     expect(p.els.children).toHaveLength(1);
   });
 
+  it('hand the driver the host\'s answer to what is under a point with the callbacks, as the Svelte copy does (T9)', async () => {
+    const d = fakeDriver();
+    const first = vi.fn(() => 'a');
+    const p = await probe(d, { draws: draws(), events: { hitAt: first } });
+    expect(d.driver.events.hitAt).toBe(first);
+    const second = vi.fn(() => null);
+    await p.rerender({ draws: draws(), events: { hitAt: second } });
+    expect(d.driver.events.hitAt).toBe(second);
+  });
+
   it('hand the driver the callbacks of every render, and the props only when one of them changed', async () => {
     const d = fakeDriver();
     const base = draws();
