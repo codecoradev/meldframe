@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ASSET_RETRY_EVERY_MS, ASSET_TIMEOUT_MS } from './api';
 import { WorldView } from './stage';
-import { props, rect, scene, setup } from './driver.testutil';
+import { asHost, props, rect, scene, setup, surface } from './driver.testutil';
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -111,6 +111,36 @@ describe('the images of image fills', () => {
     await vi.advanceTimersByTimeAsync(10);
     expect(onAssetProblem).toHaveBeenCalledTimes(1);
     expect(onAssetProblem).toHaveBeenCalledWith(ID, 'asset_not_found');
+  });
+
+  // The once-per-id rule of `AssetCache` lives and dies with the cache, and the driver makes a cache at each start (T17, Q11). The two
+  // tests below pin what that means for a host that keeps no rule of its own.
+  it('tells the host once when React runs the effect twice: a mount undone before the application started made no cache', async () => {
+    const t = setup();
+    const onAssetProblem = vi.fn();
+    t.driver.events = { ...t.events, onAssetProblem };
+    t.platform.assets = { fetch: async () => missing, decode: async () => ({ width: 1, height: 1 }) };
+    t.driver.setProps(props({ scene: pictured() }));
+    t.driver.mount(asHost(t.host), surface)(); // the first effect, undone before `init` has answered
+    await t.mount(); // the second
+    await vi.advanceTimersByTimeAsync(10);
+    expect(onAssetProblem).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells the host again after a mount that had started was undone and the canvas mounted anew: the new cache has not reported the id', async () => {
+    const t = setup();
+    const onAssetProblem = vi.fn();
+    t.driver.events = { ...t.events, onAssetProblem };
+    t.platform.assets = { fetch: async () => missing, decode: async () => ({ width: 1, height: 1 }) };
+    t.driver.setProps(props({ scene: pictured() }));
+    const dispose = await t.mount();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(onAssetProblem).toHaveBeenCalledTimes(1);
+    dispose();
+    await t.mount(); // a started canvas mounted again: a new cache, asked for the same picture
+    await vi.advanceTimersByTimeAsync(10);
+    expect(onAssetProblem).toHaveBeenCalledTimes(2);
+    expect(onAssetProblem).toHaveBeenLastCalledWith(ID, 'asset_not_found');
   });
 
   it('a capture waits for the pictures the view asked for, and not for ever', async () => {
