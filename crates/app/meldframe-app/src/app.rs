@@ -144,11 +144,19 @@ impl App {
         let ui = level::is_view(&action);
         let reload = matches!(action, Action::Reload { .. });
         if self.state.connection == Connection::Halted && !ui && !reload {
+            // The one document action that closes something: a commit of the text being edited writes nothing now, and the
+            // field that reported it is done, so the edit closes with the text dropped.
+            if matches!(action, Action::TextEdit { .. }) {
+                let edit = self.state.text_edit.clone();
+                self.drop_text_edit();
+                self.text_edit_changed(&edit);
+            }
             return Vec::new();
         }
         self.level = level::of(&action, ui);
         let manage = self.state.manage.clone();
         let confirm = self.state.confirm.clone();
+        let text_edit = self.state.text_edit.clone();
         let mut fx = Vec::new();
         match action {
             Action::Select { ids } => self.select(ids),
@@ -165,6 +173,7 @@ impl App {
             Action::SetMode { collection, mode } => self.set_mode(collection, mode, &mut fx),
             Action::SetVariablesQuery { query } => self.set_variables_query(query),
             Action::Manage { op } if op.is_view() => self.manage_view(op),
+            Action::TextEdit { op } if op.is_view() => self.text_edit_view(op),
             Action::OpenPicker { id, field } => self.open_picker(id, field),
             Action::ClosePicker {} => self.close_picker(),
             Action::SetPickerQuery { query } => self.set_picker_query(query),
@@ -214,6 +223,8 @@ impl App {
             Level::Full => self.refresh(&mut fx),
         }
         self.settle_confirm();
+        self.settle_text_edit();
+        self.text_edit_changed(&text_edit);
         if self.state.manage != manage {
             self.events.push(Event::ManageChanged {});
         }

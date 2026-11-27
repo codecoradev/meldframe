@@ -13,6 +13,7 @@ import type { Panels } from "./Panels";
 import type { Picker } from "./Picker";
 import type { Properties } from "./Properties";
 import type { RightTab } from "./RightTab";
+import type { TextEdit } from "./TextEdit";
 import type { Tool } from "./Tool";
 import type { VariablesIo } from "./VariablesIo";
 import type { VariablesPanel } from "./VariablesPanel";
@@ -107,4 +108,9 @@ picker?: Picker,
  * The image picker of the Fill section: the node it chooses for while it is open, and the assets of the workspace
  * read so far.
  */
-assets: AssetsState, };
+assets: AssetsState, 
+/**
+ * The text being edited: `Some` only while a text node is open for editing (`Action::TextEdit`). The field's own draft
+ * is not here.
+ */
+textEdit?: TextEdit, };

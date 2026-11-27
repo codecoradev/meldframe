@@ -67,6 +67,8 @@ pub enum Event {
     CheckpointMade {
         key: String,
     },
+    /// `AppState::text_edit` changed (an edit began, was committed or cancelled, or closed because its node went).
+    TextEditChanged {},
     /// `AppState::manage` changed (the shown collection, the question, the rename field, a form or what follows the file).
     ManageChanged {},
     /// A rename of a collection, a mode or a variable was made (`ManageOp::SubmitRename`), from `from` to `to` (both made safe

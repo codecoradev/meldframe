@@ -8,6 +8,7 @@ use crate::export::ExportState;
 use crate::layers::LayerRow;
 use crate::layout::{LayoutNote, Sides};
 use crate::manage::ManageState;
+use crate::text_edit::TextEdit;
 use crate::variables::{BindField, Picker, VariablesPanel};
 use crate::variables_io::VariablesIo;
 use meldframe_protocol::{
@@ -88,6 +89,11 @@ pub struct AppState {
     /// read so far.
     #[serde(default)]
     pub assets: AssetsState,
+    /// The text being edited: `Some` only while a text node is open for editing (`Action::TextEdit`). The field's own draft
+    /// is not here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub text_edit: Option<TextEdit>,
 }
 
 /// The tool that decides what a press on the canvas does.
