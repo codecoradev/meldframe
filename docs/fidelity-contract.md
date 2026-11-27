@@ -162,6 +162,38 @@ idiomatic; token-based classes arrive with decision 17.
 7. Break opportunities: space and explicit newline only are guaranteed. Hyphens match (tested), slash tokens, URLs, CJK and
    tabs do not (section 8.3, pattern 4).
 
+## 6a. The text measurer of a host (E8.1.7)
+
+The measurer is the seam through which a host brings its text engine (`TextMeasurer` in `meldframe-layout`; the rustdoc
+there is the full statement). A browser host plugs in a JavaScript function (`setMeasurer`), a native shell implements the
+trait with its own engine. What the contract needs from it:
+
+1. **The answer.** For a text node (text, font size, weight; the one family of section 6) and a wrap width, `(width, height)`
+   in pixels, both finite and not negative. No wrap width: the whole text on one line, the width rounded up and the height
+   of one line. A wrap width: the widest line rounded up, and the number of lines times the height of one line, breaking at
+   a space or an explicit newline only (rule 7). The `line-height` the export writes is the height of a single measured
+   `M` of the same font, so a count of lines is a height over that.
+2. **An answer that is not a size.** The browser bridge refuses it per question and uses the stub's size instead (an
+   exception, a result that is not a pair of numbers, or a number that is not finite or is outside 0 to 1,000,000), so the
+   layout is provisional and never broken. A native host that gives the app a measurer of its own gets no such guard and
+   must give only sizes. With no measurer given, the stub measures.
+3. **One measurer for the canvas and for the export.** The core sizes boxes with the measurer and the export pins
+   `min-width` and `line-height` from it; the claim of section 7 that the export reproduces the core's boxes holds for a
+   client only when it draws and exports with the same measurer, and a browser that opens the export draws text as the
+   engine behind that measurer does (the "text table is Chromium's measurer" point of section 7). The MCP export tool is
+   the case where it is not so: it measures with the stub and warns `text_size_estimated`.
+4. **The conformance suite.** `meldframe_layout::conformance` puts a measurer through the questions the layout asks about
+   the texts of the oracle fixtures (the fixtures that hold text, `crates/core/meldframe-layout/tests/fixtures/oracle_texts.json`,
+   written from `tools/fidelity-oracle/fixtures.mjs` by `export-text-fixtures.mjs`, and a drift test in `npm test` there)
+   and reports, per fixture and per question, the width difference and the line count difference against a reference
+   measurer, and whether the answer was a size. The reference is any measurer: the stub for the baseline (it has no
+   difference from itself, which `tests/measurer_conformance.rs` asserts, together with measurers that are wider, never
+   wrap or answer `NaN`, which fail), or a table recorded in a browser for a real check of a native engine. Texts outside
+   section 4.3 (a tab, a URL, CJK) are reported and never count as a failure. The suite runs no browser and holds no
+   recorded table of Pixi's answers: there is none in the repository (the oracle records its table at run time), so a
+   native shell is not yet compared with Chromium by a gate; the tolerance to ask of it is the owner's to set (the oracle
+   holds boxes to 0.05 px).
+
 ## 7. Running the oracle in CI
 
 The oracle is `tools/fidelity-oracle/` (README there), run by the `oracle` job of `ci.yml` on every pull request and by

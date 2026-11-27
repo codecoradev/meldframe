@@ -3,6 +3,7 @@
 //! The layout result is the source of truth for geometry (ADR-0003); export translates it to CSS.
 //! Text sizes come through the [`TextMeasurer`] seam so the crate stays free of I/O.
 
+pub mod conformance;
 mod contract;
 mod fill;
 mod findings;
