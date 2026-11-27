@@ -322,6 +322,31 @@ fn the_plan_moves_with_the_measurer_while_the_layout_is_on_and_not_while_it_is_o
 }
 
 #[test]
+fn a_host_call_that_moves_the_dialog_and_the_plan_raises_one_export_event() {
+    let list = json!([
+        {"id": "f", "type": "frame", "x": 0, "y": 0, "w": 999, "h": 999, "layout": "column", "padding": 0, "sw": "hug", "sh": "hug"},
+        {"id": "t", "type": "text", "parentId": "f", "pos": "a", "text": "hello", "sw": "hug", "sh": "hug"},
+    ]);
+    let mut app = app_with(list, "f");
+    app.set_layout_on_canvas(true);
+    app.set_measurer(Box::new(Fixed(10.0, 10.0)));
+    app.dispatch(Action::OpenExport {});
+    app.take_events();
+    // The dialog is built again and the plan of the frame changes with the measurer: the front end reads the state once.
+    app.set_measurer(Box::new(Fixed(80.0, 40.0)));
+    assert_eq!(size_of_plan(&app), (json!(80), json!(40)));
+    let changed = |events: Vec<Event>| {
+        events
+            .iter()
+            .filter(|e| **e == Event::ExportChanged {})
+            .count()
+    };
+    assert_eq!(changed(app.take_events()), 1);
+    app.set_layout_on_canvas(false);
+    assert_eq!(changed(app.take_events()), 1);
+}
+
+#[test]
 fn the_sinks_of_a_raster_are_closed_shapes() {
     // `deny_unknown_fields` is not enforced on a unit variant of a tagged enum, so they are empty structs (as every action is).
     use meldframe_app::RasterSink;
