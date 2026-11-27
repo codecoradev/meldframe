@@ -74,8 +74,9 @@ describe('sceneFromBoxes', () => {
   });
   it('the capture box of the fixtures is the one the TypeScript reach gave before it moved to the render step', () => {
     const rs = resolveScene(sceneFromBoxes(byName('paint reach'))).scene;
-    // The numbers of the capture tests of web-canvas and of `shadowBounds` of web-paint: a shadow with a blur, a border and a
-    // shadow together, a shadow that leaves nothing, a shadow with no alpha, a shadow of a child that goes out of its parent.
+    // The numbers the capture tests of web-canvas and the TypeScript reach (`borderReach` and `shadowBounds`, now removed from
+    // web-paint) gave before the reach moved to the render step: a shadow with a blur, a border and a shadow together, a shadow
+    // that leaves nothing, a shadow with no alpha, a shadow of a child that goes out of its parent.
     expect(captureRectOf(rs, 'a')).toEqual({ x: 90, y: 94, w: 70, h: 60 });
     expect(captureRectOf(rs, 'b')).toEqual({ x: 294, y: 94, w: 78, h: 52 });
     expect(captureRectOf(rs, 'c')).toEqual({ x: 500, y: 100, w: 50, h: 40 });
