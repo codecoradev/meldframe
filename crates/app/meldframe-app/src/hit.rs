@@ -3,6 +3,7 @@
 //! the index of the scene for the revision of the document (`crate::canvas`) and answers from it.
 
 use crate::app::App;
+use meldframe_render::HitIndex;
 
 impl App {
     /// The id of the front-most node under the world point `(x, y)`, or none: a node that is hidden, or that a clipping
@@ -16,9 +17,16 @@ impl App {
     pub fn hit(&self, x: f64, y: f64) -> Option<String> {
         self.canvas.with_hits(
             self.replica.revision(),
-            || self.scene(),
+            || self.with_scene(|_, boxes| HitIndex::from_boxes(boxes)),
             |index| index.front_most(x, y).map(str::to_owned),
         )
+    }
+
+    /// The number that names the index `hit` reads: it goes up when the document, the measurer or the `layout_on_canvas` flag
+    /// changed, which are the things a box's place depends on, and stays when only the modes picked change (a mode changes
+    /// what is painted, never where a box is) and for a camera, which the app layer does not hold. Asking builds nothing.
+    pub fn hit_index_epoch(&self) -> u64 {
+        self.canvas.hit_epoch(self.replica.revision())
     }
 
     /// How many times the app built the index of the scene to answer `hit` (a second question about a file that has not

@@ -198,4 +198,6 @@ pub const CASES: [Case; 10] = [
     },
 ];
 
+pub mod keys;
+pub mod palette;
 pub mod prop_text;

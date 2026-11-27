@@ -162,8 +162,16 @@ The UI-neutral part of the editor: state, actions, effects and events as plain d
 _Avoid_: View model, store, controller
 
 **Front end**:
-Anything that renders app state and dispatches actions: the web editor now; a desktop or mobile app, or a test harness, later.
-_Avoid_: Client, shell
+Anything that renders app state and dispatches actions: the web editor now; a desktop or mobile app, or a test harness, later. Each front end has one **Shell**, and the server knows what kind of front end or agent is calling from its **Client kind**.
+_Avoid_: Frontend, GUI
+
+**Shell**:
+The part of a front end that owns the window, the socket and the platform services (file picker, download, clipboard, fonts). It carries out the effects of the **App layer**, draws its state and holds no rule: it hands the server's raw answers over and parses nothing. A front end has one shell for each target (a native window, a browser page), and the views the shells draw are shared, not copied.
+_Avoid_: Wrapper, container, runtime
+
+**Client kind**:
+The kind of client a credential belongs to: web, desktop or agent. The server reads it from the credential and never from a field, header or user-agent string the caller chose, and decides which kinds it accepts; a kind that is switched off is refused at the server with the reason, and its code stays in the build. It says how an **Actor** connects, not who the **Actor** is, and a front end that checks it for itself only gives a courtesy, not control.
+_Avoid_: Client type, platform, device
 
 **Gate**:
 The single step that decides whether a change from any transport is allowed.
@@ -223,3 +231,4 @@ _Avoid_: Audit, feedback
 - An **Actor** has one **Lane** in each **File** it works in; a **Lane** has **Runs** and **Batches**. A numbered **Batch** has a **Batch header** that holds its **Note** and its **Review state**.
 - An **Actor** edits through a **Replica**; its **Pending ops** wait for the **Room**, and an **Op** names its **Dependencies**.
 - A **File** has one **Room**; the **Room** gives every **Op** one place in a single order.
+- A **Front end** has a **Shell** for each target; the **Shell** carries out the effects of the **App layer** and holds no rule. A credential has one **Client kind**, and the server decides from it which kinds of client it accepts.

@@ -5,6 +5,8 @@ use crate::assets::AssetPage;
 use crate::checkpoint::{CheckpointRequest, CheckpointRow};
 use crate::export::ExportFormat;
 pub use crate::frame::Frame;
+use crate::gesture::GestureOp;
+use crate::key::KeyInput;
 use crate::layout::Direction;
 pub use crate::preset::{CreateKind, FramePreset};
 pub use crate::property::Property;
@@ -152,6 +154,10 @@ pub enum Action {
         #[ts(optional)]
         y: Option<f64>,
     },
+    /// Draw a node with a tool, or move a handle of one, as a drag in world space (`GestureOp`).
+    Gesture {
+        op: GestureOp,
+    },
     EditText {
         id: String,
         text: String,
@@ -235,6 +241,11 @@ pub enum Action {
     /// The shortcut sheet or the command palette opens or closes (`OverlayOp`): `AppState::overlay`.
     Overlay {
         op: OverlayOp,
+    },
+    /// A key was pressed (`KeyInput`): the app layer decides whether it is an editor key and what it does (`meldframe-app-rules`,
+    /// `keys`) and dispatches that action. One it answers raises `Event::KeyHandled`; the rest is on `KeyInput`.
+    Key {
+        input: KeyInput,
     },
     /// A raw answer of the server or a raw frame (`Wire`): the app parses and checks it, then acts or ignores it.
     Wire {
@@ -468,13 +479,12 @@ pub enum Action {
         now_ms: u64,
         frame: Frame,
     },
-    /// The shell loaded the file again (after `Connection::Halted`, or a replay that was too old): `nodes`
-    /// as of `seq`. The replica starts from it and replays the person's unconfirmed ops on top, with the
-    /// same keys; `applied` lists the keys of those ops that the server already applied, so the snapshot
-    /// holds their result (leave none out: the server answers a repeated key and writes nothing, but the
-    /// app would wait for an event the stream never brings). The undo history starts again. The
-    /// connection goes to connecting and the app subscribes from `seq`. A bad snapshot is refused with
-    /// `Event::Refused` (the `LoadError` code, or `E_SNAPSHOT_BEHIND` for a snapshot older than the app) and nothing changes. Ops that no longer apply raise `Event::OpsDropped`.
+    /// The shell loaded the file again (after `Connection::Halted`, or a replay that was too old): `nodes` as of `seq`. The replica starts
+    /// from it and replays the person's unconfirmed ops on top, with the same keys; `applied` lists the keys of those ops that the server
+    /// already applied, so the snapshot holds their result (leave none out: the server answers a repeated key and writes nothing, but the app
+    /// would wait for an event the stream never brings). The undo history starts again, the connection goes to connecting and the app
+    /// subscribes from `seq`. A bad snapshot is refused with `Event::Refused` (the `LoadError` code, or `E_SNAPSHOT_BEHIND` for one older than
+    /// the app) and nothing changes. Ops that no longer apply raise `Event::OpsDropped`.
     Reload {
         #[ts(type = "number")]
         now_ms: u64,

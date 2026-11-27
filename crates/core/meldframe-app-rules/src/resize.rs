@@ -34,7 +34,7 @@ pub fn resize(
         if n.sh != SizeMode::Fixed && (h - r.h).abs() > SAME {
             patch.sh = Some(SizeMode::Fixed);
         }
-        if !n.absolute && parent.is_some_and(is_layout_frame) {
+        if origin_locked(n, drawn, parent) {
             (patch.x, patch.y) = (None, None);
         }
     }
@@ -42,4 +42,10 @@ pub fn resize(
         id: n.id.clone(),
         patch,
     }
+}
+
+/// Whether the position of `n` is the layout's, so that a resize writes none: the canvas draws it from the layout (`drawn` is
+/// its box) and it is a flow child, not an absolute one, of an auto layout frame. It is `Properties::position_locked`.
+pub fn origin_locked(n: &Node, drawn: Option<Rect>, parent: Option<&Node>) -> bool {
+    drawn.is_some() && !n.absolute && parent.is_some_and(is_layout_frame)
 }

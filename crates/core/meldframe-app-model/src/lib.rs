@@ -20,6 +20,8 @@ pub mod effect;
 pub mod event;
 pub mod export;
 pub mod frame;
+pub mod gesture;
+pub mod key;
 pub mod layers;
 pub mod layout;
 pub mod manage;
@@ -47,6 +49,8 @@ pub use confirm::{ActivityOp, Confirm, RightTab};
 pub use effect::{Effect, OutOp};
 pub use event::{Event, RevertSkip, RevertSkipReason, VariableEntity};
 pub use export::{ExportDialog, ExportFinding, ExportFormat, ExportState, ExportTarget};
+pub use gesture::{GestureOp, Handle, Point};
+pub use key::{KeyFocus, KeyInput, Modifiers};
 pub use layers::LayerRow;
 pub use layout::{Axis, Direction, LayoutNote, Side, Sides};
 pub use manage::{

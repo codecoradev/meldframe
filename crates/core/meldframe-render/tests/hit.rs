@@ -242,3 +242,17 @@ fn a_box_of_the_scene_is_placed_by_the_offsets_of_its_ancestors() {
     assert_eq!(hit_test(&boxes, 165.0, 165.0).as_deref(), Some("b"));
     assert_eq!(hit_test(&boxes, 5.0, 5.0), None);
 }
+
+#[test]
+fn rect_of_is_the_world_box_the_scene_draws() {
+    let nodes: Vec<Node> = serde_json::from_value(serde_json::json!([
+        {"id": "f", "type": "frame", "pos": "a0", "x": 100, "y": 50, "w": 200, "h": 200},
+        {"id": "r", "type": "rect", "parentId": "f", "pos": "a0", "x": 10, "y": 20, "w": 30, "h": 40},
+    ]))
+    .unwrap();
+    let boxes = resolve(&nodes);
+    let index = HitIndex::from_boxes(&boxes);
+    let r = index.rect_of("r").unwrap();
+    assert_eq!((r.x, r.y, r.w, r.h), (110.0, 70.0, 30.0, 40.0));
+    assert!(index.rect_of("ghost").is_none());
+}
