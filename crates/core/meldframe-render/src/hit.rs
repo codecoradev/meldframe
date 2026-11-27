@@ -143,6 +143,13 @@ impl<'a> HitIndex<'a> {
         self.slots.is_empty()
     }
 
+    /// The box of `id` in world space, as the scene draws it; none for an id the index does not hold. It is the
+    /// rectangle the hit rule reads, so a caller that places something by a hit (a node drawn into the frame under the
+    /// pointer) uses the same origin. One pass over the boxes.
+    pub fn rect_of(&self, id: &str) -> Option<Rect> {
+        self.slots.iter().find(|s| s.id == id).map(|s| s.rect)
+    }
+
     /// The ids of the boxes the point is over, front-most first. A point that is not a number is over nothing.
     pub fn under(&self, x: f64, y: f64) -> impl Iterator<Item = &str> {
         self.slots
