@@ -9,7 +9,11 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 mod common;
 use common::keys::*;
 use common::*;
-use meldframe_app::{Action, Event, KeyFocus, Modifiers, Overlay, Panel, TextEditOp, Tool};
+use meldframe_app::{
+    Action, App, Connection, Event, KeyFocus, Modifiers, Overlay, Panel, TextEditOp, Tool,
+};
+use meldframe_protocol::{Command, NodePatch};
+use serde_json::json;
 
 #[test]
 fn the_tool_letters_set_the_tool_in_either_case_and_say_the_key_was_used() {
@@ -351,4 +355,65 @@ fn an_unknown_key_makes_no_action_and_no_event() {
         ),
     );
     assert_eq!(l.app.take_events(), vec![]);
+}
+
+#[test]
+fn a_halted_app_still_raises_key_handled_for_delete_with_a_selection_but_writes_nothing() {
+    let mut l = live();
+    l.send(Action::Select { ids: ids(&["r1"]) });
+    let ghost = Command::UpdateNode {
+        id: "ghost".into(),
+        patch: NodePatch {
+            text: Some("x".into()),
+            ..Default::default()
+        },
+    };
+    l.remote("agent:a", "k", 1, ghost);
+    assert_eq!(l.app.state().connection, Connection::Halted);
+    drain(&mut l);
+    // A tool is view state: it still changes.
+    l.send(key("e"));
+    assert_eq!(l.app.state().tool, Tool::Ellipse);
+    drain(&mut l);
+    // Delete is a write: the app is halted, so nothing is deleted, and the key is the editor's all the same (the browser's
+    // Delete or Backspace must not go back a page), as it was when the page dispatched it and kept the key.
+    let fx = l.send(key("Delete"));
+    assert!(fx.is_empty());
+    assert!(exists(&l, "r1"), "a halted app writes nothing");
+    assert_eq!(drain(&mut l), vec![Event::KeyHandled {}]);
+}
+
+#[test]
+fn an_arrow_key_with_nothing_selected_is_a_no_op_and_raises_nothing() {
+    let nodes = serde_json::from_value(json!([
+        {"id": "col", "type": "frame", "pos": "a0", "w": 200, "h": 300, "layout": "column"},
+        {"id": "a", "type": "rect", "parentId": "col", "pos": "a0", "w": 50, "h": 20},
+        {"id": "b", "type": "rect", "parentId": "col", "pos": "a1", "w": 50, "h": 20},
+    ]))
+    .unwrap();
+    let mut app = App::new("user:me", "c0", 1, nodes, 0).unwrap();
+    app.set_layout_on_canvas(true);
+    app.dispatch(Action::Connected { now_ms: 0 });
+    app.take_events();
+    for k in ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"] {
+        let fx = app.dispatch(key(k));
+        assert!(fx.is_empty(), "{k}");
+        assert_eq!(app.take_events(), vec![], "{k}");
+    }
+    assert_eq!(app.state().history.undo_steps, 0);
+}
+
+#[test]
+fn a_key_with_no_focus_is_refused_when_the_action_is_read() {
+    let full = json!({"type": "key", "input": {"key": "Delete", "code": "Delete", "modifiers": {},
+                      "repeat": false, "composing": false, "focus": "textField"}});
+    assert!(serde_json::from_value::<Action>(full.clone()).is_ok());
+    // The flags, the code and the modifiers may be left out; the focus may not, or a key typed in a field would act.
+    let mut lean = full.clone();
+    for field in ["repeat", "composing", "modifiers", "code"] {
+        lean["input"].as_object_mut().unwrap().remove(field);
+    }
+    assert!(serde_json::from_value::<Action>(lean.clone()).is_ok());
+    lean["input"].as_object_mut().unwrap().remove("focus");
+    assert!(serde_json::from_value::<Action>(lean).is_err());
 }
