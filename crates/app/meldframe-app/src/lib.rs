@@ -30,6 +30,7 @@ mod link;
 mod manage;
 mod manage_ui;
 mod overlay;
+mod palette;
 mod panel;
 mod picker;
 mod props;
@@ -71,7 +72,11 @@ pub use meldframe_app_rules::draw::DrawPreview;
 pub use meldframe_app_rules::drop::Slot as DropSlot;
 pub use meldframe_app_rules::handle::ResizePreview;
 pub use meldframe_app_rules::multi::Preview as DropPreview;
+pub use meldframe_app_rules::palette::{
+    Entry as PaletteEntry, KeyResult as PaletteKeyResult, Run as PaletteRun, Zoom as PaletteZoom,
+};
 pub use meldframe_layout::{StubMeasurer, TextMeasurer};
 pub use meldframe_protocol::ImageFit;
 pub use meldframe_protocol::VarType;
 pub use meldframe_sync::LoadError;
+pub use palette::Ran as PaletteRan;
