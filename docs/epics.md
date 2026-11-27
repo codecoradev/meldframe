@@ -314,6 +314,8 @@ Status, #324 part 3 (finding T11; the shortcut sheet and the command palette), n
 - [ ] The modular monolith rule has a stated, checkable form in the tools or in the review checklist, chosen from the audit of the current crates (a follow-up issue holds the design if it needs one).
 - [ ] No behaviour of any product crate changes.
 
+Status, 27 Nov 2026, no box is ticked: the standard is now version 1.4 (rules U10 to U12 added, L5, the checklists and the anti-patterns extended); `docs/standards/modular-thin-ui.md` is mirrored at 1.4 and `AGENTS.md` names it. The boxes above describe the 1.3 text and stay as written.
+
 ### E7.2 Thin UI audit and boundaries for the web packages (M, #307)
 - [ ] An audit note (in `docs/`) lists, for every web package and for `apps/web`, what it holds (rendering, gesture handling, transport, business rule) with line counts, and names each rule that should live in the app layer, checked against the code. Findings are numbered.
 - [ ] A follow-up issue for each finding that moves a rule into `meldframe-app` (failing test first at the app layer; the front end then only dispatches), sized under 1,000 lines each.

@@ -3,6 +3,7 @@
 //! The layout result is the source of truth for geometry (ADR-0003); export translates it to CSS.
 //! Text sizes come through the [`TextMeasurer`] seam so the crate stays free of I/O.
 
+pub mod conformance;
 mod contract;
 mod fill;
 mod findings;
@@ -14,7 +15,7 @@ mod tree;
 
 pub use contract::{TEXT_OUTSIDE_CONTRACT_MESSAGE, text_outside_contract};
 pub use findings::{LayoutFinding, layout_findings};
-pub use measure::{StubMeasurer, TextMeasurer};
+pub use measure::{MAX_MEASURE, StubMeasurer, TextMeasurer, is_size};
 pub use rect::Rect;
 pub use tree::is_layout_frame;
 

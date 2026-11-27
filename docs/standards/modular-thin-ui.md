@@ -1,6 +1,6 @@
 # Standard: modular architecture with a thin UI
 
-Version 1.3, 25 Nov 2026. Mirror: the source of truth is the CodeCora standard kept in the team knowledge rooms (with its evidence and source pointers). Edit the source first, then update this copy and its version.
+Version 1.4, 27 Nov 2026. Mirror: the source of truth is the CodeCora standard kept in the team knowledge rooms (with its evidence and source pointers). Edit the source first, then update this copy and its version.
 
 Status: adopted for Meldframe (owner decision 13 Nov 2026, ADR-0007 to ADR-0010). Derived from Crastu (primary source, enforced in CI) and Tole (kernel, gate and event patterns). Keywords MUST, SHOULD and MAY are used in the usual sense.
 
@@ -13,6 +13,13 @@ Changes in 1.3 (owner decision 25 Nov 2026, recorded in `docs/decisions.md` as d
 - New rule U9: text that comes from a model, a server or a file is made safe to display, and capped, where it enters the app layer, in one reusable helper. A count that may be unknown does not show as "nothing waiting".
 - D8 notes that an automated review times out on a diff near 2,500 lines.
 - The checklists, the anti-patterns and the adoption table follow.
+
+Changes in 1.4 (owner decision 27 Nov 2026): the thin UI is the guarantee that a product stays flexible about its front end, so the standard now says what that flexibility means and how it is kept. Three new rules, none of which names a toolkit:
+- U10: a toolkit or a target can be swapped by replacing `ui`, `feature-ui` and `bin` crates only.
+- U11: front ends that share a language share one view codebase; platform differences live in thin shells.
+- U12: the host knows the kind of client and decides which kinds it accepts; a disabled target is a host policy, not deleted code.
+- L5 says a target dropped from the plan leaves the CI target list in the same change. The vocabulary names the Shell. The kickoff and review checklists, the reference structure and the anti-patterns follow, and one known gap is extended.
+- Also corrected: the repository mirror already enforced the 50,000 ceiling (see the adoption row).
 
 ## 1. Purpose and scope
 
@@ -28,6 +35,7 @@ Use it when the product has a UI and an MCP or API surface, or will get a second
 - **Engine / integration / os:** adapters to models, media, services, operating system.
 - **App layer:** UI-neutral state, actions, effects and events. No UI toolkit.
 - **Front end:** renders app state and dispatches actions (web UI, GPUI, TUI, mobile, CLI, test harness).
+- **Shell:** the small `bin` crate of one target (a native window, a browser page) that wires the shared view crates to what the platform forces: socket, file picker, download, clipboard, window.
 - **Host:** the process that owns modules, storage and jobs.
 - **Gate:** the single decision point that authorises a change.
 - **Seam, interface, depth, adapter:** as in the `codebase-design` skill. One adapter is a hypothetical seam; two is a real one.
@@ -52,7 +60,7 @@ Use it when the product has a UI and an MCP or API surface, or will get a second
 
 - **L3** Domain crates and the app layer MUST NOT depend on a UI toolkit. Only `ui`, `feature-ui` and `bin` crates may.
 - **L4** Feature modules MUST NOT import each other, except crates marked `composite`.
-- **L5** Portable kinds (core, engine, integration, os, feature, app, ffi) MUST compile for every target platform the product plans, checked in CI (for example `wasm32` for web; iOS and Android where mobile is planned; include 32-bit targets to catch 64-bit assumptions).
+- **L5** Portable kinds (core, engine, integration, os, feature, app, ffi) MUST compile for every target platform the product plans, checked in CI (for example `wasm32` for web; iOS and Android where mobile is planned; include 32-bit targets to catch 64-bit assumptions). A target the owner drops from the plan (for example mobile) leaves the CI target list in the same change, and comes back the same way.
 - **L6** Operating-system code MUST sit behind a trait with a per-platform adapter and a null adapter for tests.
 
 ### M Modules and detachability
@@ -75,6 +83,9 @@ Use it when the product has a UI and an MCP or API surface, or will get a second
 - **U7** A pending approval is source-agnostic UI state. A request that is dropped unanswered (turn ended, replaced, UI gone) MUST be treated as denied. The rule "never allow always for a Delete-tier call" lives in one place.
 - **U8** The test of thinness: a second front end (a CLI or a test harness) can drive the same state machine without moving logic.
 - **U9** Text that comes from a model, a server or a file MUST be made safe to display (control and bidirectional characters removed, markup not interpreted) and capped in length at the point where it enters the app layer, in one reusable helper that every screen shares. A screen MUST NOT clean text again, and MUST NOT show raw text from those sources. A count that cannot be known (a list that failed to load, a request that did not answer) MUST NOT be shown as "nothing waiting" or as zero; it can say Unknown.
+- **U10** Toolkit swap. A product MUST be able to change its UI toolkit, or add a target, by replacing `ui`, `feature-ui` and `bin` crates only. The test: the diff of such a change touches no `core`, `engine`, `integration`, `os`, `feature`, `app` or `ffi` crate and no protocol type. Where a rule is still in a front end because it was cheaper there (a keymap, a camera), it is listed with its cost in the project's decision log, and it moves into the app layer before a second front end in another language is written. (Added in 1.4.)
+- **U11** One view codebase per language. Front ends that share a language (for example Rust views compiled to a native window and to WASM) MUST share one set of `ui` and `feature-ui` crates and one tokens module. Only what a platform forces (socket, file picker, download, clipboard, window, fonts to load) lives in a thin shell or in a platform adapter behind a trait (the pattern of L6). A second front end in a different language is a permanent second codebase of chrome, canvas and end-to-end tests: it needs a written reason and an owner decision, and a plan for when it is frozen or retired. (Added in 1.4.)
+- **U12** Client kind. The host knows which kind of client is calling (desktop, web, agent), declared by the credential and never by a claim the caller chose, and it decides which kinds it accepts. A user-agent or viewport check in a front end is a courtesy and not control. A target that is switched off for now (for example mobile) is switched off at the host, with a clear refusal that names the reason, and its code stays in the build matrix unless L5 removed it from the plan. (Added in 1.4.)
 
 ### G Gate
 
@@ -109,7 +120,7 @@ Use it when the product has a UI and an MCP or API surface, or will get a second
 
 ```
 repo/
-├─ apps/            bin: composition roots; Cargo features pick modules
+├─ apps/            bin: composition roots and shells; Cargo features pick modules
 ├─ crates/
 │  ├─ core/         shared types, module registry, host, store, settings, jobs
 │  ├─ engines/      models, media, text, rasterisers (traits + adapters)
@@ -122,10 +133,12 @@ repo/
 ```
 
 ```
-apps -> features/*-ui -> ui/* -> toolkit
+apps (one shell per target) -> features/*-ui -> ui/* -> toolkit
 features/*-ui -> app
 app -> features/* (domain) -> engines | integrations | os -> core
 ```
+
+Several shells (desktop window, browser page) sit on top of the same `features/*-ui` and `ui/*` crates (U11). The server and the protocol are the only contract between a client and the rest of the product.
 
 ## 5. Enforcement tooling
 
@@ -143,11 +156,11 @@ Write the layering rules as a pure function over package data so they are unit-t
 
 ## 6. Checklists
 
-**Kickoff:** declare kinds; write the matrix; name the core and what is inner; define the registry; define the gate and risk tiers; define the app layer state, actions, effects; pick the event model; add the six commands to CI; write the first slice or spike plan with exit criteria; write milestones with epics, acceptance criteria and exit criteria before building (Meldframe: `docs/epics.md`).
+**Kickoff:** declare kinds; write the matrix; name the core and what is inner; define the registry; define the gate and risk tiers; define the app layer state, actions, effects; pick the event model; list the planned targets and the kinds of client the host accepts (L5, U12); add the six commands to CI; write the first slice or spike plan with exit criteria; write milestones with epics, acceptance criteria and exit criteria before building (Meldframe: `docs/epics.md`).
 
 **Is it a module?** Deletion test: delete it; if complexity vanishes it was a pass-through, if it reappears in many callers it earns its keep. Detach test: does the product build and pass tests without it? If not, it is core or it is wrongly coupled.
 
-**Review:** any new path that changes data without the gate? any UI crate with rules or state? any feature importing another? any literal in UI? any host trait with many default-unsupported methods (a sign the seam is too wide)? any seam with one adapter introduced early? any secret in an argument? any new page added to an existing module instead of a module of its own, or any piece copied between modules instead of shared (D1)? any text from a model, a server or a file shown without passing the one helper of U9, or a count that can be unknown shown as zero?
+**Review:** any new path that changes data without the gate? any UI crate with rules or state? any feature importing another? any literal in UI? any host trait with many default-unsupported methods (a sign the seam is too wide)? any seam with one adapter introduced early? any secret in an argument? any new page added to an existing module instead of a module of its own, or any piece copied between modules instead of shared (D1)? any text from a model, a server or a file shown without passing the one helper of U9, or a count that can be unknown shown as zero? could the toolkit be swapped touching only ui, feature-ui and bin crates (U10)? is a view copied between two shells instead of shared (U11)? is a client kind decided by a user-agent string (U12)?
 
 ## 7. Anti-patterns seen in this ecosystem
 
@@ -162,6 +175,8 @@ Write the layering rules as a pure function over package data so they are unit-t
 - Text from a model, a server or a file cleaned in each screen, or not at all, instead of once where it enters the app layer (U9).
 - A count that failed to load drawn as "nothing waiting" (U9).
 - A pull request or diff large enough that the automated review times out (D8).
+- Two front ends in two languages for the same screens with no written reason and no plan to freeze one (U11): chrome and canvas are written twice and the end-to-end tests do not carry over. Keeping rules in the app layer is what makes the later choice between the two cheap, so the rules stay there.
+- Blocking a platform with a user-agent check in the front end (U12): it is spoofed in one line; the control is at the host.
 
 ## 8. Adoption
 
@@ -169,12 +184,12 @@ Write the layering rules as a pure function over package data so they are unit-t
 |---|---|
 | Crastu | Full and enforced: kinds, deps-check, build-matrix, mobile-check, size-check, ui-literals, licences, vendor-check |
 | Tole | Partial: platform-agnostic kernel, host traits, single gate with permit, durable/ephemeral SSE; no crate-kind lint; app layer extraction tracked (epic #523) |
-| Meldframe | Adopted 13 Nov 2026 as ADR-0007 to ADR-0010 (layers and registry; UI-neutral app layer built directly in the repository, starting with the editor shell, no separate spike; durable and ephemeral events; single admission gate). Version 1.3 applies from 25 Nov 2026 (decision 42, ADR-0026): the crate ceiling is 50,000 lines, `cargo xtask size-check` enforces it, and the thin-client audit of the web client against U1, U2 and U9 is tracked in #307 |
+| Meldframe | Adopted 13 Nov 2026 as ADR-0007 to ADR-0010 (layers and registry; UI-neutral app layer built directly in the repository, starting with the editor shell, no separate spike; durable and ephemeral events; single admission gate). Version 1.3 applies from 25 Nov 2026 (decision 42, ADR-0026): the crate ceiling is 50,000 lines, `cargo xtask size-check` enforces it, and the thin-client audit of the web client against U1, U2 and U9 is tracked in #307. This mirror is version 1.4 (27 Nov 2026), which adds U10 to U12 |
 | Others | Not assessed |
 
 ## 9. Known gaps and exceptions
 
-- Web front ends are written in TypeScript. Whether the app layer is Rust compiled to WASM or TypeScript is a decision per project (Meldframe: Rust and WASM, revisited if the first slice misses its criteria).
+- Web front ends are written in TypeScript today. Whether the app layer is Rust compiled to WASM or TypeScript is a decision per project (Meldframe: Rust and WASM, revisited if the first slice misses its criteria). A Rust view layer on the web removes the second language and is covered by U11.
 - This standard comes from desktop and CLI products. Where a rule fits a web service differently, record the deviation as an ADR.
 - Discord's approach (shared Rust core, thin native UI per platform) is reported by secondary sources only.
 
