@@ -1,6 +1,10 @@
 //! The table written as the groups of the shortcut sheet, for a platform: the same words, the same ids and the same keys as
 //! `shortcutGroups` and `sheetGroups` of `packages/web-shell/src/shortcuts.ts`, so that a front end can read the sheet from here
 //! instead of keeping a table of its own.
+//!
+//! This is a deliberate early step on decision 43, question 2, which keeps the shortcut table in TypeScript as presentation until a
+//! second front end exists. The TypeScript table is unchanged and now has a Rust twin that is kept in step by hand until the
+//! TypeScript copy is retired; nothing reads this function yet. Writing it needs the owner's yes before it is merged.
 
 use super::table::{Combo, Held, TABLE};
 
