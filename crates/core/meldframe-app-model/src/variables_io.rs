@@ -65,7 +65,9 @@ pub enum ImportStatus {
     Refused,
 }
 
-/// What the last import came to.
+/// What the last import came to (`Action::ImportVariables`). An import only adds: text that holds a name the file has is refused
+/// whole, and every refusal applies nothing (`code`). The result, report included, is `AppState::variables_io.import`; it goes
+/// when the file no longer holds the variables the import added (an undo).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
