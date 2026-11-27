@@ -1,6 +1,7 @@
-//! The shortcut sheet written from the key table (audit finding T7a, decision 43 clause Q1). The expected sheet is what `sheetGroups`
-//! of `packages/web-shell/src/shortcuts.ts` gave when the table was moved (`node --experimental-strip-types` over that file), so
-//! the two cannot drift apart unnoticed.
+//! The shortcut sheet written from the key table (audit finding T7a, decision 43 clause Q1). The expected sheets are literals: what
+//! `sheetGroups` of `packages/web-shell/src/shortcuts.ts` gave on 27 Nov 2026 (`node --experimental-strip-types` over that file,
+//! both platforms). They pin the Rust table to that output; an edit to the TypeScript table fails no test here, and the
+//! two copies are kept in step by hand until the TypeScript one is retired.
 
 // Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
@@ -86,4 +87,26 @@ fn the_row_that_needs_auto_layout_is_in_the_sheet_only_while_it_is_on() {
     assert!(on.iter().any(|l| l.contains("|move-in-flow|")));
     assert!(!off.iter().any(|l| l.contains("|move-in-flow|")));
     assert_eq!(off.len() + 1, on.len());
+}
+
+#[test]
+fn the_groups_have_the_ids_and_titles_the_page_has() {
+    let groups: Vec<(&str, &str)> = sheet(false, true).iter().map(|g| (g.id, g.title)).collect();
+    assert_eq!(
+        groups,
+        [
+            ("tools", "Tools"),
+            ("edit", "Edit"),
+            ("view", "View"),
+            ("selection", "Selection"),
+            ("panels", "Panels and help"),
+        ]
+    );
+    assert_eq!(
+        sheet(true, true)
+            .iter()
+            .map(|g| g.title)
+            .collect::<Vec<_>>(),
+        groups.iter().map(|g| g.1).collect::<Vec<_>>()
+    );
 }

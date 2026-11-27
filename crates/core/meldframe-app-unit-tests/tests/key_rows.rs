@@ -13,10 +13,10 @@ use meldframe_app_rules::keys::{Combo, Held, Makes, TABLE};
 use serde_json::json;
 
 #[test]
-fn the_action_is_json_and_the_flags_may_be_left_out() {
+fn the_action_is_json_and_the_flags_may_be_left_out_but_not_the_focus() {
     let a: Action = serde_json::from_value(json!({
         "type": "key",
-        "input": {"key": "z", "code": "KeyZ", "modifiers": {"ctrl": true}}
+        "input": {"key": "z", "code": "KeyZ", "modifiers": {"ctrl": true}, "focus": "page"}
     }))
     .unwrap();
     let mut l = live();
@@ -34,9 +34,10 @@ fn the_action_is_json_and_the_flags_may_be_left_out() {
                "repeat": false, "composing": false, "focus": "page"}})
     );
     for bad in [
-        json!({"type": "key", "input": {"key": "v", "extra": 1}}),
+        json!({"type": "key", "input": {"key": "v", "focus": "page", "extra": 1}}),
+        json!({"type": "key", "input": {"key": "v"}}),
         json!({"type": "key", "input": {"key": "v", "focus": "nowhere"}}),
-        json!({"type": "key", "input": {"code": "KeyV"}}),
+        json!({"type": "key", "input": {"code": "KeyV", "focus": "page"}}),
         json!({"type": "key", "key": "v"}),
     ] {
         assert!(serde_json::from_value::<Action>(bad).is_err());
