@@ -13,11 +13,18 @@ use meldframe_app::{Action, App, Modifiers, Overlay, OverlayOp, Ran, Tool, Zoom}
 use meldframe_app_rules::keys::{Held, TABLE};
 
 fn found(app: &App, query: &str) -> Vec<String> {
-    app.palette(query, false).into_iter().map(|e| e.id).collect()
+    app.palette(query, false)
+        .into_iter()
+        .map(|e| e.id)
+        .collect()
 }
 
 fn enabled(app: &App, id: &str) -> bool {
-    app.palette("", false).iter().find(|e| e.id == id).unwrap().enabled
+    app.palette("", false)
+        .iter()
+        .find(|e| e.id == id)
+        .unwrap()
+        .enabled
 }
 
 fn open_palette(app: &mut App) {
@@ -41,16 +48,26 @@ fn the_query_narrows_the_entries_and_the_state_decides_which_can_run() {
     let mut a = app();
     assert_eq!(found(&a, "undo"), ["undo"]);
     assert!(!enabled(&a, "undo") && !enabled(&a, "delete") && !enabled(&a, "export"));
-    a.dispatch(Action::Move { id: "r1".into(), x: 40.0, y: 0.0 });
-    a.dispatch(Action::Select { ids: ids(&["root"]) });
-    assert!(enabled(&a, "undo") && enabled(&a, "delete") && enabled(&a, "export") && enabled(&a, "variant"));
+    a.dispatch(Action::Move {
+        id: "r1".into(),
+        x: 40.0,
+        y: 0.0,
+    });
+    a.dispatch(Action::Select {
+        ids: ids(&["root"]),
+    });
+    assert!(
+        enabled(&a, "undo")
+            && enabled(&a, "delete")
+            && enabled(&a, "export")
+            && enabled(&a, "variant")
+    );
     // A word that no entry has leaves none, and an entry that cannot run is listed after those that can.
     assert!(found(&a, "zoom banana").is_empty());
     assert_eq!(found(&a, "do"), ["undo", "redo"]);
     a.dispatch(Action::Undo {});
     assert_eq!(found(&a, "do"), ["redo", "undo"]);
 }
-
 
 #[test]
 fn running_an_entry_closes_the_palette_and_does_what_the_entry_says() {
@@ -73,7 +90,9 @@ fn running_an_entry_closes_the_palette_and_does_what_the_entry_says() {
 #[test]
 fn an_entry_that_opens_a_dialog_leaves_the_dialog_open_and_the_palette_shut() {
     let mut a = app();
-    a.dispatch(Action::Select { ids: ids(&["root"]) });
+    a.dispatch(Action::Select {
+        ids: ids(&["root"]),
+    });
     open_palette(&mut a);
     done(a.run_palette("export", (0.0, 0.0)));
     assert!(a.state().export.dialog.is_some());
@@ -111,11 +130,17 @@ fn a_preset_makes_a_frame_centred_on_the_point_the_front_end_gives() {
 #[test]
 fn zoom_is_handed_back_to_the_front_end_and_a_refused_entry_changes_nothing() {
     let mut a = app();
-    assert!(matches!(a.run_palette("zoom-fit", (0.0, 0.0)), Ran::Host(Zoom::Fit)));
+    assert!(matches!(
+        a.run_palette("zoom-fit", (0.0, 0.0)),
+        Ran::Host(Zoom::Fit)
+    ));
     a.take_events();
     let before = a.state().clone();
     for id in ["undo", "delete", "export", "variant", "nowhere"] {
-        assert!(matches!(a.run_palette(id, (0.0, 0.0)), Ran::Refused), "{id}");
+        assert!(
+            matches!(a.run_palette(id, (0.0, 0.0)), Ran::Refused),
+            "{id}"
+        );
     }
     assert_eq!(*a.state(), before);
     assert!(a.take_events().is_empty());
@@ -124,15 +149,21 @@ fn zoom_is_handed_back_to_the_front_end_and_a_refused_entry_changes_nothing() {
 /// An entry and the key of its row do the same to the same state: the palette and the handlers read one table.
 #[test]
 fn an_entry_does_what_the_key_shown_beside_it_does() {
-    let row_of = |entry: &str| match entry {
-        "toggle-layers" => "layers-panel",
-        "toggle-inspector" => "right-panel",
-        other => other,
-    };
+    fn row_of(entry: &str) -> &str {
+        match entry {
+            "toggle-layers" => "layers-panel",
+            "toggle-inspector" => "right-panel",
+            other => other,
+        }
+    }
     let prepared = |id: &str| {
         let mut a = app();
         a.dispatch(Action::Connected { now_ms: 0 });
-        a.dispatch(Action::Move { id: "r1".into(), x: 40.0, y: 0.0 });
+        a.dispatch(Action::Move {
+            id: "r1".into(),
+            x: 40.0,
+            y: 0.0,
+        });
         if id == "redo" {
             a.dispatch(Action::Undo {});
         }
@@ -164,6 +195,10 @@ fn an_entry_does_what_the_key_shown_beside_it_does() {
         done(by_entry.run_palette(id, (0.0, 0.0)));
         by_key.dispatch(press(combo.key, combo.code.unwrap_or(""), m));
         assert_eq!(by_entry.state(), by_key.state(), "{id}");
-        assert_eq!(by_entry.nodes(), by_key.nodes(), "{id}");
+        assert_eq!(
+            serde_json::to_value(by_entry.nodes()).unwrap(),
+            serde_json::to_value(by_key.nodes()).unwrap(),
+            "{id}"
+        );
     }
 }
