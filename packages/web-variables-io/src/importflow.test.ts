@@ -22,12 +22,13 @@ function setup(current: VariablesImportResult | null = null) {
 // A text that changes puts the result away and leaves the dialog open; closing the dialog closes it (the app layer forgets the result with it).
 const CLEAR = { type: 'clearVariablesImport' };
 const CLOSE = { type: 'closeVariablesImport' };
+const chose = (name: string) => ({ type: 'chooseVariablesImportSource', name });
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('the field of the Import variables dialog, as a flow', () => {
   it('starts empty, keeps what is typed, and tells whoever listens', () => {
     const { flow, seen } = setup();
-    expect(flow.view()).toEqual({ text: '', note: null });
+    expect(flow.view()).toEqual({ text: '', note: null, size: null });
     flow.edit(':root{}');
     expect(flow.view().text).toBe(':root{}');
     expect(seen).toEqual([':root{}']);
@@ -46,7 +47,7 @@ describe('the field of the Import variables dialog, as a flow', () => {
     sent.length = 0;
     const done = flow.choose(file());
     flow.clear();
-    expect(flow.view()).toEqual({ text: '', note: null });
+    expect(flow.view()).toEqual({ text: '', note: null, size: null });
     expect(sent).toEqual([CLEAR]);
     r.finish({ ok: true, text: 'late' });
     await done;
@@ -57,7 +58,34 @@ describe('the field of the Import variables dialog, as a flow', () => {
     const done = flow.choose(file('theme.css', 12));
     r.finish({ ok: true, text: ':root{}' });
     await done;
-    expect(flow.view()).toEqual({ text: ':root{}', note: { ok: true, text: 'Read theme.css (12 bytes). Check it, then import.' } });
+    expect(flow.view()).toEqual({ text: ':root{}', note: null, size: '12 bytes' });
+    expect(sent).toEqual([CLEAR, chose('theme.css')]);
+  });
+  it('sends the name of a file as the browser gave it, to the app layer that makes it safe, and words no name of its own', async () => {
+    const { flow, sent, r } = setup();
+    const raw = 'th\u202Eeme\u200B.css';
+    const done = flow.choose(file(raw, 17));
+    r.finish({ ok: true, text: ':root{}' });
+    await done;
+    expect(sent).toEqual([chose(raw)]);
+    expect(JSON.stringify(flow.view())).not.toContain('theme');
+  });
+  it('a text that changes, or Clear, puts the name of the file away with the result, and sends nothing for a field that came from no file', async () => {
+    const { flow, sent, r } = setup();
+    flow.edit('typed');
+    flow.clear();
+    expect(sent).toEqual([]);
+    const done = flow.choose(file());
+    r.finish({ ok: true, text: ':root{}' });
+    await done;
+    sent.length = 0;
+    flow.edit('typed after the file');
+    expect(sent).toEqual([CLEAR]);
+    const again = flow.choose(file());
+    r.finish({ ok: true, text: ':root{}' }, 1);
+    await again;
+    sent.length = 0;
+    flow.clear();
     expect(sent).toEqual([CLEAR]);
   });
   it('a file that is not read leaves the text of the field as it was, with the reason (the result goes, as for any file, as the Svelte dialog does)', async () => {
@@ -67,7 +95,7 @@ describe('the field of the Import variables dialog, as a flow', () => {
     const done = flow.choose(file());
     r.finish({ ok: false, error: 'This file could not be read.' });
     await done;
-    expect(flow.view()).toEqual({ text: 'mine', note: { ok: false, text: 'This file could not be read.' } });
+    expect(flow.view()).toEqual({ text: 'mine', note: { ok: false, text: 'This file could not be read.' }, size: null });
     expect(sent).toEqual([CLEAR]);
   });
   it('what is typed while a file is being read stays: the file never replaces it', async () => {
@@ -90,7 +118,7 @@ describe('the field of the Import variables dialog, as a flow', () => {
     expect(flow.view().text).toBe('keep me');
   });
   it('of two files chosen one after the other only the last counts, whichever is read first', async () => {
-    const { flow, r } = setup();
+    const { flow, sent, r } = setup();
     const first = flow.choose(file('a.css'));
     const second = flow.choose(file('b.css'));
     r.finish({ ok: true, text: 'second' }, 1);
@@ -98,7 +126,7 @@ describe('the field of the Import variables dialog, as a flow', () => {
     r.finish({ ok: true, text: 'first' }, 0);
     await first;
     expect(flow.view().text).toBe('second');
-    expect(flow.view().note?.text).toMatch(/^Read b\.css/);
+    expect(sent).toEqual([chose('b.css')]);
   });
   it('an import that was applied starts the field again, with no note about a file', async () => {
     const { flow, r } = setup();
@@ -106,7 +134,7 @@ describe('the field of the Import variables dialog, as a flow', () => {
     r.finish({ ok: true, text: ':root{}' });
     await done;
     flow.imported();
-    expect(flow.view()).toEqual({ text: '', note: null });
+    expect(flow.view()).toEqual({ text: '', note: null, size: null });
   });
   it('says whether an applied import changed the view: not when the field and the note were empty already (Clear pressed in the gap)', async () => {
     const { flow, r } = setup();
@@ -127,7 +155,7 @@ describe('the field of the Import variables dialog, as a flow', () => {
     hold(result());
     r.finish({ ok: true, text: 'x' });
     await done;
-    expect(sent).toEqual([CLEAR]);
+    expect(sent).toEqual([CLEAR, chose('theme.css')]);
   });
   it('stops telling a listener that left', async () => {
     const { flow, seen } = setup();

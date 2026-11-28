@@ -1,5 +1,6 @@
 // The view state of the Export variables and Import variables dialogs, as pure steps. What each dialog shows is the app
 // layer's (`state.variablesIo`); this is what the page keeps on top of it, and the rules for when that is put away.
+import { nameOf } from '@meldframe/web-document/names';
 
 /** What the last Copy said, and the text it was about. */
 export interface Said {
@@ -20,16 +21,27 @@ export interface Note {
   text: string;
 }
 
-/** What the Import field holds: the text and the note about the file it came from. */
+/**
+ * What the Import field holds: the text, the words for the size of the file it came from (the name of that file is the app
+ * layer's, `state.variablesIo.importSource`: it makes it safe to show, rule U9), and the reason a file was not read.
+ */
 export interface ImportView {
   text: string;
   note: Note | null;
+  size: string | null;
 }
 
-export const FRESH: ImportView = { text: '', note: null };
+export const FRESH: ImportView = { text: '', note: null, size: null };
 
 /** The person typed: the text changes, and the note about a file no longer describes it. */
-export const typed = (_: ImportView, text: string): ImportView => ({ text, note: null });
+export const typed = (_: ImportView, text: string): ImportView => ({ text, note: null, size: null });
+
+/** The note under the field: why a file was not read, or that one was, with the name as the app layer gave it. */
+export const noteOf = (v: ImportView, file: string | null | undefined): Note | null =>
+  v.note ?? (v.size !== null && typeof file === 'string' ? { ok: true, text: `Read ${nameOf(file)} (${v.size}). Check it, then import.` } : null);
+
+/** Whether the app layer still holds something about the field that goes when the text changes: a result, or the name of the file. */
+export const stale = (result: unknown, v: ImportView): boolean => (result !== null && result !== undefined) || v.size !== null;
 
 /**
  * The person typed while a file may still be read: what they type is the field, so the read that is under way goes
@@ -41,9 +53,9 @@ export function edited(guard: ReturnType<typeof latest>, v: ImportView, text: st
 }
 
 /** A file was read into the field. `size` is the words for its size. */
-export const fileRead = (name: string, size: string, text: string): ImportView => ({ text, note: { ok: true, text: `Read ${name} (${size}). Check it, then import.` } });
+export const fileRead = (size: string, text: string): ImportView => ({ text, note: null, size });
 
-/** A file was not read: the field stays as it was, with the reason. */
+/** A file was not read: the field stays as it was (and so does the file it came from), with the reason in place of the note. */
 export const fileRefused = (v: ImportView, error: string): ImportView => ({ ...v, note: { ok: false, text: error } });
 
 /**
@@ -72,7 +84,7 @@ export function latest(): { start: () => number; current: (token: number) => boo
  * A file chosen for the field, read by `reader`: the view to take when it is read, or null when it went stale on the way
  * (the dialog closed, a Clear, another file chosen), so that a late result never fills a field the person has left.
  */
-export async function fileInto<F extends { name: string; size: number }>(
+export async function fileInto<F extends { size: number }>(
   guard: ReturnType<typeof latest>,
   file: F,
   now: () => ImportView,
@@ -82,5 +94,5 @@ export async function fileInto<F extends { name: string; size: number }>(
   const token = guard.start();
   const read = await reader(file);
   if (!guard.current(token)) return null;
-  return read.ok ? fileRead(file.name, sizeText(file.size), read.text) : fileRefused(now(), read.error);
+  return read.ok ? fileRead(sizeText(file.size), read.text) : fileRefused(now(), read.error);
 }

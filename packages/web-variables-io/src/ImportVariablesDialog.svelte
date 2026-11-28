@@ -2,9 +2,9 @@
   The Import variables dialog (D8): CSS text pasted into a field or read from a file the person chooses (in the browser,
   nothing is uploaded), sent to the app layer as `importVariables`, and the result drawn under it: what was added, what was
   skipped and why, or why nothing was imported. The app layer reads the text, checks the commands, and applies them as one
-  undo step of the person's own, or applies nothing (`state.variablesIo.import`); this holds the text of the field and
-  the note about the file, and words the result (io.ts). Open or closed is the app state (`state.variablesIo.importOpen`, opened
-  by the button of the panel); closing sends `closeVariablesImport` and keeps the text. The focus goes into the field and back to the button that opened the dialog.
+  undo step of the person's own, or applies nothing (`state.variablesIo.import`); this holds the text of the field and the size of its file,
+  and words the result (io.ts) and the note about the file (the name is the app layer's, `importSource`). Open or closed is the app state (`state.variablesIo.importOpen`);
+  closing sends `closeVariablesImport` and keeps the text. The focus goes into the field and back to the button that opened the dialog.
 -->
 <script lang="ts">
   import { Dialog } from 'bits-ui';
@@ -12,7 +12,7 @@
   import type { Action, VariablesImportResult } from '@meldframe/protocol';
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import TooltipProvider from '@meldframe/web-chrome/TooltipProvider.svelte';
-  import { FRESH, type ImportView, applied, edited, fileInto, latest, stranded } from './flow';
+  import { FRESH, type ImportView, applied, edited, fileInto, latest, noteOf, stale, stranded } from './flow';
   import ImportVariablesBody from './ImportVariablesBody.svelte';
   import { sizeText } from './io';
   import { readFile } from './read';
@@ -20,16 +20,16 @@
   interface Props {
     /** `state.variablesIo.importOpen`. */
     open: boolean;
-    /** `state.variablesIo.import`. */
+    /** `state.variablesIo.import` and `.importSource` (the name of the file the field was read from, made safe by the app layer). */
     result: VariablesImportResult | null;
+    source: string | null;
     dispatch: (a: Action) => void;
     /** The button that opened the dialog, to give the focus back to. */
     opener: () => HTMLElement | null | undefined;
   }
-  let { open, result, dispatch, opener }: Props = $props();
+  let { open, result, source, dispatch, opener }: Props = $props();
 
-  // What the field holds, kept for the life of the page: closing the dialog (Escape is a key the person can hit by mistake)
-  // keeps the text, and an import that was applied, or Clear, starts it again.
+  // What the field holds, kept for the life of the page: closing the dialog (Escape can be hit by mistake) keeps the text; an applied import, or Clear, starts it again.
   let view = $state<ImportView>(FRESH);
   const guard = latest();
   // A primitive, so a new snapshot that carries the same result does not empty what the person has typed since.
@@ -46,7 +46,6 @@
     await tick();
     if (stranded(document.activeElement as HTMLButtonElement | null, document.body)) document.querySelector<HTMLElement>('[data-testid=import-vars-done]')?.focus();
   }
-
   const change = (o: boolean) => {
     if (!o) {
       // A file that is still being read must not fill a field the person has left.
@@ -54,23 +53,24 @@
       dispatch({ type: 'closeVariablesImport' });
     }
   };
-  // The result belongs to the text it was made from: editing the text puts it away. What is typed also ends a file that is still
-  // being read, so the file's text never replaces it.
+  // The result, and the name of the file, belong to the text they were made from: editing the text puts them away. What is typed also ends a file
+  // that is still being read, so the file's text never replaces it.
   const edit = (t: string) => {
+    if (stale(result, view)) dispatch({ type: 'clearVariablesImport' });
     view = edited(guard, view, t);
-    if (result) dispatch({ type: 'clearVariablesImport' });
   };
   const clear = () => {
+    if (stale(result, view)) dispatch({ type: 'clearVariablesImport' });
     guard.cancel();
     view = FRESH;
-    if (result) dispatch({ type: 'clearVariablesImport' });
   };
   const send = () => dispatch({ type: 'importVariables', text: view.text });
   async function chosen(file: File) {
     const next = await fileInto(guard, file, () => view, readFile, sizeText);
     if (!next) return;
-    // The result of an earlier text is not about this one.
+    // The result of an earlier text is not about this one; the name of a file that was read goes to the app layer, which makes it safe to show.
     if (result) dispatch({ type: 'clearVariablesImport' });
+    if (next.note === null) dispatch({ type: 'chooseVariablesImportSource', name: file.name });
     view = next;
   }
   // The first thing to focus is the field, not the Close button: a tooltip opens on that button and takes the first Escape.
@@ -100,7 +100,7 @@
           <Dialog.Close>{#snippet child({ props })}<IconButton label="Close" icon="close" triggerProps={props} data-testid="import-vars-close" />{/snippet}</Dialog.Close>
         </header>
         <Dialog.Description class="sr-only">Add the variables of CSS text to this file. Paste the text or choose a file; one undo takes the import back.</Dialog.Description>
-        <ImportVariablesBody {result} text={view.text} onText={edit} note={view.note} onFile={chosen} onClear={clear} onImport={send} onClose={() => change(false)} />
+        <ImportVariablesBody {result} text={view.text} onText={edit} note={noteOf(view, source)} onFile={chosen} onClear={clear} onImport={send} onClose={() => change(false)} />
       </Dialog.Content>
     </Dialog.Portal>
   </Dialog.Root>

@@ -127,7 +127,7 @@ await check('Manage view: two modes whose names hold U+202E and U+200B are drawn
   await dlg.waitFor({ state: 'detached' });
 });
 
-await check('Export and Import variables: the text of the export and the report of an import carry clean names, by the copy that was asked for; the file name in the note is a known gap', async () => {
+await check('Export and Import variables: the text of the export and the report of an import and the note about a chosen file carry clean names, by the copy that was asked for', async () => {
   // The markup of a dialog without what the person typed (the field) and the exported text, which is file content: the first is looked at as markup, the second as text.
   const chrome = (sel) => page.locator(sel).evaluate((e) => { const c = e.cloneNode(true); c.querySelectorAll('textarea,[data-testid=export-vars-code]').forEach((n) => n.remove()); return c.outerHTML; });
   await page.click('[data-testid=var-export]');
@@ -156,12 +156,23 @@ await check('Export and Import variables: the text of the export and the report 
   assert.ok(rows.some((r) => r.includes('.card')) && rows.some((r) => r.includes('.x')), JSON.stringify(rows));
   assert.equal(hasHidden(await chrome('[data-testid=import-vars-dialog]')), false, 'the markup of the Import variables dialog holds a hidden character');
   await shot(page, react ? 'u9web-import-variables-react' : 'u9web-import-variables-svelte');
-  // A KNOWN GAP of rule U9, the same on both copies: the note about a file the person chose is made in the page from the name the browser gives, which the
-  // app layer never sees, so it is drawn as it came. This asserts the gap, so that whoever closes it (the note worded by the app layer) is sent here to change it.
+  // The name of a file the person chose goes to the app layer (`chooseVariablesImportSource`), which makes it safe to show and cuts it (rule U9, issue 416): the
+  // note on both copies has the name without the two hidden characters, and nothing on the dialog holds one.
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('[data-testid=import-vars-choose]')]);
   await chooser.setFiles({ name: `th${RLO}eme${ZWSP}.css`, mimeType: 'text/css', buffer: Buffer.from(':root { --a: 1; }') });
   await until('the note', async () => (await page.locator('[data-testid=import-vars-note]').innerText()) !== '');
-  assert.equal(await page.locator('[data-testid=import-vars-note]').innerText(), `Read th${RLO}eme${ZWSP}.css (17 bytes). Check it, then import.`, 'the file name in the note is clean now: the gap is closed, so change this check to assert it');
+  assert.equal(await page.locator('[data-testid=import-vars-note]').innerText(), 'Read theme.css (17 bytes). Check it, then import.', 'the file name in the note is the one the app layer made safe');
+  assert.equal(hasHidden(await chrome('[data-testid=import-vars-dialog]')), false, 'the markup of the Import variables dialog holds a hidden character after a file with a hostile name was chosen');
+  // A name that is only hidden characters is worded as a name that is nothing, and one of 300 characters is cut by the app layer to 128.
+  const note = () => page.locator('[data-testid=import-vars-note]').innerText();
+  const choose = async (name) => {
+    const [c] = await Promise.all([page.waitForEvent('filechooser'), page.click('[data-testid=import-vars-choose]')]);
+    await c.setFiles({ name, mimeType: 'text/css', buffer: Buffer.from(':root { --b: 2; }') });
+  };
+  await choose(`${RLO}${ZWSP}`);
+  await until('the note names no file', async () => (await note()) === 'Read (no name) (17 bytes). Check it, then import.');
+  await choose(`${'a'.repeat(300)}.css`);
+  await until('the long name is cut', async () => (await note()) === `Read ${'a'.repeat(128)} (17 bytes). Check it, then import.`);
   await page.keyboard.press('Escape');
   await im.waitFor({ state: 'detached' });
 });
