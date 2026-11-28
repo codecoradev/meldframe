@@ -3,7 +3,7 @@
 //! The name rule of the core (`meldframe_variables::is_name_path`, the limits of `meldframe-check`) is asked here, so the
 //! front end writes none of it. The actions and the state that hold these are in `meldframe-app` (`manage_ui`).
 
-use crate::variables_panel::use_counts;
+use super::variables_panel::use_counts;
 use meldframe_app_model::{
     MODE_NAME_MAX, ManageTarget, NameCheck, NameError, NameWarning, Removal, VariableEntity,
 };

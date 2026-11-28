@@ -7,10 +7,10 @@
 
 use crate::app::App;
 use crate::nudge::{can_nudge, nudge};
+use crate::parts::document::{apply_all, move_by, move_to};
+use crate::parts::panel::selected_node;
+use crate::parts::properties::Drawn;
 use meldframe_app_model::Direction;
-use meldframe_app_parts::document::{apply_all, move_by, move_to};
-use meldframe_app_parts::panel::selected_node;
-use meldframe_app_parts::properties::Drawn;
 use meldframe_app_rules::arrow::arrow_commands;
 use meldframe_app_rules::drop::{Drag, Slot, drop_commands, drop_slot};
 use meldframe_app_rules::multi::{

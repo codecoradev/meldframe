@@ -1,12 +1,12 @@
 //! The checks of a typed name in the Variables manage view (audit finding T5, issue 322), asked of the pure part of the app
-//! layer (`meldframe_app_parts::manage_names`) with no app: the name rule of the core, what hides a meaning, the length of
+//! layer (`meldframe_app::parts::manage_names`) with no app: the name rule of the core, what hides a meaning, the length of
 //! each kind, the names a new thing is compared with, and what a rename is held against.
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
+use meldframe_app::parts::manage_names::{check_name, check_rename};
 use meldframe_app_model::{MODE_NAME_MAX, ManageLimits, NameError, NameWarning, VariableEntity};
-use meldframe_app_parts::manage_names::{check_name, check_rename};
 
 fn error(entity: VariableEntity, text: &str) -> Option<NameError> {
     check_name(entity, text, &[]).error

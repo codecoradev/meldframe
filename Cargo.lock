@@ -1133,6 +1133,7 @@ dependencies = [
  "meldframe-sync",
  "meldframe-text",
  "meldframe-variables",
+ "meldframe-variant",
  "serde",
  "serde_json",
  "variables-import",
@@ -1219,11 +1220,8 @@ dependencies = [
  "meldframe-layout",
  "meldframe-protocol",
  "meldframe-render",
- "meldframe-sync",
  "meldframe-text",
  "meldframe-variables",
- "meldframe-variant",
- "serde_json",
 ]
 
 [[package]]
@@ -1773,7 +1771,6 @@ version = "0.0.0"
 dependencies = [
  "meldframe-app",
  "meldframe-app-model",
- "meldframe-app-parts",
  "meldframe-app-rules",
  "meldframe-check",
  "meldframe-core",

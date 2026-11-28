@@ -27,6 +27,7 @@ meldframe-app-rules = { path = "../../core/meldframe-app-rules" }
 meldframe-camera = { path = "../../core/meldframe-camera" }
 meldframe-app-model = { path = "../../core/meldframe-app-model" }
 meldframe-variables = { path = "../../core/meldframe-variables" }
+meldframe-variant = { path = "../../core/meldframe-variant" }
 variables-import = { path = "../../features/variables-import/variables-import" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
