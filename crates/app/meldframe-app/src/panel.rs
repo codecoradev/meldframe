@@ -2,11 +2,11 @@
 //! every rule is here; a front end draws `AppState::variables` and sends the actions, and the checks of a value, an
 //! alias or a binding are the ones of `meldframe-variables`, run when the command is applied.
 
+use crate::parts::binding::{bind_patch, variable_bind};
+use crate::parts::panel::{PanelKey, selected_node};
+use crate::parts::variables_panel::variables_view;
 use crate::{app::App, document::refuse, event::Event, view_cache::PanelCache};
 use meldframe_app_model::{BindField, VariableValue, VariablesPanel};
-use meldframe_app_parts::binding::{bind_patch, variable_bind};
-use meldframe_app_parts::panel::{PanelKey, selected_node};
-use meldframe_app_parts::variables_panel::variables_view;
 use meldframe_protocol::Command;
 use meldframe_sync::SubmitError;
 

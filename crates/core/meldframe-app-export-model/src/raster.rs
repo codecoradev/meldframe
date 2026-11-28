@@ -1,7 +1,7 @@
 //! The PNG of a frame and the capture of a node, as plain data (finding T13 of the thin UI audit, decision 43). The app layer
 //! decides the rectangle (from `PaintedBox::paint_bounds`), the scale, the size in pixels, the file name and the refusal;
 //! the drawing and the delivery of the bytes (a download, the clipboard, the upload of a capture) are effects the shell carries
-//! out, and what it reports comes back as a `Wire` answer that the app layer reads (`meldframe-app-parts`, `answers`). The
+//! out, and what it reports comes back as a `Wire` answer that the app layer reads (`meldframe-app`, `parts::answers`). The
 //! rules are in `meldframe-app-rules` (`raster`, `png`).
 
 use serde::{Deserialize, Serialize};

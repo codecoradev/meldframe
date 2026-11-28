@@ -15,6 +15,7 @@ meldframe-activity = { path = "../../core/meldframe-activity" }
 meldframe-check = { path = "../../core/meldframe-check" }
 meldframe-checkpoints = { path = "../../core/meldframe-checkpoints" }
 meldframe-layout = { path = "../../core/meldframe-layout" }
+meldframe-order = { path = "../../core/meldframe-order" }
 meldframe-protocol = { path = "../../core/meldframe-protocol" }
 meldframe-render = { path = "../../core/meldframe-render" }
 meldframe-revert = { path = "../../core/meldframe-revert" }

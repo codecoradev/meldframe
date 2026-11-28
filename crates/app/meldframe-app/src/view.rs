@@ -2,10 +2,10 @@
 
 use crate::app::App;
 use crate::event::Event;
+use crate::parts::panel::{is_open, set_open, toggle_listed};
+use crate::parts::selection::known;
 use crate::state::Panel;
 use crate::text;
-use meldframe_app_parts::panel::{is_open, set_open, toggle_listed};
-use meldframe_app_parts::selection::known;
 use std::collections::{BTreeMap, HashSet};
 
 impl App {

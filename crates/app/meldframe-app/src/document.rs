@@ -1,13 +1,13 @@
 //! Document actions: what the person meant becomes commands in the replica.
 
-use crate::{action::Action, app::App, effect::Effect, state::Tool};
-use meldframe_app_model::{ManageOp, TextEditOp, TypedText};
-use meldframe_app_parts::document::{
+use crate::parts::document::{
     Variant, apply_all, check_room, code, edit_text, make_variant, move_by, move_to, new_node,
     preset_node, validate,
 };
-use meldframe_app_parts::manage::Target;
-use meldframe_app_parts::touched::render_set;
+use crate::parts::manage::Target;
+use crate::parts::touched::render_set;
+use crate::{action::Action, app::App, effect::Effect, state::Tool};
+use meldframe_app_model::{ManageOp, TextEditOp, TypedText};
 use meldframe_check::ApplyError;
 use meldframe_protocol::Command;
 use meldframe_sync::SubmitError;

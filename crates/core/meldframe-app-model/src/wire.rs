@@ -1,6 +1,6 @@
 //! What the shell hands the app layer as the result of an effect or as a frame it did not read (audit finding T6,
 //! issue 323): the status and the text of the answer, as the network gave them. The app layer parses and checks them
-//! (`meldframe-app-parts`, `answers`: serde with the bounds of the server), so a front end passes raw text through and
+//! (`meldframe-app`, `parts::answers`: serde with the bounds of the server), so a front end passes raw text through and
 //! checks nothing of its own. An answer that is not what the server sends (a proxy's page, a body of the wrong shape or
 //! out of bound) is the failure of its request, with the code `unavailable`.
 

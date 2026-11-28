@@ -6,9 +6,9 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
+use meldframe_app::parts::answers::action_of;
 use meldframe_app::{Action, App};
 use meldframe_app_model::Wire;
-use meldframe_app_parts::answers::action_of;
 use serde_json::{Value, json};
 
 mod common;

@@ -1645,6 +1645,7 @@ dependencies = [
  "meldframe-checkpoints",
  "meldframe-history",
  "meldframe-layout",
+ "meldframe-order",
  "meldframe-protocol",
  "meldframe-render",
  "meldframe-revert",
@@ -1683,19 +1684,15 @@ dependencies = [
 name = "meldframe-app-parts"
 version = "0.0.0"
 dependencies = [
- "meldframe-activity",
  "meldframe-app-model",
  "meldframe-check",
- "meldframe-checkpoints",
  "meldframe-layout",
- "meldframe-order",
  "meldframe-protocol",
  "meldframe-render",
  "meldframe-sync",
  "meldframe-text",
  "meldframe-variables",
  "meldframe-variant",
- "serde",
  "serde_json",
 ]
 

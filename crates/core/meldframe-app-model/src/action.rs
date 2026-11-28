@@ -168,7 +168,7 @@ pub enum Action {
         property: Property,
     },
     /// A text a person typed into a field, with the field (`TypedText`): the app parses it and says what it comes to
-    /// (`meldframe-app-parts`, `typed`); empty text, the value the field has and a position the layout decides send nothing.
+    /// (`meldframe-app`, `parts::typed`); empty text, the value the field has and a position the layout decides send nothing.
     Typed {
         entry: TypedText,
     },

@@ -4,7 +4,7 @@
 //! a number outside the range of the field is refused as `invalid_value`. A colour is not checked here: whether it is
 //! one is the core's to say, so every colour field refuses a bad text with the same code.
 
-use crate::property::within_turn;
+use super::property::within_turn;
 use meldframe_app_model::{Properties, Property, ShadowPart, TextField};
 
 /// The smallest width or height a person can type, in px.

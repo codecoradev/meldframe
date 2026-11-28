@@ -9,10 +9,10 @@ use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod common;
 use common::CASES;
+use meldframe_app::parts::picker::picker_view;
+use meldframe_app::parts::properties::selected_properties;
+use meldframe_app::parts::variables_panel::variables_view;
 use meldframe_app_model::BindField;
-use meldframe_app_parts::picker::picker_view;
-use meldframe_app_parts::properties::selected_properties;
-use meldframe_app_parts::variables_panel::variables_view;
 use meldframe_protocol::{Node, Variables};
 use meldframe_render::ModeChoice;
 use serde_json::json;

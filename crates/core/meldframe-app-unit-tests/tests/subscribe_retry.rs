@@ -378,7 +378,7 @@ fn a_refusal_is_a_frame_heard_from_the_server() {
 
 #[test]
 fn what_the_shell_hands_over_is_read_as_a_frame_and_a_text_that_is_not_an_error_frame_is_nothing() {
-    use meldframe_app_parts::answers::action_of;
+    use meldframe_app::parts::answers::action_of;
     let wire = |text: &str| Wire::SubscribeRefused {
         now_ms: 7,
         text: text.into(),

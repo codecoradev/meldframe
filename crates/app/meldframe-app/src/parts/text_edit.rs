@@ -1,7 +1,7 @@
 //! The rules of the text being edited that read no state of the app: which node an edit can open on, and what committing
 //! the field comes to. The state (`AppState::text_edit`) and the events are `meldframe-app`'s (`text_edit.rs`).
 
-use crate::document::edit_text;
+use super::document::edit_text;
 use meldframe_app_model::TextEdit;
 use meldframe_protocol::{Command, Node, NodeKind};
 

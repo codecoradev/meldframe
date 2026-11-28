@@ -1,13 +1,13 @@
 //! The Variables manage actions: make a collection, a mode or a variable with ids the app mints, and
 //! remove them, letting go of what uses them first when the person says so; the commands are worked out in
-//! `meldframe_app_parts::manage`; every one goes through the replica as any other change (and so to the gate), and a list
+//! `crate::parts::manage`; every one goes through the replica as any other change (and so to the gate), and a list
 //! of them is one undo step.
 
 use crate::app::App;
 use crate::document::refuse;
 use crate::event::Event;
+use crate::parts::manage::{self, Target};
 use meldframe_app_model::VariableEntity;
-use meldframe_app_parts::manage::{self, Target};
 use meldframe_app_rules::modes::check_group;
 use meldframe_protocol::{Command, VarType, Variables};
 use meldframe_sync::SubmitError;

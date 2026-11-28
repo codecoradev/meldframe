@@ -2,7 +2,7 @@
 //! front end draws `AppState::layers` and reads no name from the file.
 
 use crate::app::App;
-use meldframe_app_parts::layers::layer_rows;
+use crate::parts::layers::layer_rows;
 
 impl App {
     /// Bring `AppState::layers` in line with the file, the collapsed ids, the selection and the last actors. Nothing
