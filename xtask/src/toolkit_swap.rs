@@ -26,6 +26,7 @@ pub const INNER: &[&str] = &[
     "meldframe-app-model",
     "meldframe-app-rules",
     "meldframe-app-parts",
+    "meldframe-app-nudge",
     "meldframe-app-pointer",
     "meldframe-camera",
     "meldframe-render",
