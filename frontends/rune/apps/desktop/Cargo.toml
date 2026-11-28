@@ -1,0 +1,29 @@
+[package]
+name = "meldframe-desktop"
+description = "The native desktop app of the Rune front end: the shell that owns the window and the state, drawn by the Rune view crates (E8.2.2, first slice: no socket yet)."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "bin"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "meldframe-desktop"
+path = "src/main.rs"
+# The tests are the integration tests; the entry point has none of its own.
+test = false
+
+[lints]
+workspace = true
+
+[dependencies]
+rune = { workspace = true }
+meldframe-app = { path = "../../../../crates/app/meldframe-app" }
+meldframe-protocol = { path = "../../../../crates/core/meldframe-protocol" }
+meldframe-ui-rune = { path = "../../crates/ui/meldframe-ui-rune" }
+canvas-ui-rune = { path = "../../crates/features/canvas-ui-rune" }
+serde_json = "1"

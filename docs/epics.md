@@ -512,6 +512,8 @@ Status, 28 Nov 2026, E8.1.6 (no box is ticked): the cache and the two epochs wer
 - [ ] A headless test renders the window to a PNG and dumps the element tree; both are stored as goldens and are byte stable across two runs.
 - [ ] The crate kinds are declared and `deps-check` passes, the Rune toolkit is imported only in `ui`, `feature-ui` and `bin` crates, and `ui-literals` passes on the Rune crates.
 
+Status, first slice (no box above is ticked: a box is ticked only when its whole text is proven): `frontends/rune/apps/desktop` (a library and an entry point), `crates/features/canvas-ui-rune` and `crates/ui/meldframe-ui-rune` draw `App::scene()` as one shape cached per `scene_epoch`, send a click as `Action::Pointer`, send Move (`Action::MoveBy`) and Undo, and show the connection state; the headless tests, the element tree golden and the PNG golden (one software adapter) are in `apps/desktop/tests`. Not done: the macOS window, the socket and the token (nothing here connects to a server), loading a file, and the checks of the second workspace in `cargo xtask` (E8.0.4).
+
 **E8.2.3 Measure against the criteria (M).** Depends on: E8.2.2, E8.2.1, E8.1.7. Seam: scripts committed under `frontends/rune/tools/`.
 - [ ] One script per criterion, C1 to C10, runs from a clean checkout and prints numbers, and the Rune measurer is plugged into the conformance suite of E8.1.7.
 - [ ] The results are written into `docs/spikes/rune-desktop-spike.md` with the machine, the OS, the GPU path, the revision and the date.

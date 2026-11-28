@@ -1,0 +1,170 @@
+{
+  "elements": [
+    {
+      "fill": "#00000000",
+      "focusable": false,
+      "key": null,
+      "label": null,
+      "opacity": 1.0,
+      "parent": null,
+      "path": "#0",
+      "radius": 0.0,
+      "rect": [
+        0.0,
+        0.0,
+        900.0,
+        640.0
+      ],
+      "role": "group",
+      "text": null
+    },
+    {
+      "fill": "#1c1d20ff",
+      "focusable": false,
+      "key": "bar",
+      "label": null,
+      "opacity": 1.0,
+      "parent": 0,
+      "path": "#0/bar",
+      "radius": 0.0,
+      "rect": [
+        0.0,
+        0.0,
+        900.0,
+        40.0
+      ],
+      "role": "group",
+      "text": null
+    },
+    {
+      "fill": "#ffffff0d",
+      "focusable": false,
+      "key": "move",
+      "label": "Move",
+      "opacity": 0.4,
+      "parent": 1,
+      "path": "#0/bar/move",
+      "radius": 6.0,
+      "rect": [
+        12.0,
+        6.0,
+        72.0,
+        28.0
+      ],
+      "role": "button",
+      "text": null
+    },
+    {
+      "fill": "#00000000",
+      "focusable": false,
+      "key": null,
+      "label": null,
+      "opacity": 0.4,
+      "parent": 2,
+      "path": "#0/bar/move/#0",
+      "radius": 0.0,
+      "rect": [
+        32.16,
+        12.5,
+        31.69,
+        15.0
+      ],
+      "role": "text",
+      "text": "Move"
+    },
+    {
+      "fill": "#ffffff0d",
+      "focusable": false,
+      "key": "undo",
+      "label": "Undo",
+      "opacity": 0.4,
+      "parent": 1,
+      "path": "#0/bar/undo",
+      "radius": 6.0,
+      "rect": [
+        92.0,
+        6.0,
+        72.0,
+        28.0
+      ],
+      "role": "button",
+      "text": null
+    },
+    {
+      "fill": "#00000000",
+      "focusable": false,
+      "key": null,
+      "label": null,
+      "opacity": 0.4,
+      "parent": 4,
+      "path": "#0/bar/undo/#0",
+      "radius": 0.0,
+      "rect": [
+        112.61,
+        12.5,
+        30.78,
+        15.0
+      ],
+      "role": "text",
+      "text": "Undo"
+    },
+    {
+      "fill": "#00000000",
+      "focusable": false,
+      "key": "status",
+      "label": null,
+      "opacity": 1.0,
+      "parent": 1,
+      "path": "#0/bar/status",
+      "radius": 0.0,
+      "rect": [
+        172.0,
+        12.5,
+        160.0,
+        15.0
+      ],
+      "role": "text",
+      "text": "Connected"
+    },
+    {
+      "fill": "#121314ff",
+      "focusable": false,
+      "key": "canvas-host",
+      "label": "Canvas",
+      "opacity": 1.0,
+      "parent": 0,
+      "path": "#0/canvas-host",
+      "radius": 0.0,
+      "rect": [
+        0.0,
+        40.0,
+        900.0,
+        600.0
+      ],
+      "role": "group",
+      "text": null
+    },
+    {
+      "fill": "#00000000",
+      "focusable": false,
+      "key": "canvas",
+      "label": null,
+      "opacity": 1.0,
+      "parent": 7,
+      "path": "#0/canvas-host/canvas",
+      "radius": 0.0,
+      "rect": [
+        0.0,
+        40.0,
+        900.0,
+        600.0
+      ],
+      "role": "image",
+      "text": null
+    }
+  ],
+  "window": [
+    900.0,
+    640.0
+  ]
+}
