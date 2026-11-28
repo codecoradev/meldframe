@@ -1,5 +1,6 @@
 //! E3.2: an agent paints a gradient through apply_commands and reads it back; a bad one is refused with its code.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::json;

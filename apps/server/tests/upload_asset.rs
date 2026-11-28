@@ -1,6 +1,6 @@
 //! `upload_asset`: an agent sends an image as base64 and gets its id back, through a real MCP client.
 
-#[path = "../../meldframe-mcp-tests/tests/common/mod.rs"]
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_http::{DevTokens, router_with_mcp_config};
@@ -9,7 +9,7 @@ use serde_json::json;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-/// The harness of `meldframe-mcp-tests` with the tool over an in-memory store with no storage limit. The tool has a
+/// The harness of `mcp_common` with the tool over an in-memory store with no storage limit. The tool has a
 /// state of its own (the limits are those of `config`), as the server's has.
 async fn start() -> Harness {
     start_with(

@@ -1,6 +1,7 @@
 //! E3.2: get_tree reports the layout findings of the fidelity contract (G1 to G3) next to the layer-name warnings, and the
 //! tool text says so. They only warn: nothing is refused.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::json;

@@ -1,5 +1,6 @@
 //! E3.2: an agent sets opacity and no fill through apply_commands and reads them back; a bad opacity is refused.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::json;

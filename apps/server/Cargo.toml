@@ -85,7 +85,8 @@ tokio = { version = "1", features = ["rt-multi-thread", "net", "signal"] }
 
 # What the tests in `tests/` use beyond the dependencies above: the `json` and `ws` features of axum, the `io-util`,
 # `macros` and `time` of tokio, `tower` (`oneshot`), `http-body-util`, `meldframe-check` and the WebSocket client of the
-# live and HTTP tests, `sqlx` (the Postgres tests check the schema directly) and the shared store contract.
+# live and HTTP tests, `sqlx` (the Postgres tests check the schema directly), the shared store contract, and what the MCP
+# tests use: the `rmcp` client over HTTP, `reqwest`, the activity rules and the render coverage table.
 # Dev-dependencies do not ship and do not count for the layering (decision 44).
 [dev-dependencies]
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
@@ -97,6 +98,10 @@ http-body-util = "0.1"
 meldframe-check = { path = "../../crates/core/meldframe-check" }
 meldframe-store-contract = { path = "../../crates/core/meldframe-store-contract" }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres"] }
+meldframe-activity = { path = "../../crates/core/meldframe-activity" }
+meldframe-render = { path = "../../crates/core/meldframe-render" }
+rmcp = { version = "3.10", default-features = false, features = ["client", "server", "transport-streamable-http-client-reqwest"] }
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
 
 # A test that needs a cargo feature is not built without it, so `cargo test -p meldframe-server --no-default-features`
 # still proves that a feature left out removes its tools.
@@ -111,6 +116,106 @@ required-features = ["assets"]
 [[test]]
 name = "list"
 required-features = ["assets"]
+
+[[test]]
+name = "absolute"
+required-features = ["mcp"]
+
+[[test]]
+name = "catalogue"
+required-features = ["mcp", "capture", "assets", "design-review", "export", "variables-import", "html-import", "variant", "activity"]
+
+[[test]]
+name = "demo"
+required-features = ["mcp"]
+
+[[test]]
+name = "gate"
+required-features = ["mcp"]
+
+[[test]]
+name = "gradient"
+required-features = ["mcp"]
+
+[[test]]
+name = "hardening"
+required-features = ["mcp"]
+
+[[test]]
+name = "layer_names"
+required-features = ["mcp"]
+
+[[test]]
+name = "layout_findings"
+required-features = ["mcp"]
+
+[[test]]
+name = "margin"
+required-features = ["mcp"]
+
+[[test]]
+name = "padding"
+required-features = ["mcp"]
+
+[[test]]
+name = "paint"
+required-features = ["mcp"]
+
+[[test]]
+name = "read_log"
+required-features = ["mcp"]
+
+[[test]]
+name = "skill"
+required-features = ["mcp"]
+
+[[test]]
+name = "surface"
+required-features = ["mcp"]
+
+[[test]]
+name = "text_rules"
+required-features = ["mcp"]
+
+[[test]]
+name = "variables"
+required-features = ["mcp"]
+
+[[test]]
+name = "rename"
+required-features = ["mcp"]
+
+[[test]]
+name = "import_html_arguments"
+required-features = ["mcp", "html-import", "export", "activity"]
+
+[[test]]
+name = "import_html_limits"
+required-features = ["mcp", "html-import", "export", "activity"]
+
+[[test]]
+name = "import_html_roundtrip"
+required-features = ["mcp", "html-import", "export", "activity"]
+
+[[test]]
+name = "import_html_tool"
+required-features = ["mcp", "html-import", "export", "activity"]
+
+[[test]]
+name = "upload_asset"
+required-features = ["assets"]
+
+[[test]]
+name = "export_frame"
+required-features = ["export"]
+
+[[test]]
+name = "import"
+required-features = ["variables-import"]
+
+[[test]]
+name = "import_more"
+required-features = ["variables-import"]
 
 [lints]
 workspace = true

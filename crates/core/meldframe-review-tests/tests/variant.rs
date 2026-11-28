@@ -1,6 +1,6 @@
 //! `make_variant`: a copy of a frame and its subtree beside it, one atomic call, safe to retry.
 
-#[path = "../../meldframe-mcp-tests/tests/common/mod.rs"]
+#[path = "../../../../apps/server/tests/mcp_common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_http::{DevTokens, router_with_mcp_config};
@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-/// The harness of `meldframe-mcp-tests` with the tool of its own crate mounted, as the server does with the
+/// The harness of `mcp_common` with the tool of its own crate mounted, as the server does with the
 /// `variant` feature (the tool shares the state of the routes, so it spends the same slots and limits).
 async fn start() -> Harness {
     let spy = Arc::new(Spy {

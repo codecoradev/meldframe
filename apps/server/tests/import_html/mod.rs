@@ -4,7 +4,7 @@
 //! memory when a test asks for them.
 
 // The helpers of the other tests of this crate.
-#[path = "../common/mod.rs"]
+#[path = "../mcp_common/mod.rs"]
 mod common;
 pub use activity_store::{BatchStore, MemoryBatches, Query};
 pub use common::*;
@@ -18,9 +18,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
-pub const CODES: &str = include_str!("../../../../../docs/error-codes.md");
-pub const CATALOGUE: &str = include_str!("../../../../../docs/mcp-tools.json");
-pub const SKILL: &str = include_str!("../../../../../skills/meldframe/SKILL.md");
+pub const CODES: &str = include_str!("../../../../docs/error-codes.md");
+pub const CATALOGUE: &str = include_str!("../../../../docs/mcp-tools.json");
+pub const SKILL: &str = include_str!("../../../../skills/meldframe/SKILL.md");
 
 /// What a test asks of the server it starts.
 #[derive(Clone, Copy)]

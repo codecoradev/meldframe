@@ -3,14 +3,14 @@
 //! every binding and alias, and carry the stable codes of the add. The tool text, the schema, the catalogue and the
 //! skill name them.
 
-// The helpers of `meldframe-mcp-tests`, by path: that crate is at its size ceiling.
-#[path = "../../meldframe-mcp-tests/tests/common/mod.rs"]
+// The shared helpers of the MCP tests, `mcp_common`.
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::{Value, json};
 
-const CATALOGUE: &str = include_str!("../../../../docs/mcp-tools.json");
-const SKILL: &str = include_str!("../../../../skills/meldframe/SKILL.md");
+const CATALOGUE: &str = include_str!("../../../docs/mcp-tools.json");
+const SKILL: &str = include_str!("../../../skills/meldframe/SKILL.md");
 const RENAMES: [&str; 3] = ["renameCollection", "renameMode", "renameVariable"];
 
 async fn apply(c: &Client, key: &str, commands: Vec<Value>) -> Called {

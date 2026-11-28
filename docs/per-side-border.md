@@ -203,7 +203,7 @@ The tool text of `apply_commands` (`crates/core/meldframe-mcp-defs/src/lib.rs`, 
 
 > border {width (px, the width of every side that has no value of its own; 0 for none), color (#hex), position (inside, center or outside), widthT, widthR, widthB, widthL (px, one side each, in place of width for that side)}; a border is paint only and takes no room, so add padding if the children must keep clear of it; updateNode replaces the whole border, so send every member you want to keep.
 
-The `export_frame` text lists what `unsupported` carries; with slice 1 it also lists a border with sides drawn at its `width` on every side until slice 3. `skills/meldframe/SKILL.md` (checked by `crates/core/meldframe-mcp-tests/tests/skill.rs`, which cross-checks every tool and code it names and the "canvas does not draw" sentence) would get a short example, a divider as `border {width: 0, widthB: 1, color: "#e4e4e7"}`, and the sentence that a side is not drawn on the canvas until slice 2 if that is when it is shipped. `docs/mcp-tools.json` is compared with the tool text by a test, so both change together.
+The `export_frame` text lists what `unsupported` carries; with slice 1 it also lists a border with sides drawn at its `width` on every side until slice 3. `skills/meldframe/SKILL.md` (checked by `apps/server/tests/skill.rs`, which cross-checks every tool and code it names and the "canvas does not draw" sentence) would get a short example, a divider as `border {width: 0, widthB: 1, color: "#e4e4e7"}`, and the sentence that a side is not drawn on the canvas until slice 2 if that is when it is shipped. `docs/mcp-tools.json` is compared with the tool text by a test, so both change together.
 
 ## 11. Recommendation, first slice, slicing
 

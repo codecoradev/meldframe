@@ -1,7 +1,7 @@
 //! `design_review`: the critique list of a file through a real MCP client. The workspace and the actor come from the
 //! token; the list is not part of the file.
 
-#[path = "../../meldframe-mcp-tests/tests/common/mod.rs"]
+#[path = "../../../../apps/server/tests/mcp_common/mod.rs"]
 mod common;
 use common::*;
 use design_review::MemoryReviews;
@@ -16,7 +16,7 @@ async fn start() -> Harness {
     start_with(Some(Policy::Auto), Some(Policy::Auto)).await
 }
 
-/// The harness of `meldframe-mcp-tests` with the tool over an in-memory store and the policies of the two tiers it
+/// The harness of `mcp_common` with the tool over an in-memory store and the policies of the two tiers it
 /// serves: `read` for a list, `change` for the rest.
 async fn start_with(read: Option<Policy>, change: Option<Policy>) -> Harness {
     let spy = Arc::new(Spy {
@@ -377,7 +377,7 @@ async fn a_workspace_holds_100_files_with_a_list_even_when_the_files_do_not_exis
 }
 
 /// The schema a client gets equals the one in `docs/mcp-tools.json` and the tool's own function; the catalogue test of
-/// `meldframe-mcp-tests` leaves this tool out because its server does not wire it.
+/// `apps/server/tests/catalogue.rs` leaves this tool out because its server does not wire it.
 #[tokio::test]
 async fn the_input_schema_equals_the_catalogue_and_the_registry_tool() {
     let h = start().await;

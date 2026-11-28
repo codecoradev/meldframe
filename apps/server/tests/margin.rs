@@ -1,5 +1,6 @@
 //! E3.2: an agent sets a margin through apply_commands and reads it back; the tool text names the sides.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::json;

@@ -1,12 +1,13 @@
 //! The tool text and schemas are listed in `docs/mcp-tools.json`; this compares the file with what the
 //! server says to a real client and with the registry.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_server::Server;
 use serde_json::{Value, json};
 
-const CATALOGUE: &str = include_str!("../../../../docs/mcp-tools.json");
+const CATALOGUE: &str = include_str!("../../../docs/mcp-tools.json");
 
 #[tokio::test]
 async fn the_catalogue_equals_what_a_client_lists() {

@@ -1,5 +1,6 @@
 //! E3.2: an agent makes a child absolute through apply_commands and reads it back; the tool text says what it means.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::json;

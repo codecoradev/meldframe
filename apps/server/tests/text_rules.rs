@@ -1,6 +1,7 @@
 //! U9: the text rules of the MCP surface, through a real client. An idempotency key and a file name are held to the
 //! one set of hidden characters (`meldframe-text`), by one rule in every tool.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::{Value, json};

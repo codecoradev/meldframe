@@ -1,9 +1,9 @@
 //! E5.5: the skill that ships with the repository (`skills/meldframe/SKILL.md`) tells agents how to work on a file.
 //! It names only tools the MCP surface has, and covers the habits the epic lists.
 
-const SKILL: &str = include_str!("../../../../skills/meldframe/SKILL.md");
-const CATALOGUE: &str = include_str!("../../../../docs/mcp-tools.json");
-const CODES: &str = include_str!("../../../../docs/error-codes.md");
+const SKILL: &str = include_str!("../../../skills/meldframe/SKILL.md");
+const CATALOGUE: &str = include_str!("../../../docs/mcp-tools.json");
+const CODES: &str = include_str!("../../../docs/error-codes.md");
 
 fn tools() -> Vec<String> {
     let v: serde_json::Value = serde_json::from_str(CATALOGUE).unwrap();

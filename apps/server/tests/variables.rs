@@ -2,13 +2,13 @@
 //! under the same gate, atomic batch and `ifSeq` as node commands, a node field is bound to `{var: id}`, and
 //! `get_variables` reads collections and variables in bounded output.
 
-// The helpers of `meldframe-mcp-tests`, by path: that crate is at its size ceiling.
-#[path = "../../meldframe-mcp-tests/tests/common/mod.rs"]
+// The shared helpers of the MCP tests, `mcp_common`.
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::{Value, json};
 
-const CATALOGUE: &str = include_str!("../../../../docs/mcp-tools.json");
+const CATALOGUE: &str = include_str!("../../../docs/mcp-tools.json");
 
 fn appearance() -> Value {
     json!({"type": "addCollection", "collection": {"id": "c1", "name": "appearance",

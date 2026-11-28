@@ -1556,27 +1556,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-export-http-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "export",
- "meldframe-calls",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-assets",
- "meldframe-http-capture",
- "meldframe-http-export",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-server",
- "reqwest",
- "rmcp",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "meldframe-export-tests"
 version = "0.0.0"
 dependencies = [
@@ -1855,25 +1834,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-mcp-asset-tests"
-version = "0.0.0"
-dependencies = [
- "assets",
- "axum",
- "meldframe-calls",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-assets",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-server",
- "reqwest",
- "rmcp",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "meldframe-mcp-defs"
 version = "0.0.0"
 dependencies = [
@@ -1883,31 +1843,6 @@ dependencies = [
  "meldframe-protocol",
  "meldframe-text",
  "serde_json",
-]
-
-[[package]]
-name = "meldframe-mcp-tests"
-version = "0.0.0"
-dependencies = [
- "activity-store",
- "axum",
- "meldframe-activity",
- "meldframe-calls",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-activity",
- "meldframe-http-assets",
- "meldframe-http-capture",
- "meldframe-http-export",
- "meldframe-http-html-import",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-render",
- "meldframe-server",
- "reqwest",
- "rmcp",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -2031,6 +1966,7 @@ dependencies = [
  "futures-util",
  "html-import",
  "http-body-util",
+ "meldframe-activity",
  "meldframe-app-export-model",
  "meldframe-approvals",
  "meldframe-batch",
@@ -2051,11 +1987,14 @@ dependencies = [
  "meldframe-http-variant",
  "meldframe-module",
  "meldframe-protocol",
+ "meldframe-render",
  "meldframe-rooms",
  "meldframe-store-contract",
  "meldframe-store-pg",
  "meldframe-stream",
  "meldframe-text",
+ "reqwest",
+ "rmcp",
  "serde_json",
  "sqlx",
  "tokio",
@@ -2179,27 +2118,6 @@ dependencies = [
  "meldframe-variables",
  "serde_json",
  "wasm-bindgen-test",
-]
-
-[[package]]
-name = "meldframe-variables-mcp-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "meldframe-calls",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-assets",
- "meldframe-http-capture",
- "meldframe-http-variables-import",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-server",
- "reqwest",
- "rmcp",
- "serde_json",
- "tokio",
- "variables-import",
 ]
 
 [[package]]

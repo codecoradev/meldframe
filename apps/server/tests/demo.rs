@@ -1,5 +1,6 @@
 //! The M1 demonstration, steps 1, 2 and 6, with an MCP agent and a person who edits over REST.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::json;

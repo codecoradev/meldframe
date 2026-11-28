@@ -3,8 +3,8 @@
 //! in one atomic call through the gate, a long import comes in parts, a retry writes nothing twice, and the codes are
 //! the documented ones.
 
-// The helpers of `meldframe-mcp-tests`, by path: that crate is at its size ceiling.
-#[path = "../../../meldframe-mcp-tests/tests/common/mod.rs"]
+// The shared helpers of the MCP tests, `mcp_common`.
+#[path = "../mcp_common/mod.rs"]
 mod common;
 pub use common::*;
 use meldframe_http::mcp::McpConfig;
@@ -16,7 +16,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
-pub const CODES: &str = include_str!("../../../../../docs/error-codes.md");
+pub const CODES: &str = include_str!("../../../../docs/error-codes.md");
 
 pub const THEME: &str = "@import \"tailwindcss\"; \
     :root { --background: oklch(1 0 0); --brand: var(--color-brand-600); --radius: 0.5rem; --shadow-ring: 0 0 0 1px #000; } \
