@@ -1825,9 +1825,16 @@ dependencies = [
 name = "meldframe-measure"
 version = "0.0.0"
 dependencies = [
+ "canvas-ui-rune",
  "meldframe-app",
+ "meldframe-layout",
+ "meldframe-oracle-runner",
  "meldframe-protocol",
+ "meldframe-render",
  "meldframe-rune-pin",
+ "meldframe-text-rune",
+ "rune",
+ "serde",
  "serde_json",
 ]
 
@@ -1845,6 +1852,18 @@ dependencies = [
  "serde_json",
  "tungstenite",
  "ureq",
+]
+
+[[package]]
+name = "meldframe-oracle-runner"
+version = "0.0.0"
+dependencies = [
+ "export",
+ "meldframe-layout",
+ "meldframe-protocol",
+ "meldframe-variables",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
