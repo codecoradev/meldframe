@@ -1689,6 +1689,7 @@ dependencies = [
  "meldframe-app-model",
  "meldframe-check",
  "meldframe-checkpoints",
+ "meldframe-layout",
  "meldframe-order",
  "meldframe-protocol",
  "meldframe-render",
