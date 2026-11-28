@@ -57,9 +57,9 @@ impl App {
             // With no selection the action is a no-op (no step, no event, no effect): the key raises nothing and the browser
             // keeps it.
             // An arrow key is not a command while a press is down: the gesture is the person's hands' business.
-            Makes::Nudge(_) if self.pointer.busy() => return None,
-            Makes::Nudge(direction) => {
-                return Some((Action::ArrowKey { direction }, Used::IfDocumentChanged));
+            Makes::Nudge(..) if self.pointer.busy() => return None,
+            Makes::Nudge(direction, coarse) => {
+                return Some((Action::Nudge { direction, coarse }, Used::IfDocumentChanged));
             }
             Makes::BeginTextEdit if selected_text(self.replica.nodes(), &s.selection).is_some() => {
                 Action::TextEdit {

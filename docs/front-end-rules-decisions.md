@@ -39,6 +39,8 @@ About 745 lines would move and about 945 stay if every recommendation is taken (
 
 **Failing test first, for (a):** a key input `z` with Ctrl makes an undo step; `v` sets the select tool; `Delete` with an empty selection does nothing; an arrow key with a selection and the layout off does nothing and raises no "used" event.
 
+Update, 28 Nov 2026: the arrow key is now a nudge, so the last case changes. An arrow key with the layout off moves the selection's stored boxes by 1 unit (10 with Shift), as a drag does, and a child of an auto layout frame still goes one place along its flow on a plain press (`Action::Nudge`; E8.1.1 in `docs/epics.md`).
+
 **Owner decision needed:** Q1, move the editor keys and the panel keys to the app layer (the recommendation: yes)? Q2, is the palette catalogue part of the one registry of M2 now (the recommendation: not before a second front end exists)?
 
 ### T8. Creation, resize and preview geometry (U1, U6)

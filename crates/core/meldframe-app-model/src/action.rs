@@ -126,7 +126,7 @@ pub enum Action {
         dx: f64,
         dy: f64,
     },
-    /// An arrow key was pressed with the selection, no modifier: what it does is on `Direction`.
+    /// A plain arrow key with the selection, as the TypeScript client sends it (the key table makes `Nudge`): see `Direction`.
     ArrowKey {
         direction: Direction,
     },

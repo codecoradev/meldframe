@@ -26,11 +26,12 @@ pub enum Side {
     Left,
 }
 
-/// An arrow key (`Action::ArrowKey`, pressed with the selection and no modifier). With the host flag `layout_on_canvas` on, the
-/// selected children of one auto layout frame move one place along its main axis, as one undo step: up or down in a column, left
-/// or right in a row, towards the start or the end of the flow (`meldframe-app-rules`, `arrow`); the other two keys, a selection
-/// with no such child, and one that mixes children of different frames do nothing. With the flag off it does nothing at all: no
-/// step, no event, no effect.
+/// An arrow key. `Action::Nudge` is the rule of the key table (`meldframe-app-nudge`); `Action::ArrowKey` (a plain arrow key
+/// with the selection) is its flow-only part and is sent only by the TypeScript client. With the host flag `layout_on_canvas`
+/// on, the selected children of one auto layout frame move one place along its main axis, as one undo step: up or down in a
+/// column, left or right in a row, towards the start or the end of the flow (`meldframe-app-rules`, `arrow`); the other two
+/// keys, a selection with no such child, and one that mixes children of different frames do nothing. With the flag off
+/// `ArrowKey` does nothing at all: no step, no event, no effect.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]

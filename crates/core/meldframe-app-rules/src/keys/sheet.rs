@@ -6,7 +6,7 @@
 //! second front end exists. The TypeScript table is unchanged and now has a Rust twin that is kept in step by hand until the
 //! TypeScript copy is retired; nothing reads this function yet. Writing it needs the owner's yes before it is merged.
 
-use super::table::{Combo, Held, TABLE};
+use super::table::{Combo, Group, Held, TABLE};
 
 /// One row of the sheet, with every key written for the platform.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,7 +70,12 @@ pub fn combo_label(combo: &Combo, mac: bool) -> String {
 
 /// The groups of the sheet written for the platform. A row that needs "Auto layout on canvas" is there only while it is on.
 pub fn sheet(mac: bool, auto_layout: bool) -> Vec<SheetGroup> {
-    TABLE
+    sheet_of(TABLE, mac, auto_layout)
+}
+
+/// [`sheet`] of any groups: the table has no row that needs the layout today, and a test makes one.
+pub fn sheet_of(groups: &[Group], mac: bool, auto_layout: bool) -> Vec<SheetGroup> {
+    groups
         .iter()
         .map(|g| SheetGroup {
             id: g.id,
