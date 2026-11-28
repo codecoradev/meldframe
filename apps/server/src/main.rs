@@ -1,3 +1,5 @@
+#[cfg(feature = "capture")]
+use meldframe_app_export_model::raster::{CAPTURE_MAX_BYTES, EXPORT_MAX_PIXELS};
 use meldframe_http::{
     CappedListener, Config, DevTokens, check_dev_listen, check_dev_tokens_allowed,
     dev_tokens_warning,
@@ -14,12 +16,13 @@ const MAX_PER_CLIENT: usize = 32;
 /// A connection whose request headers are not complete within this time is closed (issue 170).
 const HEADER_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
-/// The capture relay's limits: 4 MiB images (about 5.5 MiB as base64) of up to 16 million pixels, 20 seconds
-/// for the editor to answer.
+/// The capture relay's limits: images of at most `CAPTURE_MAX_BYTES` (4 MiB, about 5.5 MiB as base64) and
+/// `EXPORT_MAX_PIXELS` (16 million pixels), 20 seconds for the editor to answer. The two image limits are the app layer's
+/// constants (`meldframe-app-export-model`), read here and not written again, so an export and a capture of one node agree.
 #[cfg(feature = "capture")]
 const CAPTURE: capture::Config = capture::Config {
-    max_bytes: 4 << 20,
-    max_pixels: 1 << 24,
+    max_bytes: CAPTURE_MAX_BYTES as usize,
+    max_pixels: EXPORT_MAX_PIXELS,
     timeout_ms: 20_000,
     max_pending: 64,
     max_pending_per_client: 4,
@@ -324,4 +327,18 @@ fn trusted_proxies(spec: &str) -> Result<Vec<std::net::IpAddr>, Box<dyn std::err
             })
         })
         .collect()
+}
+
+#[cfg(all(test, feature = "capture"))]
+mod tests {
+    use super::{CAPTURE, CAPTURE_MAX_BYTES, EXPORT_MAX_PIXELS};
+
+    /// The relay and the app layer share one pair of limits: a capture is refused at the same area and the same size as an
+    /// export, because both read the same constants (`CAPTURE` holds no number of its own for them). The test fails if a
+    /// literal comes back and the two drift.
+    #[test]
+    fn capture_limits_are_the_app_layers() {
+        assert_eq!(CAPTURE.max_pixels, EXPORT_MAX_PIXELS);
+        assert_eq!(CAPTURE.max_bytes as u64, CAPTURE_MAX_BYTES);
+    }
 }
