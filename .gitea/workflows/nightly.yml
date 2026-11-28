@@ -112,7 +112,7 @@ jobs:
       - if: steps.gate.outputs.pending != 'true'
         uses: Swatinem/rust-cache@v2
       - if: steps.gate.outputs.pending != 'true'
-        run: cargo xtask licences --check
+        run: cargo xtask licences --check --list
 
   # The E1.1 "same tests natively and under WASM" criterion: the core crates' tests run in Node
   # through wasm-bindgen-test-runner (`just wasm-test`). The runner must match the

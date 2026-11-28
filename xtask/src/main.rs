@@ -1,10 +1,14 @@
 //! Repository checks: layering rules, build matrix, portability and other gates.
 
 mod args;
+mod both_workspaces;
+mod gitsrc;
 mod groups;
+mod licence_scopes;
 mod matrix;
 mod metadata;
 mod monolith;
+mod packages;
 mod plan;
 mod portable;
 mod rules;
@@ -12,34 +16,30 @@ mod scan;
 mod size;
 mod ui_literals;
 mod units;
+mod workspaces;
 
 use std::process::{Command, ExitCode};
 
-use xtask_licences as licences;
-
 fn main() -> ExitCode {
     match std::env::args().nth(1).as_deref() {
-        Some("deps-check") => with_packages(|p| {
-            report(
-                "deps-check",
-                &format!("{} crates", p.len()),
-                &rules::check(p),
-            )
+        Some("deps-check") => with_packages("deps-check", |p| {
+            let found = deps_check(&scan::workspace_root(), p);
+            report("deps-check", &format!("{} crates", p.len()), &found)
         }),
-        Some("build-matrix") => {
-            with_packages(|p| run_steps("build-matrix", &matrix::plan(p), None))
-        }
-        Some("portable-check") => with_packages(|p| {
+        Some("build-matrix") => with_packages("build-matrix", |p| {
+            run_steps("build-matrix", &matrix::plan(p), None)
+        }),
+        Some("portable-check") => with_packages("portable-check", |p| {
             let hint = "if a target is missing: rustup target add wasm32-unknown-unknown \
                         (rust-toolchain.toml installs it on a fresh checkout)";
             run_steps("portable-check", &portable::plan(p), Some(hint))
         }),
-        Some("size-check") => with_packages(|p| finish(size_check(p))),
-        Some("mm-check") => {
-            with_packages(|p| finish(monolith::run(p, &std::env::args().collect::<Vec<_>>())))
-        }
+        Some("size-check") => with_packages("size-check", |p| finish(size_check(p))),
+        Some("mm-check") => with_packages("mm-check", |p| {
+            finish(monolith::run(p, &std::env::args().collect::<Vec<_>>()))
+        }),
         Some("licences") => finish(licences_check()),
-        Some("ui-literals") => with_packages(|p| {
+        Some("ui-literals") => with_packages("ui-literals", |p| {
             let found = ui_literals::collect(&scan::workspace_root(), p);
             report("ui-literals", "UI code", &found)
         }),
@@ -88,36 +88,9 @@ fn run_steps(name: &str, steps: &[plan::Step], hint: Option<&str>) -> ExitCode {
     ExitCode::FAILURE
 }
 
-/// Run `cargo metadata` with extra arguments and return its JSON, or an exit code on failure.
-fn metadata_json(extra: &[&str]) -> Result<String, ExitCode> {
-    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    match Command::new(cargo)
-        .args(["metadata", "--format-version", "1"])
-        .args(extra)
-        .output()
-    {
-        Ok(o) if o.status.success() => Ok(String::from_utf8_lossy(&o.stdout).into_owned()),
-        Ok(o) => {
-            eprintln!(
-                "cargo metadata failed:\n{}",
-                String::from_utf8_lossy(&o.stderr)
-            );
-            Err(ExitCode::from(2))
-        }
-        Err(e) => {
-            eprintln!("cannot run cargo metadata: {e}");
-            Err(ExitCode::from(2))
-        }
-    }
-}
-
-/// Read `cargo metadata` and hand the workspace packages to `f`.
-fn with_packages(f: impl FnOnce(&[rules::Package]) -> ExitCode) -> ExitCode {
-    let json = match metadata_json(&["--no-deps"]) {
-        Ok(j) => j,
-        Err(code) => return code,
-    };
-    match metadata::parse(&json) {
+/// Read the packages of the workspaces `command` reads (`packages::scope`) and hand them to `f`.
+fn with_packages(command: &str, f: impl FnOnce(&[rules::Package]) -> ExitCode) -> ExitCode {
+    match packages::read(&scan::workspace_root(), packages::scope(command)) {
         Ok(p) => f(&p),
         Err(e) => {
             eprintln!("{e}");
@@ -126,18 +99,70 @@ fn with_packages(f: impl FnOnce(&[rules::Package]) -> ExitCode) -> ExitCode {
     }
 }
 
-/// `licences [--check]`: third-party licences against the allow-list in `deny.toml`.
+/// The rules of `deps-check`: kinds and the matrix, the line between the two workspaces, and the
+/// manifests that name a git source.
+fn deps_check(root: &std::path::Path, packages: &[rules::Package]) -> Vec<String> {
+    let manifests = gitsrc::collect(root);
+    fn shown(v: &[impl std::fmt::Display]) -> Vec<String> {
+        v.iter().map(ToString::to_string).collect()
+    }
+    [
+        shown(&rules::check(packages)),
+        shown(&workspaces::check(packages)),
+        shown(&gitsrc::check(&manifests)),
+    ]
+    .concat()
+}
+
+/// `licences [--check] [--list] [--main-only]`: third-party licences of each workspace against the
+/// allow list of its own `deny.toml` (D2; the Rune workspace has its own, E8.0.4). The Rune graph
+/// is read with `--locked` and needs the registry and the Rune repository, so `--main-only` leaves
+/// it out for a job that has no reason to fetch them. `--list` prints every crate with its licence.
 fn licences_check() -> Result<ExitCode, String> {
+    let args: Vec<String> = std::env::args().collect();
+    args::check_flags("licences", &args, &["--check", "--list", "--main-only"])?;
+    let has = |flag: &str| args.iter().any(|a| a == flag);
     let root = scan::workspace_root();
-    let json = metadata_json(&[]).map_err(|_| "cargo metadata failed".to_string())?;
-    let allowed = licences::parse_allow(&scan::read(&root, "deny.toml"))?;
-    let deps = licences::parse_deps(&json)?;
-    let scope = format!("{} third-party crates", deps.len());
-    Ok(report(
-        "licences",
-        &scope,
-        &licences::check(&deps, &allowed),
-    ))
+    let main = packages::cargo_metadata(&root, &root.join("Cargo.toml"), &[])?;
+    let main_deny = scan::read(&root, "deny.toml");
+    let rune_deny = scan::read(&root, &format!("{}/deny.toml", workspaces::RUNE_DIR));
+    let rune = match packages::rune_manifest(&root) {
+        Some(manifest) if !has("--main-only") => {
+            Some(packages::cargo_metadata(&root, &manifest, &["--locked"])?)
+        }
+        _ => None,
+    };
+    let mut scopes = vec![licence_scopes::Scope {
+        name: "main",
+        metadata: &main,
+        deny_toml: &main_deny,
+    }];
+    if let Some(rune) = &rune {
+        scopes.push(licence_scopes::Scope {
+            name: workspaces::RUNE_DIR,
+            metadata: rune,
+            deny_toml: &rune_deny,
+        });
+    }
+    let outcome = licence_scopes::check(&scopes)?;
+    if has("--list") {
+        outcome.listing.iter().for_each(|l| println!("{l}"));
+    }
+    let counts: Vec<String> = scopes
+        .iter()
+        .zip(&outcome.counts)
+        .map(|(s, n)| format!("{n} ({})", s.name))
+        .collect();
+    let scope = format!("{} third-party crates", counts.join(" + "));
+    Ok(report("licences", &scope, &outcome.violations))
+}
+
+/// What `size-check` measures: every package and the source that no package owns (`tools/*`, a
+/// `packages/*` without a manifest, the non-crate source of `frontends/rune`).
+fn measured(root: &std::path::Path, packages: &[rules::Package]) -> Vec<size::Sized> {
+    let mut sizes = size::measure(root, packages);
+    sizes.extend(units::unowned(root, packages));
+    sizes
 }
 
 /// `size-check [--base <git-ref>]`: ceilings, and with `--base` that the allow-list did not grow.
@@ -145,9 +170,7 @@ fn licences_check() -> Result<ExitCode, String> {
 fn size_check(packages: &[rules::Package]) -> Result<ExitCode, String> {
     let root = scan::workspace_root();
     let allow = size::parse_allow(&scan::read(&root, size::ALLOW_FILE))?;
-    let mut sizes = size::measure(&root, packages);
-    // Source that no package owns (`tools/*`, a `packages/*` without a manifest) counts too.
-    sizes.extend(units::unowned(&root, packages));
+    let sizes = measured(&root, packages);
     let mut violations = size::check(&sizes, &allow);
     let args: Vec<String> = std::env::args().collect();
     args::check_flags("size-check", &args, &["--base"])?;

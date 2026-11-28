@@ -85,8 +85,10 @@ jobs:
           # Text only, a few seconds. Its allow-lists may not grow against the base branch (`--base`).
           git fetch --no-tags --depth=1 origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
           cargo xtask mm-check --base "origin/${BASE_REF}"
+      # The main workspace only: the Rune workspace has its own job (`rune`) and the nightly run checks its
+      # licences too, so this required job does not fetch the Rune repository and its crates.
       - name: Licences of third-party crates
-        run: cargo xtask licences --check
+        run: cargo xtask licences --check --main-only
       - name: UI literals (colours, fonts and sizes come from the tokens)
         run: cargo xtask ui-literals
       # Regenerates the TypeScript types from Rust (runs the protocol crates' tests) and

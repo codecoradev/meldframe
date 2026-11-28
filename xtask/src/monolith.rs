@@ -140,7 +140,7 @@ pub fn check(crates: &[CrateSrc], cfg: &Config) -> Vec<Violation> {
 }
 
 /// Read the Rust sources of every package.
-fn load(root: &Path, packages: &[Package]) -> Vec<CrateSrc> {
+pub(crate) fn load(root: &Path, packages: &[Package]) -> Vec<CrateSrc> {
     let totals: HashMap<String, usize> = size::measure(root, packages)
         .into_iter()
         .map(|(name, files)| (name, files.iter().map(|f| f.1).sum()))
