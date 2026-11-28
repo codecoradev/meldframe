@@ -36,7 +36,7 @@ describe('the React Export variables dialog', () => {
 
 describe('the React Import variables dialog', () => {
   it('draws nothing while it is closed', () => {
-    expect(renderToStaticMarkup(<ImportDialog open={false} result={null} dispatch={noop} opener={() => null} />)).toBe('');
+    expect(renderToStaticMarkup(<ImportDialog open={false} result={null} source={null} dispatch={noop} opener={() => null} />)).toBe('');
   });
   it('keeps the keys typed in it out of the editor, as every portaled popup does (ownskeys.test.ts)', () => {
     expect(source('./ImportDialog.tsx')).toMatch(/<Dialog\.Popup[^>]*data-owns-keys/);
@@ -55,5 +55,12 @@ describe('the React Import variables dialog', () => {
     expect(flow).toContain("type: 'clearVariablesImport'");
     expect(source('./ImportDialog.tsx')).toMatch(/type: 'importVariables', text: /);
     expect(source('./ImportDialog.tsx')).toContain("from '../read'");
+  });
+  it('words the note with the name the app layer made safe (importSource) and sends the raw name of a file that was read, in both copies (rule U9, issue 416)', () => {
+    for (const file of ['./ImportDialog.tsx', '../ImportVariablesDialog.svelte']) expect(source(file), file).toContain('noteOf(view, source)');
+    expect(source('../flow.ts')).toContain("type: 'chooseVariablesImportSource'");
+    for (const file of ['../importflow.ts', '../ImportVariablesDialog.svelte']) expect(source(file), file).toContain('sendSource(');
+    // No copy builds the note from the name the browser gave.
+    for (const file of ['../flow.ts', '../importflow.ts', '../ImportVariablesDialog.svelte', './ImportDialog.tsx']) expect(source(file), file).not.toMatch(/Read \${[^}]*\.name/);
   });
 });

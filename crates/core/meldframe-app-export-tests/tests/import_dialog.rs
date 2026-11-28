@@ -1,6 +1,9 @@
 //! The Import variables dialog is open by the state of the app layer (audit finding T11, issue 324): `OpenVariablesImport`
 //! opens it, `CloseVariablesImport` closes it and forgets the result, and `ClearVariablesImport` forgets the result while
 //! the dialog stays open (a text that is edited, a file that is chosen, an undo that takes the import away).
+//!
+//! The name of the file the person chose enters the app layer once, as `ChooseVariablesImportSource`, and comes out made
+//! safe to show and cut (rule U9, issue 416): the front end draws `variables_io.import_source` and cleans nothing.
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
@@ -96,4 +99,113 @@ fn the_dialog_opens_and_closes_while_the_connection_is_halted() {
     assert!(open_now(&l));
     l.send(Action::CloseVariablesImport {});
     assert!(!open_now(&l));
+}
+
+fn source(l: &Loopback) -> Option<String> {
+    l.app.state().variables_io.import_source.clone()
+}
+
+fn choose(l: &mut Loopback, name: &str) {
+    l.send(Action::ChooseVariablesImportSource { name: name.into() });
+}
+
+#[test]
+fn a_name_with_an_override_and_a_zero_width_space_is_shown_without_them() {
+    let mut l = Loopback::live();
+    assert_eq!(source(&l), None);
+    choose(&mut l, "th\u{202E}eme\u{200B}.css");
+    assert_eq!(source(&l).as_deref(), Some("theme.css"));
+}
+
+#[test]
+fn a_name_of_ten_thousand_characters_is_cut() {
+    let mut l = Loopback::live();
+    choose(&mut l, &"a".repeat(10_000));
+    let shown = source(&l).expect("a name was chosen");
+    assert_eq!(shown.chars().count(), meldframe_text::MAX_FILE_NAME);
+    assert!(shown.chars().all(|c| c == 'a'));
+}
+
+#[test]
+fn a_name_with_controls_loses_them_and_a_tab_is_a_space() {
+    let mut l = Loopback::live();
+    choose(&mut l, "a\u{7}b\u{0}\u{1b}.css");
+    assert_eq!(source(&l).as_deref(), Some("ab.css"));
+    choose(&mut l, "my\ttheme\n.css");
+    assert_eq!(source(&l).as_deref(), Some("my theme .css"));
+}
+
+#[test]
+fn a_name_that_is_nothing_is_an_empty_string_for_the_front_end_to_word() {
+    let mut l = Loopback::live();
+    choose(&mut l, "");
+    assert_eq!(
+        source(&l).as_deref(),
+        Some(""),
+        "a file was chosen, with no name"
+    );
+    choose(&mut l, "\u{202E}\u{200B}\u{2800}");
+    assert_eq!(source(&l).as_deref(), Some(""));
+}
+
+#[test]
+fn choosing_says_so_once_and_a_second_file_replaces_the_first() {
+    let mut l = Loopback::live();
+    choose(&mut l, "a.css");
+    assert_eq!(changes(&mut l), 1);
+    choose(&mut l, "a.css");
+    assert_eq!(changes(&mut l), 0, "the same name: nothing to say");
+    choose(&mut l, "b.css");
+    assert_eq!(source(&l).as_deref(), Some("b.css"));
+    assert_eq!(changes(&mut l), 1);
+}
+
+#[test]
+fn the_name_stays_while_the_field_does_and_goes_with_it() {
+    let mut l = Loopback::live();
+    l.send(Action::OpenVariablesImport {});
+    choose(&mut l, "theme.css");
+    // Closing keeps the text of the field, so it keeps the name of its file.
+    l.send(Action::CloseVariablesImport {});
+    assert_eq!(source(&l).as_deref(), Some("theme.css"));
+    // A refused import changes nothing in the field.
+    l.send(Action::ImportVariables { text: "".into() });
+    assert!(has_result(&l));
+    assert_eq!(source(&l).as_deref(), Some("theme.css"));
+    // Clear, a text that is edited and an import that was applied start the field again.
+    l.events.clear();
+    l.send(Action::ClearVariablesImport {});
+    assert_eq!(source(&l), None);
+    assert_eq!(changes(&mut l), 1);
+    choose(&mut l, "theme.css");
+    l.send(Action::ImportVariables { text: CSS.into() });
+    assert_eq!(source(&l), None, "the field was emptied by the import");
+}
+
+#[test]
+fn an_undo_that_takes_the_import_away_does_not_touch_the_name() {
+    let mut l = Loopback::live();
+    l.send(Action::ImportVariables { text: CSS.into() });
+    choose(&mut l, "theme.css");
+    l.send(Action::Undo {});
+    assert!(!has_result(&l));
+    assert_eq!(source(&l).as_deref(), Some("theme.css"));
+}
+
+#[test]
+fn clearing_a_field_that_came_from_a_file_forgets_the_name_alone_and_says_so_once() {
+    let mut l = Loopback::live();
+    l.send(Action::OpenVariablesImport {});
+    choose(&mut l, "theme.css");
+    assert!(!has_result(&l), "no import was made: only a file was read");
+    l.events.clear();
+    l.send(Action::ClearVariablesImport {});
+    assert_eq!(source(&l), None);
+    assert_eq!(changes(&mut l), 1, "the name went: one thing to say");
+    l.send(Action::ClearVariablesImport {});
+    assert_eq!(
+        changes(&mut l),
+        0,
+        "neither a result nor a name: nothing to say"
+    );
 }

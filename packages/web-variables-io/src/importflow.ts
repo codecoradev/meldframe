@@ -4,7 +4,7 @@
 // (`state.variablesIo.import`, `io.ts`); this keeps view state only, for the life of the page: closing the dialog keeps the text, and an
 // import that was applied, or Clear, starts it again.
 import type { Action, VariablesImportResult } from '@meldframe/protocol';
-import { FRESH, type ImportView, applied, edited, fileInto, latest } from './flow';
+import { FRESH, type ImportView, applied, edited, fileInto, latest, sendSource, stale } from './flow';
 import { sizeText } from './io';
 import type { Read } from './read';
 
@@ -16,7 +16,7 @@ export interface ImportFlowDeps<F extends { name: string; size: number }> {
   read: (file: F) => Promise<Read>;
 }
 
-// Closing the dialog closes it and forgets the result; a text that changes forgets the result and leaves the dialog open.
+// Closing the dialog closes it and forgets the result; a text that changes forgets the result and the name of the file and leaves the dialog open.
 const CLOSE: Action = { type: 'closeVariablesImport' };
 const CLEAR: Action = { type: 'clearVariablesImport' };
 
@@ -28,9 +28,9 @@ export function createImportFlow<F extends { name: string; size: number }>(deps:
     view = next;
     for (const l of [...listeners]) l();
   };
-  /** The result belongs to the text it was made from: a text that changes puts it away. */
-  const putAway = () => {
-    if (deps.result()) deps.dispatch(CLEAR);
+  /** The result belongs to the text it was made from, and so does the name of the file the text came from: a text that changes puts both away. */
+  const putAway = (before: ImportView) => {
+    if (stale(deps.result(), before)) deps.dispatch(CLEAR);
   };
   return {
     view: (): ImportView => view,
@@ -41,21 +41,24 @@ export function createImportFlow<F extends { name: string; size: number }>(deps:
     },
     /** The person typed. What is typed also ends a file that is still being read, so the file's text never replaces it. */
     edit(text: string) {
+      const before = view;
       set(edited(guard, view, text));
-      putAway();
+      putAway(before);
     },
     /** Clear: the field and the note start again, and a file under way goes stale. */
     clear() {
+      const before = view;
       guard.cancel();
       set(FRESH);
-      putAway();
+      putAway(before);
     },
     /** A file was chosen. It fills the field when it is read and still the latest; a file that is not read leaves the field as it was, with the reason. */
     async choose(file: F) {
       const next = await fileInto(guard, file, () => view, deps.read, sizeText);
       if (!next) return;
-      // The result of an earlier text is not about this one.
-      putAway();
+      // The result of an earlier text is not about this one. The app layer makes the name of the file safe to show: only the name of a file that was read goes.
+      if (deps.result()) deps.dispatch(CLEAR);
+      if (next.note === null) sendSource(deps.dispatch, file.name);
       set(next);
     },
     /** The dialog closed (Escape, Close, the scrim): the app layer forgets the result, a file under way must not fill a field the person has left, and the text stays. */

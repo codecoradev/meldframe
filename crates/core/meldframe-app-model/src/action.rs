@@ -295,9 +295,8 @@ pub enum Action {
     SetPickerQuery {
         query: String,
     },
-    /// Open the Export dialog on the selected frame: the HTML of the frame is built in `AppState::export` until the
-    /// dialog is closed. View state (no op, no undo step). Refused as `not_exportable` unless the one selected node
-    /// is a frame (`ExportState::target`).
+    /// Open the Export dialog on the selected frame: its HTML is built in `AppState::export` until the dialog is closed. View state
+    /// (no op, no undo step). Refused as `not_exportable` unless the one selected node is a frame (`ExportState::target`).
     OpenExport {},
     /// Change how the styles of the open dialog are written (Tailwind or plain CSS). Nothing while it is closed.
     SetExportFormat {
@@ -312,15 +311,17 @@ pub enum Action {
     CloseVariablesExport {},
     /// Open the Import variables dialog (`AppState::variables_io.import_open`). View state (no op, no undo step).
     OpenVariablesImport {},
-    /// Import the variables of CSS text (custom properties of `:root`, a dark rule, `@theme`) as one undo step, the
-    /// person's own edit: what it adds, refuses and reports is on `VariablesImportResult`.
+    /// Import the variables of CSS text (`:root`, a dark rule, `@theme`) as one undo step, the person's own edit (`VariablesImportResult`).
     ImportVariables {
         text: String,
     },
+    /// A file was read into the Import variables field: only its name crosses, made safe and cut here (`import_source`, U9).
+    ChooseVariablesImportSource {
+        name: String,
+    },
     /// Close the Import variables dialog and forget the result of the last import.
     CloseVariablesImport {},
-    /// Forget the result of the last import and leave the dialog as it is: the text was edited or replaced, or an undo took
-    /// the import away.
+    /// Forget the result of the last import and the name of its file, and leave the dialog as it is: the text was edited or replaced.
     ClearVariablesImport {},
     /// Remove the nodes with their descendants, as one undo step.
     Delete {

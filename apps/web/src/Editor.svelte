@@ -386,5 +386,5 @@
 </Layout>
 <ExportDialog dialog={snap.state.export.dialog} unreviewed={snap.state.activity.unreviewedCount} scale={pngScale} onScale={(s) => (pngScale = s)} plan={planOf(dialogOf)} onPng={() => exportPng(dialogOf)} {dispatch} onReview={() => { reviewSteps().forEach(dispatch); goTab('activity'); }} />
 <ManageDialog open={snap.state.manage.open} panel={snap.state.variables} manage={snap.state.manage} events={snap.events} {dispatch} opener={() => document.querySelector<HTMLElement>('[data-testid=var-manage]')} />
-<ImportVariablesDialog open={snap.state.variablesIo.importOpen} result={snap.state.variablesIo.import ?? null} {dispatch} opener={() => document.querySelector<HTMLElement>('[data-testid=var-import]')} />
+<ImportVariablesDialog open={snap.state.variablesIo.importOpen} result={snap.state.variablesIo.import ?? null} source={snap.state.variablesIo.importSource ?? null} {dispatch} opener={() => document.querySelector<HTMLElement>('[data-testid=var-import]')} />
 <ExportVariablesDialog dialog={snap.state.variablesIo.export ?? null} {dispatch} opener={() => document.querySelector<HTMLElement>('[data-testid=var-export]')} />

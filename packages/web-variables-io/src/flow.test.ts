@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FRESH, applied, edited, fileInto, fileRead, fileRefused, latest, saidFor, stranded, typed } from './flow';
+import { FRESH, applied, edited, fileInto, fileRead, fileRefused, latest, noteOf, saidFor, sendSource, stale, stranded, typed } from './flow';
 
 describe('what the last Copy said', () => {
   it('is shown while the text on view is the text that was copied', () => {
@@ -20,17 +20,32 @@ describe('what the last Copy said', () => {
 describe('what the Import field holds', () => {
   const typedText = ':root { --a: #fff; }';
   it('starts empty and keeps what is typed, without a note about a file', () => {
-    expect(FRESH).toEqual({ text: '', note: null });
-    expect(typed(fileRead('a.css', '1 byte', 'x'), typedText)).toEqual({ text: typedText, note: null });
+    expect(FRESH).toEqual({ text: '', note: null, size: null });
+    expect(typed(fileRead('1 byte', 'x'), typedText)).toEqual({ text: typedText, note: null, size: null });
   });
-  it('says a file was read, with its name and size, and puts its text in the field', () => {
-    const v = fileRead('theme.css', '2.0 KiB', typedText);
-    expect(v.text).toBe(typedText);
-    expect(v.note).toEqual({ ok: true, text: 'Read theme.css (2.0 KiB). Check it, then import.' });
+  it('holds the size of a file that was read and puts its text in the field; the name is the app layer\'s', () => {
+    const v = fileRead('2.0 KiB', typedText);
+    expect(v).toEqual({ text: typedText, note: null, size: '2.0 KiB' });
+    expect(noteOf(v, null)).toBeNull();
   });
-  it('keeps the field as it was when a file is refused, and says why', () => {
-    const v = fileRefused({ text: 'mine', note: null }, 'This file is 2.0 MiB.');
-    expect(v).toEqual({ text: 'mine', note: { ok: false, text: 'This file is 2.0 MiB.' } });
+  it('words the note with the name the app layer made safe, and a word for a name that is nothing', () => {
+    const v = fileRead('2.0 KiB', typedText);
+    expect(noteOf(v, 'theme.css')).toEqual({ ok: true, text: 'Read theme.css (2.0 KiB). Check it, then import.' });
+    expect(noteOf(v, '')).toEqual({ ok: true, text: 'Read (no name) (2.0 KiB). Check it, then import.' });
+    expect(noteOf(FRESH, 'theme.css')).toBeNull();
+  });
+  it('keeps the field as it was when a file is refused, and says why, in place of the note about an earlier file', () => {
+    const v = fileRefused({ text: 'mine', note: null, size: null }, 'This file is 2.0 MiB.');
+    expect(v).toEqual({ text: 'mine', note: { ok: false, text: 'This file is 2.0 MiB.' }, size: null });
+    expect(noteOf(fileRefused(fileRead('1 byte', 'x'), 'big'), 'a.css')).toEqual({ ok: false, text: 'big' });
+  });
+  it('asks the app layer to forget when there is a result, or the field came from a file', () => {
+    expect(stale(null, FRESH)).toBe(false);
+    expect(stale(undefined, FRESH)).toBe(false);
+    expect(stale({}, FRESH)).toBe(true);
+    expect(stale(null, fileRead('1 byte', 'x'))).toBe(true);
+    // A refused file leaves the text of the earlier file in the field, so its name is still the field's.
+    expect(stale(null, fileRefused(fileRead('1 byte', 'x'), 'big'))).toBe(true);
   });
   it('starts again after an import that was applied: no text and no note about the file', () => {
     expect(applied()).toEqual(FRESH);
@@ -66,7 +81,7 @@ describe('a file that is read while the dialog changes', () => {
   it('fills the field when it is the latest and nothing happened meanwhile', async () => {
     const g = latest();
     const v = await fileInto(g, { name: 'a.css', size: 3 }, () => FRESH, async () => ({ ok: true, text: 'abc' }), size);
-    expect(v).toEqual(fileRead('a.css', '3 bytes', 'abc'));
+    expect(v).toEqual(fileRead('3 bytes', 'abc'));
   });
   it('is ignored when the dialog closed before it was read', async () => {
     const g = latest();
@@ -95,18 +110,18 @@ describe('a file that is read while the dialog changes', () => {
     view = edited(g, view, ':root { --mine: 1; }');
     slow.resolve({ ok: true, text: 'the file' });
     expect(await pending).toBeNull();
-    expect(view).toEqual({ text: ':root { --mine: 1; }', note: null });
+    expect(view).toEqual({ text: ':root { --mine: 1; }', note: null, size: null });
   });
   it('a file chosen after typing is read as usual', async () => {
     const g = latest();
     const view = edited(g, FRESH, 'typed');
     expect(view.text).toBe('typed');
-    expect(await fileInto(g, { name: 'a.css', size: 3 }, () => view, async () => ({ ok: true, text: 'abc' }), size)).toEqual(fileRead('a.css', '3 bytes', 'abc'));
+    expect(await fileInto(g, { name: 'a.css', size: 3 }, () => view, async () => ({ ok: true, text: 'abc' }), size)).toEqual(fileRead('3 bytes', 'abc'));
   });
   it('a refusal that is late is ignored too, and one that is on time keeps the field', async () => {
     const g = latest();
-    const now = () => ({ text: 'mine', note: null });
-    expect(await fileInto(g, { name: 'a', size: 9 }, now, async () => ({ ok: false, error: 'big' }), size)).toEqual({ text: 'mine', note: { ok: false, text: 'big' } });
+    const now = () => ({ text: 'mine', note: null, size: null });
+    expect(await fileInto(g, { name: 'a', size: 9 }, now, async () => ({ ok: false, error: 'big' }), size)).toEqual({ text: 'mine', note: { ok: false, text: 'big' }, size: null });
     const slow = later();
     const pending = fileInto(g, { name: 'a', size: 9 }, now, () => slow.p, size);
     g.cancel();
@@ -126,5 +141,22 @@ describe('where the focus is when an import empties the field', () => {
   it('is not stranded on a control that works (the field, Close) or on an element that has no disabled state', () => {
     expect(stranded({ disabled: false }, body)).toBe(false);
     expect(stranded({}, body)).toBe(false);
+  });
+});
+
+describe('the name of a file that was read, sent to the app layer', () => {
+  it('goes as it is, and as an empty name when the bridge refuses it', () => {
+    const sent: unknown[] = [];
+    sendSource((a) => sent.push(a), 'theme.css');
+    expect(sent).toEqual([{ type: 'chooseVariablesImportSource', name: 'theme.css' }]);
+    sent.length = 0;
+    sendSource((a) => {
+      if (a.type === 'chooseVariablesImportSource' && a.name !== '') throw new Error('action: refused');
+      sent.push(a);
+    }, 'a\ud800b.css');
+    expect(sent).toEqual([{ type: 'chooseVariablesImportSource', name: '' }]);
+  });
+  it('lets a failure of the empty name through: that is no name problem', () => {
+    expect(() => sendSource(() => { throw new Error('broken'); }, 'a.css')).toThrow('broken');
   });
 });

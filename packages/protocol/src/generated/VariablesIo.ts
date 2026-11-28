@@ -18,4 +18,11 @@ import: VariablesImportResult | null,
 /**
  * Whether the Import variables dialog is open (`Action::OpenVariablesImport` and `CloseVariablesImport`).
  */
-importOpen: boolean, };
+importOpen: boolean, 
+/**
+ * The name of the file the Import field was filled from, made safe to show (`meldframe_text::label`) and cut to
+ * `MAX_FILE_NAME` characters. `Some("")` is a file whose name is nothing once made safe: the front end words that
+ * case. It stays while the field's text does (a close keeps both) and goes with Clear, an edit of the text and an
+ * applied import.
+ */
+importSource?: string, };
