@@ -1,5 +1,6 @@
 //! The state machine: one action in, state changes, events and effects out, with no I/O, clock or randomness.
 
+use crate::pointer_machine::Machine;
 use crate::state::{AppState, Connection};
 use crate::view_cache::{PanelCache, SceneCache};
 use crate::{action::Action, effect::Effect, event::Event};
@@ -8,7 +9,6 @@ use meldframe_app_parts::answers::action_of;
 use meldframe_app_parts::document::{history_of, out_ops};
 use meldframe_app_parts::properties::selected_properties;
 use meldframe_app_parts::selection::toggled;
-use meldframe_app_pointer::Machine;
 use meldframe_app_rules::canvas::CanvasLayout;
 use meldframe_app_rules::checkpoints::Checkpoints;
 use meldframe_app_rules::level::{self, Level};

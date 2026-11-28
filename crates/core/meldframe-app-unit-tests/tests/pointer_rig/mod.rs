@@ -2,10 +2,10 @@
 //! selection box, and a host that applies the selection and pan actions as the app does, so the next event sees them.
 #![allow(dead_code)]
 
+use meldframe_app::pointer_machine::{Env, Machine};
 use meldframe_app_model::{
     Action, Camera, Modifiers, PointerButton, PointerInput, PointerPhase, Tool,
 };
-use meldframe_app_pointer::{Env, Machine};
 use meldframe_layout::Rect;
 
 pub struct Rig {

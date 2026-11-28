@@ -23,7 +23,6 @@ meldframe-history = { path = "../../core/meldframe-history" }
 meldframe-sync = { path = "../../core/meldframe-sync" }
 meldframe-text = { path = "../../core/meldframe-text" }
 meldframe-app-parts = { path = "../../core/meldframe-app-parts" }
-meldframe-app-pointer = { path = "../../core/meldframe-app-pointer" }
 meldframe-app-rules = { path = "../../core/meldframe-app-rules" }
 meldframe-camera = { path = "../../core/meldframe-camera" }
 meldframe-app-model = { path = "../../core/meldframe-app-model" }

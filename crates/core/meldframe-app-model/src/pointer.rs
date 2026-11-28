@@ -1,5 +1,5 @@
 //! The pointer on the canvas as an input of the app layer (E8.1.4, part 2): a press, a move, a release, a cancel and a leave at a
-//! screen point, with the modifier keys. The app layer keeps the state machine (`meldframe-app-pointer`), so a second
+//! screen point, with the modifier keys. The app layer keeps the state machine (`meldframe_app::pointer_machine`), so a second
 //! front end and a headless test select, drag, pan and hover with the same rules. A front end sends what the platform reports
 //! and reads `AppState::pointer` (the hover, the cursor and the gesture that is going on); what it draws for a gesture comes from
 //! `App::pointer_preview`. The camera (`AppState::camera`) maps the screen to the world, so a front end never converts a point.

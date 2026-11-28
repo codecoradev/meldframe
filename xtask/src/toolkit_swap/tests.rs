@@ -20,7 +20,6 @@ fn clean() -> Vec<Package> {
         pkg("meldframe-layout", "core", &["meldframe-protocol"]),
         pkg("meldframe-app-model", "core", &["meldframe-camera"]),
         pkg("meldframe-app-rules", "core", &["meldframe-app-model"]),
-        pkg("meldframe-app-pointer", "core", &["meldframe-app-model"]),
         pkg("meldframe-app-parts", "core", &["meldframe-app-model"]),
         pkg("dialog", "feature", &["meldframe-protocol"]),
         pkg(
@@ -29,7 +28,6 @@ fn clean() -> Vec<Package> {
             &[
                 "meldframe-app-rules",
                 "meldframe-app-parts",
-                "meldframe-app-pointer",
                 "meldframe-render",
                 "meldframe-layout",
                 "dialog",
@@ -172,7 +170,7 @@ fn a_dev_dependency_on_a_front_end_fails_for_the_app_layer_the_core_and_the_harn
     for root in [
         "meldframe-app",
         "meldframe-render",
-        "meldframe-app-pointer",
+        "meldframe-app-parts",
         HARNESS,
     ] {
         let mut v = clean();
@@ -265,7 +263,7 @@ fn a_crate_the_check_stands_on_that_is_gone_fails_instead_of_passing_on_nothing(
         HARNESS,
         "meldframe-app",
         "meldframe-render",
-        "meldframe-app-pointer",
+        "meldframe-app-parts",
     ] {
         let v: Vec<Package> = clean().into_iter().filter(|p| p.name != gone).collect();
         assert!(
@@ -320,13 +318,13 @@ fn the_wasm_tests_are_a_step_of_their_own_and_only_for_crates_that_run_under_was
 fn a_crate_that_is_not_in_the_workspace_is_left_out_of_the_plan() {
     let v: Vec<Package> = clean()
         .into_iter()
-        .filter(|p| p.name != "meldframe-app-pointer")
+        .filter(|p| p.name != "meldframe-app-parts")
         .collect();
     assert!(
         !plan(&v, false)[0]
             .args
             .iter()
-            .any(|a| a == "meldframe-app-pointer")
+            .any(|a| a == "meldframe-app-parts")
     );
 }
 

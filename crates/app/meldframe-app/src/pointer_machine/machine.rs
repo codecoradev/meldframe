@@ -1,7 +1,9 @@
 //! The modes of the pointer and what each event does in each.
 
-use crate::screen::{Screen, dist, handle_under, kind_of, resize_cursor, travel, world};
-use crate::{DOUBLE_CLICK_MS, DOUBLE_CLICK_PX, DRAG_THRESHOLD, Env};
+use crate::pointer_machine::screen::{
+    Screen, dist, handle_under, kind_of, resize_cursor, travel, world,
+};
+use crate::pointer_machine::{DOUBLE_CLICK_MS, DOUBLE_CLICK_PX, DRAG_THRESHOLD, Env};
 use meldframe_app_model::{
     Action, CameraOp, CreateKind, GestureOp, Handle, Point, PointerButton, PointerCursor,
     PointerGesture, PointerInput, PointerPhase, PointerState, TextEditOp, Tool,

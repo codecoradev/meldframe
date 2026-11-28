@@ -1,7 +1,7 @@
 //! What the machine reads off the screen and the file: a point in the world, the travel since a press, the handle of the selection
 //! box under a point, the cursor of a handle and the node kind of a tool.
 
-use crate::Env;
+use crate::pointer_machine::Env;
 use meldframe_app_model::camera::{rect_to_screen, to_world};
 use meldframe_app_model::{CreateKind, Handle, Point, PointerCursor, Tool};
 use meldframe_app_rules::canvas_overlay::handle_at;
