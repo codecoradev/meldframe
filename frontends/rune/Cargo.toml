@@ -1,0 +1,39 @@
+# The Rune front end workspace (E8.0.4, ADR-0027). A second Cargo workspace: its own toolchain
+# (`rust-toolchain.toml`), lock (`Cargo.lock`) and licence and source policy (`deny.toml`). It may
+# take path dependencies into the main workspace for the core, app, protocol and render crates; no crate
+# of the main workspace depends on it (`cargo xtask deps-check` fails when one does).
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Rune is used by git revision only. The revision is written on this line and on the eight patches
+# below (a `[patch]` table cannot inherit); `meldframe_rune_pin::RUNE_REVISION` is the one value in
+# code, and the tests of that crate fail when the manifest, the lock or `deny.toml` name another one. A bump is its
+# own pull request (docs/decisions.md, decision 46).
+[workspace.dependencies]
+rune = { git = "https://github.com/anomalyco/rune", rev = "048528dc35f0a7499887f334330fd9704cdd8e51" }
+
+# Cargo does not inherit `[patch.crates-io]` from a dependency. These are the eight patches of
+# Rune's own root `Cargo.toml` at the revision above, taken from the same revision.
+[patch.crates-io]
+wgpu-hal = { git = "https://github.com/anomalyco/rune", rev = "048528dc35f0a7499887f334330fd9704cdd8e51" }
+naga = { git = "https://github.com/anomalyco/rune", rev = "048528dc35f0a7499887f334330fd9704cdd8e51" }
+winit = { git = "https://github.com/anomalyco/rune", rev = "048528dc35f0a7499887f334330fd9704cdd8e51" }
+sctk-adwaita = { git = "https://github.com/anomalyco/rune", rev = "048528dc35f0a7499887f334330fd9704cdd8e51" }
+parley_engine = { git = "https://github.com/anomalyco/rune", rev = "048528dc35f0a7499887f334330fd9704cdd8e51" }
+accesskit_windows = { git = "https://github.com/anomalyco/rune", rev = "048528dc35f0a7499887f334330fd9704cdd8e51" }
+accesskit_atspi_common = { git = "https://github.com/anomalyco/rune", rev = "048528dc35f0a7499887f334330fd9704cdd8e51" }
+accesskit_macos = { git = "https://github.com/anomalyco/rune", rev = "048528dc35f0a7499887f334330fd9704cdd8e51" }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
