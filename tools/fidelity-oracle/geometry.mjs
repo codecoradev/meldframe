@@ -3,6 +3,7 @@
 import { diffRects, domRects, fontsReady, SETTINGS, solve, writePage } from './lib.mjs';
 import fixtures from './fixtures.mjs';
 import { fuzzFixtures } from './fuzz.mjs';
+import { againRecord, backRecord } from './import.mjs';
 
 /** Rule G3 (docs/fidelity-contract.md section 5), judged from the core's rects: a layout frame smaller than its own padding, children
  *  that need more than the content box of a frame that does not hug its main axis, a fill that resolves to under 1 px. The
@@ -48,7 +49,8 @@ function subtree(nodes, root) {
 
 /** Runs the fixtures and `seeds` fuzz files. Returns one record per file. */
 /** `mutate(form, exported)` may change an export before it is loaded: the sensitivity check (sensitivity.mjs) uses it to prove that the gate fails on a wrong export. */
-export async function geometry({ browser, base, mp, seeds, only = [], log = () => {}, mutate = (_form, e) => e }) {
+/** `mutateBack(form, back)` does the same to what the importer made of an export (import.mjs). */
+export async function geometry({ browser, base, mp, seeds, only = [], log = () => {}, mutate = (_form, e) => e, mutateBack = (_form, b) => b }) {
   const docs = [...fixtures, ...fuzzFixtures(seeds)].filter((d) => !only.length || only.includes(d.name));
   const { out, table, rounds } = await solve(docs.map(({ name, nodes, variables, modes }) => ({ name, nodes, variables, modes })), mp);
   log(`text table settled in ${rounds} runs, ${table.size} measurements`);
@@ -57,7 +59,7 @@ export async function geometry({ browser, base, mp, seeds, only = [], log = () =
   const records = [];
   for (const [i, doc] of docs.entries()) {
     const ans = out.fixtures[i];
-    const rec = { name: doc.name, fuzz: !!doc.fuzz, nodes: doc.nodes.length, textNodes: doc.nodes.filter((n) => n.type === 'text').length, errors: ans.errors, frames: [], warnings: [], unsupported: [], runs: {}, twVsCss: null };
+    const rec = { name: doc.name, fuzz: !!doc.fuzz, nodes: doc.nodes.length, textNodes: doc.nodes.filter((n) => n.type === 'text').length, errors: ans.errors, frames: [], warnings: [], unsupported: [], runs: {}, twVsCss: null, roundTrip: {} };
     for (const fr of ans.frames) {
       const ids = subtree(doc.nodes, fr.id);
       const expected = Object.fromEntries(Object.entries(ans.rects).filter(([id]) => ids.has(id)));
@@ -69,6 +71,13 @@ export async function geometry({ browser, base, mp, seeds, only = [], log = () =
         rec.warnings.push(...exp.warnings);
         rec.unsupported.push(...exp.unsupported);
         const url = await writePage(base, `${doc.name}/${fr.id}.${form}`, form, exp);
+        // the export imported back: its boxes against the original's, and its own export in the browser (import.mjs)
+        if (exp.back) {
+          const back = mutateBack(form, exp.back);
+          const rt = backRecord(expected, back, doc.nodes);
+          if (back.again) rt.page = await againRecord(pages['1280@1'], await writePage(base, `${doc.name}/${fr.id}.${form}.back`, form, back.again), back);
+          rec.roundTrip[`${fr.id} ${form}`] = rt;
+        }
         // fuzz files are checked at one setting, the hand-written fixtures at all three (contract section 7)
         for (const [label] of doc.fuzz ? SETTINGS.slice(0, 1) : SETTINGS) {
           const page = pages[label];

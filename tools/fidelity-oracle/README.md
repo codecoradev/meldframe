@@ -35,6 +35,14 @@ Text: the core asks a measurer for the size of every text. The runner replays a 
 Chromium with Pixi `CanvasTextMetrics` and Inter (the way the canvas draws text); a query the table lacks comes back as a
 miss, the harness measures it and runs again until nothing is missing (two or three runs).
 
+## The importer (E4.4 slice 8)
+
+`import.mjs` checks `html_import::map::import` (docs/fidelity-contract.md section 7a): the HTML of each export is imported back by the runner,
+laid out with the same text table and compared with the original's rects (0.05 px), and the imported file's own export is loaded in Chromium against its rects;
+and the hand-written pages of `hfixtures.mjs` (`h01` onward) are loaded as written, the box of each element compared with the rect of the node the importer
+made of it, matched through `source`. `import-gate.mjs` is its gate; `IMPORT_GAPS` and `IMPORT_LOSSES` in `known-gaps.mjs` pin what differs and fail the
+gate when it stops. A new page is a whole document with a `<head>`, in the subset of docs/import-html.md section 3.
+
 ## Known gaps
 
 `known-gaps.mjs` lists the fixtures the export is known not to match. Each entry names its cause: the export's warning that
@@ -70,7 +78,7 @@ node oracle.mjs --seeds 500                     # what the nightly runs
 node oracle.mjs --seeds 50 --geometry-only      # skip the paint and ink oracles (the slow part is the browser start)
 node oracle.mjs f13-overflow fz-007 --seeds 10  # only these files (geometry only)
 npm test                                        # the gate on made-up results, the platform guard and the screenshot retry on a fake page (no browser)
-npm run sensitivity                             # the gate fails on a wrong export (mutations in geometry and paint are caught; a mutation whose search string is not in an export counts as missed)
+npm run sensitivity                             # the gate fails on a wrong export or a wrong import (mutations in geometry, paint and the importer are caught; a mutation whose search string is not in an export counts as missed)
 ```
 
 The gate also fails when the run checks too little: fewer than 22 fixtures, a paint fixture (`PAINT_FIXTURES` in `gate.mjs`) with no probe in either form or no comparison of its two forms, fewer fuzz files than seeds, fewer than 30% of the

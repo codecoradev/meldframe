@@ -6,6 +6,7 @@ import { serve, launch, openMeasurePage, OUT } from './lib.mjs';
 import { geometry } from './geometry.mjs';
 import { blur, paint } from './probes.mjs';
 import { textInk } from './ink.mjs';
+import { pages } from './import.mjs';
 import { evaluate, report } from './gate.mjs';
 import { stopUnlessGatePlatform } from './platform.mjs';
 
@@ -29,6 +30,7 @@ try {
     results.paint = await paint({ browser, base, log });
     results.blur = await blur({ browser, base, log });
     results.ink = await textInk({ browser, base, log });
+    results.import = await pages({ browser, base, mp, log });
   }
 } finally {
   await browser.close();
