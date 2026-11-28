@@ -1,0 +1,80 @@
+fixture	node	text	font_size	weight	wrap	in_contract	ref_w	ref_h	cand_w	cand_h	cand_w_exact	ref_lines	cand_lines	lines	ref_line_h	cand_line_h
+f02-col-hug	h	Heading	24	400	none	true	95	30	95	30	94.9531	1	1	Same	30	30
+f02-col-hug	s	Subheading text goes her	14	400	none	true	178	18	178	18	177.8750	1	1	Same	18	18
+f02-col-hug	t1	Ok	12	400	none	true	17	15	16	15	15.7656	1	1	Same	15	15
+f02-col-hug	t2	Cancel	12	400	none	true	40	15	40	15	39.3594	1	1	Same	15	15
+f05-text-wrap	p1	Design tools should prod	16	400	280.0000	true	278	80	278	80	277.0781	4	4	Same	20	20
+f05-text-wrap	p2	Auto layout is a small, 	14	400	280.0000	true	277	108	277	108	276.5312	6	6	Same	18	18
+f05-text-wrap	p3	Design tools should prod	15	400	200.0000	true	176	95	176	95	175.6719	5	5	Same	19	19
+f05-text-wrap	p4	Line one Line two is lon	13	400	none	true	109	51	109	51	108.4531	3	3	Same	17	17
+f05-text-wrap	p5	Supercalifragilisticexpi	16	400	280.0000	true	455	40	455	40	454.6250	2	2	Same	20	20
+f05-text-wrap	n1	Narrow column with a rat	20	400	156.0000	true	145	75	145	75	144.3906	3	3	Same	25	25
+f05-text-wrap	n2	Ünïcödé — “quotes”, dash	14	400	156.0000	false	137	54	137	54	136.7656	3	3	Same	18	18
+f06-card	name	Ada Lovelace	16	400	none	true	102	20	102	20	101.9844	1	1	Same	20	20
+f06-card	handle	@ada · 2h	13	400	none	true	62	17	62	17	61.7969	1	1	Same	17	17
+f06-card	body	Shipping the first auto 	15	400	320.0000	true	301	57	301	57	300.2812	3	3	Same	19	19
+f06-card	likes	128 likes	13	400	none	true	53	17	53	17	52.5000	1	1	Same	17	17
+f06-card	btnt	Follow	14	400	none	true	43	18	43	18	42.4844	1	1	Same	18	18
+f09-typography	w4	Weight four hundred	20	400	none	true	195	25	195	25	194.0625	1	1	Same	25	25
+f09-typography	w7	Weight seven hundred	20	700	none	true	220	25	218	25	217.2500	1	1	Same	25	25
+f09-typography	w9	Weight nine hundred	20	900	none	true	210	25	201	25	200.9062	1	1	Same	25	25
+f09-typography	l1	Left aligned wrapped par	16	400	204.0000	true	165	60	165	60	164.2812	3	3	Same	20	20
+f09-typography	l2	Centered wrapped paragra	16	400	204.0000	true	165	60	165	60	164.2812	3	3	Same	20	20
+f09-typography	l3	Right aligned wrapped pa	16	700	204.0000	true	175	60	174	60	173.1875	3	3	Same	20	20
+f10-deck	kt0	Fast	18	400	261.3333	true	36	23	36	23	35.6875	1	1	Same	23	23
+f10-deck	kd0	Design tools should prod	13	400	261.3333	true	251	17	251	17	250.1406	1	1	Same	17	17
+f10-deck	kt1	Faithful and predictable	18	400	261.3333	true	201	23	201	23	200.3594	1	1	Same	23	23
+f10-deck	kd1	Design tools should prod	13	400	261.3333	true	262	34	262	34	261.0938	2	2	Same	17	17
+f10-deck	kt2	Agent-friendly with stru	18	400	261.3333	true	257	46	257	46	256.4688	2	2	Same	23	23
+f10-deck	kd2	Design tools should prod	13	400	261.3333	true	262	51	262	51	261.0938	3	3	Same	17	17
+f10-deck	kt0	Fast	18	400	60.0000	true	36	23	36	23	35.6875	1	1	Same	23	23
+f10-deck	kd0	Design tools should prod	13	400	60.0000	true	52	102	52	102	51.0938	6	6	Same	17	17
+f10-deck	kt1	Faithful and predictable	18	400	60.0000	true	96	69	96	69	95.6250	3	3	Same	23	23
+f10-deck	kd1	Design tools should prod	13	400	60.0000	true	64	153	64	153	63.3438	9	9	Same	17	17
+f10-deck	kt2	Agent-friendly with stru	18	400	60.0000	true	88	115	88	115	87.6250	5	5	Same	23	23
+f10-deck	kd2	Design tools should prod	13	400	60.0000	true	64	204	64	204	63.3438	12	12	Same	17	17
+f12-fractional	t1	Fractional 13.5px	13.5	400	none	true	107	18	107	17	106.9219	1	1	Same	18	17
+f12-fractional	t2	Fractional 14.3px text	14.3	400	none	true	143	19	144	18	143.0156	1	1	Same	19	18
+f12-fractional	t3	Fractional 11.7px text h	11.7	400	none	true	142	15	142	15	141.6250	1	1	Same	15	15
+f14-text-edge	w0	two  spaces   inside and	14	400	200.0000	true	160	36	160	36	159.4062	2	2	Same	18	18
+f14-text-edge	w1	   leading spaces	14	400	200.0000	true	112	18	112	18	111.6406	1	1	Same	18	18
+f14-text-edge	w2	well-known state-of-the-	14	400	200.0000	true	185	36	185	36	184.3125	2	2	Same	18	18
+f14-text-edge	w3	path/to/some/very/long/f	14	400	200.0000	false	302	54	246	72	245.2812	3	4	Differs	18	18
+f14-text-edge	w4	日本語のテキストは単語の間にスペースがありません	14	400	200.0000	false	625	18	193	54	192.9375	1	3	Differs	18	18
+f14-text-edge	w5	Emoji 🙂🚀 and café naïve 	14	400	200.0000	true	176	36	159	36	158.9062	2	2	Same	18	18
+f14-text-edge	w6	a b c d e f g h i j k l 	14	400	200.0000	true	200	36	200	36	199.3594	2	2	Same	18	18
+f14-text-edge	w7	ABCDEFGHIJKLMNOPQRSTUVWX	14	400	200.0000	true	331	18	331	18	330.7969	1	1	Same	18	18
+f14-text-edge	w8	tab separated values	14	400	200.0000	false	139	18	139	18	138.2812	1	1	Same	18	18
+f14-text-edge	w9	Trailing newline 	14	400	200.0000	true	104	18	104	36	103.2031	1	2	Differs	18	18
+f14-text-edge	h0	two  spaces   inside and	14	400	none	true	220	18	220	18	219.8906	1	1	Same	18	18
+f14-text-edge	h1	   leading spaces	14	400	none	true	112	18	112	18	111.6406	1	1	Same	18	18
+f14-text-edge	h2	well-known state-of-the-	14	400	none	true	264	18	264	18	263.6562	1	1	Same	18	18
+f14-text-edge	h3	path/to/some/very/long/f	14	400	none	false	578	18	578	18	577.1562	1	1	Same	18	18
+f14-text-edge	h4	日本語のテキストは単語の間にスペースがありません	14	400	none	false	625	18	405	18	404.2500	1	1	Same	18	18
+f14-text-edge	h5	Emoji 🙂🚀 and café naïve 	14	400	none	true	229	18	213	18	212.1250	1	1	Same	18	18
+f14-text-edge	h6	a b c d e f g h i j k l 	14	400	none	true	294	18	294	18	293.6719	1	1	Same	18	18
+f14-text-edge	h7	ABCDEFGHIJKLMNOPQRSTUVWX	14	400	none	true	331	18	331	18	330.7969	1	1	Same	18	18
+f14-text-edge	h8	tab separated values	14	400	none	false	139	18	139	18	138.2812	1	1	Same	18	18
+f14-text-edge	h9	Trailing newline 	14	400	none	true	104	36	104	36	103.2031	2	2	Same	18	18
+f15-font-sizes	s8	Size 8 Hamburgefonstiv	8	400	none	true	92	10	91	10	90.5312	1	1	Same	10	10
+f15-font-sizes	s9	Size 9 Hamburgefonstiv	9	400	none	true	102	12	102	12	101.8750	1	1	Same	12	12
+f15-font-sizes	s10	Size 10 Hamburgefonstiv	10	400	none	true	118	13	118	13	117.3594	1	1	Same	13	13
+f15-font-sizes	s11	Size 11 Hamburgefonstiv	11	400	none	true	127	14	127	14	126.6250	1	1	Same	14	14
+f15-font-sizes	s12	Size 12 Hamburgefonstiv	12	400	none	true	141	15	141	15	140.5781	1	1	Same	15	15
+f15-font-sizes	s13	Size 13 Hamburgefonstiv	13	400	none	true	153	17	153	17	152.3906	1	1	Same	17	17
+f15-font-sizes	s14	Size 14 Hamburgefonstiv	14	400	none	true	165	18	165	18	164.5156	1	1	Same	18	18
+f15-font-sizes	s16	Size 16 Hamburgefonstiv	16	400	none	true	188	20	188	20	187.5938	1	1	Same	20	20
+f15-font-sizes	s18	Size 18 Hamburgefonstiv	18	400	none	true	212	23	212	23	211.0156	1	1	Same	23	23
+f15-font-sizes	s20	Size 20 Hamburgefonstiv	20	400	none	true	239	25	239	25	238.7812	1	1	Same	25	25
+f15-font-sizes	s24	Size 24 Hamburgefonstiv	24	400	none	true	287	30	287	30	286.5156	1	1	Same	30	30
+f15-font-sizes	s32	Size 32 Hamburgefonstiv	32	400	none	true	382	40	382	40	381.6094	1	1	Same	40	40
+f15-font-sizes	s48	Size 48 Hamburgefonstiv	48	400	none	true	575	60	575	60	574.2031	1	1	Same	60	60
+f15-font-sizes	s72	Size 72 Hamburgefonstiv	72	400	none	true	855	89	855	90	854.9062	1	1	Same	89	90
+f15-font-sizes	s96	Size 96 Hamburgefonstiv	96	400	none	true	1147	119	1147	120	1146.0469	1	1	Same	119	120
+f15-font-sizes	ws8	Design tools should prod	8	400	240.0000	true	217	20	217	20	216.2344	2	2	Same	10	10
+f15-font-sizes	ws11	Design tools should prod	11	400	240.0000	true	232	42	232	42	231.0625	3	3	Same	14	14
+f15-font-sizes	ws13	Design tools should prod	13	400	240.0000	true	234	51	234	51	233.6562	3	3	Same	17	17
+f15-font-sizes	ws17	Design tools should prod	17	400	240.0000	true	230	105	230	110	229.5625	5	5	Same	21	22
+f15-font-sizes	ws29	Design tools should prod	29	400	240.0000	true	214	288	214	296	213.8906	8	8	Same	36	37
+f15-font-sizes	ws41	Design tools should prod	41	400	240.0000	true	240	612	240	624	239.7188	12	12	Same	51	52
+f16-box-props	t	Margin text	14	400	none	true	75	18	75	18	74.5312	1	1	Same	18	18
