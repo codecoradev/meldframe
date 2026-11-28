@@ -15,8 +15,9 @@
 //! `ping` (a browser cannot send a WebSocket-level ping) within the server's `dead_after_ms`, or the timer drops
 //! it. A call with no free slot is retried at the next look; a poll that fails or times out closes the socket.
 
-use crate::LiveState;
-use crate::hub::{Conn, LiveHub, Opened, Out};
+use super::LiveState;
+use super::hub::{Conn, LiveHub, Opened, Out};
+use crate::{Reply, Slot, bearer, peer, valid_file};
 use axum::{
     body::Body,
     extract::{
@@ -26,7 +27,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use meldframe_host::Principal;
-use meldframe_http::{Reply, Slot, bearer, peer, valid_file};
 use meldframe_protocol::{ClientMsg, ServerMsg};
 use meldframe_stream::{Frame, StreamId};
 use std::sync::Arc;
@@ -169,7 +169,7 @@ impl Session {
     /// Run a call on the live source in a live slot; see [`Session::exec`].
     async fn call<R: Send + 'static>(
         &self,
-        job: impl FnOnce(&dyn crate::LiveSource, &Principal, &str, StreamId, u64) -> R + Send + 'static,
+        job: impl FnOnce(&dyn super::LiveSource, &Principal, &str, StreamId, u64) -> R + Send + 'static,
     ) -> Call<R> {
         match self.s.live_slots.take(&self.who) {
             None => Call::Busy,
@@ -182,7 +182,7 @@ impl Session {
     async fn exec<R: Send + 'static>(
         &self,
         slot: Slot,
-        job: impl FnOnce(&dyn crate::LiveSource, &Principal, &str, StreamId, u64) -> R + Send + 'static,
+        job: impl FnOnce(&dyn super::LiveSource, &Principal, &str, StreamId, u64) -> R + Send + 'static,
     ) -> Option<R> {
         let (src, who, file, id, now) = (
             self.hub.source.clone(),

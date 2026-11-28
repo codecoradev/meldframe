@@ -1,4 +1,6 @@
-//! `GET /v1/files/{file}`: the file as it is now, for a client that has no copy yet. It answers
+//! `GET /v1/files/{file}`: the file as it is now, for a client that has no copy yet.
+//!
+//! It answers
 //! `{"seq": n, "nodes": [...]}`; the client then subscribes to the live stream `after` that number. Each
 //! node carries `lastActor` and `lastSeq`: the actor and the sequence number of the last op that touched it
 //! (the same notion as `get_tree`: an add, update, remove, reparent or reorder names the node, a reparent
@@ -12,6 +14,7 @@
 //! through [`Shared`]. The principal's workspace comes from its token, so a file of another workspace is
 //! never read, and an unknown file is `not_found` (another workspace's file looks the same).
 
+use crate::{Failure, Reply, Shared, bearer, peer, valid_file};
 use axum::{
     Json, Router,
     body::Body,
@@ -22,7 +25,6 @@ use axum::{
 };
 use meldframe_batch::touches;
 use meldframe_host::{Principal, REPLAY_PAGE, Refusal, Room, Store, StoreError};
-use meldframe_http::{Failure, Reply, Shared, bearer, peer, valid_file};
 use meldframe_protocol::{FileSnapshot, SnapshotNode};
 use serde_json::json;
 use std::collections::{HashMap, VecDeque};
@@ -249,7 +251,7 @@ async fn snapshot(
         Err(reply) => reply.into_response(),
         Ok(Err(failure)) => {
             if let Failure::Unavailable(why) | Failure::Permanent(why) = &failure {
-                eprintln!("meldframe-http-snapshot: unavailable: {why:?}");
+                eprintln!("meldframe-http snapshot: unavailable: {why:?}");
             }
             Reply::failure(&failure).into_response()
         }

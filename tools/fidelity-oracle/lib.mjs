@@ -98,12 +98,12 @@ function runRunner(input) {
 const keyOf = (q) => JSON.stringify([q.text, q.fontSize, q.fontWeight, q.wrapW]);
 
 /** Runs the runner until no query is missing from the table: each round measures in the browser what the last one asked
- *  for and could not get. Returns the final answer, the table, and the number of runs. */
-export async function solve(fixtures, mp, table = new Map()) {
+ *  for and could not get. `imports` are hand-written pages the runner imports (`import.mjs`). Returns the final answer, the table, and the number of runs. */
+export async function solve(fixtures, mp, table = new Map(), imports = []) {
   for (let round = 1; round <= 40; round++) {
-    const out = runRunner({ fixtures, table: [...table.values()] });
+    const out = runRunner({ fixtures, imports, table: [...table.values()] });
     const seen = new Map();
-    for (const f of out.fixtures) for (const q of f.misses) seen.set(keyOf(q), q);
+    for (const f of [...out.fixtures, ...out.imports]) for (const q of f.misses) seen.set(keyOf(q), q);
     if (!seen.size) return { out, table, rounds: round };
     for (const e of await mp.measure([...seen.values()])) table.set(keyOf(e), e);
   }

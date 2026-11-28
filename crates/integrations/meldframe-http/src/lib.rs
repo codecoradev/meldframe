@@ -9,6 +9,7 @@
 mod auth;
 mod config;
 mod conn;
+pub mod live;
 #[cfg(feature = "mcp")]
 pub mod mcp;
 mod names;
@@ -17,6 +18,7 @@ mod rest;
 mod routing;
 mod shared;
 mod slots;
+pub mod snapshot;
 mod submit;
 mod submitter;
 mod wire;

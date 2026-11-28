@@ -3,7 +3,7 @@
 use super::{SharedServer, failure_of};
 use meldframe_host::{Principal, RoomError};
 use meldframe_http::Failure;
-use meldframe_http_snapshot::{AttributionCache, Read, SCAN_WINDOW, Snapshots, snapshot_cached};
+use meldframe_http::snapshot::{AttributionCache, Read, SCAN_WINDOW, Snapshots, snapshot_cached};
 use meldframe_rooms::RegistryError;
 
 /// The token decides the workspace, so a principal never reads another workspace's file.
