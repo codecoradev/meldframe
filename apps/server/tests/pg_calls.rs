@@ -1,6 +1,7 @@
 //! E2.4: the call log in Postgres. Every entry the server logs is a row, a new process reads the newest entries
 //! back, a workspace reads only its own, and a row holds no content.
 
+#[path = "rooms_common/mod.rs"]
 mod common;
 
 use meldframe_calls::{CallEntry, CallLog, Decision};

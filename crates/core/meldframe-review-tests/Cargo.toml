@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-review-tests"
-description = "Tests of the design review lists in Postgres and of the design_review MCP tool. No library code; separate because meldframe-server-tests and meldframe-mcp-tests are at their ceilings."
+description = "Tests of the design review lists in Postgres and of the design_review MCP tool. No library code; it moves into the server tests with the rest of its stack (docs/test-crates-plan.md)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

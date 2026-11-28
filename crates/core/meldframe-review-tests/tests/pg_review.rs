@@ -1,7 +1,7 @@
 //! E5.4: the critique lists in Postgres. The store passes the cases of the in-memory one, a new process reads the
 //! list back, and concurrent adds to one file never repeat a number.
 
-#[path = "../../meldframe-server-tests/tests/common/mod.rs"]
+#[path = "../../../../apps/server/tests/rooms_common/mod.rs"]
 mod common;
 
 use design_review::{ReviewError, ReviewStore, Status, contract};
