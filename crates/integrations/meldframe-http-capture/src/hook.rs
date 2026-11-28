@@ -2,7 +2,7 @@
 
 use crate::hub::Hub;
 use meldframe_host::Principal;
-use meldframe_http_live::ClientHook;
+use meldframe_http::live::ClientHook;
 use meldframe_protocol::{ClientMsg, ServerMsg};
 use meldframe_stream::StreamId;
 use std::sync::Arc;

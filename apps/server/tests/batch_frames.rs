@@ -4,7 +4,7 @@
 mod activity_world;
 use activity_world::*;
 use meldframe_host::Principal;
-use meldframe_http_live::LiveSource;
+use meldframe_http::live::LiveSource;
 use meldframe_protocol::ServerMsg;
 use meldframe_server::Frame;
 use serde_json::json;

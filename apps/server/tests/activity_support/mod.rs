@@ -4,8 +4,8 @@
 #[path = "../activity_world/mod.rs"]
 pub mod world;
 pub use meldframe_host::Principal;
+use meldframe_http::live::LiveSource;
 use meldframe_http_activity::Reviewers;
-use meldframe_http_live::LiveSource;
 use meldframe_protocol::ServerMsg;
 use meldframe_server::{Frame, StreamId};
 use serde_json::{Value, json};

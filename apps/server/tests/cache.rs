@@ -6,10 +6,10 @@ use axum::{Router, body::Body, http::Request};
 use meldframe_host::{
     Appended, MemoryStore, NewOp, Principal, Room, Snapshot, Store, StoreError, StoredOp,
 };
-use meldframe_http::{Authenticator, Config, DevTokens, Failure, Rate};
-use meldframe_http_snapshot::{
+use meldframe_http::snapshot::{
     AttributionCache, MAX_CACHED_FILES, Read, Snapshots, snapshot_cached,
 };
+use meldframe_http::{Authenticator, Config, DevTokens, Failure, Rate};
 use meldframe_protocol::{Command, FileSnapshot, NodePatch};
 use serde_json::json;
 use std::sync::Arc;
@@ -215,7 +215,7 @@ fn router(fake: Fake, burst: u32) -> Router {
         }
     }
     let state = meldframe_http::shared(auth, Arc::new(Unused), config);
-    meldframe_http_snapshot::routes(state, Arc::new(fake))
+    meldframe_http::snapshot::routes(state, Arc::new(fake))
 }
 
 async fn status(app: &Router) -> (u16, serde_json::Value) {

@@ -6,10 +6,10 @@ use base64::Engine;
 use capture::Config as RelayConfig;
 use futures_util::{SinkExt, StreamExt};
 use meldframe_host::Principal;
+use meldframe_http::live::{LiveConfig, LiveSource, Opened, Out};
 use meldframe_http::mcp::McpConfig;
 use meldframe_http::{Config, DevTokens, Failure, Rate};
 use meldframe_http_capture::{Capture, Options};
-use meldframe_http_live::{LiveConfig, LiveSource, Opened, Out};
 use meldframe_protocol::ServerMsg;
 use meldframe_server::StreamId;
 use meldframe_server::{Server, SharedServer};
@@ -175,7 +175,7 @@ pub async fn start_setup(tweak: impl FnOnce(&mut Setup)) -> Harness {
         ..LiveConfig::default()
     };
     let (live_routes, timer) =
-        meldframe_http_live::routes(shared.clone(), source.clone(), live, clock);
+        meldframe_http::live::routes(shared.clone(), source.clone(), live, clock);
     let mcp = McpConfig {
         extra: vec![cap.tool()],
         ..McpConfig::default()

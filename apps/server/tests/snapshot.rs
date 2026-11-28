@@ -5,8 +5,8 @@
 
 use axum::{Router, body::Body, http::Request};
 use meldframe_host::{Op, Principal};
+use meldframe_http::snapshot::snapshot_of;
 use meldframe_http::{Authenticator, Config, DevTokens, Rate};
-use meldframe_http_snapshot::snapshot_of;
 use meldframe_module::{Module, Registrar, RiskTier};
 use meldframe_protocol::{Command, NodePatch};
 use meldframe_server::{Server, SharedServer};
@@ -68,7 +68,7 @@ fn server() -> Server {
 fn router(server: &Arc<SharedServer>) -> Router {
     let state = meldframe_http::shared(tokens(), server.clone(), config());
     meldframe_http::routes(state.clone())
-        .merge(meldframe_http_snapshot::routes(state, server.clone()))
+        .merge(meldframe_http::snapshot::routes(state, server.clone()))
 }
 
 fn get(file: &str, token: Option<&str>) -> Request<Body> {

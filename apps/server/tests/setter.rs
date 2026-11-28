@@ -4,7 +4,7 @@
 
 mod activity_support;
 use activity_support::*;
-use meldframe_http_live::LiveSource;
+use meldframe_http::live::LiveSource;
 use meldframe_protocol::ServerMsg;
 use meldframe_server::StreamId;
 use serde_json::{Value, json};

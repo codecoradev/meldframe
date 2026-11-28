@@ -3,7 +3,7 @@
 
 mod checkpoint_world;
 use checkpoint_world::*;
-use meldframe_http_live::LiveSource;
+use meldframe_http::live::LiveSource;
 use meldframe_module::Policy;
 use serde_json::{Value, json};
 

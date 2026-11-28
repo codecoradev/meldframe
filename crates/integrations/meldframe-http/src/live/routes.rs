@@ -1,5 +1,5 @@
+use crate::{Authenticator, Clock, Config, Shared, Slots, Submitter};
 use axum::{Router, routing::get};
-use meldframe_http::{Authenticator, Clock, Config, Shared, Slots, Submitter};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -62,7 +62,7 @@ pub fn live_router(
     live: LiveConfig,
 ) -> (Router, Timer) {
     let clock = config.clock.clone();
-    let shared = meldframe_http::shared(auth, submitter, config);
+    let shared = crate::shared(auth, submitter, config);
     let (route, timer) = routes(shared.clone(), source, live, clock);
-    (meldframe_http::routes(shared).merge(route), timer)
+    (crate::routes(shared).merge(route), timer)
 }

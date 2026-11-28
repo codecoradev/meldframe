@@ -48,8 +48,6 @@ checkpoints = ["mcp", "activity", "dep:checkpoint-store", "dep:meldframe-http-ch
 
 [dependencies]
 meldframe-http = { path = "../../crates/integrations/meldframe-http" }
-meldframe-http-live = { path = "../../crates/integrations/meldframe-http-live" }
-meldframe-http-snapshot = { path = "../../crates/integrations/meldframe-http-snapshot" }
 meldframe-batch = { path = "../../crates/core/meldframe-batch" }
 meldframe-approvals = { path = "../../crates/core/meldframe-approvals" }
 meldframe-calls = { path = "../../crates/core/meldframe-calls" }

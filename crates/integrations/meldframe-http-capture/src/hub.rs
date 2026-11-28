@@ -2,9 +2,9 @@
 
 use capture::{Begin, Binding, CaptureError, Config, Done, Relay, Token};
 use meldframe_host::Principal;
+use meldframe_http::live::LiveSource;
 use meldframe_http::mcp::Reader;
 use meldframe_http::{Clock, Shared, Slots};
-use meldframe_http_live::LiveSource;
 use meldframe_protocol::ServerMsg;
 use meldframe_stream::StreamId;
 use std::collections::HashMap;

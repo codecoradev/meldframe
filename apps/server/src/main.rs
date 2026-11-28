@@ -1,10 +1,10 @@
 #[cfg(feature = "capture")]
 use meldframe_app_export_model::raster::{CAPTURE_MAX_BYTES, EXPORT_MAX_PIXELS};
+use meldframe_http::live::LiveConfig;
 use meldframe_http::{
     CappedListener, Config, DevTokens, check_dev_listen, check_dev_tokens_allowed,
     dev_tokens_warning,
 };
-use meldframe_http_live::LiveConfig;
 use meldframe_server::{Backing, Server, SharedServer, TOUCH_WINDOW_MS};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -158,7 +158,7 @@ fn serve(
         live_config.hook = Some(cap.hook());
     }
     let (live, timer) =
-        meldframe_http_live::routes(state.clone(), shared.clone(), live_config, clock);
+        meldframe_http::live::routes(state.clone(), shared.clone(), live_config, clock);
     // Liveness for scripts: no token, no data (tools/dev-smoke.sh waits on it).
     let health = axum::Router::new().route(
         "/v1/health",
@@ -168,7 +168,7 @@ fn serve(
     let mut app = meldframe_http::routes(state.clone())
         .merge(live)
         .merge(health)
-        .merge(meldframe_http_snapshot::routes(
+        .merge(meldframe_http::snapshot::routes(
             state.clone(),
             shared.clone(),
         ));
