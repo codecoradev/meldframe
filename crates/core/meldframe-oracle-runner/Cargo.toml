@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-oracle-runner"
-description = "The runner of the fidelity oracle (E4.2): reads fixture files as JSON, lays them out with the layout core and exports each top-level frame with the export feature, and prints the core rects and the export (CSS form and Tailwind form) as JSON for the Node harness in tools/fidelity-oracle. Text is measured from a table the harness records in a browser. Not part of any product build."
+description = "The runner of the fidelity oracle (E4.2): reads fixture files as JSON, lays them out with the layout core and exports each top-level frame with the export feature, imports each export back (and hand-written HTML pages) with the html-import feature and lays the result out, and prints the core rects and the export (CSS form and Tailwind form) as JSON for the Node harness in tools/fidelity-oracle. Text is measured from a table the harness records in a browser. Not part of any product build."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 export = { path = "../../features/export/export" }
+html-import = { path = "../../features/html-import/html-import" }
 meldframe-layout = { path = "../meldframe-layout" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-variables = { path = "../meldframe-variables" }
