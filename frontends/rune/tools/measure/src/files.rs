@@ -1,12 +1,80 @@
-//! The inputs the criteria share (section 3 of the spike note): the performance files of `tools/hit-perf.mjs` written again in Rust
-//! with the same shape and the same seeded points, and the path of the Rune workspace.
+//! The inputs the criteria share (section 3 of the spike note): the layout golden trees, the oracle text fixtures, the table
+//! recorded in Chromium by the Linux oracle, and the performance files of `tools/hit-perf.mjs` written again in Rust with the
+//! same shape and the same seeded points.
 
+use meldframe_oracle_runner::{Entry, TableMeasurer};
 use meldframe_protocol::Node;
+use serde::Deserialize;
 use std::path::{Path, PathBuf};
+
+const LAYOUT_ORACLE: &str =
+    include_str!("../../../../../crates/core/meldframe-layout/tests/fixtures/layout_oracle.json");
+const ORACLE_TEXTS: &str =
+    include_str!("../../../../../crates/core/meldframe-layout/tests/fixtures/oracle_texts.json");
 
 /// `frontends/rune/`, the root of the workspace this crate is in.
 pub fn workspace() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+/// One tree of the layout golden fixture (laid out with the stub measurer; `rects` are the expected boxes).
+#[derive(Debug, Deserialize)]
+pub struct Tree {
+    pub nodes: Vec<Node>,
+}
+
+/// One fixture of `oracle_texts.json`: the nodes of an oracle fixture that holds a text.
+#[derive(Debug, Deserialize)]
+pub struct TextFixture {
+    pub name: String,
+    pub nodes: Vec<Node>,
+}
+
+/// The 15 trees of the layout golden fixture.
+pub fn layout_trees() -> Vec<Tree> {
+    #[derive(Deserialize)]
+    struct File {
+        trees: Vec<Tree>,
+    }
+    serde_json::from_str::<File>(LAYOUT_ORACLE)
+        .expect("the layout golden fixture parses")
+        .trees
+}
+
+/// The oracle fixtures that hold text.
+pub fn text_fixtures() -> Vec<TextFixture> {
+    #[derive(Deserialize)]
+    struct File {
+        fixtures: Vec<TextFixture>,
+    }
+    serde_json::from_str::<File>(ORACLE_TEXTS)
+        .expect("the oracle text fixtures parse")
+        .fixtures
+}
+
+/// The table the Linux oracle recorded in Chromium (Pixi `CanvasTextMetrics` with Inter), written by
+/// `tools/fidelity-oracle/record-text-table.mjs` and never edited by hand.
+#[derive(Debug, Deserialize)]
+pub struct TableFile {
+    /// Where the table came from: Chromium and platform of the recording.
+    pub recorded_with: String,
+    pub entries: Vec<Entry>,
+}
+
+/// The default place of the recorded table.
+pub fn default_table_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("data/chromium_text_table.json")
+}
+
+/// Reads the table at `path`.
+pub fn read_table(path: &Path) -> Result<TableFile, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// A measurer that replays the recorded table.
+pub fn table_measurer(table: &TableFile) -> TableMeasurer {
+    TableMeasurer::new(&table.entries)
 }
 
 /// The generator of `tools/hit-perf.mjs`: a linear congruential sequence of numbers in 0 to 1, from the same seed.
@@ -97,5 +165,11 @@ mod tests {
         }
         let (x, y) = over_nothing(&mut rand);
         assert!(app.hit(x, y).is_none());
+    }
+
+    #[test]
+    fn the_fixtures_load() {
+        assert_eq!(layout_trees().len(), 15);
+        assert_eq!(text_fixtures().len(), 9);
     }
 }
