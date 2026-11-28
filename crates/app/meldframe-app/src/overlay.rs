@@ -1,5 +1,5 @@
-//! The shortcut sheet and the command palette as state of the app (audit finding T11, issue 324). One is open at a time, and
-//! the palette stays shut while a dialog is open. Menus, tooltips and popovers are not here: their open state is focus and DOM
+//! The shortcut sheet and the command palette as state of the app (audit finding T11, issue 324): one is open at a time, and
+//! the palette stays shut while a dialog is open; menus, tooltips and popovers are not here, for their open state is focus and DOM
 //! behaviour, and stays with the component library (a front end does not send the palette key while one of its menus is open).
 
 use crate::app::App;

@@ -1,5 +1,5 @@
-//! The Variables panel (E3.4): the rows it lists, its search, and the actions that edit a value or bind a field.
-//! Every rule is here; a front end draws `AppState::variables` and sends the actions. The checks of a value, an
+//! The Variables panel (E3.4): the rows it lists, its search, and the actions that edit a value or bind a field, where
+//! every rule is here; a front end draws `AppState::variables` and sends the actions, and the checks of a value, an
 //! alias or a binding are the ones of `meldframe-variables`, run when the command is applied.
 
 use crate::app::App;

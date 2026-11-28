@@ -1,6 +1,6 @@
 //! The text being edited as state of the app (audit finding T12, issue 324): beginning, committing and cancelling are here, and
-//! the field keeps its keystrokes, its caret and the composition of an input method (it reports the text once, on a commit).
-//! The rules that read no state are `meldframe_app_parts::text_edit`; the kind of the node, the text an edit began with and
+//! the field keeps its keystrokes, its caret and the composition of an input method (it reports the text once, on a commit);
+//! the rules that read no state are `meldframe_app_parts::text_edit`; the kind of the node, the text an edit began with and
 //! when an unchanged text makes no step are the rules the page kept in TypeScript before this.
 
 use crate::app::App;

@@ -1,5 +1,5 @@
 //! The bind picker of a field: the variables that fit one field of the selected node, found while the picker is open
-//! and never otherwise. View state: nothing is written to the file and the undo history does not change.
+//! and never otherwise, as view state: nothing is written to the file and the undo history does not change.
 
 use crate::app::App;
 use crate::document::refuse;
