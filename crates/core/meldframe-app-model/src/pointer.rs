@@ -4,8 +4,9 @@
 //! and reads `AppState::pointer` (the hover, the cursor and the gesture that is going on); what it draws for a gesture comes from
 //! `App::pointer_preview`. The camera (`AppState::camera`) maps the screen to the world, so a front end never converts a point.
 
-use crate::gesture::Point;
+use crate::gesture::{Handle, Point};
 use crate::key::Modifiers;
+use crate::preset::CreateKind;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -91,7 +92,8 @@ pub enum PointerCursor {
 }
 
 /// What a press that became a drag is doing (`PointerState::gesture`). A press that has not moved past the threshold (3 CSS
-/// pixels) is `Idle`: nothing is going on yet.
+/// pixels) is `Idle`: nothing is going on yet. A press on a handle of the selection box resizes, a press with a drawing tool draws,
+/// a press on a node moves, and a press on empty canvas draws a marquee.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(
@@ -112,6 +114,23 @@ pub enum PointerGesture {
         ids: Vec<String>,
         at: Point,
         by: Point,
+    },
+    /// A rubber band from the press on empty canvas `from` to the pointer `to` (world points, not normalised). On release the
+    /// top-level nodes it overlaps are selected (`Action::Select`), or added to the selection with Shift held.
+    Marquee { from: Point, to: Point },
+    /// A handle of the one selected node is being dragged by `by` (world units since the press): the box it would leave is
+    /// `App::pointer_preview` (`App::resize_preview`), and the file changes on release (`GestureOp::ResizeHandle`).
+    Resize {
+        id: String,
+        handle: Handle,
+        by: Point,
+    },
+    /// A node of `kind` is being drawn from the press `from` to the pointer `to` (world points): `App::pointer_preview`
+    /// (`App::draw_preview`) says the box, and the node is made on release (`GestureOp::Draw`, a click makes the default size).
+    Draw {
+        kind: CreateKind,
+        from: Point,
+        to: Point,
     },
 }
 

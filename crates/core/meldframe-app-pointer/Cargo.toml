@@ -13,6 +13,7 @@ kind = "core"
 meldframe-app-model = { path = "../meldframe-app-model" }
 meldframe-app-rules = { path = "../meldframe-app-rules" }
 meldframe-layout = { path = "../meldframe-layout" }
+meldframe-protocol = { path = "../meldframe-protocol" }
 serde = { version = "1", features = ["derive"] }
 
 [lints]

@@ -7,113 +7,13 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
+mod pointer_rig;
 use meldframe_app_model::{
     Action, Camera, Modifiers, Point, PointerButton, PointerCursor, PointerGesture, PointerInput,
     PointerPhase, Tool,
 };
-use meldframe_app_pointer::{DRAG_THRESHOLD, Env, Machine};
-
-struct Rig {
-    machine: Machine,
-    camera: Camera,
-    selection: Vec<String>,
-    tool: Tool,
-    log: Vec<Action>,
-}
-
-fn rig(camera: Camera, selection: &[&str]) -> Rig {
-    Rig {
-        machine: Machine::default(),
-        camera,
-        selection: selection.iter().map(|s| s.to_string()).collect(),
-        tool: Tool::Select,
-        log: Vec::new(),
-    }
-}
-
-fn home() -> Camera {
-    Camera::default()
-}
-
-fn hit(x: f64, y: f64) -> Option<String> {
-    let inside = |lo: f64| (lo..=lo + 100.0).contains(&x) && (0.0..=100.0).contains(&y);
-    match (inside(0.0), inside(200.0)) {
-        (true, _) => Some("a".into()),
-        (_, true) => Some("b".into()),
-        _ => None,
-    }
-}
-
-impl Rig {
-    fn send(&mut self, phase: PointerPhase, x: f64, y: f64, shift: bool) {
-        let i = PointerInput {
-            phase,
-            x,
-            y,
-            modifiers: Modifiers {
-                shift,
-                ..Modifiers::default()
-            },
-            button: PointerButton::Primary,
-            touch: false,
-            space: false,
-        };
-        self.event(i);
-    }
-
-    fn event(&mut self, i: PointerInput) {
-        let none = || None;
-        let env = Env {
-            tool: self.tool,
-            camera: self.camera,
-            selection: &self.selection,
-            editing: false,
-            halted: false,
-            hit: &hit,
-            selection_rect: &none,
-        };
-        let acts = self.machine.step(&i, &env);
-        for a in acts {
-            match &a {
-                Action::Select { ids } => self.selection = ids.clone(),
-                Action::ToggleSelect { id } if self.selection.contains(id) => {
-                    self.selection.retain(|s| s != id);
-                }
-                Action::ToggleSelect { id } => self.selection.push(id.clone()),
-                Action::Camera { op } => {
-                    let meldframe_app_model::CameraOp::Pan { dx, dy } = op else {
-                        panic!("a pan")
-                    };
-                    self.camera.x += dx;
-                    self.camera.y += dy;
-                }
-                _ => {}
-            }
-            self.log.push(a);
-        }
-    }
-
-    fn down(&mut self, x: f64, y: f64) {
-        self.send(PointerPhase::Down, x, y, false);
-    }
-    fn mv(&mut self, x: f64, y: f64) {
-        self.send(PointerPhase::Move, x, y, false);
-    }
-    fn up(&mut self, x: f64, y: f64) {
-        self.send(PointerPhase::Up, x, y, false);
-    }
-
-    fn json(&self) -> Vec<serde_json::Value> {
-        self.log
-            .iter()
-            .map(|a| serde_json::to_value(a).expect("an action is JSON"))
-            .collect()
-    }
-}
-
-fn select(ids: &[&str]) -> serde_json::Value {
-    serde_json::json!({"type": "select", "ids": ids})
-}
+use meldframe_app_pointer::DRAG_THRESHOLD;
+use pointer_rig::*;
 
 // --- selection clicks ----------------------------------------------------------------------------------------------
 
