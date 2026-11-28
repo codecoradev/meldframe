@@ -1,4 +1,4 @@
-//! The pointer machine of `meldframe_app_pointer` against a made-up canvas, ported from
+//! The pointer machine of `meldframe_app::pointer_machine` against a made-up canvas, ported from
 //! `packages/web-canvas/src/interaction.test.ts` with the same cases and numbers: two nodes in world space, `a` at (0, 0) and `b`
 //! at (200, 0), both 100 by 100. The machine reads the app through `Env` and answers with actions; the rig applies the
 //! selection actions as the app does, so the next event sees them.
@@ -8,11 +8,11 @@
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod pointer_rig;
+use meldframe_app::pointer_machine::DRAG_THRESHOLD;
 use meldframe_app_model::{
     Action, Camera, Modifiers, Point, PointerButton, PointerCursor, PointerGesture, PointerInput,
     PointerPhase, Tool,
 };
-use meldframe_app_pointer::DRAG_THRESHOLD;
 use pointer_rig::*;
 
 // --- selection clicks ----------------------------------------------------------------------------------------------

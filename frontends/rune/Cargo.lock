@@ -1651,7 +1651,6 @@ dependencies = [
  "meldframe-activity",
  "meldframe-app-model",
  "meldframe-app-parts",
- "meldframe-app-pointer",
  "meldframe-app-rules",
  "meldframe-camera",
  "meldframe-check",
@@ -1710,17 +1709,6 @@ dependencies = [
  "meldframe-variant",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "meldframe-app-pointer"
-version = "0.0.0"
-dependencies = [
- "meldframe-app-model",
- "meldframe-app-rules",
- "meldframe-layout",
- "meldframe-protocol",
- "serde",
 ]
 
 [[package]]

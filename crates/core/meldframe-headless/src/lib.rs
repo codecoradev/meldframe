@@ -39,7 +39,7 @@
 //! The output is plain text: each step, then the kinds of the effects and events it made and its refusals. The
 //! run stops at the first step that fails, and the command line exits non-zero.
 //!
-//! A drag is a series of `pointer` steps (the machine of `meldframe-app-pointer` decides what each does), or one `drop`, `handle`
+//! A drag is a series of `pointer` steps (the machine of `meldframe_app::pointer_machine` decides what each does), or one `drop`, `handle`
 //! or `draw` step, which are the same intents sent whole. In a strict run a refusal is held until the next step: an
 //! `expect refused <code>` excuses it, any other step fails the run at the line that was refused.
 

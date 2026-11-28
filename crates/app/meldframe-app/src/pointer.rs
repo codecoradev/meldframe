@@ -1,8 +1,8 @@
-//! `Action::Pointer`: the machine of `meldframe_app_pointer` decides, and what it decides is dispatched like any other action.
+//! `Action::Pointer`: the machine of `pointer_machine` decides, and what it decides is dispatched like any other action.
 
+use crate::pointer_machine::{Env, PointerPreview, Queries, preview, top_level};
 use crate::{app::App, effect::Effect, event::Event};
 use meldframe_app_model::{Modifiers, PointerInput};
-use meldframe_app_pointer::{Env, PointerPreview, Queries, preview, top_level};
 
 impl App {
     pub(crate) fn pointer(&mut self, input: PointerInput) -> Vec<Effect> {
