@@ -2132,6 +2132,7 @@ dependencies = [
  "meldframe-text",
  "serde_json",
  "tokio",
+ "tower",
  "variables-import",
 ]
 
@@ -2150,22 +2151,6 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tokio",
-]
-
-[[package]]
-name = "meldframe-snapshot-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-snapshot",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-server",
- "serde_json",
- "tokio",
- "tower",
 ]
 
 [[package]]
