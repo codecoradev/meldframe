@@ -1,5 +1,6 @@
 //! E3.2: an agent sets padding per side through apply_commands and reads it back; null makes a side follow `padding` again.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::json;

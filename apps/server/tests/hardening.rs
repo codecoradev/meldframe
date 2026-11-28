@@ -1,6 +1,7 @@
 //! Review fixes of the MCP surface: what an atomic batch must not write, `ifSeq` on every node a command
 //! touches, bounded scans, conflict details, the `Host` allow-list and one room open per read.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::{Value, json};

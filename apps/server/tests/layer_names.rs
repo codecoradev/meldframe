@@ -1,6 +1,7 @@
 //! E3.5: a layer that keeps a default name (`Frame 3`, `Text`) is reported to the agent that made it, and the tool
 //! descriptions ask for semantic names. The lint only warns: the call is written either way.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::json;

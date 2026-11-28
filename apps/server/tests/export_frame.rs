@@ -2,8 +2,8 @@
 //! report and the stable codes are as documented, the call log has one entry without content, and the catalogue lists
 //! the tool.
 
-// The helpers of `meldframe-mcp-tests`, by path: that crate is at its size ceiling.
-#[path = "../../meldframe-mcp-tests/tests/common/mod.rs"]
+// The shared helpers of the MCP tests, `mcp_common`.
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_http::mcp::McpConfig;
@@ -15,8 +15,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
-const CATALOGUE: &str = include_str!("../../../../docs/mcp-tools.json");
-const CODES: &str = include_str!("../../../../docs/error-codes.md");
+const CATALOGUE: &str = include_str!("../../../docs/mcp-tools.json");
+const CODES: &str = include_str!("../../../docs/error-codes.md");
 
 /// The server of `start`, with the export tool among the extras, as the binary composes it.
 async fn start() -> Harness {

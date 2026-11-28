@@ -1,6 +1,7 @@
 //! The tools of the MCP surface (apart from make_variant, which has its own file) through a real MCP client: read tools, whoami, atomic apply_commands, both spellings of
 //! the idempotency key and of `ifSeq`, conflict details, batch status.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::json;

@@ -4,7 +4,8 @@ use meldframe_server::Server;
 use serde_json::{Value, json};
 
 /// Rewrites `docs/mcp-tools.json` from the server: `cargo test -p meldframe-review-tests --test regenerate
-/// -- --ignored regenerate`. The tests of `meldframe-mcp-tests` then check the file against a client and the registry.
+/// -- --ignored regenerate`. The tests of `meldframe-server` (`catalogue.rs`, `skill.rs`) then check the file against a
+/// client and the registry.
 #[test]
 #[ignore = "writes docs/mcp-tools.json"]
 fn regenerate() {

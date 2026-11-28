@@ -1,5 +1,6 @@
 //! MCP shares the one gate with REST: the same authenticator, the same limits and the same submitter.
 
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_http::Rate;

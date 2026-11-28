@@ -2,7 +2,7 @@
 //! and a reader with `batch_status` denied.
 #![allow(dead_code, reason = "each test binary uses a part of these helpers")]
 
-#[path = "../../../meldframe-mcp-tests/tests/common/mod.rs"]
+#[path = "../../../../../apps/server/tests/mcp_common/mod.rs"]
 mod common;
 pub use activity_store::{BatchStore, MemoryBatches, Query};
 pub use common::*;

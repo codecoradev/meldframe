@@ -2,7 +2,7 @@
 //! sink installed on it, a clock the test moves, a submitter that can fail part way and a store that can be slow or fail.
 #![allow(dead_code, reason = "each test binary uses a part of these helpers")]
 
-#[path = "../../../meldframe-mcp-tests/tests/common/mod.rs"]
+#[path = "../../../../../apps/server/tests/mcp_common/mod.rs"]
 mod common;
 use checkpoint_store::{CheckpointError, CheckpointStore, Made, MemoryCheckpoints};
 pub use common::*;
