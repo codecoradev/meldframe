@@ -1,10 +1,11 @@
 //! The editable values of a node as the properties panel shows them.
 
-use crate::layout::{is_layout, layout_notes, sides, uniform};
+use crate::layout::{layout_notes, sides, uniform};
 use crate::panel::selected_node;
 use crate::property::MIN_STOPS;
 use meldframe_app_model::{BindField, FieldBinding, FillKind, Properties, Sections};
 use meldframe_check::Limits;
+use meldframe_layout::is_layout_frame;
 use meldframe_protocol::{Bind, GradientKind, Node, NodeKind, Variables};
 use meldframe_render::Fields;
 use meldframe_text::{MAX_LABEL, label};
@@ -70,7 +71,7 @@ pub fn properties(
             })
         })
         .collect();
-    let flows = parent.is_some_and(is_layout);
+    let flows = parent.is_some_and(is_layout_frame);
     let is_text = n.kind == NodeKind::Text;
     let margin = sides(n.margin());
     let at = drawn.unwrap_or(Drawn {

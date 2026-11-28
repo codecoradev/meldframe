@@ -6,7 +6,9 @@
 
 use crate::names::{css_escape, escape, hex_alpha, hex_colour, num, px};
 use crate::report::Report;
-use meldframe_layout::{Rect, TEXT_OUTSIDE_CONTRACT_MESSAGE, TextMeasurer, text_outside_contract};
+use meldframe_layout::{
+    Rect, TEXT_OUTSIDE_CONTRACT_MESSAGE, TextMeasurer, is_layout_frame, text_outside_contract,
+};
 use meldframe_protocol::{
     Align, Bind, BorderPosition, ImageFit, Justify, LayoutMode, Node, NodeKind, SizeMode,
     TextAlign, is_asset_id,
@@ -69,10 +71,6 @@ fn sides(t: f64, r: f64, b: f64, l: f64) -> Option<String> {
     }
 }
 
-fn is_layout(n: &Node) -> bool {
-    n.kind == NodeKind::Frame && n.layout != LayoutMode::None
-}
-
 #[derive(PartialEq)]
 enum Axis {
     Fixed,
@@ -86,9 +84,9 @@ enum Axis {
 fn axis(n: &Node, mode: SizeMode, place: &Place, horizontal: bool) -> Axis {
     match mode {
         SizeMode::Fixed => Axis::Fixed,
-        SizeMode::Hug if n.kind == NodeKind::Text || is_layout(n) => Axis::Hug,
+        SizeMode::Hug if n.kind == NodeKind::Text || is_layout_frame(n) => Axis::Hug,
         SizeMode::Hug => Axis::Fixed,
-        SizeMode::Fill => match place.parent.filter(|p| is_layout(p) && !n.absolute) {
+        SizeMode::Fill => match place.parent.filter(|p| is_layout_frame(p) && !n.absolute) {
             Some(p) if (if horizontal { p.sw } else { p.sh }) != SizeMode::Hug => {
                 if (p.layout == LayoutMode::Row) == horizontal {
                     Axis::FillMain
@@ -189,7 +187,7 @@ fn safe_colour(text: &str, field: &str, id: &str, rep: &mut Report) -> String {
 pub(crate) fn style(cx: &Cx, n: &Node, b: &PaintedBox, place: &Place, rep: &mut Report) -> Style {
     let mut s = Style::default();
     let text = n.kind == NodeKind::Text;
-    let parent_layout = place.parent.filter(|p| is_layout(p));
+    let parent_layout = place.parent.filter(|p| is_layout_frame(p));
     let in_flow = parent_layout.is_some() && !n.absolute;
     let at_own_place = place.root.is_some() || (!in_flow && place.parent.is_some());
     let border = !text && n.border.width > 0.0;
@@ -245,7 +243,7 @@ pub(crate) fn style(cx: &Cx, n: &Node, b: &PaintedBox, place: &Place, rep: &mut 
     }
 
     // Layout container.
-    if is_layout(n) {
+    if is_layout_frame(n) {
         let dir = if n.layout == LayoutMode::Row {
             "row"
         } else {
