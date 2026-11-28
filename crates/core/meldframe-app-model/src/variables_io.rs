@@ -7,6 +7,11 @@ use crate::export::ExportFinding;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+/// The most variables the Import variables dialog takes at a time (`E_IMPORT_TOO_MANY` above it). It lives here so that
+/// `AppState.limits` and the dialog's rule (`variables-import-dialog`, which re-exports it with the reason for the number)
+/// read one constant.
+pub const IMPORT_MAX_VARIABLES: usize = 50;
+
 /// The two dialogs. Both are view state: nothing here is written to the file (an import writes through the commands it
 /// makes, as any edit does).
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]

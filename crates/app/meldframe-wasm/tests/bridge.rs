@@ -431,3 +431,20 @@ fn the_pointer_is_an_action_and_its_hover_cursor_and_gesture_are_state_in_json()
         "an unknown field is an error"
     );
 }
+
+#[test]
+fn the_state_json_carries_the_limits_and_the_preset_table() {
+    let nodes = json!([{"id": "a", "type": "rect", "pos": "a0", "w": 100, "h": 100}]).to_string();
+    let b = Bridge::new("usr_me", "web", 7, &nodes, 0, None).expect("a file loads");
+    let state: Value = serde_json::from_str(&b.state_json()).unwrap();
+    let limits = &state["limits"];
+    assert_eq!(limits["importVariables"], 50);
+    assert_eq!(limits["exportMaxPixels"], 16_777_216);
+    assert_eq!(limits["exportScales"], json!([0.5, 1.0, 2.0, 3.0, 4.0]));
+    assert_eq!(limits["presets"].as_array().unwrap().len(), 7);
+    assert_eq!(
+        limits["presets"][0],
+        json!({"id": "desktop", "name": "Desktop", "width": 1440.0, "height": 900.0})
+    );
+    assert_eq!(state["manage"]["limits"]["variables"], 5000);
+}

@@ -122,8 +122,8 @@ describe('a file chosen', () => {
 
 describe('the cap of the dialog', () => {
   it('is the number in the Rust source, so a change there fails here', () => {
-    const rs = readFileSync(new URL('../../../crates/features/variables-import/variables-import-dialog/src/lib.rs', import.meta.url), 'utf8');
-    expect(Number(/pub const MAX_VARIABLES: usize = (\d+);/.exec(rs)![1])).toBe(IMPORT_CAP);
+    const rs = readFileSync(new URL('../../../crates/core/meldframe-app-model/src/variables_io.rs', import.meta.url), 'utf8');
+    expect(Number(/pub const IMPORT_MAX_VARIABLES: usize = (\d+);/.exec(rs)![1])).toBe(IMPORT_CAP);
   });
   it('is in the help, with the tool that takes a longer style sheet', () => {
     expect(IMPORT_HELP.join(' ')).toContain(`At most ${IMPORT_CAP} variables at a time`);

@@ -28,7 +28,7 @@ use variables_import::{
 /// again 3 times and then rolled back with the ops that depend on it. An import of more than about 60 commands can
 /// therefore be rolled back after the dialog said it was done. The cap keeps an import inside the burst. A longer
 /// style sheet goes through the agent tool `import_tokens`, which cuts it into atomic parts.
-pub const MAX_VARIABLES: usize = 50;
+pub const MAX_VARIABLES: usize = meldframe_app_model::IMPORT_MAX_VARIABLES;
 
 /// The most commands of an import: the burst of 60, less 5 for the person's own ops sent in the same moments.
 pub const MAX_COMMANDS: usize = 55;
