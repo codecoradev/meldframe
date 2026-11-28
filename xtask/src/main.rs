@@ -1,6 +1,7 @@
 //! Repository checks: layering rules, build matrix, portability and other gates.
 
 mod args;
+mod bin_homes;
 mod both_workspaces;
 mod gitsrc;
 mod groups;
@@ -103,8 +104,8 @@ fn with_packages(command: &str, f: impl FnOnce(&[rules::Package]) -> ExitCode) -
     }
 }
 
-/// The rules of `deps-check`: kinds and the matrix, the line between the two workspaces, and the
-/// manifests that name a git source.
+/// The rules of `deps-check`: kinds and the matrix, where a `bin` crate may live, the line between
+/// the two workspaces, and the manifests that name a git source.
 fn deps_check(root: &std::path::Path, packages: &[rules::Package]) -> Vec<String> {
     let manifests = gitsrc::collect(root);
     fn shown(v: &[impl std::fmt::Display]) -> Vec<String> {
@@ -112,6 +113,7 @@ fn deps_check(root: &std::path::Path, packages: &[rules::Package]) -> Vec<String
     }
     [
         shown(&rules::check(packages)),
+        shown(&bin_homes::check(packages)),
         shown(&workspaces::check(packages)),
         shown(&gitsrc::check(&manifests)),
     ]
