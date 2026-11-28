@@ -191,3 +191,21 @@ fn an_undo_that_takes_the_import_away_does_not_touch_the_name() {
     assert!(!has_result(&l));
     assert_eq!(source(&l).as_deref(), Some("theme.css"));
 }
+
+#[test]
+fn clearing_a_field_that_came_from_a_file_forgets_the_name_alone_and_says_so_once() {
+    let mut l = Loopback::live();
+    l.send(Action::OpenVariablesImport {});
+    choose(&mut l, "theme.css");
+    assert!(!has_result(&l), "no import was made: only a file was read");
+    l.events.clear();
+    l.send(Action::ClearVariablesImport {});
+    assert_eq!(source(&l), None);
+    assert_eq!(changes(&mut l), 1, "the name went: one thing to say");
+    l.send(Action::ClearVariablesImport {});
+    assert_eq!(
+        changes(&mut l),
+        0,
+        "neither a result nor a name: nothing to say"
+    );
+}
