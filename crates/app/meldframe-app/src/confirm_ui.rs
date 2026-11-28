@@ -1,8 +1,8 @@
-//! The tab of the right card and the question of the Activity panel as state of the app (audit finding T10, issue 323).
-//! A question is a pending question, source-agnostic UI state (rule U7; not an **Approval** of the glossary, which is the
+//! The tab of the right card and the question of the Activity panel as state of the app (audit finding T10, issue 323):
+//! a question is a pending question, source-agnostic UI state (rule U7; not an **Approval** of the glossary, which is the
 //! owner's answer to an Ask call): nothing is reverted or restored until it is confirmed, it is answered once, and one that
-//! is dropped unanswered (its row gone, the selection moved to another batch, its checkpoint gone, the tab changed) is closed.
-//! The revert and the restore themselves are `review.rs`; the fetch is `activity.rs`.
+//! is dropped unanswered (its row gone, the selection moved to another batch, its checkpoint gone, the tab changed) is closed,
+//! while the revert and the restore themselves are `review.rs` and the fetch is `activity.rs`.
 
 use crate::app::App;
 use crate::document::refuse;

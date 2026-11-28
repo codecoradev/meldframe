@@ -1,8 +1,8 @@
-//! The Export variables and Import variables dialogs (D8). The export is the `export` feature's text of every variable
+//! The Export variables and Import variables dialogs (D8): the export is the `export` feature's text of every variable
 //! of the file, built from the person's own view and kept while its dialog is open; the import is `variables-import`'s
 //! reading of CSS text, applied as `Action::EditVariables` applies commands (`apply_variables`, after the same check
-//! of the whole list: one undo step, the person's own edit, sent to the server as ops like any other). The export text and the plan are made by the
-//! `export-dialog` and `variables-import-dialog` crates, and this decides when. Nothing is applied by a refusal.
+//! of the whole list: one undo step, the person's own edit, sent to the server as ops like any other); the export text and
+//! the plan are made by the `export-dialog` and `variables-import-dialog` crates, and this decides when, and nothing is applied by a refusal.
 
 use crate::app::App;
 use crate::document::refuse;

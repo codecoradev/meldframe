@@ -1,6 +1,6 @@
 //! A refusal the server calls retryable (a quota, a dependency still pending): keep the op and send it
-//! again with the same key after a backoff, a few times, then give up and roll it back. The count and the
-//! clock are `meldframe_app_rules::retry::Retries`.
+//! again with the same key after a backoff, a few times, then give up and roll it back, with the count and the
+//! clock in `meldframe_app_rules::retry::Retries`.
 
 use crate::app::App;
 use crate::effect::Effect;

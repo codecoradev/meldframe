@@ -1,5 +1,5 @@
 //! Variables in the app layer (E3.3): the mode a collection is shown in, the resolved values of the properties
-//! panel, and the action that applies variable commands. The mode is view state; the rules of resolving, checking
+//! panel, and the action that applies variable commands, where the mode is view state; the rules of resolving, checking
 //! and applying are in `meldframe-variables` and `meldframe-check`, and the rules of the pick and of the check of
 //! a list of commands are in `meldframe_app_rules::modes`.
 

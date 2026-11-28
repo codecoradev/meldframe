@@ -1,5 +1,5 @@
 //! Interaction on a laid-out canvas: a drop and a resize worked out from the boxes the canvas draws, and the box the
-//! properties panel shows. The rules are `meldframe-app-rules` (`drop`, `resize`); this applies what they decide as one
+//! properties panel shows, by the rules of `meldframe-app-rules` (`drop`, `resize`); this applies what they decide as one
 //! history step, through the one replica (and so the one gate), and reads the boxes from the host's layout.
 //!
 //! With the host flag `layout_on_canvas` off, none of the layout rules applies: a drop is a move by the drag, a resize

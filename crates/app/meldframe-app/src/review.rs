@@ -1,7 +1,7 @@
 //! Review and restore (E5.2, E5.3): the app keeps the ops the server confirmed since it loaded the file, so a batch can be
 //! reverted with the rules of `meldframe-revert`, and works out a restore from the file as the server had it at the
-//! checkpoint. Both come out as commands of the person in one history group: one undo takes them back, and the log only
-//! grows. Where the caller may make a checkpoint both wait for the server's row first (`checkpoints.rs`). The record and
+//! checkpoint; both come out as commands of the person in one history group: one undo takes them back, and the log only
+//! grows; where the caller may make a checkpoint both wait for the server's row first (`checkpoints.rs`), and the record and
 //! the plans are in `meldframe_app_rules::review`.
 
 use crate::app::App;
