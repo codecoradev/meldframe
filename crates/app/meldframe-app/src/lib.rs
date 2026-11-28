@@ -36,6 +36,7 @@ mod palette;
 mod panel;
 mod picker;
 mod pointer;
+pub mod pointer_machine;
 mod props;
 mod raster;
 mod retry;
@@ -80,7 +81,6 @@ pub use meldframe_app_model::{KeyFocus, KeyInput, Modifiers};
 pub use meldframe_app_model::{
     PointerButton, PointerCursor, PointerGesture, PointerInput, PointerPhase, PointerState,
 };
-pub use meldframe_app_pointer::PointerPreview;
 pub use meldframe_app_rules::canvas::MeasurerBox;
 pub use meldframe_app_rules::draw::DrawPreview;
 pub use meldframe_app_rules::drop::Slot as DropSlot;
@@ -93,3 +93,4 @@ pub use meldframe_layout::{StubMeasurer, TextMeasurer};
 pub use meldframe_protocol::{ImageFit, VarType};
 pub use meldframe_sync::LoadError;
 pub use palette::Ran as PaletteRan;
+pub use pointer_machine::PointerPreview;

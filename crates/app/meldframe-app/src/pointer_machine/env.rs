@@ -17,7 +17,7 @@ pub struct Env<'a> {
     pub hit: &'a dyn Fn(f64, f64) -> Option<String>,
     /// The box around the selected nodes in world space, none for none (`meldframe_render::extent_of`).
     pub selection_rect: &'a dyn Fn() -> Option<Rect>,
-    /// The ids a marquee over a world rectangle selects: the top-level nodes it overlaps (see [`crate::top_level`]), back to front.
+    /// The ids a marquee over a world rectangle selects: the top-level nodes it overlaps (see [`crate::pointer_machine::top_level`]), back to front.
     pub within: &'a dyn Fn(Rect) -> Vec<String>,
 }
 

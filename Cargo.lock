@@ -1132,7 +1132,6 @@ dependencies = [
  "meldframe-activity",
  "meldframe-app-model",
  "meldframe-app-parts",
- "meldframe-app-pointer",
  "meldframe-app-rules",
  "meldframe-camera",
  "meldframe-check",
@@ -1244,17 +1243,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-app-pointer"
-version = "0.0.0"
-dependencies = [
- "meldframe-app-model",
- "meldframe-app-rules",
- "meldframe-layout",
- "meldframe-protocol",
- "serde",
-]
-
-[[package]]
 name = "meldframe-app-review-tests"
 version = "0.0.0"
 dependencies = [
@@ -1305,7 +1293,6 @@ dependencies = [
  "meldframe-app",
  "meldframe-app-model",
  "meldframe-app-parts",
- "meldframe-app-pointer",
  "meldframe-app-rules",
  "meldframe-check",
  "meldframe-layout",

@@ -1,5 +1,5 @@
 //! The wire shape of the pointer data (E8.1.4, part 2): what a front end sends and reads as JSON. The machine that gives it meaning
-//! is `meldframe-app-pointer`.
+//! is `meldframe_app::pointer_machine`.
 
 // Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.
 #[cfg(target_arch = "wasm32")]
