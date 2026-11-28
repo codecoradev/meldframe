@@ -16,7 +16,7 @@
 //! `before:`), an important or negative form, and a value that cannot be a CSS value here. The agent that has the
 //! project's compiled CSS sends it as `css`, where those classes are ordinary rules.
 
-use crate::css::Pseudo;
+use crate::reader::css::Pseudo;
 
 /// A class read: the box it styles and its declarations (`name`, `value`), in the order of the utility.
 #[derive(Debug, Clone, PartialEq, Eq)]

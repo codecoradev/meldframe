@@ -1,11 +1,11 @@
 //! The custom properties (`--x`) of an element: the parent's, with what the element declares resolved over them, on
-//! the element that declares them (see `style.rs` for the rules).
+//! the element that declares them (see `styles.rs` for the rules).
 
+use crate::reader::css::Candidate;
 use crate::style::computed::{Custom, Note};
 use crate::style::styles::Cx;
 use crate::style::value::is_wide;
 use crate::style::vars::{MAX_DEPTH, VarError, resolve};
-use html_import_css::css::Candidate;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
