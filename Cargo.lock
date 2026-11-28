@@ -1408,30 +1408,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-checkpoint-pg-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "checkpoint-store",
- "futures-util",
- "meldframe-checkpoints",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-checkpoints",
- "meldframe-http-live",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-revert",
- "meldframe-server",
- "meldframe-store-pg",
- "reqwest",
- "rmcp",
- "serde_json",
- "tokio",
- "tokio-tungstenite 0.26.2",
-]
-
-[[package]]
 name = "meldframe-checkpoint-tests"
 version = "0.0.0"
 dependencies = [
@@ -1861,6 +1837,7 @@ dependencies = [
  "meldframe-batch",
  "meldframe-calls",
  "meldframe-check",
+ "meldframe-checkpoints",
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-activity",
@@ -1877,6 +1854,7 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-render",
+ "meldframe-revert",
  "meldframe-rooms",
  "meldframe-store-contract",
  "meldframe-store-pg",

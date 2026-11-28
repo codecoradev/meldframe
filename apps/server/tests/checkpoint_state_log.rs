@@ -2,7 +2,8 @@
 //! variable, and a log the server cannot work out. The replay starts from the snapshot's nodes and its variables, and
 //! a log that does not replay is an error that is not retryable, with a plain code and no detail of the replay.
 
-mod world;
+mod checkpoint_world;
+use checkpoint_world::*;
 use meldframe_checkpoints::{Kind, NewCheckpoint};
 use meldframe_host::{Principal, Snapshot, Store, StoredOp};
 use meldframe_http::mcp::Reader;
@@ -11,7 +12,6 @@ use meldframe_server::{Server, SharedServer};
 use meldframe_store_pg::{Backing, room_key};
 use serde_json::{Value, json};
 use std::sync::Arc;
-use world::*;
 
 use checkpoint_store::CheckpointStore;
 

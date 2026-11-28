@@ -1,11 +1,11 @@
 //! `GET` and `POST /v1/files/{file}/checkpoints` through the real router (ADR-0023, slice 5): who may make a row, what a
 //! request may carry, the answers, the idempotency of a key, and what the call log keeps.
 
-mod world;
+mod checkpoint_world;
+use checkpoint_world::*;
 use meldframe_http_live::LiveSource;
 use meldframe_module::Policy;
 use serde_json::{Value, json};
-use world::*;
 
 const PATH: &str = "/v1/files/f/checkpoints";
 /// The person's token is `PERSON`, whose actor is `user:bea`, the one actor the worlds list.

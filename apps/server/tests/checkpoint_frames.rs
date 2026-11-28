@@ -1,14 +1,14 @@
 //! The `checkpoint` frame on the live streams of the real server (ADR-0023, slice 5): where it comes in the queue, what
 //! it holds, who gets it, and that neither a flood by agents nor a burst of creates takes a person's row or delays an op.
 
-mod world;
+mod checkpoint_world;
+use checkpoint_world::*;
 use meldframe_checkpoints::Kind;
 use meldframe_host::Principal;
 use meldframe_http_live::LiveSource;
 use meldframe_protocol::ServerMsg;
 use meldframe_server::Frame;
 use serde_json::json;
-use world::*;
 
 type Out = Frame<meldframe_host::StoredOp, ServerMsg>;
 
