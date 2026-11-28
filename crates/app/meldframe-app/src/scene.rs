@@ -13,40 +13,8 @@
 //! change moves neither epoch and costs no resolve, and a shell that draws through a camera needs no new scene for it.
 
 use crate::app::App;
+use crate::view_cache::{Held, Key};
 use meldframe_render::PaintedBox;
-use std::cell::{Cell, RefCell};
-use std::collections::BTreeMap;
-
-/// Everything the painted boxes depend on: the revision, the measurer generation, the flag and the modes picked.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Key {
-    revision: (u64, u64),
-    generation: u64,
-    enabled: bool,
-    modes: BTreeMap<String, String>,
-}
-
-#[derive(Debug, Default)]
-struct Held {
-    key: Option<Key>,
-    epoch: u64,
-    /// The boxes for `key`, worked out on the first read after the key changed (an epoch can be asked for without them).
-    boxes: Option<Vec<PaintedBox>>,
-}
-
-/// The painted boxes of the last read, with the epoch they belong to.
-#[derive(Debug, Default)]
-pub(crate) struct SceneCache {
-    held: RefCell<Held>,
-    /// How many times the scene was worked out (a test reads it through `App::scene_resolves`).
-    resolves: Cell<u64>,
-}
-
-impl SceneCache {
-    pub(crate) fn resolves(&self) -> u64 {
-        self.resolves.get()
-    }
-}
 
 impl App {
     fn scene_key(&self) -> Key {
