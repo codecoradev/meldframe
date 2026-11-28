@@ -1,5 +1,7 @@
 //! The Export variables dialog (D8): every variable of the file as CSS, built by the `export` feature from the person's
-//! own view of the variables. No modes or frame come into it: all modes are written.
+//! own view of the variables.
+//!
+//! No modes or frame come into it: all modes are written.
 
 use export::{ExportError, Finding, MAX_OUTPUT_BYTES, export_variables};
 use meldframe_app_model::{ExportFinding, VariablesExportDialog};
