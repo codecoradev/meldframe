@@ -47,6 +47,11 @@ pub fn gpu_path() -> (String, bool) {
     }
 }
 
+/// True when the run is on a software adapter, so that a frame cost must not be judged.
+pub fn software_adapter() -> bool {
+    gpu_path().1
+}
+
 /// The record, as lines.
 pub fn run_record() -> Report {
     let mut r = Report::new("RUN");
