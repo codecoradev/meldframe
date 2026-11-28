@@ -4,7 +4,6 @@
 //! "Z" is a principal of the other workspace (BETA) whose calls are stuck on purpose to hold a place; "Y" is
 //! the principal under test (ALPHA).
 
-#[path = "../../meldframe-live-tests/tests/common/mod.rs"]
 mod common;
 
 use common::*;

@@ -83,12 +83,15 @@ meldframe-store-pg = { path = "../../crates/integrations/meldframe-store-pg" }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "signal"] }
 
-# What the tests in `tests/` use beyond the dependencies above: the `json` feature of axum, the `macros` of tokio and
-# `tower` (`oneshot`). Dev-dependencies do not ship and do not count for the layering (decision 44).
+# What the tests in `tests/` use beyond the dependencies above: the `json` and `ws` features of axum, the `macros` and
+# `time` of tokio, `tower` (`oneshot`) and the WebSocket client of the live tests. Dev-dependencies do not ship and do
+# not count for the layering (decision 44).
 [dev-dependencies]
-axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
-tokio = { version = "1", features = ["macros"] }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
+tokio = { version = "1", features = ["macros", "time"] }
 tower = { version = "0.5", features = ["util"] }
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
 
 [lints]
 workspace = true
