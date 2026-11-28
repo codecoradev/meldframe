@@ -5,11 +5,14 @@
 //! SKIPPED and passes (`common/server.rs` of `meldframe-net` says how the binary is built and what makes that a failure).
 
 use meldframe_app::Connection;
-use meldframe_desktop::{MOVE_STEP, Notice, State, WINDOW_SIZE, spec};
+use meldframe_desktop::{Notice, State, WINDOW_SIZE, spec};
 use meldframe_net::{Config, Problem};
 use meldframe_ui_rune::BAR_HEIGHT;
 use rune::{Env, Runtime};
 use std::time::{Duration, Instant};
+
+/// What the Move button asks for: the coarse nudge of the app layer, 10 units to the right.
+const NUDGE: f64 = 10.0;
 
 #[path = "../../../crates/os/meldframe-net/tests/common/server.rs"]
 mod server;
@@ -147,7 +150,7 @@ fn a_click_selects_and_move_reaches_the_server_and_comes_back_confirmed() {
         3,
         "the event came back over the socket"
     );
-    assert_eq!(server_x(&server, "w2", "r1"), 10.0 + MOVE_STEP);
+    assert_eq!(server_x(&server, "w2", "r1"), 10.0 + NUDGE);
 }
 
 #[test]
@@ -173,7 +176,7 @@ fn a_cut_socket_shows_as_offline_and_a_change_made_meanwhile_arrives_after_the_r
             && rt.state.app().state().pending.is_empty()
     });
     assert_eq!(status(&rt), "Connected");
-    assert_eq!(server_x(&server, "w3", "r1"), 10.0 + MOVE_STEP);
+    assert_eq!(server_x(&server, "w3", "r1"), 10.0 + NUDGE);
 }
 
 #[test]
