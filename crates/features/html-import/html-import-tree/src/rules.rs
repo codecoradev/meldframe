@@ -1,5 +1,7 @@
 //! The element rules of the builder, as data: which elements have no content, which hold raw text, and which start
-//! tags end an element that is open. This is the whole of the subset (ADR-0024): there is no other recovery than
+//! tags end an element that is open.
+//!
+//! This is the whole of the subset (ADR-0024): there is no other recovery than
 //! these tables and the end-tag rule in `build.rs`, no formatting-element adoption, no table foster parenting and
 //! no implied `html`, `head` or `body`.
 
