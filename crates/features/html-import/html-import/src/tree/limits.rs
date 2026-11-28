@@ -1,7 +1,7 @@
 //! The bounds of the tree builder (ADR-0024) and the reasons it refuses a text.
 
 /// What a read is bounded by. A text over `max_input_bytes`, or with more than `max_elements` elements, is refused;
-/// the others cut something and the report says what (see [`crate::Report`]).
+/// the others cut something and the report says what (see [`crate::tree::Report`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Limits {
     /// The most bytes of text (`docs/import-html.md` counts HTML and CSS together; the caller passes what is left

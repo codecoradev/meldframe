@@ -6,7 +6,7 @@
 //! are not applied here: a property with no value stays absent in the computed style, and the mapping writes the
 //! model's field explicitly (`fill` none, `clip` false, `padding` 0, `gap` 0 unless authored).
 
-use html_import_tree::{ElementId, Tree};
+use crate::tree::{ElementId, Tree};
 
 /// The properties that pass to children: the five of the note, `font-family` and `line-height` (read, then refused
 /// where they land), and the other inherited ones the mapping refuses by name.

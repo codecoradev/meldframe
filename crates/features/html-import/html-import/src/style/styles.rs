@@ -32,7 +32,7 @@ use crate::style::defaults::{inherits, initial, ua, ua_page};
 use crate::style::shorthand::{expand, longhands};
 use crate::style::value::{colour, length};
 use crate::style::vars::{Cost, resolve};
-use html_import_tree::{ElementId, Tree};
+use crate::tree::{ElementId, Tree};
 use std::sync::Arc;
 
 /// The computed styles of a tree.

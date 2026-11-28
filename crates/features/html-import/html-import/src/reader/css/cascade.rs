@@ -19,7 +19,7 @@ use super::matching::{Matcher, Node};
 use super::selector::{Pseudo, Simple};
 use super::{Decl, EntryKind, Limits, Report, Stylesheet, read_declarations};
 use crate::reader::tw;
-use html_import_tree::{ElementId, MAX_ENTRIES, Tree};
+use crate::tree::{ElementId, MAX_ENTRIES, Tree};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -62,7 +62,7 @@ pub const MAX_UNRESOLVED: usize = 32;
 /// The result: one [`Matched`] for each element of the tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cascade {
-    /// Indexed by [`html_import_tree::ElementId::index`]; the root, at 0, has nothing.
+    /// Indexed by [`crate::tree::ElementId::index`]; the root, at 0, has nothing.
     pub elements: Vec<Matched>,
     /// For the `html` and `body` that a fragment has no element for: what applies to them (the next stage takes
     /// the custom properties and the inherited values from them). `None` when the tree has the element itself.

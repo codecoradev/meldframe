@@ -7,7 +7,7 @@
 //! elements `body` and `html` with no attributes, and nothing else.
 
 use super::selector::{Combinator, Compound, Selector, Simple};
-use html_import_tree::{ElementId, Tree};
+use crate::tree::{ElementId, Tree};
 
 /// An element a selector is tested against.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

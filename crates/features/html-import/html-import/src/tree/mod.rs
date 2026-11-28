@@ -1,5 +1,6 @@
-//! The tolerant tree builder: HTML text, a fragment or a whole document, to a tree of elements and a report
-//! ([`parse`]). It reads this subset and nothing more (ADR-0024):
+//! The tolerant tree builder: HTML text, a fragment or a whole document, to a tree of elements and a report ([`parse`]), over a documented subset and nothing more (ADR-0024).
+//!
+//! The subset it reads:
 //!
 //! - **Tags and attributes.** Names are folded to ASCII lower case and cut to [`MAX_NAME_BYTES`]. Values may be
 //!   quoted, single-quoted, bare or missing; the first occurrence of a name decides, kept or cut for its length, and
@@ -31,14 +32,14 @@
 //! rule looks back a bounded number of open elements, so it is linear in the size of the text.
 
 mod build;
+mod elements;
 mod limits;
 mod report;
 mod rules;
 mod tag;
 mod text;
-mod tree;
 
 pub use build::parse;
+pub use elements::{Attr, Child, Element, ElementId, MAX_NAME_BYTES, Parsed, Tree};
 pub use limits::{Limits, ParseError};
 pub use report::{Entry, EntryKind, MAX_ENTRIES, MAX_REPORT_BYTES, Report};
-pub use tree::{Attr, Child, Element, ElementId, MAX_NAME_BYTES, Parsed, Tree};
