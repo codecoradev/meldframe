@@ -1,12 +1,12 @@
 //! Calls of one batch that overlap or repeat (ADR-0021, slice 4): a replay racing the original it replays, a retry that
 //! fails again, and a non-atomic call that times out. The sink is driven in the order the test chooses.
 
-mod world;
+mod activity_world;
+use activity_world::*;
 use meldframe_http_activity::Activity;
 use serde_json::json;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use world::*;
 
 /// The sink as `apply_commands` calls it, without the transport: the order of two calls of one batch is the test's.
 fn sink_of(w: &World) -> Arc<dyn meldframe_activity::BatchSink> {

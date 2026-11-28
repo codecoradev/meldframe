@@ -1,7 +1,7 @@
 //! The harness of the setter tests: a server with batch 1 in file `f`, and calls to the route.
 #![allow(dead_code, reason = "each test binary uses a part of these helpers")]
 
-#[path = "../../../meldframe-activity-pg-tests/tests/world/mod.rs"]
+#[path = "../activity_world/mod.rs"]
 pub mod world;
 pub use meldframe_host::Principal;
 use meldframe_http_activity::Reviewers;

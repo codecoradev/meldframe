@@ -1,13 +1,13 @@
 //! The `batch` frame on the live streams of the real server (ADR-0021, slice 5): where it comes in the queue, what it
 //! holds, who gets it, and what its headroom does and does not promise.
 
-mod world;
+mod activity_world;
+use activity_world::*;
 use meldframe_host::Principal;
 use meldframe_http_live::LiveSource;
 use meldframe_protocol::ServerMsg;
 use meldframe_server::Frame;
 use serde_json::json;
-use world::*;
 
 type Out = Frame<meldframe_host::StoredOp, ServerMsg>;
 

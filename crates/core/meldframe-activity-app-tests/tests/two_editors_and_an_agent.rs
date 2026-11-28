@@ -4,7 +4,7 @@
 //! Real: `meldframe_server::Server` (gate, room and log, with a test tool `paint`) takes the agent's ops and the
 //! editors' ops, and numbers them; `meldframe-app` runs in-process. Scripted: the batch header, the `batch` frames to
 //! every stream and the answers of the review route, which the batch sink and routes of `meldframe-http-activity`
-//! would give (they are tested against the real server in `meldframe-activity-pg-tests`, not here).
+//! would give (they are tested against the real server in `apps/server/tests`, not here).
 
 use meldframe_app::{Action, Effect, Frame};
 use meldframe_app_harness as support;

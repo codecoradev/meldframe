@@ -2,12 +2,12 @@
 //! the actors named in `MELDFRAME_REVIEWERS` and nobody else, takes a `rev`, goes out as a `batch` frame to every open
 //! stream of the file, and is logged with its actor and outcome code and nothing more.
 
-mod support;
+mod activity_support;
+use activity_support::*;
 use meldframe_http_live::LiveSource;
 use meldframe_protocol::ServerMsg;
 use meldframe_server::StreamId;
 use serde_json::{Value, json};
-use support::*;
 
 #[tokio::test]
 async fn unset_refuses_every_caller_as_forbidden() {

@@ -2,10 +2,10 @@
 //! (ADR-0021, slice 4): the check before the write, the three cases (a call that wrote, a call that failed after a
 //! prefix, a replay), the answer and what is kept.
 
-mod world;
+mod activity_world;
+use activity_world::*;
 use serde_json::{Value, json};
 use std::sync::atomic::Ordering;
-use world::*;
 
 #[tokio::test]
 async fn a_call_with_a_note_makes_a_numbered_batch_and_answers_it() {
