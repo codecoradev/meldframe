@@ -1,5 +1,6 @@
 // The view state of the Export variables and Import variables dialogs, as pure steps. What each dialog shows is the app
 // layer's (`state.variablesIo`); this is what the page keeps on top of it, and the rules for when that is put away.
+import type { Action } from '@meldframe/protocol';
 import { nameOf } from '@meldframe/web-document/names';
 
 /** What the last Copy said, and the text it was about. */
@@ -63,6 +64,19 @@ export const fileRefused = (v: ImportView, error: string): ImportView => ({ ...v
  * the note would still say a file was read). A dialog closed without an import keeps both: Escape is not a Clear.
  */
 export const applied = (): ImportView => FRESH;
+
+/**
+ * Tells the app layer the name of the file that was read. A name the bridge cannot carry (a lone surrogate, which JSON writes as an
+ * escape that the app layer's parser refuses) must not stop the text and the note: it goes as a name that is nothing, which the app
+ * layer keeps as empty and the page words. Nothing here cleans the name; the app layer does.
+ */
+export function sendSource(dispatch: (a: Action) => void, name: string): void {
+  try {
+    dispatch({ type: 'chooseVariablesImportSource', name });
+  } catch {
+    dispatch({ type: 'chooseVariablesImportSource', name: '' });
+  }
+}
 
 /**
  * Whether the focus is on nothing that can take a key: nowhere, on the page body, or on a control that has become disabled

@@ -4,7 +4,7 @@
 // (`state.variablesIo.import`, `io.ts`); this keeps view state only, for the life of the page: closing the dialog keeps the text, and an
 // import that was applied, or Clear, starts it again.
 import type { Action, VariablesImportResult } from '@meldframe/protocol';
-import { FRESH, type ImportView, applied, edited, fileInto, latest, stale } from './flow';
+import { FRESH, type ImportView, applied, edited, fileInto, latest, sendSource, stale } from './flow';
 import { sizeText } from './io';
 import type { Read } from './read';
 
@@ -58,7 +58,7 @@ export function createImportFlow<F extends { name: string; size: number }>(deps:
       if (!next) return;
       // The result of an earlier text is not about this one. The app layer makes the name of the file safe to show: only the name of a file that was read goes.
       if (deps.result()) deps.dispatch(CLEAR);
-      if (next.note === null) deps.dispatch({ type: 'chooseVariablesImportSource', name: file.name });
+      if (next.note === null) sendSource(deps.dispatch, file.name);
       set(next);
     },
     /** The dialog closed (Escape, Close, the scrim): the app layer forgets the result, a file under way must not fill a field the person has left, and the text stays. */

@@ -12,7 +12,7 @@
   import type { Action, VariablesImportResult } from '@meldframe/protocol';
   import IconButton from '@meldframe/web-chrome/IconButton.svelte';
   import TooltipProvider from '@meldframe/web-chrome/TooltipProvider.svelte';
-  import { FRESH, type ImportView, applied, edited, fileInto, latest, noteOf, stale, stranded } from './flow';
+  import { FRESH, type ImportView, applied, edited, fileInto, latest, noteOf, sendSource, stale, stranded } from './flow';
   import ImportVariablesBody from './ImportVariablesBody.svelte';
   import { sizeText } from './io';
   import { readFile } from './read';
@@ -70,7 +70,7 @@
     if (!next) return;
     // The result of an earlier text is not about this one; the name of a file that was read goes to the app layer, which makes it safe to show.
     if (result) dispatch({ type: 'clearVariablesImport' });
-    if (next.note === null) dispatch({ type: 'chooseVariablesImportSource', name: file.name });
+    if (next.note === null) sendSource(dispatch, file.name);
     view = next;
   }
   // The first thing to focus is the field, not the Close button: a tooltip opens on that button and takes the first Escape.

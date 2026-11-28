@@ -70,6 +70,22 @@ describe('the field of the Import variables dialog, as a flow', () => {
     expect(sent).toEqual([chose(raw)]);
     expect(JSON.stringify(flow.view())).not.toContain('theme');
   });
+  it('a name the bridge cannot carry (a lone surrogate: JSON.stringify writes it as an escape that serde refuses) never stops the text and the note', async () => {
+    const sent: Action[] = [];
+    const r = reads();
+    // The real bridge throws in `dispatch` for such a name (reasoned from serde_json, which refuses the escape; the real throw is not run here).
+    const dispatch = (a: Action) => {
+      if (a.type === 'chooseVariablesImportSource' && /[\ud800-\udfff]/.test(a.name)) throw new Error('action: unexpected end of hex escape');
+      sent.push(a);
+    };
+    const flow = createImportFlow({ dispatch, result: () => null, read: r.read });
+    const done = flow.choose(file('a\ud800b.css', 17));
+    r.finish({ ok: true, text: ':root{}' });
+    await done;
+    expect(flow.view()).toEqual({ text: ':root{}', note: null, size: '17 bytes' });
+    // The name goes as a name that is nothing, which the app layer keeps as empty and the page words: the note stays right.
+    expect(sent).toEqual([chose('')]);
+  });
   it('a text that changes, or Clear, puts the name of the file away with the result, and sends nothing for a field that came from no file', async () => {
     const { flow, sent, r } = setup();
     flow.edit('typed');

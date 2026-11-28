@@ -58,8 +58,8 @@ describe('the React Import variables dialog', () => {
   });
   it('words the note with the name the app layer made safe (importSource) and sends the raw name of a file that was read, in both copies (rule U9, issue 416)', () => {
     for (const file of ['./ImportDialog.tsx', '../ImportVariablesDialog.svelte']) expect(source(file), file).toContain('noteOf(view, source)');
-    expect(source('../importflow.ts')).toContain("type: 'chooseVariablesImportSource'");
-    expect(source('../ImportVariablesDialog.svelte')).toContain("type: 'chooseVariablesImportSource'");
+    expect(source('../flow.ts')).toContain("type: 'chooseVariablesImportSource'");
+    for (const file of ['../importflow.ts', '../ImportVariablesDialog.svelte']) expect(source(file), file).toContain('sendSource(');
     // No copy builds the note from the name the browser gave.
     for (const file of ['../flow.ts', '../importflow.ts', '../ImportVariablesDialog.svelte', './ImportDialog.tsx']) expect(source(file), file).not.toMatch(/Read \${[^}]*\.name/);
   });

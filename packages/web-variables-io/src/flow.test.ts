@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FRESH, applied, edited, fileInto, fileRead, fileRefused, latest, noteOf, saidFor, stale, stranded, typed } from './flow';
+import { FRESH, applied, edited, fileInto, fileRead, fileRefused, latest, noteOf, saidFor, sendSource, stale, stranded, typed } from './flow';
 
 describe('what the last Copy said', () => {
   it('is shown while the text on view is the text that was copied', () => {
@@ -141,5 +141,22 @@ describe('where the focus is when an import empties the field', () => {
   it('is not stranded on a control that works (the field, Close) or on an element that has no disabled state', () => {
     expect(stranded({ disabled: false }, body)).toBe(false);
     expect(stranded({}, body)).toBe(false);
+  });
+});
+
+describe('the name of a file that was read, sent to the app layer', () => {
+  it('goes as it is, and as an empty name when the bridge refuses it', () => {
+    const sent: unknown[] = [];
+    sendSource((a) => sent.push(a), 'theme.css');
+    expect(sent).toEqual([{ type: 'chooseVariablesImportSource', name: 'theme.css' }]);
+    sent.length = 0;
+    sendSource((a) => {
+      if (a.type === 'chooseVariablesImportSource' && a.name !== '') throw new Error('action: refused');
+      sent.push(a);
+    }, 'a\ud800b.css');
+    expect(sent).toEqual([{ type: 'chooseVariablesImportSource', name: '' }]);
+  });
+  it('lets a failure of the empty name through: that is no name problem', () => {
+    expect(() => sendSource(() => { throw new Error('broken'); }, 'a.css')).toThrow('broken');
   });
 });
