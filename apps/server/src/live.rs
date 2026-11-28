@@ -1,6 +1,8 @@
-//! Live streams of the server: a `meldframe_stream::Streams` (one hub per file with a subscriber) fed by
-//! `Server::submit_tool` with the ops the room accepted (ADR-0009). There is no transport here: a
-//! transport calls `subscribe`, sends the replay and then drains `poll`.
+//! Live streams of the server: one hub per file with a subscriber, fed by `Server::submit_tool` with the ops the room
+//! accepted (ADR-0009).
+//!
+//! A `meldframe_stream::Streams` holds the hubs. There is no transport here: a transport calls `subscribe`, sends the
+//! replay and then drains `poll`.
 //!
 //! Ownership: a stream belongs to the actor that opened it. `poll`, `seen`, `resubscribe`, `unsubscribe`
 //! do nothing for another actor, or for another workspace (the
@@ -10,6 +12,7 @@
 //! unsubscribe or reaping; only idle eviction (or `close`) frees it, so streams on many files keep their
 //! rooms open until then.
 
+use crate::clock;
 use crate::{Server, limits, room_key};
 use meldframe_host::{Principal, Store, StoreError, StoredOp};
 use meldframe_protocol::ServerMsg;
@@ -139,7 +142,7 @@ impl Server {
         }
         let key = room_key(&who.workspace, file);
         let opened = self
-            .open_room(&who.workspace, &key, crate::now())
+            .open_room(&who.workspace, &key, clock::now())
             .map_err(SubscribeError::Rooms)?;
         // `close_all` reaches only the keys recorded here, so a room a stream opened must be one of them.
         self.open_keys.insert(key.clone());
@@ -175,7 +178,7 @@ impl Server {
         {
             return None;
         }
-        self.live.flush_touches(crate::now());
+        self.live.flush_touches(clock::now());
         self.live.poll(&room_key(&who.workspace, file), id, now)
     }
 
@@ -195,8 +198,8 @@ impl Server {
     /// connections to close, by stream id; the file key names another workspace's file too, so a
     /// transport must never forward them to a client.
     pub fn tick(&mut self, now: u64) -> Vec<(String, StreamId)> {
-        self.close_idle(crate::now());
-        self.live.flush_touches(crate::now());
+        self.close_idle(clock::now());
+        self.live.flush_touches(clock::now());
         let dropped = self.live.tick(now);
         for (_, id) in &dropped {
             self.owners.forget(*id);

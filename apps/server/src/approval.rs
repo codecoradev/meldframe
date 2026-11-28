@@ -1,9 +1,13 @@
 //! The approval path of the server (E2.4, ADR-0010): a call that the gate says Ask for opens an approval, the owner
-//! decides, and the same call sent again is admitted once. The state machine is `meldframe-approvals`; this is how the
-//! server uses it: when a call may ask, who may answer, and what goes to the call log.
+//! decides, and the same call sent again is admitted once.
+//!
+//! The state machine is `meldframe-approvals`; this is how the server uses it: when a call may ask, who may
+//! answer, and what goes to the call log.
 
-use crate::{CallEntry, Server, now};
+use crate::Server;
+use crate::clock::now;
 use meldframe_approvals::{AnswerError, Approval, ApprovalGate, ApprovalState};
+use meldframe_calls::CallEntry;
 use meldframe_host::{Gate, Principal};
 
 /// How long an approval lives, pending or approved (15 minutes: a working default, the owner's to change).
