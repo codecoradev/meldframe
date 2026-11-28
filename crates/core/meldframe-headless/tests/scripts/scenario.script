@@ -1,0 +1,81 @@
+# The scenario of E8.1.9: open a file, select a frame, move it, resize a rectangle by a handle, press keys,
+# run a palette entry, export a frame as a PNG and read the state. Every number is checked.
+open nodes.json
+camera viewport 800 600
+
+select f1
+expect state /selection ["f1"]
+move f1 150 160
+expect clean
+expect node f1 x 150
+expect node f1 y 160
+expect state /history/canUndo true
+undo
+expect node f1 x 100
+expect node f1 y 100
+expect state /history/canRedo true
+
+select r1
+handle r1 se 30 20
+expect clean
+expect node r1 w 80
+expect node r1 h 60
+expect node r1 x 10
+expect node r1 y 10
+
+key r
+expect state /tool "rectangle"
+key v
+expect state /tool "select"
+key ctrl+z
+expect node r1 w 50
+expect node r1 h 40
+
+palette ellipse
+palette ellipse run tool-ellipse
+expect state /tool "ellipse"
+
+export f1 png 2
+expect clean
+expect delivered 600 400
+export f1 html
+expect clean
+expect state /export/dialog/htmlFile "Card.html"
+
+state
+# The move, its undo, the resize and its undo: four ops, all confirmed by the made-up server.
+expect state /confirmedSeq 4
+expect state /pending []
+
+# The pointer: screen points (the camera is at its home, so they are world points). A press on r1 selects it, a drag past the
+# threshold moves it, and the release writes one op, which one undo takes back.
+tool select
+pointer move 120 120
+expect state /pointer/hover "r1"
+pointer down 120 120
+expect state /selection ["r1"]
+pointer move 150 140
+expect state /pointer/gesture/type "move"
+pointer move 170 150
+pointer up 170 150
+expect clean
+expect state /pointer/gesture {"type":"idle"}
+expect node r1 x 60
+expect node r1 y 40
+undo
+expect node r1 x 10
+expect node r1 y 10
+# A press on empty canvas, outside the page, clears the selection; the right button does nothing.
+pointer down 900 700
+pointer up 900 700
+expect state /selection []
+pointer down 120 120 secondary
+pointer up 120 120 secondary
+expect state /selection []
+# A drag that leaves the canvas is abandoned: the file is as it was.
+pointer down 120 120
+pointer move 200 200
+pointer leave 200 200
+expect state /pointer/gesture {"type":"idle"}
+expect node r1 x 10
+expect state /confirmedSeq 6

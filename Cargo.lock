@@ -1605,6 +1605,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-headless"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-protocol",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "meldframe-history"
 version = "0.0.0"
 dependencies = [

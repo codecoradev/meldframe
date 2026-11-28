@@ -1,0 +1,2 @@
+open nodes.json
+move nope 1 2
