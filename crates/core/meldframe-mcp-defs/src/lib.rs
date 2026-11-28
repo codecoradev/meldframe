@@ -84,7 +84,9 @@ fn file() -> Value {
     json!({"type": "string", "minLength": 1, "maxLength": 128, "description": FILE})
 }
 
-fn key(spelling: &str, other: &str) -> Value {
+/// The schema of an idempotency key argument, one for every tool that takes one. A tool lists the key under both
+/// spellings, each naming the other as `other`.
+pub fn key_schema(spelling: &str, other: &str) -> Value {
     json!({"type": "string", "minLength": 1, "maxLength": MAX_KEY,
         "description": format!("The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send {spelling} or {other}, not both.")})
 }
@@ -117,8 +119,8 @@ fn apply_commands_schema() -> Value {
                 "type": {"enum": ["addNode", "updateNode", "removeNode", "reparent", "reorder", "addCollection", "removeCollection", "addMode", "removeMode", "addVariable", "removeVariable", "renameCollection", "renameMode", "renameVariable", "setVariableValue"]}},
                 "description": "One command; its fields depend on its type, as listed in the tool description. addNode takes node {id, type (frame, rect, ellipse, text or shader), name, parentId, x, y, w, h, fill (a #hex colour, or the word none for no fill; or {var: id} of a colour variable), radius (a number, or {var: id} of a number variable), opacity (0 to 1, default 1; or {var: id} of a number variable), padding (all four sides), padT, padR, padB, padL (one side each, in place of padding for that side), marT, marR, marB, marL (margin per side, room around the node inside an auto layout frame, default 0), gradient {kind linear or radial, angle in degrees as CSS (0 up, 90 right, 180 down), stops [{pos 0 to 1, color #hex}] 2 to 8 in order} painted over fill (null removes it; not on text), absolute (true takes a child of an auto layout frame out of the flow: it sits at its own x and y inside the parent and takes no room), text, ...}; frame presets, for a frame at the top level: Desktop 1440 x 900, Tablet 768 x 1024, Mobile 390 x 844 (set w and h; name the frame after the preset); updateNode takes a patch of the fields to change (null for padT, padR, padB or padL makes that side follow padding again)."},
             "description": "The commands to apply in order: 1 to 100."},
-        "idempotencyKey": key("idempotencyKey", "idempotency_key"),
-        "idempotency_key": key("idempotency_key", "idempotencyKey"),
+        "idempotencyKey": key_schema("idempotencyKey", "idempotency_key"),
+        "idempotency_key": key_schema("idempotency_key", "idempotencyKey"),
         "ifSeq": {"type": "integer", "minimum": 0,
             "description": "The seq of your last read. The call is refused with conflict if a node it touches changed after it. Send ifSeq or if_seq, not both."},
         "if_seq": {"type": "integer", "minimum": 0, "description": "The same as ifSeq."},
@@ -149,8 +151,8 @@ fn get_variables_schema() -> Value {
 fn batch_status_schema() -> Value {
     json!({"type": "object", "required": ["file"], "additionalProperties": false, "properties": {
         "file": file(),
-        "idempotencyKey": key("idempotencyKey", "idempotency_key"),
-        "idempotency_key": key("idempotency_key", "idempotencyKey"),
+        "idempotencyKey": key_schema("idempotencyKey", "idempotency_key"),
+        "idempotency_key": key_schema("idempotency_key", "idempotencyKey"),
         "count": {"type": "integer", "minimum": 1, "maximum": MAX_BATCH,
             "description": "How many commands the call had; with it, state can be partial."}
     }})

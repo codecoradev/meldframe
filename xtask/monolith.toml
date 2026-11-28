@@ -169,13 +169,6 @@ reason = "the same one-command builder in two app-layer crates; goes away when t
 
 [[allow_copy]]
 fns = [
-    "crates/core/meldframe-mcp-defs/src/lib.rs::key",
-    "crates/integrations/meldframe-http-variant/src/lib.rs::key_schema",
-]
-reason = "audit D6: meldframe-mcp-defs owns the idempotency key; meldframe-http-variant should use its schema"
-
-[[allow_copy]]
-fns = [
     "crates/integrations/meldframe-http-activity/src/lib.rs::now_ms",
     "crates/integrations/meldframe-http-checkpoints/src/lib.rs::now_ms",
 ]

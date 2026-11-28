@@ -13,7 +13,7 @@
 use meldframe_check::Limits;
 use meldframe_host::{Op, Principal};
 use meldframe_http::mcp::{
-    Extra, ExtraCall, FileView, MAX_BATCH, MAX_KEY, Reader, change_tool_listing, fnv1a,
+    Extra, ExtraCall, FileView, MAX_BATCH, MAX_KEY, Reader, change_tool_listing, fnv1a, key_schema,
     tool_error as error, tool_failed as failed,
 };
 use meldframe_http::{Failure, Shared, valid_file};
@@ -30,11 +30,6 @@ pub const TOOL: &str = "make_variant";
 pub const DESCRIPTION: &str = "Copy a frame and everything inside it as a variant beside the original, so you can work on a take and keep the original: the copy has new ids, keeps every property and the order of its children, is named \"<name> variant\", and sits under the same parent to the right of every sibling, 40 px past the rightmost one, at the original's height. The copy is written as one atomic call, all or nothing, and the file's limits are checked before anything is written. A frame whose copy would need more than 100 commands (the frame and its descendants together are over 100 nodes) is refused as invalid: duplicate a smaller frame, or build the copy in several apply_commands calls. Only a frame can be copied (E_NOT_A_FRAME otherwise); an id that is not in the file is E_NODE_NOT_FOUND. Every call needs an idempotencyKey (also accepted as idempotency_key): send the same call again with the same key after a timeout and no second copy is made; the answer then has replayed true. The result names the copy's root id (root), the number of nodes written and seq. Name the layers of the copy as you would any others; it keeps the names of the original.";
 
 const FILE: &str = "The name of the file: 1 to 128 characters, no slashes, control or invisible formatting characters. A file belongs to the workspace of your token; a name that does not exist yet is a new, empty file.";
-
-fn key_schema(spelling: &str, other: &str) -> Value {
-    json!({"type": "string", "minLength": 1, "maxLength": MAX_KEY,
-        "description": format!("The idempotency key of the call (1 to 100 characters, no control or hidden characters). Send {spelling} or {other}, not both.")})
-}
 
 /// The JSON Schema of the arguments.
 pub fn input_schema() -> Value {
@@ -322,3 +317,6 @@ impl Call<'_> {
             "nodes": nodes, "seq": seq, "replayed": replayed})
     }
 }
+
+#[cfg(test)]
+mod tests;
