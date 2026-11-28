@@ -1,0 +1,5 @@
+[
+          {"id": "root", "type": "frame", "x": 0, "y": 0, "w": 400, "h": 400, "fill": "#ffffff"},
+          {"id": "dot", "type": "rect", "parentId": "root", "x": 20, "y": 20, "w": 0, "h": 0, "fill": "#ff0000"},
+          {"id": "left", "type": "rect", "parentId": "root", "x": -30, "y": -5, "w": 50, "h": 40, "fill": "#336699"}
+        ]

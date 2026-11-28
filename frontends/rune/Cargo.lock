@@ -532,6 +532,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "canvas-ui-rune"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-protocol",
+ "meldframe-render",
+ "meldframe-ui-rune",
+ "rune",
+ "serde_json",
+]
+
+[[package]]
 name = "cc"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -851,6 +863,29 @@ checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
 dependencies = [
  "event-listener",
  "pin-project-lite",
+]
+
+[[package]]
+name = "export"
+version = "0.0.0"
+dependencies = [
+ "meldframe-css",
+ "meldframe-layout",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-render",
+]
+
+[[package]]
+name = "export-dialog"
+version = "0.0.0"
+dependencies = [
+ "export",
+ "meldframe-app-model",
+ "meldframe-layout",
+ "meldframe-protocol",
+ "meldframe-text",
+ "meldframe-variables",
 ]
 
 [[package]]
@@ -1505,10 +1540,283 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
+name = "meldframe-activity"
+version = "0.0.0"
+dependencies = [
+ "meldframe-protocol",
+ "meldframe-revert",
+ "meldframe-text",
+]
+
+[[package]]
+name = "meldframe-app"
+version = "0.0.0"
+dependencies = [
+ "export-dialog",
+ "meldframe-activity",
+ "meldframe-app-model",
+ "meldframe-app-parts",
+ "meldframe-app-pointer",
+ "meldframe-app-rules",
+ "meldframe-camera",
+ "meldframe-check",
+ "meldframe-checkpoints",
+ "meldframe-history",
+ "meldframe-layout",
+ "meldframe-protocol",
+ "meldframe-render",
+ "meldframe-revert",
+ "meldframe-sync",
+ "meldframe-text",
+ "meldframe-variables",
+ "serde",
+ "serde_json",
+ "variables-import-dialog",
+]
+
+[[package]]
+name = "meldframe-app-export-model"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "ts-rs",
+]
+
+[[package]]
+name = "meldframe-app-model"
+version = "0.0.0"
+dependencies = [
+ "meldframe-activity",
+ "meldframe-app-export-model",
+ "meldframe-camera",
+ "meldframe-check",
+ "meldframe-protocol",
+ "meldframe-revert",
+ "serde",
+ "serde_json",
+ "ts-rs",
+]
+
+[[package]]
+name = "meldframe-app-parts"
+version = "0.0.0"
+dependencies = [
+ "meldframe-activity",
+ "meldframe-app-model",
+ "meldframe-check",
+ "meldframe-checkpoints",
+ "meldframe-order",
+ "meldframe-protocol",
+ "meldframe-render",
+ "meldframe-sync",
+ "meldframe-text",
+ "meldframe-variables",
+ "meldframe-variant",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "meldframe-app-pointer"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app-model",
+ "meldframe-app-rules",
+ "meldframe-layout",
+ "meldframe-protocol",
+ "serde",
+]
+
+[[package]]
+name = "meldframe-app-rules"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app-model",
+ "meldframe-camera",
+ "meldframe-check",
+ "meldframe-checkpoints",
+ "meldframe-layout",
+ "meldframe-order",
+ "meldframe-protocol",
+ "meldframe-render",
+ "meldframe-revert",
+ "meldframe-sync",
+ "meldframe-text",
+ "meldframe-variables",
+ "serde",
+]
+
+[[package]]
+name = "meldframe-camera"
+version = "0.0.0"
+dependencies = [
+ "meldframe-layout",
+ "meldframe-render",
+ "serde",
+ "ts-rs",
+]
+
+[[package]]
+name = "meldframe-check"
+version = "0.0.0"
+dependencies = [
+ "meldframe-css",
+ "meldframe-order",
+ "meldframe-protocol",
+ "meldframe-variables",
+ "serde_json",
+]
+
+[[package]]
+name = "meldframe-checkpoints"
+version = "0.0.0"
+dependencies = [
+ "meldframe-activity",
+ "meldframe-revert",
+ "meldframe-text",
+]
+
+[[package]]
+name = "meldframe-core"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-order",
+ "meldframe-protocol",
+ "meldframe-variables",
+ "serde",
+]
+
+[[package]]
+name = "meldframe-css"
+version = "0.0.0"
+
+[[package]]
+name = "meldframe-desktop"
+version = "0.0.0"
+dependencies = [
+ "canvas-ui-rune",
+ "meldframe-app",
+ "meldframe-protocol",
+ "meldframe-ui-rune",
+ "rune",
+ "serde_json",
+]
+
+[[package]]
+name = "meldframe-history"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-core",
+ "meldframe-protocol",
+ "meldframe-undo",
+]
+
+[[package]]
+name = "meldframe-layout"
+version = "0.0.0"
+dependencies = [
+ "meldframe-order",
+ "meldframe-protocol",
+ "serde",
+]
+
+[[package]]
+name = "meldframe-module"
+version = "0.0.0"
+
+[[package]]
+name = "meldframe-order"
+version = "0.0.0"
+dependencies = [
+ "meldframe-protocol",
+]
+
+[[package]]
+name = "meldframe-protocol"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "ts-rs",
+]
+
+[[package]]
+name = "meldframe-render"
+version = "0.0.0"
+dependencies = [
+ "meldframe-css",
+ "meldframe-layout",
+ "meldframe-order",
+ "meldframe-protocol",
+ "meldframe-text",
+ "meldframe-variables",
+ "serde",
+]
+
+[[package]]
+name = "meldframe-revert"
+version = "0.0.0"
+dependencies = [
+ "meldframe-history",
+ "meldframe-protocol",
+ "meldframe-text",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-rune-pin"
 version = "0.0.0"
 dependencies = [
  "rune",
+]
+
+[[package]]
+name = "meldframe-sync"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-core",
+ "meldframe-history",
+ "meldframe-protocol",
+ "meldframe-variables",
+ "serde_json",
+]
+
+[[package]]
+name = "meldframe-text"
+version = "0.0.0"
+
+[[package]]
+name = "meldframe-ui-rune"
+version = "0.0.0"
+dependencies = [
+ "rune",
+]
+
+[[package]]
+name = "meldframe-undo"
+version = "0.0.0"
+dependencies = [
+ "meldframe-protocol",
+]
+
+[[package]]
+name = "meldframe-variables"
+version = "0.0.0"
+dependencies = [
+ "meldframe-css",
+ "meldframe-protocol",
+]
+
+[[package]]
+name = "meldframe-variant"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-core",
+ "meldframe-protocol",
 ]
 
 [[package]]
@@ -3508,6 +3816,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "ts-rs"
+version = "12.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "756050066659291d47a554a9f558125db17428b073c5ffce1daf5dcb0f7231d8"
+dependencies = [
+ "thiserror 2.0.21",
+ "ts-rs-macros",
+]
+
+[[package]]
+name = "ts-rs-macros"
+version = "12.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38d90eea51bc7988ef9e674bf80a85ba6804739e535e9cab48e4bb34a8b652aa"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+ "termcolor",
+]
+
+[[package]]
 name = "ttf-parser"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3579,6 +3909,29 @@ dependencies = [
  "js-sys",
  "serde_core",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "variables-import"
+version = "0.0.0"
+dependencies = [
+ "meldframe-check",
+ "meldframe-css",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-text",
+ "meldframe-variables",
+]
+
+[[package]]
+name = "variables-import-dialog"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app-model",
+ "meldframe-app-rules",
+ "meldframe-protocol",
+ "meldframe-text",
+ "variables-import",
 ]
 
 [[package]]

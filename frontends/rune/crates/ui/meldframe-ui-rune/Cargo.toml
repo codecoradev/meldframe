@@ -1,0 +1,15 @@
+[package]
+name = "meldframe-ui-rune"
+description = "The Meldframe tokens bound to Rune styles, and the controls the Rune views share (E8.2.2)."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "ui"
+
+[lints]
+workspace = true
+
+[dependencies]
+rune = { workspace = true }
