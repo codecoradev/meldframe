@@ -2,7 +2,7 @@
 //! the element that declares them (see `style.rs` for the rules).
 
 use crate::computed::{Custom, Note};
-use crate::style::Cx;
+use crate::styles::Cx;
 use crate::value::is_wide;
 use crate::vars::{MAX_DEPTH, VarError, resolve};
 use html_import_css::css::Candidate;
@@ -181,7 +181,7 @@ pub(crate) fn customs(
     }
     let mut map = (**parent).clone();
     cx.steps += map.len();
-    cx.bytes += map.len() * crate::style::ENTRY_BYTES;
+    cx.bytes += map.len() * crate::styles::ENTRY_BYTES;
     for (name, entry) in r.done.take() {
         match entry {
             Entry::Value(v) => map.insert(name, Some(v)),
