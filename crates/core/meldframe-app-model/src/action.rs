@@ -1,22 +1,15 @@
 //! Inputs to the app layer. They are UI-neutral: no toolkit events (standard rule U6).
 
-use crate::activity::{BatchHeader, BatchPage, BatchRef, ReviewState};
-use crate::assets::AssetPage;
-use crate::checkpoint::{CheckpointRequest, CheckpointRow};
-use crate::export::ExportFormat;
 pub use crate::frame::Frame;
-use crate::gesture::GestureOp;
-use crate::key::KeyInput;
-use crate::layout::Direction;
-use crate::pointer::PointerInput;
 pub use crate::preset::{CreateKind, FramePreset};
 pub use crate::property::Property;
-use crate::state::{Panel, Tool};
-use crate::text_edit::TextEditOp;
-use crate::variables::{BindField, VariableValue};
 use crate::{
-    confirm::ActivityOp, manage::ManageOp, overlay::OverlayOp, raster::PngOp,
-    text_field::TypedText, wire::Wire,
+    activity::BatchHeader, activity::BatchPage, activity::BatchRef, activity::ReviewState,
+    assets::AssetPage, checkpoint::CheckpointRequest, checkpoint::CheckpointRow,
+    confirm::ActivityOp, export::ExportFormat, gesture::GestureOp, key::KeyInput,
+    layout::Direction, manage::ManageOp, overlay::OverlayOp, pointer::PointerInput, raster::PngOp,
+    state::Panel, state::Tool, text_edit::TextEditOp, text_field::TypedText, variables::BindField,
+    variables::VariableValue, wire::Wire,
 };
 use meldframe_protocol::{Command, ImageFit, Node, VarType, Variables};
 use serde::{Deserialize, Serialize};
@@ -136,6 +129,12 @@ pub enum Action {
     /// An arrow key was pressed with the selection, no modifier: what it does is on `Direction`.
     ArrowKey {
         direction: Direction,
+    },
+    /// Move the selection one step the way an arrow key does, as one undo step (`meldframe-app-nudge`): a node outside a
+    /// flow by 1 unit in world space (10 with `coarse`), a child of an auto layout frame one place along its flow.
+    Nudge {
+        direction: Direction,
+        coarse: bool,
     },
     /// Change the size of a node. `x` and `y` move its origin in the same step: resizing from the left or the top
     /// edge changes both, and one undo takes both back. With the host flag `layout_on_canvas` on, a side that is sized

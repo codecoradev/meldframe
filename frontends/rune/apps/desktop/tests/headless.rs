@@ -295,3 +295,18 @@ fn the_element_tree_is_a_golden_and_is_stable_across_two_runs() {
     assert_eq!(first, second, "two runs give the same bytes");
     common::golden("tree.json", first.as_bytes());
 }
+
+#[test]
+fn a_tick_or_a_heartbeat_is_no_change_for_the_view_and_a_selection_is() {
+    // The network half tells the app the time every second: the window must not draw again for it.
+    let mut s = fixture();
+    assert!(!s.apply(Action::Tick { now_ms: 1 }));
+    assert!(!s.apply(Action::Frame {
+        now_ms: 2,
+        frame: Frame::Heartbeat {}
+    }));
+    assert!(s.apply(Action::Select {
+        ids: vec!["r1".into()]
+    }));
+    assert!(s.apply(Action::Disconnected {}), "the connection changed");
+}

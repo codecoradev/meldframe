@@ -7,6 +7,7 @@
 
 use crate::app::App;
 use meldframe_app_model::Direction;
+use meldframe_app_nudge::{can_nudge, nudge};
 use meldframe_app_parts::document::{apply_all, move_by, move_to};
 use meldframe_app_parts::panel::selected_node;
 use meldframe_app_parts::properties::Drawn;
@@ -101,6 +102,24 @@ impl App {
         let cmds = arrow_commands(self.replica.nodes(), &self.state.selection, key);
         self.validate(&cmds)?;
         apply_all(&mut self.replica, &cmds)
+    }
+
+    /// `Action::Nudge`: one press of an arrow key as one step (`meldframe-app-nudge`); none when nothing moves.
+    pub(crate) fn nudge(&mut self, key: Direction, coarse: bool) -> Result<(), SubmitError> {
+        nudge(
+            &mut self.replica,
+            &self.state.selection,
+            (key, coarse, self.canvas.enabled),
+        )
+    }
+
+    /// Whether that press would move anything and be taken: what a button that sends it is on for.
+    pub fn can_nudge(&self, key: Direction, coarse: bool) -> bool {
+        can_nudge(
+            &self.replica,
+            &self.state.selection,
+            (key, coarse, self.canvas.enabled),
+        )
     }
 
     /// Where in a flow a drop at `at` after a drag of `by` would put the node (what a front end draws while the pointer is

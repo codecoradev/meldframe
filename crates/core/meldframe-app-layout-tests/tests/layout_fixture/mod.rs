@@ -216,3 +216,17 @@ pub fn fractional() -> Vec<Node> {
     ]))
     .unwrap()
 }
+
+/// `p`: a free frame at (10, 20) holding the free rectangle `q` at (5, 5). `col`: a column at (300, 0) holding the flow
+/// children `k`, a frame that holds the free rectangle `kk` at (7, 7), and `k2`.
+pub fn nested() -> Vec<Node> {
+    serde_json::from_value(json!([
+        {"id": "p", "type": "frame", "pos": "a0", "x": 10, "y": 20, "w": 100, "h": 100},
+        {"id": "q", "type": "rect", "parentId": "p", "pos": "a0", "x": 5, "y": 5, "w": 20, "h": 20},
+        {"id": "col", "type": "frame", "pos": "a1", "x": 300, "w": 200, "h": 300, "layout": "column"},
+        {"id": "k", "type": "frame", "parentId": "col", "pos": "a0", "w": 50, "h": 50},
+        {"id": "kk", "type": "rect", "parentId": "k", "pos": "a0", "x": 7, "y": 7, "w": 10, "h": 10},
+        {"id": "k2", "type": "rect", "parentId": "col", "pos": "a1", "w": 50, "h": 50},
+    ]))
+    .unwrap()
+}
