@@ -97,10 +97,14 @@ fn every_makes() -> Vec<Makes> {
         Makes::Undo,
         Makes::Redo,
         Makes::DeleteSelection,
-        Makes::Nudge(Direction::Up),
-        Makes::Nudge(Direction::Down),
-        Makes::Nudge(Direction::Left),
-        Makes::Nudge(Direction::Right),
+        Makes::Nudge(Direction::Up, false),
+        Makes::Nudge(Direction::Down, false),
+        Makes::Nudge(Direction::Left, false),
+        Makes::Nudge(Direction::Right, false),
+        Makes::Nudge(Direction::Up, true),
+        Makes::Nudge(Direction::Down, true),
+        Makes::Nudge(Direction::Left, true),
+        Makes::Nudge(Direction::Right, true),
         Makes::BeginTextEdit,
         Makes::Cancel,
         Makes::TogglePanel(Panel::Layers),
@@ -118,7 +122,7 @@ fn every_makes() -> Vec<Makes> {
             | Makes::Undo
             | Makes::Redo
             | Makes::DeleteSelection
-            | Makes::Nudge(_)
+            | Makes::Nudge(..)
             | Makes::BeginTextEdit
             | Makes::Cancel
             | Makes::TogglePanel(_)

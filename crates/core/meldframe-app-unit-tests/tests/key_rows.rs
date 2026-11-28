@@ -88,10 +88,12 @@ fn prepared(makes: Makes) -> App {
             });
         }
         // The key that has a neighbour to swap with: the first child going down or right, the last going up or left.
-        Makes::Nudge(Direction::Down) => select(&mut app, "a"),
-        Makes::Nudge(Direction::Up) => select(&mut app, "b"),
-        Makes::Nudge(Direction::Right) => select(&mut app, "c"),
-        Makes::Nudge(Direction::Left) => select(&mut app, "d"),
+        Makes::Nudge(Direction::Down, false) => select(&mut app, "a"),
+        Makes::Nudge(Direction::Up, false) => select(&mut app, "b"),
+        Makes::Nudge(Direction::Right, false) => select(&mut app, "c"),
+        Makes::Nudge(Direction::Left, false) => select(&mut app, "d"),
+        // A coarse press leaves a flow child where it is: a free node is what it moves.
+        Makes::Nudge(_, true) => select(&mut app, "r1"),
     }
     app.take_events();
     app
@@ -128,7 +130,7 @@ fn every_row_of_the_table_that_the_app_answers_is_a_key_that_does_something() {
         );
         let sent = fx.iter().any(|e| matches!(e, Effect::SendOps { .. }));
         match b.makes {
-            Makes::Undo | Makes::Redo | Makes::DeleteSelection | Makes::Nudge(_) => {
+            Makes::Undo | Makes::Redo | Makes::DeleteSelection | Makes::Nudge(..) => {
                 assert!(sent, "{key}: {:?} writes to the file", b.makes);
             }
             _ => assert!(!sent, "{key}: {:?} writes nothing", b.makes),
@@ -137,7 +139,7 @@ fn every_row_of_the_table_that_the_app_answers_is_a_key_that_does_something() {
     }
     assert_eq!(
         seen,
-        5 + 1 + 2 + 2 + 4 + 1 + 1 + 2 + 2 + 5,
+        5 + 1 + 2 + 2 + 4 + 4 + 1 + 1 + 2 + 2 + 5,
         "the count of the bindings the app answers"
     );
 }

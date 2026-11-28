@@ -1,12 +1,14 @@
-//! The arrow keys through the key input (`Action::Key`, audit finding T7a): a key moves the selected children of an auto layout
-//! frame as `Action::ArrowKey` does, says it was the editor's only when it moved something, and a short sequence of keys (pick
-//! a tool, nudge the selection, undo) is read from the state with no front end.
+//! The arrow keys through the key input (`Action::Key`, audit finding T7a, E8.1.1): a key moves the selection as `Action::Nudge`
+//! does (a child of an auto layout frame one place along its flow, any other node by 1 unit, 10 with Shift), says it was the
+//! editor's only when it moved something, and a short sequence of keys (pick a tool, nudge the selection, undo) is read from
+//! the state with no front end.
 
 // Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod layout_fixture;
+use layout_fixture::pointer;
 use layout_fixture::*;
 use meldframe_app::{Action, App, Event, KeyFocus, KeyInput, Modifiers, Tool};
 
@@ -73,18 +75,66 @@ fn an_arrow_key_that_moves_nothing_raises_no_event_so_the_browser_keeps_it() {
     // No selection at all.
     select(&mut a, &[]);
     assert_eq!(plain(&mut a, "ArrowDown"), vec![]);
-    // A free node of a frame that is not an auto layout frame.
-    select(&mut a, &["fg"]);
-    assert_eq!(plain(&mut a, "ArrowDown"), vec![]);
     assert_eq!(flow(&a), ["a", "b", "c"]);
 }
 
 #[test]
-fn with_the_layout_on_the_canvas_off_an_arrow_key_does_nothing_at_all() {
+fn with_the_layout_on_the_canvas_off_an_arrow_key_moves_the_stored_box_of_any_node() {
     let mut a = app(false);
     select(&mut a, &["a"]);
-    assert_eq!(plain(&mut a, "ArrowDown"), vec![]);
+    let events = plain(&mut a, "ArrowDown");
+    assert!(handled(&events));
     assert_eq!(flow(&a), ["a", "b", "c"]);
+    assert_eq!((node(&a, "a").x, node(&a, "a").y), (0.0, 1.0));
+    assert_eq!(steps(&a), 1);
+}
+
+#[test]
+fn an_arrow_key_moves_a_free_node_by_one_unit_and_shift_by_ten_and_is_the_editors() {
+    let mut a = app(true);
+    select(&mut a, &["fg"]);
+    let events = plain(&mut a, "ArrowRight");
+    assert!(handled(&events) && (node(&a, "fg").x, node(&a, "fg").y) == (21.0, 20.0));
+    let shift = Modifiers {
+        shift: true,
+        ..Modifiers::default()
+    };
+    for (key, to) in [
+        ("ArrowDown", (21.0, 30.0)),
+        ("ArrowLeft", (11.0, 30.0)),
+        ("ArrowUp", (11.0, 20.0)),
+    ] {
+        assert!(handled(&press(&mut a, key, shift)), "{key}");
+        assert_eq!((node(&a, "fg").x, node(&a, "fg").y), to, "{key}");
+    }
+    assert_eq!(steps(&a), 4);
+}
+
+#[test]
+fn a_held_arrow_key_a_press_in_a_field_or_under_the_pointer_is_not_a_nudge() {
+    let mut a = app(true);
+    select(&mut a, &["fg"]);
+    let held = KeyInput {
+        key: "ArrowRight".into(),
+        code: String::new(),
+        modifiers: Modifiers::default(),
+        repeat: true,
+        composing: false,
+        focus: KeyFocus::Page,
+    };
+    a.dispatch(Action::Key { input: held });
+    assert_eq!(a.take_events(), vec![]);
+    for focus in [KeyFocus::TextField, KeyFocus::Region] {
+        assert_eq!(
+            press_in(&mut a, "ArrowRight", Modifiers::default(), focus),
+            vec![]
+        );
+    }
+    // A press is down on the canvas: the gesture is the person's hands' business.
+    pointer::press(&mut a, 435.0, 35.0);
+    a.take_events();
+    assert_eq!(plain(&mut a, "ArrowRight"), vec![]);
+    assert_eq!(node(&a, "fg").x, 20.0);
     assert_eq!(steps(&a), 0);
 }
 
