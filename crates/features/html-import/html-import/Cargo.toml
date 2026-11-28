@@ -14,7 +14,6 @@ group = "html-import"
 workspace = true
 
 [dependencies]
-html-import-css = { path = "../html-import-css" }
 html-import-tree = { path = "../html-import-tree" }
 meldframe-css = { path = "../../../core/meldframe-css" }
 meldframe-layout = { path = "../../../core/meldframe-layout" }

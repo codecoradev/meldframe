@@ -24,7 +24,7 @@ pub enum EntryKind {
     /// A bound cut something: an attribute left out, a text cut.
     Cut,
     /// The CSS reader left something out because the importer does not read it: a selector, an at-rule, a
-    /// declaration (`html-import-css`).
+    /// declaration (the reader of `html-import`).
     Refused,
     /// Something the importer lists for the agent that is not a lost property: a class that no rule names and
     /// that is not a utility the importer reads. It is not counted as a refusal.

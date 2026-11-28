@@ -5,7 +5,7 @@ status: accepted
 
 > Status note, 25 Nov 2026 (rule U9): `html-import-tree` and `html-import` now depend on `meldframe-text` (kind `core`, portable) for the report text and the cut of a listed `src`, so "no dependency" below is history for `html-import-tree`; the dependency is legal (feature to core) and the crate stays portable.
 >
-> Status note, 28 Nov 2026 (#315, `docs/crate-merge-plan.md` Merge A): the stages below are merged into the crate `html-import` as modules, one pull request each: `html-import-style` as `style` (done), `html-import-css` as `reader` and `html-import-tree` as `tree` (still crates until their pull requests land). The public paths `html_import::html`, `css` and `tw` do not change, and the crate names and sizes below are history for a stage once it has moved.
+> Status note, 28 Nov 2026 (#315, `docs/crate-merge-plan.md` Merge A): the stages below are merged into the crate `html-import` as modules, one pull request each: `html-import-style` as `style` and `html-import-css` as `reader` (done), `html-import-tree` as `tree` (still a crate until its pull request lands). The public paths `html_import::html`, `css` and `tw` do not change, and the crate names and sizes below are history for a stage once it has moved.
 >
 > Status note, 25 Nov 2026: the crate ceilings named below were written for the ceiling of the time. Since decision 42 (standard v1.3, ADR-0026) the hard ceiling of a crate is 50,000 lines; the ideal band of 1,500 to 2,500 lines and the file limit of 500 lines are unchanged. The decision below stands; a split it made stays, and a size figure is history.
 

@@ -23,15 +23,15 @@
 //! [`Limits::max_work`] for this stage; past it the elements left get the inherited values only, and the report
 //! says so.
 
+use crate::reader::css::{
+    Candidate, Cascade, EntryKind, Limits, Matched, Origin, Report, cascade, read,
+};
 use crate::style::computed::{Custom, MAX_NOTES, Note, Prop, Props, Source, Style};
 use crate::style::custom::{Wide, customs, has_var, wide};
 use crate::style::defaults::{inherits, initial, ua, ua_page};
 use crate::style::shorthand::{expand, longhands};
 use crate::style::value::{colour, length};
 use crate::style::vars::{Cost, resolve};
-use html_import_css::css::{
-    Candidate, Cascade, EntryKind, Limits, Matched, Origin, Report, cascade, read,
-};
 use html_import_tree::{ElementId, Tree};
 use std::sync::Arc;
 

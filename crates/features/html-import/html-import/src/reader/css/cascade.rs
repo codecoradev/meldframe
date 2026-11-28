@@ -18,7 +18,7 @@
 use super::matching::{Matcher, Node};
 use super::selector::{Pseudo, Simple};
 use super::{Decl, EntryKind, Limits, Report, Stylesheet, read_declarations};
-use crate::tw;
+use crate::reader::tw;
 use html_import_tree::{ElementId, MAX_ENTRIES, Tree};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -51,7 +51,7 @@ pub struct Matched {
     pub main: Vec<Candidate>,
     pub before: Vec<Candidate>,
     pub after: Vec<Candidate>,
-    /// The classes of the element that no rule names and that [`crate::tw`] does not read, in the order written,
+    /// The classes of the element that no rule names and that [`crate::reader::tw`] does not read, in the order written,
     /// each once, at most [`MAX_UNRESOLVED`].
     pub unresolved: Vec<Arc<str>>,
 }
