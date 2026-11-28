@@ -50,11 +50,13 @@ fn many(count: usize) -> App {
         r#"{"id": "root", "type": "frame", "x": 0, "y": 0, "w": 9000, "h": 9000}"#.to_string(),
     ];
     for i in 0..count {
-        nodes.push(format!(
-            r##"{{"id": "r{i}", "type": "rect", "parentId": "root", "x": {}, "y": {}, "w": 8, "h": 8, "fill": "#336699", "radius": 3}}"##,
-            (i % 90) * 10,
-            (i / 90) * 10
-        ));
+        nodes.push(
+            include_str!("scenes/leaf.json")
+                .trim()
+                .replace("{i}", &i.to_string())
+                .replace("{x}", &((i % 90) * 10).to_string())
+                .replace("{y}", &((i / 90) * 10).to_string()),
+        );
     }
     app_of(&format!("[{}]", nodes.join(",")))
 }
@@ -122,14 +124,7 @@ fn an_edit_builds_the_shape_once_more_and_nothing_else_does() {
 
 #[test]
 fn a_box_under_a_faded_frame_is_painted_as_faded_as_the_frame_and_itself() {
-    let app = app_of(
-        r##"[
-          {"id": "root", "type": "frame", "x": 0, "y": 0, "w": 400, "h": 400, "fill": "#ffffff", "opacity": 0.5},
-          {"id": "inner", "type": "frame", "parentId": "root", "x": 10, "y": 10, "w": 100, "h": 100, "fill": "#ff0000", "opacity": 0.5},
-          {"id": "leaf", "type": "rect", "parentId": "inner", "x": 5, "y": 5, "w": 10, "h": 10, "fill": "#00ff00"},
-          {"id": "other", "type": "rect", "x": 300, "y": 300, "w": 10, "h": 10, "fill": "#0000ff"}
-        ]"##,
-    );
+    let app = app_of(include_str!("scenes/faded_frame.json"));
     let alphas: Vec<f32> = fills(&scene(&app)).iter().map(|f| f.0).collect();
     // The page and each box below it multiply the opacity of the boxes above: 0.5, 0.25, 0.25, and a box in no frame is 1.
     // The page has no parent either, so the fourth is the page's sibling at full opacity.
@@ -138,12 +133,7 @@ fn a_box_under_a_faded_frame_is_painted_as_faded_as_the_frame_and_itself() {
 
 #[test]
 fn a_repeated_id_is_painted_once_at_the_place_of_the_first() {
-    let app = app_of(
-        r##"[
-          {"id": "root", "type": "frame", "x": 0, "y": 0, "w": 400, "h": 400, "fill": "#ffffff"},
-          {"id": "r1", "type": "rect", "parentId": "root", "x": 10, "y": 10, "w": 50, "h": 40, "fill": "#336699"}
-        ]"##,
-    );
+    let app = app_of(include_str!("scenes/repeated_id.json"));
     let mut boxes = scene(&app);
     let mut again = boxes[1].clone();
     again.x = 300.0;
@@ -167,13 +157,7 @@ fn an_empty_scene_paints_nothing_and_a_view_of_it_works() {
 
 #[test]
 fn a_box_with_no_size_and_a_box_at_a_negative_place_do_not_break_the_others() {
-    let app = app_of(
-        r##"[
-          {"id": "root", "type": "frame", "x": 0, "y": 0, "w": 400, "h": 400, "fill": "#ffffff"},
-          {"id": "dot", "type": "rect", "parentId": "root", "x": 20, "y": 20, "w": 0, "h": 0, "fill": "#ff0000"},
-          {"id": "left", "type": "rect", "parentId": "root", "x": -30, "y": -5, "w": 50, "h": 40, "fill": "#336699"}
-        ]"##,
-    );
+    let app = app_of(include_str!("scenes/edge_cases.json"));
     let covered: Vec<[f32; 4]> = fills(&scene(&app)).iter().map(|f| f.1).collect();
     assert!(
         covered.contains(&[-30.0, -5.0, 20.0, 35.0]),

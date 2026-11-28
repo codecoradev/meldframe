@@ -1,0 +1,4 @@
+[
+          {"id": "root", "type": "frame", "x": 0, "y": 0, "w": 400, "h": 400, "fill": "#ffffff"},
+          {"id": "r1", "type": "rect", "parentId": "root", "x": 10, "y": 10, "w": 50, "h": 40, "fill": "#336699"}
+        ]

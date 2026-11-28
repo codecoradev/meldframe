@@ -1,0 +1,6 @@
+[
+          {"id": "root", "type": "frame", "x": 0, "y": 0, "w": 400, "h": 400, "fill": "#ffffff", "opacity": 0.5},
+          {"id": "inner", "type": "frame", "parentId": "root", "x": 10, "y": 10, "w": 100, "h": 100, "fill": "#ff0000", "opacity": 0.5},
+          {"id": "leaf", "type": "rect", "parentId": "inner", "x": 5, "y": 5, "w": 10, "h": 10, "fill": "#00ff00"},
+          {"id": "other", "type": "rect", "x": 300, "y": 300, "w": 10, "h": 10, "fill": "#0000ff"}
+        ]
