@@ -1245,6 +1245,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "html-import"
+version = "0.0.0"
+dependencies = [
+ "html-import-css",
+ "html-import-style",
+ "html-import-tree",
+ "meldframe-css",
+ "meldframe-layout",
+ "meldframe-module",
+ "meldframe-protocol",
+ "meldframe-text",
+]
+
+[[package]]
+name = "html-import-css"
+version = "0.0.0"
+dependencies = [
+ "html-import-tree",
+]
+
+[[package]]
+name = "html-import-style"
+version = "0.0.0"
+dependencies = [
+ "html-import-css",
+ "html-import-tree",
+ "meldframe-css",
+]
+
+[[package]]
+name = "html-import-tree"
+version = "0.0.0"
+dependencies = [
+ "meldframe-text",
+]
+
+[[package]]
 name = "http"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1860,6 +1897,7 @@ name = "meldframe-oracle-runner"
 version = "0.0.0"
 dependencies = [
  "export",
+ "html-import",
  "meldframe-layout",
  "meldframe-protocol",
  "meldframe-variables",
