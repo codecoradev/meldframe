@@ -1,9 +1,10 @@
 //! HTML import feature module (E4.4, ADR-0024, `docs/import-html.md`): it reads HTML text that an agent sends and
 //! turns it into Nodes. This crate is the facade: it names the stages under the paths the callers use and holds the
-//! two that make nodes. The stages before them are crates of their own so that none passes the size ceiling:
+//! two that make nodes. The stages before them are `html-import-tree` and `html-import-css`, crates of their own
+//! for now, and [`style`], a module of this crate:
 //!
 //! - [`html`] is `html-import-tree`, the tolerant, bounded tree builder;
-//! - [`css`] is `html-import-css`, the reader and the cascade, with `html-import-style`, what is done with the
+//! - [`css`] is `html-import-css`, the reader and the cascade, with [`style`], what is done with the
 //!   declarations;
 //! - [`tw`] is the Tailwind decoder of `html-import-css`;
 //! - [`map`] turns the styled tree into `addNode` commands with the report of what each node could not take, bounded
@@ -20,5 +21,6 @@ pub use html_import_tree as html;
 pub mod map;
 mod module;
 pub mod paint;
+pub mod style;
 
 pub use module::{DESCRIPTION, ImportHtmlModule, TOOL};
