@@ -1,9 +1,6 @@
 //! Document actions: what the person meant becomes commands in the replica.
 
-use crate::action::Action;
-use crate::app::App;
-use crate::effect::Effect;
-use crate::state::Tool;
+use crate::{action::Action, app::App, effect::Effect, state::Tool};
 use meldframe_app_model::{ManageOp, TextEditOp, TypedText};
 use meldframe_app_parts::document::{
     Variant, apply_all, check_room, code, edit_text, make_variant, move_by, move_to, new_node,
