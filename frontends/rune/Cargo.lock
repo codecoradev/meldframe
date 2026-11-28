@@ -1822,6 +1822,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-measure"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app",
+ "meldframe-protocol",
+ "meldframe-rune-pin",
+ "serde_json",
+]
+
+[[package]]
 name = "meldframe-module"
 version = "0.0.0"
 

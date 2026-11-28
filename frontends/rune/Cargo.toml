@@ -4,7 +4,7 @@
 # of the main workspace depends on it (`cargo xtask deps-check` fails when one does).
 [workspace]
 resolver = "3"
-members = ["crates/rune-pin", "crates/os/*", "crates/ui/*", "crates/features/*", "apps/*"]
+members = ["crates/rune-pin", "crates/os/*", "crates/ui/*", "crates/features/*", "apps/*", "tools/*"]
 
 [workspace.package]
 version = "0.0.0"
