@@ -52,7 +52,7 @@ wasm-smoke:
 
 # Run locally before opening a pull request: the fast checks that pull request CI runs (including
 # the protocol drift check and the web client's `npm run check`), plus build-matrix, portable-check,
-# size-check, mm-check, ui-literals, the wasm smoke test and the seed guards.
+# size-check, mm-check, toolkit-swap, ui-literals, the wasm smoke test and the seed guards.
 # Left to CI and the nightly: `just wasm-test` (nightly), `cargo xtask licences --check` (pull
 # request CI and nightly) and `bash tools/check-migrations.sh` (the CI migrations job, needs
 # Postgres); run them by hand when you touch what they cover
@@ -61,7 +61,7 @@ check:
     cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
-    for c in deps-check mm-check build-matrix portable-check size-check ui-literals; do cargo xtask $c || exit 1; done
+    for c in deps-check mm-check toolkit-swap build-matrix portable-check size-check ui-literals; do cargo xtask $c || exit 1; done
     bash tools/check-protocol.sh
     bash tools/check-wasm.sh
     cd apps/web && npm ci && npm run check

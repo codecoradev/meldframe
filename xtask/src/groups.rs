@@ -5,7 +5,8 @@ use std::collections::HashSet;
 
 use crate::rules::{Kind, Package, Violation};
 
-fn kind_of(p: &Package) -> Option<Kind> {
+/// The declared kind of a package when it is a known one.
+pub fn kind_of(p: &Package) -> Option<Kind> {
     p.kind.as_deref().and_then(Kind::parse)
 }
 

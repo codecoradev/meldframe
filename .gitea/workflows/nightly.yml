@@ -54,6 +54,23 @@ jobs:
       - if: steps.gate.outputs.pending != 'true'
         run: cargo xtask portable-check
 
+  toolkit-swap:
+    name: toolkit-swap
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: sh scripts/ci/gate.sh toolkit-swap
+      - if: steps.gate.outputs.pending != 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - if: steps.gate.outputs.pending != 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.gate.outputs.pending != 'true'
+        run: cargo xtask toolkit-swap
+
   size-check:
     name: size-check
     runs-on: ubuntu-latest

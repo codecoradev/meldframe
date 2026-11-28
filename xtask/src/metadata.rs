@@ -41,7 +41,7 @@ fn package(p: &Value, root_dir: &str) -> Package {
         if let Some(path) = d["path"].as_str() {
             path_dependencies.push(relative(path, root_dir).unwrap_or(path).to_string());
         }
-        // Dev-dependencies do not ship, so they do not count for layering.
+        // Dev-dependencies do not ship, so they do not count for layering; `toolkit-swap` reads them apart.
         if d["kind"].as_str() == Some("dev") {
             dev_dependencies.push(name.to_string());
             continue;
@@ -114,6 +114,8 @@ mod tests {
         assert_eq!(a.composite, vec!["h".to_string()]);
         assert_eq!(a.dependencies, vec!["b".to_string(), "egui".to_string()]);
         assert!(a.uses_ui_toolkit);
+        // A dev-dependency is not a dependency of layering, and is kept for the checks that read it.
+        assert_eq!(a.dev_dependencies, vec!["serde".to_string()]);
     }
 
     #[test]
