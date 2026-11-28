@@ -1,5 +1,7 @@
 //! What the builder says about a text: the repairs it made and what a bound cut, each with the byte where it
-//! happened, and a count of everything it dropped. Bounded as the report of `variables-import` is: a fixed number
+//! happened, and a count of everything it dropped.
+//!
+//! Bounded as the report of `variables-import` is: a fixed number
 //! of entries and bytes, a name and a message cut, hidden characters removed from anything taken from the text.
 
 use meldframe_text::{Profile, sanitize_clip};
