@@ -1,0 +1,25 @@
+# The capture request path (finding T13, decision 43) through the harness: an agent asks for an image of a node, the app plans the
+# drawing, the shell draws it and reports how many bytes it holds, and the app checks that report against the 4 MiB cap. At the cap
+# the image goes on to its upload; one byte over, the app drops it and answers the request with `failCapture` (data for the agent,
+# not a refusal of a person) and the shell uploads nothing.
+open nodes.json
+
+# At the cap (4,194,304 bytes): planned, drawn, delivered.
+bytes 4194304
+action {"type":"png","op":{"type":"capture","nowMs":0,"ask":{"requestId":"cap_1","nodeId":"f1","scale":1,"maxPixels":16777216,"minSeq":0,"uploadToken":"0123456789abcdef0123","timeoutMs":20000}}}
+expect effect raster width 300
+expect effect raster height 200
+expect effect finishRaster deliver true
+expect clean
+expect delivered 300 200
+
+# One byte over: the shell hands back 4,194,305 bytes as `Wire::Drawn`, and the app refuses them as data.
+bytes 4194305
+action {"type":"png","op":{"type":"capture","nowMs":0,"ask":{"requestId":"cap_2","nodeId":"f1","scale":1,"maxPixels":16777216,"minSeq":0,"uploadToken":"0123456789abcdef0123","timeoutMs":20000}}}
+expect effect raster width 300
+expect effect finishRaster deliver false
+expect effect failCapture requestId "cap_2"
+expect effect failCapture code "too_large"
+expect clean
+# The image of cap_1 is still the last one delivered: nothing of cap_2 was uploaded.
+expect delivered 300 200

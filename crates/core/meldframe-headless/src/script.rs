@@ -31,6 +31,16 @@ pub enum Expect {
     State { pointer: String, value: Value },
     /// The last image the harness delivered had this size in pixels.
     Delivered { width: u64, height: u64 },
+    /// A value of what the gesture going on would do (`App::pointer_preview`) as JSON, by JSON pointer: `null` when
+    /// nothing is going on or the pointer names nothing (`/kind`, `/slot/index`, `/rect/w`).
+    Preview { pointer: String, value: Value },
+    /// The children of a node in sibling order (the order the canvas draws a flow in).
+    Order { parent: String, ids: Vec<String> },
+    /// The last step returned an effect of this kind and, when a field is given, with this value in it.
+    Effect {
+        kind: String,
+        field: Option<(String, Value)>,
+    },
 }
 
 /// One line of a script.
@@ -51,6 +61,9 @@ pub enum Step {
         id: String,
         form: Form,
     },
+    /// From here on the shell says each image it drew is this many bytes large (the default is the smallest a PNG can be), so a
+    /// script can hand the app an image over a limit as data.
+    Bytes(u64),
     /// Print the summary of the state.
     State,
     /// Print the nodes of the file.
@@ -217,6 +230,13 @@ pub fn parse(line: &str) -> Result<Option<Step>, String> {
             };
             Step::Export { id, form }
         }
+        "bytes" => {
+            let size = w(0, "a size")?;
+            Step::Bytes(
+                size.parse()
+                    .map_err(|_| format!("bytes is not a size: {size}"))?,
+            )
+        }
         "state" => Step::State,
         "nodes" => Step::Nodes,
         "strict" => Step::Strict,
@@ -247,6 +267,21 @@ fn expect(t: &[&str]) -> Result<Expect, String> {
         "delivered" => Expect::Delivered {
             width: size(1)?,
             height: size(2)?,
+        },
+        "preview" => Expect::Preview {
+            pointer: at(1, "a JSON pointer")?.into(),
+            value: value(&t.get(2..).unwrap_or_default().join(" ")),
+        },
+        "order" => Expect::Order {
+            parent: at(1, "a parent")?.into(),
+            ids: t[2..].iter().map(|s| s.to_string()).collect(),
+        },
+        "effect" => Expect::Effect {
+            kind: at(1, "an effect")?.into(),
+            field: match t.get(2) {
+                Some(field) => Some((field.to_string(), value(at(3, "a value")?))),
+                None => None,
+            },
         },
         other => return Err(format!("unknown check: {other}")),
     })

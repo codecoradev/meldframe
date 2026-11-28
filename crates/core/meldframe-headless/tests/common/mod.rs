@@ -5,10 +5,12 @@ use meldframe_headless::{Report, run};
 
 pub const SCENARIO: &str = include_str!("../scripts/scenario.script");
 
-/// The one file the scripts open: a page, a frame on it and a rectangle in the frame.
+/// The files the scripts open. `nodes.json`: a page, a frame on it and a rectangle in the frame. `flow.json`: a column of three
+/// rectangles and a free frame with a rectangle, for the pointer flow.
 pub fn files(name: &str) -> Result<String, String> {
     match name {
         "nodes.json" => Ok(include_str!("../scripts/nodes.json").to_string()),
+        "flow.json" => Ok(include_str!("../scripts/flow.json").to_string()),
         other => Err(format!("{other}: no such file")),
     }
 }

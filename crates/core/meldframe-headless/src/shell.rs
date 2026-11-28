@@ -67,6 +67,8 @@ pub struct Shell {
     drawn: Vec<(u32, u32, u32)>,
     /// The size of the last image delivered.
     delivered: Option<(u32, u32)>,
+    /// How many bytes the shell says each image it draws holds.
+    drawn_bytes: u64,
 }
 
 impl Shell {
@@ -78,6 +80,7 @@ impl Shell {
             seq: 0,
             drawn: Vec::new(),
             delivered: None,
+            drawn_bytes: PNG_MIN_BYTES,
         };
         s.act(Action::Connected { now_ms: 0 });
         Ok(s)
@@ -90,6 +93,16 @@ impl Shell {
     /// The size, in pixels, of the last image the harness delivered.
     pub fn delivered(&self) -> Option<(u32, u32)> {
         self.delivered
+    }
+
+    /// From now on each image the shell draws is reported with this many bytes, as a shell that holds a large image would.
+    pub fn set_drawn_bytes(&mut self, bytes: u64) {
+        self.drawn_bytes = bytes;
+    }
+
+    /// What the gesture going on would do, as JSON (`null` when nothing is going on).
+    pub fn preview(&self) -> Value {
+        serde_json::to_value(self.app.pointer_preview()).unwrap_or(Value::Null)
     }
 
     /// The state as JSON: what a front end that is not Rust reads.
@@ -167,7 +180,7 @@ impl Shell {
                 ..
             } => {
                 self.drawn.push((*request, *width, *height));
-                let body = json!({"width": width, "height": height, "bytes": PNG_MIN_BYTES});
+                let body = json!({"width": width, "height": height, "bytes": self.drawn_bytes});
                 let wire = Wire::Drawn {
                     request: *request,
                     status: 200,

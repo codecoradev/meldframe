@@ -1,0 +1,8 @@
+[
+  {"id": "f", "type": "frame", "name": "Column", "pos": "a0", "x": 0, "y": 0, "w": 200, "h": 300, "layout": "column", "padding": 10, "gap": 5},
+  {"id": "a", "type": "rect", "name": "A", "parentId": "f", "pos": "a0", "w": 50, "h": 20},
+  {"id": "b", "type": "rect", "name": "B", "parentId": "f", "pos": "a1", "w": 50, "h": 30},
+  {"id": "c", "type": "rect", "name": "C", "parentId": "f", "pos": "a2", "w": 50, "h": 40},
+  {"id": "g", "type": "frame", "name": "Free", "pos": "a1", "x": 400, "y": 0, "w": 200, "h": 200},
+  {"id": "fg", "type": "rect", "name": "Free box", "parentId": "g", "pos": "a0", "x": 20, "y": 20, "w": 30, "h": 30}
+]

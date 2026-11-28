@@ -38,6 +38,8 @@ struct Run<'a> {
     refusals: Vec<String>,
     /// The refusals of the last step that drove the app.
     last: Vec<String>,
+    /// The effects of that step, as JSON.
+    last_effects: Vec<Value>,
     /// A refusal of a strict run, with its line, waiting for the next step: an `expect refused` takes it, any other step
     /// fails the run at the line that was refused.
     held: Option<(usize, String)>,
@@ -68,6 +70,11 @@ impl Run<'_> {
             }
         }
         self.last = seen.refusals();
+        self.last_effects = seen
+            .effects
+            .iter()
+            .filter_map(|e| serde_json::to_value(e).ok())
+            .collect();
         for code in &self.last.clone() {
             self.say(format!("  refused: {code}"));
         }
@@ -108,6 +115,7 @@ impl Run<'_> {
                     self.say(format!("  {}: {}{on}", e.id, e.label));
                 }
                 self.last.clear();
+                self.last_effects.clear();
                 Ok(())
             }
             Step::Palette {
@@ -158,6 +166,10 @@ impl Run<'_> {
                     let (file, bytes) = (&d["htmlFile"], &d["htmlBytes"]);
                     self.say(format!("  html: {file} {bytes} bytes"));
                 }
+                Ok(())
+            }
+            Step::Bytes(bytes) => {
+                self.shell()?.set_drawn_bytes(bytes);
                 Ok(())
             }
             Step::State => {
@@ -218,6 +230,43 @@ impl Run<'_> {
                     false => Err(format!("state {pointer}: expected {value}, got {got}")),
                 }
             }
+            Expect::Preview { pointer, value } => {
+                let preview = self.shell()?.preview();
+                let got = preview.pointer(pointer).cloned().unwrap_or(Value::Null);
+                match same(&got, value) {
+                    true => Ok(()),
+                    false => Err(format!("preview {pointer}: expected {value}, got {got}")),
+                }
+            }
+            Expect::Order { parent, ids } => {
+                let nodes = self.shell()?.nodes();
+                let mut kids: Vec<&Value> = nodes
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|n| n["parentId"] == parent.as_str())
+                    .collect();
+                kids.sort_by_key(|n| (n["pos"].as_str().unwrap_or(""), n["id"].as_str()));
+                let got: Vec<&str> = kids.iter().filter_map(|n| n["id"].as_str()).collect();
+                match got == *ids {
+                    true => Ok(()),
+                    false => Err(format!("order of {parent}: expected {ids:?}, got {got:?}")),
+                }
+            }
+            Expect::Effect { kind, field } => {
+                let of_kind = |e: &&Value| e["type"] == kind.as_str();
+                let held = |e: &&Value| field.as_ref().is_none_or(|(f, v)| same(&e[f.as_str()], v));
+                match self.last_effects.iter().filter(of_kind).any(|e| held(&e)) {
+                    true => Ok(()),
+                    false => {
+                        let with = field
+                            .as_ref()
+                            .map_or(String::new(), |(f, v)| format!(" with {f} {v}"));
+                        let seen = Seen::tags(self.last_effects.clone());
+                        Err(format!("no {kind} effect{with} in the last step: {seen:?}"))
+                    }
+                }
+            }
             Expect::Delivered { width, height } => {
                 let got = self.shell()?.delivered();
                 match got {
@@ -242,6 +291,7 @@ pub fn run(script: &str, files: Files<'_>, strict: bool) -> Report {
         out: String::new(),
         refusals: Vec::new(),
         last: Vec::new(),
+        last_effects: Vec::new(),
         held: None,
         line: 0,
     };
