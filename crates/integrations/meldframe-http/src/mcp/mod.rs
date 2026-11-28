@@ -8,7 +8,7 @@
 mod tools;
 mod variables;
 
-pub use meldframe_mcp_defs::{MAX_BATCH, MAX_KEY, TOOLS, ToolDef, check_key};
+pub use meldframe_mcp_defs::{MAX_BATCH, MAX_KEY, TOOLS, ToolDef, check_key, key_schema};
 /// The body of a tool error and of a refused call, as the tools of this crate word them, for the tools of other crates
 /// (`make_variant`, `import_html`): one wording, one shape.
 pub use tools::{error as tool_error, failed as tool_failed};
