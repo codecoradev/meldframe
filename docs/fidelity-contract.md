@@ -236,7 +236,7 @@ How it works:
 6. Pull requests run the fixtures and 50 fuzz seeds, the nightly 500. Playwright 1.63.0, Pixi 8.23.0, Tailwind 4.3.5 and
    Inter 5.3.0 are exact in `package.json` and the lockfile; a browser upgrade is its own change that must pass the gates.
 
-Known gaps today: `f14-text-edge` (break opportunities outside section 6.7) and `f17-fill-under-hug` (rule G1).
+Known gaps today: `f14-text-edge` (break opportunities outside section 6.7) and `f17-fill-under-hug` (rule G1); the importer's are in section 7a.
 
 Measured on the development machine (software rendering): the fixtures and 50 seeds take about 10 to 17 s in the browser,
 500 seeds about 40 s, plus the build of the runner and `npm ci`; the CI time is measured on the first runs of the job and is not known yet.
@@ -296,6 +296,53 @@ What the oracle cannot prove (the list for the product oracle; the experiment's 
 - **Rule G3 files are not gated**, and the export's own `overflow` and `smaller_than_padding` warnings skip every frame
   that holds a hug text: of 500 seeds, 207 are under G3 and for 89 of them the export gave no such warning.
 - **Pixel probes check points, not whole images.** Shaders have no probe (the contract does not promise them). A gradient stop and a text colour cannot bind a variable yet, and no probe reads a shadow or a border colour bound to one.
+
+## 7a. The importer in the oracle (E4.4, slice 8)
+
+`html_import::map::import` (`docs/import-html.md`) reads HTML and CSS text into nodes. The oracle checks it in two ways, both through the same
+runner and the same text table as section 7; the gate is `tools/fidelity-oracle/import-gate.mjs`, called by `gate.mjs`, and the known differences
+are in `known-gaps.mjs`.
+
+1. **An export comes back.** For every fixture and every fuzz file the runner imports the HTML of each exported frame (the Tailwind form with the
+   stylesheet it returns), lays the imported file out with the layout core and the same table, and pairs its nodes with the original's by their order in the
+   export. Two gates: every imported box is within 0.05 px of the original's rect (no browser: the importer and the layout core against the file
+   they came from), and the imported file is exported again and loaded in Chromium like any other page, every box within 0.05 px of the core's rect of the
+   imported file (fuzz files under rule G3 are not asked for the page). The import of an export refuses no property, the number of nodes agrees, and a node
+   changes kind only where the note's list says so. The fixtures of `KNOWN_GAPS` (`f14`, `f17`) are not judged: their export is outside the contract, and
+   so is what is imported from it.
+2. **The source page is the judge.** `hfixtures.mjs` holds whole documents, written as an author writes them (flex rows and columns, block flow,
+   `flex: 1`, content-box and border-box sizes, absolute boxes, text, buttons, percentages, margins, paint, wrappers, `display: none`). The runner imports each
+   and lays it out with the core; the harness loads the same text as written in Chromium (plus the one `@font-face` of the oracle's Inter, marked
+   `data-oracle` so that it is not an element of the page), finds the element each node names in its `source` (`tag.class#n`, `n` counting the elements of the text
+   with `html` as 1; the tag must agree, and `body` is the page: the `html` element at a viewport of 1440 px) and compares the box with the node's rect
+   within 0.05 px. An anonymous run of text (`source` ending in `/text`) has no box in the browser and is counted, not compared. This is the one check of
+   whether the importer reads CSS the way a browser lays it out; the fixtures stay in the subset the importer reads, and the cases outside it are the gaps.
+
+Known gaps of the importer (`IMPORT_GAPS`; a page in it passes while it fails only in the way its entry says, and fails on the day it passes, or
+when a node outside its cause is off, or when the importer stops listing the refusal the entry names):
+
+| Page | What differs | Cause |
+|---|---|---|
+| `h06-absolute` | a box placed by `right` and `bottom` | not modelled; the importer lists `refused_not_modelled` for both |
+| `h07-text`, `h08-button-row` | authored text and its frame, 1 to 3 px in height, up to 0.7 px in width | the core measures a text in whole pixels, rounded up; a browser lays out `line-height: normal` at the fractional height of the font and hugs at the fractional width; nothing is listed, and an export writes px line heights so the gap does not reach section 7 |
+| `h09-percent` | `width: 50%`, `margin: auto` | no percentages or auto margins in the model; listed as `refused_percent` and `refused_unreadable` |
+| `h10-margins` | the margins of two block siblings | a browser collapses them and a flow in the model adds them; nothing is listed |
+
+Losses of an export that the round trip can see (`IMPORT_LOSSES`): `f22-no-fill` `n3` is a frame with no children and no layout, and it comes back as a
+rect (`docs/import-html.md` section 3.7); the entry fails the gate on the day the node stays a frame. The other losses of that section (the ids, the stored size of a hug or a
+fill, a binding that comes back as its value, the radius of an ellipse, a shader) change no box and no kind in these files, so the oracle cannot see
+them; the Rust round trip (`crates/features/html-import/html-import/tests/import.rs`) states each of them.
+
+Measured on the development machine (Chromium 158.0.8127.36 from the machine's own Playwright browser path, not the build Playwright 1.63.0 installs; Linux, 28 Nov 2026), with 50 fuzz seeds:
+172 exports imported back, largest box delta against the original 0.0000 px, largest delta on the page of an imported file 0.0344 px; 12 hand-written pages,
+46 elements compared, 2 anonymous runs not compared, 5 known gaps standing. Over 200 seeds, 246 imports of files inside the contract all passed both checks.
+
+What this does not prove: the importer on any page outside the subset of `docs/import-html.md` section 3 (no real web page was loaded: the fixtures are 12 small
+pages written for the purpose); browsers other than Chromium; the server's measurer (the stub: the oracle imports with the table the harness recorded, as the editor would);
+the Tailwind forms of a hand-written page (only the export's own vocabulary is decoded, and it is covered by the round trip). The 12 pages are also few: a gap that none of them shows is not listed here.
+
+`npm run sensitivity` has two more groups: imports that are wrong (an imported box 0.2 px wider or lower, an imported file that exports a wider gap, a refused property
+of an export) and pages that are wrong (a core rect moved by 0.2 px, a source that names the next element); the gate must fail on each.
 
 ## 8. Experiment results
 

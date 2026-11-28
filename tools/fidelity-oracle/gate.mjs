@@ -2,7 +2,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { KNOWN_GAPS } from './known-gaps.mjs';
+import { IMPORT_GAPS, IMPORT_LOSSES, KNOWN_GAPS } from './known-gaps.mjs';
+import { pageFailures, roundTripFailures } from './import-gate.mjs';
 import { OUT } from './lib.mjs';
 
 export const LIMITS = { geometry: 0.05, tailwind: 0.001, ink: 1, blur: 20 };
@@ -26,6 +27,7 @@ export function evaluate(results) {
     const gated = fuzz.filter((d) => !d.unspecified).length;
     if (gated < Math.floor(results.seeds * FLOORS.gatedShare)) fail.push(`only ${gated} of ${results.seeds} fuzz files are inside the contract and gated (at least ${FLOORS.gatedShare * 100}%): the generator or rule G3 changed`);
     for (const gap of Object.keys(KNOWN_GAPS)) if (!names.has(gap)) fail.push(`known gap ${gap} is not a fixture any more: remove it from known-gaps.mjs`);
+    for (const name of Object.keys(IMPORT_LOSSES)) if (!names.has(name)) fail.push(`known import loss ${name} is not a fixture any more: remove it from known-gaps.mjs`);
   }
   if (!results.only && !results.geometryOnly) {
     // a missing or empty section is a run that checked nothing
@@ -59,6 +61,7 @@ export function evaluate(results) {
     }
     if (d.twVsCss && d.twVsCss.max > LIMITS.tailwind) problems.push({ kind: 'tailwind', text: `tailwind differs from css by ${d.twVsCss.max.toFixed(4)} px at ${d.twVsCss.worst}` });
     if (d.fuzz && d.fillUnderHug) problems.push({ kind: 'g1', text: 'the export reports fill_under_hug on a fuzz file that rule G1 was applied to (fuzz.mjs normaliseG1 missed a case)' });
+    fail.push(...roundTripFailures(d));
     const gap = KNOWN_GAPS[d.name];
     if (gap) {
       const why = [];
@@ -76,6 +79,7 @@ export function evaluate(results) {
     const gated = d.fuzz && d.unspecified ? problems.filter((p) => p.kind !== 'box') : problems;
     for (const p of gated) fail.push(`${d.name}: ${p.text}${d.nodesJson ? `\n  file (add it as a fixture): ${JSON.stringify(d.nodesJson)}` : ''}`);
   }
+  fail.push(...pageFailures(results));
   return fail;
 }
 
@@ -90,6 +94,11 @@ export function report(results, failures, log) {
   log(`fuzz ${fuzz.length} seeds (${fuzz.reduce((n, d) => n + d.nodes, 0)} nodes), gated ${gated.length}, outside the contract (rule G3) ${fuzz.length - gated.length}, of which the export did not warn ${fuzz.filter((d) => d.silentG3).length}`);
   log(`  max box delta in the gated seeds: ${max(gated, (r) => r.max).toFixed(4)} px`);
   log(`  max tailwind vs css delta: ${Math.max(0, ...docs.filter((d) => !KNOWN_GAPS[d.name] && d.twVsCss).map((d) => d.twVsCss.max)).toFixed(4)} px`);
+  // the numbers of the files the gate judges: not the known gaps, and no page of a fuzz file under rule G3
+  const judged = docs.filter((d) => !KNOWN_GAPS[d.name]);
+  const trips = judged.flatMap((d) => Object.values(d.roundTrip ?? {}).map((r) => ({ r, page: d.fuzz && d.unspecified ? null : r.page })));
+  if (trips.length) log(`import round trip: ${trips.length} exports imported back, largest box delta ${Math.max(0, ...trips.map((t) => t.r.max ?? 0)).toFixed(4)} px, largest delta on the page of the imported file ${Math.max(0, ...trips.map((t) => t.page?.max ?? 0)).toFixed(4)} px`);
+  if (results.import) log(`hand-written pages ${results.import.files.length}, known import gaps ${results.import.files.filter((f) => IMPORT_GAPS[f.name]).length}, elements compared ${results.import.files.reduce((n, f) => n + f.nodes - f.anonymous, 0)} (anonymous runs not compared: ${results.import.files.reduce((n, f) => n + f.anonymous, 0)})`);
   if (results.paint) log(`paint probes ${results.paint.probes.filter((p) => p.ok).length}/${results.paint.probes.length}, pixels differing between the forms ${results.paint.forms.reduce((n, f) => n + f.differing, 0)}`);
   if (results.ink) log(`text ink: ${new Set(results.ink.rows.map((r) => r.id)).size} cases, largest edge difference ${results.ink.worst} px (limit ${LIMITS.ink})`);
   if (results.blur) log(`CSS blur model against Pixi (not the export): largest falloff difference ${Math.max(...results.blur.map((b) => b.maxAbs))}/255 (limit ${LIMITS.blur})`);
