@@ -20,6 +20,13 @@ pub struct VariablesIo {
     /// Whether the Import variables dialog is open (`Action::OpenVariablesImport` and `CloseVariablesImport`).
     #[serde(default)]
     pub import_open: bool,
+    /// The name of the file the Import field was filled from, made safe to show (`meldframe_text::label`) and cut to
+    /// `MAX_FILE_NAME` characters. `Some("")` is a file whose name is nothing once made safe: the front end words that
+    /// case. It stays while the field's text does (a close keeps both) and goes with Clear, an edit of the text and an
+    /// applied import.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub import_source: Option<String>,
 }
 
 /// The open Export variables dialog: every variable of the file as CSS, as the person sees the file now (what the

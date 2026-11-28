@@ -71,4 +71,15 @@ describe.skipIf(!built)('the open state of overlays and dialogs, over the real a
     expect(state(e).variablesIo.import).toBeNull();
     expect(state(e).variablesIo.importOpen).toBe(false);
   });
+
+  it('makes the name of the chosen file safe to show before the page draws it (rule U9, issue 416), and forgets it with Clear', () => {
+    const e = make();
+    expect(state(e).variablesIo.importSource).toBeUndefined();
+    e.dispatch({ type: 'chooseVariablesImportSource', name: 'th\u202Eeme\u200B.css' });
+    expect(state(e).variablesIo.importSource).toBe('theme.css');
+    e.dispatch({ type: 'chooseVariablesImportSource', name: 'a'.repeat(10_000) });
+    expect(state(e).variablesIo.importSource).toHaveLength(128);
+    e.dispatch({ type: 'clearVariablesImport' });
+    expect(state(e).variablesIo.importSource).toBeUndefined();
+  });
 });

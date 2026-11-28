@@ -12,6 +12,7 @@ use meldframe_app_model::{Connection, ImportStatus, VariablesImportResult};
 use meldframe_app_parts::document::code;
 use meldframe_protocol::Command;
 use meldframe_sync::SubmitError;
+use meldframe_text::{MAX_FILE_NAME, label};
 use variables_import_dialog::plan;
 
 impl App {
@@ -78,6 +79,23 @@ impl App {
         self.set_import(None);
     }
 
+    /// The field was cleared or its text replaced: the result and the name of the file it came from go.
+    pub(crate) fn clear_variables_import_field(&mut self) {
+        let (result, source) = (
+            self.state.variables_io.import.take(),
+            self.state.variables_io.import_source.take(),
+        );
+        self.import_ids.clear();
+        if result.is_some() || source.is_some() {
+            self.events.push(Event::VariablesIoChanged {});
+        }
+    }
+
+    /// A file was chosen for the field: its name is made safe to show, and cut, once here (rule U9).
+    pub(crate) fn choose_import_source(&mut self, name: &str) {
+        self.set_import_source(Some(label(name, MAX_FILE_NAME)));
+    }
+
     /// The result of an applied import is about what the file holds: when an undo, or someone else, takes away a variable
     /// it added, the result goes, so an open dialog does not say "Imported" about a file that no longer has it.
     pub(crate) fn refresh_variables_import(&mut self) {
@@ -92,6 +110,13 @@ impl App {
     fn set_import_open(&mut self, open: bool) {
         if self.state.variables_io.import_open != open {
             self.state.variables_io.import_open = open;
+            self.events.push(Event::VariablesIoChanged {});
+        }
+    }
+
+    fn set_import_source(&mut self, name: Option<String>) {
+        if self.state.variables_io.import_source != name {
+            self.state.variables_io.import_source = name;
             self.events.push(Event::VariablesIoChanged {});
         }
     }
@@ -128,6 +153,10 @@ impl App {
                     _ => None,
                 })
                 .collect();
+        }
+        if plan.result.status == ImportStatus::Imported {
+            // The field is emptied by an applied import, and with it the note about its file.
+            self.set_import_source(None);
         }
         self.set_import(Some(plan.result));
         done
