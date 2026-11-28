@@ -37,7 +37,7 @@ pub struct App {
     pub(crate) prefix: String,
     pub(crate) next_id: u64,
     /// What the Export dialog was built from, and how often (`App::export_builds`).
-    pub(crate) export_cache: export_dialog::Cache,
+    pub(crate) export_cache: crate::export_dialog::Cache,
     /// The ids of the variables the last applied import added: the result stays while the file still holds them all.
     pub(crate) import_ids: Vec<String>,
     /// The host's text measurer and the `layout_on_canvas` flag (`crate::canvas`).

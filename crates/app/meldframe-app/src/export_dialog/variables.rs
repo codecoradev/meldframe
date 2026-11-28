@@ -8,7 +8,7 @@ use meldframe_app_model::{ExportFinding, VariablesExportDialog};
 use meldframe_protocol::Variables;
 use meldframe_text::label;
 
-use crate::MAX_MESSAGE;
+use crate::export_dialog::MAX_MESSAGE;
 
 /// The dialog for the variables of the file.
 pub fn variables_dialog(vars: &Variables) -> VariablesExportDialog {

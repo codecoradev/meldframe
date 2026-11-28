@@ -1,5 +1,7 @@
 //! The Import variables dialog (D8), the part that reads no `App`: CSS text to the commands that add its variables to
-//! the person's file, and the result the dialog shows. The text is read by the `variables-import` feature (nothing is
+//! the person's file, and the result the dialog shows.
+//!
+//! The text is read by the `variables-import` feature (nothing is
 //! run or fetched, the size and the count of what it makes are bounded); the commands are then checked, one after the
 //! other, on what the ones before them make of the file, exactly as `Action::EditVariables` checks them, so a list
 //! that would fail half way is refused before anything is applied.

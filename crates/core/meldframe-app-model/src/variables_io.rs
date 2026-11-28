@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// The most variables the Import variables dialog takes at a time (`E_IMPORT_TOO_MANY` above it). It lives here so that
-/// `AppState.limits` and the dialog's rule (`variables-import-dialog`, which re-exports it with the reason for the number)
+/// `AppState.limits` and the dialog's rule (`meldframe_app::variables_import_dialog`, which re-exports it with the reason for the number)
 /// read one constant.
 pub const IMPORT_MAX_VARIABLES: usize = 50;
 

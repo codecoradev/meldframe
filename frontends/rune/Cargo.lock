@@ -935,18 +935,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "export-dialog"
-version = "0.0.0"
-dependencies = [
- "export",
- "meldframe-app-model",
- "meldframe-layout",
- "meldframe-protocol",
- "meldframe-text",
- "meldframe-variables",
-]
-
-[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1647,7 +1635,7 @@ dependencies = [
 name = "meldframe-app"
 version = "0.0.0"
 dependencies = [
- "export-dialog",
+ "export",
  "meldframe-activity",
  "meldframe-app-model",
  "meldframe-app-parts",
@@ -1665,7 +1653,7 @@ dependencies = [
  "meldframe-variables",
  "serde",
  "serde_json",
- "variables-import-dialog",
+ "variables-import",
 ]
 
 [[package]]
@@ -4140,17 +4128,6 @@ dependencies = [
  "meldframe-protocol",
  "meldframe-text",
  "meldframe-variables",
-]
-
-[[package]]
-name = "variables-import-dialog"
-version = "0.0.0"
-dependencies = [
- "meldframe-app-model",
- "meldframe-app-rules",
- "meldframe-protocol",
- "meldframe-text",
- "variables-import",
 ]
 
 [[package]]
