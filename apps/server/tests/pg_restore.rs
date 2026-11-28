@@ -1,6 +1,7 @@
 //! A room on Postgres survives a restart: snapshot plus log give the same file, and the log stays gap-free
 //! when several writers append at once.
 
+#[path = "rooms_common/mod.rs"]
 mod common;
 
 use meldframe_host::{Gate, Op, Principal, Room, Store};
