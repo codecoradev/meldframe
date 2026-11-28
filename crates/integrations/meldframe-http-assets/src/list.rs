@@ -5,7 +5,8 @@
 //! the page before, `limit` is a whole number above 0 (more than 200 is read as 200) and 50 when left out. It is a read like `GET /v1/assets/{id}`: the token,
 //! the peer check and a call slot, and no entry in the call log (the REST asset routes make none).
 
-use super::{State_, failure};
+use super::failure::failure;
+use super::state::State_;
 use assets::{AssetError, MAX_LIST};
 use axum::{
     body::Body,
