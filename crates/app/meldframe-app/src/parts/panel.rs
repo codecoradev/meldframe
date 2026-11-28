@@ -2,7 +2,7 @@
 //! selection names. A dispatch that changes none of these (a move, a resize, a timer) leaves the view as it is: the
 //! comparison reads the file but allocates only when something differs.
 
-use crate::variables_panel::bound_fields;
+use super::variables_panel::bound_fields;
 use meldframe_app_model::{Panel, Panels};
 use meldframe_protocol::{Node, NodeKind, Variables};
 use std::collections::BTreeMap;

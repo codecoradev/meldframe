@@ -1,6 +1,6 @@
 //! The golden table of `golden_names.rs` for the fields that a file which loads cannot fill: a collection and a variable
 //! name are lowercase paths (the core refuses anything else), so these fields are driven through the pure functions of
-//! `meldframe-app-parts` that build them, over a `Variables` that was never validated (a file from a client that skipped
+//! `parts` of `meldframe-app` that build them, over a `Variables` that was never validated (a file from a client that skipped
 //! the check, an old file). The names come out safe to show all the same: the app layer does not rely on the file.
 
 // Under WASM these tests run through wasm-bindgen-test (`just wasm-test`), from the same source as the native run.

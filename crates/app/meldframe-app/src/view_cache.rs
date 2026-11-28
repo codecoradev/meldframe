@@ -1,6 +1,6 @@
 //! What the app keeps between dispatches, so that a view is built again only when what it reads has changed.
 
-use meldframe_app_parts::panel::PanelKey;
+use crate::parts::panel::PanelKey;
 use meldframe_render::PaintedBox;
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;

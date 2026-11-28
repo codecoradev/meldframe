@@ -3,6 +3,8 @@ status: proposed
 ---
 # A node has a `visible` field: a hidden node and everything inside it paints nothing and keeps its room, and capture and export refuse a frame that is hidden
 
+> Status note, 28 Nov 2026 (#315, `docs/crate-merge-plan.md` Merge B): the crate `meldframe-app-parts` named below is now the module `parts` of `meldframe-app`; a path `meldframe-app-parts/src/<file>` reads `crates/app/meldframe-app/src/parts/<file>`.
+
 Decision 40, item 6 (`docs/decisions.md`, approved by the owner on 24 Nov 2026) keeps visibility out of W1: a node has no `visible` field, and a field needs its meaning decided first. Issue 269 asks for that decision as an ADR, as a proposal, with no code. This is the proposal. Today the way to hide the paint of a node is `opacity` 0 (`docs/decisions.md`, decision 40 item 6; the importer row for `visibility: hidden` in `docs/import-html.md` stores it that way). Nothing in the model, the canvas, the export or the tools changes with this file; the status stays proposed until the owner accepts it.
 
 ## What the code does today
