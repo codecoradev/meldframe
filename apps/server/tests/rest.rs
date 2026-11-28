@@ -1,8 +1,8 @@
 //! REST: `POST /v1/files/{file}/tools/{tool}`. Every case goes through the router, as a client would.
 
-mod common;
+mod http_common;
 use axum::{body::Body, http::Request};
-use common::*;
+use http_common::*;
 use meldframe_host::Refusal;
 use meldframe_http::Failure;
 use meldframe_module::{Module, Registrar, RiskTier};

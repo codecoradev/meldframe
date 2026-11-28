@@ -1,16 +1,15 @@
 //! The asset routes: upload, download, the headers that make an image only an image, the workspace wall and the
 //! limits. The router is the real one; the blob store is in memory.
 
-#[path = "../../meldframe-http-tests/tests/common/mod.rs"]
-mod common;
+mod http_common;
 use assets::{BlobStore, MAX_ASSET_BYTES, MemoryBlobs, Usage, asset_id};
 use axum::{
     Router,
     body::Body,
     http::{Request, StatusCode},
 };
-use common::*;
 use futures_util::{StreamExt, stream};
+use http_common::*;
 use meldframe_http::shared;
 use std::sync::Arc;
 use tower::ServiceExt;

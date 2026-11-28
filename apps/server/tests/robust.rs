@@ -1,8 +1,8 @@
 //! Overload, a panicking call, file names and the shape of a token on the wire.
 
-mod common;
+mod http_common;
 use axum::{body::Body, http::Request};
-use common::*;
+use http_common::*;
 use meldframe_http::Failure;
 use meldframe_module::{Module, Registrar, RiskTier};
 use meldframe_server::{Server, SharedServer};

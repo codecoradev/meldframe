@@ -1,8 +1,8 @@
 //! WebSocket: `GET /v1/ws`, JSON frames `{id, tool, file, ops}`, over a real socket.
 
-mod common;
-use common::*;
+mod http_common;
 use futures_util::{SinkExt, StreamExt};
+use http_common::*;
 use meldframe_http::Rate;
 use meldframe_module::{Module, Registrar, RiskTier};
 use meldframe_server::{Server, SharedServer};
