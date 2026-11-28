@@ -18,7 +18,7 @@ pub(super) fn failure(e: &AssetError) -> Response {
     };
     // The text of an unavailable store is for the log, not for the caller.
     if let AssetError::Unavailable(why) = e {
-        eprintln!("meldframe-http-assets: unavailable: {why}");
+        eprintln!("meldframe-http: assets unavailable: {why}");
     }
     (
         status,

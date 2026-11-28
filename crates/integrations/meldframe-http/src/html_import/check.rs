@@ -2,9 +2,9 @@
 
 use super::schema::{Args, MAX_ID, MAX_TOOL_KEY, MAX_WIDTH};
 use super::tool::HtmlImport;
+use crate::mcp::tool_error as error;
+use crate::valid_file;
 use meldframe_activity::Note;
-use meldframe_http::mcp::tool_error as error;
-use meldframe_http::valid_file;
 use meldframe_module::Policy;
 use serde_json::{Map, Value};
 
@@ -50,7 +50,7 @@ impl HtmlImport {
         };
         let dry = args.dry_run.unwrap_or(false);
         match &key {
-            Some(k) if meldframe_http::mcp::check_key(k).is_err() || k.len() > MAX_TOOL_KEY => {
+            Some(k) if crate::mcp::check_key(k).is_err() || k.len() > MAX_TOOL_KEY => {
                 return Err(invalid(format!(
                     "the idempotency key is 1 to {MAX_TOOL_KEY} characters (and bytes) without control or hidden characters, since the digest of the call is added to it"
                 )));
