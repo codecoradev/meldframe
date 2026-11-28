@@ -1,9 +1,9 @@
 //! `GET /v1/files/{file}/batches` through the real router (ADR-0021, slice 5): the order, the bounds of `limit`,
 //! `before` and `after`, the counters, and who can read what.
 
-mod world;
+mod activity_world;
+use activity_world::*;
 use serde_json::{Value, json};
-use world::*;
 
 async fn get(w: &World, token: Option<&str>, path: &str) -> (u16, Value) {
     let url = format!("http://{}{path}", w.h.addr);

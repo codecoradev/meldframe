@@ -3,10 +3,10 @@
 //! probe which batches exist or what the route accepts; a listed caller gets `invalid` for a number that is not
 //! plain digits, and the body follows the limits of the other routes.
 
-mod support;
+mod activity_support;
+use activity_support::*;
 use serde_json::{Value, json};
 use std::time::Duration;
-use support::*;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 const GOOD: &str = r#"{"state":"accepted"}"#;

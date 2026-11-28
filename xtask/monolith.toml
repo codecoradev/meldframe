@@ -242,10 +242,7 @@ reason = "audit D12: one adapter module in the merged http crate (#315)"
 # its entry; a shared harness with source of its own is not listed.
 [allow_test_crate]
 "meldframe-activity-app-tests" = "moves into the crate it tests (#316)"
-"meldframe-activity-pg-tests" = "moves into the crate it tests (#316)"
-"meldframe-activity-review-tests" = "moves into the crate it tests (#316)"
 "meldframe-activity-tests" = "moves into the crate it tests (#316)"
-"meldframe-activity-tool-tests" = "moves into the crate it tests (#316)"
 "meldframe-app-export-tests" = "moves into the crate it tests (#316)"
 "meldframe-app-inspector-tests" = "moves into the crate it tests (#316)"
 "meldframe-app-layout-tests" = "moves into the crate it tests (#316)"

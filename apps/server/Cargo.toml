@@ -99,6 +99,7 @@ meldframe-check = { path = "../../crates/core/meldframe-check" }
 meldframe-store-contract = { path = "../../crates/core/meldframe-store-contract" }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres"] }
 meldframe-activity = { path = "../../crates/core/meldframe-activity" }
+activity-store = { path = "../../crates/features/activity/activity-store", features = ["contract"] }
 meldframe-render = { path = "../../crates/core/meldframe-render" }
 rmcp = { version = "3.10", default-features = false, features = ["client", "server", "transport-streamable-http-client-reqwest"] }
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
@@ -204,6 +205,42 @@ required-features = ["mcp", "html-import", "export", "activity"]
 [[test]]
 name = "upload_asset"
 required-features = ["assets"]
+
+[[test]]
+name = "batch_frames"
+required-features = ["activity"]
+
+[[test]]
+name = "batch_route"
+required-features = ["activity"]
+
+[[test]]
+name = "note_call"
+required-features = ["activity"]
+
+[[test]]
+name = "note_race"
+required-features = ["activity"]
+
+[[test]]
+name = "probing"
+required-features = ["activity"]
+
+[[test]]
+name = "setter"
+required-features = ["activity"]
+
+[[test]]
+name = "reviewers"
+required-features = ["activity"]
+
+[[test]]
+name = "get_batches"
+required-features = ["activity"]
+
+[[test]]
+name = "get_batches_hostile"
+required-features = ["activity"]
 
 [[test]]
 name = "export_frame"

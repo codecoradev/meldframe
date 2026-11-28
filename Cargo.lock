@@ -1137,46 +1137,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-activity-pg-tests"
-version = "0.0.0"
-dependencies = [
- "activity-store",
- "axum",
- "meldframe-activity",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-activity",
- "meldframe-http-live",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-server",
- "reqwest",
- "rmcp",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "meldframe-activity-review-tests"
-version = "0.0.0"
-dependencies = [
- "activity-store",
- "axum",
- "meldframe-activity",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-activity",
- "meldframe-http-live",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-server",
- "reqwest",
- "rmcp",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "meldframe-activity-tests"
 version = "0.0.0"
 dependencies = [
@@ -1188,26 +1148,6 @@ dependencies = [
  "meldframe-revert",
  "serde_json",
  "wasm-bindgen-test",
-]
-
-[[package]]
-name = "meldframe-activity-tool-tests"
-version = "0.0.0"
-dependencies = [
- "activity-store",
- "axum",
- "meldframe-activity",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-activity",
- "meldframe-http-live",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-server",
- "reqwest",
- "rmcp",
- "serde_json",
- "tokio",
 ]
 
 [[package]]

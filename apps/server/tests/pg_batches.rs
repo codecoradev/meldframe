@@ -1,7 +1,7 @@
 //! The batch headers in Postgres (ADR-0021): the store passes the cases of the in-memory one, a new process reads
 //! the headers back, and calls at once never repeat a number, a `rev` or go past a cap.
 
-#[path = "../../../../apps/server/tests/rooms_common/mod.rs"]
+#[path = "rooms_common/mod.rs"]
 mod common;
 
 use activity_store::{ActivityError, BatchStore, Caps, Page, Query, Recorded, Reviewed, contract};
