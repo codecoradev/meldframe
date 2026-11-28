@@ -33,7 +33,7 @@ fn state_carries_limits() {
     // The most variables the Import variables dialog takes, the dialog's own constant.
     assert_eq!(
         state.limits.import_variables,
-        variables_import_dialog::MAX_VARIABLES
+        meldframe_app::variables_import_dialog::MAX_VARIABLES
     );
 
     // The pixel limit of an export is the area limit of a capture: the server reads the same constant for

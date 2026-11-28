@@ -2,18 +2,18 @@
 //! of the file, built from the person's own view and kept while its dialog is open; the import is `variables-import`'s
 //! reading of CSS text, applied as `Action::EditVariables` applies commands (`apply_variables`, after the same check
 //! of the whole list: one undo step, the person's own edit, sent to the server as ops like any other); the export text and
-//! the plan are made by the `export-dialog` and `variables-import-dialog` crates, and this decides when, and nothing is applied by a refusal.
+//! the plan are made by the `export_dialog` and `variables_import_dialog` modules, and this decides when, and nothing is applied by a refusal.
 
 use crate::app::App;
 use crate::document::refuse;
 use crate::event::Event;
-use export_dialog::variables_dialog;
+use crate::export_dialog::variables_dialog;
+use crate::variables_import_dialog::plan;
 use meldframe_app_model::{Connection, ImportStatus, VariablesImportResult};
 use meldframe_app_parts::document::code;
 use meldframe_protocol::Command;
 use meldframe_sync::SubmitError;
 use meldframe_text::{MAX_FILE_NAME, label};
-use variables_import_dialog::plan;
 
 impl App {
     /// How many times the export feature was run for the Export variables dialog (a test seam: it must stay as it is

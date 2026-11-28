@@ -15,7 +15,6 @@ meldframe-app-model = { path = "../meldframe-app-model" }
 meldframe-app-rules = { path = "../meldframe-app-rules" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-text = { path = "../meldframe-text" }
-variables-import-dialog = { path = "../../features/variables-import/variables-import-dialog" }
 serde_json = "1"
 
 # See meldframe-order/Cargo.toml: the tests run under WASM through wasm-bindgen-test.
