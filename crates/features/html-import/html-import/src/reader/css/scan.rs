@@ -65,7 +65,7 @@ pub(super) struct Piece {
 pub(super) struct Cursor<'a> {
     text: &'a str,
     pub at: usize,
-    /// Bytes looked at, for [`html_import_tree::Report::work`].
+    /// Bytes looked at, for [`crate::tree::Report::work`].
     pub work: usize,
 }
 

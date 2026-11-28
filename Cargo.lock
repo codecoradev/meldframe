@@ -735,7 +735,6 @@ name = "html-import"
 version = "0.0.0"
 dependencies = [
  "export",
- "html-import-tree",
  "meldframe-check",
  "meldframe-css",
  "meldframe-layout",
@@ -744,13 +743,6 @@ dependencies = [
  "meldframe-text",
  "serde_json",
  "wasm-bindgen-test",
-]
-
-[[package]]
-name = "html-import-tree"
-version = "0.0.0"
-dependencies = [
- "meldframe-text",
 ]
 
 [[package]]
