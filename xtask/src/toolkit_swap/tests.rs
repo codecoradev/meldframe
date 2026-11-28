@@ -20,7 +20,6 @@ fn clean() -> Vec<Package> {
         pkg("meldframe-layout", "core", &["meldframe-protocol"]),
         pkg("meldframe-app-model", "core", &["meldframe-camera"]),
         pkg("meldframe-app-rules", "core", &["meldframe-app-model"]),
-        pkg("meldframe-app-nudge", "core", &["meldframe-app-rules"]),
         pkg("meldframe-app-pointer", "core", &["meldframe-app-model"]),
         pkg("meldframe-app-parts", "core", &["meldframe-app-model"]),
         pkg("dialog", "feature", &["meldframe-protocol"]),
@@ -30,7 +29,6 @@ fn clean() -> Vec<Package> {
             &[
                 "meldframe-app-rules",
                 "meldframe-app-parts",
-                "meldframe-app-nudge",
                 "meldframe-app-pointer",
                 "meldframe-render",
                 "meldframe-layout",

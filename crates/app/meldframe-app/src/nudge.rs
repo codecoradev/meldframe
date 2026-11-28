@@ -1,5 +1,7 @@
-//! What an arrow key does to the selection: each selected node goes the way its place allows. A pure function of the nodes,
-//! the selection, the key and the host flag, like `arrow` and `drop`: no state, no clock, nothing of the front end.
+//! What an arrow key does to the selection: each selected node goes the way its place allows.
+//!
+//! A pure function of the nodes, the selection, the key and the host flag, like `arrow` and `drop`: no state, no clock,
+//! nothing of the front end.
 //!
 //! The rules (E8.1.1):
 //!

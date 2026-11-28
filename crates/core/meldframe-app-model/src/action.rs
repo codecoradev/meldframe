@@ -130,7 +130,7 @@ pub enum Action {
     ArrowKey {
         direction: Direction,
     },
-    /// Move the selection one step the way an arrow key does, as one undo step (`meldframe-app-nudge`): a node outside a
+    /// Move the selection one step the way an arrow key does, as one undo step (`meldframe_app::nudge`): a node outside a
     /// flow by 1 unit in world space (10 with `coarse`), a child of an auto layout frame one place along its flow.
     Nudge {
         direction: Direction,
