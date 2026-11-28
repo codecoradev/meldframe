@@ -1,5 +1,6 @@
 //! E1.7: an agent captures a node through an open editor; the relay's refusals as the agent sees them.
 
+#[path = "capture_common/mod.rs"]
 mod common;
 use common::*;
 use serde_json::json;
@@ -178,7 +179,7 @@ async fn an_upload_needs_a_valid_login() {
     );
 }
 
-const CATALOGUE: &str = include_str!("../../../../docs/mcp-tools.json");
+const CATALOGUE: &str = include_str!("../../../docs/mcp-tools.json");
 
 #[tokio::test]
 async fn the_catalogue_lists_the_read_tier_capture_tool() {

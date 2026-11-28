@@ -1,7 +1,7 @@
 //! The checkpoints in Postgres (ADR-0023): the store passes the cases of the in-memory one, a new process reads the
 //! rows back and goes on numbering from where they were, and calls at once never repeat a number or pass a share.
 
-#[path = "../../../../apps/server/tests/rooms_common/mod.rs"]
+#[path = "rooms_common/mod.rs"]
 mod common;
 
 use checkpoint_store::{CheckpointError, CheckpointStore, Made, contract};

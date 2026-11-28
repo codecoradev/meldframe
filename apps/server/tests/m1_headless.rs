@@ -1,6 +1,7 @@
 //! M1 exit criteria 3, 4 and 5 without a web UI: a headless editor (the app layer of `meldframe-app`) on the
 //! live WebSocket of the real composed server, an rmcp agent on `/mcp`, and the capture relay.
 
+#[path = "capture_common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_app::{Action, App, Effect, Frame};

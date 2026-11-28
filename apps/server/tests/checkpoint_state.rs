@@ -2,8 +2,9 @@
 //! checkpoint, worked out by `state_at` from the latest snapshot at or before it (or from 0), the bound, the cost, the
 //! cache with its byte bound, and who may ask.
 
-mod world;
+mod checkpoint_world;
 use checkpoint_store::CheckpointStore;
+use checkpoint_world::*;
 use meldframe_checkpoints::{Kind, NewCheckpoint};
 use meldframe_host::{NewOp, Principal, Snapshot, Store, StoredOp};
 use meldframe_http::Rate;
@@ -17,7 +18,6 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
-use world::*;
 
 const BEA: &str = PERSON;
 const WS: &str = "ws_1";

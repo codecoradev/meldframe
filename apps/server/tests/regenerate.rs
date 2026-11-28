@@ -3,9 +3,9 @@
 use meldframe_server::Server;
 use serde_json::{Value, json};
 
-/// Rewrites `docs/mcp-tools.json` from the server: `cargo test -p meldframe-review-tests --test regenerate
-/// -- --ignored regenerate`. The tests of `meldframe-server` (`catalogue.rs`, `skill.rs`) then check the file against a
-/// client and the registry.
+/// Rewrites `docs/mcp-tools.json` from the server: `cargo test -p meldframe-server --test regenerate
+/// -- --ignored regenerate`. The other tests of `meldframe-server` (`catalogue.rs`, `skill.rs`) then check the file
+/// against a client and the registry.
 #[test]
 #[ignore = "writes docs/mcp-tools.json"]
 fn regenerate() {
@@ -69,6 +69,6 @@ fn regenerate() {
         "inputSchema": meldframe_http_activity::input_schema()}),
     );
     let doc = json!({"batchLimit": meldframe_http::mcp::MAX_BATCH, "tools": tools});
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../docs/mcp-tools.json");
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/mcp-tools.json");
     std::fs::write(path, serde_json::to_string_pretty(&doc).unwrap() + "\n").unwrap();
 }

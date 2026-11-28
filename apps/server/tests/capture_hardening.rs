@@ -1,6 +1,7 @@
 //! The relay under pressure: what the upload route reads, what a failed call leaves behind, limits and
 //! who can see or answer what.
 
+#[path = "capture_common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_host::Principal;

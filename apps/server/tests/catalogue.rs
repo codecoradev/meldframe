@@ -51,7 +51,7 @@ fn the_catalogue_equals_the_registry_with_tiers() {
             .registry()
             .agent_tool(name)
             .unwrap_or_else(|| panic!("{name} is not in the registry"));
-        // The capture tool is served by the capture module; its own test lists it (`meldframe-capture-tests`).
+        // The capture tool is served by the capture module; its own test lists it (`capture_relay.rs`).
         let module = match name {
             "capture" => "capture",
             // The upload tool is served by the assets module; its own test crate lists it.

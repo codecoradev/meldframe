@@ -1,10 +1,10 @@
 //! The server sees a run start (ADR-0023, slice 4): an agent's write after a gap takes a `runStart` row just before its
 //! first op, with no editor open, over REST, the submit socket and MCP; and nothing else does.
 
-mod world;
+mod checkpoint_world;
+use checkpoint_world::*;
 use meldframe_checkpoints::Kind;
 use serde_json::Value;
-use world::*;
 
 /// The `(about, seq, by, atMs)` of the rows of a file, newest first.
 fn runs(w: &World, ws: &str, file: &str) -> Vec<(String, u64, Option<String>, u64)> {

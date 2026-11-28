@@ -1,7 +1,7 @@
 //! `design_review`: the critique list of a file through a real MCP client. The workspace and the actor come from the
 //! token; the list is not part of the file.
 
-#[path = "../../../../apps/server/tests/mcp_common/mod.rs"]
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use design_review::MemoryReviews;
@@ -386,7 +386,7 @@ async fn the_input_schema_equals_the_catalogue_and_the_registry_tool() {
     let live = listed.iter().find(|t| t.name == "design_review").unwrap();
     let live_schema = serde_json::to_value(&live.input_schema).unwrap();
     let catalogue: Value =
-        serde_json::from_str(include_str!("../../../../docs/mcp-tools.json")).unwrap();
+        serde_json::from_str(include_str!("../../../docs/mcp-tools.json")).unwrap();
     let entry = catalogue["tools"]
         .as_array()
         .unwrap()
