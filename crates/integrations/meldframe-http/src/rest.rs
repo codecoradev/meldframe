@@ -1,6 +1,6 @@
 //! REST: `POST /v1/files/{file}/tools/{tool}` with `{"ops": [...]}`.
 
-use crate::{Shared, WireOp, reply::Reply};
+use crate::{Shared, reply::Reply, wire::WireOp};
 use axum::{
     body::{Body, to_bytes},
     extract::{ConnectInfo, Path, Request, State},
