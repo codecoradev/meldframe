@@ -34,9 +34,9 @@ pub use tool::{NAME, input_schema};
 
 use axum::Router;
 use hub::Hub;
+use meldframe_http::live::{ClientHook, LiveSource};
 use meldframe_http::mcp::{Extra, Reader};
 use meldframe_http::{Clock, Shared};
-use meldframe_http_live::{ClientHook, LiveSource};
 use std::sync::Arc;
 
 /// What the server decides around the relay.

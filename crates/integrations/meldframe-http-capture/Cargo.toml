@@ -17,7 +17,6 @@ meldframe-protocol = { path = "../../core/meldframe-protocol" }
 meldframe-stream = { path = "../../core/meldframe-stream" }
 meldframe-text = { path = "../../core/meldframe-text" }
 meldframe-http = { path = "../meldframe-http", features = ["mcp"] }
-meldframe-http-live = { path = "../meldframe-http-live" }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 rmcp = { version = "3.10", default-features = false, features = ["server"] }
 serde = { version = "1", features = ["derive"] }

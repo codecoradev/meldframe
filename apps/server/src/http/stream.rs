@@ -4,7 +4,7 @@ use super::{SharedServer, failure_of};
 use crate::{StreamId, SubmitError, SubscribeError, Subscription};
 use meldframe_host::Principal;
 use meldframe_http::Failure;
-use meldframe_http_live::{LiveSource, Opened, Out};
+use meldframe_http::live::{LiveSource, Opened, Out};
 use meldframe_protocol::ServerMsg;
 use meldframe_rooms::RegistryError;
 

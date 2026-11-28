@@ -5,8 +5,8 @@
 use axum::{Router, body::Body, http::Request};
 use futures_util::{SinkExt, StreamExt};
 use meldframe_host::Principal;
+use meldframe_http::live::{LiveConfig, LiveSource, Opened, Out, live_router};
 use meldframe_http::{Config, DevTokens, Failure, Rate, Submitter};
-use meldframe_http_live::{LiveConfig, LiveSource, Opened, Out, live_router};
 use meldframe_module::{Module, Registrar, RiskTier};
 use meldframe_protocol::Command;
 use meldframe_server::{Server, SharedServer, StreamId};

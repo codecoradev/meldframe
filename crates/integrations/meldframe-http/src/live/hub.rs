@@ -4,8 +4,8 @@
 //! Stream ids stay in here: a client never sees one (they are sequential, and workspace is the only
 //! check the server makes), so no other principal can name a connection's stream.
 
+use crate::{Clock, Failure};
 use meldframe_host::{Principal, StoredOp};
-use meldframe_http::{Clock, Failure};
 use meldframe_protocol::{ClientMsg, ServerMsg};
 use meldframe_stream::{Frame, StreamId};
 use std::collections::{HashMap, VecDeque};
