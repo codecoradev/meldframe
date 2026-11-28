@@ -1,6 +1,6 @@
 //! The checkpoints of the file in the app layer (E5.3, ADR-0023): the list as the server last said it, the requests the
-//! app makes (the list, a new row, the file at a checkpoint) and what a revert or a restore waits for. A checkpoint
-//! changes only when the server has said so, never optimistically, and the app takes none itself. The rules are in
+//! app makes (the list, a new row, the file at a checkpoint) and what a revert or a restore waits for; a checkpoint
+//! changes only when the server has said so, never optimistically, and the app takes none itself, and the rules are in
 //! `meldframe_app_rules::checkpoints` and `meldframe-checkpoints`.
 
 use crate::app::App;

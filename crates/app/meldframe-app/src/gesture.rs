@@ -1,4 +1,4 @@
-//! Drawing a node and sizing one by a handle, as intents in world space (T8 of the thin UI audit, decision 43, Q3). The
+//! Drawing a node and sizing one by a handle, as intents in world space (T8 of the thin UI audit, decision 43, Q3): the
 //! geometry is `meldframe-app-rules` (`draw`, `handle`); this reads where the canvas draws things (the index of the scene,
 //! `crate::canvas`), turns a drag into the action the file already has (`CreateNode`, `Resize`), and so a gesture is one
 //! step of the history with the same checks, selection and tool change as a node made from a menu.

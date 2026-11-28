@@ -1,4 +1,4 @@
-//! The state machine: one action in, state changes, events and effects out. No I/O, clock or randomness.
+//! The state machine: one action in, state changes, events and effects out, with no I/O, clock or randomness.
 
 use crate::action::Action;
 use crate::effect::Effect;

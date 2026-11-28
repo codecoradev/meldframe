@@ -1,6 +1,6 @@
-//! The Export dialog (D9): the frame an export acts on, and the HTML built for it while the dialog is open. The export
-//! is the `export` feature's, run on the person's own view of the file (pending ops included, the modes on view); the
-//! target and the dialog are made by the `export-dialog` crate, and this decides when they are made. View state:
+//! The Export dialog (D9): the frame an export acts on, and the HTML built for it while the dialog is open, which is
+//! the `export` feature's, run on the person's own view of the file (pending ops included, the modes on view); the
+//! target and the dialog are made by the `export-dialog` crate, and this decides when they are made, as view state:
 //! nothing is written to the file and the undo history does not change.
 
 use crate::app::App;

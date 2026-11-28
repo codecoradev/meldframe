@@ -1,5 +1,5 @@
 //! What is under a point of the canvas (T9 of the thin UI audit, decision 43): the query a front end asks on a press, for
-//! the tool that creates and for the hover. The rule is `meldframe_render::HitIndex`, the same one a drop reads; this keeps
+//! the tool that creates and for the hover, answered by `meldframe_render::HitIndex`, the same rule a drop reads; this keeps
 //! the index of the scene for the revision of the document (`crate::canvas`) and answers from it.
 
 use crate::app::App;

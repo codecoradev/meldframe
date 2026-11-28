@@ -1,5 +1,7 @@
 //! One tag, start or end, read from its name to its `>`: the name folded to lower case and cut, and the attributes
-//! that stay (a repeated name, an event attribute and what a bound cuts are left out and counted). The first
+//! that stay (a repeated name, an event attribute and what a bound cuts are left out and counted).
+//!
+//! The first
 //! occurrence of a name decides: a later one is a repeat even when the first was cut for its length. A tag that
 //! reaches the end of the text before its `>` is not a tag.
 

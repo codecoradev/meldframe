@@ -1,6 +1,6 @@
-//! The builder: one pass over the text, a stack of open elements, and the rules of `rules.rs`. Every step moves
-//! forward in the text, or ends the read, and every look back is at most `max_depth` open elements, so the work is
-//! linear in the text.
+//! The builder reads the text in one pass with a stack of open elements and the rules of `rules.rs`, every step
+//! moving forward in the text or ending the read and every look back at most `max_depth` open elements, so the work
+//! is linear in the text.
 
 use super::report::{EntryKind, Report};
 use super::rules::{self, Raw};
@@ -29,7 +29,19 @@ struct Builder<'a> {
     report: Report,
 }
 
-pub(super) fn build(html: &str, l: &Limits) -> Result<Parsed, ParseError> {
+/// Read `html` into a tree. Refused only for a reason of [`ParseError`]; malformed markup is repaired and the
+/// report says where. Pure, deterministic, and linear in the length of `html`.
+pub fn parse(html: &str, limits: &Limits) -> Result<Parsed, ParseError> {
+    if html.len() > limits.max_input_bytes {
+        return Err(ParseError::TooLarge {
+            bytes: html.len(),
+            max: limits.max_input_bytes,
+        });
+    }
+    build(html, limits)
+}
+
+fn build(html: &str, l: &Limits) -> Result<Parsed, ParseError> {
     let root = Element {
         tag: String::new(),
         attrs: Vec::new(),
