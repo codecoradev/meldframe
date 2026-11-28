@@ -1891,44 +1891,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-live-slot-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "futures-util",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-live",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-rooms",
- "meldframe-server",
- "serde_json",
- "tokio",
- "tokio-tungstenite 0.26.2",
- "tower",
-]
-
-[[package]]
-name = "meldframe-live-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "futures-util",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-live",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-rooms",
- "meldframe-server",
- "serde_json",
- "tokio",
- "tokio-tungstenite 0.26.2",
- "tower",
-]
-
-[[package]]
 name = "meldframe-mcp-asset-tests"
 version = "0.0.0"
 dependencies = [
@@ -2121,6 +2083,7 @@ dependencies = [
  "design-review",
  "example",
  "export",
+ "futures-util",
  "html-import",
  "meldframe-app-export-model",
  "meldframe-approvals",
@@ -2147,6 +2110,7 @@ dependencies = [
  "meldframe-text",
  "serde_json",
  "tokio",
+ "tokio-tungstenite 0.26.2",
  "tower",
  "variables-import",
 ]
