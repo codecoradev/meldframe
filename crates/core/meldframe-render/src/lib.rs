@@ -20,7 +20,7 @@ mod resolve;
 
 pub use capture::{capture_bounds, capture_bounds_in, capture_rect, capture_rect_in};
 pub use extent::{content_extent, extent_of};
-pub use hit::{HitBox, HitIndex, contains_point, hit_test};
+pub use hit::{HitBox, HitIndex, contains_point, hit_test, world_rects};
 pub use laid_out::resolve_laid_out;
 pub use meldframe_variables::ModeChoice;
 pub use paint_bounds::PaintBounds;
