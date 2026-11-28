@@ -1,10 +1,10 @@
 //! What the routes and the tool share: the store, the count of the bytes, the upload places and the limits.
 
 use super::options::OpsStorage;
+use crate::{Reply, Shared, Slots, bearer, peer};
 use assets::{AssetError, BlobStore, Reserve, Usage, check_upload};
 use axum::{body::Body, extract::Request};
 use meldframe_host::Principal;
-use meldframe_http::{Reply, Shared, Slots, bearer, peer};
 use std::sync::Arc;
 use std::time::Duration;
 

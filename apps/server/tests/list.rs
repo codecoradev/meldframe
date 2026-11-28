@@ -16,7 +16,7 @@ use tower::ServiceExt;
 
 fn app_with(blobs: Arc<dyn BlobStore>) -> (Router, Arc<Fake>) {
     let fake = Fake::ok();
-    let router = meldframe_http_assets::routes(shared(tokens(), fake.clone(), config()), blobs);
+    let router = meldframe_http::assets::routes(shared(tokens(), fake.clone(), config()), blobs);
     (router, fake)
 }
 
