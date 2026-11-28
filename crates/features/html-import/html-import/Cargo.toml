@@ -17,6 +17,7 @@ workspace = true
 html-import-css = { path = "../html-import-css" }
 html-import-style = { path = "../html-import-style" }
 html-import-tree = { path = "../html-import-tree" }
+meldframe-css = { path = "../../../core/meldframe-css" }
 meldframe-layout = { path = "../../../core/meldframe-layout" }
 meldframe-module = { path = "../../../core/meldframe-module" }
 meldframe-protocol = { path = "../../../core/meldframe-protocol" }

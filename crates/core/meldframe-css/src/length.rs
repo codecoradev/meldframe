@@ -1,6 +1,8 @@
 //! A CSS length as the model holds it: a number of pixels. `px` and a bare number are read as they are and `rem` is
 //! sixteen pixels. Nothing here evaluates anything: it reads digits.
 
+use crate::number::number;
+
 /// The pixels in one `rem`: the browser's default root size.
 pub const REM_PX: f64 = 16.0;
 
@@ -22,15 +24,7 @@ pub fn length(s: &str) -> Option<Length> {
     } else {
         (l.as_str(), false)
     };
-    let digits = n.trim();
-    if digits.is_empty()
-        || !digits
-            .bytes()
-            .all(|b| b.is_ascii_digit() || matches!(b, b'.' | b'-' | b'+'))
-    {
-        return None;
-    }
-    let v = digits.parse::<f64>().ok().filter(|v| v.is_finite())?;
+    let v = number(n)?;
     Some(if rem {
         Length {
             value: v * REM_PX,

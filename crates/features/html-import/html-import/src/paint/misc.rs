@@ -1,9 +1,10 @@
 //! `opacity`, and the properties of paint that have no field in the model (and the ones of behaviour), which are
 //! refused by name.
 
-use super::lex::{number, percent};
+use super::lex::percent;
 use super::{Paint, Sink};
 use crate::css::{Source, Style};
+use meldframe_css::number::number;
 use meldframe_protocol::Bind;
 
 /// `opacity`: a number or a percentage from 0 to 1. CSS clamps a value outside it; the model refuses one, so it is

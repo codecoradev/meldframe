@@ -5,6 +5,7 @@
 
 use meldframe_css::color::{self, Hex};
 use meldframe_css::length::length as css_length;
+use meldframe_css::number::number;
 
 /// The unit a length was written in. A conversion (anything but `Px`) is for the mapping to report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,19 +23,6 @@ pub enum Unit {
 pub struct Len {
     pub px: f64,
     pub unit: Unit,
-}
-
-/// A number as CSS writes it without an exponent: digits, a point and a sign. Finite.
-fn number(s: &str) -> Option<f64> {
-    let s = s.trim();
-    if s.is_empty()
-        || !s
-            .bytes()
-            .all(|b| b.is_ascii_digit() || matches!(b, b'.' | b'-' | b'+'))
-    {
-        return None;
-    }
-    s.parse::<f64>().ok().filter(|v| v.is_finite())
 }
 
 /// `calc(<number> * <length in px>)` or the other way round, in any spacing: the pixels. `calc(var(--x) * 1px)` is

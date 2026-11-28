@@ -739,6 +739,7 @@ dependencies = [
  "html-import-style",
  "html-import-tree",
  "meldframe-check",
+ "meldframe-css",
  "meldframe-layout",
  "meldframe-module",
  "meldframe-protocol",

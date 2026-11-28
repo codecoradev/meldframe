@@ -184,13 +184,6 @@ reason = "audit D6: meldframe-mcp-defs owns the idempotency key; meldframe-http-
 
 [[allow_copy]]
 fns = [
-    "crates/features/html-import/html-import-style/src/value.rs::number",
-    "crates/features/html-import/html-import/src/paint/lex.rs::number",
-]
-reason = "audit D5: one CSS number reader; the importers share it once they are one crate (#315)"
-
-[[allow_copy]]
-fns = [
     "crates/integrations/meldframe-http-activity/src/lib.rs::now_ms",
     "crates/integrations/meldframe-http-checkpoints/src/lib.rs::now_ms",
 ]
@@ -253,11 +246,6 @@ fns = [
     "crates/integrations/meldframe-http/src/mcp/tools.rs::args",
 ]
 reason = "audit D12: one adapter module in the merged http crate (#315)"
-
-# MM4: files that write the `css_number` pattern themselves today.
-[allow_shared.css_number]
-"crates/features/html-import/html-import-style/src/value.rs" = "audit D5: one CSS number reader; the importers share it once they are one crate (#315)"
-"crates/features/html-import/html-import/src/paint/lex.rs" = "audit D5: one CSS number reader; the importers share it once they are one crate (#315)"
 
 # MM4: files that write a character of the `hidden_text` set themselves today. Two are not checks.
 [allow_shared.hidden_text]

@@ -2,10 +2,11 @@
 //! list drawn at the bottom; CSS draws the first at the top, so the list is reversed. An inner shadow has no field
 //! and is refused; of more than four the four topmost (the first four of the CSS list) are kept.
 
-use super::lex::{colour_word, numeric, split_commas};
+use super::lex::{colour_word, split_commas};
 use super::{Paint, Sink};
 use crate::css::Style;
 use crate::css::value::{length, words};
+use meldframe_css::number::starts_like_number;
 use meldframe_protocol::Shadow;
 
 /// The most shadows the model holds.
@@ -26,7 +27,7 @@ fn one(layer: &str, style: &Style) -> Result<Option<Shadow>, &'static str> {
         1 => true,
         _ => return bad,
     };
-    let is_len: Vec<bool> = w.iter().map(|x| numeric(x)).collect();
+    let is_len: Vec<bool> = w.iter().map(|x| starts_like_number(x)).collect();
     let n = is_len.iter().filter(|l| **l).count();
     // The colour is the one word that is not a length, and it comes first or last.
     let (lengths, colour): (Vec<&str>, Option<&str>) =

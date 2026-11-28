@@ -1,6 +1,8 @@
 //! The small readers every paint value shares: a list cut at its commas, a number, a percentage, the inside of a
 //! function. They look at the text once and allocate only the slices they return.
 
+use meldframe_css::number::number;
+
 /// `s` cut at the commas outside parentheses and strings, each piece trimmed, at most `max` pieces; the flag says
 /// that more were left out. An empty text is no pieces.
 pub(super) fn split_commas(s: &str, max: usize) -> (Vec<&str>, bool) {
@@ -35,19 +37,6 @@ pub(super) fn split_commas(s: &str, max: usize) -> (Vec<&str>, bool) {
     }
     out.push(last);
     (out, false)
-}
-
-/// A number as CSS writes it without an exponent: digits, a point and a sign. Finite.
-pub(super) fn number(s: &str) -> Option<f64> {
-    let s = s.trim();
-    if s.is_empty()
-        || !s
-            .bytes()
-            .all(|b| b.is_ascii_digit() || matches!(b, b'.' | b'-' | b'+'))
-    {
-        return None;
-    }
-    s.parse::<f64>().ok().filter(|v| v.is_finite())
 }
 
 /// `50%` as 50.
@@ -92,11 +81,4 @@ pub(super) fn colour_word(w: &str, style: &crate::css::Style) -> Option<(String,
         return Some((style.color.clone(), false));
     }
     crate::css::value::colour(w).map(|h| (h.hex, h.clipped))
-}
-
-/// Does the word start like a number or a length (`10px`, `-3`, `.5`, `+1%`).
-pub(super) fn numeric(w: &str) -> bool {
-    w.bytes()
-        .next()
-        .is_some_and(|b| b.is_ascii_digit() || matches!(b, b'.' | b'-' | b'+'))
 }
