@@ -121,7 +121,7 @@ row or a row has no code.
 
 ## Transport codes
 
-The HTTP adapter (`crates/integrations/meldframe-http` (tests in `crates/core/meldframe-http-tests`)) answers REST and WebSocket calls with one JSON shape,
+The HTTP adapter (`crates/integrations/meldframe-http` (tests in `apps/server/tests`)) answers REST and WebSocket calls with one JSON shape,
 `{"error": {"code", "message", "retryable"}}`, and an HTTP status (a WebSocket reply frame carries the same body
 plus `id` and `status`). A gate refusal keeps its own code from the tables above; the statuses are `forbidden` 403,
 `quota_exceeded` and `quota_ops_per_minute` 429, `batch_too_large` and `quota_storage` 413, `conflict` 409, `invalid` 400, `dependency_rejected` and every `E_` code 422. The codes below

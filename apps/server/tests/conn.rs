@@ -1,8 +1,8 @@
 //! A cap on open connections: the listener stops accepting at the cap and resumes when one closes.
 
-mod common;
+mod http_common;
 use axum::serve::ListenerExt;
-use common::*;
+use http_common::*;
 use meldframe_http::CappedListener;
 use std::net::SocketAddr;
 use std::time::Duration;

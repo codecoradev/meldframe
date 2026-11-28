@@ -1,9 +1,9 @@
 //! Rate limiting happens before the body is read or parsed.
 
-mod common;
+mod http_common;
 use axum::extract::ConnectInfo;
 use axum::{body::Body, http::Request};
-use common::*;
+use http_common::*;
 use meldframe_http::{Rate, RateLimiter};
 use std::net::SocketAddr;
 use std::sync::Arc;

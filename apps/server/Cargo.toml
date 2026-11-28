@@ -83,15 +83,31 @@ meldframe-store-pg = { path = "../../crates/integrations/meldframe-store-pg" }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "signal"] }
 
-# What the tests in `tests/` use beyond the dependencies above: the `json` and `ws` features of axum, the `macros` and
-# `time` of tokio, `tower` (`oneshot`) and the WebSocket client of the live tests. Dev-dependencies do not ship and do
-# not count for the layering (decision 44).
+# What the tests in `tests/` use beyond the dependencies above: the `json` and `ws` features of axum, the `io-util`,
+# `macros` and `time` of tokio, `tower` (`oneshot`), `http-body-util`, `meldframe-check` and the WebSocket client of the
+# live and HTTP tests. Dev-dependencies do not ship and do not count for the layering (decision 44).
 [dev-dependencies]
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
-tokio = { version = "1", features = ["macros", "time"] }
+tokio = { version = "1", features = ["macros", "time", "io-util"] }
 tower = { version = "0.5", features = ["util"] }
 tokio-tungstenite = "0.26"
 futures-util = "0.3"
+http-body-util = "0.1"
+meldframe-check = { path = "../../crates/core/meldframe-check" }
+
+# A test that needs a cargo feature is not built without it, so `cargo test -p meldframe-server --no-default-features`
+# still proves that a feature left out removes its tools.
+[[test]]
+name = "server_limits"
+required-features = ["mcp"]
+
+[[test]]
+name = "routes"
+required-features = ["assets"]
+
+[[test]]
+name = "list"
+required-features = ["assets"]
 
 [lints]
 workspace = true

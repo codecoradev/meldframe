@@ -2,15 +2,14 @@
 //! store is in memory. It is a read like `GET /v1/assets/{id}`: the token and the call slots, no content in the answer,
 //! no entry in the call log (the REST asset routes make none), and never another workspace's assets.
 
-#[path = "../../meldframe-http-tests/tests/common/mod.rs"]
-mod common;
+mod http_common;
 use assets::{BlobStore, MemoryBlobs, asset_id};
 use axum::{
     Router,
     body::Body,
     http::{Request, StatusCode},
 };
-use common::*;
+use http_common::*;
 use meldframe_http::shared;
 use std::sync::Arc;
 use tower::ServiceExt;
