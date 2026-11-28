@@ -162,7 +162,7 @@ reason = "audit D16: one test-support module for the harness and the store contr
 
 [[allow_copy]]
 fns = [
-    "crates/core/meldframe-app-parts/src/document.rs::update",
+    "crates/app/meldframe-app/src/parts/document.rs::update",
     "crates/core/meldframe-app-rules/src/drop.rs::update",
 ]
 reason = "the same one-command builder in two app-layer crates; goes away when the app crates are one (#315)"

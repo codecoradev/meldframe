@@ -1,7 +1,7 @@
 //! The state of the Variables manage view (audit finding T5, issue 322) as plain data: which collection is shown, the
 //! removal being asked about, the field a name is being edited in, the text of the three forms that add something, and
-//! the limits the view says. Every rule that decides these is in `meldframe-app-parts` (`manage_names`) and
-//! `meldframe-app` (`manage_ui`); the front end draws this and sends `Action::Manage`. The words are the front end's:
+//! the limits the view says. Every rule that decides these is in `meldframe-app` (`parts::manage_names`, `manage_ui`);
+//! the front end draws this and sends `Action::Manage`. The words are the front end's:
 //! this holds codes, names and counts.
 
 use crate::event::VariableEntity;

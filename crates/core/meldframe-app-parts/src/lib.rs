@@ -4,9 +4,7 @@
 //! the app, no events, no I/O and no clock. The state machine that owns the state, the replica and the events stays in
 //! `meldframe-app`, and calls these. The rules that hold a little state of their own are in `meldframe-app-rules`.
 
-pub mod document;
 pub mod layout;
-pub mod manage_names;
 pub mod panel;
 pub mod properties;
 pub mod property;

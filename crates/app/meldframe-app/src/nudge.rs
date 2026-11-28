@@ -18,8 +18,8 @@
 //! - Every press is one history step (the app applies the commands as one group): there is no clock in the app layer to
 //!   gather a held key into one, so a held key is not an editor key (`keys`), and a person who wants 10 uses Shift.
 
+use crate::parts::document::{apply_all, validate};
 use meldframe_app_model::Direction;
-use meldframe_app_parts::document::{apply_all, validate};
 use meldframe_app_rules::arrow::arrow_commands;
 use meldframe_layout::is_layout_frame;
 use meldframe_protocol::{Command, Node, NodePatch};

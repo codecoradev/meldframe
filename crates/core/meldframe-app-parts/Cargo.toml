@@ -15,11 +15,8 @@ meldframe-check = { path = "../meldframe-check" }
 meldframe-layout = { path = "../meldframe-layout" }
 meldframe-protocol = { path = "../meldframe-protocol" }
 meldframe-render = { path = "../meldframe-render" }
-meldframe-sync = { path = "../meldframe-sync" }
 meldframe-text = { path = "../meldframe-text" }
 meldframe-variables = { path = "../meldframe-variables" }
-meldframe-variant = { path = "../meldframe-variant" }
-serde_json = "1"
 
 [lints]
 workspace = true

@@ -5,9 +5,9 @@
 use crate::app::App;
 use crate::effect::Effect;
 use crate::event::Event;
+use crate::parts::document::{out_ops, removal_of};
 use crate::state::Connection;
 use crate::text;
-use meldframe_app_parts::document::{out_ops, removal_of};
 use meldframe_app_rules::retry::Refusal;
 
 impl App {

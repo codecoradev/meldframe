@@ -4,8 +4,8 @@
 use crate::app::App;
 use crate::effect::Effect;
 use crate::event::Event;
+use crate::parts::document::out_ops;
 use crate::state::Connection;
-use meldframe_app_parts::document::out_ops;
 use meldframe_app_rules::level::Level;
 use meldframe_app_rules::retry::Retries;
 use meldframe_app_rules::subscribe::SubscribeRefusal;

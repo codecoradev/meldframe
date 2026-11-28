@@ -7,16 +7,16 @@
 
 pub mod answers;
 pub mod binding;
+pub mod document;
 pub mod image;
 pub mod layers;
 pub mod manage;
 pub mod manage_form;
+pub mod manage_names;
 pub mod picker;
 pub mod selection;
 pub mod text_edit;
 pub mod touched;
 pub mod typed;
 
-pub use meldframe_app_parts::{
-    document, layout, manage_names, panel, properties, property, variables_panel,
-};
+pub use meldframe_app_parts::{layout, panel, properties, property, variables_panel};

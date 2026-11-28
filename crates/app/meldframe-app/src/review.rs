@@ -8,8 +8,8 @@ use crate::app::App;
 use crate::document::refuse;
 use crate::effect::Effect;
 use crate::event::Event;
+use crate::parts::document::apply_all;
 use meldframe_app_model::CheckpointKind;
-use meldframe_app_parts::document::apply_all;
 use meldframe_app_rules::checkpoints::Waiting;
 use meldframe_app_rules::review::{Revert, full_log, plan_restore, plan_revert};
 use meldframe_protocol::{Command, Node};
@@ -125,7 +125,7 @@ impl App {
         let planned = plan_restore(&target, self.replica.nodes());
         let planned = planned.map_err(String::from).and_then(|cmds| {
             let room = self.check_room(&cmds);
-            room.map_err(|e| meldframe_app_parts::document::code(&e).to_string())
+            room.map_err(|e| crate::parts::document::code(&e).to_string())
         });
         match planned {
             Err(code) => self.events.push(Event::Refused { code }),
