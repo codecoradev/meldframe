@@ -1706,6 +1706,7 @@ name = "meldframe-oracle-runner"
 version = "0.0.0"
 dependencies = [
  "export",
+ "html-import",
  "meldframe-layout",
  "meldframe-protocol",
  "meldframe-variables",

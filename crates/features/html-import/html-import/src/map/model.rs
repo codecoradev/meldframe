@@ -3,7 +3,7 @@
 use super::notes::{Change, Lost};
 use crate::css::Report;
 use crate::html::ParseError;
-use meldframe_protocol::{Command, NodeKind};
+use meldframe_protocol::{Command, Node, NodeKind};
 
 /// The most commands one import makes: the batch limit of the tools (`docs/mcp-tools.json`, `batchLimit`).
 pub const MAX_COMMANDS: usize = 100;
@@ -151,6 +151,17 @@ pub struct Imported {
 }
 
 impl Imported {
+    /// The nodes the commands add, in the order of the commands (a parent before its children).
+    pub fn added_nodes(&self) -> Vec<Node> {
+        self.commands
+            .iter()
+            .filter_map(|c| match c {
+                Command::AddNode { node, .. } => Some(node.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// How many properties were not carried, over all the nodes, those a full list left out included: what `strict`
     /// refuses.
     pub fn unsupported_count(&self) -> usize {

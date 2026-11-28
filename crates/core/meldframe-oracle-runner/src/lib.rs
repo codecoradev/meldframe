@@ -11,8 +11,12 @@
 //! in the browser, add it to the table and run again until a run has no misses. The core asks for wrap widths that
 //! depend on earlier answers, which is why one pass cannot know every query.
 
+mod back;
+mod page;
 mod table;
 
+pub use back::{Back, BackNode};
+pub use page::{ImportAnswer, ImportCase, PageNode};
 pub use table::{Entry, Query, TableMeasurer};
 
 use export::{ExportOptions, Format};
@@ -38,6 +42,9 @@ pub struct Fixture {
 #[derive(Debug, Deserialize)]
 pub struct Input {
     pub fixtures: Vec<Fixture>,
+    /// Hand-written pages to import and lay out (E4.4 slice 8).
+    #[serde(default)]
+    pub imports: Vec<ImportCase>,
     /// The text measurements recorded in the browser so far.
     #[serde(default)]
     pub table: Vec<Entry>,
@@ -51,6 +58,21 @@ pub struct Exported {
     pub css: String,
     pub unsupported: Vec<String>,
     pub warnings: Vec<String>,
+    /// The export imported back and laid out again (`back.rs`); `None` on the export an import made, which is not imported again.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub back: Option<Back>,
+}
+
+impl Exported {
+    pub(crate) fn of(e: export::Export) -> Self {
+        Exported {
+            html: e.html,
+            css: e.css,
+            unsupported: codes(&e.report.unsupported),
+            warnings: codes(&e.report.warnings),
+            back: None,
+        }
+    }
 }
 
 /// A top-level frame and its two exports.
@@ -78,6 +100,7 @@ pub struct Answer {
 #[derive(Debug, Serialize)]
 pub struct Output {
     pub fixtures: Vec<Answer>,
+    pub imports: Vec<ImportAnswer>,
 }
 
 fn codes(list: &[export::Finding]) -> Vec<String> {
@@ -97,13 +120,19 @@ fn one(
 ) -> Result<Exported, export::ExportError> {
     let choice = ModeChoice::of(f.modes.iter().map(|(c, m)| (c.as_str(), m.as_str())));
     let options = ExportOptions::new(format, measurer).modes(choice);
-    let e = export::export_frame(&f.nodes, &f.variables, frame, &options)?;
-    Ok(Exported {
-        html: e.html,
-        css: e.css,
-        unsupported: codes(&e.report.unsupported),
-        warnings: codes(&e.report.warnings),
-    })
+    let mut e = Exported::of(export::export_frame(
+        &f.nodes,
+        &f.variables,
+        frame,
+        &options,
+    )?);
+    let at = f
+        .nodes
+        .iter()
+        .find(|n| n.id == frame)
+        .map_or((0.0, 0.0), |n| (n.x, n.y));
+    e.back = Some(back::reimport(&e, format, at, measurer));
+    Ok(e)
 }
 
 fn answer(f: &Fixture, table: &[Entry]) -> Answer {
@@ -148,6 +177,11 @@ pub fn run(input: &Input) -> Output {
             .fixtures
             .iter()
             .map(|f| answer(f, &input.table))
+            .collect(),
+        imports: input
+            .imports
+            .iter()
+            .map(|c| page::answer(c, &input.table))
             .collect(),
     }
 }

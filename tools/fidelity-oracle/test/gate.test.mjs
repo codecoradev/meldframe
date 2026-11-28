@@ -6,12 +6,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { KNOWN_GAPS } from '../known-gaps.mjs';
+import { IMPORT_GAPS, IMPORT_LOSSES, KNOWN_GAPS } from '../known-gaps.mjs';
 import { FLOORS, PAINT_FIXTURES } from '../gate.mjs';
+import { PAGE_FLOOR } from '../import-gate.mjs';
 import { overflowing } from '../geometry.mjs';
 
 const gate = path.join(path.dirname(fileURLToPath(import.meta.url)), '../gate.mjs');
-const run = (name, max, extra = {}) => ({ name, fuzz: false, nodes: 3, textNodes: 0, errors: [], warnings: [], runs: { 'css@1280@1': { max, worst: 'a', missing: 0, fontOk: true, bad: max > 0.05 ? ['a'] : [] } }, twVsCss: { max: 0, worst: 'a' }, ...extra });
+/** The import of one export: clean unless `over` says otherwise. */
+const trip = (over = {}) => ({ nodes: 3, max: 0, worst: 'a', missing: 0, bad: [], kindLost: [], unsupported: [], page: { nodes: 3, max: 0, worst: 'imp-0', missing: 0, fontOk: true, bad: [] }, ...over });
+const trips = (over) => ({ 'r css': trip(over), 'r tailwind': trip(over) });
+const run = (name, max, extra = {}) => ({ name, fuzz: false, nodes: 3, textNodes: 0, errors: [], warnings: [], roundTrip: trips(), runs: { 'css@1280@1': { max, worst: 'a', missing: 0, fontOk: true, bad: max > 0.05 ? ['a'] : [] } }, twVsCss: { max: 0, worst: 'a' }, ...extra });
 const exit = (files, more = {}) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'gate-')), 'results.json');
   fs.writeFileSync(file, JSON.stringify({ seeds: 10, geometry: { files }, ...sections, ...more }));
@@ -20,7 +24,14 @@ const exit = (files, more = {}) => {
 };
 /** One passing probe, in each form, for every fixture the paint oracle must cover. */
 const probesFor = (names) => names.flatMap((n) => ['css', 'tailwind'].map((form) => ({ id: `${n} ${form}: a probe`, at: [1, 1], want: 'red', got: [255, 0, 0], ok: true })));
+/** A hand-written page that passes. */
+const page = (name, over = {}) => ({ name, error: null, fontOk: true, anonymous: 0, nodes: 4, missing: 0, max: 0, worst: 'body', bad: [], deltas: {}, unsupported: [], approximated: [], ...over });
+/** A page that fails only the way its entry in IMPORT_GAPS says. */
+const gapPage = (name, over = {}) => page(name, { max: 5, worst: IMPORT_GAPS[name].nodes[0], bad: [...IMPORT_GAPS[name].nodes], unsupported: [...IMPORT_GAPS[name].codes], ...over });
+const importGaps = Object.keys(IMPORT_GAPS);
+const pages = () => ({ files: [...importGaps.map((g) => gapPage(g)), ...Array.from({ length: PAGE_FLOOR - importGaps.length }, (_, i) => page(`h-clean-${i}`))] });
 const sections = {
+  import: pages(),
   paint: { probes: probesFor(PAINT_FIXTURES), forms: PAINT_FIXTURES.map((fixture) => ({ fixture, differing: 0 })) },
   ink: { rows: [{ id: 'hug700', form: 'css', dLeft: 0, dRight: 0, dTop: 0, dBottom: 0 }], worst: 0 },
   blur: [{ blur: 8, maxAbs: 19 }],
@@ -30,7 +41,8 @@ const gaps = Object.keys(KNOWN_GAPS);
 const standing = (g, over = {}) => run(g, 5, { warnings: [`${KNOWN_GAPS[g].warning}x`], runs: { 'css@1280@1': { max: 5, worst: KNOWN_GAPS[g].nodes[0], missing: 0, fontOk: true, bad: [KNOWN_GAPS[g].nodes[0]] } }, ...over });
 const fz = (i, over = {}) => run(`fz-${i}`, 0, { fuzz: true, unspecified: false, g3: false, ...over });
 /** A full run: the floor of fixtures, the standing gaps, and 10 seeds of which 7 are inside the contract. */
-const full = () => [...gaps.map((g) => standing(g)), ...Array.from({ length: FLOORS.fixtures - gaps.length }, (_, i) => run(`f${i}`, 0.01)), ...Array.from({ length: 10 }, (_, i) => fz(i, i < 3 ? { unspecified: true, g3: true } : {}))];
+const lossName = Object.keys(IMPORT_LOSSES)[0];
+const full = () => [...gaps.map((g) => standing(g)), ...Array.from({ length: FLOORS.fixtures - gaps.length }, (_, i) => (i === FLOORS.fixtures - gaps.length - 1 ? run(lossName, 0.01, { roundTrip: trips({ kindLost: IMPORT_LOSSES[lossName] }) }) : run(`f${i}`, 0.01))), ...Array.from({ length: 10 }, (_, i) => fz(i, i < 3 ? { unspecified: true, g3: true } : {}))];
 const without = (files, name) => files.filter((f) => f.name !== name);
 const swap = (files, name, over) => files.map((f) => (f.name === name ? { ...f, ...over } : f));
 
@@ -143,4 +155,60 @@ test('overflowing: padding larger than the box, children larger than the content
   assert.equal(overflowing([frame({ padding: 30 }), kid({})], rects({ w: 50, h: 50 }, { w: 1, h: 1 })), true);
   assert.equal(overflowing([frame({}), kid({})], rects({ w: 100, h: 50 }, { w: 120, h: 20 })), true);
   assert.equal(overflowing([frame({}), kid({ sw: 'fill' })], rects({ w: 100, h: 50 }, { w: 0.5, h: 20 })), true);
+});
+
+test('an export imported back with a box off by more than 0.05 px, or an imported file whose page is, fails', () => {
+  assert.match(exit(swap(full(), 'f0', { roundTrip: trips({ max: 0.2, worst: 'b', bad: ['b'] }) })).out, /f0: import of r css: box off by 0\.200 px at b/);
+  assert.match(exit(swap(full(), 'f0', { roundTrip: trips({ page: { max: 0.2, worst: 'imp-1', missing: 0, fontOk: true } }) })).out, /the page of the imported file is off by 0\.200 px/);
+  assert.equal(exit(swap(full(), 'f0', { roundTrip: trips({ page: { max: 0, worst: 'imp-1', missing: 1, fontOk: true } }) })).code, 1, 'a node missing from the page');
+  assert.equal(exit(swap(full(), 'f0', { textNodes: 1, roundTrip: trips({ page: { max: 0, worst: 'imp-1', missing: 0, fontOk: false } }) })).code, 1, 'font');
+  assert.equal(exit(swap(full(), 'f0', { roundTrip: trips({ page: undefined }) })).code, 1, 'no second export');
+});
+test('an import that fails, refuses a property of an export, or has nothing to compare fails', () => {
+  assert.match(exit(swap(full(), 'f0', { roundTrip: trips({ error: 'E_IMPORT_HTML_EMPTY' }) })).out, /f0: import of r css: E_IMPORT_HTML_EMPTY/);
+  assert.match(exit(swap(full(), 'f0', { roundTrip: trips({ unsupported: ['refused_not_modelled:filter:imp-1'] }) })).out, /refused a property of an export/);
+  assert.equal(exit(swap(full(), 'f0', { roundTrip: {} })).code, 1, 'no frame imported back');
+  assert.equal(exit(swap(full(), 'f0', { roundTrip: trips({ missing: 2 }) })).code, 1, 'nodes of the export not in the import');
+});
+test('a loss of the kind of a node must be the one listed in IMPORT_LOSSES, and a listed loss that is gone fails the gate', () => {
+  assert.equal(exit(swap(full(), 'f0', { roundTrip: trips({ kindLost: ['x:frame>rect'] }) })).code, 1, 'an unlisted loss');
+  const r = exit(swap(full(), lossName, { roundTrip: trips() }));
+  assert.equal(r.code, 1);
+  assert.match(r.out, /known loss closed/);
+  assert.equal(exit(without(full(), lossName)).code, 1, 'the fixture is gone');
+});
+test('a fixture of the known gaps is not judged on its round trip; a fuzz file under G3 is judged on boxes but has no page', () => {
+  assert.equal(exit(swap(full(), gaps[0], { roundTrip: trips({ max: 9, bad: ['a'] }) })).code, 0);
+  const off = { page: { max: 9, worst: 'imp-1', missing: 0, fontOk: true } };
+  assert.equal(exit(swap(full(), 'fz-0', { roundTrip: trips(off) })).code, 0, 'G3 page');
+  assert.equal(exit(swap(full(), 'fz-5', { roundTrip: trips(off) })).code, 1, 'a page inside the contract');
+  assert.equal(exit(swap(full(), 'fz-0', { roundTrip: trips({ max: 9, bad: ['a'] }) })).code, 1, 'G3 boxes of the import');
+});
+test('a hand-written page off by more than 0.05 px, with no gap listed for it, fails', () => {
+  const files = [...pages().files.filter((f) => f.name !== 'h-clean-0'), page('h-clean-0', { max: 0.3, worst: 'div#7', bad: ['div#7'] })];
+  const r = exit(full(), { import: { files } });
+  assert.equal(r.code, 1);
+  assert.match(r.out, /h-clean-0: box off by 0\.300 px at div#7/);
+  assert.equal(exit(full(), { import: { files: pages().files.map((f) => (f.name === 'h-clean-1' ? { ...f, error: 'E_IMPORT_HTML_EMPTY' } : f)) } }).code, 1, 'import error');
+  assert.equal(exit(full(), { import: { files: pages().files.map((f) => (f.name === 'h-clean-1' ? { ...f, missing: 1 } : f)) } }).code, 1, 'no element for a source');
+});
+test('a known import gap that passes fails the gate', () => {
+  const g = importGaps[0];
+  const r = exit(full(), { import: { files: pages().files.map((f) => (f.name === g ? page(g, { unsupported: [...IMPORT_GAPS[g].codes] }) : f)) } });
+  assert.equal(r.code, 1);
+  assert.match(r.out, /known import gap closed/);
+});
+test('a known import gap must fail in the way it states: not through another node, a font or a code that is no longer listed', () => {
+  const g = importGaps.find((n) => IMPORT_GAPS[n].codes.length) ?? importGaps[0];
+  const swapPage = (over) => ({ import: { files: pages().files.map((f) => (f.name === g ? { ...f, ...over } : f)) } });
+  assert.equal(exit(full(), swapPage({ bad: ['zz'], worst: 'zz' })).code, 1, 'another node');
+  assert.equal(exit(full(), swapPage({ fontOk: false })).code, 1, 'font');
+  assert.equal(exit(full(), swapPage({ unsupported: [] })).code, 1, 'the code is no longer listed');
+  assert.equal(exit(full(), swapPage({ missing: 1 })).code, 1, 'a source with no element');
+});
+test('a run with too few hand-written pages, or without the section, or without a page a gap names, fails; a geometry-only run is not asked', () => {
+  assert.equal(exit(full(), { import: { files: pages().files.slice(0, -1) } }).code, 1);
+  assert.equal(exit(full(), { import: undefined }).code, 1);
+  assert.equal(exit(full(), { import: { files: pages().files.filter((f) => f.name !== importGaps[0]) } }).code, 1);
+  assert.equal(exit(full(), { import: undefined, paint: undefined, ink: undefined, blur: undefined, geometryOnly: true }).code, 0);
 });

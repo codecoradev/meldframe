@@ -5,6 +5,7 @@
 import { serve, launch, openMeasurePage } from './lib.mjs';
 import { geometry } from './geometry.mjs';
 import { paint } from './probes.mjs';
+import { pages } from './import.mjs';
 import { evaluate } from './gate.mjs';
 import { stopUnlessGatePlatform } from './platform.mjs';
 
@@ -21,6 +22,24 @@ export const MUTATIONS = {
     html: e.html.replace(/line-height:(\d+(?:\.\d+)?)px/g, (_, v) => `line-height:${+v + 1}px`).replace(/leading-\[(\d+(?:\.\d+)?)px\]/g, (_, v) => `leading-[${+v + 1}px]`),
     css: e.css.replace(/line-height:(\d+(?:\.\d+)?)px/g, (_, v) => `line-height:${+v + 1}px`),
   }),
+};
+
+const wider = (v) => String(+v + 0.2);
+const gaps = (e) => ({ ...e, css: e.css.replace(/gap:(\d+(?:\.\d+)?)px/g, (_, v) => `gap:${wider(v)}px`), html: e.html.replace(/gap:(\d+(?:\.\d+)?)px/g, (_, v) => `gap:${wider(v)}px`).replace(/gap-\[(\d+(?:\.\d+)?)px\]/g, (_, v) => `gap-[${wider(v)}px]`) });
+
+/** Mistakes in what the importer made of an export (import.mjs): an imported box that is off, and an imported file that exports a different gap. The gate must fail on each. */
+export const IMPORT_MUTATIONS = {
+  'the import lays a box 0.2 px wider than the original': (form, b) => ({ ...b, nodes: b.nodes.map((n, i) => (i === 1 ? { ...n, rect: { ...n.rect, w: n.rect.w + 0.2 } } : n)) }),
+  'the import puts a node 0.2 px lower': (form, b) => ({ ...b, nodes: b.nodes.map((n, i) => (i === b.nodes.length - 1 ? { ...n, rect: { ...n.rect, y: n.rect.y + 0.2 } } : n)) }),
+  'the imported file exports every gap 0.2 px wider': (form, b) => (b.again ? { ...b, again: gaps(b.again) } : b),
+  'the import refuses a property of the export': (form, b) => ({ ...b, unsupported: [...b.unsupported, 'refused_not_modelled:border-radius:imp-1'] }),
+};
+
+/** Mistakes in what the importer made of a hand-written page: the core's rect of a node moved, a node pointing at the wrong element. */
+export const PAGE_MUTATIONS = {
+  'the importer puts the first box 0.2 px to the right': (a) => ({ ...a, rects: Object.fromEntries(Object.entries(a.rects).map(([id, r], i) => [id, i === 1 ? { ...r, x: r.x + 0.2 } : r])) }),
+  'the importer makes the second box 0.2 px taller': (a) => ({ ...a, rects: Object.fromEntries(Object.entries(a.rects).map(([id, r], i) => [id, i === 1 ? { ...r, h: r.h + 0.2 } : r])) }),
+  'a source names the next element': (a) => ({ ...a, nodes: a.nodes.map((n, i) => (i === 1 ? { ...n, source: n.source.replace(/#(\d+)/, (_, d) => `#${+d + 1}`) } : n)) }),
 };
 
 const both = (e, f) => ({ ...e, html: f(e.html), css: f(e.css) });
@@ -60,9 +79,15 @@ export function tracked(mutate) {
 }
 
 /** The failures the gate reports for a run with `mutate` (none for the identity). Returns lines. */
-export async function check({ browser, base, mp, mutate, seeds = 10 }) {
-  const results = { seeds, geometryOnly: true, geometry: await geometry({ browser, base, mp, seeds, mutate }) };
+export async function check({ browser, base, mp, mutate, mutateBack, seeds = 10 }) {
+  const results = { seeds, geometryOnly: true, geometry: await geometry({ browser, base, mp, seeds, mutate, mutateBack }) };
   return evaluate(results);
+}
+
+/** The same for a mutation of an import: it must change something in the run (`changed` says whether it did) and the gate must fail on it. */
+export function trackedBack(mutate) {
+  let hit = false;
+  return { mutate: (form, b) => { const m = mutate(form, b); if (JSON.stringify(m) !== JSON.stringify(b)) hit = true; return m; }, missed: () => (hit ? [] : ['import']) };
 }
 
 if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1]).href) {
@@ -89,6 +114,20 @@ if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1]
       const nothing = t.missed();
       console.log(`${failures.length && !nothing.length ? 'caught ' : 'MISSED '} "${name}": ${failures.length} violation(s)${nothing.length ? `, but its search string is not in the ${nothing.join(' and ')} export` : ''}${failures[0] ? `, first: ${failures[0].split('\n')[0]}` : ''}`);
       if (!failures.length || nothing.length) bad++;
+    }
+    for (const [name, mutate] of Object.entries(IMPORT_MUTATIONS)) {
+      const t = trackedBack(mutate);
+      const failures = await check({ browser, base, mp, mutate: (_f, e) => e, mutateBack: t.mutate });
+      const nothing = t.missed();
+      console.log(`${failures.length && !nothing.length ? 'caught ' : 'MISSED '} "${name}": ${failures.length} violation(s)${nothing.length ? ', but it changed no import of the run' : ''}${failures[0] ? `, first: ${failures[0].split('\n')[0]}` : ''}`);
+      if (!failures.length || nothing.length) bad++;
+    }
+    for (const [name, mutate] of Object.entries(PAGE_MUTATIONS)) {
+      let changed = false;
+      const results = { seeds: 1, only: true, import: await pages({ browser, base, mp, mutate: (a) => { const m = mutate(a); if (JSON.stringify(m) !== JSON.stringify(a)) changed = true; return m; } }) };
+      const failures = evaluate(results);
+      console.log(`${failures.length && changed ? 'caught ' : 'MISSED '} "${name}": ${failures.length} violation(s)${changed ? '' : ', but it changed no page'}${failures[0] ? `, first: ${failures[0].split('\n')[0]}` : ''}`);
+      if (!failures.length || !changed) bad++;
     }
   } finally {
     await browser.close();

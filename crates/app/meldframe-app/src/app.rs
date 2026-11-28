@@ -1,11 +1,8 @@
 //! The state machine: one action in, state changes, events and effects out, with no I/O, clock or randomness.
 
-use crate::action::Action;
-use crate::effect::Effect;
-use crate::event::Event;
-use crate::panel::PanelCache;
-use crate::scene::SceneCache;
 use crate::state::{AppState, Connection};
+use crate::view_cache::{PanelCache, SceneCache};
+use crate::{action::Action, effect::Effect, event::Event};
 use meldframe_activity::Feed;
 use meldframe_app_parts::answers::action_of;
 use meldframe_app_parts::document::{history_of, out_ops};

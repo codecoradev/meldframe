@@ -45,6 +45,7 @@ mod text_edit;
 mod variables;
 mod variables_io;
 mod view;
+mod view_cache;
 
 pub(crate) use meldframe_app_model::{action, effect, event, state};
 
