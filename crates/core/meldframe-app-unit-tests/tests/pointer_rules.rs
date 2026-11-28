@@ -89,6 +89,7 @@ fn other_buttons_do_nothing() {
             button: PointerButton::Secondary,
             touch: false,
             space: false,
+            at_ms: None,
         });
     }
     assert!(r.log.is_empty());
@@ -230,6 +231,7 @@ fn the_cursor_follows_the_tool_space_and_a_pan() {
         button: PointerButton::Primary,
         touch: false,
         space: true,
+        at_ms: None,
     });
     assert_eq!(r.machine.view().cursor, PointerCursor::Grab);
 }

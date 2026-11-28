@@ -15,6 +15,7 @@ pub fn input(phase: PointerPhase, x: f64, y: f64) -> PointerInput {
         button: PointerButton::Primary,
         touch: false,
         space: false,
+        at_ms: None,
     }
 }
 
