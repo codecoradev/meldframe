@@ -1,5 +1,6 @@
-//! What one call may ask of the server: bounded names, bounded batches, and the cheap refusals that need no
-//! room. Everything here runs before a room is opened, so a refused call costs no store read.
+//! What one call may ask of the server: bounded names, bounded batches, and the cheap refusals that need no room.
+//!
+//! Everything here runs before a room is opened, so a refused call costs no store read.
 
 use meldframe_host::{Op, Refusal};
 use meldframe_module::RiskTier;

@@ -1,4 +1,6 @@
-//! Who owns each live stream: the actor that opened it, on the file key it opened it on (which holds the workspace). The hubs know workspaces (by file key) but not
+//! Who owns each live stream: the actor that opened it, on the file key it opened it on (which holds the workspace).
+//!
+//! The hubs know workspaces (by file key) but not
 //! actors, so the server keeps this small map. Ids are never reused, so a stale entry cannot grant access
 //! to a later stream; entries go with `unsubscribe`, `tick` and a failed subscribe.
 
