@@ -8,8 +8,9 @@
 //!
 //! What the scene is made from: the revision of the document (`Replica::revision`: nodes and variables with the pending
 //! ops), the measurer that answered (only while the flag is on: with it off the boxes are the stored ones and no measurer is
-//! asked), the `layout_on_canvas` flag and the modes picked in `AppState::modes` (they change the painted colours). There is no camera here: the scene is in world space, and the camera (`AppState::camera`) is applied by the shell, so a camera
-//! change moves neither epoch and a shell that draws through a camera needs no new scene for it.
+//! asked), the `layout_on_canvas` flag and the modes picked in `AppState::modes` (they change the painted colours). The camera
+//! (`AppState::camera`) is not one of them: the scene is in world space and the shell draws it through the camera, so a camera
+//! change moves neither epoch and costs no resolve, and a shell that draws through a camera needs no new scene for it.
 
 use crate::app::App;
 use meldframe_render::PaintedBox;
