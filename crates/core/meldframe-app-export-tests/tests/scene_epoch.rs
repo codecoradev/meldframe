@@ -1,14 +1,15 @@
 //! The app keeps the scene the canvas draws for as long as nothing it is made from has changed, and says when it did: a native
 //! shell that calls the app as a library redraws when `App::scene_epoch` moves, and a spike found that resolving the layout on
 //! every frame is the one thing such a client must not do. `App::scene_resolves` counts how often the scene was worked out.
-//! The app holds no camera (the scene is in world space), so a camera is not an input of either epoch.
+//! The camera is `AppState` and moves with `Action::Camera`, but the scene is in world space and the shell applies the camera,
+//! so a camera is not an input of either epoch and costs no resolve.
 
 // Under WASM the same tests run through wasm-bindgen-test (`just wasm-test`).
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
 mod scene_fixture;
-use meldframe_app::{Action, App, Panel, Tool};
+use meldframe_app::{Action, App, CameraOp, Panel, Point, Tool, ZoomCommand};
 use meldframe_protocol::{Doc, Node};
 use scene_fixture::*;
 use serde_json::json;
@@ -81,6 +82,75 @@ fn an_edit_moves_both_epochs_and_the_scene_is_resolved_again_once() {
     );
 }
 
+fn camera(a: &mut App, op: CameraOp) {
+    a.dispatch(Action::Camera { op });
+}
+
+#[test]
+fn a_camera_change_moves_neither_epoch_and_does_no_layout_work() {
+    let mut a = app(true);
+    a.scene();
+    a.hit(30.0, 12.0);
+    let (scene, hits) = (a.scene_epoch(), a.hit_index_epoch());
+    let (resolves, builds) = (a.scene_resolves(), a.hit_builds());
+    let before = a.state().camera;
+    let at = Point { x: 40.0, y: 30.0 };
+    camera(&mut a, CameraOp::SetViewport { w: 800.0, h: 600.0 });
+    camera(
+        &mut a,
+        CameraOp::Pan {
+            dx: 25.0,
+            dy: -10.0,
+        },
+    );
+    camera(&mut a, CameraOp::ZoomAt { factor: 2.0, at });
+    camera(
+        &mut a,
+        CameraOp::Zoom {
+            command: ZoomCommand::Fit,
+        },
+    );
+    camera(
+        &mut a,
+        CameraOp::Zoom {
+            command: ZoomCommand::Reset,
+        },
+    );
+    assert_ne!(a.state().camera, before, "the camera did move");
+    a.scene();
+    a.hit(30.0, 12.0);
+    assert_eq!(a.scene_epoch(), scene);
+    assert_eq!(a.hit_index_epoch(), hits);
+    assert_eq!(a.scene_resolves(), resolves, "no layout work for a camera");
+    assert_eq!(a.hit_builds(), builds, "no index built for a camera");
+    // An edit after the camera moves both epochs, once, as without a camera.
+    resize_c(&mut a, 90.0);
+    assert!(a.scene_epoch() > scene && a.hit_index_epoch() > hits);
+    a.scene();
+    assert_eq!(a.scene_resolves(), resolves + 1);
+}
+
+#[test]
+fn fit_on_a_scene_not_read_yet_resolves_it_once_and_the_next_read_reuses_it() {
+    let mut a = app(true);
+    let epoch = a.scene_epoch();
+    camera(&mut a, CameraOp::SetViewport { w: 800.0, h: 600.0 });
+    camera(
+        &mut a,
+        CameraOp::Zoom {
+            command: ZoomCommand::Fit,
+        },
+    );
+    assert_eq!(
+        a.scene_resolves(),
+        1,
+        "fit reads the boxes for their bounds"
+    );
+    a.scene();
+    assert_eq!(a.scene_resolves(), 1, "and the scene is kept");
+    assert_eq!(a.scene_epoch(), epoch);
+}
+
 #[test]
 fn the_flag_and_the_measurer_move_both_epochs() {
     let mut a = app(false);
@@ -112,8 +182,7 @@ fn what_is_not_the_document_the_measurer_the_flag_or_a_mode_moves_nothing() {
     a.scene();
     a.hit(30.0, 12.0);
     let (scene, hits, resolves) = (a.scene_epoch(), a.hit_index_epoch(), a.scene_resolves());
-    // The app holds no camera: pan and zoom are the shell's, so a shell that moves its camera calls nothing here. What the
-    // app does hold of the view (selection, tool, panels, time) is not an input either.
+    // What the app holds of the view (selection, tool, panels, time) is not an input either; the camera has its own test.
     a.dispatch(Action::Select {
         ids: vec!["a".into()],
     });
