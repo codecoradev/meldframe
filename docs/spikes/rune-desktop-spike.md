@@ -1,7 +1,9 @@
 # Rune desktop spike: written exit criteria and result record
 
-Status: criteria written for E8.2.1 of `docs/epics.md`, before any Rune code. The result fields are empty. E8.2.3 fills them
-with numbers and E8.2.4 adds the verdict and the owner's decision. Nothing in this note is a measurement, a machine or a date.
+Status: criteria written for E8.2.1 of `docs/epics.md`, before any Rune code. E8.2.3 fills the result fields: its first slice
+is section 15 (a Linux headless run: what ran, what it measured, what could not run and the commands for the Mac). Sections 1 to
+14 are the criteria and are unchanged except for the form of the scripts (section 3 and the change log). E8.2.4 adds the verdict
+and the owner's decision. No number in sections 1 to 14 is a measurement; every number is in section 15 with its machine.
 
 Sources: E8.2 of `docs/epics.md`, ADR-0027, decision 45, `docs/fidelity-contract.md`. The words are those of `GLOSSARY.md`.
 
@@ -47,12 +49,15 @@ A second machine or display gets its own copy of the table.
 ## 3. How every criterion is measured and recorded
 
 **Scripts.** E8.2.3 commits one entry point for each criterion under `frontends/rune/tools/`, run from a clean checkout of the
-repository. They are named `c1-boxes`, `c2-text`, `c3-paint`, `c4-frame`, `c5-hit`, `c6-idle`, `c7-input-method`, `c8-access`,
-`c9-first-wheel` and `c10-deps` (with `.sh`; [P], and a rename is allowed if this note is changed in the same pull request).
-A script builds what it needs in release mode, takes its inputs from the paths named below, prints its numbers as
-`name value unit` lines and one line `Cn verdict: green|gap|tripwire`, and writes the same numbers as JSON to a path the record
-names. C7 and C8 have a manual part: the script prepares the file, prompts each step and prints the numbers that can be read
-from the server and the app layer; the person's observation is written in the record.
+repository. As built they are the subcommands `c1` to `c10` (and `meta`, the run record) of one binary, `meldframe-measure`
+(`frontends/rune/tools/measure`, kind bin), in place of the `cN-*.sh` files named in the first draft of this note. This is a change of form that the owner has to
+confirm (the change log has its row): the names `c1-boxes.sh` to `c10-deps.sh` are gone from this note, "script" in this note and in the box of E8.2.3 reads as such an entry
+point, and no criterion text was rewritten. Each prints its numbers as `name value unit [key=value ...]` lines (the labels say the machine kind, the
+adapter, the profile, the node count and whether the line is judged), one `Cn status: ran|partial|skipped reason=...` line and
+one `Cn verdict: green|gap|tripwire|open` line, and writes the same numbers as JSON to `<out>/cN.json`. `open` is the verdict of a
+criterion that did not run, or ran in part. A number from a headless or software-adapter run carries its kind and `judged=no`
+and is never read as the criterion; a debug build is never judged. C7 and C8 have a manual part that the first slice does not
+build (section 15).
 
 **Reference data.** The fidelity oracle (`tools/fidelity-oracle`) is verified on Linux only (issue 231: on macOS the text
 boxes come out whole pixels off the core, cause not found). So the reference numbers for C2 and C3 come from a Linux oracle run
@@ -102,7 +107,7 @@ A criterion with no threshold in the epic (C9, and the build time and size of C1
 
 **What it proves.** The Rune painter and Rune's own transforms do not move, round or resize a box that the core placed.
 
-**Measured by** `frontends/rune/tools/c1-boxes.sh`. For each tree of the layout golden fixture and for each oracle fixture, the
+**Measured by** `meldframe-measure c1` (`frontends/rune/tools/measure`). For each tree of the layout golden fixture and for each oracle fixture, the
 script builds the file in the app layer with the layout on the canvas (`App::set_layout_on_canvas(true)`), with the measurer
 the fixture uses (the stub for the golden fixture; the recorded table of the Linux oracle for the oracle fixtures), draws
 `App::scene()` through the desktop painter in a headless render, and reads the box of every painted node at the lowest level
@@ -131,7 +136,7 @@ upstream change). C1 is part of tripwire T3 (section 12).
 > 0.05 px on single-line samples, and the ink edges of painted text are within 1 px of the exporter's output
 > (`docs/fidelity-contract.md`). If Rune rounds text to whole device pixels, the result says plainly whether the contract survives.
 
-**C2a Line breaks and the width of single lines (the measurer).** Measured by `frontends/rune/tools/c2-text.sh`, which plugs the Rune measurer (the `TextMeasurer` implementation on Rune's text
+**C2a Line breaks and the width of single lines (the measurer).** Measured by `meldframe-measure c2`, which plugs the Rune measurer (the `TextMeasurer` implementation on Rune's text
 engine, Inter Variable, weights 100 to 900) into the conformance suite of E8.1.7 (`meldframe_layout::conformance`) over the text
 fixtures of `oracle_texts.json`. The reference measurer is the table recorded in Chromium by the Linux oracle (section 3), which
 is the table that the exporter's `min-width` and `line-height` pins come from. The suite reports, for each fixture and question,
@@ -181,7 +186,7 @@ positions, which the oracle probes in `f07-decor`. It does not add a per-side bo
 border of four different widths, that is a change of the contract first and C3 is changed in the change log before the spike
 starts (section 13, point 5).
 
-**Measured by** `frontends/rune/tools/c3-paint.sh`. The script paints each paint fixture through the desktop painter in a
+**Measured by** `meldframe-measure c3`. The script paints each paint fixture through the desktop painter in a
 headless render at scale factor 1 (and 2 for the blur) and reads the pixels at the coordinates of the oracle's probes.
 
 - **Rounded clip, border, hard shadows:** every probe of `f07-decor` (border inside, center and outside; the rounded corner is
@@ -216,7 +221,7 @@ own for the clip, a shader for the blur, a rendered texture). C3 is part of trip
 holds at most 20,000 nodes in all and the generator's page frame counts as one (section 13, point 1). The record states the
 real node counts. The camera starts at fit, so that every node is visible, and the layout is on the canvas.
 
-**Measured by** `frontends/rune/tools/c4-frame.sh <5000|20000> [--throttle 4]`, on the real GPU path of the run record (a
+**Measured by** `meldframe-measure c4` (the sizes and the 4x throttle are its options and its second run), on the real GPU path of the run record (a
 physical Mac with a display and Metal; not a virtual machine, not a software adapter; the record says what Rune and wgpu
 report).
 
@@ -256,7 +261,7 @@ cache of a texture of the scene, work upstream). C4 is tripwire T2.
 > **C5 Hit.** One `App::hit` call through the native app: p99 at or under a quarter of a frame at 60 Hz (4.17 ms) at 1,000, 5,000
 > and 19,999 nodes (the thresholds of `tools/hit-perf.mjs`), and a click shows its result within 120 ms.
 
-**Measured by** `frontends/rune/tools/c5-hit.sh`, a native (not wasm) run of the app layer, in two parts.
+**Measured by** `meldframe-measure c5`, a native (not wasm) run of the app layer, in two parts.
 
 *C5a, the call.* The same files and rows as `tools/hit-perf.mjs`: 1,000, 5,000 and 19,999 nodes, with the layout on the canvas
 on and off; a call over a box (the scan stops at the first box from the front), a call over nothing (the scan reads every
@@ -285,7 +290,7 @@ app layer and is not a Rune problem: the record says so and does not count it ag
 
 > **C6 Idle.** With no input, no frame is drawn in 60 s after the first paint, and memory is flat over 180 s.
 
-**Measured by** `frontends/rune/tools/c6-idle.sh`. The script starts the desktop app against a development server, loads the 5,000
+**Measured by** `meldframe-measure c6`. The script starts the desktop app against a development server, loads the 5,000
 node file [P], waits for the first presented frame with the scene (the first paint), and then sends no input at all. The window
 stays focused and visible, the server connected, and nothing animates.
 
@@ -309,7 +314,7 @@ grew, and the cost of a fix.
 > keys) composition shows inline and commits once as one undo step, Escape keeps the draft out of the document, and a node
 > deleted by someone else closes the field.
 
-C7 is a manual criterion with a script around it: `frontends/rune/tools/c7-input-method.sh` creates a new file on a development
+C7 is a manual criterion with a script around it: `meldframe-measure c7` creates a new file on a development
 server, adds a frame and a text node, opens the app on it, prompts each step below, and after each step prints the numbers a
 person cannot read: the count of ops of the file on the server and the undo stack of the app layer (which owns
 `state.textEdit`, T12). The sign-off is a person on a Mac with the real input sources; an agent can run the script and
@@ -353,7 +358,7 @@ tripwire T1.
 > **C8 Accessibility.** The AccessKit tree exposes the toolbar, the panels and the node list by name and role, and VoiceOver
 > reads the Layers panel.
 
-**Measured by** `frontends/rune/tools/c8-access.sh` and a VoiceOver pass. The script dumps the AccessKit tree of the running
+**Measured by** `meldframe-measure c8` and a VoiceOver pass. The script dumps the AccessKit tree of the running
 window (the tree Rune gives to `accesskit_macos`) as role, name, and the node's state, for the toolbar, each panel and the node
 list; and compares it with an expected table that the record holds before the run [P: the epic gives the elements and not
 the names]. The expected table has at least: a toolbar with a name, two panels with the names Layers and Properties, a list with
@@ -374,7 +379,7 @@ the expected table, the diff and the verbatim VoiceOver text.
 > **C9 Upstream defect.** Whether anomalyco/rune#2549 (the first wheel after idle presents late) occurs in the native window,
 > recorded either way.
 
-**Measured by** `frontends/rune/tools/c9-first-wheel.sh`. In the native window on the 5,000 node file, the script lets the app
+**Measured by** `meldframe-measure c9`. In the native window on the 5,000 node file, the script lets the app
 rest with no input for 5 s, 30 s and 60 s, then sends one wheel event, and measures from the arrival of the event in the event
 loop to the first presented frame that shows its effect. It sends a second wheel event 100 ms later and measures it the same
 way. Ten cycles for each rest time [P], with the app in front and focused.
@@ -392,7 +397,7 @@ upstream fix. C9 is not a tripwire. A fix upstream is a re-check trigger of the 
 > **C10 Dependencies.** The exact pins, the licences of every crate reached, the patches that remain, the build time and the
 > size of the binary.
 
-**Measured by** `frontends/rune/tools/c10-deps.sh`, which reads the Rune workspace and prints:
+**Measured by** `meldframe-measure c10`, which reads the Rune workspace and prints:
 
 - The exact pins: the Rune revision and the revision of each of the 8 `[patch.crates-io]` entries, and every git source of
   `frontends/rune/Cargo.lock` with its URL and revision.
@@ -468,14 +473,14 @@ nothing in the main workspace: E8.1 and the second workspace stay (E8.2.4).
    Rune. E8.1.6 is needed by the skeleton and by C4; E8.1.7 by C2.
 4. **E8.2.2**, the skeleton (depends on E8.0.4 and E8.1.6): a window, a connection, `App::scene()` as one cached shape, a click
    through `App::hit`, Move and Undo, a status, and a headless render and tree dump stored as goldens.
-5. **E8.2.3**, measure (depends on E8.2.2, E8.2.1 and E8.1.7): one script per criterion under `frontends/rune/tools/`, the Rune
+5. **E8.2.3**, measure (depends on E8.2.2, E8.2.1 and E8.1.7): one entry point for each criterion (a subcommand of `meldframe-measure`, section 3) under `frontends/rune/tools/`, the Rune
    measurer plugged into the conformance suite, and the results written into this note with the run record of section 2.
 6. **E8.2.4**, the result and decision record (docs only; depends on E8.2.3): each criterion green or a documented gap with its
    cost, go, go with conditions or stop with the fallback named, and the owner's decision in `docs/decisions.md`.
 
 Writing a result into this note is not a decision and changes no criterion; a criterion changes only through the change log.
 
-## 14. Results and change log (empty until E8.2.3)
+## 14. Results and change log (the table is filled by E8.2.4 from section 15)
 
 | Criterion | Threshold (section) | Measured | Verdict | Gap cost (working days) | Evidence record |
 |---|---|---|---|---|---|
@@ -496,4 +501,219 @@ Result (E8.2.4): go | go with conditions | stop with the fallback named: ____. T
 
 | Change to a value or a definition | By whom (the owner) | Reason | Before or after the spike started | Scripts run again |
 |---|---|---|---|---|
+| The scripts are subcommands `c1` to `c10` of one Rust binary, `meldframe-measure`, and not `cN-*.sh` files; each prints `name value unit` lines with labels, a status line and a verdict line (`open` added for a criterion not measured) and writes JSON (section 3) | Proposed by the E8.2.3 pull request, in the form the note allowed ([P], rename in the same pull request); **the owner has to confirm it** | The scripts read the app layer, the Rune measurer and the recorded table from Rust, and a skipped criterion has to say why without a number | Before the first Mac run | Not applicable (no value changed) |
 | | | | | |
+
+## 15. 2026-11-28, Linux headless run (E8.2.3, first slice)
+
+This is not a macOS run and no criterion is closed by it. It is the part of E8.2.3 that can be built and run without a Mac: the
+harness (`meldframe-measure`), the Rune measurer in the conformance suite of E8.1.7, and what runs headless. Every number below is
+printed by `cargo run --release --locked -p meldframe-measure -- all --checks --build --cold`, run from `frontends/rune/` on the machine of
+the table (`CARGO_BUILD_JOBS=2`, `VK_ICD_FILENAMES` naming SwiftShader). The JSON of each criterion is kept with the run, and the probe table of C2 is committed
+(`docs/spikes/data/c2-probes.linux-2026-11-28.tsv`, SHA-256 `e65743ee73bd4eb046e70befb9859054887701a6f97a1f30dd029c6681c3a2b3`). Nothing is estimated, and the
+software adapter's numbers are not C4.
+
+### 15.1 Run record (section 2) of this run
+
+| Field | Value |
+|---|---|
+| Machine (model, chip, memory) | A virtual machine (not a Mac): Intel Xeon Processor at 2.10 GHz, 4 CPUs, 16,473,316 kB memory. Other build jobs shared it (load average 2.6 before the run), so times are noisy and are not a benchmark of any machine |
+| Display | None (headless) |
+| Operating system and build | Ubuntu 24.04.5 LTS, kernel Linux 6.18.44-fc-v880, x86_64 |
+| GPU path | Software: SwiftShader's Vulkan ICD (`VK_ICD_FILENAMES=/opt/pw-browsers/chromium-1243/chrome-linux64/vk_swiftshader_icd.json`). A real GPU: **no**. Only the snap of C4 uses an adapter, and only in a debug build |
+| Power | Not applicable |
+| Rune revision run | `048528dc35f0a7499887f334330fd9704cdd8e51`, the pin; the 8 patches are at the same revision (C10 below) |
+| Rust toolchain and Meldframe commit | rustc 1.99.1 (58cf8f9c3 2026-10-13), `frontends/rune/rust-toolchain.toml`; the harness at commit `a3f0702f18e0` (the tip of the harness branches; the note and the probe table are committed after the run) |
+| Reference run (the Linux oracle) | Chromium 158.0.8127.36 on Linux with Playwright 1.63.0 and the lock's `pixi.js` 8.23.0 and Inter Variable (`@fontsource-variable/inter` 5.3.0), on this same machine; the table is `frontends/rune/tools/measure/data/chromium_text_table.json` (113 measurements, SHA-256 `a2a388b29c0d856769d615f7b9af81de06dda6c1fa55c84afff54cd964defe4b`), written by `node tools/fidelity-oracle/record-text-table.mjs` after `cargo build -p meldframe-oracle-runner`, never by hand. It is Pixi's `CanvasTextMetrics` with `Math.ceil` of the width and the height, not DOM layout |
+| Date of the run and operator | 2026-11-28 (UTC), an agent; C7 and C8 need a person and were not run |
+
+### 15.2 Results by criterion
+
+Verdicts: no criterion is green, a gap or a tripwire in this slice as a whole. Each is `open`, with what was measured.
+
+**C1 Fidelity of boxes: open (part measured).** The stage read is the shape that the painter hands to Rune
+(`canvas_ui_rune::paint`), read back as the corners of each fill, in `f32`: the scene to shape step does not move a box. It is not Rune's geometry after
+its own transform and scale factor, and the painter has no camera, so the scale 2 run and the run at a fractional pan offset were
+not run; only the oracle fixtures that hold text are available as JSON (nine of them), so the other oracle fixtures were not run.
+
+| Input | Boxes compared | Largest difference |
+|---|---|---|
+| The 15 trees of the layout golden fixture (stub measurer) | 280 rects, 280 fills | 0.0000 px |
+| The 9 oracle fixtures with text (the recorded Chromium table) | 118 rects, 118 fills | 0.0000 px |
+| Boxes the core gives a negative width or height (rule G3, outside the contract), 3 in trees 10 and 13 of the golden fixture | 3 | 16.0000 px (the painter does not draw a negative size as the core has it); left out of the verdict and printed |
+
+A fixture that writes `transparent` as a fill is loaded with `#00000000`, which the app layer accepts and which changes no box.
+At the stage read, the shape step is exact (`shape_ops_verdict green`, limit 0.05 px, 398 boxes). `C1 verdict: open`.
+
+**C2 Text: C2a measured, a gap; C2b and C2c not run; `C2 verdict: open`.** The Rune measurer (`meldframe_text_rune::RuneMeasurer`,
+kind ui) was run through `meldframe_layout::conformance::run_fixture` over the nine text fixtures of `oracle_texts.json`, against the
+table that Chromium recorded (`reference_misses` is 0: the table answers every question). The reference is Pixi's
+`CanvasTextMetrics` in Chromium with `Math.ceil` of the width and of the height, as the oracle's measurement page does it, not DOM
+layout. The measurer is Rune's `rune::text::measure` with its bundled Inter and the machine's fonts off, the width and height rounded up
+to whole pixels as the seam asks of a host, and **the line height pinned to a whole pixel from one measured `M`**
+(contract section 6, rule 2), so that `n` lines are `n` times the pin. A first run, before that pin, left Rune its own line height
+(1.25 times the size, not whole pixels): 25 of the 72 probes inside the contract then differed in height, the largest gap and one the first
+draft of this note did not report. A unit test (`a_text_of_n_lines_is_n_times_the_pinned_line_height_for_any_size`) failed first, the pin was
+added, and the numbers below are after it. No tolerance was changed and nothing was tuned to the table.
+
+The population. The note judges the width on the single-line hug texts of the ink cases, `f09-typography` and `f15-font-sizes`, and the line
+breaks on every fixture the contract covers, and reports `f14-text-edge` without judging it. The 17 ink cases and their hug texts are not
+exported as data, so the width samples that exist are those of `f09` and `f15`; a wider set is printed beside them so that the choice hides nothing.
+Heights are reported and not judged by the note [P], but the core takes the height of a box from the measurer, so each height difference is a
+box error far above 0.05 px.
+
+| Population (the probes) | Probes | Single-line | Single-line over 0.05 px | Line count differs | Height over 0.05 px (largest) | Height of one line over 0.05 px |
+|---|---|---|---|---|---|---|
+| **Width samples of the note**: single-line probes of `f09` and `f15` (judged: width) | 18 | 18 | **3** (largest 9 px) | 0 | 2 (1 px) | 2 |
+| **Judged fixtures**: every probe inside the contract of the eight fixtures but `f14` (judged: line breaks) | 58 | 31 | 5 (largest 9 px) | **0** | 7 (12 px) | 7 |
+| `f14-text-edge`, every probe, reported only | 20 | 10 | 2 (largest 220 px) | 3 | 3 (36 px) | 0 |
+| All probes inside the contract of the nine fixtures | 72 | 38 | 6 (largest 16 px) | 1 | 8 (18 px) | 7 |
+
+Reading of the populations. The width limit is missed on the note's own samples (3 of 18) and on the wider set (5 of 31; 6 of 38 with `f14`):
+**C2a is a gap**. The line breaks agree on every judged fixture (0 of 58): the **only** probe inside the contract whose line count differs is
+`f14-text-edge/w9` (a text with a trailing newline: Rune counts a second, empty line, the reference one), and `f14` is the fixture the contract
+marks as a known gap for explicit newlines and `white-space` (`docs/fidelity-contract.md`, the rows of section 4.2 on `white-space` and
+`line-height` for text with `\n`). An earlier reading of this run, "`f10-deck/kd2`: 11 lines against 12", was an artefact: the suite derives a line count as
+`round(height / the height of one M)`, and Rune's 195 px was `12 x 16.25` (twelve lines of its own, not whole, line height) divided by a rounded-up 17. With the whole pixel pin
+the count agrees. The suite cannot see the break count itself, so the harness calls a line count difference `confirmed` only when the
+reference's own ratio is within a tenth of a whole number, and `ambiguous` otherwise (none was ambiguous here); the limit is that the
+derivation for the reference is approximate.
+
+The probes inside the contract that still miss on width or height (the full table, with the line count each side, is `c2-probes.tsv`,
+committed as `docs/spikes/data/c2-probes.linux-2026-11-28.tsv`):
+
+| Fixture, node | Text and font | Reference width | Rune width (exact) | Reference height | Rune height |
+|---|---|---|---|---|---|
+| `f02-col-hug/t1` | "Ok", 12 px, 400 | 17 | 16 (15.7656) | 15 | 15 |
+| `f09-typography/w7` | 20 px, 700 | 220 | 218 (217.2500) | 25 | 25 |
+| `f09-typography/w9` | 20 px, 900 | 210 | 201 (200.9062) | 25 | 25 |
+| `f09-typography/l3` | 16 px, 700, wrapped at 204 | 175 | 174 (173.1875) | 60 | 60 |
+| `f12-fractional/t1`, `t2` | 13.5 px and 14.3 px | 13.5: equal; 14.3: 143 | 14.3: 144 (143.0156) | 18 and 19 | 17 and 18 |
+| `f14-text-edge/w5`, `h5` | emoji text, wrapped at 200 and on one line | 176 and 229 | 159 and 213 | 36 and 18 | 36 and 18 |
+| `f14-text-edge/w9` | a text with a trailing newline, wrapped at 200 | 104 | 104 (103.2031) | 18 (one line) | 36 (two lines) |
+| `f15-font-sizes/s8` | 8 px | 92 | 91 (90.5312) | 10 | 10 |
+| `f15-font-sizes/s72`, `s96` | 72 px and 96 px | equal | equal | 89 and 119 | 90 and 120 |
+| `f15-font-sizes/ws17`, `ws29`, `ws41` | wrapped at 240: 5, 8 and 12 lines | equal | equal | 105, 288 and 612 | 110, 296 and 624 |
+
+Readings of the data (what each rests on):
+
+1. **Line height by size** (tested, the cause of every height row): the reference's pin is a value of Pixi's measure for each size
+   (13.5 px: 18, 14.3 px: 19, 17 px: 21, 29 px: 36, 41 px: 51, 72 px: 89, 96 px: 119), which no rule of the size gives; Rune's pin
+   (the height of its own `M`, 1.25 times the size rounded up) is one pixel more or less at those sizes, and over `n` lines the difference is `n` pixels (12 at the 12 lines of
+   `ws41`). A table of the reference's pins, or taking them from a measurer table, would close it; neither was tried, and the pin is the host's own `M`,
+   which is what the seam asks.
+2. **Weights** (tested by the weight probe, one text at 100 to 900): Rune bundles Regular, Medium and SemiBold only. Rune gives 193 px for
+   100, 200, 300 and 400, 195 for 500 and 198 for 600 to 900, against the reference's 182, 186, 189, 193, 195, 198, 200, 203 and 206. At 400, 500 and 600 Rune equals the
+   reference, so the shaping is the same where the face exists; the gap is the missing faces (3 distinct widths of 9). The same direction shows at 700 and 900 in `f09` (`w7`, `w9`, and the wrapped `l3`).
+   Inter Variable through `AppSpec::fonts` was **not tried**: the only Inter file the oracle pins (`@fontsource-variable/inter`) is a woff2
+   subset, which Rune does not read, and no TTF or OTF of it is in the repository or in the lock; turning the machine's fonts on did not change the three widths either.
+3. **The emoji and CJK fallback** (tested): the measurer turns the machine's fonts off, so there is no emoji font and Chromium used a fallback. Run
+   with the machine's fonts on (`c2 --system-fonts`, an experiment that depends on the machine and is not the record), the
+   widths of `f14` equal the reference (`w5` 176, `h5` 229, `h4` 625), and the single-line probes over the limit fall from 6 to 5 of 38 (the width samples stay at 3
+   of 18); the line counts still differ in `f14` (`w9`, and `w3` and `w4`, which are outside the contract). The fallback is therefore a font the front end has to bring or find,
+   not a defect of the measure.
+4. **The rounding to a 64th** (tested, and not the cause): `f12-fractional/t2` is 144 against 143, and the first reading was Rune's rounding up
+   of a width to 1/64 of a point. Rune's unrounded advance of that text is 143.0070, already above 143, so the ceil gives 144 without the 1/64
+   step; Pixi measured at most 143. It is a sub-pixel difference that falls on opposite sides of a whole number. The same kind of one pixel miss at
+   `f02/t1` ("Ok": Rune 15.76, so 16, against 17) and `f15/s8` (90.53 against more than 91) is not explained by this run.
+
+C2b (ink edges) and C2c (rounding of painted text to device pixels) need a painter that draws text, which the skeleton does not
+(`c2b.status skipped`, `c2c.status skipped`). Whether a table of pins and weights, Inter Variable as a font file, or painting text from the core's own measure (the fallback of ADR-0027) closes the
+gap is for E8.2.4 to cost. C2a is a gap with **no cost estimate yet**, so it is not a documented gap in the sense of section 3.
+
+**C3 Paint: not run.** The painter draws no gradient, shadow or clip, and the oracle's probe points are in
+`tools/fidelity-oracle/probes.mjs` and not exported as data. Needs: a painter for those (E8.3.2), the probes of `f07-decor`, `f19-gradient`
+and the blur table written as JSON by the Linux oracle, and a readback of the render compared at those points.
+
+**C4 Frame: not measured; the CPU cost of a headless tick is printed, labelled and not judged.** There is no real GPU, no
+window and no frame monitor here, so the criterion's number (the interval between presented frames, 300 ticks, p95 18 ms, the 4x throttle on
+a real GPU path) does not exist yet. What ran (`kind=cpu_only_headless_runtime judged=no`, release build): one tick is a camera pan sent
+to the app layer and one frame of Rune's headless runtime (the view and the instances, nothing presented), 300 ticks for each size, with the
+throttle of section 7 (three times the CPU time spun after each frame):
+
+| Nodes | Build the scene and shape once | Tick CPU p50 / p95 / p99 / max, no throttle (ms) | Same, 4x throttle (ms) | Shape builds and scene resolves during the ticks |
+|---|---|---|---|---|
+| 4,950 | 7.6 ms | 1.91 / 1.95 / 2.06 / 2.67 | 7.71 / 8.13 / 9.00 / 10.47 (0 ticks over 20 ms) | 0 and 0 |
+| 19,999 | 35.5 ms | 7.81 / 8.30 / 11.48 / 16.15 | 50.2 / 54.0 / 73.3 / 87.1 (all 300 over 20 ms) | 0 and 0 |
+
+Two readings that belong to E8.2.4. The tick CPU time grows with the node count (about 4 times from 4,950 to 19,999 nodes) while the scene is
+not worked out and the shape is not built again (the counters are 0), so something in the frame still costs in proportion to the size of the
+cached shape: it was not profiled here. And the painter ignores the camera, so a real pan will cost more than this tick. A frame
+interval on a software adapter would not be C4 either; the one thing run on SwiftShader is the time of one headless render (`--snap`, which a
+release build has only with Rune's `tooling` feature, so it ran in the debug build, `profile=debug`): 4,990, 5,192 and 4,921 ms for the 4,950 node file, adapter
+start-up included (Rune's own line for those runs: GPU init 835 to 895 ms, first frame CPU 425 to 482 ms, 9,925 instances). That is not a frame cost.
+
+**C5 Hit: C5a measured on this machine, green on the rows judged; C5b not run; `C5 verdict: open`.** `App::hit` in this process, native, release,
+no bridge, over the files of `tools/hit-perf.mjs` with its seed, 4,000 calls for each row (the node counts are the generator's: 910, 4,950 and 19,999). The
+budget is 4.17 ms at p99. The first call after an edit is printed and not judged.
+
+| Nodes | Layout on the canvas | Over a box p99 (ms) | Over nothing p99 (ms) | First call, rebuild after an edit (ms) |
+|---|---|---|---|---|
+| 910 | on | 0.0014 | 0.0015 | 1.25 |
+| 910 | off | 0.0014 | 0.0015 | 0.75 |
+| 4,950 | on | 0.0094 | 0.0194 | 7.34 |
+| 4,950 | off | 0.0088 | 0.0185 | 5.15 |
+| 19,999 | on | 0.0563 | 0.0818 | 37.79 |
+| 19,999 | off | 0.0605 | 0.0809 | 20.93 |
+
+The largest single call in any judged row is 0.20 ms. The click in a real window (C5b: 50 clicks for each file, event to presented frame
+within 120 ms) needs a window and was not run. The numbers are this machine's and not the Mac's.
+
+**C6 Idle: not measured as the criterion; a headless idle loop is printed, labelled and not judged.** The shell on 4,950 nodes in Rune's headless runtime,
+driven at 60 Hz in real time for 180 s after the first frame with no input: **0 view commits** (`rune::commit_generation`, the runs of a view
+that go on to the screen) and 0 frame requests in the first 60 s and in the whole run; the control, one input,
+moves the counter by 1, so the zero is a measurement. The resident set was 82,108 KiB at the first sample, at 30 s and at 179 s (0.0000
+percent and a slope of 0.0000 KiB/s). A window, a swap chain and a server connection can each draw by themselves and none exists in this
+run, so this does not close C6. The answer of `Runtime::frame` stays false even after an input, so it is printed (`frame_asks`) and not relied on.
+
+**C7 Input method: not run.** Needs macOS input methods and a person to judge the candidate window, a text field wired to the app layer's text edit
+(the skeleton has none), and a development server with a second credential for the check K4.
+
+**C8 Accessibility: not run.** The skeleton has no toolbar, panels or node list to name; needs those (E8.3.3), a dump of the AccessKit tree and a
+person with VoiceOver.
+
+**C9 Upstream defect: not run.** Needs the native window on the 5,000 node file and wheel events into its event loop after 5, 30 and 60 s of rest.
+
+**C10 Dependencies: pins, `deps-check` and the licence list measured, builds measured; `cargo deny check` not run; `C10 verdict: open`.**
+
+| Item | Result |
+|---|---|
+| Rune revision and the 9 `rev` lines of the manifest | `048528dc35f0a7499887f334330fd9704cdd8e51`; 9 lines, all equal to the pin |
+| The 8 patches (wgpu-hal, naga, winit, sctk-adwaita, parley_engine, accesskit_windows, accesskit_atspi_common, accesskit_macos) | All 8 at the pin; **0 beyond the 8**. Which of them are still needed at the end of the spike is not known: nothing was removed or tried |
+| Git sources in the lock | 1: `https://github.com/anomalyco/rune` at the pin |
+| No main workspace crate depends on `frontends/rune`; `unknown-git = "deny"` unchanged | The harness ran `cargo xtask deps-check` from the repository root: "deps-check: 129 crates, no violations"; the root `deny.toml` is not changed |
+| Licences | The harness ran `cargo xtask licences --check`: "276 (main) + 444 (frontends/rune) third-party crates, no violations". `cargo deny check`: **not run**, cargo-deny is not installed on this machine (`cargo install cargo-deny --version 0.22.2 --locked`) |
+| Clean release build of `apps/desktop` | **570.0 s** with `CARGO_BUILD_JOBS=2` (the harness prints the number of jobs), in an empty target directory, from a copy of the committed tree (`git archive HEAD`), the compiler cache (kache) switched off with `--cold`, on the shared VM above (so not a benchmark) |
+| Build after a one-line change in `canvas-ui-rune` (a comment line in the copy; the checkout is not edited) | **8.7 s**, the same conditions |
+| Size of the release binary | 50,480,744 bytes; **39,303,912 bytes** stripped (Linux x86_64, default features, the `tooling` feature of Rune off) |
+| Bumps of the Rune revision during the spike | None, so the churn tripwire T5 is not tested |
+
+Of the five pass lines of C10 (pins equal to E8.0.4, 0 patches beyond the 8, every licence on the list, `cargo deny check` passes, no main crate depends on a Rune
+crate), four hold here and `cargo deny check` could not run, so the verdict is `open`. The build time and the size are recorded as numbers for the owner and are Linux's,
+not the Mac's. (An earlier run of the same builds with the compiler cache on took 46.6 s and 0.5 s: those are the cache's times and are not build times.)
+
+### 15.3 To run on a Mac, and what is still to build
+
+The harness runs from a clean checkout. On a Mac (Metal, a real GPU, plugged in, Low Power Mode off), from `frontends/rune/`, with Rust
+1.99.1 (`rust-toolchain.toml`) and `cargo install cargo-deny --version 0.22.2 --locked`:
+
+1. `cargo run --release --locked -p meldframe-measure -- meta` writes the run record of section 2 (the display, the power state and the operator by hand).
+2. `cargo run --release --locked -p meldframe-measure -- all --checks --build --cold --out ~/meldframe-measure-out` runs every criterion that exists
+   and prints what each needs. C1, C2a, C5a and the pins of C10 are the same commands as here. The reference table of C2 is the committed Linux one (the oracle is not
+   run on a Mac, issue 231). `--build --cold` does a clean release build and one after a one-line change, of a copy of the committed tree, with the compiler cache off (about ten
+   minutes at two jobs here; set `CARGO_BUILD_JOBS` to say how many); `--quick` is for a look, never for the record.
+3. Alone: `c1`, `c2`, `c4 --sizes 5000,19999`, `c5`, `c6`, `c10 --checks --build --cold`, each `cargo run --release --locked -p meldframe-measure -- <name> [options]`.
+
+What the Mac run still cannot do, because it is not built (each is a piece of E8.2.3 left, not a decision):
+
+- **C1:** read Rune's geometry after its transform and scale (scale 1 and 2), a painter that takes the camera (the fractional pan run), and the oracle fixtures without text as data.
+- **C2b, C2c:** the painter draws text; the ink readback of the render; the 17 ink cases of `ink.mjs` as data (they are also the rest of the note's width samples); the glyph run origins at 0, 0.25, 0.5 and 0.75 px.
+- **C2a, the gap itself:** a decision on how to close it (a table of the reference's line pins by size, a variable Inter as a font file Rune can read, or the fallback of painting text from the core's own measure), and its cost.
+- **C3:** the painter features (gradient, shadow, clip) and the oracle probes as data.
+- **C4:** a window driver in the desktop shell that pumps input and records the interval between presented frames (the frame monitor), a camera in the painter, and the 4x throttle of section 7; the file load of the skeleton. Also the cost per tick that grows with the node count (above).
+- **C5b, C9:** the same driver, with a click and a wheel event timed from the event loop to the presented frame.
+- **C6:** the same driver and a development server; the headless loop above is the part that exists.
+- **C7, C8:** the views of E8.3 (text field, toolbar, panels, node list) and a person.
+- The raw outputs of a Mac run (the JSON, the probe table, the recording) are kept outside the repository with their SHA-256, as section 3 says.
+
+Writing these results is not a decision and changes no criterion.
