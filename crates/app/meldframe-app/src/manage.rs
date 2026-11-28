@@ -1,5 +1,5 @@
 //! The Variables manage actions: make a collection, a mode or a variable with ids the app mints, and
-//! remove them, letting go of what uses them first when the person says so. The commands are worked out in
+//! remove them, letting go of what uses them first when the person says so; the commands are worked out in
 //! `meldframe_app_parts::manage`; every one goes through the replica as any other change (and so to the gate), and a list
 //! of them is one undo step.
 

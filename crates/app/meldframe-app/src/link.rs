@@ -1,5 +1,5 @@
-//! The live connection: connecting, live, dropped, backoff, reconnect and resync. Time arrives as an
-//! action payload (`now_ms`, the shell's clock); nothing here reads a clock.
+//! The live connection: connecting, live, dropped, backoff, reconnect and resync, where time arrives as an
+//! action payload (`now_ms`, the shell's clock) and nothing here reads a clock.
 
 use crate::app::App;
 use crate::effect::Effect;
