@@ -84,7 +84,7 @@ The decoded classes enter the cascade as author declarations with the specificit
 
 ### 2.3 Errors
 
-The same structured errors as the rest of the surface: a tool error `{"ok": false, "error": {"code", "message", "retryable"}}` as `import_tokens` writes it (`meldframe-http-variables-import`), with the `E_` codes of `docs/error-codes.md`. Everything the commands can be refused for is refused by the same checks as `apply_commands`, so the error carries the `E_` code and the `index` of the Command, and the importer adds `source` (the element the Command came from). New codes proposed (the table in `docs/error-codes.md` would get its rows in the slice that adds them, as that file's test requires):
+The same structured errors as the rest of the surface: a tool error `{"ok": false, "error": {"code", "message", "retryable"}}` as `import_tokens` writes it (the module `variables_import` of `meldframe-http`), with the `E_` codes of `docs/error-codes.md`. Everything the commands can be refused for is refused by the same checks as `apply_commands`, so the error carries the `E_` code and the `index` of the Command, and the importer adds `source` (the element the Command came from). New codes proposed (the table in `docs/error-codes.md` would get its rows in the slice that adds them, as that file's test requires):
 
 | Code | When |
 |---|---|
@@ -375,7 +375,7 @@ Each is one kind of content and under 1,000 changed lines (AGENTS.md; lines move
 | 4 | Mapping: structure, layout, sizing, text, to Commands, with the report | `html-import` (the facade), `map/*` | about 900 |
 | 5 | Mapping: paint (fill, gradient, border, radius, shadow, opacity, image placeholders) | `html-import`, `paint/*`; it also reads the `::after` radius `calc(min(var(--r) * 1px, Wpx, Hpx) + Npx)` of a bound border (section 3.7) | about 700 |
 | 6 | The tests of slices 2 to 5, split by layer so each slice lands with its own (a test first per slice, not a slice of its own); the crate `meldframe-import-html-tests` is created in slice 2 | tool crate | counted with each slice |
-| 7 | The MCP tool: arguments, plan, `submit_ops`, answer, error codes, `docs/mcp-tools.json`, `docs/error-codes.md`, `skills/meldframe/SKILL.md`, the `html-import` cargo feature of `apps/server` | new `meldframe-http-html-import` (kind bin, as `meldframe-http-variables-import`) | about 600, plus tests |
+| 7 | The MCP tool: arguments, plan, `submit_ops`, answer, error codes, `docs/mcp-tools.json`, `docs/error-codes.md`, `skills/meldframe/SKILL.md`, the `html-import` cargo feature of `apps/server` | new `meldframe-http-html-import` (kind bin, as the adapter of `import_tokens`, now the module `variables_import` of `meldframe-http`) | about 600, plus tests |
 | 8 | The oracle extensions and the fixtures `h01` onward; the contract gets a section on import and the known gaps | `crates/core/meldframe-oracle-runner`, `tools/fidelity-oracle`, `docs/fidelity-contract.md` | about 800 |
 | 9 | Later, each its own decision: parts for HTML over 100 nodes, `data:` images through the assets seam, binding to Variables by export name, Tailwind's standard scale, an Import HTML dialog in the app layer, `import_webpage` | not scheduled | |
 

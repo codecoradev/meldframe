@@ -198,36 +198,36 @@ reason = "audit D12: one adapter module in the merged http crate (#315)"
 [[allow_copy]]
 fns = [
     "crates/integrations/meldframe-http-activity/src/tool.rs::call",
-    "crates/integrations/meldframe-http-review/src/lib.rs::call",
+    "crates/integrations/meldframe-http/src/review.rs::call",
 ]
 reason = "audit D12: one adapter module in the merged http crate (#315)"
 
 [[allow_copy]]
 fns = [
     "crates/integrations/meldframe-http-activity/src/tool.rs::tool",
-    "crates/integrations/meldframe-http-export/src/lib.rs::tool",
+    "crates/integrations/meldframe-http/src/export.rs::tool",
 ]
 reason = "audit D12: one adapter module in the merged http crate (#315)"
 
 [[allow_copy]]
 fns = [
     "crates/integrations/meldframe-http-assets/src/tool.rs::call",
-    "crates/integrations/meldframe-http-export/src/lib.rs::call",
-    "crates/integrations/meldframe-http-variables-import/src/lib.rs::call",
+    "crates/integrations/meldframe-http/src/export.rs::call",
+    "crates/integrations/meldframe-http/src/variables_import.rs::call",
 ]
 reason = "audit D12: one adapter module in the merged http crate (#315)"
 
 [[allow_copy]]
 fns = [
     "crates/integrations/meldframe-http-assets/src/tool.rs::failure",
-    "crates/integrations/meldframe-http-export/src/lib.rs::failure",
-    "crates/integrations/meldframe-http-variables-import/src/lib.rs::failure",
+    "crates/integrations/meldframe-http/src/export.rs::failure",
+    "crates/integrations/meldframe-http/src/variables_import.rs::failure",
 ]
 reason = "audit D12: one adapter module in the merged http crate (#315)"
 
 [[allow_copy]]
 fns = [
-    "crates/integrations/meldframe-http-variant/src/lib.rs::args",
+    "crates/integrations/meldframe-http/src/variant.rs::args",
     "crates/integrations/meldframe-http/src/mcp/tools.rs::args",
 ]
 reason = "audit D12: one adapter module in the merged http crate (#315)"

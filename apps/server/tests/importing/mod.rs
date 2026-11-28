@@ -46,7 +46,7 @@ pub async fn start_quota(policy: Option<Policy>, quota: Option<u64>) -> Harness 
     ))
     .unwrap();
     let shared: Arc<Shared> = meldframe_http::shared(Arc::new(tokens), spy.clone(), config());
-    let tool = meldframe_http_variables_import::tool(shared.clone(), policy);
+    let tool = meldframe_http::variables_import::tool(shared.clone(), policy);
     let mcp = McpConfig {
         extra: vec![tool],
         ..Default::default()

@@ -21,11 +21,11 @@ fn regenerate() {
     let mut tools = tools;
     let mv = server
         .registry()
-        .agent_tool(meldframe_http_variant::TOOL)
+        .agent_tool(meldframe_http::variant::TOOL)
         .unwrap();
     tools.push(
         json!({"name": mv.name, "tier": mv.tier.as_str(), "description": mv.description,
-        "inputSchema": meldframe_http_variant::input_schema()}),
+        "inputSchema": meldframe_http::variant::input_schema()}),
     );
     let cap = server.registry().agent_tool("capture").unwrap();
     tools.push(
@@ -40,12 +40,12 @@ fn regenerate() {
     let dr = server.registry().agent_tool(design_review::TOOL).unwrap();
     tools.push(
         json!({"name": dr.name, "tier": dr.tier.as_str(), "description": dr.description,
-        "inputSchema": meldframe_http_review::input_schema()}),
+        "inputSchema": meldframe_http::review::input_schema()}),
     );
     let ex = server.registry().agent_tool(export::TOOL).unwrap();
     tools.push(
         json!({"name": ex.name, "tier": ex.tier.as_str(), "description": ex.description,
-        "inputSchema": meldframe_http_export::input_schema()}),
+        "inputSchema": meldframe_http::export::input_schema()}),
     );
     let vi = server
         .registry()
@@ -53,7 +53,7 @@ fn regenerate() {
         .unwrap();
     tools.push(
         json!({"name": vi.name, "tier": vi.tier.as_str(), "description": vi.description,
-        "inputSchema": meldframe_http_variables_import::input_schema()}),
+        "inputSchema": meldframe_http::variables_import::input_schema()}),
     );
     let hi = server.registry().agent_tool(html_import::TOOL).unwrap();
     tools.push(

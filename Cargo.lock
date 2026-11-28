@@ -1473,6 +1473,8 @@ name = "meldframe-http"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "design-review",
+ "export",
  "hyper",
  "hyper-util",
  "meldframe-activity",
@@ -1485,13 +1487,16 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-ratelimit",
+ "meldframe-render",
  "meldframe-stream",
  "meldframe-text",
+ "meldframe-variant",
  "rmcp",
  "serde",
  "serde_json",
  "tokio",
  "tower",
+ "variables-import",
 ]
 
 [[package]]
@@ -1571,22 +1576,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-http-export"
-version = "0.0.0"
-dependencies = [
- "export",
- "meldframe-host",
- "meldframe-http",
- "meldframe-layout",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-render",
- "rmcp",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "meldframe-http-html-import"
 version = "0.0.0"
 dependencies = [
@@ -1600,48 +1589,6 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-text",
- "meldframe-variant",
- "rmcp",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "meldframe-http-review"
-version = "0.0.0"
-dependencies = [
- "design-review",
- "meldframe-host",
- "meldframe-http",
- "meldframe-mcp-defs",
- "meldframe-module",
- "rmcp",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "meldframe-http-variables-import"
-version = "0.0.0"
-dependencies = [
- "meldframe-host",
- "meldframe-http",
- "meldframe-module",
- "meldframe-protocol",
- "rmcp",
- "serde",
- "serde_json",
- "variables-import",
-]
-
-[[package]]
-name = "meldframe-http-variant"
-version = "0.0.0"
-dependencies = [
- "meldframe-check",
- "meldframe-host",
- "meldframe-http",
- "meldframe-module",
  "meldframe-variant",
  "rmcp",
  "serde",
@@ -1780,11 +1727,7 @@ dependencies = [
  "meldframe-http-assets",
  "meldframe-http-capture",
  "meldframe-http-checkpoints",
- "meldframe-http-export",
  "meldframe-http-html-import",
- "meldframe-http-review",
- "meldframe-http-variables-import",
- "meldframe-http-variant",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-render",

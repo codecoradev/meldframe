@@ -7,9 +7,9 @@
 //! nothing twice, and the parts of one import never share a key. The plan depends on the text alone, not on the
 //! file, so the same text cuts into the same parts however many were written already.
 
+use crate::Shared;
+use crate::mcp::{Extra, ExtraCall, MAX_BATCH, MAX_KEY, change_tool_listing, fnv1a};
 use meldframe_host::{Op, Principal};
-use meldframe_http::Shared;
-use meldframe_http::mcp::{Extra, ExtraCall, MAX_BATCH, MAX_KEY, change_tool_listing, fnv1a};
 use meldframe_module::Policy;
 use rmcp::model::{CallToolResult, Tool};
 use serde::Deserialize;
@@ -109,7 +109,7 @@ impl ImportTool {
                 return failure("bad_request", &m, false);
             }
         };
-        if !meldframe_http::valid_file(&args.file) {
+        if !crate::valid_file(&args.file) {
             let m = "a file name is 1 to 128 bytes without slashes, control or invisible formatting characters";
             return failure("invalid", m, false);
         }
@@ -125,7 +125,7 @@ impl ImportTool {
         };
         let dry = args.dry_run.unwrap_or(false);
         let key = match (key, dry) {
-            (Some(k), _) if meldframe_http::mcp::check_key(&k).is_ok() => Some(k),
+            (Some(k), _) if crate::mcp::check_key(&k).is_ok() => Some(k),
             (None, true) => None,
             _ => {
                 let m = format!(
