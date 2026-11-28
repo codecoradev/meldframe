@@ -1,6 +1,6 @@
 //! The Export dialog for a frame: the target an export acts on, and the dialog built from the export feature.
 
-use crate::name::file_stem;
+use crate::export_dialog::name::file_stem;
 use export::{ExportError, ExportOptions, Finding, Format, MAX_OUTPUT_BYTES};
 use meldframe_app_model::{ExportDialog, ExportFinding, ExportFormat, ExportTarget};
 use meldframe_layout::TextMeasurer;

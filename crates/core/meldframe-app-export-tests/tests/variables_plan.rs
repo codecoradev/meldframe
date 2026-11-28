@@ -1,13 +1,13 @@
-//! D8: the plan of the Import variables dialog, `variables_import_dialog::plan`: the cap of the dialog, the refusals that
+//! D8: the plan of the Import variables dialog, `meldframe_app::variables_import_dialog::plan`: the cap of the dialog, the refusals that
 //! name what the file refuses, and the text that is read. It reads no `App`: a function of the text and the file.
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
+use meldframe_app::variables_import_dialog::{MAX_COMMANDS, MAX_VARIABLES, TOO_MANY, plan};
 use meldframe_app_model::{ImportStatus, VariableEntity};
 use meldframe_protocol::{Command, Node, Variables};
 use serde_json::json;
-use variables_import_dialog::{MAX_COMMANDS, MAX_VARIABLES, TOO_MANY, plan};
 
 const THEME: &str = include_str!("fixtures/theme.css");
 
