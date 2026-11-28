@@ -1795,6 +1795,7 @@ version = "0.0.0"
 dependencies = [
  "canvas-ui-rune",
  "meldframe-app",
+ "meldframe-net",
  "meldframe-protocol",
  "meldframe-ui-rune",
  "rune",

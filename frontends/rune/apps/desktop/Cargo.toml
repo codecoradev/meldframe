@@ -1,6 +1,6 @@
 [package]
 name = "meldframe-desktop"
-description = "The native desktop app of the Rune front end: the shell that owns the window and the state, drawn by the Rune view crates (E8.2.2, first slice: no socket yet)."
+description = "The native desktop app of the Rune front end: the shell that owns the window and the state, drawn by the Rune view crates, and connected to a development server by meldframe-net (E8.2.2)."
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
@@ -24,6 +24,7 @@ workspace = true
 rune = { workspace = true }
 meldframe-app = { path = "../../../../crates/app/meldframe-app" }
 meldframe-protocol = { path = "../../../../crates/core/meldframe-protocol" }
+meldframe-net = { path = "../../crates/os/meldframe-net" }
 meldframe-ui-rune = { path = "../../crates/ui/meldframe-ui-rune" }
 canvas-ui-rune = { path = "../../crates/features/canvas-ui-rune" }
 serde_json = "1"
