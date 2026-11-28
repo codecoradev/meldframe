@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// A frame size to start a design from. The sizes are design choices (px; the paper sizes are in points at 72 per inch,
-/// as design tools draw them), listed here and nowhere else: the web client repeats them only to centre the new frame.
+/// as design tools draw them), listed here and nowhere else (`AppState.limits.presets` carries the table to a front end).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -56,6 +56,35 @@ impl FramePreset {
             FramePreset::A4 => "A4",
             FramePreset::Letter => "Letter",
         }
+    }
+}
+
+/// A row of the preset table a front end reads from `AppState.limits.presets`: the preset, its name and its size.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PresetRow {
+    pub id: FramePreset,
+    pub name: String,
+    pub width: f64,
+    pub height: f64,
+}
+
+impl FramePreset {
+    /// The table of presets, in the order a menu lists them.
+    pub fn table() -> Vec<PresetRow> {
+        FramePreset::ALL
+            .into_iter()
+            .map(|id| {
+                let (width, height) = id.size();
+                PresetRow {
+                    id,
+                    name: id.name().to_owned(),
+                    width,
+                    height,
+                }
+            })
+            .collect()
     }
 }
 

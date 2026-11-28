@@ -2,6 +2,6 @@
 
 /**
  * A frame size to start a design from. The sizes are design choices (px; the paper sizes are in points at 72 per inch,
- * as design tools draw them), listed here and nowhere else: the web client repeats them only to centre the new frame.
+ * as design tools draw them), listed here and nowhere else (`AppState.limits.presets` carries the table to a front end).
  */
 export type FramePreset = "desktop" | "desktopHd" | "tablet" | "mobile" | "phoneSmall" | "a4" | "letter";

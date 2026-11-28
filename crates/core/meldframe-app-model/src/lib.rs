@@ -24,6 +24,7 @@ pub mod gesture;
 pub mod key;
 pub mod layers;
 pub mod layout;
+pub mod limits;
 pub mod manage;
 pub mod overlay;
 pub mod pointer;
@@ -56,6 +57,7 @@ pub use gesture::{GestureOp, Handle, Point};
 pub use key::{KeyFocus, KeyInput, Modifiers};
 pub use layers::LayerRow;
 pub use layout::{Axis, Direction, LayoutNote, Side, Sides};
+pub use limits::AppLimits;
 pub use manage::{
     MODE_NAME_MAX, ManageDrafts, ManageLimits, ManageOp, ManageState, ManageTarget, NameCheck,
     NameDraft, NameError, NameWarning, Removal, RenameField,
@@ -80,7 +82,7 @@ pub use variables::{
     VariableValue, VariablesPanel,
 };
 pub use variables_io::{
-    ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus, VariablesExportDialog,
-    VariablesImportResult, VariablesIo,
+    IMPORT_MAX_VARIABLES, ImportAt, ImportEntry, ImportEntryKind, ImportReport, ImportStatus,
+    VariablesExportDialog, VariablesImportResult, VariablesIo,
 };
 pub use wire::{MAX_SAFE_INT, Wire};

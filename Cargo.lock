@@ -1398,6 +1398,7 @@ dependencies = [
  "meldframe-render",
  "meldframe-text",
  "serde_json",
+ "variables-import-dialog",
  "wasm-bindgen-test",
 ]
 

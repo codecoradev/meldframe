@@ -8,6 +8,7 @@ use crate::confirm::{Confirm, RightTab};
 use crate::export::ExportState;
 use crate::layers::LayerRow;
 use crate::layout::{LayoutNote, Sides};
+use crate::limits::AppLimits;
 use crate::manage::ManageState;
 use crate::overlay::Overlay;
 use crate::pointer::PointerState;
@@ -65,6 +66,10 @@ pub struct AppState {
     pub modes: BTreeMap<String, String>,
     /// The Variables panel (E3.4): filled while `panels.variables` is open, empty otherwise.
     pub variables: VariablesPanel,
+    /// The limits and tables a front end shows (the import cap, the export pixel limit and scales, the frame presets): the
+    /// rule's own constants, never copied into a front end. The manage view's limits are `manage.limits`.
+    #[serde(default)]
+    pub limits: AppLimits,
     /// The Variables manage view: the collection shown, the question before a removal, the rename field and the forms.
     #[serde(default)]
     pub manage: ManageState,
