@@ -2,6 +2,8 @@
 //! converted to sRGB and rounded to 8 bits, and the answer says whether the conversion had to clip a colour that sRGB
 //! cannot show (`oklch` and `oklab` reach past it). Nothing here evaluates anything: it reads numbers.
 
+use crate::number::number_exp;
+
 /// A colour as the model stores it, and how it got there.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Hex {
@@ -69,19 +71,6 @@ fn pack(r: f64, g: f64, b: f64, a: f64, clipped: bool) -> Hex {
     Hex { hex, clipped }
 }
 
-/// A number as CSS writes it: digits, a point, a sign and an exponent, and nothing else (no `NaN`, no `inf`). Finite.
-fn numeric(s: &str) -> Option<f64> {
-    let s = s.trim();
-    if s.is_empty()
-        || !s
-            .bytes()
-            .all(|b| b.is_ascii_digit() || matches!(b, b'.' | b'+' | b'-' | b'e' | b'E'))
-    {
-        return None;
-    }
-    s.parse::<f64>().ok().filter(|v| v.is_finite())
-}
-
 /// One number of a colour function: a plain number, or a percentage that is `pct_of` at 100%. `none` is 0.
 fn num(s: &str, pct_of: f64) -> Option<f64> {
     let s = s.trim();
@@ -89,8 +78,8 @@ fn num(s: &str, pct_of: f64) -> Option<f64> {
         return Some(0.0);
     }
     let v = match s.strip_suffix('%') {
-        Some(p) => numeric(p)? / 100.0 * pct_of,
-        None => numeric(s)?,
+        Some(p) => number_exp(p)? / 100.0 * pct_of,
+        None => number_exp(s)?,
     };
     v.is_finite().then_some(v)
 }
@@ -102,7 +91,7 @@ fn point(s: &str) -> Option<f64> {
     if s.eq_ignore_ascii_case("none") {
         return Some(0.0);
     }
-    numeric(s.strip_suffix('%').unwrap_or(s)).map(|v| v / 100.0)
+    number_exp(s.strip_suffix('%').unwrap_or(s)).map(|v| v / 100.0)
 }
 
 /// The largest hue read, in the unit it is written in: beyond it the angle is not a colour but an accident.
@@ -124,7 +113,7 @@ fn hue(s: &str) -> Option<f64> {
     } else {
         (s.as_str(), 1.0)
     };
-    let v = numeric(n)?;
+    let v = number_exp(n)?;
     (v.abs() <= MAX_HUE).then(|| (v * unit).rem_euclid(360.0))
 }
 
