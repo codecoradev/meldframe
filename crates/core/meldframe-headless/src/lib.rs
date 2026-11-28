@@ -26,9 +26,14 @@
 //! palette <query> [run <id> [<cx> <cy>]]   list the entries, or run one
 //! export <id> png [<scale>] | html         plan the export; the PNG is drawn by a fake shell
 //! action <json>                   any Action in its JSON shape
+//! bytes <n>                       from here on the fake shell reports each image it draws as <n> bytes (a size over a limit
+//!                                 reaches the app as data)
 //! state | nodes                   print the state summary, the nodes
 //! strict                          from here on a refusal fails the run
 //! expect refused <code> | clean | node <id> <field> <value> | state <pointer> <json> | delivered <w> <h>
+//! expect preview <pointer> <json>          what the gesture going on would do (`App::pointer_preview`; null when none)
+//! expect order <parent> <id>...            the children of a node in sibling order
+//! expect effect <kind> [<field> <json>]    the last step returned an effect of that kind, with that value in the field
 //! ```
 //!
 //! The output is plain text: each step, then the kinds of the effects and events it made and its refusals. The

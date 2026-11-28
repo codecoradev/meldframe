@@ -32,6 +32,14 @@ fn the_scenario_script_exits_zero_and_prints_what_it_saw() {
 }
 
 #[test]
+fn the_pointer_flow_and_the_capture_scripts_exit_zero_as_processes_too() {
+    for name in ["pointer_flow.script", "capture.script"] {
+        let o = run(&["--strict", &script(name)]);
+        assert!(o.status.success(), "{name}: {}", text(&o.stderr));
+    }
+}
+
+#[test]
 fn a_refused_step_exits_one_with_strict_and_zero_without() {
     let o = run(&["--strict", &script("refused.script")]);
     assert_eq!(o.status.code(), Some(1));

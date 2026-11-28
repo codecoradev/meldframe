@@ -1,0 +1,148 @@
+# The pointer, the camera and the undo history of E8.1.4 in one flow, with no front end: select by click, move by drag, marquee,
+# resize by a handle, a drop above a sibling that reorders, a pan and a zoom to the pointer, and then every undo step back to the
+# start. The pointer points are screen points; the camera is at its home until the pan, so they are world points until then.
+#
+# The file (flow.json): `f` is a column at (0, 0), 200 by 300, with `a` (10 to 30), `b` (35 to 65) and `c` (70 to 110) in it, all at
+# x 10 and 50 wide; `g` is a free frame at (400, 0) with the rectangle `fg` at its own (20, 20), 30 by 30: world (420, 20).
+open flow.json
+camera viewport 800 600
+# A drop in a flow needs the laid-out canvas: the harness starts with it off.
+palette auto layout run auto-layout
+expect clean
+expect state /history/undoSteps 0
+
+# 1. Select by click. Hover first, then the press selects at once, and a click is not an edit.
+pointer move 435 35
+expect state /pointer/hover "fg"
+pointer down 435 35
+expect state /selection ["fg"]
+pointer up 435 35
+expect state /pointer/gesture {"type":"idle"}
+expect state /history/undoSteps 0
+expect state /confirmedSeq 0
+
+# 2. Move by drag: nothing is written while the pointer is down, one op when it is let go, one undo step.
+pointer down 435 35
+pointer move 440 40
+pointer move 445 45
+expect state /pointer/gesture/type "move"
+expect preview /kind "move"
+expect preview /dx 10
+expect preview /dy 10
+expect node fg x 20
+expect node fg y 20
+expect state /history/undoSteps 0
+expect state /confirmedSeq 0
+pointer up 445 45
+expect clean
+expect preview /kind null
+expect node fg x 30
+expect node fg y 30
+expect state /history/undoSteps 1
+expect state /confirmedSeq 1
+
+# 3. Marquee: a press on empty canvas starts a rubber band, a normalised rectangle in world space, and the selection stays as it
+# was until the release; then the frame the band overlaps is selected, not the three rectangles inside it. A selection is not an edit.
+pointer down 250 150
+pointer move 100 50
+expect state /selection ["fg"]
+expect preview /kind "marquee"
+expect preview /rect/x 100
+expect preview /rect/y 50
+expect preview /rect/w 150
+expect preview /rect/h 100
+pointer move -50 -50
+pointer up -50 -50
+expect state /selection ["f"]
+expect state /history/undoSteps 1
+
+# 4. Resize by a handle. `fg` is now drawn at world (430, 30), 30 by 30, so its south east handle is at (460, 60).
+pointer down 445 45
+pointer up 445 45
+expect state /selection ["fg"]
+pointer move 460 60
+expect state /pointer/cursor "nwse-resize"
+pointer down 460 60
+expect state /selection ["fg"]
+pointer move 465 67
+expect preview /kind "resize"
+expect preview /world/w 35
+expect preview /world/h 37
+expect node fg w 30
+expect node fg h 30
+expect state /history/undoSteps 1
+pointer up 465 67
+expect clean
+expect node fg x 30
+expect node fg y 30
+expect node fg w 35
+expect node fg h 37
+expect state /history/undoSteps 2
+expect state /confirmedSeq 2
+
+# 5. A drop above a sibling reorders. `b` is drawn at y 35 to 65; the pointer goes above the middle of `a`. Until the release the
+# preview is the insertion line in `f` at index 0 and the file is as it was.
+pointer down 30 50
+expect state /selection ["b"]
+pointer move 30 40
+pointer move 30 15
+expect state /pointer/gesture/type "move"
+expect preview /kind "move"
+expect preview /slot/frame "f"
+expect preview /slot/index 0
+expect preview /dy -35
+expect order f a b c
+expect state /history/undoSteps 2
+pointer up 30 15
+expect clean
+expect preview /kind null
+expect order f b a c
+expect state /history/undoSteps 3
+expect state /confirmedSeq 3
+
+# 6. A pan with the middle button: the camera moves, nothing is selected or written, and the history has nothing new.
+pointer down 100 100 middle
+expect state /pointer/cursor "grabbing"
+pointer move 130 90 middle
+pointer move 150 120 middle
+pointer up 150 120 middle
+expect state /camera/x 50
+expect state /camera/y 20
+expect state /camera/zoom 1
+expect state /selection ["b"]
+expect state /history/undoSteps 3
+expect state /confirmedSeq 3
+
+# 7. A zoom to the pointer: a wheel with Ctrl at the screen point (64, 68), which is the world point (14, 48), just inside the top
+# left corner of `a` (now second in `f`, drawn from y 45 to 65). The zoom is e^0.2 (the wheel's rate is 0.01 for each pixel), and the
+# world point stays under the pointer: x is 64 - 14 z and y is 68 - 48 z. The same screen point is still over `a`, which a zoom
+# about another point would have moved away from.
+pointer move 64 68
+expect state /pointer/hover "a"
+action {"type":"camera","op":{"type":"wheel","wheel":{"dx":0,"dy":-20,"mods":{"ctrl":true}},"at":{"x":64,"y":68}}}
+expect state /camera/zoom 1.2214027581601699
+expect state /camera/x 46.90036138575762
+expect state /camera/y 9.372667608311843
+pointer move 64 68
+expect state /pointer/hover "a"
+expect state /history/undoSteps 3
+
+# 8. Back to the start, one step at a time. The camera is not history, so the zoom stays.
+undo
+expect order f a b c
+expect state /history/undoSteps 2
+undo
+expect node fg w 30
+expect node fg h 30
+expect node fg x 30
+expect state /history/undoSteps 1
+undo
+expect node fg x 20
+expect node fg y 20
+expect state /history/undoSteps 0
+expect state /history/canUndo false
+expect state /history/canRedo true
+expect state /camera/zoom 1.2214027581601699
+# Three edits and three undos, all confirmed by the made-up server.
+expect state /confirmedSeq 6
+expect state /pending []
