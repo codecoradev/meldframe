@@ -1157,7 +1157,6 @@ dependencies = [
  "export-dialog",
  "meldframe-activity",
  "meldframe-app-model",
- "meldframe-app-nudge",
  "meldframe-app-parts",
  "meldframe-app-pointer",
  "meldframe-app-rules",
@@ -1248,18 +1247,6 @@ dependencies = [
  "serde",
  "serde_json",
  "ts-rs",
-]
-
-[[package]]
-name = "meldframe-app-nudge"
-version = "0.0.0"
-dependencies = [
- "meldframe-app-model",
- "meldframe-app-parts",
- "meldframe-app-rules",
- "meldframe-layout",
- "meldframe-protocol",
- "meldframe-sync",
 ]
 
 [[package]]

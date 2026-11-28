@@ -30,6 +30,7 @@ mod layers;
 mod link;
 mod manage;
 mod manage_ui;
+pub mod nudge;
 mod overlay;
 mod palette;
 mod panel;
