@@ -1,6 +1,7 @@
 //! Repository checks: layering rules, build matrix, portability and other gates.
 
 mod args;
+mod both_workspaces;
 mod gitsrc;
 mod groups;
 mod licence_scopes;
@@ -210,5 +211,3 @@ fn size_check(packages: &[rules::Package]) -> Result<ExitCode, String> {
     }
     Ok(code)
 }
-
-mod both_workspaces;
