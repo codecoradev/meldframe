@@ -4,8 +4,8 @@
 //!
 //! The PNG golden needs a GPU adapter, so it has its own test in `render.rs`.
 
-use meldframe_app::{Action, App, Connection, Frame};
-use meldframe_desktop::{MOVE_STEP, State, WINDOW_SIZE, spec};
+use meldframe_app::{Action, App, Connection, Direction, Frame};
+use meldframe_desktop::{State, WINDOW_SIZE, spec};
 use meldframe_protocol::{Command, Node, NodePatch};
 use meldframe_ui_rune::BAR_HEIGHT;
 use rune::shape::Op;
@@ -79,23 +79,25 @@ fn move_and_undo_send_the_actions_the_app_layer_defines() {
     let mut rt = runtime(fixture);
     // With nothing selected Move does nothing: the button is disabled.
     let before = rt.state.outbox().len();
+    assert!(!rt.state.app().can_nudge(Direction::Right, true));
     click_key(&mut rt, "move");
     assert_eq!(rt.state.outbox().len(), before);
 
     click(&mut rt, 120.0, BAR_HEIGHT + 120.0);
     let start = node(rt.state.app(), "r1").x;
 
-    // The same action on a twin app says what the button must have done: the selection moves by the step, in the app layer.
+    // The same action on a twin app says what the button must have done: the selection moves by a coarse step to the right,
+    // which is 10 units and is the app layer's rule.
     let mut twin = App::new("user:twin", "twin", 1, fixture_nodes(), 0).expect("loads");
     twin.dispatch(Action::Select {
         ids: vec!["r1".into()],
     });
-    twin.dispatch(Action::MoveBy {
-        dx: MOVE_STEP,
-        dy: 0.0,
+    twin.dispatch(Action::Nudge {
+        direction: Direction::Right,
+        coarse: true,
     });
     let moved = node(&twin, "r1").x;
-    assert_eq!(moved, start + MOVE_STEP);
+    assert_eq!(moved, start + 10.0);
 
     click_key(&mut rt, "move");
     assert_eq!(node(rt.state.app(), "r1").x, moved);
@@ -161,6 +163,70 @@ fn the_canvas_shape_is_rebuilt_only_when_the_scene_epoch_moves() {
     assert_eq!(rt.state.app().scene_epoch(), second);
 }
 
+/// A column with two children in the flow and a free rectangle, the layout on the canvas on.
+fn laid_out() -> State {
+    let nodes = serde_json::from_value(json!([
+        {"id": "col", "type": "frame", "x": 0, "y": 0, "w": 200, "h": 300, "layout": "column"},
+        {"id": "c1", "type": "rect", "parentId": "col", "w": 50, "h": 20},
+        {"id": "c2", "type": "rect", "parentId": "col", "x": 0, "w": 50, "h": 20},
+        {"id": "free", "type": "rect", "x": 400, "y": 0, "w": 50, "h": 20}
+    ]))
+    .expect("parses");
+    let mut state = State::with_nodes(nodes, true);
+    state.set_layout_on_canvas(true);
+    state
+}
+
+fn select(rt: &mut Runtime<State>, ids: &[&str]) {
+    let ids: Vec<String> = ids.iter().map(|s| s.to_string()).collect();
+    rt.update(|s, _| s.act(Action::Select { ids }));
+    rt.frame(0.0);
+}
+
+fn move_is_on(rt: &Runtime<State>) -> bool {
+    rt.elements()
+        .iter()
+        .any(|e| e.key.as_deref() == Some("move") && e.focusable)
+}
+
+#[test]
+fn move_is_off_for_the_press_it_sends_when_that_press_moves_nothing_or_is_refused() {
+    let mut rt = runtime(laid_out);
+    // A child of an auto layout frame: a coarse press leaves it where it is, so the button that sends one does nothing.
+    select(&mut rt, &["c1"]);
+    assert!(!rt.state.app().can_nudge(Direction::Right, true));
+    assert!(
+        !move_is_on(&rt),
+        "a flow child: the coarse press moves nothing"
+    );
+    let (outbox, steps) = (
+        rt.state.outbox().len(),
+        rt.state.app().state().history.undo_steps,
+    );
+    click_key(&mut rt, "move");
+    assert_eq!(rt.state.outbox().len(), outbox);
+    assert_eq!(rt.state.app().state().history.undo_steps, steps);
+
+    // A free node moves, and is on.
+    select(&mut rt, &["free"]);
+    assert!(move_is_on(&rt));
+    click_key(&mut rt, "move");
+    assert_eq!(node(rt.state.app(), "free").x, 410.0);
+
+    // At the limit of a coordinate the press is refused whole: the button is off though a press to the left would be taken.
+    rt.update(|s, _| {
+        s.act(Action::Move {
+            id: "free".into(),
+            x: 1.0e6,
+            y: 0.0,
+        })
+    });
+    rt.frame(0.0);
+    assert!(rt.state.app().can_nudge(Direction::Left, true));
+    assert!(!rt.state.app().can_nudge(Direction::Right, true));
+    assert!(!move_is_on(&rt), "past the limit: refused, so off");
+}
+
 /// The corners `[x0, y0, x1, y1]` of what one fill of the shape covers.
 fn bounds(op: &Op) -> Option<[f32; 4]> {
     let points: Vec<[f32; 2]> = match op {
@@ -214,6 +280,10 @@ fn move_is_enabled_only_when_the_app_layer_would_take_it() {
         enabled(&rt, "move"),
         "a selection on a live connection: the button works"
     );
+    assert!(
+        rt.state.app().can_nudge(Direction::Right, true),
+        "and the app layer says so, for the press the button sends"
+    );
     click_key(&mut rt, "move");
     assert!(enabled(&rt, "undo"), "and so does Undo after a change");
 
@@ -248,9 +318,9 @@ fn move_is_enabled_only_when_the_app_layer_would_take_it() {
     // The buttons agree with the app layer: the same actions do nothing while halted.
     let before = node(rt.state.app(), "r1").x;
     rt.update(|s, _| {
-        s.act(Action::MoveBy {
-            dx: MOVE_STEP,
-            dy: 0.0,
+        s.act(Action::Nudge {
+            direction: Direction::Right,
+            coarse: true,
         });
         s.act(Action::Undo {});
     });
