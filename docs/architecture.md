@@ -69,6 +69,8 @@ Each file has one room. Every client and every agent talks to that room through 
 
 The structure follows the CodeCora standard `modular-thin-ui` (`docs/standards/modular-thin-ui.md`; ADR-0007 to ADR-0010). Every crate declares a kind and CI enforces the matrix.
 
+One recorded carve-out from L5 (E8.2.2): `meldframe-net` (kind `os`, in the Rune workspace under `frontends/rune/crates/os/`) is the socket of the native desktop shell. It uses threads, `TcpStream`, `tungstenite` and `ureq`, none of which exist on `wasm32-unknown-unknown` (`cargo check --target wasm32-unknown-unknown -p meldframe-net` fails in `getrandom`), so it is native only; the web build of the Rune front end (E8.4) gets its own `os` crate over the browser's `fetch` and `WebSocket`. `cargo xtask portable-check` reads the main workspace only (`xtask/src/packages.rs`, `scope`), so it does not build this crate and needs no exclusion today; if it ever reads the Rune workspace it needs one for this crate. No new kind is made: `deps-check` still holds the crate to the `os` matrix (it depends on core crates only, and no toolkit), which is the part of L5 that protects the layering.
+
 ```
 apps/
   server/                 bin: composition root (MCP arrives with E1.5); the Postgres adapter of the store seam is the crate `meldframe-store-pg` (sqlx, migrations from `/migrations`)
