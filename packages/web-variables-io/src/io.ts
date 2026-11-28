@@ -22,7 +22,7 @@ export const EXPORT_FILE = 'variables.css';
 export const READ_CAP = 1024 * 1024;
 
 /**
- * The most variables the dialog imports at a time: `MAX_VARIABLES` of `variables-import-dialog`, which refuses more as
+ * The most variables the dialog imports at a time: `MAX_VARIABLES` of `meldframe_app::variables_import_dialog`, which refuses more as
  * `E_IMPORT_TOO_MANY` (a test reads the number from its source). The result carries it too (`maxVariables`).
  */
 export const IMPORT_CAP = 50;
