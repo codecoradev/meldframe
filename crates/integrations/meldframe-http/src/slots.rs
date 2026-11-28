@@ -1,4 +1,6 @@
-//! Places among the blocking calls. REST and the handshake of a live socket use one set, the live calls
+//! Places among the blocking calls.
+//!
+//! REST and the handshake of a live socket use one set, the live calls
 //! after the handshake another, so sockets cannot take every place from REST and a stuck server lock cannot
 //! grow the blocked jobs without bound in either.
 
