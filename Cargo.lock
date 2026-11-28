@@ -2108,6 +2108,7 @@ dependencies = [
  "example",
  "export",
  "html-import",
+ "meldframe-app-export-model",
  "meldframe-approvals",
  "meldframe-batch",
  "meldframe-calls",

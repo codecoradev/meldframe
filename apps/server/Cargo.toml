@@ -17,7 +17,7 @@ example = ["dep:example"]
 # The MCP surface: its tools in the registry and the read path behind them (E1.5).
 mcp = ["meldframe-http/mcp"]
 # The capture tool, its live-socket hook and its upload route (E1.7); it is an MCP tool, so it needs `mcp`.
-capture = ["mcp", "dep:capture", "dep:meldframe-http-capture"]
+capture = ["mcp", "dep:capture", "dep:meldframe-http-capture", "dep:meldframe-app-export-model"]
 # The asset routes and the upload_asset tool (E2.5, ADR-0015): images kept on local disk under MELDFRAME_ASSETS_DIR; it
 # is an MCP tool, so it needs `mcp`.
 assets = ["mcp", "dep:assets", "dep:meldframe-http-assets"]
@@ -59,6 +59,7 @@ meldframe-rooms = { path = "../../crates/core/meldframe-rooms" }
 example = { path = "../../crates/features/example/example", optional = true }
 capture = { path = "../../crates/features/capture/capture", optional = true }
 meldframe-http-capture = { path = "../../crates/integrations/meldframe-http-capture", optional = true }
+meldframe-app-export-model = { path = "../../crates/core/meldframe-app-export-model", optional = true }
 assets = { path = "../../crates/features/assets/assets", optional = true }
 meldframe-http-assets = { path = "../../crates/integrations/meldframe-http-assets", optional = true }
 design-review = { path = "../../crates/features/design-review/design-review", optional = true }

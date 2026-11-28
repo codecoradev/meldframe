@@ -36,8 +36,10 @@ fn state_carries_limits() {
         variables_import_dialog::MAX_VARIABLES
     );
 
-    // The pixel limit of an export is the area limit of a capture (`CAPTURE.max_pixels` of the server, 1 << 24), and the
-    // scales are the ones the export rules accept.
+    // The pixel limit of an export is the area limit of a capture: the server reads the same constant for
+    // `CAPTURE.max_pixels` (its test is in `apps/server/src/main.rs`), so this pin of the number (1 << 24, which the TypeScript
+    // copy and the wasm bridge test repeat) is the one place a change of the limit has to be made on purpose. The scales are
+    // the ones the export rules accept.
     assert_eq!(state.limits.export_max_pixels, 1 << 24);
     assert_eq!(state.limits.export_scales, SCALES.to_vec());
 }
