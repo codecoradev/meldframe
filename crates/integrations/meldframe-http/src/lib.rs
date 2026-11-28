@@ -7,24 +7,31 @@
 //! body. The submitter blocks on its store, so each call runs on `spawn_blocking` under a timeout.
 
 mod auth;
+mod config;
 mod conn;
 #[cfg(feature = "mcp")]
 pub mod mcp;
+mod names;
 mod reply;
 mod rest;
 mod slots;
+mod submitter;
+mod wire;
 mod ws;
 
 pub use auth::{
     Authenticator, DevTokens, DevTokensRefused, MIN_TOKEN_LEN, SpecError, check_dev_listen,
     check_dev_tokens_allowed, dev_tokens_warning,
 };
+pub use config::Config;
 pub use conn::{CappedListener, real_client, serve};
 pub use meldframe_batch::Guard;
 pub use meldframe_ratelimit::{Clock, Rate, RateLimiter};
+pub use names::{client_key, valid_file};
 pub use reply::{Failure, Reply};
 pub use rest::{bearer, peer};
 pub use slots::{Slot, Slots};
+pub use submitter::Submitter;
 
 use axum::{
     Router,
@@ -32,149 +39,11 @@ use axum::{
 };
 use meldframe_activity::BatchSink;
 use meldframe_checkpoints::{RunCall, RunSink, is_agent};
-use meldframe_host::{Accepted, Op, Principal, Refusal};
-use meldframe_protocol::Command;
-use serde::Deserialize;
+use meldframe_host::{Op, Principal, Refusal};
+use names::{BAD_NAME, valid_tool};
 use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
-
-/// The one way in to a write (the server's `Server::submit_tool`); it blocks, so it runs on `spawn_blocking`.
-pub trait Submitter: Send + Sync {
-    fn submit(
-        &self,
-        tool: &str,
-        file: &str,
-        who: &Principal,
-        ops: Vec<Op>,
-    ) -> Result<Vec<Accepted>, Failure>;
-
-    /// Like [`Submitter::submit`], but all or nothing as far as the gate and the room can tell beforehand: if any op
-    /// would be refused, none is written and the failure names it ([`Failure::Batch`]). MCP's `apply_commands` uses it.
-    fn submit_atomic(
-        &self,
-        tool: &str,
-        file: &str,
-        who: &Principal,
-        ops: Vec<Op>,
-        guards: Vec<Guard>,
-    ) -> Result<Vec<Accepted>, Failure>;
-}
-
-/// Limits of the adapter; a request over one is refused with its own code.
-#[derive(Clone)]
-pub struct Config {
-    /// Most bytes of a request body or a WebSocket frame.
-    pub max_body: usize,
-    /// Longest the caller waits for a call (the server's lock included); then `timeout`, and the job may still write.
-    pub timeout: Duration,
-    /// Longest the body of a request may take to arrive.
-    pub body_timeout: Duration,
-    /// Blocking calls running or abandoned at once, in all; one more is `unavailable`. A timed out call keeps its slot.
-    pub max_in_flight: usize,
-    /// The same, per principal.
-    pub max_per_principal: usize,
-    /// A WebSocket with no frame for this long is closed.
-    pub ws_idle: Duration,
-    /// A WebSocket is closed when its count of limited frames (up one per limited, down one per allowed) reaches this.
-    pub ws_max_limited: u32,
-    /// Longest a reply or the closing frame may take to send; a client that does not read is dropped.
-    pub ws_send_timeout: Duration,
-    /// Budget per peer address, spent before the token is checked.
-    pub per_client: Rate,
-    /// Budget per principal (workspace and actor), spent before the body is read.
-    pub per_principal: Rate,
-    pub clock: Clock,
-}
-
-impl std::fmt::Debug for Config {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Config")
-            .field("max_body", &self.max_body)
-            .finish_non_exhaustive()
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            max_body: 1 << 20,
-            timeout: Duration::from_secs(10),
-            body_timeout: Duration::from_secs(10),
-            max_in_flight: 32,
-            max_per_principal: 4,
-            ws_idle: Duration::from_secs(120),
-            ws_max_limited: 5,
-            ws_send_timeout: Duration::from_secs(10),
-            per_client: Rate {
-                burst: 60,
-                per_second: 30,
-            },
-            per_principal: Rate {
-                burst: 120,
-                per_second: 60,
-            },
-            clock: {
-                // Monotonic: a wall-clock step must not refill or freeze a bucket.
-                let start = Instant::now();
-                Arc::new(move || u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX))
-            },
-        }
-    }
-}
-
-/// An op as a client sends it: the idempotency key, the command, the optional precondition and dependencies.
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct WireOp {
-    key: String,
-    command: Command,
-    #[serde(default)]
-    if_seq: Option<u64>,
-    #[serde(default)]
-    deps: Vec<String>,
-}
-
-impl From<WireOp> for Op {
-    fn from(w: WireOp) -> Op {
-        Op {
-            key: w.key,
-            command: w.command,
-            if_seq: w.if_seq,
-            deps: w.deps,
-        }
-    }
-}
-
-/// The key of a client address: an IPv4 address, or the /64 of an IPv6 one (a host can use any address of its
-/// prefix); an IPv4-mapped IPv6 address is its IPv4. The rate limiter and the connection cap use it.
-pub fn client_key(ip: std::net::IpAddr) -> String {
-    use std::net::IpAddr;
-    match ip {
-        IpAddr::V4(v4) => v4.to_string(),
-        IpAddr::V6(v6) => match v6.to_ipv4_mapped() {
-            Some(v4) => v4.to_string(),
-            None => {
-                let s = v6.segments();
-                format!("{:x}:{:x}:{:x}:{:x}::/64", s[0], s[1], s[2], s[3])
-            }
-        },
-    }
-}
-
-/// A file name the server should see: the rule of `meldframe_text::file_name` (1 to 128 bytes, not `.` or `..`, not
-/// only whitespace, no control or hidden character), and no slash or backslash.
-pub fn valid_file(name: &str) -> bool {
-    meldframe_text::file_name(name).is_ok() && !name.contains(['/', '\\'])
-}
-
-/// A tool name: 1 to 64 bytes of ASCII letters, digits, `_`, `-` and `.`.
-fn valid_tool(name: &str) -> bool {
-    !name.is_empty()
-        && name.len() <= 64
-        && name
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.'))
-}
+use std::time::Duration;
+use wire::WireOp;
 
 /// Called with the principal and the file after a call wrote at least one op (the live transport wakes its
 /// sockets with it).
@@ -371,8 +240,6 @@ impl Shared {
         }
     }
 }
-
-pub(crate) const BAD_NAME: &str = "a file name is 1 to 128 bytes without slashes, control or invisible formatting characters, and a tool name is 1 to 64 letters, digits, _ - or .";
 
 /// The state of a router: build it once, then give it to [`routes`] and to any other transport's routes.
 pub fn shared(

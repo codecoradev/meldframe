@@ -49,7 +49,7 @@ pub(super) fn check_file(file: &str) -> Result<(), Value> {
     if crate::valid_file(file) {
         Ok(())
     } else {
-        Err(invalid(crate::BAD_NAME))
+        Err(invalid(crate::names::BAD_NAME))
     }
 }
 
