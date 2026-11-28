@@ -36,7 +36,7 @@ One record for each machine that produces numbers. Leave a field blank until it 
 | GPU path (adapter name, integrated or discrete, graphics backend as Rune and wgpu report it, a real GPU: yes or no) | |
 | Power (plugged in, Low Power Mode off: yes or no) | |
 | Rune revision run (pinned by E8.0.4: `048528dc35f0`) | |
-| The 8 patch revisions run (wgpu-hal, naga, winit, sctk-adwaita, parley_engine, accesskit_windows, accesskit_atspi, accesskit_macos) | |
+| The 8 patch revisions run (wgpu-hal, naga, winit, sctk-adwaita, parley_engine, accesskit_windows, accesskit_atspi_common, accesskit_macos) | |
 | Rust toolchain (from `frontends/rune/rust-toolchain.toml`) and Meldframe commit of the run | |
 | Reference run: machine, operating system, Chromium and Playwright versions (the Linux oracle, section 3) | |
 | Date of the run and operator (a person for C7 and C8) | |

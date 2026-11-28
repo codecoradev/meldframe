@@ -229,3 +229,38 @@ jobs:
       - name: Oracle (fixtures and 500 seeds)
         working-directory: tools/fidelity-oracle
         run: node oracle.mjs --seeds 500
+
+  # The Rune workspace (E8.0.4, ADR-0027): the same steps as the `rune` job of ci.yml, every night on
+  # `develop`, whatever changed. A run on `develop` saves the compile cache that pull request runs of that job
+  # read (same shared key); a failure here is a Rune or toolchain drift that no pull request caused.
+  rune:
+    name: rune
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: System libraries (Rune links libxkbcommon on Linux)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxkbcommon-dev libwayland-dev
+      - name: Toolchain of the Rune workspace
+        working-directory: frontends/rune
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          workspaces: frontends/rune
+          shared-key: rune
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
+      - name: cargo-deny
+        run: |
+          cargo deny --version 2>/dev/null | grep -q 'cargo-deny 0.22.2' || cargo +stable install cargo-deny --version 0.22.2 --locked
+      - name: Format
+        working-directory: frontends/rune
+        run: cargo fmt --check
+      - name: Lint
+        working-directory: frontends/rune
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Tests
+        working-directory: frontends/rune
+        run: cargo test --locked
+      - name: Licences, sources and advisories (cargo deny)
+        working-directory: frontends/rune
+        run: cargo deny check

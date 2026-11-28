@@ -14,8 +14,8 @@
 #
 # Contexts the `develop-protection` ruleset requires: `checks`, `migrations` and `pr checks` (the job of
 # pr-checks.yml). Keep the job names as they are. The compile caches are saved by ci-cache.yml on every push to
-# `develop` and only read here (a pull request's own cache is visible to that pull request alone). The Cora review in CI is disabled. The `oracle` job is not
-# required yet.
+# `develop` and only read here (a pull request's own cache is visible to that pull request alone). The Cora review in CI is disabled. The `oracle` and `rune` jobs are not
+# required yet (`rune` builds the Rune workspace under frontends/rune and does its work only when a pull request changes it).
 #
 # This is the GitHub Actions copy. The Gitea copy in .gitea/workflows/ is kept (Actions are off in the Gitea repository) for the day it is
 # hosted there again; the check scripts in scripts/ci/ are shared by both.
@@ -262,3 +262,66 @@ jobs:
       - name: Sensitivity (the gate catches a wrong export)
         working-directory: tools/fidelity-oracle
         run: node sensitivity.mjs
+
+  # The Rune workspace (E8.0.4, ADR-0027, decision 45): `frontends/rune/`, its own toolchain
+  # (frontends/rune/rust-toolchain.toml), lock and deny.toml. A job of its own and not one of the required
+  # contexts: the owner decides when it becomes one, after E8.2 passes. The job starts on every pull request
+  # (a job cannot be filtered by path, and the required `checks` must not wait for it) and does the work only
+  # when the pull request changed `frontends/rune/` or this file; otherwise it ends in a few seconds. The
+  # compile cache is keyed on the Rune lock and the toolchain file and is saved by the nightly run on
+  # `develop` (the `rune` job of nightly.yml under the same shared key). Rune links libxkbcommon on Linux.
+  rune:
+    name: rune
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # Two commits: the merge commit of the pull request and its first parent, the base.
+          fetch-depth: 2
+      - id: changed
+        name: Did the pull request change the Rune workspace?
+        run: |
+          if ! git rev-parse --verify --quiet HEAD^1 >/dev/null \
+            || git diff --name-only HEAD^1 HEAD | grep -qE '^(frontends/rune/|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing under frontends/rune changed: the Rune workspace is not built."
+          fi
+      - if: steps.changed.outputs.run == 'true'
+        name: System libraries (Rune links libxkbcommon on Linux)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxkbcommon-dev libwayland-dev
+      # The toolchain Rune pins, read from the toolchain file, so the version is written in one place.
+      - if: steps.changed.outputs.run == 'true'
+        name: Toolchain of the Rune workspace
+        working-directory: frontends/rune
+        run: rustup toolchain install
+      - if: steps.changed.outputs.run == 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          workspaces: frontends/rune
+          shared-key: rune
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
+      - if: steps.changed.outputs.run == 'true'
+        name: cargo-deny
+        run: |
+          # Pinned, and kept in ~/.cargo/bin by the cache above.
+          cargo deny --version 2>/dev/null | grep -q 'cargo-deny 0.22.2' || cargo +stable install cargo-deny --version 0.22.2 --locked
+      - if: steps.changed.outputs.run == 'true'
+        name: Format
+        working-directory: frontends/rune
+        run: cargo fmt --check
+      - if: steps.changed.outputs.run == 'true'
+        name: Lint
+        working-directory: frontends/rune
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - if: steps.changed.outputs.run == 'true'
+        name: Tests
+        working-directory: frontends/rune
+        run: cargo test --locked
+      # Licences of every crate the lock reaches, the one git source (Rune, by revision) and the advisories.
+      - if: steps.changed.outputs.run == 'true'
+        name: Licences, sources and advisories (cargo deny)
+        working-directory: frontends/rune
+        run: cargo deny check
