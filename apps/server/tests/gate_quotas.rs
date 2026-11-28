@@ -1,9 +1,9 @@
 //! E2.3: per-workspace quotas at the gate: ops per minute, batch size and storage, each with its own stable code.
 //! A refused batch charges nothing, and another workspace is never affected.
 
-mod common;
+mod gate_common;
 
-use common::{add, op};
+use gate_common::{add, op};
 use meldframe_host::{Gate, Principal, Refusal};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};

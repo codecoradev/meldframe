@@ -6,7 +6,7 @@ use meldframe_check::ApplyError;
 use meldframe_host::Refusal;
 use meldframe_module::{Policy, RiskTier};
 
-const DOC: &str = include_str!("../../../../docs/error-codes.md");
+const DOC: &str = include_str!("../../../docs/error-codes.md");
 const HEADING: &str = "\n## Gate refusal codes\n";
 
 /// One index per variant. No wildcard: a new variant stops this file from compiling until it gets an
