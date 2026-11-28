@@ -1,8 +1,8 @@
 //! The editable values of a node as the properties panel shows them.
 
-use crate::layout::{layout_notes, sides, uniform};
-use crate::panel::selected_node;
-use crate::property::MIN_STOPS;
+use super::layout::{layout_notes, sides, uniform};
+use super::panel::selected_node;
+use super::property::MIN_STOPS;
 use meldframe_app_model::{BindField, FieldBinding, FillKind, Properties, Sections};
 use meldframe_check::Limits;
 use meldframe_layout::is_layout_frame;

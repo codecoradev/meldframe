@@ -3,7 +3,7 @@
 //! and `image`, and how the stops of a gradient are edited. The checks of a colour, of the stops and of a size are the
 //! core's, run when the command is applied.
 
-use crate::properties::fill_kind;
+use super::properties::fill_kind;
 use meldframe_app_model::{Axis, FillKind, Property, Side};
 use meldframe_check::Limits;
 use meldframe_protocol::{

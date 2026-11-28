@@ -5,7 +5,7 @@
 //! `Feed::view` of `meldframe-activity` gives, a `BatchPage`), `Frame::observe` (a plain mapping of a frame to the
 //! feed's calls), the classification of an action (`Action::is_activity`, `Action::only_activity`, `Action::is_assets`, `Action::is_checkpoint`),
 //! and the one real rule set, the transitions of the image picker's list (`AssetsState`: which answer is taken, what a
-//! page has to look like, the cap on the list). The rules of the other screens are in `meldframe-app-parts` and
+//! page has to look like, the cap on the list). The rules of the other screens are in `meldframe-app` (`parts`) and
 //! `meldframe-app-rules`.
 
 pub mod action;

@@ -1119,7 +1119,6 @@ dependencies = [
  "export",
  "meldframe-activity",
  "meldframe-app-model",
- "meldframe-app-parts",
  "meldframe-app-rules",
  "meldframe-camera",
  "meldframe-check",
@@ -1209,19 +1208,6 @@ dependencies = [
  "serde",
  "serde_json",
  "ts-rs",
-]
-
-[[package]]
-name = "meldframe-app-parts"
-version = "0.0.0"
-dependencies = [
- "meldframe-app-model",
- "meldframe-check",
- "meldframe-layout",
- "meldframe-protocol",
- "meldframe-render",
- "meldframe-text",
- "meldframe-variables",
 ]
 
 [[package]]

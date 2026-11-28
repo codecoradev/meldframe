@@ -1,5 +1,5 @@
 //! The values of the properties panel: each `Property` becomes one `UpdateNode` (one undo step); the rules are the
-//! pure ones of `meldframe-app-parts` (`property`), and this applies the patch they make.
+//! pure ones of `parts::property`, and this applies the patch they make.
 
 use crate::action::Property;
 use crate::app::App;
