@@ -28,7 +28,7 @@ async fn start() -> Harness {
     let state = meldframe_http::shared(tokens.clone(), spy.clone(), config());
     let mcp = meldframe_http::mcp::McpConfig {
         allowed_hosts: Vec::new(),
-        extra: vec![meldframe_http_variant::tool(state, spy.clone())],
+        extra: vec![meldframe_http::variant::tool(state, spy.clone())],
     };
     let app = router_with_mcp_config(tokens, spy.clone(), spy.clone(), config(), mcp);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

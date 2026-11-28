@@ -1,6 +1,7 @@
-//! The `make_variant` tool: a copy of a frame and its subtree beside it (E5.4). The commands come from
-//! `meldframe-variant`; the call ends where `apply_commands` does, in one atomic `submit_ops`, so the gate, the
-//! limits and the log see it as the batch of `addNode`s it is.
+//! The `make_variant` tool: a copy of a frame and its subtree beside it (E5.4).
+//!
+//! The commands come from `meldframe-variant`; the call ends where `apply_commands` does, in one atomic
+//! `submit_ops`, so the gate, the limits and the log see it as the batch of `addNode`s it is.
 //!
 //! A retry must find what the first call wrote. The ids of the copy come from the file, the actor, the key and the
 //! frame (FNV-1a, 64 bits), so the same call makes the same ids; a key that was used for another frame, or by
@@ -10,13 +11,13 @@
 //! The tool is an [`Extra`] of the MCP route and [`VariantModule`] registers it, so a build without the `variant`
 //! feature of the server has neither.
 
-use meldframe_check::Limits;
-use meldframe_host::{Op, Principal};
-use meldframe_http::mcp::{
+use crate::mcp::{
     Extra, ExtraCall, FileView, MAX_BATCH, MAX_KEY, Reader, change_tool_listing, fnv1a, key_schema,
     tool_error as error, tool_failed as failed,
 };
-use meldframe_http::{Failure, Shared, valid_file};
+use crate::{Failure, Shared, valid_file};
+use meldframe_check::Limits;
+use meldframe_host::{Op, Principal};
 use meldframe_module::{Module, Registrar, RiskTier};
 use rmcp::model::{CallToolResult, Tool};
 use serde::Deserialize;
@@ -93,7 +94,7 @@ fn one_of<T>(camel: Option<T>, snake: Option<T>, name: &str) -> Result<Option<T>
 }
 
 fn check_key(key: &str) -> Result<(), Value> {
-    meldframe_http::mcp::check_key(key).map_err(|_| {
+    crate::mcp::check_key(key).map_err(|_| {
         invalid(format!(
             "the idempotency key is 1 to {MAX_KEY} characters without control or hidden characters"
         ))
@@ -157,7 +158,7 @@ impl Variant {
             .await
         {
             Err(reply) => Err(failed(&reply)),
-            Ok(Err(failure)) => Err(failed(&meldframe_http::Reply::failure(&failure))),
+            Ok(Err(failure)) => Err(failed(&crate::Reply::failure(&failure))),
             Ok(Ok(v)) => Ok(v),
         }
     }

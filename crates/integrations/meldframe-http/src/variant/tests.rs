@@ -2,7 +2,7 @@
 //! in `meldframe-mcp-defs`.
 
 use super::*;
-use meldframe_http::mcp::TOOLS;
+use crate::mcp::TOOLS;
 
 fn apply_commands_property(name: &str) -> Value {
     let tool = TOOLS.iter().find(|t| t.name == "apply_commands").unwrap();

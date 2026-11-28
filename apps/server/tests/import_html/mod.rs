@@ -73,7 +73,7 @@ pub async fn start_with(o: Opts) -> World {
     let mcp = McpConfig {
         extra: vec![
             meldframe_http_html_import::tool(shared.clone(), spy.clone(), o.policy),
-            meldframe_http_export::tool(shared.clone(), server.clone(), Some(Policy::Auto)),
+            meldframe_http::export::tool(shared.clone(), server.clone(), Some(Policy::Auto)),
         ],
         ..Default::default()
     };

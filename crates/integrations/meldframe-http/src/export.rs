@@ -9,11 +9,11 @@
 //! section 6). The answer says so under `textMeasurer`, and the report warns `text_size_estimated` for the text
 //! whose box that measurer decides (`ExportOptions::estimated_text`).
 
+use crate::Failure;
+use crate::Shared;
+use crate::mcp::{Extra, ExtraCall};
 use export::{DESCRIPTION, ExportOptions, Format, TOOL};
 use meldframe_host::Principal;
-use meldframe_http::Failure;
-use meldframe_http::Shared;
-use meldframe_http::mcp::{Extra, ExtraCall};
 use meldframe_layout::StubMeasurer;
 use meldframe_module::Policy;
 use meldframe_protocol::{Node, Variables, valid_id};
@@ -154,7 +154,7 @@ impl ExportTool {
         if !valid_id(&args.frame, MAX_FRAME_ID) {
             return failure("invalid", &frame_refusal(), false);
         }
-        if !meldframe_http::valid_file(&args.file) {
+        if !crate::valid_file(&args.file) {
             return failure(
                 "invalid",
                 "a file name is 1 to 128 bytes without slashes, control or invisible formatting characters",

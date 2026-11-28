@@ -1,19 +1,20 @@
-//! The MCP tool `design_review` (E5.4): a numbered critique list for a file, with each item linked to the batches
-//! that address it. The list is kept by a [`ReviewStore`], never in the file's op log, so none of the actions writes
-//! an op.
+//! The MCP tool `design_review` (E5.4): a numbered critique list for a file, kept by a [`ReviewStore`] and with each
+//! item linked to the batches that address it.
+//!
+//! The list is never in the file's op log, so none of the actions writes an op.
 //!
 //! The workspace and the actor come from the token of the request, never from the arguments (an unknown argument is
 //! refused). A list is read under the Read tier's policy and written under the Change tier's. A batch is linked
 //! only when the caller wrote it: the tool looks for the op `{batch}:0` of the caller's own in the file, the first
 //! op of an `apply_commands` call with that idempotency key, which is also the name `revert_batch` uses.
 
+use crate::mcp::{Extra, ExtraCall, Reader};
+use crate::{Failure, Shared, valid_file};
 use design_review::{
     DESCRIPTION, Item, MAX_ADD, MAX_ITEMS, MAX_TEXT, ReviewError, ReviewStore, Status, TOOL,
     check_batch, check_item,
 };
 use meldframe_host::Principal;
-use meldframe_http::mcp::{Extra, ExtraCall, Reader};
-use meldframe_http::{Failure, Shared, valid_file};
 use meldframe_mcp_defs::MAX_KEY;
 use meldframe_module::Policy;
 use rmcp::model::{CallToolResult, Tool, ToolAnnotations};
@@ -66,7 +67,7 @@ impl From<ReviewError> for Fail {
     fn from(e: ReviewError) -> Self {
         // The text of a store failure is for the log, not for the caller.
         if let ReviewError::Unavailable(why) = &e {
-            eprintln!("meldframe-http-review: unavailable: {why}");
+            eprintln!("meldframe-http: design_review unavailable: {why}");
         }
         Fail(e.code(), e.to_string(), e.retryable())
     }

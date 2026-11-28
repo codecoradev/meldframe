@@ -22,7 +22,7 @@ pub(crate) fn modules() -> Vec<Box<dyn Module>> {
         #[cfg(feature = "html-import")]
         Box::new(html_import::ImportHtmlModule),
         #[cfg(feature = "variant")]
-        Box::new(meldframe_http_variant::VariantModule),
+        Box::new(meldframe_http::variant::VariantModule),
         #[cfg(feature = "activity")]
         Box::new(meldframe_http_activity::ActivityModule),
         #[cfg(feature = "checkpoints")]
