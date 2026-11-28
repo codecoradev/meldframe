@@ -736,7 +736,6 @@ version = "0.0.0"
 dependencies = [
  "export",
  "html-import-css",
- "html-import-style",
  "html-import-tree",
  "meldframe-check",
  "meldframe-css",
@@ -753,15 +752,6 @@ name = "html-import-css"
 version = "0.0.0"
 dependencies = [
  "html-import-tree",
-]
-
-[[package]]
-name = "html-import-style"
-version = "0.0.0"
-dependencies = [
- "html-import-css",
- "html-import-tree",
- "meldframe-css",
 ]
 
 [[package]]

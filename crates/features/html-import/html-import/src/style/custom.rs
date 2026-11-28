@@ -1,10 +1,10 @@
 //! The custom properties (`--x`) of an element: the parent's, with what the element declares resolved over them, on
 //! the element that declares them (see `style.rs` for the rules).
 
-use crate::computed::{Custom, Note};
-use crate::styles::Cx;
-use crate::value::is_wide;
-use crate::vars::{MAX_DEPTH, VarError, resolve};
+use crate::style::computed::{Custom, Note};
+use crate::style::styles::Cx;
+use crate::style::value::is_wide;
+use crate::style::vars::{MAX_DEPTH, VarError, resolve};
 use html_import_css::css::Candidate;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
@@ -181,7 +181,7 @@ pub(crate) fn customs(
     }
     let mut map = (**parent).clone();
     cx.steps += map.len();
-    cx.bytes += map.len() * crate::styles::ENTRY_BYTES;
+    cx.bytes += map.len() * crate::style::styles::ENTRY_BYTES;
     for (name, entry) in r.done.take() {
         match entry {
             Entry::Value(v) => map.insert(name, Some(v)),

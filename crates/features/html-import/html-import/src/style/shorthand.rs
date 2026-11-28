@@ -6,7 +6,7 @@
 //! a `url()` or a gradient). Anything else of a shorthand that this does not read is refused as a whole, never
 //! guessed. A CSS-wide keyword (`inherit`, `initial`, `unset`, `revert`) goes to every longhand.
 
-use crate::value::{colour, has_top_level_comma, is_wide, length, words};
+use crate::style::value::{colour, has_top_level_comma, is_wide, length, words};
 
 /// Why a shorthand is not read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
