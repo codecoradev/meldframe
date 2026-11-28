@@ -2,9 +2,7 @@
 //! every rule is here; a front end draws `AppState::variables` and sends the actions, and the checks of a value, an
 //! alias or a binding are the ones of `meldframe-variables`, run when the command is applied.
 
-use crate::app::App;
-use crate::document::refuse;
-use crate::event::Event;
+use crate::{app::App, document::refuse, event::Event, view_cache::PanelCache};
 use meldframe_app_model::{BindField, VariableValue, VariablesPanel};
 use meldframe_app_parts::binding::{bind_patch, variable_bind};
 use meldframe_app_parts::panel::{PanelKey, selected_node};
@@ -14,16 +12,6 @@ use meldframe_sync::SubmitError;
 
 /// The longest search text, in characters.
 const MAX_QUERY: usize = 200;
-
-/// What the view was built from, and how often it was built. A dispatch that changes none of these (a move, a
-/// resize, a timer) leaves the view as it is: the check reads the file but allocates only when something differs.
-#[derive(Debug, Default)]
-pub(crate) struct PanelCache {
-    key: Option<PanelKey>,
-    builds: u64,
-    /// How many times the bind picker was built (a test seam, as `builds`).
-    pub(crate) picker_builds: u64,
-}
 
 impl PanelCache {
     fn is_current(&self, a: &App) -> bool {
