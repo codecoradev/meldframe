@@ -90,30 +90,18 @@ impl<'a> HitIndex<'a> {
     /// sum of the offsets of its ancestors (the parent comes first in the list, as `resolve_with` gives it). Every box is
     /// visible (see the module note).
     pub fn from_boxes(boxes: &[PaintedBox]) -> HitIndex<'static> {
-        let mut origin: HashMap<&str, (f64, f64)> = HashMap::with_capacity(boxes.len());
-        let mut placed = Vec::with_capacity(boxes.len());
-        for b in boxes {
-            let (px, py) = b
-                .parent
-                .as_deref()
-                .and_then(|p| origin.get(p))
-                .copied()
-                .unwrap_or((0.0, 0.0));
-            let rect = Rect {
-                x: px + b.x,
-                y: py + b.y,
-                w: b.w,
-                h: b.h,
-            };
-            origin.entry(b.id.as_str()).or_insert((rect.x, rect.y));
-            placed.push(HitBox {
-                id: &b.id,
-                parent: b.parent.as_deref(),
-                rect,
-                clip: b.clip,
-                visible: true,
+        let placed = world_rects(boxes)
+            .into_iter()
+            .zip(boxes)
+            .filter_map(|(rect, b)| {
+                rect.map(|rect| HitBox {
+                    id: &b.id,
+                    parent: b.parent.as_deref(),
+                    rect,
+                    clip: b.clip,
+                    visible: true,
+                })
             });
-        }
         HitIndex::new(placed).into_owned()
     }
 
@@ -194,6 +182,37 @@ impl<'a> HitIndex<'a> {
     pub fn front_most(&self, x: f64, y: f64) -> Option<&str> {
         self.under(x, y).next()
     }
+}
+
+/// The world rectangle of each painted box, in the order of `boxes`, in one pass: a box holds its offset inside its parent, so
+/// the rectangle is the sum of the offsets of its ancestors (the parent comes first in the list, as `resolve_with` gives it).
+/// It is the placement [`HitIndex::from_boxes`] reads, so a painter that draws a box at this rectangle and a click that asks
+/// the index agree. A box whose id an earlier box has already is `None`: the index leaves it out, and a painter does not
+/// draw it.
+pub fn world_rects(boxes: &[PaintedBox]) -> Vec<Option<Rect>> {
+    let mut origin: HashMap<&str, (f64, f64)> = HashMap::with_capacity(boxes.len());
+    boxes
+        .iter()
+        .map(|b| {
+            if origin.contains_key(b.id.as_str()) {
+                return None;
+            }
+            let (px, py) = b
+                .parent
+                .as_deref()
+                .and_then(|p| origin.get(p))
+                .copied()
+                .unwrap_or((0.0, 0.0));
+            let rect = Rect {
+                x: px + b.x,
+                y: py + b.y,
+                w: b.w,
+                h: b.h,
+            };
+            origin.insert(b.id.as_str(), (rect.x, rect.y));
+            Some(rect)
+        })
+        .collect()
 }
 
 /// The front-most box of `boxes` under the point: [`HitIndex::from_boxes`] and one question. For a scene that is asked more
