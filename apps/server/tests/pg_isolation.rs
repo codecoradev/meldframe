@@ -1,6 +1,7 @@
 //! Schemas keep stores apart, a database the migrator did not create is refused, and data that can never be
 //! stored fails without leaving a gap.
 
+#[path = "rooms_common/mod.rs"]
 mod common;
 
 use meldframe_host::{NewOp, Store, StoreError};

@@ -1,6 +1,7 @@
 //! E2.3: every stored file belongs to one workspace, in a column and not only in its key. The rows of the three
 //! tables (files, ops, snapshots) are told apart by it, and the usage of a workspace is read from its own rows.
 
+#[path = "rooms_common/mod.rs"]
 mod common;
 
 use meldframe_host::{NewOp, Snapshot, Store};
@@ -142,8 +143,8 @@ fn the_migration_backfills_the_columns_of_files_written_before_it() {
             .options([("search_path", schema.as_str())]);
         let mut c = opts.connect().await.unwrap();
         for sql in [
-            include_str!("../../../../migrations/0001_init.sql"),
-            include_str!("../../../../migrations/0002_ops_key_per_actor.sql"),
+            include_str!("../../../migrations/0001_init.sql"),
+            include_str!("../../../migrations/0002_ops_key_per_actor.sql"),
         ] {
             c.execute(sql).await.unwrap();
         }
@@ -168,7 +169,7 @@ fn the_migration_backfills_the_columns_of_files_written_before_it() {
                 .unwrap();
         }
         c.execute(include_str!(
-            "../../../../migrations/0003_workspace_column.sql"
+            "../../../migrations/0003_workspace_column.sql"
         ))
         .await
         .unwrap();

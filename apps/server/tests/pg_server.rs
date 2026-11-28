@@ -1,5 +1,6 @@
 //! A restarted server restores every file from Postgres, through the server composition.
 
+#[path = "rooms_common/mod.rs"]
 mod common;
 
 use meldframe_host::{Op, Principal};

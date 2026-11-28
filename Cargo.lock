@@ -2052,31 +2052,16 @@ dependencies = [
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-rooms",
+ "meldframe-store-contract",
  "meldframe-store-pg",
  "meldframe-stream",
  "meldframe-text",
  "serde_json",
+ "sqlx",
  "tokio",
  "tokio-tungstenite 0.26.2",
  "tower",
  "variables-import",
-]
-
-[[package]]
-name = "meldframe-server-tests"
-version = "0.0.0"
-dependencies = [
- "meldframe-approvals",
- "meldframe-calls",
- "meldframe-host",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-rooms",
- "meldframe-server",
- "meldframe-store-contract",
- "serde_json",
- "sqlx",
- "tokio",
 ]
 
 [[package]]
