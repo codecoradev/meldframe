@@ -1,10 +1,10 @@
 //! The tool object the server mounts: its listing, its call, and the state every call reads.
 
 use super::schema::input_schema;
+use crate::Shared;
+use crate::mcp::{Extra, ExtraCall, Reader, change_tool_listing};
 use html_import::{DESCRIPTION, TOOL};
 use meldframe_host::Principal;
-use meldframe_http::Shared;
-use meldframe_http::mcp::{Extra, ExtraCall, Reader, change_tool_listing};
 use meldframe_module::Policy;
 use rmcp::model::{CallToolResult, Tool};
 use serde_json::{Map, Value};

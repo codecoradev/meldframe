@@ -15,7 +15,7 @@ use std::sync::Arc;
 use tower::ServiceExt;
 
 fn app() -> Router {
-    meldframe_http_assets::routes(
+    meldframe_http::assets::routes(
         shared(tokens(), Fake::ok(), config()),
         Arc::new(MemoryBlobs::default()),
     )
@@ -201,9 +201,9 @@ async fn an_upload_over_the_limit_is_refused_by_its_declared_length_and_by_its_s
     assert_eq!((status, code(&body)), (413, "asset_too_large"));
 }
 
-fn app_with(blobs: Arc<dyn assets::BlobStore>, options: meldframe_http_assets::Options) -> Router {
+fn app_with(blobs: Arc<dyn assets::BlobStore>, options: meldframe_http::assets::Options) -> Router {
     let usage = Usage::new(blobs.clone());
-    meldframe_http_assets::routes_with(
+    meldframe_http::assets::routes_with(
         shared(tokens(), Fake::ok(), config()),
         blobs,
         usage,
@@ -218,7 +218,7 @@ async fn the_disk_store_works_through_the_routes_and_keeps_the_file() {
     let _ = std::fs::remove_dir_all(&dir);
     let app = app_with(
         Arc::new(assets::DiskBlobs::new(&dir)),
-        meldframe_http_assets::Options::default(),
+        meldframe_http::assets::Options::default(),
     );
     let bytes = png(b"on disk");
     let id = asset_id(&bytes);
@@ -254,7 +254,7 @@ async fn the_disk_store_works_through_the_routes_and_keeps_the_file() {
 async fn an_upload_that_never_ends_times_out_and_a_full_set_of_places_is_unavailable() {
     let app = app_with(
         Arc::new(MemoryBlobs::default()),
-        meldframe_http_assets::Options {
+        meldframe_http::assets::Options {
             uploads: 1,
             uploads_per_principal: 1,
             upload_timeout: std::time::Duration::from_millis(600),
@@ -296,12 +296,12 @@ async fn an_upload_that_never_ends_times_out_and_a_full_set_of_places_is_unavail
 fn app_limited(ops: u64, limit: u64) -> (Router, Usage) {
     let blobs: Arc<dyn BlobStore> = Arc::new(MemoryBlobs::default());
     let usage = Usage::new(blobs.clone());
-    let router = meldframe_http_assets::routes_with(
+    let router = meldframe_http::assets::routes_with(
         shared(tokens(), Fake::ok(), config()),
         blobs,
         usage.clone(),
         Arc::new(move |_| (ops, Some(limit))),
-        meldframe_http_assets::Options::default(),
+        meldframe_http::assets::Options::default(),
     );
     (router, usage)
 }
@@ -380,12 +380,12 @@ impl BlobStore for Down {
 #[tokio::test]
 async fn a_store_that_cannot_say_what_it_holds_makes_an_upload_unavailable_and_retryable() {
     let blobs: Arc<dyn BlobStore> = Arc::new(Down);
-    let app = meldframe_http_assets::routes_with(
+    let app = meldframe_http::assets::routes_with(
         shared(tokens(), Fake::ok(), config()),
         blobs.clone(),
         Usage::new(blobs),
         Arc::new(|_| (0, Some(1 << 30))),
-        meldframe_http_assets::Options::default(),
+        meldframe_http::assets::Options::default(),
     );
     let (status, body) = json(app.oneshot(upload(Some(TOKEN), png(b"x"))).await.unwrap()).await;
     assert_eq!((status, code(&body)), (503, "unavailable"));

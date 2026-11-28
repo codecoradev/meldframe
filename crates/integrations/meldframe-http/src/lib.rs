@@ -6,11 +6,15 @@
 //! Order of work for every call: client rate limit, the token, the principal's rate limit, and only then the
 //! body. The submitter blocks on its store, so each call runs on `spawn_blocking` under a timeout.
 
+#[cfg(feature = "assets")]
+pub mod assets;
 mod auth;
 mod config;
 mod conn;
 #[cfg(feature = "export")]
 pub mod export;
+#[cfg(feature = "html-import")]
+pub mod html_import;
 pub mod live;
 #[cfg(feature = "mcp")]
 pub mod mcp;

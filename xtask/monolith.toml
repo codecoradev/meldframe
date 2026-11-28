@@ -211,7 +211,7 @@ reason = "audit D12: one adapter module in the merged http crate (#315)"
 
 [[allow_copy]]
 fns = [
-    "crates/integrations/meldframe-http-assets/src/tool.rs::call",
+    "crates/integrations/meldframe-http/src/assets/tool.rs::call",
     "crates/integrations/meldframe-http/src/export.rs::call",
     "crates/integrations/meldframe-http/src/variables_import.rs::call",
 ]
@@ -219,7 +219,7 @@ reason = "audit D12: one adapter module in the merged http crate (#315)"
 
 [[allow_copy]]
 fns = [
-    "crates/integrations/meldframe-http-assets/src/tool.rs::failure",
+    "crates/integrations/meldframe-http/src/assets/tool.rs::failure",
     "crates/integrations/meldframe-http/src/export.rs::failure",
     "crates/integrations/meldframe-http/src/variables_import.rs::failure",
 ]

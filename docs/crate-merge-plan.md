@@ -10,7 +10,7 @@ The ceiling is 50,000 lines (decision 42) and the product is a modular monolith,
 |---|---|---:|---|
 | App layer | `meldframe-app` 3,995, `-app-parts` 2,663, `-app-rules` 3,959, `-app-pointer` 690, `-app-nudge` 122, `export-dialog` 311, `variables-import-dialog` 171 | 11,911 | test crates (`meldframe-app-unit-tests`, `-export-tests`, `-layout-tests`, `-inspector-tests`, `-review-tests`, `meldframe-variables-manage-tests` and others), `meldframe-headless`, `meldframe-app-harness` (through `meldframe-app`) |
 | App vocabulary | `meldframe-app-model` 3,840, `meldframe-app-export-model` 348 | 4,188 | `meldframe-net` (Rune workspace, kind `os`), `meldframe-server`, `tools/check-protocol.sh`, the test crates |
-| HTML import | `html-import` 4,262 (and 10,778 of tests), `-css` 1,937, `-style` 1,556, `-tree` 1,139 | 8,894 | none: only the facade `html-import` is named, by `meldframe-http-html-import` and `meldframe-server` |
+| HTML import | `html-import` 4,262 (and 10,778 of tests), `-css` 1,937, `-style` 1,556, `-tree` 1,139 | 8,894 | none: only the facade `html-import` is named, by the adapter of `import_html` (a crate of its own then, the module `html_import` of `meldframe-http` since C3) and `meldframe-server` |
 | HTTP adapters | `meldframe-http` 1,963, `-live` 863, `-snapshot` 266, `-activity` 961, `-assets` 600, `-capture` 665, `-checkpoints` 942, `-export` 248, `-html-import` 580, `-review` 269, `-variables-import` 225, `-variant` 360 | 7,942 | `apps/server` alone (6 source files and 23 test files name them) |
 | Postgres store | `meldframe-store-pg` | 1,547 | `apps/server` |
 

@@ -20,6 +20,10 @@ review = ["mcp", "dep:design-review"]
 variables-import = ["mcp", "dep:variables-import"]
 # The make_variant tool (E5.4): the `variant` module.
 variant = ["mcp", "dep:meldframe-variant"]
+# The asset routes and the upload_asset tool (E2.5): the `assets` module. It is an MCP tool, so it needs `mcp`.
+assets = ["mcp", "dep:assets", "dep:base64", "dep:futures-util"]
+# The import_html tool (E4.4): the `html_import` module. It is an MCP tool, so it needs `mcp`.
+html-import = ["mcp", "dep:html-import", "dep:meldframe-core", "dep:meldframe-variant", "dep:meldframe-layout", "dep:meldframe-check"]
 
 [dependencies]
 meldframe-activity = { path = "../../core/meldframe-activity" }
@@ -31,16 +35,21 @@ meldframe-batch = { path = "../../core/meldframe-batch" }
 meldframe-ratelimit = { path = "../../core/meldframe-ratelimit" }
 meldframe-stream = { path = "../../core/meldframe-stream" }
 meldframe-layout = { path = "../../core/meldframe-layout", optional = true }
+meldframe-core = { path = "../../core/meldframe-core", optional = true }
 meldframe-render = { path = "../../core/meldframe-render", optional = true }
 meldframe-variant = { path = "../../core/meldframe-variant", optional = true }
 export = { path = "../../features/export/export", optional = true }
 design-review = { path = "../../features/design-review/design-review", optional = true }
 variables-import = { path = "../../features/variables-import/variables-import", optional = true }
+assets = { path = "../../features/assets/assets", optional = true }
+html-import = { path = "../../features/html-import/html-import", optional = true }
 meldframe-module = { path = "../../core/meldframe-module", optional = true }
 meldframe-mcp-defs = { path = "../../core/meldframe-mcp-defs" }
 meldframe-text = { path = "../../core/meldframe-text" }
 rmcp = { version = "3.10", optional = true, default-features = false, features = ["server", "transport-streamable-http-server"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
+base64 = { version = "0.22", optional = true }
+futures-util = { version = "0.3", default-features = false, optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt", "time", "sync", "macros"] }
