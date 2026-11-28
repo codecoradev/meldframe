@@ -31,7 +31,7 @@ async fn start_with(read: Option<Policy>, change: Option<Policy>) -> Harness {
         ))
         .unwrap(),
     );
-    let tool = meldframe_http_review::tool(
+    let tool = meldframe_http::review::tool(
         meldframe_http::shared(tokens.clone(), spy.clone(), config()),
         spy.clone(),
         Arc::new(MemoryReviews::default()),
@@ -397,7 +397,7 @@ async fn the_input_schema_equals_the_catalogue_and_the_registry_tool() {
         live_schema, entry["inputSchema"],
         "docs/mcp-tools.json is out of date"
     );
-    assert_eq!(live_schema, meldframe_http_review::input_schema());
+    assert_eq!(live_schema, meldframe_http::review::input_schema());
     let reg = meldframe_server::Server::assemble();
     let reg = reg.registry().agent_tool("design_review").unwrap();
     assert_eq!(entry["description"], reg.description);

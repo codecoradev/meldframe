@@ -33,7 +33,7 @@ async fn start() -> Harness {
     ))
     .unwrap();
     let shared: Arc<Shared> = meldframe_http::shared(Arc::new(tokens), spy.clone(), config());
-    let tool = meldframe_http_export::tool(shared.clone(), spy.server.clone(), policy);
+    let tool = meldframe_http::export::tool(shared.clone(), spy.server.clone(), policy);
     let mcp = McpConfig {
         extra: vec![tool],
         ..Default::default()

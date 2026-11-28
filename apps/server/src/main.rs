@@ -230,7 +230,7 @@ fn serve(
         extra_tools.push(assets.tool(upload_policy));
     }
     #[cfg(feature = "design-review")]
-    extra_tools.push(meldframe_http_review::tool(
+    extra_tools.push(meldframe_http::review::tool(
         state.clone(),
         shared.clone(),
         reviews,
@@ -241,13 +241,13 @@ fn serve(
         review_policy,
     ));
     #[cfg(feature = "export")]
-    extra_tools.push(meldframe_http_export::tool(
+    extra_tools.push(meldframe_http::export::tool(
         state.clone(),
         shared.clone(),
         export_policy,
     ));
     #[cfg(feature = "variables-import")]
-    extra_tools.push(meldframe_http_variables_import::tool(
+    extra_tools.push(meldframe_http::variables_import::tool(
         state.clone(),
         import_policy,
     ));
@@ -258,7 +258,7 @@ fn serve(
         html_import_policy,
     ));
     #[cfg(feature = "variant")]
-    extra_tools.push(meldframe_http_variant::tool(state.clone(), shared.clone()));
+    extra_tools.push(meldframe_http::variant::tool(state.clone(), shared.clone()));
     #[cfg(feature = "mcp")]
     let app = {
         // MCP answers to loopback host names unless MELDFRAME_MCP_HOSTS lists others (comma separated).

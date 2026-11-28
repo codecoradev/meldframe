@@ -9,18 +9,26 @@
 mod auth;
 mod config;
 mod conn;
+#[cfg(feature = "export")]
+pub mod export;
 pub mod live;
 #[cfg(feature = "mcp")]
 pub mod mcp;
 mod names;
 mod reply;
 mod rest;
+#[cfg(feature = "review")]
+pub mod review;
 mod routing;
 mod shared;
 mod slots;
 pub mod snapshot;
 mod submit;
 mod submitter;
+#[cfg(feature = "variables-import")]
+pub mod variables_import;
+#[cfg(feature = "variant")]
+pub mod variant;
 mod wire;
 mod ws;
 
