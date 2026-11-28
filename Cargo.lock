@@ -1460,21 +1460,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-gate-tests"
-version = "0.0.0"
-dependencies = [
- "meldframe-check",
- "meldframe-history",
- "meldframe-host",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-revert",
- "meldframe-rooms",
- "meldframe-server",
- "serde_json",
-]
-
-[[package]]
 name = "meldframe-headless"
 version = "0.0.0"
 dependencies = [
@@ -1838,6 +1823,7 @@ dependencies = [
  "meldframe-calls",
  "meldframe-check",
  "meldframe-checkpoints",
+ "meldframe-history",
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-activity",

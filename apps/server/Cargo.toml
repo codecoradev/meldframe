@@ -89,6 +89,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "net", "signal"] }
 # tests use: the `rmcp` client over HTTP, `reqwest`, the activity rules and the render coverage table, and what the
 # capture tests use: the headless editor of `meldframe-app` and `base64` (the PNG of the fake editor).
 # The checkpoint tests add the checkpoint rules, the store contract and the replay of `meldframe-revert`.
+# The gate tests add `meldframe-history` (the file state the restore tiers read).
 # Dev-dependencies do not ship and do not count for the layering (decision 44).
 [dev-dependencies]
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
@@ -108,6 +109,7 @@ base64 = "0.22"
 checkpoint-store = { path = "../../crates/features/activity/checkpoint-store", features = ["contract"] }
 meldframe-checkpoints = { path = "../../crates/core/meldframe-checkpoints" }
 meldframe-revert = { path = "../../crates/core/meldframe-revert" }
+meldframe-history = { path = "../../crates/core/meldframe-history" }
 rmcp = { version = "3.10", default-features = false, features = ["client", "server", "transport-streamable-http-client-reqwest"] }
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 

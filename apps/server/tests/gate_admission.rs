@@ -1,8 +1,8 @@
 //! The admission gate (ADR-0010): one decision for every op, a permit only when it is admitted.
 
-mod common;
+mod gate_common;
 
-use common::{add, op, remove};
+use gate_common::{add, op, remove};
 use meldframe_host::{Gate, Principal, Refusal};
 use meldframe_module::{Policy, RiskTier};
 use meldframe_protocol::MAX_OP_DEPS;
