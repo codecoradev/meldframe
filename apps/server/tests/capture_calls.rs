@@ -1,6 +1,7 @@
 //! E2.4 on the composed server: the calls of an agent over MCP are in the call log with the decision the gate made,
 //! the refused ones too, and no node content.
 
+#[path = "capture_common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_calls::Decision;

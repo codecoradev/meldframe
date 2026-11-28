@@ -1,6 +1,6 @@
 //! `make_variant`: a copy of a frame and its subtree beside it, one atomic call, safe to retry.
 
-#[path = "../../../../apps/server/tests/mcp_common/mod.rs"]
+#[path = "mcp_common/mod.rs"]
 mod common;
 use common::*;
 use meldframe_http::{DevTokens, router_with_mcp_config};

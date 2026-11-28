@@ -1396,30 +1396,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-capture-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "base64 0.22.1",
- "capture",
- "futures-util",
- "meldframe-app",
- "meldframe-calls",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-capture",
- "meldframe-http-live",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-server",
- "reqwest",
- "rmcp",
- "serde_json",
- "tokio",
- "tokio-tungstenite 0.26.2",
-]
-
-[[package]]
 name = "meldframe-check"
 version = "0.0.0"
 dependencies = [
@@ -1851,35 +1827,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-review-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "design-review",
- "export",
- "html-import",
- "meldframe-calls",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-activity",
- "meldframe-http-assets",
- "meldframe-http-capture",
- "meldframe-http-export",
- "meldframe-http-html-import",
- "meldframe-http-review",
- "meldframe-http-variables-import",
- "meldframe-http-variant",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-server",
- "reqwest",
- "rmcp",
- "serde_json",
- "tokio",
- "variables-import",
-]
-
-[[package]]
 name = "meldframe-rooms"
 version = "0.0.0"
 dependencies = [
@@ -1898,6 +1845,7 @@ dependencies = [
  "activity-store",
  "assets",
  "axum",
+ "base64 0.22.1",
  "capture",
  "checkpoint-store",
  "design-review",
@@ -1907,6 +1855,7 @@ dependencies = [
  "html-import",
  "http-body-util",
  "meldframe-activity",
+ "meldframe-app",
  "meldframe-app-export-model",
  "meldframe-approvals",
  "meldframe-batch",
