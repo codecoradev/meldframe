@@ -3,8 +3,9 @@
 //! length, or a number times a length (`6 * 1px`, which is what `var(--r) * 1px` reads once the variable is
 //! replaced); `N` is a length added or taken. Nothing else is evaluated.
 
-use super::lex::{number, split_commas};
+use super::lex::split_commas;
 use crate::css::value::length;
+use meldframe_css::number::number;
 
 /// The most terms of one `min()` that are read.
 const MAX_TERMS: usize = 8;

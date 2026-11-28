@@ -4,10 +4,11 @@
 //! writes, `circle farthest-corner`. A form that is not one of those is refused with its reason, never turned into
 //! the nearest one.
 
-use super::lex::{colour_word, inner, number, numeric, percent, split_commas};
+use super::lex::{colour_word, inner, percent, split_commas};
 use super::{Ctx, Sink};
 use crate::css::Style;
 use crate::css::value::words;
+use meldframe_css::number::{number, starts_like_number};
 use meldframe_protocol::{Gradient, GradientKind, GradientStop};
 
 /// The most stops the model holds.
@@ -80,7 +81,7 @@ fn direction(part: &str, ctx: &Ctx) -> Result<f64, Why> {
     let lower: Vec<String> = w.iter().map(|s| s.to_ascii_lowercase()).collect();
     let bad = ("gradient_config", "not an angle in deg or a side");
     match lower.as_slice() {
-        [one] if numeric(one) => match one.strip_suffix("deg").and_then(number) {
+        [one] if starts_like_number(one) => match one.strip_suffix("deg").and_then(number) {
             Some(a) if (-MAX_ANGLE..=MAX_ANGLE).contains(&a) => Ok(a),
             Some(_) => Err(("gradient_angle_range", "an angle past 3600 degrees")),
             None => Err(("gradient_angle_unit", "an angle that is not in deg")),
@@ -159,7 +160,7 @@ fn stops(
             return Err(("gradient_syntax", "an empty stop"));
         };
         let Some((hex, clipped)) = colour_word(first, style) else {
-            return Err(if numeric(first) {
+            return Err(if starts_like_number(first) {
                 ("gradient_hint", "a colour hint between two stops")
             } else {
                 ("colour_unreadable", "a stop colour that is not read")
