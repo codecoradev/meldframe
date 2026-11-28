@@ -2,9 +2,10 @@
 //! frame `{"id", "status", "accepted" | "error"}`, the body of the REST reply plus the status.
 
 use crate::{
-    Shared, WireOp,
     reply::Reply,
     rest::{bearer, peer},
+    shared::Shared,
+    wire::WireOp,
 };
 use axum::{
     body::Body,
