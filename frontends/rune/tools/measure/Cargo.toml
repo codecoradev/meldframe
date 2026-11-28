@@ -22,6 +22,7 @@ rune = { workspace = true }
 meldframe-rune-pin = { path = "../../crates/rune-pin" }
 meldframe-text-rune = { path = "../../crates/ui/meldframe-text-rune" }
 canvas-ui-rune = { path = "../../crates/features/canvas-ui-rune" }
+meldframe-desktop = { path = "../../apps/desktop" }
 meldframe-app = { path = "../../../../crates/app/meldframe-app" }
 meldframe-layout = { path = "../../../../crates/core/meldframe-layout" }
 meldframe-protocol = { path = "../../../../crates/core/meldframe-protocol" }

@@ -1827,6 +1827,7 @@ version = "0.0.0"
 dependencies = [
  "canvas-ui-rune",
  "meldframe-app",
+ "meldframe-desktop",
  "meldframe-layout",
  "meldframe-oracle-runner",
  "meldframe-protocol",
