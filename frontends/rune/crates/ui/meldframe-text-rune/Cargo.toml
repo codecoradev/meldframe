@@ -1,0 +1,20 @@
+[package]
+name = "meldframe-text-rune"
+description = "The text measurer of the Rune front end: Rune's own text engine behind the layout core's TextMeasurer seam (E8.2.3)."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "ui"
+
+[lints]
+workspace = true
+
+[dependencies]
+rune = { workspace = true }
+meldframe-layout = { path = "../../../../../crates/core/meldframe-layout" }
+meldframe-protocol = { path = "../../../../../crates/core/meldframe-protocol" }
+
+[dev-dependencies]
+serde_json = "1"
