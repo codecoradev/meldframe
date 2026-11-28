@@ -1,6 +1,7 @@
-//! The MCP tool `design_review` (E5.4): a numbered critique list for a file, with each item linked to the batches
-//! that address it. The list is kept by a [`ReviewStore`], never in the file's op log, so none of the actions writes
-//! an op.
+//! The MCP tool `design_review` (E5.4): a numbered critique list for a file, kept by a [`ReviewStore`] and with each
+//! item linked to the batches that address it.
+//!
+//! The list is never in the file's op log, so none of the actions writes an op.
 //!
 //! The workspace and the actor come from the token of the request, never from the arguments (an unknown argument is
 //! refused). A list is read under the Read tier's policy and written under the Change tier's. A batch is linked

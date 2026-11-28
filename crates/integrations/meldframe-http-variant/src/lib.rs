@@ -1,6 +1,7 @@
-//! The `make_variant` tool: a copy of a frame and its subtree beside it (E5.4). The commands come from
-//! `meldframe-variant`; the call ends where `apply_commands` does, in one atomic `submit_ops`, so the gate, the
-//! limits and the log see it as the batch of `addNode`s it is.
+//! The `make_variant` tool: a copy of a frame and its subtree beside it (E5.4).
+//!
+//! The commands come from `meldframe-variant`; the call ends where `apply_commands` does, in one atomic
+//! `submit_ops`, so the gate, the limits and the log see it as the batch of `addNode`s it is.
 //!
 //! A retry must find what the first call wrote. The ids of the copy come from the file, the actor, the key and the
 //! frame (FNV-1a, 64 bits), so the same call makes the same ids; a key that was used for another frame, or by
