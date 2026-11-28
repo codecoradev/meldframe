@@ -6,20 +6,14 @@ use html_import::map::{Imported, NodeInfo, WRAP_MEASURE_MAX};
 use meldframe_layout::{
     StubMeasurer, TEXT_OUTSIDE_CONTRACT_MESSAGE, layout_findings, text_outside_contract,
 };
-use meldframe_protocol::{Command, Node, NodeKind, SizeMode};
+use meldframe_protocol::{Node, NodeKind, SizeMode};
 use serde_json::{Value, json};
 
 /// The most text boxes the `text_size_estimated` warning names.
 const LISTED: usize = 8;
 
 pub(crate) fn nodes_of(i: &Imported) -> Vec<Node> {
-    i.commands
-        .iter()
-        .filter_map(|c| match c {
-            Command::AddNode { node, .. } => Some(node.clone()),
-            _ => None,
-        })
-        .collect()
+    i.added_nodes()
 }
 
 fn kind(k: NodeKind) -> Value {
