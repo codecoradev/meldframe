@@ -15,14 +15,13 @@ pub const MAX_SCALE: f64 = 4.0;
 /// The scales the Export section offers, smallest first: the largest of them that fits is what a refusal for size names.
 pub const SCALES: [f64; 5] = [0.5, 1.0, 2.0, 3.0, 4.0];
 
-/// The most pixels (width times height) of an exported image: 4096 by 4096. A copy of `CAPTURE.max_pixels` in
-/// `apps/server/src/main.rs` (1 << 24), the area limit the server puts on a capture, so that an export and a capture of one
-/// node agree; keep the two in step.
+/// The most pixels (width times height) of an exported image: 4096 by 4096. The one authority for the area limit: the server
+/// reads it for `CAPTURE.max_pixels` (`apps/server/src/main.rs`), so that an export and a capture of one node agree.
 pub const EXPORT_MAX_PIXELS: u64 = 4096 * 4096;
 
-/// The largest PNG a capture may upload, in bytes: 4 MiB. A copy of `CAPTURE.max_bytes` in `apps/server/src/main.rs` (the
-/// capture relay's limit): the request carries the pixel limit but not this one, so the app layer keeps it; keep the two in
-/// step.
+/// The largest PNG a capture may upload, in bytes: 4 MiB. The one authority for the byte cap: the server reads it for
+/// `CAPTURE.max_bytes` (the capture relay's limit); the request carries the pixel limit but not this one, so the app layer
+/// reads it from here too.
 pub const CAPTURE_MAX_BYTES: u64 = 4 << 20;
 
 /// The smallest a PNG can be: the signature, the header chunk and the end chunk. Less is not an image.
