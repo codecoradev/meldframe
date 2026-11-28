@@ -89,8 +89,10 @@ pub enum Makes {
     Redo,
     /// Delete the selection; nothing when none is selected.
     DeleteSelection,
-    /// An arrow key with the selection: the app decides whether anything moves (the layout on the canvas, a child of a flow).
-    Nudge(Direction),
+    /// An arrow key with the selection (`Action::Nudge`): each node goes the way its place allows, by 1 unit or one place along
+    /// the flow of an auto layout frame; with `true` (Shift held) by 10 units and a child of a flow stays. The app decides
+    /// whether anything moves.
+    Nudge(Direction, bool),
     /// Open the edit of the one selected text node; nothing for any other selection.
     BeginTextEdit,
     /// Escape: cancel the text being edited, else close the overlay that is open.
@@ -160,6 +162,13 @@ const fn zoom_step(combo: Combo, command: ZoomCommand) -> Binding {
         ..zoom_key(combo, command)
     }
 }
+/// An arrow key with Shift held (Alt, Ctrl and Command are not free).
+const fn far(key: &'static str, direction: Direction) -> Binding {
+    bind(
+        Combo::key(key).shift(Held::Yes),
+        Makes::Nudge(direction, true),
+    )
+}
 const fn on_row(combo: Combo) -> Binding {
     bind(combo, Makes::Host)
 }
@@ -202,19 +211,35 @@ pub static TABLE: &[Group] = &[
                     bind(delete_key("Backspace"), Makes::DeleteSelection),
                 ],
             ),
-            Row {
-                needs_auto_layout: true,
-                ..row(
-                    "move-in-flow",
-                    "Move one place in an auto layout frame",
-                    &[
-                        bind(Combo::key("ArrowUp"), Makes::Nudge(Direction::Up)),
-                        bind(Combo::key("ArrowDown"), Makes::Nudge(Direction::Down)),
-                        bind(Combo::key("ArrowLeft"), Makes::Nudge(Direction::Left)),
-                        bind(Combo::key("ArrowRight"), Makes::Nudge(Direction::Right)),
-                    ],
-                )
-            },
+            row(
+                "nudge",
+                "Move the selection by 1 unit, or one place in an auto layout frame",
+                &[
+                    bind(Combo::key("ArrowUp"), Makes::Nudge(Direction::Up, false)),
+                    bind(
+                        Combo::key("ArrowDown"),
+                        Makes::Nudge(Direction::Down, false),
+                    ),
+                    bind(
+                        Combo::key("ArrowLeft"),
+                        Makes::Nudge(Direction::Left, false),
+                    ),
+                    bind(
+                        Combo::key("ArrowRight"),
+                        Makes::Nudge(Direction::Right, false),
+                    ),
+                ],
+            ),
+            row(
+                "nudge-far",
+                "Move the selection by 10 units",
+                &[
+                    far("ArrowUp", Direction::Up),
+                    far("ArrowDown", Direction::Down),
+                    far("ArrowLeft", Direction::Left),
+                    far("ArrowRight", Direction::Right),
+                ],
+            ),
             row(
                 "edit-text",
                 "Edit the selected text",

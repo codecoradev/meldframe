@@ -1,12 +1,12 @@
 //! How the server's own limits (names, batch size, room caps) reach a client: the transport code each one
 //! gets, REST status included, and the `Server limits` table of `docs/error-codes.md` held against it.
 
-mod common;
+mod http_common;
 
 use axum::body::Body;
 use axum::http::Request;
 use axum::response::IntoResponse;
-use common::{add, body, config, json};
+use http_common::{add, body, config, json};
 use meldframe_host::{Op, Principal, Refusal};
 use meldframe_http::mcp::Reader;
 use meldframe_http::{Authenticator, Failure, Reply, Submitter, router};
@@ -138,7 +138,7 @@ fn submit_atomic_runs_the_cheap_checks_before_it_opens_a_room() {
 fn the_server_limits_table_matches_the_transport_codes() {
     let docs = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../../docs/error-codes.md"
+        "/../../docs/error-codes.md"
     ))
     .unwrap();
     let section = docs

@@ -1428,23 +1428,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-assets-http-tests"
-version = "0.0.0"
-dependencies = [
- "assets",
- "axum",
- "futures-util",
- "http-body-util",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-assets",
- "meldframe-protocol",
- "serde_json",
- "tokio",
- "tower",
-]
-
-[[package]]
 name = "meldframe-batch"
 version = "0.0.0"
 dependencies = [
@@ -1833,25 +1816,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-http-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "futures-util",
- "meldframe-check",
- "meldframe-host",
- "meldframe-http",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-rooms",
- "meldframe-server",
- "serde_json",
- "tokio",
- "tokio-tungstenite 0.26.2",
- "tower",
-]
-
-[[package]]
 name = "meldframe-http-variables-import"
 version = "0.0.0"
 dependencies = [
@@ -1888,44 +1852,6 @@ dependencies = [
  "serde",
  "serde_json",
  "wasm-bindgen-test",
-]
-
-[[package]]
-name = "meldframe-live-slot-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "futures-util",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-live",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-rooms",
- "meldframe-server",
- "serde_json",
- "tokio",
- "tokio-tungstenite 0.26.2",
- "tower",
-]
-
-[[package]]
-name = "meldframe-live-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "futures-util",
- "meldframe-host",
- "meldframe-http",
- "meldframe-http-live",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-rooms",
- "meldframe-server",
- "serde_json",
- "tokio",
- "tokio-tungstenite 0.26.2",
- "tower",
 ]
 
 [[package]]
@@ -2091,25 +2017,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meldframe-serve-tests"
-version = "0.0.0"
-dependencies = [
- "axum",
- "futures-util",
- "meldframe-check",
- "meldframe-host",
- "meldframe-http",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-rooms",
- "meldframe-server",
- "serde_json",
- "tokio",
- "tokio-tungstenite 0.26.2",
- "tower",
-]
-
-[[package]]
 name = "meldframe-server"
 version = "0.0.0"
 dependencies = [
@@ -2121,11 +2028,14 @@ dependencies = [
  "design-review",
  "example",
  "export",
+ "futures-util",
  "html-import",
+ "http-body-util",
  "meldframe-app-export-model",
  "meldframe-approvals",
  "meldframe-batch",
  "meldframe-calls",
+ "meldframe-check",
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-activity",
@@ -2147,6 +2057,7 @@ dependencies = [
  "meldframe-text",
  "serde_json",
  "tokio",
+ "tokio-tungstenite 0.26.2",
  "tower",
  "variables-import",
 ]

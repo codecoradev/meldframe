@@ -12,7 +12,7 @@
 //! server's events halts the app and is not loaded again.
 
 use canvas_ui_rune::SceneShape;
-use meldframe_app::{Action, App, Connection, Effect};
+use meldframe_app::{Action, App, Connection, Direction, Effect};
 use meldframe_net::{Config, ConfigError, Net, Output, Problem, Waker};
 use meldframe_protocol::Node;
 use meldframe_ui_rune::{BAR_HEIGHT, button, colours, space, status_line};
@@ -20,12 +20,6 @@ use rune::{AppSpec, Cx, El, Tx, col, row};
 
 /// The size the window opens at, in points.
 pub const WINDOW_SIZE: (f32, f32) = (900.0, 640.0);
-
-/// How far the Move button moves the selection to the right, in the units of the file. A PLACEHOLDER: the app layer has no
-/// nudge rule (an arrow key reorders in a flow and moves nothing), so the skeleton asks for a move by a number of its own to have
-/// one change a person can send without the pointer. The moves a person makes are the pointer's and are decided in the app
-/// layer; this goes when a nudge rule exists there.
-pub const MOVE_STEP: f64 = 20.0;
 
 /// The actor of a state with no server: only the tests have one.
 const ACTOR: &str = "user:desktop";
@@ -175,6 +169,11 @@ impl State {
         self.notice.as_ref()
     }
 
+    /// Whether the canvas draws laid-out boxes (the host flag `layout_on_canvas` of the app layer).
+    pub fn set_layout_on_canvas(&mut self, on: bool) {
+        self.app.set_layout_on_canvas(on);
+    }
+
     /// The app layer, for reading.
     pub fn app(&self) -> &App {
         &self.app
@@ -214,9 +213,10 @@ fn status_words(state: &State) -> String {
 /// The window: a bar with Move, Undo and the connection state over the canvas.
 pub fn view(state: &State, _: &mut Cx<State>) -> El {
     let shown = state.app.state();
-    // What the app layer takes: a halted connection drops every change, and a move needs something selected.
+    // What the app layer takes: a halted connection drops every change, and the app layer says whether the very press the
+    // button sends (a coarse nudge to the right) would move something and be accepted.
     let live = shown.connection != Connection::Halted;
-    let can_move = live && !shown.selection.is_empty();
+    let can_move = live && state.app.can_nudge(Direction::Right, true);
     let bar = row()
         .key("bar")
         .h(BAR_HEIGHT)
@@ -226,9 +226,10 @@ pub fn view(state: &State, _: &mut Cx<State>) -> El {
         .px(space::S3)
         .fill(colours().card)
         .child(button("move", "Move", can_move, |s: &mut State| {
-            s.act(Action::MoveBy {
-                dx: MOVE_STEP,
-                dy: 0.0,
+            // The step is the app layer's rule (`Action::Nudge`): the coarse one, 10 units, to the right.
+            s.act(Action::Nudge {
+                direction: Direction::Right,
+                coarse: true,
             });
         }))
         .child(button(

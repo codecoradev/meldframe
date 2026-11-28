@@ -170,7 +170,7 @@ The part of a front end that owns the window, the socket and the platform servic
 _Avoid_: Wrapper, container, runtime
 
 **Nudge**:
-The move of the selection by one small step in world space, as one undo step: 1 unit, or 10 when coarse. A child of an auto layout frame goes one place along its flow instead, because the layout owns its place, and a selected node under a selected node that moves follows it. It is `Action::Nudge` of the **App layer**.
+The move of the selection by one small step in world space, as one undo step: 1 unit, or 10 when coarse. A child of an auto layout frame goes one place along its flow instead, because the layout owns its place, and a selected node under a selected node that moves follows it. It is `Action::Nudge` of the **App layer**; the arrow keys make it (a plain arrow, or Shift for the coarse step), and `Action::ArrowKey`, its older flow-only part, is now sent only by the TypeScript client.
 _Avoid_: Bump, Step move
 
 **Client kind**:
