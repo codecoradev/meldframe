@@ -129,4 +129,101 @@ mod tests {
         assert!(copy[0].message.contains(RUNE_CRATE), "{}", copy[0]);
         assert_eq!(mm("mm-clean", "pub fn other() -> u32 { 7 }\n"), vec![]);
     }
+
+    // The wiring itself: the packages come from `cargo metadata` of two real (tiny) workspaces, the
+    // way `cargo xtask` reads them, and each of the four commands judges what `packages::read` gave.
+
+    fn manifest(name: &str, kind: Option<&str>) -> String {
+        let meta = kind.map_or(String::new(), |k| {
+            format!("\n[package.metadata.meldframe]\nkind = \"{k}\"\n")
+        });
+        format!("[package]\nname = \"{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n{meta}")
+    }
+
+    /// A main workspace with one core crate and, under `frontends/rune`, a workspace with a `ui`
+    /// crate and a crate with no kind. With `dirty`, the Rune half has a colour literal, a file of
+    /// 501 lines and a copy of the main crate's function; the main half is clean either way.
+    fn two_workspaces(name: &str, dirty: bool) -> PathBuf {
+        let rune_src = if dirty {
+            format!(
+                "{}pub const C: &str = \"#ff00ff\";\n{}",
+                body("rune_side"),
+                lines(499)
+            )
+        } else {
+            "pub fn other() -> u32 {\n    7\n}\n".to_string()
+        };
+        let mut files = vec![
+            (
+                "Cargo.toml",
+                "[workspace]\nresolver = \"3\"\nmembers = [\"crates/*\"]\nexclude = [\"frontends/rune\"]\n".to_string(),
+            ),
+            ("crates/core-a/Cargo.toml", manifest("core-a", Some("core"))),
+            ("crates/core-a/src/lib.rs", body("main_side")),
+            (
+                "frontends/rune/Cargo.toml",
+                "[workspace]\nresolver = \"3\"\nmembers = [\"crates/*\"]\n".to_string(),
+            ),
+            ("frontends/rune/crates/rune-ui/Cargo.toml", manifest("rune-ui", Some("ui"))),
+            ("frontends/rune/crates/rune-ui/src/lib.rs", rune_src),
+        ];
+        if dirty {
+            files.push((
+                "frontends/rune/crates/rune-bare/Cargo.toml",
+                manifest("rune-bare", None),
+            ));
+            files.push(("frontends/rune/crates/rune-bare/src/lib.rs", String::new()));
+        }
+        tree(name, &files)
+    }
+
+    /// What deps-check, ui-literals, size-check and mm-check find, in that order.
+    fn findings(root: &std::path::Path, scope: crate::packages::Scope) -> [usize; 4] {
+        let pkgs = crate::packages::read(root, scope).expect("cargo metadata");
+        let cfg = monolith::Config {
+            threshold: 4000,
+            ..monolith::Config::default()
+        };
+        [
+            crate::deps_check(root, &pkgs).len(),
+            ui_literals::collect(root, &pkgs).len(),
+            size::check(&crate::measured(root, &pkgs), &size::Allow::default()).len(),
+            monolith::check(&monolith::load(root, &pkgs), &cfg).len(),
+        ]
+    }
+
+    #[test]
+    fn each_command_fails_on_a_violation_that_is_only_in_the_rune_workspace() {
+        use crate::packages::Scope;
+        let dirty = two_workspaces("wired-dirty", true);
+        let both = findings(&dirty, Scope::Both);
+        let main_only = findings(&dirty, Scope::Main);
+        let names: Vec<String> = crate::packages::read(&dirty, Scope::Both)
+            .unwrap()
+            .into_iter()
+            .map(|p| format!("{}@{}", p.name, p.dir))
+            .collect();
+        let _ = std::fs::remove_dir_all(&dirty);
+        assert_eq!(
+            names,
+            [
+                "core-a@crates/core-a",
+                "rune-bare@frontends/rune/crates/rune-bare",
+                "rune-ui@frontends/rune/crates/rune-ui"
+            ]
+        );
+        // One finding each, and none when the Rune half is left out. The size count is left out of
+        // the second comparison: with no Rune package known, `size-check` would count the files of
+        // its crates as source that no package owns, which it never does in a real run.
+        assert_eq!(both, [1, 1, 1, 1]);
+        assert_eq!([main_only[0], main_only[1], main_only[3]], [0, 0, 0]);
+    }
+
+    #[test]
+    fn each_command_passes_two_clean_workspaces() {
+        let clean = two_workspaces("wired-clean", false);
+        let found = findings(&clean, crate::packages::Scope::Both);
+        let _ = std::fs::remove_dir_all(&clean);
+        assert_eq!(found, [0, 0, 0, 0]);
+    }
 }

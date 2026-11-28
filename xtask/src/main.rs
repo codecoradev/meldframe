@@ -7,6 +7,7 @@ mod licence_scopes;
 mod matrix;
 mod metadata;
 mod monolith;
+mod packages;
 mod plan;
 mod portable;
 mod rules;
@@ -20,23 +21,24 @@ use std::process::{Command, ExitCode};
 
 fn main() -> ExitCode {
     match std::env::args().nth(1).as_deref() {
-        Some("deps-check") => with_all_packages(|p| {
-            report("deps-check", &format!("{} crates", p.len()), &deps_check(p))
+        Some("deps-check") => with_packages("deps-check", |p| {
+            let found = deps_check(&scan::workspace_root(), p);
+            report("deps-check", &format!("{} crates", p.len()), &found)
         }),
-        Some("build-matrix") => {
-            with_packages(|p| run_steps("build-matrix", &matrix::plan(p), None))
-        }
-        Some("portable-check") => with_packages(|p| {
+        Some("build-matrix") => with_packages("build-matrix", |p| {
+            run_steps("build-matrix", &matrix::plan(p), None)
+        }),
+        Some("portable-check") => with_packages("portable-check", |p| {
             let hint = "if a target is missing: rustup target add wasm32-unknown-unknown \
                         (rust-toolchain.toml installs it on a fresh checkout)";
             run_steps("portable-check", &portable::plan(p), Some(hint))
         }),
-        Some("size-check") => with_all_packages(|p| finish(size_check(p))),
-        Some("mm-check") => {
-            with_all_packages(|p| finish(monolith::run(p, &std::env::args().collect::<Vec<_>>())))
-        }
+        Some("size-check") => with_packages("size-check", |p| finish(size_check(p))),
+        Some("mm-check") => with_packages("mm-check", |p| {
+            finish(monolith::run(p, &std::env::args().collect::<Vec<_>>()))
+        }),
         Some("licences") => finish(licences_check()),
-        Some("ui-literals") => with_all_packages(|p| {
+        Some("ui-literals") => with_packages("ui-literals", |p| {
             let found = ui_literals::collect(&scan::workspace_root(), p);
             report("ui-literals", "UI code", &found)
         }),
@@ -85,66 +87,9 @@ fn run_steps(name: &str, steps: &[plan::Step], hint: Option<&str>) -> ExitCode {
     ExitCode::FAILURE
 }
 
-/// Run `cargo metadata` with extra arguments and return its JSON, or an exit code on failure.
-fn metadata_json(extra: &[&str]) -> Result<String, ExitCode> {
-    run_metadata(None, extra)
-}
-
-/// Where the Rune workspace manifest is, when the checkout has the Rune workspace.
-fn rune_manifest() -> Option<std::path::PathBuf> {
-    let manifest = scan::workspace_root()
-        .join(workspaces::RUNE_DIR)
-        .join("Cargo.toml");
-    manifest.is_file().then_some(manifest)
-}
-
-/// `cargo metadata` of the Rune workspace. It runs from the repository root, so the main toolchain
-/// reads the manifests and the Rune toolchain (1.99.1) need not be installed; with `--no-deps` it
-/// fetches nothing. `Ok(None)` when the checkout has no `frontends/rune`.
-fn rune_metadata_json(extra: &[&str]) -> Result<Option<String>, ExitCode> {
-    let Some(manifest) = rune_manifest() else {
-        return Ok(None);
-    };
-    let manifest = manifest.to_string_lossy().into_owned();
-    let args: Vec<&str> = ["--manifest-path", manifest.as_str()]
-        .into_iter()
-        .chain(extra.iter().copied())
-        .collect();
-    run_metadata(Some(&scan::workspace_root()), &args).map(Some)
-}
-
-fn run_metadata(dir: Option<&std::path::Path>, extra: &[&str]) -> Result<String, ExitCode> {
-    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    let mut cmd = Command::new(cargo);
-    cmd.args(["metadata", "--format-version", "1"]).args(extra);
-    if let Some(dir) = dir {
-        cmd.current_dir(dir);
-    }
-    match cmd.output() {
-        Ok(o) if o.status.success() => Ok(String::from_utf8_lossy(&o.stdout).into_owned()),
-        Ok(o) => {
-            eprintln!(
-                "cargo metadata failed:\n{}",
-                String::from_utf8_lossy(&o.stderr)
-            );
-            Err(ExitCode::from(2))
-        }
-        Err(e) => {
-            eprintln!("cannot run cargo metadata: {e}");
-            Err(ExitCode::from(2))
-        }
-    }
-}
-
-/// Read `cargo metadata` and hand the packages of the main workspace to `f` (the steps that run
-/// cargo for each package, `build-matrix` and `portable-check`, use these only: the Rune workspace
-/// has its own toolchain and its own CI job).
-fn with_packages(f: impl FnOnce(&[rules::Package]) -> ExitCode) -> ExitCode {
-    let json = match metadata_json(&["--no-deps"]) {
-        Ok(j) => j,
-        Err(code) => return code,
-    };
-    match metadata::parse(&json) {
+/// Read the packages of the workspaces `command` reads (`packages::scope`) and hand them to `f`.
+fn with_packages(command: &str, f: impl FnOnce(&[rules::Package]) -> ExitCode) -> ExitCode {
+    match packages::read(&scan::workspace_root(), packages::scope(command)) {
         Ok(p) => f(&p),
         Err(e) => {
             eprintln!("{e}");
@@ -153,33 +98,10 @@ fn with_packages(f: impl FnOnce(&[rules::Package]) -> ExitCode) -> ExitCode {
     }
 }
 
-/// Like `with_packages`, with the packages of the Rune workspace added (E8.0.4): each `dir` is
-/// relative to the repository root, so every source check reads both workspaces.
-fn with_all_packages(f: impl FnOnce(&[rules::Package]) -> ExitCode) -> ExitCode {
-    let read = || -> Result<Vec<rules::Package>, ExitCode> {
-        let main = metadata_json(&["--no-deps"])?;
-        let root = metadata::workspace_root(&main).map_err(|e| fail(&e))?;
-        let mut packages = metadata::parse(&main).map_err(|e| fail(&e))?;
-        if let Some(rune) = rune_metadata_json(&["--no-deps"])? {
-            packages.extend(metadata::parse_under(&rune, Some(&root)).map_err(|e| fail(&e))?);
-        }
-        Ok(packages)
-    };
-    match read() {
-        Ok(p) => f(&p),
-        Err(code) => code,
-    }
-}
-
-fn fail(message: &str) -> ExitCode {
-    eprintln!("{message}");
-    ExitCode::from(2)
-}
-
 /// The rules of `deps-check`: kinds and the matrix, the line between the two workspaces, and the
 /// manifests that name a git source.
-fn deps_check(packages: &[rules::Package]) -> Vec<String> {
-    let manifests = gitsrc::collect(&scan::workspace_root());
+fn deps_check(root: &std::path::Path, packages: &[rules::Package]) -> Vec<String> {
+    let manifests = gitsrc::collect(root);
     fn shown(v: &[impl std::fmt::Display]) -> Vec<String> {
         v.iter().map(ToString::to_string).collect()
     }
@@ -200,13 +122,14 @@ fn licences_check() -> Result<ExitCode, String> {
     args::check_flags("licences", &args, &["--check", "--list", "--main-only"])?;
     let has = |flag: &str| args.iter().any(|a| a == flag);
     let root = scan::workspace_root();
-    let main = metadata_json(&[]).map_err(|_| "cargo metadata failed".to_string())?;
+    let main = packages::cargo_metadata(&root, &root.join("Cargo.toml"), &[])?;
     let main_deny = scan::read(&root, "deny.toml");
     let rune_deny = scan::read(&root, &format!("{}/deny.toml", workspaces::RUNE_DIR));
-    let rune = if has("--main-only") {
-        None
-    } else {
-        rune_metadata_json(&["--locked"]).map_err(|_| "cargo metadata failed".to_string())?
+    let rune = match packages::rune_manifest(&root) {
+        Some(manifest) if !has("--main-only") => {
+            Some(packages::cargo_metadata(&root, &manifest, &["--locked"])?)
+        }
+        _ => None,
     };
     let mut scopes = vec![licence_scopes::Scope {
         name: "main",
@@ -233,14 +156,20 @@ fn licences_check() -> Result<ExitCode, String> {
     Ok(report("licences", &scope, &outcome.violations))
 }
 
+/// What `size-check` measures: every package and the source that no package owns (`tools/*`, a
+/// `packages/*` without a manifest, the non-crate source of `frontends/rune`).
+fn measured(root: &std::path::Path, packages: &[rules::Package]) -> Vec<size::Sized> {
+    let mut sizes = size::measure(root, packages);
+    sizes.extend(units::unowned(root, packages));
+    sizes
+}
+
 /// `size-check [--base <git-ref>]`: ceilings, and with `--base` that the allow-list did not grow.
 /// After the result line it notes the crates above the soft value (2,500); that never fails.
 fn size_check(packages: &[rules::Package]) -> Result<ExitCode, String> {
     let root = scan::workspace_root();
     let allow = size::parse_allow(&scan::read(&root, size::ALLOW_FILE))?;
-    let mut sizes = size::measure(&root, packages);
-    // Source that no package owns (`tools/*`, a `packages/*` without a manifest) counts too.
-    sizes.extend(units::unowned(&root, packages));
+    let sizes = measured(&root, packages);
     let mut violations = size::check(&sizes, &allow);
     let args: Vec<String> = std::env::args().collect();
     args::check_flags("size-check", &args, &["--base"])?;

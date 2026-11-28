@@ -23,12 +23,18 @@ fn in_rune_dir(dir: &str) -> bool {
             .is_some_and(|r| r.starts_with('/'))
 }
 
+/// The crates of the Rune toolkit that the main workspace may not name as a dependency.
+const RUNE_TOOLKIT: [&str; 2] = ["rune", "rune-kit"];
+
 /// A broken rule between the two workspaces.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Violation {
     /// A crate of the main workspace depends on a crate under `frontends/rune` (any dependency
     /// kind, dev included: a test edge would still make the main build need the Rune toolchain).
     MainDependsOnRune { krate: String, dep: String },
+    /// A crate of the main workspace depends on the Rune toolkit itself (`rune`, `rune-kit`),
+    /// whatever its kind: the toolkit belongs to the Rune workspace, which carries its patches.
+    MainUsesRune { krate: String, dep: String },
     /// A package name is used in both workspaces, so a name cannot say which one is meant.
     SameName { name: String },
 }
@@ -40,6 +46,11 @@ impl fmt::Display for Violation {
                 f,
                 "{krate}: a crate of the main workspace may not depend on {dep}, which is under \
                  {RUNE_DIR} (ADR-0027: no crate of the main workspace depends on the Rune workspace)"
+            ),
+            Self::MainUsesRune { krate, dep } => write!(
+                f,
+                "{krate}: a crate of the main workspace may not depend on `{dep}`, the Rune toolkit; \
+                 it is used only under {RUNE_DIR}, which carries the patches it needs (ADR-0027)"
             ),
             Self::SameName { name } => write!(
                 f,
@@ -59,6 +70,14 @@ pub fn check(packages: &[Package]) -> Vec<Violation> {
             out.insert(Violation::SameName {
                 name: p.name.clone(),
             });
+        }
+        for dep in p.dependencies.iter().chain(&p.dev_dependencies) {
+            if RUNE_TOOLKIT.contains(&dep.as_str()) {
+                out.insert(Violation::MainUsesRune {
+                    krate: p.name.clone(),
+                    dep: dep.clone(),
+                });
+            }
         }
         let by_path = p
             .path_dependencies
@@ -170,6 +189,31 @@ mod tests {
             &["frontends/rune-notes/x"],
         );
         assert_eq!(check(&[b]), vec![]);
+    }
+
+    #[test]
+    fn a_main_crate_that_depends_on_the_rune_toolkit_fails_whatever_its_kind() {
+        for kind in ["core", "ui", "feature-ui", "bin", "tool"] {
+            for (deps, dev) in [
+                (&["rune"][..], &[][..]),
+                (&["rune-kit"], &[]),
+                (&[], &["rune"]),
+            ] {
+                let a = with_deps(pkg("a", kind, "crates/x/a"), deps, dev, &[]);
+                let v = check(&[a]);
+                assert_eq!(v.len(), 1, "{kind} {deps:?} {dev:?}: {v:?}");
+                assert!(matches!(v[0], Violation::MainUsesRune { .. }));
+                assert!(v[0].to_string().contains("the Rune toolkit"), "{}", v[0]);
+            }
+        }
+        // The same dependency in the Rune workspace is the point of it.
+        let r = with_deps(
+            pkg("r", "ui", "frontends/rune/crates/r"),
+            &["rune"],
+            &[],
+            &[],
+        );
+        assert_eq!(check(&[r]), vec![]);
     }
 
     #[test]
