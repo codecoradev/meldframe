@@ -131,7 +131,7 @@ fn a_node_whose_parent_is_not_in_the_file_is_a_node_of_the_page_and_a_cycle_has_
         {"id": "b", "name": "B", "type": "rect", "parentId": "a"},
     ]))
     .unwrap();
-    let rows = meldframe_app_parts::layers::layer_rows(&nodes, &[], &[], &Default::default());
+    let rows = meldframe_app::parts::layers::layer_rows(&nodes, &[], &[], &Default::default());
     let ids: Vec<&str> = rows.iter().map(|r| r.id.as_str()).collect();
     assert_eq!(ids, ["lost"]);
 }

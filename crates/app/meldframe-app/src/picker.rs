@@ -3,8 +3,8 @@
 
 use crate::app::App;
 use crate::document::refuse;
+use crate::parts::picker::{is_open_valid, open_refusal, picker_view};
 use meldframe_app_model::{BindField, Event, Picker};
-use meldframe_app_parts::picker::{is_open_valid, open_refusal, picker_view};
 
 /// The longest search text, in characters.
 const MAX_QUERY: usize = 200;

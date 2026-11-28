@@ -3,9 +3,9 @@
 
 use crate::app::App;
 use crate::effect::Effect;
+use crate::parts::answers::ask_is_safe;
 use crate::state::Connection;
 use meldframe_app_model::PngOp;
-use meldframe_app_parts::answers::ask_is_safe;
 use meldframe_app_rules::png::{Env, Rasters};
 use meldframe_app_rules::raster::Scene;
 use meldframe_render::HitIndex;

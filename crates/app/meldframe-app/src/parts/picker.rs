@@ -1,6 +1,6 @@
 //! The rows of the bind picker of a field: the variables that fit one field of a node, with the search applied.
 
-use crate::variables_panel::{bindable, field_name, value_text};
+use super::variables_panel::{bindable, field_name, value_text};
 use meldframe_app_model::{BindField, Picker, PickerRow};
 use meldframe_protocol::{Node, VarType, Variables};
 use meldframe_text::{MAX_LABEL, label};

@@ -4,10 +4,10 @@
 use crate::action::Property;
 use crate::app::App;
 use crate::document::refuse;
+use crate::parts::document::{move_to, update};
+use crate::parts::property::property_patch;
+use crate::parts::typed::{Typed, typed};
 use meldframe_app_model::TextField;
-use meldframe_app_parts::document::{move_to, update};
-use meldframe_app_parts::property::property_patch;
-use meldframe_app_parts::typed::{Typed, typed};
 use meldframe_render::Fields;
 use meldframe_sync::SubmitError;
 
@@ -25,7 +25,7 @@ impl App {
         }
     }
 
-    /// What was typed in a field of the panel of the selected node: the rules are `meldframe_app_parts::typed`, which
+    /// What was typed in a field of the panel of the selected node: the rules are `crate::parts::typed`, which
     /// says what it comes to; this carries it out the way the action of that kind is.
     pub(crate) fn set_property_text(
         &mut self,

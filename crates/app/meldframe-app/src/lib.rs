@@ -35,6 +35,7 @@ pub mod nudge;
 mod overlay;
 mod palette;
 mod panel;
+pub mod parts;
 mod picker;
 mod pointer;
 pub mod pointer_machine;

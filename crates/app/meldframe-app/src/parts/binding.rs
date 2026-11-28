@@ -1,7 +1,7 @@
 //! The edit of a variable's value and the bind of a field, the parts that read no `App`: what a value becomes on the
 //! variable's type, and the patch that binds a field or lets it go with the value that is painted.
 
-use crate::variables_panel::{bindable, field_name};
+use super::variables_panel::{bindable, field_name};
 use meldframe_app_model::{BindField, VariableValue};
 use meldframe_protocol::{Bind, Node, NodePatch, Value, VarType, Variables};
 use meldframe_render::Fields;

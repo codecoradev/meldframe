@@ -1,6 +1,6 @@
 // The properties panel: what an edit becomes. A text that was typed goes to the app layer as it is, with the name of the
 // field (`typed`): the parse, the range of the field and the decision that nothing changes are the app
-// layer's (`crates/core/meldframe-app-parts/src/typed.rs`). The clicks that choose a value are turned into their action
+// layer's (`crates/app/meldframe-app/src/parts/typed.rs`). The clicks that choose a value are turned into their action
 // here. Pure.
 import type { Action, BindField, FieldBinding, Properties, TextAlign, TextField } from '@meldframe/protocol';
 

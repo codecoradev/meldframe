@@ -6,8 +6,8 @@
 use crate::app::App;
 use crate::effect::Effect;
 use crate::event::Event;
+use crate::parts::text_edit::selected_text;
 use meldframe_app_model::{Action, KeyInput, OverlayOp, PointerInput, TextEditOp};
-use meldframe_app_parts::text_edit::selected_text;
 use meldframe_app_rules::keys::{Makes, decide};
 
 /// When a key that made an action was the editor's.

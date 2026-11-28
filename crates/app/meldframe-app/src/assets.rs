@@ -1,16 +1,16 @@
 //! The image picker of the Fill section and the choice of an image (E2.5, ADR-0015 follow-up): which node the picker is
 //! open for, the page of the workspace's assets it reads (`Effect::FetchAssets`, answered by `Action::AssetsLoaded`), and
 //! `Action::SetImageFill`; the picker is view state, so nothing is written to the file until an image is chosen, and that is
-//! one undo step, with the rules of are those of `meldframe-app-parts` (`image`) and `AssetsState`.
+//! one undo step, with the rules of are those of `parts::image` and `AssetsState`.
 
 use crate::action::Action;
 use crate::app::App;
 use crate::document::refuse;
 use crate::effect::Effect;
 use crate::event::Event;
+use crate::parts::document::update;
+use crate::parts::image::{image_fill_patch, is_open_valid, open_refusal};
 use meldframe_app_model::{ASSET_PAGE, AssetsState};
-use meldframe_app_parts::document::update;
-use meldframe_app_parts::image::{image_fill_patch, is_open_valid, open_refusal};
 use meldframe_protocol::ImageFit;
 use meldframe_sync::SubmitError;
 

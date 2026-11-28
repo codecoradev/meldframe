@@ -1,6 +1,6 @@
 //! The fields of the properties panel that take typed text (`TypedText::Property` of `Action::Typed`). A front end names the
 //! field and sends what the person typed; the parse, the range and the decision that nothing changes are the app layer's
-//! (`meldframe-app-parts`, `typed`).
+//! (`meldframe-app`, `parts::typed`).
 
 use crate::layout::Side;
 use serde::{Deserialize, Serialize};

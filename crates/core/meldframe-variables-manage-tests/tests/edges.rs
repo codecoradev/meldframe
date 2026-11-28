@@ -5,7 +5,7 @@
 use wasm_bindgen_test::wasm_bindgen_test as test;
 
 use meldframe_app::Action;
-use meldframe_app_parts::manage::{Target, removal};
+use meldframe_app::parts::manage::{Target, removal};
 use meldframe_app_rules::modes::check_group;
 use meldframe_protocol::{Bind, Command, NodePatch};
 use serde_json::json;

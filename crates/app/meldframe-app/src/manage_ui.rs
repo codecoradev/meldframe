@@ -1,18 +1,18 @@
 //! The Variables manage view as state of the app (audit finding T5, issue 322): which collection is shown, the question
 //! before a removal, the field a name is edited in, and the text of the forms that add something; the rules that read the
-//! file are `meldframe_app_parts::manage_names`; the commands of a removal are `meldframe_app_parts::manage`, run by the
+//! file are `crate::parts::manage_names`; the commands of a removal are `crate::parts::manage`, run by the
 //! actions of `manage.rs`; this holds the transitions, and `refresh_manage` brings what follows the file (the checks, the
 //! numbers of a question, a field whose target another actor removed) up to date once per dispatch.
 
 use crate::app::App;
 use crate::document::refuse;
 use crate::event::Event;
+use crate::parts::manage::Target;
+use crate::parts::manage_form::{draft, kept, rename_command, shown};
+use crate::parts::manage_names::{check_rename, gone_code, removal_of, rename_context};
 use meldframe_app_model::{
     ManageDrafts, ManageOp, ManageTarget, NameDraft, NameError, RenameField, VariableEntity,
 };
-use meldframe_app_parts::manage::Target;
-use meldframe_app_parts::manage_form::{draft, kept, rename_command, shown};
-use meldframe_app_parts::manage_names::{check_rename, gone_code, removal_of, rename_context};
 use meldframe_sync::SubmitError;
 use meldframe_text::{MAX_LABEL, label};
 

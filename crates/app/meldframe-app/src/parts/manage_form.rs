@@ -2,7 +2,7 @@
 //! is compared with, the command of a rename and a form's draft with its check. They read the variables and what they are given,
 //! and hold no state; the transitions that use them are `manage_ui.rs` of `meldframe-app`.
 
-use crate::manage_names::check_name;
+use super::manage_names::check_name;
 use meldframe_app_model::{ManageTarget, NameDraft, VariableEntity};
 use meldframe_protocol::{Command, Variables};
 use meldframe_text::clip;
