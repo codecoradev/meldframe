@@ -1,4 +1,4 @@
-//! The view state of the app: the tool, the selection and the panels. None of it is an op or an undo step.
+//! The view state of the app: the tool, the selection and the panels, none of which is an op or an undo step.
 
 use crate::app::App;
 use crate::event::Event;
