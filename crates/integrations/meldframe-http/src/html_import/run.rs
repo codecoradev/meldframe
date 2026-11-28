@@ -4,10 +4,10 @@ use super::answer;
 use super::check::Call;
 use super::tool::{Body, HtmlImport};
 use super::write::Write;
+use crate::Reply;
+use crate::mcp::{FileView, fnv1a, tool_error as error, tool_failed as failed};
 use html_import::map::{ImportError, Imported, MAX_COMMANDS, Options, import};
 use meldframe_host::Principal;
-use meldframe_http::Reply;
-use meldframe_http::mcp::{FileView, fnv1a, tool_error as error, tool_failed as failed};
 use meldframe_protocol::{Command, Doc, Node, Variables};
 use serde_json::{Map, Value, json};
 

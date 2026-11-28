@@ -22,7 +22,7 @@ async fn start() -> Harness {
 /// The same with a policy for the tool and what the workspace holds besides assets: `(bytes of ops, limit)`.
 async fn start_with(
     policy: Option<meldframe_module::Policy>,
-    ops_storage: meldframe_http_assets::OpsStorage,
+    ops_storage: meldframe_http::assets::OpsStorage,
 ) -> Harness {
     let spy = Arc::new(Spy {
         server: Arc::new(SharedServer::new(Server::assemble())),
@@ -37,12 +37,12 @@ async fn start_with(
         .unwrap(),
     );
     let blobs: Arc<dyn assets::BlobStore> = Arc::new(assets::MemoryBlobs::default());
-    let upload = meldframe_http_assets::Assets::new(
+    let upload = meldframe_http::assets::Assets::new(
         meldframe_http::shared(tokens.clone(), spy.clone(), config()),
         blobs.clone(),
         assets::Usage::new(blobs),
         ops_storage,
-        meldframe_http_assets::Options::default(),
+        meldframe_http::assets::Options::default(),
     );
     let mcp = meldframe_http::mcp::McpConfig {
         allowed_hosts: Vec::new(),

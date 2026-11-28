@@ -5,11 +5,11 @@
 //! a base64 text that is over the image limit is refused before it is decoded.
 
 use super::state::{Refused, State_};
+use crate::mcp::{Extra, ExtraCall};
 use assets::{AssetError, MAX_ASSET_BYTES, UPLOAD_DESCRIPTION, UPLOAD_TOOL};
 use base64::Engine;
 use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use meldframe_host::{Principal, Refusal};
-use meldframe_http::mcp::{Extra, ExtraCall};
 use meldframe_module::Policy;
 use rmcp::model::{CallToolResult, Tool, ToolAnnotations};
 use serde::Deserialize;

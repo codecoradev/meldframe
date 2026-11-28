@@ -5,12 +5,12 @@ use super::options::{OpsStorage, Options};
 use super::state::State_;
 use super::tool;
 use super::transfer::{download, upload};
+use crate::{Shared, Slots};
 use assets::{BlobStore, Usage};
 use axum::{
     Router,
     routing::{get, post},
 };
-use meldframe_http::{Shared, Slots};
 use std::sync::Arc;
 
 /// The asset routes of one server, with the default options and no storage limit (the assets are counted).
@@ -82,10 +82,7 @@ impl Assets {
 
     /// The MCP tool `upload_asset`, for `McpConfig::extra`. `policy` is the registry's policy for the tool: only
     /// `Some(Policy::Auto)` lets a call run.
-    pub fn tool(
-        &self,
-        policy: Option<meldframe_module::Policy>,
-    ) -> Arc<dyn meldframe_http::mcp::Extra> {
+    pub fn tool(&self, policy: Option<meldframe_module::Policy>) -> Arc<dyn crate::mcp::Extra> {
         Arc::new(tool::UploadTool {
             state: self.state.clone(),
             policy,

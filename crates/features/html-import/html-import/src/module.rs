@@ -1,7 +1,7 @@
 //! The registration of the tool `import_html` (module M1 of `docs/standards/modular-thin-ui.md`): its name, the text an agent reads and its risk tier.
 //!
 //! The importer itself is [`crate::map::import`]; the adapter that serves the tool over MCP is
-//! `meldframe-http-html-import`.
+//! the module `html_import` of `meldframe-http`.
 
 use meldframe_module::{Module, Registrar};
 

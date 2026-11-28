@@ -219,12 +219,12 @@ fn serve(
     #[cfg(feature = "assets")]
     {
         let ops = shared.clone();
-        let assets = meldframe_http_assets::Assets::new(
+        let assets = meldframe_http::assets::Assets::new(
             state.clone(),
             blobs,
             usage,
             Arc::new(move |ws| ops.ops_storage(ws)),
-            meldframe_http_assets::Options::default(),
+            meldframe_http::assets::Options::default(),
         );
         app = app.merge(assets.routes());
         extra_tools.push(assets.tool(upload_policy));
@@ -252,7 +252,7 @@ fn serve(
         import_policy,
     ));
     #[cfg(feature = "html-import")]
-    extra_tools.push(meldframe_http_html_import::tool(
+    extra_tools.push(meldframe_http::html_import::tool(
         state.clone(),
         shared.clone(),
         html_import_policy,
@@ -298,7 +298,7 @@ fn serve(
 fn open_assets(
     release: bool,
 ) -> Result<(Arc<dyn assets::BlobStore>, assets::Usage), Box<dyn std::error::Error>> {
-    let dir = meldframe_http_assets::assets_dir(
+    let dir = meldframe_http::assets::assets_dir(
         release,
         std::env::var("MELDFRAME_ASSETS_DIR").ok().as_deref(),
     )?;

@@ -35,7 +35,7 @@ fn regenerate() {
     let up = server.registry().agent_tool("upload_asset").unwrap();
     tools.push(
         json!({"name": up.name, "tier": up.tier.as_str(), "description": up.description,
-        "inputSchema": meldframe_http_assets::upload_input_schema()}),
+        "inputSchema": meldframe_http::assets::upload_input_schema()}),
     );
     let dr = server.registry().agent_tool(design_review::TOOL).unwrap();
     tools.push(
@@ -58,7 +58,7 @@ fn regenerate() {
     let hi = server.registry().agent_tool(html_import::TOOL).unwrap();
     tools.push(
         json!({"name": hi.name, "tier": hi.tier.as_str(), "description": hi.description,
-        "inputSchema": meldframe_http_html_import::input_schema()}),
+        "inputSchema": meldframe_http::html_import::input_schema()}),
     );
     let gb = server
         .registry()

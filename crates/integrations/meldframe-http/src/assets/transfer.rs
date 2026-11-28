@@ -2,6 +2,7 @@
 
 use super::failure::failure;
 use super::state::{Refused, State_};
+use crate::{Failure, Reply};
 use assets::{AssetError, ImageType, MAX_ASSET_BYTES};
 use axum::{
     body::Body,
@@ -11,7 +12,6 @@ use axum::{
 };
 use futures_util::StreamExt;
 use meldframe_host::Refusal;
-use meldframe_http::{Failure, Reply};
 use meldframe_protocol::is_asset_id;
 use serde_json::json;
 use std::sync::Arc;

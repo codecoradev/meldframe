@@ -1432,15 +1432,20 @@ dependencies = [
 name = "meldframe-http"
 version = "0.0.0"
 dependencies = [
+ "assets",
  "axum",
+ "base64 0.22.1",
  "design-review",
  "export",
+ "futures-util",
+ "html-import",
  "hyper",
  "hyper-util",
  "meldframe-activity",
  "meldframe-batch",
  "meldframe-check",
  "meldframe-checkpoints",
+ "meldframe-core",
  "meldframe-host",
  "meldframe-layout",
  "meldframe-mcp-defs",
@@ -1475,24 +1480,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
- "tokio",
-]
-
-[[package]]
-name = "meldframe-http-assets"
-version = "0.0.0"
-dependencies = [
- "assets",
- "axum",
- "base64 0.22.1",
- "futures-util",
- "meldframe-host",
- "meldframe-http",
- "meldframe-module",
- "meldframe-protocol",
- "rmcp",
- "serde",
- "serde_json",
  "tokio",
 ]
 
@@ -1533,26 +1520,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
-]
-
-[[package]]
-name = "meldframe-http-html-import"
-version = "0.0.0"
-dependencies = [
- "html-import",
- "meldframe-activity",
- "meldframe-check",
- "meldframe-core",
- "meldframe-host",
- "meldframe-http",
- "meldframe-layout",
- "meldframe-module",
- "meldframe-protocol",
- "meldframe-text",
- "meldframe-variant",
- "rmcp",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1684,10 +1651,8 @@ dependencies = [
  "meldframe-host",
  "meldframe-http",
  "meldframe-http-activity",
- "meldframe-http-assets",
  "meldframe-http-capture",
  "meldframe-http-checkpoints",
- "meldframe-http-html-import",
  "meldframe-module",
  "meldframe-protocol",
  "meldframe-render",
