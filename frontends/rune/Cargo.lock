@@ -540,6 +540,7 @@ dependencies = [
  "meldframe-render",
  "meldframe-ui-rune",
  "rune",
+ "serde_json",
 ]
 
 [[package]]

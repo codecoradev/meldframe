@@ -14,8 +14,10 @@ use rune::{AppSpec, Cx, El, col, row};
 /// The size the window opens at, in points.
 pub const WINDOW_SIZE: (f32, f32) = (900.0, 640.0);
 
-/// How far the Move button moves the selection to the right, in the units of the file. The button stands for the
-/// first action a person can send without the pointer; the moves a person makes are the pointer's, and decided in the app layer.
+/// How far the Move button moves the selection to the right, in the units of the file. A PLACEHOLDER: the app layer has no
+/// nudge rule (an arrow key reorders in a flow and moves nothing), so the skeleton asks for a move by a number of its own to have
+/// one change a person can send without the pointer. The moves a person makes are the pointer's and are decided in the app
+/// layer; this goes when a nudge rule exists there.
 pub const MOVE_STEP: f64 = 20.0;
 
 /// The actor the shell edits as until sign-in gives it one.
@@ -86,6 +88,9 @@ fn connection_words(connection: &Connection) -> String {
 /// The window: a bar with Move, Undo and the connection state over the canvas.
 pub fn view(state: &State, _: &mut Cx<State>) -> El {
     let shown = state.app.state();
+    // What the app layer takes: a halted connection drops every change, and a move needs something selected.
+    let live = shown.connection != Connection::Halted;
+    let can_move = live && !shown.selection.is_empty();
     let bar = row()
         .key("bar")
         .h(BAR_HEIGHT)
@@ -94,21 +99,16 @@ pub fn view(state: &State, _: &mut Cx<State>) -> El {
         .gap(space::S2)
         .px(space::S3)
         .fill(colours().card)
-        .child(button(
-            "move",
-            "Move",
-            !shown.selection.is_empty(),
-            |s: &mut State| {
-                s.act(Action::MoveBy {
-                    dx: MOVE_STEP,
-                    dy: 0.0,
-                });
-            },
-        ))
+        .child(button("move", "Move", can_move, |s: &mut State| {
+            s.act(Action::MoveBy {
+                dx: MOVE_STEP,
+                dy: 0.0,
+            });
+        }))
         .child(button(
             "undo",
             "Undo",
-            shown.history.can_undo,
+            live && shown.history.can_undo,
             |s: &mut State| s.act(Action::Undo {}),
         ))
         .child(status_line("status", connection_words(&shown.connection)));

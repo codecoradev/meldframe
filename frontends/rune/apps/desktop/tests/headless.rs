@@ -4,9 +4,9 @@
 //!
 //! The PNG golden needs a GPU adapter, so it has its own test in `render.rs`.
 
-use meldframe_app::{Action, App, Connection};
+use meldframe_app::{Action, App, Connection, Frame};
 use meldframe_desktop::{MOVE_STEP, State, WINDOW_SIZE, spec};
-use meldframe_protocol::Node;
+use meldframe_protocol::{Command, Node, NodePatch};
 use meldframe_ui_rune::BAR_HEIGHT;
 use rune::shape::Op;
 use rune::{Env, Runtime};
@@ -187,7 +187,9 @@ fn bounds(op: &Op) -> Option<[f32; 4]> {
 #[test]
 fn the_shape_paints_a_child_where_the_hit_rule_finds_it() {
     let state = fixture();
-    let shape = state.shape().shape(state.app());
+    let shape = state
+        .app()
+        .with_scene(|_, boxes| canvas_ui_rune::paint(boxes));
     let fills: Vec<[f32; 4]> = shape.ops.iter().filter_map(bounds).collect();
     // `r1` is at (10, 10) inside `f1`, which is at (100, 100): the world rectangle is (110, 110) to (160, 150), and that is
     // where the app layer finds it.
@@ -197,6 +199,62 @@ fn the_shape_paints_a_child_where_the_hit_rule_finds_it() {
         "no fill covers the world rectangle of r1: {fills:?}"
     );
     assert_eq!(fills.len(), 4, "one fill for each of the four boxes");
+}
+
+#[test]
+fn move_is_enabled_only_when_the_app_layer_would_take_it() {
+    let mut rt = runtime(fixture);
+    click(&mut rt, 120.0, BAR_HEIGHT + 120.0);
+    let enabled = |rt: &Runtime<State>, key: &str| {
+        rt.elements()
+            .iter()
+            .any(|e| e.key.as_deref() == Some(key) && e.focusable)
+    };
+    assert!(
+        enabled(&rt, "move"),
+        "a selection on a live connection: the button works"
+    );
+    click_key(&mut rt, "move");
+    assert!(enabled(&rt, "undo"), "and so does Undo after a change");
+
+    // A frame the file cannot take halts the connection: the app layer then drops every change.
+    rt.update(|s, _| {
+        s.act(Action::Frame {
+            now_ms: 0,
+            frame: Frame::Event {
+                seq: 1,
+                actor: "agent:x".into(),
+                key: Some("b1:0".into()),
+                command: Command::UpdateNode {
+                    id: "ghost".into(),
+                    patch: NodePatch::default(),
+                },
+            },
+        });
+    });
+    rt.frame(0.0);
+    assert_eq!(rt.state.app().state().connection, Connection::Halted);
+    assert!(
+        !rt.state.app().state().selection.is_empty(),
+        "the selection is still there"
+    );
+    assert!(!enabled(&rt, "move"), "halted: Move is off");
+    assert!(
+        !enabled(&rt, "undo"),
+        "halted: Undo is off, though there is a step to undo"
+    );
+    assert!(rt.state.app().state().history.can_undo);
+
+    // The buttons agree with the app layer: the same actions do nothing while halted.
+    let before = node(rt.state.app(), "r1").x;
+    rt.update(|s, _| {
+        s.act(Action::MoveBy {
+            dx: MOVE_STEP,
+            dy: 0.0,
+        });
+        s.act(Action::Undo {});
+    });
+    assert_eq!(node(rt.state.app(), "r1").x, before);
 }
 
 /// The element tree as a stable JSON text: what a person or a tool reads to see what the window holds. Floats are rounded to
