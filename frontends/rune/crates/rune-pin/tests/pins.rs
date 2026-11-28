@@ -16,7 +16,6 @@ fn read(name: &str) -> String {
 fn the_revision_is_a_full_commit_id() {
     assert_eq!(RUNE_REVISION.len(), 40);
     assert!(RUNE_REVISION.bytes().all(|b| b.is_ascii_hexdigit()));
-    assert!(RUNE_REVISION.starts_with("048528dc35f0"));
 }
 
 /// The `rune` dependency and the eight patches, and every `rev` in the manifest is the constant.

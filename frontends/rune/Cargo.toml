@@ -12,8 +12,8 @@ edition = "2024"
 publish = false
 
 # Rune is used by git revision only. The revision is written on this line and on the eight patches
-# below (a `[patch]` table cannot inherit), and `meldframe_rune_pin::RUNE_REVISION` repeats it once
-# in code; its test fails when the manifest, the lock or `deny.toml` name another one. A bump is its
+# below (a `[patch]` table cannot inherit); `meldframe_rune_pin::RUNE_REVISION` is the one value in
+# code, and the tests of that crate fail when the manifest, the lock or `deny.toml` name another one. A bump is its
 # own pull request (docs/decisions.md, decision 46).
 [workspace.dependencies]
 rune = { git = "https://github.com/anomalyco/rune", rev = "048528dc35f0a7499887f334330fd9704cdd8e51" }

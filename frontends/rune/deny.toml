@@ -4,8 +4,9 @@
 # `unknown-git = "deny"` and its shorter list).
 #
 # The one git source of the repository is Rune, by revision. A bump of the revision changes it here,
-# in `Cargo.toml` (nine lines) and in `meldframe_rune_pin::RUNE_REVISION`; the tests of
-# `crates/rune-pin` fail when they disagree.
+# in `Cargo.toml` (nine lines), in `Cargo.lock` and in `meldframe_rune_pin::RUNE_REVISION`; the tests
+# of `crates/rune-pin` fail when they disagree. Cargo-deny matches the URL only, so those tests are
+# what keep the revision on the next line honest.
 
 [graph]
 targets = [

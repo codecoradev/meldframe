@@ -254,6 +254,7 @@ jobs:
   # when the pull request changed `frontends/rune/` or this file; otherwise it ends in a few seconds. The
   # compile cache is keyed on the Rune lock and the toolchain file and is saved by the nightly run on
   # `develop` (the `rune` job of nightly.yml under the same shared key). Rune links libxkbcommon on Linux.
+  # Assumes a merge-commit checkout of the pull request (HEAD^1 is the base), as the GitHub job does.
   rune:
     name: rune
     runs-on: ubuntu-latest
