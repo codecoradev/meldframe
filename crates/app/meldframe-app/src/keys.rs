@@ -6,7 +6,7 @@
 use crate::app::App;
 use crate::effect::Effect;
 use crate::event::Event;
-use meldframe_app_model::{Action, KeyInput, OverlayOp, TextEditOp};
+use meldframe_app_model::{Action, KeyInput, OverlayOp, PointerInput, TextEditOp};
 use meldframe_app_parts::text_edit::selected_text;
 use meldframe_app_rules::keys::{Makes, decide};
 
@@ -56,6 +56,8 @@ impl App {
             },
             // With no selection the action is a no-op (no step, no event, no effect): the key raises nothing and the browser
             // keeps it.
+            // An arrow key is not a command while a press is down: the gesture is the person's hands' business.
+            Makes::Nudge(_) if self.pointer.busy() => return None,
             Makes::Nudge(direction) => {
                 return Some((Action::ArrowKey { direction }, Used::IfDocumentChanged));
             }
@@ -64,7 +66,10 @@ impl App {
                     op: TextEditOp::BeginSelected {},
                 }
             }
-            // Escape cancels the text being edited; when none is open, it closes the overlay that is.
+            // Escape abandons a press that is down, begun to drag or not; else it cancels the text being edited; when none is open, it closes the overlay that is.
+            Makes::Cancel if self.pointer.busy() => Action::Pointer {
+                input: PointerInput::cancel(),
+            },
             Makes::Cancel if s.text_edit.is_some() => Action::TextEdit {
                 op: TextEditOp::Cancel {},
             },

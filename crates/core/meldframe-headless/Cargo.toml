@@ -1,0 +1,32 @@
+[package]
+name = "meldframe-headless"
+description = "A made-up second front end: a headless command line shell that reads a script and drives the app layer through its actions only, as the living proof of the thin UI rule U8 and the toolkit swap rule U10. Not part of any product build."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "tool"
+
+[lib]
+path = "src/lib.rs"
+
+# `test = false`: the tests of the crate are its integration tests, which also run under WASM (`just wasm-test`); a test
+# binary of the command line entry would be a second one to build for that target.
+[[bin]]
+name = "meldframe-headless"
+path = "src/main.rs"
+test = false
+
+[dependencies]
+meldframe-app = { path = "../../app/meldframe-app" }
+meldframe-protocol = { path = "../meldframe-protocol" }
+serde_json = "1"
+
+# See meldframe-order/Cargo.toml: the tests run under WASM through wasm-bindgen-test.
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "=0.3.80"
+
+[lints]
+workspace = true

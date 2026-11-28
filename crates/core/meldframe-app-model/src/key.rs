@@ -32,14 +32,14 @@ pub enum KeyFocus {
 ///
 /// What the host still does, because the app layer has no state for it:
 ///
-/// - It does not send an arrow key while a drag is going on (the TypeScript returned before dispatching one). The app layer has
-///   no gesture state. An arrow key with no selection may be sent: it is a no-op there.
+/// - It may send an arrow key at any time: while a press is down (a drag, a resize, a draw, a marquee or a pan, begun or not) the app layer
+///   does not take it, and with no selection it is a no-op.
 /// - It does not send Ctrl or Command+K while a menu is open (a menu keeps its open state in the component library, and
 ///   `KeyFocus` cannot say that one is open elsewhere), and it still calls `preventDefault` on that key itself, as the
 ///   TypeScript did.
-/// - It keeps the keys of a gesture: Space and the Escape that abandons a drag. Escape here is the app's own, for a text edit
-///   or an overlay, and only without a modifier. The zoom keys (`+`, `=`, `-`, Shift+1 and Shift+2) are the app's: they run the
-///   camera (`Action::Camera`).
+/// - It keeps Space, which it reports with each pointer event (`PointerInput::space`). Escape is the app's, only without a
+///   modifier: it abandons a press that is down (`Action::Pointer`, `Cancel`), else cancels a text edit, else closes an
+///   overlay. The zoom keys (`+`, `=`, `-`, Shift+1 and Shift+2) are the app's: they run the camera (`Action::Camera`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
