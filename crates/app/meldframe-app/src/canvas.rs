@@ -1,5 +1,5 @@
-//! How the canvas gets its boxes: the host's text measurer and the `layout_on_canvas` flag, as the app's methods. The state is
-//! `meldframe_app_rules::canvas::CanvasLayout`.
+//! How the canvas gets its boxes: the host's text measurer and the `layout_on_canvas` flag, as the app's methods, with
+//! the state in `meldframe_app_rules::canvas::CanvasLayout`.
 
 use crate::app::App;
 use crate::effect::Effect;

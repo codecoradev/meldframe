@@ -1,7 +1,7 @@
 //! A key press as an action (audit finding T7a, issue 324, decision 43 clause Q1): what the key makes comes from the key table
 //! (`meldframe_app_rules::keys`), and the action it makes is dispatched like any other, so a key and the button that does the
-//! same thing go through one path. `Event::KeyHandled` says the key was the editor's, so a front end keeps it from the browser
-//! in the same dispatch.
+//! same thing go through one path, and `Event::KeyHandled` says the key was the editor's, so a front end keeps it from the
+//! browser in the same dispatch.
 
 use crate::app::App;
 use crate::effect::Effect;
