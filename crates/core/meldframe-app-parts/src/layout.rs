@@ -2,12 +2,8 @@
 //! the settings that have no effect where it is (the rules of `docs/fidelity-contract.md`, G1 and the sizing table).
 
 use meldframe_app_model::{Axis, LayoutNote, Sides};
-use meldframe_protocol::{LayoutMode, Node, NodeKind, Pad, SizeMode};
-
-/// A frame with auto layout: the only parent that flows its children, gives margins room and shares out `fill`.
-pub fn is_layout(n: &Node) -> bool {
-    n.kind == NodeKind::Frame && n.layout != LayoutMode::None
-}
+use meldframe_layout::is_layout_frame;
+use meldframe_protocol::{Node, NodeKind, Pad, SizeMode};
 
 pub fn sides(p: Pad) -> Sides {
     Sides {
@@ -28,7 +24,7 @@ pub fn uniform(p: Pad) -> Option<f64> {
 /// is judged as `layout_findings` judges it (an absolute node is never a `fill_under_hug`), and an absolute node is
 /// placed at its own `w` and `h` whatever its parent (`place.rs`), so a `fill` on it has no effect.
 pub fn layout_notes(n: &Node, parent: Option<&Node>) -> Vec<LayoutNote> {
-    let flows = parent.is_some_and(is_layout);
+    let flows = parent.is_some_and(is_layout_frame);
     let mut out = Vec::new();
     for (axis, mode, parent_mode) in [
         (Axis::Width, n.sw, parent.map(|p| p.sw)),
@@ -43,7 +39,7 @@ pub fn layout_notes(n: &Node, parent: Option<&Node>) -> Vec<LayoutNote> {
             }
         }
         // `hug` means something for text and for a frame with auto layout; the rest is laid out as `fixed`.
-        let hugs = n.kind == NodeKind::Text || is_layout(n);
+        let hugs = n.kind == NodeKind::Text || is_layout_frame(n);
         if mode == SizeMode::Hug && !hugs {
             out.push(LayoutNote::HugIgnored { axis });
         }
