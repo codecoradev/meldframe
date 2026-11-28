@@ -1555,6 +1555,7 @@ dependencies = [
  "export-dialog",
  "meldframe-activity",
  "meldframe-app-model",
+ "meldframe-app-nudge",
  "meldframe-app-parts",
  "meldframe-app-pointer",
  "meldframe-app-rules",
@@ -1598,6 +1599,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "meldframe-app-nudge"
+version = "0.0.0"
+dependencies = [
+ "meldframe-app-model",
+ "meldframe-app-parts",
+ "meldframe-app-rules",
+ "meldframe-layout",
+ "meldframe-protocol",
+ "meldframe-sync",
+]
+
+[[package]]
 name = "meldframe-app-parts"
 version = "0.0.0"
 dependencies = [
@@ -1605,6 +1618,7 @@ dependencies = [
  "meldframe-app-model",
  "meldframe-check",
  "meldframe-checkpoints",
+ "meldframe-layout",
  "meldframe-order",
  "meldframe-protocol",
  "meldframe-render",

@@ -169,6 +169,10 @@ _Avoid_: Frontend, GUI
 The part of a front end that owns the window, the socket and the platform services (file picker, download, clipboard, fonts). It carries out the effects of the **App layer**, draws its state and holds no rule: it hands the server's raw answers over and parses nothing. A front end has one shell for each target (a native window, a browser page), and the views the shells draw are shared, not copied.
 _Avoid_: Wrapper, container, runtime
 
+**Nudge**:
+The move of the selection by one small step in world space, as one undo step: 1 unit, or 10 when coarse. A child of an auto layout frame goes one place along its flow instead, because the layout owns its place, and a selected node under a selected node that moves follows it. It is `Action::Nudge` of the **App layer**.
+_Avoid_: Bump, Step move
+
 **Client kind**:
 The kind of client a credential belongs to: web, desktop or agent. The server reads it from the credential and never from a field, header or user-agent string the caller chose, and decides which kinds it accepts; a kind that is switched off is refused at the server with the reason, and its code stays in the build. It says how an **Actor** connects, not who the **Actor** is, and a front end that checks it for itself only gives a courtesy, not control.
 _Avoid_: Client type, platform, device

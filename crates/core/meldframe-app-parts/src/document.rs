@@ -149,6 +149,22 @@ pub fn check_all(nodes: &[Node], vars: &Variables, cmds: &[Command]) -> Result<(
         .map_err(SubmitError::Invalid)
 }
 
+/// Whether a list of `cmds` fits the queue of pending ops of the replica, before anything is applied.
+pub fn check_room(r: &Replica, cmds: &[Command]) -> Result<(), SubmitError> {
+    let max = r.max_pending();
+    if r.pending_len() + cmds.len() > max {
+        return Err(SubmitError::OutboxFull { max });
+    }
+    Ok(())
+}
+
+/// Every command is valid on the current document of the replica and the queue has room for all of them: checked before any
+/// is applied, so a list that would fail half way applies nothing.
+pub fn validate(r: &Replica, cmds: &[Command]) -> Result<(), SubmitError> {
+    check_room(r, cmds)?;
+    check_all(r.nodes(), r.vars(), cmds)
+}
+
 /// What a request for a variant of a frame comes to.
 #[derive(Debug)]
 pub enum Variant {
