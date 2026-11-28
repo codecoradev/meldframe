@@ -6,8 +6,8 @@ use crate::effect::Effect;
 use crate::state::Tool;
 use meldframe_app_model::{ManageOp, TextEditOp, TypedText};
 use meldframe_app_parts::document::{
-    Variant, apply_all, check_all, code, edit_text, make_variant, move_by, move_to, new_node,
-    preset_node,
+    Variant, apply_all, check_room, code, edit_text, make_variant, move_by, move_to, new_node,
+    preset_node, validate,
 };
 use meldframe_app_parts::manage::Target;
 use meldframe_app_parts::touched::render_set;
@@ -106,6 +106,7 @@ impl App {
             Action::DropNode { id, x, y, dx, dy } => self.drop_node(&id, (x, y), (dx, dy)),
             Action::DropNodes { ids, x, y, dx, dy } => self.drop_nodes(&ids, (x, y), (dx, dy)),
             Action::ArrowKey { direction } => self.arrow_key(direction),
+            Action::Nudge { direction, coarse } => self.nudge(direction, coarse),
             Action::EditText { id, text } => self.replica.apply(&edit_text(&id, text)),
             Action::TextEdit {
                 op: TextEditOp::Commit { id, text },
@@ -211,18 +212,13 @@ impl App {
 
     /// Whether a list action of `cmds` fits the queue of pending ops, before anything is applied.
     pub(crate) fn check_room(&self, cmds: &[Command]) -> Result<(), SubmitError> {
-        let max = self.replica.max_pending();
-        if self.replica.pending_len() + cmds.len() > max {
-            return Err(SubmitError::OutboxFull { max });
-        }
-        Ok(())
+        check_room(&self.replica, cmds)
     }
 
     /// Every command is valid on the current document and the queue has room for all of them: checked
     /// before any is applied, so a list that would fail half way applies nothing.
     pub(crate) fn validate(&self, cmds: &[Command]) -> Result<(), SubmitError> {
-        self.check_room(cmds)?;
-        check_all(self.replica.nodes(), self.replica.vars(), cmds)
+        validate(&self.replica, cmds)
     }
 
     fn delete(&mut self, ids: &[String]) -> Result<(), SubmitError> {

@@ -1,0 +1,22 @@
+[package]
+name = "meldframe-net"
+description = "The network half of a native shell (E8.2.2): it loads a file from a development server, keeps the live socket, carries out the effects of the app layer and hands the answers back as actions. No window, no toolkit, no editor rule."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[package.metadata.meldframe]
+kind = "os"
+
+[lints]
+workspace = true
+
+[dependencies]
+meldframe-app-model = { path = "../../../../../crates/core/meldframe-app-model" }
+meldframe-protocol = { path = "../../../../../crates/core/meldframe-protocol" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Blocking, no async runtime and no TLS: this slice talks to a development server on the loopback address (the
+# configuration refuses any other host, so the token never crosses a network in clear text).
+tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
+ureq = { version = "3.5", default-features = false }
