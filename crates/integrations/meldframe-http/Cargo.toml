@@ -23,7 +23,7 @@ variant = ["mcp", "dep:meldframe-variant"]
 # The asset routes and the upload_asset tool (E2.5): the `assets` module. It is an MCP tool, so it needs `mcp`.
 assets = ["mcp", "dep:assets", "dep:base64", "dep:futures-util"]
 # The import_html tool (E4.4): the `html_import` module. It is an MCP tool, so it needs `mcp`.
-html-import = ["mcp", "dep:html-import", "dep:meldframe-core", "dep:meldframe-variant"]
+html-import = ["mcp", "dep:html-import", "dep:meldframe-core", "dep:meldframe-variant", "dep:meldframe-layout", "dep:meldframe-check"]
 
 [dependencies]
 meldframe-activity = { path = "../../core/meldframe-activity" }
