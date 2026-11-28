@@ -13,7 +13,7 @@ pub use meldframe_mcp_defs::{MAX_BATCH, MAX_KEY, TOOLS, ToolDef, check_key, key_
 /// (`make_variant`, `import_html`): one wording, one shape.
 pub use tools::{error as tool_error, failed as tool_failed};
 
-use crate::{Failure, Shared, rest};
+use crate::{Failure, rest, shared::Shared};
 use axum::{
     Router,
     extract::{Request, State},
