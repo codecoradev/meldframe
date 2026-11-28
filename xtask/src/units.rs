@@ -9,8 +9,8 @@ use crate::rules::Package;
 use crate::scan;
 use crate::size::{EXTENSIONS, Sized};
 
-/// Directories searched for source that no package owns.
-const ROOTS: &[&str] = &["tools", "packages"];
+/// Directories searched for source that no package owns (`frontends/rune` is the Rune workspace).
+const ROOTS: &[&str] = &["tools", "packages", "frontends"];
 
 /// Group `files` (workspace-relative) that are not inside a package directory into units.
 pub fn group(files: &[String], package_dirs: &[&str]) -> BTreeMap<String, Vec<String>> {
@@ -79,6 +79,23 @@ mod tests {
             ["packages/protocol", "tools/oracle"]
         );
         assert_eq!(got["tools/oracle"].len(), 2);
+    }
+
+    #[test]
+    fn source_of_the_rune_workspace_outside_its_crates_is_one_unit() {
+        let got = group(
+            &files(&[
+                "frontends/rune/tools/c1.mjs",
+                "frontends/rune/crates/pin/src/lib.rs",
+                "frontends/rune/apps/desktop/src/main.rs",
+            ]),
+            &["frontends/rune/crates/pin"],
+        );
+        assert_eq!(
+            got.keys().map(String::as_str).collect::<Vec<_>>(),
+            ["frontends/rune"]
+        );
+        assert_eq!(got["frontends/rune"].len(), 2);
     }
 
     #[test]

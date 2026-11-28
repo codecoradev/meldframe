@@ -16,6 +16,11 @@ pub struct Package {
     pub composite: Vec<String>,
     /// Names of packages this one depends on (normal and build dependencies).
     pub dependencies: Vec<String>,
+    /// Names of the dev-dependencies (they do not ship, so layering does not read them).
+    pub dev_dependencies: Vec<String>,
+    /// Directories of the path dependencies of any kind, relative to the workspace root (an
+    /// absolute path when the dependency lies outside it).
+    pub path_dependencies: Vec<String>,
     /// True when any dependency is a UI toolkit.
     pub uses_ui_toolkit: bool,
     /// Feature names declared in the manifest (including `default`).
@@ -194,6 +199,8 @@ const UI_TOOLKITS: &[&str] = &[
     "yew",
     "tauri",
     "ratatui",
+    "rune",
+    "rune-kit",
 ];
 
 /// True when `name` is a known UI toolkit package.

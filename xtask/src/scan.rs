@@ -29,7 +29,12 @@ fn root_of(manifest_dir: &str) -> PathBuf {
 
 /// Build outputs that exist at a known path, relative to the workspace root. Only these exact
 /// directories are skipped (a `dist` or `target` anywhere else is source and is scanned).
-const SKIPPED_DIRS: &[&str] = &["target", "apps/web/dist", "tools/fidelity-oracle/out"];
+const SKIPPED_DIRS: &[&str] = &[
+    "target",
+    "frontends/rune/target",
+    "apps/web/dist",
+    "tools/fidelity-oracle/out",
+];
 
 /// Every file under `dir` whose extension is in `exts`, as `/`-separated paths relative to
 /// `root`, sorted. Skips the directories in `SKIPPED_DIRS`, `node_modules` at any depth and hidden
@@ -126,6 +131,8 @@ mod tests {
             "skip",
             &[
                 "target/a.rs",
+                "frontends/rune/target/debug/r.rs",
+                "frontends/rune/crates/p/target/q.rs",
                 "crates/x/target/b.rs",
                 "crates/x/src/dist/c.rs",
                 "apps/web/dist/d.js",
@@ -142,7 +149,8 @@ mod tests {
             [
                 "apps/web/src/e.js",
                 "crates/x/src/dist/c.rs",
-                "crates/x/target/b.rs"
+                "crates/x/target/b.rs",
+                "frontends/rune/crates/p/target/q.rs"
             ]
         );
     }
